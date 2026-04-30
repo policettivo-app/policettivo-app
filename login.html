@@ -8,109 +8,20 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Montserrat', sans-serif;
-      background: #000;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 48px 40px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
-    }
-    .logo {
-      text-align: center;
-      margin-bottom: 36px;
-    }
-    .logo-mark {
-      display: inline-block;
-      background: #FFD008;
-      color: #000;
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 2px;
-      padding: 6px 16px;
-      border-radius: 4px;
-      margin-bottom: 10px;
-    }
-    .logo h1 {
-      font-size: 22px;
-      font-weight: 700;
-      color: #000;
-      letter-spacing: -0.5px;
-    }
-    .logo p {
-      font-size: 12px;
-      color: #666;
-      margin-top: 4px;
-    }
-    .divider {
-      height: 1px;
-      background: #eee;
-      margin: 24px 0;
-    }
-    label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: #000;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-    }
-    input {
-      width: 100%;
-      padding: 14px 16px;
-      border: 1.5px solid #ddd;
-      border-radius: 8px;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 15px;
-      color: #000;
-      margin-bottom: 18px;
-      transition: border-color 0.2s;
-      outline: none;
-    }
+    body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #fff; border-radius: 16px; padding: 48px 40px; width: 100%; max-width: 420px; box-shadow: 0 8px 40px rgba(0,0,0,0.4); }
+    .logo { text-align: center; margin-bottom: 36px; }
+    .logo-mark { display: inline-block; background: #FFD008; color: #000; font-weight: 700; font-size: 13px; letter-spacing: 2px; padding: 6px 16px; border-radius: 4px; margin-bottom: 10px; }
+    .logo h1 { font-size: 22px; font-weight: 700; color: #000; }
+    .logo p { font-size: 12px; color: #666; margin-top: 4px; }
+    .divider { height: 1px; background: #eee; margin: 24px 0; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #000; letter-spacing: 0.5px; margin-bottom: 6px; text-transform: uppercase; }
+    input { width: 100%; padding: 14px 16px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 15px; color: #000; margin-bottom: 18px; outline: none; }
     input:focus { border-color: #FFD008; }
-    .btn {
-      width: 100%;
-      padding: 16px;
-      background: #FFD008;
-      color: #000;
-      border: none;
-      border-radius: 8px;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      letter-spacing: 0.5px;
-      transition: background 0.2s, transform 0.1s;
-    }
-    .btn:hover { background: #e6bc00; }
-    .btn:active { transform: scale(0.98); }
+    .btn { width: 100%; padding: 16px; background: #FFD008; color: #000; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; }
     .btn:disabled { background: #ccc; cursor: not-allowed; }
-    .error-msg {
-      background: #fff3f3;
-      border: 1px solid #ffcdd2;
-      color: #c62828;
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 13px;
-      margin-bottom: 16px;
-      display: none;
-    }
-    .footer-note {
-      text-align: center;
-      font-size: 11px;
-      color: #999;
-      margin-top: 24px;
-    }
+    .error-msg { background: #fff3f3; border: 1px solid #ffcdd2; color: #c62828; border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .footer-note { text-align: center; font-size: 11px; color: #999; margin-top: 24px; }
   </style>
 </head>
 <body>
@@ -123,54 +34,31 @@
     <div class="divider"></div>
     <div class="error-msg" id="error-msg"></div>
     <label for="email">Email</label>
-    <input type="email" id="email" placeholder="tuanome@email.it" autocomplete="email">
+    <input type="email" id="email" placeholder="tuanome@email.it">
     <label for="password">Password</label>
-    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+    <input type="password" id="password" placeholder="••••••••">
     <button class="btn" id="login-btn" onclick="doLogin()">Accedi</button>
     <div class="footer-note">Sistema Policettivo® — Solo per professionisti autorizzati</div>
   </div>
- 
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
- 
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     async function doLogin() {
       const email = document.getElementById('email').value.trim()
       const password = document.getElementById('password').value
       const btn = document.getElementById('login-btn')
       const errEl = document.getElementById('error-msg')
- 
-      if (!email || !password) {
-        showError('Inserisci email e password.')
-        return
-      }
- 
+      if (!email || !password) { showError('Inserisci email e password.'); return }
       btn.disabled = true
       btn.textContent = 'Accesso in corso...'
       errEl.style.display = 'none'
- 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
- 
-      if (error) {
-        showError('Credenziali non valide. Riprova.')
-        btn.disabled = false
-        btn.textContent = 'Accedi'
-        return
-      }
- 
+      const { data, error } = await _supabase.auth.signInWithPassword({ email, password })
+      if (error) { showError('Credenziali non valide. Riprova.'); btn.disabled = false; btn.textContent = 'Accedi'; return }
       window.location.href = 'dashboard.html'
     }
- 
-    function showError(msg) {
-      const el = document.getElementById('error-msg')
-      el.textContent = msg
-      el.style.display = 'block'
-    }
- 
-    document.getElementById('password').addEventListener('keydown', e => {
-      if (e.key === 'Enter') doLogin()
-    })
+    function showError(msg) { const el = document.getElementById('error-msg'); el.textContent = msg; el.style.display = 'block'; }
+    document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
   </script>
 </body>
 </html>
