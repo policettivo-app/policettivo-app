@@ -42,7 +42,6 @@
     .badge-gpl { background: #FFD008; color: #000; }
     .badge-attivo { background: #e8f5e9; color: #2e7d32; }
     .empty-state { text-align: center; padding: 60px 24px; color: #999; }
-    .empty-state p { font-size: 14px; margin-bottom: 16px; }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.open { display: flex; }
     .modal { background: #fff; border-radius: 16px; padding: 36px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
@@ -56,7 +55,7 @@
     .modal-actions { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
     .btn-secondary { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
     .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .config-option { border: 2px solid #eee; border-radius: 8px; padding: 14px; cursor: pointer; text-align: center; transition: border-color 0.2s; }
+    .config-option { border: 2px solid #eee; border-radius: 8px; padding: 14px; cursor: pointer; text-align: center; }
     .config-option.selected-npl { border-color: #000; background: #000; color: #FFD008; }
     .config-option.selected-gpl { border-color: #FFD008; background: #FFD008; color: #000; }
     .config-option .config-name { font-weight: 700; font-size: 16px; }
@@ -76,10 +75,7 @@
   </nav>
   <div class="main">
     <div class="page-header">
-      <div>
-        <h1>Dashboard</h1>
-        <p id="welcome-msg">Bentornato</p>
-      </div>
+      <div><h1>Dashboard</h1><p id="welcome-msg">Bentornato</p></div>
       <button class="btn-primary" onclick="openModal()">+ Nuovo paziente</button>
     </div>
     <div class="stats-grid">
@@ -89,12 +85,8 @@
     </div>
     <div class="section-title">I tuoi pazienti</div>
     <div class="patients-table">
-      <div class="table-header">
-        <span>Paziente</span><span>Problema</span><span>Config.</span><span>Stato</span><span></span>
-      </div>
-      <div id="patients-list">
-        <div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>
-      </div>
+      <div class="table-header"><span>Paziente</span><span>Problema</span><span>Config.</span><span>Stato</span><span></span></div>
+      <div id="patients-list"><div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div></div>
     </div>
   </div>
   <div class="modal-overlay" id="modal-overlay">
@@ -111,14 +103,10 @@
       <div class="form-group"><label>Problema principale</label><input type="text" id="p-problema" placeholder="es. Lombalgia, Cervicalgia..."></div>
       <div class="form-group"><label>Note cliniche</label><textarea id="p-note" placeholder="Annotazioni riservate..."></textarea></div>
       <div class="form-group">
-        <label>Configurazione cuscini</label>
+        <label>Configurazione cuscini (opzionale — si può impostare dopo le foto)</label>
         <div class="config-selector">
-          <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')">
-            <div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div>
-          </div>
-          <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')">
-            <div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div>
-          </div>
+          <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div></div>
+          <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div></div>
         </div>
       </div>
       <div class="modal-actions">
@@ -139,18 +127,18 @@
       if (!session) { window.location.href = 'login.html'; return }
       document.getElementById('user-email').textContent = session.user.email
       document.getElementById('welcome-msg').textContent = 'Bentornato, ' + session.user.email.split('@')[0]
-      const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
-      if (prof) { currentProfessionalId = prof.id; loadPatients(); loadStats(); }
+      const { data: prof, error: profErr } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
+      if (profErr || !prof) { console.error('Professionista non trovato', profErr); return }
+      currentProfessionalId = prof.id
+      loadPatients()
+      loadStats()
     }
 
     async function loadPatients() {
-      const { data: patients } = await _supabase.from('patients').select('*').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('created_at', { ascending: false })
+      const { data: patients, error } = await _supabase.from('patients').select('*').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('created_at', { ascending: false })
+      if (error) { console.error('Errore pazienti', error); return }
       const list = document.getElementById('patients-list')
-      if (!patients || patients.length === 0) {
-        list.innerHTML = '<div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>'
-        document.getElementById('stat-pazienti').textContent = '0'
-        return
-      }
+      if (!patients || patients.length === 0) { list.innerHTML = '<div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>'; document.getElementById('stat-pazienti').textContent = '0'; return }
       document.getElementById('stat-pazienti').textContent = patients.length
       list.innerHTML = patients.map(p => `
         <div class="patient-row" onclick="goToPatient('${p.id}')">
@@ -171,7 +159,6 @@
     }
 
     function openModal() { document.getElementById('modal-overlay').classList.add('open') }
-
     function closeModal() {
       document.getElementById('modal-overlay').classList.remove('open')
       selectedConfig = null
@@ -179,7 +166,6 @@
       document.getElementById('opt-gpl').className = 'config-option'
       ;['p-nome','p-cognome','p-email','p-telefono','p-problema','p-note'].forEach(id => document.getElementById(id).value = '')
     }
-
     function selectConfig(val) {
       selectedConfig = val
       document.getElementById('opt-npl').className = 'config-option' + (val === 'NPL' ? ' selected-npl' : '')
@@ -196,18 +182,15 @@
         telefono: document.getElementById('p-telefono').value.trim() || null,
         problema_principale: document.getElementById('p-problema').value.trim() || null,
         note_cliniche: document.getElementById('p-note').value.trim() || null,
-        configurazione_default: selectedConfig, stato: 'attivo'
+        configurazione_default: selectedConfig,
+        stato: 'attivo'
       })
       if (error) { alert('Errore: ' + error.message); return }
       closeModal(); loadPatients(); loadStats()
     }
 
     function goToPatient(id) { window.location.href = 'paziente.html?id=' + id }
-
-    async function doLogout() {
-      await _supabase.auth.signOut()
-      window.location.href = 'login.html'
-    }
+    async function doLogout() { await _supabase.auth.signOut(); window.location.href = 'login.html' }
 
     init()
   </script>
