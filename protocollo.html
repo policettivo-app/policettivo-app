@@ -57,29 +57,29 @@
     .diary-note:focus { border-color: #FFD008; }
     .btn-diary { width: 100%; padding: 14px; background: #1a1a1a; border: 1px solid #FFD008; color: #FFD008; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
     .btn-diary:hover { background: #FFD008; color: #000; }
+    .btn-wa { width: 100%; padding: 14px; background: #25D366; color: #fff; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
     .success-msg { background: #1a3a1a; border: 1px solid #2e7d32; color: #81c784; border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-top: 12px; display: none; text-align: center; }
     .success-msg.visible { display: block; }
     .no-protocol { text-align: center; padding: 60px 20px; color: #555; }
     .no-protocol h2 { font-size: 18px; color: #777; margin-bottom: 8px; }
-    .install-banner { background: #1a1a00; border: 1px solid #FFD008; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: none; }
-    .install-banner p { font-size: 13px; color: #FFD008; margin-bottom: 10px; }
-    .btn-install { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
     .ios-banner { background: #1a1a00; border: 1px solid #FFD008; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: none; }
+    .install-banner { background: #1a1a00; border: 1px solid #FFD008; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: none; }
+    .btn-install { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
   </style>
 </head>
 <body>
   <nav class="navbar">
-    <span class="navbar-logo">POLICETTIVO®</span>
+    <span class="navbar-logo">POLICETTIVO</span>
     <span class="navbar-name" id="nav-name"></span>
   </nav>
   <div class="main">
     <div class="ios-banner" id="ios-banner">
-      <p style="font-size:13px;color:#FFD008;margin-bottom:8px;font-weight:600">💛 Salva l'app sulla Home</p>
+      <p style="font-size:13px;color:#FFD008;margin-bottom:8px;font-weight:600">Salva l'app sulla Home</p>
       <p style="font-size:12px;color:#aaa;line-height:1.6">1. Tocca <strong style="color:#fff">Condividi</strong> in basso<br>2. Tocca <strong style="color:#fff">Aggiungi alla schermata Home</strong><br>3. Tocca <strong style="color:#fff">Aggiungi</strong></p>
-      <button onclick="document.getElementById('ios-banner').style.display='none'" style="margin-top:10px;background:transparent;border:1px solid #FFD008;color:#FFD008;padding:6px 14px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">Ho capito</button>
+      <button onclick="document.getElementById('ios-banner').style.display='none';localStorage.setItem('ios_banner_dismissed','1')" style="margin-top:10px;background:transparent;border:1px solid #FFD008;color:#FFD008;padding:6px 14px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">Ho capito</button>
     </div>
     <div class="install-banner" id="install-banner">
-      <p>💛 Aggiungi Policettivo® alla schermata Home!</p>
+      <p style="font-size:13px;color:#FFD008;margin-bottom:10px">Aggiungi Policettivo alla schermata Home!</p>
       <button class="btn-install" id="btn-install">Aggiungi alla Home</button>
     </div>
 
@@ -87,11 +87,11 @@
       <div class="smile-big" id="smile-emoji">😐</div>
       <div class="smile-title" id="smile-title"></div>
       <div class="smile-sub" id="smile-sub"></div>
-      <button class="btn-pagella" id="btn-pagella">📊 Vedi la mia pagella</button>
+      <button class="btn-pagella" id="btn-pagella">Vedi la mia pagella</button>
     </div>
 
     <div class="greeting">
-      <h1 id="greeting-title">Ciao 👋</h1>
+      <h1 id="greeting-title">Ciao</h1>
       <p id="greeting-sub">Il tuo programma di oggi</p>
     </div>
     <div id="content-area">
@@ -118,16 +118,19 @@
     }
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {})
+      navigator.serviceWorker.register('/sw.js').catch(function() {})
     }
 
-    window.addEventListener('beforeinstallprompt', e => {
+    window.addEventListener('beforeinstallprompt', function(e) {
       e.preventDefault(); deferredPrompt = e
       document.getElementById('install-banner').style.display = 'block'
     })
 
-    document.getElementById('btn-install').addEventListener('click', () => {
-      if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; document.getElementById('install-banner').style.display = 'none' }) }
+    document.getElementById('btn-install').addEventListener('click', function() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt()
+        deferredPrompt.userChoice.then(function() { deferredPrompt = null; document.getElementById('install-banner').style.display = 'none' })
+      }
     })
 
     async function init() {
@@ -137,13 +140,12 @@
       if (isIOS && !isStandalone && !localStorage.getItem('ios_banner_dismissed')) {
         document.getElementById('ios-banner').style.display = 'block'
       }
-
       const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
       if (!p) { showError('Paziente non trovato.'); return }
       patient = p
-      document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome + ' 👋'
+      document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
-      document.getElementById('btn-pagella').onclick = () => window.location.href = 'pagella.html?token=' + token
+      document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token }
 
       const { data: prots } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
       if (!prots || prots.length === 0) { showNoProtocol(); return }
@@ -151,11 +153,11 @@
 
       const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
       if (ppe && ppe.length > 0) {
-        const exIds = ppe.map(e => e.exercise_id)
+        const exIds = ppe.map(function(e) { return e.exercise_id })
         const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
         const exMap = {}
-        if (exData) exData.forEach(e => exMap[e.id] = e)
-        exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
+        if (exData) exData.forEach(function(e) { exMap[e.id] = e })
+        exercises = ppe.map(function(e) { return Object.assign({}, e, { exercise: exMap[e.exercise_id] || null }) })
       }
       renderProtocol()
       loadSmile()
@@ -164,12 +166,13 @@
     async function loadSmile() {
       try {
         const { data: entries } = await _supabase.from('diary_entries').select('data,completato').eq('patient_id', patient.id).order('data', { ascending: false }).limit(30)
-        const completate = (entries || []).filter(e => e.completato)
+        const completate = (entries || []).filter(function(e) { return e.completato })
         const oggi = new Date(); oggi.setHours(0,0,0,0)
-        let streak = 0, dc = new Date(oggi)
+        let streak = 0
+        let dc = new Date(oggi)
         for (let i = 0; i < 30; i++) {
           const ds = dc.toISOString().split('T')[0]
-          if (completate.find(e => e.data === ds)) { streak++; dc.setDate(dc.getDate()-1) } else break
+          if (completate.find(function(e) { return e.data === ds })) { streak++; dc.setDate(dc.getDate()-1) } else break
         }
         const ultima = completate.length > 0 ? new Date(completate[0].data) : null
         const diff = ultima ? Math.max(0, Math.floor((oggi - ultima)/(1000*60*60*24))) : 999
@@ -196,17 +199,24 @@
       let exHtml = ''
       if (exercises.length > 0) {
         exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' +
-          exercises.map((e, i) => {
+          exercises.map(function(e, i) {
             const ex = e.exercise
             const ecfg = e.configurazione || cfg
             return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div><span class="exercise-config cfg-' + ecfg.toLowerCase() + '">' + ecfg + '</span></div>'
           }).join('') + '</div>'
       }
       document.getElementById('content-area').innerHTML =
-        '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + exercises.length + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">▶ Inizia gli esercizi</button></div>' +
+        '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + exercises.length + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">Inizia gli esercizi</button></div>' +
         exHtml +
-        '<div class="diary-card"><div class="diary-title">📓 Come stai oggi?</div><div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="document.getElementById(\'val-dolore\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Rigidità</span><span class="slider-value" id="val-rigidita">0</span></div><input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="document.getElementById(\'val-rigidita\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div><input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="document.getElementById(\'val-equilibrio\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div><input type="range" id="sl-energia" min="0" max="10" value="5" oninput="document.getElementById(\'val-energia\').textContent=this.value"></div><textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea><button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button>
-      <button onclick="contattaProfessionista()" style="width:100%;padding:14px;background:#25D366;color:#fff;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px">📲 Scrivi al professionista</button><div class="success-msg" id="diary-success">✓ Diario salvato! Ottimo lavoro.</div></div>'
+        '<div class="diary-card"><div class="diary-title">Come stai oggi?</div>' +
+        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="document.getElementById(\'val-dolore\').textContent=this.value"></div>' +
+        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Rigidita</span><span class="slider-value" id="val-rigidita">0</span></div><input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="document.getElementById(\'val-rigidita\').textContent=this.value"></div>' +
+        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div><input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="document.getElementById(\'val-equilibrio\').textContent=this.value"></div>' +
+        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div><input type="range" id="sl-energia" min="0" max="10" value="5" oninput="document.getElementById(\'val-energia\').textContent=this.value"></div>' +
+        '<textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea>' +
+        '<button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button>' +
+        '<button class="btn-wa" onclick="contattaProfessionista()">Scrivi al professionista</button>' +
+        '<div class="success-msg" id="diary-success">Diario salvato! Ottimo lavoro.</div></div>'
     }
 
     function iniziaEsercizi() {
@@ -230,14 +240,15 @@
       loadSmile()
     }
 
+    function contattaProfessionista() {
+      const msg = 'Ciao, sono ' + patient.nome + ' ' + patient.cognome + '. Ti scrivo dall app Policettivo.'
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg))
+    }
+
     function showError(msg) {
       document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>' + msg + '</h2></div>'
     }
 
-    function contattaProfessionista() {
-      const msg = 'Ciao, sono ' + patient.nome + ' ' + patient.cognome + '. Ti scrivo dall app Policettivo®.'
-      window.open('https://wa.me/?text=' + encodeURIComponent(msg))
-    }
     function showNoProtocol() {
       document.getElementById('greeting-sub').textContent = 'Nessun protocollo attivo'
       document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>'
