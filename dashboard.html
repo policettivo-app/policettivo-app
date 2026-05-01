@@ -28,6 +28,10 @@
     .stat-label { font-size: 11px; font-weight: 600; color: #999; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
     .stat-value { font-size: 32px; font-weight: 700; color: #000; }
     .stat-value.yellow { color: #FFD008; }
+    .search-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+    .search-input { flex: 1; padding: 12px 16px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; background: #fff; }
+    .search-input:focus { border-color: #FFD008; }
+    .search-count { font-size: 12px; color: #999; white-space: nowrap; }
     .section-title { font-size: 16px; font-weight: 700; color: #000; margin-bottom: 16px; }
     .patients-table { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; }
     .table-header { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr 1fr; padding: 12px 24px; background: #f9f9f9; border-bottom: 1px solid #eee; font-size: 11px; font-weight: 600; color: #999; letter-spacing: 1px; text-transform: uppercase; }
@@ -42,6 +46,8 @@
     .badge-gpl { background: #FFD008; color: #000; }
     .badge-attivo { background: #e8f5e9; color: #2e7d32; }
     .empty-state { text-align: center; padding: 60px 24px; color: #999; }
+    .empty-state p { font-size: 14px; margin-bottom: 16px; }
+    .highlight { background: #FFD008; border-radius: 2px; padding: 0 1px; }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.open { display: flex; }
     .modal { background: #fff; border-radius: 16px; padding: 36px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
@@ -49,8 +55,8 @@
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 11px; font-weight: 600; color: #000; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
-    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #FFD008; }
+    .form-group input, .form-group textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; }
+    .form-group input:focus, .form-group textarea:focus { border-color: #FFD008; }
     .form-group textarea { resize: vertical; min-height: 80px; }
     .modal-actions { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
     .btn-secondary { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -84,6 +90,10 @@
       <div class="stat-card"><div class="stat-label">Sessioni oggi</div><div class="stat-value yellow" id="stat-sessioni">—</div></div>
     </div>
     <div class="section-title">I tuoi pazienti</div>
+    <div class="search-bar">
+      <input class="search-input" type="text" id="search-input" placeholder="🔍  Cerca per nome, cognome o problema..." oninput="filterPatients(this.value)">
+      <span class="search-count" id="search-count"></span>
+    </div>
     <div class="patients-table">
       <div class="table-header"><span>Paziente</span><span>Problema</span><span>Config.</span><span>Stato</span><span></span></div>
       <div id="patients-list"><div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div></div>
@@ -103,7 +113,7 @@
       <div class="form-group"><label>Problema principale</label><input type="text" id="p-problema" placeholder="es. Lombalgia, Cervicalgia..."></div>
       <div class="form-group"><label>Note cliniche</label><textarea id="p-note" placeholder="Annotazioni riservate..."></textarea></div>
       <div class="form-group">
-        <label>Configurazione cuscini (opzionale — si può impostare dopo le foto)</label>
+        <label>Configurazione cuscini (opzionale)</label>
         <div class="config-selector">
           <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div></div>
           <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div></div>
@@ -121,33 +131,63 @@
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     let currentProfessionalId = null
     let selectedConfig = null
+    let allPatients = []
 
     async function init() {
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
       document.getElementById('user-email').textContent = session.user.email
       document.getElementById('welcome-msg').textContent = 'Bentornato, ' + session.user.email.split('@')[0]
-      const { data: prof, error: profErr } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
-      if (profErr || !prof) { console.error('Professionista non trovato', profErr); return }
-      currentProfessionalId = prof.id
-      loadPatients()
-      loadStats()
+      const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
+      if (prof) { currentProfessionalId = prof.id; loadPatients(); loadStats(); }
     }
 
     async function loadPatients() {
-      const { data: patients, error } = await _supabase.from('patients').select('*').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('created_at', { ascending: false })
-      if (error) { console.error('Errore pazienti', error); return }
-      const list = document.getElementById('patients-list')
-      if (!patients || patients.length === 0) { list.innerHTML = '<div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>'; document.getElementById('stat-pazienti').textContent = '0'; return }
-      document.getElementById('stat-pazienti').textContent = patients.length
-      list.innerHTML = patients.map(p => `
-        <div class="patient-row" onclick="goToPatient('${p.id}')">
-          <div><div class="patient-name">${p.nome} ${p.cognome}</div><div class="patient-email">${p.email || ''}</div></div>
-          <div class="patient-problem">${p.problema_principale || '—'}</div>
+      const { data: patients } = await _supabase.from('patients').select('*').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('cognome', { ascending: true })
+      allPatients = patients || []
+      document.getElementById('stat-pazienti').textContent = allPatients.length
+      renderPatients(allPatients, '')
+    }
+
+    function renderPatients(list, query) {
+      const el = document.getElementById('patients-list')
+      const count = document.getElementById('search-count')
+      if (!list || list.length === 0) {
+        el.innerHTML = query
+          ? '<div class="empty-state"><p>Nessun paziente trovato per "' + query + '"</p></div>'
+          : '<div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>'
+        count.textContent = ''
+        return
+      }
+      count.textContent = list.length + ' pazient' + (list.length === 1 ? 'e' : 'i')
+      el.innerHTML = list.map(p => {
+        const nome = highlight(p.nome + ' ' + p.cognome, query)
+        const prob = highlight(p.problema_principale || '—', query)
+        return `<div class="patient-row" onclick="goToPatient('${p.id}')">
+          <div><div class="patient-name">${nome}</div><div class="patient-email">${p.email || ''}</div></div>
+          <div class="patient-problem">${prob}</div>
           <div>${p.configurazione_default ? `<span class="badge badge-${p.configurazione_default.toLowerCase()}">${p.configurazione_default}</span>` : '—'}</div>
           <div><span class="badge badge-attivo">${p.stato}</span></div>
           <div style="text-align:right;color:#ccc;font-size:18px">›</div>
-        </div>`).join('')
+        </div>`
+      }).join('')
+    }
+
+    function highlight(text, query) {
+      if (!query || !text) return text
+      const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi')
+      return text.replace(re, '<mark class="highlight">$1</mark>')
+    }
+
+    function filterPatients(query) {
+      const q = query.toLowerCase().trim()
+      if (!q) { renderPatients(allPatients, ''); return }
+      const filtered = allPatients.filter(p =>
+        (p.nome + ' ' + p.cognome).toLowerCase().includes(q) ||
+        (p.problema_principale || '').toLowerCase().includes(q) ||
+        (p.email || '').toLowerCase().includes(q)
+      )
+      renderPatients(filtered, q)
     }
 
     async function loadStats() {
@@ -171,7 +211,6 @@
       document.getElementById('opt-npl').className = 'config-option' + (val === 'NPL' ? ' selected-npl' : '')
       document.getElementById('opt-gpl').className = 'config-option' + (val === 'GPL' ? ' selected-gpl' : '')
     }
-
     async function savePatient() {
       const nome = document.getElementById('p-nome').value.trim()
       const cognome = document.getElementById('p-cognome').value.trim()
@@ -182,16 +221,13 @@
         telefono: document.getElementById('p-telefono').value.trim() || null,
         problema_principale: document.getElementById('p-problema').value.trim() || null,
         note_cliniche: document.getElementById('p-note').value.trim() || null,
-        configurazione_default: selectedConfig,
-        stato: 'attivo'
+        configurazione_default: selectedConfig, stato: 'attivo'
       })
       if (error) { alert('Errore: ' + error.message); return }
       closeModal(); loadPatients(); loadStats()
     }
-
     function goToPatient(id) { window.location.href = 'paziente.html?id=' + id }
     async function doLogout() { await _supabase.auth.signOut(); window.location.href = 'login.html' }
-
     init()
   </script>
 </body>
