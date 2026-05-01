@@ -6,10 +6,10 @@
   <title>Policettivo® — Il tuo protocollo</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#FFD008">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Policettivo">
-  <link rel="apple-touch-icon" href="/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -56,6 +56,9 @@
     .success-msg.visible { display: block; }
     .no-protocol { text-align: center; padding: 60px 20px; color: #555; }
     .no-protocol h2 { font-size: 18px; color: #777; margin-bottom: 8px; }
+    .install-banner { background: #1a1a00; border: 1px solid #FFD008; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: none; }
+    .install-banner p { font-size: 13px; color: #FFD008; margin-bottom: 10px; }
+    .btn-install { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -64,6 +67,10 @@
     <span class="navbar-name" id="nav-name"></span>
   </nav>
   <div class="main">
+    <div class="install-banner" id="install-banner">
+      <p>💛 Aggiungi Policettivo® alla schermata Home per accedere più facilmente ogni giorno!</p>
+      <button class="btn-install" id="btn-install">Aggiungi alla Home</button>
+    </div>
     <div class="greeting">
       <h1 id="greeting-title">Ciao 👋</h1>
       <p id="greeting-sub">Il tuo programma di oggi</p>
@@ -79,11 +86,29 @@
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     let patient = null, protocol = null, exercises = []
+    let deferredPrompt = null
 
-    async function if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
     }
-    init() {
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault()
+      deferredPrompt = e
+      document.getElementById('install-banner').style.display = 'block'
+    })
+
+    document.getElementById('btn-install').addEventListener('click', () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt()
+        deferredPrompt.userChoice.then(() => {
+          deferredPrompt = null
+          document.getElementById('install-banner').style.display = 'none'
+        })
+      }
+    })
+
+    async function init() {
       if (!token) { showError('Link non valido.'); return }
       const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
       if (!p) { showError('Paziente non trovato.'); return }
@@ -91,22 +116,14 @@
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome + ' 👋'
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
 
-      const { data: prots } = await _supabase
-        .from('patient_protocols').select('*')
-        .eq('patient_id', patient.id).eq('stato', 'attivo')
-        .order('created_at', { ascending: false })
+      const { data: prots } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
       if (!prots || prots.length === 0) { showNoProtocol(); return }
       protocol = prots[0]
 
-      const { data: ppe } = await _supabase
-        .from('patient_protocol_exercises').select('*')
-        .eq('patient_protocol_id', protocol.id)
-        .order('ordine', { ascending: true })
-
+      const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
       if (ppe && ppe.length > 0) {
         const exIds = ppe.map(e => e.exercise_id)
-        const { data: exData } = await _supabase
-          .from('exercises').select('*').in('id', exIds)
+        const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
         const exMap = {}
         if (exData) exData.forEach(e => exMap[e.id] = e)
         exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
@@ -123,55 +140,18 @@
 
       let exHtml = ''
       if (exercises.length > 0) {
-        exHtml = `<div class="section-title">Il tuo programma</div>
-        <div class="exercise-list">${exercises.map((e, i) => {
-          const ex = e.exercise
-          const ecfg = e.configurazione || cfg
-          return `<div class="exercise-item">
-            <div class="exercise-num">${i+1}</div>
-            <div class="exercise-info">
-              <div class="exercise-name">${ex ? ex.nome : 'Esercizio'}</div>
-              <div class="exercise-meta">${e.durata || (ex ? ex.durata_default : 90)} sec</div>
-            </div>
-            <span class="exercise-config cfg-${ecfg.toLowerCase()}">${ecfg}</span>
-          </div>`
-        }).join('')}</div>`
+        exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' +
+          exercises.map((e, i) => {
+            const ex = e.exercise
+            const ecfg = e.configurazione || cfg
+            return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div><span class="exercise-config cfg-' + ecfg.toLowerCase() + '">' + ecfg + '</span></div>'
+          }).join('') + '</div>'
       }
 
-      document.getElementById('content-area').innerHTML = `
-        <div class="protocol-card">
-          <div class="protocol-name">${protocol.nome_personalizzato || 'Protocollo'}</div>
-          <div class="config-badge ${cfgClass}">${cfg}</div>
-          <div class="protocol-info">
-            <div class="protocol-info-item">Giorno <span>${giorno}</span></div>
-            <div class="protocol-info-item">Esercizi <span>${exercises.length}</span></div>
-            <div class="protocol-info-item">Frequenza <span>${protocol.frequenza || 'Quotidiana'}</span></div>
-          </div>
-          <button class="btn-start" onclick="iniziaEsercizi()">▶ Inizia gli esercizi</button>
-        </div>
-        ${exHtml}
-        <div class="diary-card">
-          <div class="diary-title">📓 Come stai oggi?</div>
-          <div class="slider-group">
-            <div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div>
-            <input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="document.getElementById('val-dolore').textContent=this.value">
-          </div>
-          <div class="slider-group">
-            <div class="slider-label"><span class="slider-name">Rigidità</span><span class="slider-value" id="val-rigidita">0</span></div>
-            <input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="document.getElementById('val-rigidita').textContent=this.value">
-          </div>
-          <div class="slider-group">
-            <div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div>
-            <input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="document.getElementById('val-equilibrio').textContent=this.value">
-          </div>
-          <div class="slider-group">
-            <div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div>
-            <input type="range" id="sl-energia" min="0" max="10" value="5" oninput="document.getElementById('val-energia').textContent=this.value">
-          </div>
-          <textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea>
-          <button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button>
-          <div class="success-msg" id="diary-success">✓ Diario salvato! Ottimo lavoro.</div>
-        </div>`
+      document.getElementById('content-area').innerHTML =
+        '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + exercises.length + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">▶ Inizia gli esercizi</button></div>' +
+        exHtml +
+        '<div class="diary-card"><div class="diary-title">📓 Come stai oggi?</div><div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="document.getElementById(\'val-dolore\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Rigidità</span><span class="slider-value" id="val-rigidita">0</span></div><input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="document.getElementById(\'val-rigidita\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div><input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="document.getElementById(\'val-equilibrio\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div><input type="range" id="sl-energia" min="0" max="10" value="5" oninput="document.getElementById(\'val-energia\').textContent=this.value"></div><textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea><button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button><div class="success-msg" id="diary-success">✓ Diario salvato! Ottimo lavoro.</div></div>'
     }
 
     function iniziaEsercizi() {
@@ -195,15 +175,14 @@
     }
 
     function showError(msg) {
-      document.getElementById('content-area').innerHTML = `<div class="no-protocol"><h2>${msg}</h2></div>`
+      document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>' + msg + '</h2></div>'
     }
+
     function showNoProtocol() {
       document.getElementById('greeting-sub').textContent = 'Nessun protocollo attivo'
-      document.getElementById('content-area').innerHTML = `<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>`
+      document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>'
     }
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-    }
+
     init()
   </script>
 </body>
