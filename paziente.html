@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Scheda Paziente</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-back:hover { border-color: #FFD008; color: #FFD008; }
+    .main { max-width: 900px; margin: 0 auto; padding: 36px 24px; }
+    .patient-header { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .patient-name { font-size: 26px; font-weight: 700; color: #000; }
+    .patient-sub { font-size: 13px; color: #666; margin-top: 4px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .badge-npl { background: #000; color: #FFD008; }
+    .badge-gpl { background: #FFD008; color: #000; }
+    .badge-none { background: #eee; color: #888; }
+    .section { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #000; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .info-item label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+    .info-item span { font-size: 14px; color: #000; font-weight: 500; }
+    .note-box { background: #f9f9f9; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #444; margin-top: 12px; line-height: 1.6; }
+    .foto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .foto-slot { border: 2px dashed #ddd; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; position: relative; overflow: hidden; min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .foto-slot:hover { border-color: #FFD008; }
+    .foto-slot.has-photo { border-style: solid; border-color: #eee; padding: 0; }
+    .foto-slot img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; }
+    .foto-slot .foto-label { font-size: 12px; font-weight: 600; color: #999; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .foto-slot .foto-icon { font-size: 32px; margin-bottom: 8px; }
+    .foto-slot .foto-hint { font-size: 11px; color: #bbb; }
+    .foto-slot input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .foto-overlay { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
+    .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+    .config-option { border: 2px solid #eee; border-radius: 8px; padding: 16px; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .config-option:hover { border-color: #ccc; }
+    .config-option.selected-npl { border-color: #000; background: #000; color: #FFD008; }
+    .config-option.selected-gpl { border-color: #FFD008; background: #FFD008; color: #000; }
+    .config-name { font-weight: 700; font-size: 20px; }
+    .config-desc { font-size: 11px; margin-top: 4px; opacity: 0.7; }
+    .btn-primary { background: #FFD008; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-primary:hover { background: #e6bc00; }
+    .btn-secondary { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-secondary:hover { border-color: #999; }
+    .actions-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .link-box { background: #f0f9f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #2e7d32; word-break: break-all; margin-top: 12px; display: none; }
+    .link-box.visible { display: block; }
+    .saving-indicator { font-size: 12px; color: #999; margin-top: 8px; display: none; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">Scheda Paziente</span>
+    </div>
+    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+  </nav>
+
+  <div class="main">
+    <!-- HEADER PAZIENTE -->
+    <div class="patient-header">
+      <div>
+        <div class="patient-name" id="ph-nome">Caricamento...</div>
+        <div class="patient-sub" id="ph-sub"></div>
+      </div>
+      <div id="ph-config"></div>
+    </div>
+
+    <!-- DATI ANAGRAFICI -->
+    <div class="section">
+      <div class="section-title">Dati anagrafici</div>
+      <div class="info-grid">
+        <div class="info-item"><label>Email</label><span id="info-email">—</span></div>
+        <div class="info-item"><label>Telefono</label><span id="info-tel">—</span></div>
+        <div class="info-item"><label>Problema principale</label><span id="info-problema">—</span></div>
+      </div>
+      <div class="note-box" id="info-note" style="display:none"></div>
+    </div>
+
+    <!-- FOTO POSTURALI -->
+    <div class="section">
+      <div class="section-title">Foto posturali</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta o carica le foto sul piano sagittale per determinare la configurazione corretta.</p>
+      <div class="foto-grid">
+        <div class="foto-slot" id="slot-sx" onclick="document.getElementById('input-sx').click()">
+          <div class="foto-label">Piano sagittale sinistro</div>
+          <div class="foto-icon">📷</div>
+          <div class="foto-hint">Clicca per scattare o caricare</div>
+          <input type="file" id="input-sx" accept="image/*" capture="environment" onchange="handleFoto('sx', this)">
+        </div>
+        <div class="foto-slot" id="slot-dx" onclick="document.getElementById('input-dx').click()">
+          <div class="foto-label">Piano sagittale destro</div>
+          <div class="foto-icon">📷</div>
+          <div class="foto-hint">Clicca per scattare o caricare</div>
+          <input type="file" id="input-dx" accept="image/*" capture="environment" onchange="handleFoto('dx', this)">
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIGURAZIONE NPL/GPL -->
+    <div class="section">
+      <div class="section-title">Configurazione cuscini</div>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">Dopo aver osservato il piano scapolare nelle foto, scegli la configurazione.</p>
+      <div class="config-selector">
+        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')">
+          <div class="config-name">NPL</div>
+          <div class="config-desc">Nero Posteriore Laterale</div>
+        </div>
+        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')">
+          <div class="config-name">GPL</div>
+          <div class="config-desc">Giallo Posteriore Laterale</div>
+        </div>
+      </div>
+      <div class="saving-indicator" id="saving-indicator">Salvataggio...</div>
+    </div>
+
+    <!-- LINK PAZIENTE -->
+    <div class="section">
+      <div class="section-title">Accesso paziente</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Genera il link personale da inviare al paziente. Il paziente potrà accedere al proprio protocollo senza password.</p>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="generaLink()">Genera link paziente</button>
+        <button class="btn-secondary" onclick="copiaLink()">Copia link</button>
+      </div>
+      <div class="link-box" id="link-box"></div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    const params = new URLSearchParams(window.location.search)
+    const patientId = params.get('id')
+    let patient = null
+    let selectedConfig = null
+
+    async function init() {
+      if (!patientId) { window.location.href = 'dashboard.html'; return }
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+
+      const { data, error } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      if (error || !data) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }
+      patient = data
+      renderPatient()
+    }
+
+    function renderPatient() {
+      document.getElementById('ph-nome').textContent = patient.nome + ' ' + patient.cognome
+      document.getElementById('ph-sub').textContent = patient.problema_principale || ''
+      document.getElementById('info-email').textContent = patient.email || '—'
+      document.getElementById('info-tel').textContent = patient.telefono || '—'
+      document.getElementById('info-problema').textContent = patient.problema_principale || '—'
+      if (patient.note_cliniche) {
+        const noteBox = document.getElementById('info-note')
+        noteBox.textContent = '📋 ' + patient.note_cliniche
+        noteBox.style.display = 'block'
+      }
+      if (patient.configurazione_default) {
+        selectedConfig = patient.configurazione_default
+        updateConfigUI()
+        document.getElementById('ph-config').innerHTML = `<span class="badge badge-${selectedConfig.toLowerCase()}">${selectedConfig}</span>`
+      } else {
+        document.getElementById('ph-config').innerHTML = '<span class="badge badge-none">Config. da definire</span>'
+      }
+      if (patient.foto_url) {
+        try {
+          const urls = JSON.parse(patient.foto_url)
+          if (urls.sx) showFotoPreview('sx', urls.sx)
+          if (urls.dx) showFotoPreview('dx', urls.dx)
+        } catch(e) {}
+      }
+    }
+
+    function updateConfigUI() {
+      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig === 'NPL' ? ' selected-npl' : '')
+      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig === 'GPL' ? ' selected-gpl' : '')
+    }
+
+    async function selectConfig(val) {
+      selectedConfig = val
+      updateConfigUI()
+      document.getElementById('ph-config').innerHTML = `<span class="badge badge-${val.toLowerCase()}">${val}</span>`
+      const indicator = document.getElementById('saving-indicator')
+      indicator.style.display = 'block'
+      await _supabase.from('patients').update({ configurazione_default: val }).eq('id', patientId)
+      indicator.textContent = '✓ Salvato'
+      setTimeout(() => { indicator.style.display = 'none'; indicator.textContent = 'Salvataggio...' }, 2000)
+    }
+
+    async function handleFoto(lato, input) {
+      const file = input.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        showFotoPreview(lato, e.target.result)
+        let urls = {}
+        try { urls = JSON.parse(patient.foto_url || '{}') } catch(err) {}
+        urls[lato] = e.target.result
+        patient.foto_url = JSON.stringify(urls)
+        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+      }
+      reader.readAsDataURL(file)
+    }
+
+    function showFotoPreview(lato, src) {
+      const slot = document.getElementById('slot-' + lato)
+      slot.classList.add('has-photo')
+      slot.innerHTML = `
+        <img src="${src}" alt="Foto ${lato}">
+        <div class="foto-overlay" onclick="document.getElementById('input-${lato}').click()">Cambia</div>
+        <input type="file" id="input-${lato}" accept="image/*" capture="environment" onchange="handleFoto('${lato}', this)" style="display:none">
+      `
+    }
+
+    function generaLink() {
+      const link = `https://policettivo-app.vercel.app/protocollo.html?token=${patient.access_token}`
+      document.getElementById('link-box').textContent = link
+      document.getElementById('link-box').classList.add('visible')
+    }
+
+    function copiaLink() {
+      const link = `https://policettivo-app.vercel.app/protocollo.html?token=${patient.access_token}`
+      navigator.clipboard.writeText(link).then(() => alert('Link copiato!'))
+    }
+
+    init()
+  </script>
+</body>
+</html>
