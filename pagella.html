@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — La mia pagella</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; color: #fff; padding-bottom: 40px; }
+    .navbar { background: #000; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .main { max-width: 480px; margin: 0 auto; padding: 24px 20px; }
+    .smile-hero { text-align: center; background: #111; border: 1px solid #222; border-radius: 20px; padding: 32px 24px; margin-bottom: 24px; }
+    .smile-big { font-size: 80px; margin-bottom: 12px; }
+    .smile-title { font-size: 22px; font-weight: 700; color: #FFD008; margin-bottom: 6px; }
+    .smile-sub { font-size: 14px; color: #888; line-height: 1.5; }
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .stat-mini { background: #111; border: 1px solid #222; border-radius: 12px; padding: 16px 12px; text-align: center; }
+    .stat-mini-val { font-size: 24px; font-weight: 700; color: #FFD008; }
+    .stat-mini-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .section { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+    .section-title { font-size: 13px; font-weight: 700; color: #FFD008; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+    .chart-container { height: 180px; position: relative; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-day { width: 100%; aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; }
+    .cal-done { background: #FFD008; color: #000; }
+    .cal-miss { background: #1a1a1a; color: #444; }
+    .cal-today { background: #333; color: #fff; }
+    .cal-empty { background: transparent; }
+    .history-list { display: flex; flex-direction: column; gap: 8px; }
+    .history-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #1a1a1a; border-radius: 10px; }
+    .history-emoji { font-size: 20px; }
+    .history-info { flex: 1; }
+    .history-date { font-size: 12px; font-weight: 600; color: #fff; }
+    .history-note { font-size: 11px; color: #666; margin-top: 2px; }
+    .history-check { font-size: 14px; }
+    .btn-torna { width: 100%; padding: 16px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <span class="navbar-logo">POLICETTIVO®</span>
+    <button class="btn-back" onclick="history.back()">← Torna</button>
+  </nav>
+
+  <div class="main">
+    <div class="smile-hero">
+      <div class="smile-big" id="hero-emoji">😐</div>
+      <div class="smile-title" id="hero-title">Caricamento...</div>
+      <div class="smile-sub" id="hero-sub"></div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-mini"><div class="stat-mini-val" id="s-streak">0</div><div class="stat-mini-label">🔥 Streak</div></div>
+      <div class="stat-mini"><div class="stat-mini-val" id="s-totale">0</div><div class="stat-mini-label">Sessioni</div></div>
+      <div class="stat-mini"><div class="stat-mini-val" id="s-aderenza">0%</div><div class="stat-mini-label">Aderenza</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📅 Ultimi 28 giorni</div>
+      <div class="calendar-grid" id="cal-grid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📈 Il mio andamento</div>
+      <div class="chart-container"><canvas id="chart-umore"></canvas></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📋 Storico sessioni</div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+
+    <button class="btn-torna" onclick="history.back()">▶ Torna al protocollo</button>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+
+    const frasi = {
+      top: ['Sei una leggenda della postura! 🏆', 'Inarrestabile! Il tuo corpo ti ringrazia ogni giorno.', 'Champion! Continua così e vedrai risultati straordinari.'],
+      great: ['Stai andando alla grande! 💪', 'Costanza perfetta. Sei sulla strada giusta!', 'Il tuo impegno si vede. Bravissimo!'],
+      good: ['Ottimo lavoro oggi! 😊', 'Hai fatto gli esercizi. Il tuo corpo migliora!', 'Ogni giorno conta. Stai costruendo qualcosa di grande.'],
+      neutral: ['Oggi puoi ricominciare! 😐', 'Ieri hai saltato — oggi è la tua occasione.', 'Un piccolo passo oggi fa una grande differenza domani.'],
+      bad: ['Il tuo corpo ti aspetta! 😔', 'Sono già 2 giorni — anche solo i 3 Respiri fanno bene.', 'Non mollare! Ogni giorno che torni è una vittoria.'],
+      worst: ['Torna in pista! 😢', 'Il tuo percorso ti aspetta. Riprendi oggi, anche un solo esercizio.', 'Non importa quanto tempo è passato — oggi puoi ricominciare.']
+    }
+
+    async function init() {
+      if (!token) return
+      const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
+      if (!p) return
+
+      const { data: entries } = await _supabase.from('diary_entries').select('*').eq('patient_id', p.id).order('data', { ascending: false }).limit(60)
+      const all = entries || []
+
+      renderHero(all)
+      renderStats(all)
+      renderCalendar(all)
+      renderChart(all)
+      renderHistory(all)
+    }
+
+    function renderHero(entries) {
+      const oggi = new Date(); oggi.setHours(0,0,0,0)
+      const completate = entries.filter(e => e.completato)
+      let streak = 0, dataCheck = new Date(oggi)
+      for (let i = 0; i < 60; i++) {
+        const ds = dataCheck.toISOString().split('T')[0]
+        if (completate.find(e => e.data === ds)) { streak++; dataCheck.setDate(dataCheck.getDate()-1) } else break
+      }
+      const ultimaData = completate.length > 0 ? new Date(completate[0].data) : null
+      const diffGiorni = ultimaData ? Math.floor((oggi - ultimaData) / (1000*60*60*24)) : 999
+
+      let emoji, title, sub, frasePick
+      if (diffGiorni === 0 && streak >= 6) { emoji = '🤩'; title = streak + ' giorni di fila!'; frasePick = frasi.top }
+      else if (diffGiorni === 0 && streak >= 3) { emoji = '😄'; title = streak + ' giorni consecutivi!'; frasePick = frasi.great }
+      else if (diffGiorni === 0) { emoji = '😊'; title = 'Hai fatto gli esercizi oggi!'; frasePick = frasi.good }
+      else if (diffGiorni === 1) { emoji = '😐'; title = 'Ieri hai saltato'; frasePick = frasi.neutral }
+      else if (diffGiorni === 2) { emoji = '😔'; title = '2 giorni senza esercizi'; frasePick = frasi.bad }
+      else { emoji = '😢'; title = diffGiorni + ' giorni senza esercizi'; frasePick = frasi.worst }
+
+      document.getElementById('hero-emoji').textContent = emoji
+      document.getElementById('hero-title').textContent = title
+      document.getElementById('hero-sub').textContent = frasePick[Math.floor(Math.random() * frasePick.length)]
+    }
+
+    function renderStats(entries) {
+      const completate = entries.filter(e => e.completato)
+      const oggi = new Date(); oggi.setHours(0,0,0,0)
+      let streak = 0, dataCheck = new Date(oggi)
+      for (let i = 0; i < 60; i++) {
+        const ds = dataCheck.toISOString().split('T')[0]
+        if (completate.find(e => e.data === ds)) { streak++; dataCheck.setDate(dataCheck.getDate()-1) } else break
+      }
+      const aderenza = entries.length > 0 ? Math.round((completate.length / entries.length) * 100) : 0
+      document.getElementById('s-streak').textContent = streak
+      document.getElementById('s-totale').textContent = completate.length
+      document.getElementById('s-aderenza').textContent = aderenza + '%'
+    }
+
+    function renderCalendar(entries) {
+      const grid = document.getElementById('cal-grid')
+      const completate = new Set(entries.filter(e => e.completato).map(e => e.data))
+      const oggi = new Date(); oggi.setHours(0,0,0,0)
+      const days = []
+      for (let i = 27; i >= 0; i--) {
+        const d = new Date(oggi); d.setDate(d.getDate() - i)
+        days.push(d)
+      }
+      grid.innerHTML = days.map(d => {
+        const ds = d.toISOString().split('T')[0]
+        const isOggi = ds === oggi.toISOString().split('T')[0]
+        const isDone = completate.has(ds)
+        const label = d.getDate()
+        if (isOggi) return '<div class="cal-day cal-today">' + label + '</div>'
+        if (isDone) return '<div class="cal-day cal-done">' + label + '</div>'
+        return '<div class="cal-day cal-miss">' + label + '</div>'
+      }).join('')
+    }
+
+    function renderChart(entries) {
+      const sorted = [...entries].filter(e => e.completato).sort((a,b) => new Date(a.data)-new Date(b.data)).slice(-14)
+      if (sorted.length === 0) return
+      const labels = sorted.map(e => new Date(e.data).toLocaleDateString('it-IT', { day:'2-digit', month:'short' }))
+      const smileScores = sorted.map(e => {
+        const score = 10 - (e.dolore || 0) - (e.rigidita || 0)/2 + (e.equilibrio || 5)/2 + (e.energia || 5)/2
+        return Math.min(10, Math.max(0, Math.round(score)))
+      })
+      const ctx = document.getElementById('chart-umore').getContext('2d')
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Benessere',
+            data: smileScores,
+            borderColor: '#FFD008',
+            backgroundColor: 'rgba(255,208,8,0.15)',
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointBackgroundColor: '#FFD008'
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { min: 0, max: 10, ticks: { color: '#666', font: { family: 'Montserrat', size: 10 } }, grid: { color: '#222' } },
+            x: { ticks: { color: '#666', font: { family: 'Montserrat', size: 10 } }, grid: { display: false } }
+          }
+        }
+      })
+    }
+
+    function renderHistory(entries) {
+      const el = document.getElementById('history-list')
+      if (entries.length === 0) { el.innerHTML = '<div style="color:#555;font-size:13px;text-align:center;padding:20px">Nessuna sessione ancora.</div>'; return }
+      const smileMap = (d,r,eq,en) => {
+        const score = 10 - d - r/2 + eq/2 + en/2
+        if (score >= 8) return '🤩'
+        if (score >= 6) return '😄'
+        if (score >= 4) return '😊'
+        if (score >= 2) return '😐'
+        return '😔'
+      }
+      el.innerHTML = entries.slice(0,20).map(e => {
+        const data = new Date(e.data).toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'2-digit' })
+        const emoji = smileMap(e.dolore||0, e.rigidita||0, e.equilibrio||5, e.energia||5)
+        return '<div class="history-item"><div class="history-emoji">' + emoji + '</div><div class="history-info"><div class="history-date">' + data + '</div><div class="history-note">' + (e.note || 'Sessione completata') + '</div></div><div class="history-check">' + (e.completato ? '✅' : '⬜') + '</div></div>'
+      }).join('')
+    }
+
+    init()
+  </script>
+</body>
+</html>

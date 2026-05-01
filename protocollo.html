@@ -71,6 +71,12 @@
       <p>💛 Aggiungi Policettivo® alla schermata Home per accedere più facilmente ogni giorno!</p>
       <button class="btn-install" id="btn-install">Aggiungi alla Home</button>
     </div>
+    <div id="smile-card" style="text-align:center;background:#111;border:1px solid #222;border-radius:20px;padding:28px 20px;margin-bottom:20px">
+      <div id="smile-emoji" style="font-size:72px;margin-bottom:10px">😐</div>
+      <div id="smile-title" style="font-size:18px;font-weight:700;color:#FFD008;margin-bottom:6px">Caricamento...</div>
+      <div id="smile-sub" style="font-size:13px;color:#888;line-height:1.5;margin-bottom:16px"></div>
+      <button onclick="window.location.href=pagellUrl" style="background:transparent;border:1px solid #FFD008;color:#FFD008;padding:8px 20px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer">📊 Vedi la mia pagella</button>
+    </div>
     <div class="greeting">
       <h1 id="greeting-title">Ciao 👋</h1>
       <p id="greeting-sub">Il tuo programma di oggi</p>
@@ -86,6 +92,15 @@
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     let patient = null, protocol = null, exercises = []
+    let pagellUrl = ''
+    const frasi = {
+      top: ['Sei una leggenda della postura!', 'Inarrestabile! Il tuo corpo ti ringrazia.', 'Champion! Continua cosi.'],
+      great: ['Stai andando alla grande!', 'Costanza perfetta. Sei sulla strada giusta!'],
+      good: ['Ottimo lavoro oggi!', 'Ogni giorno conta. Stai costruendo qualcosa di grande.'],
+      neutral: ['Oggi puoi ricominciare!', 'Ieri hai saltato — oggi e la tua occasione.'],
+      bad: ['Il tuo corpo ti aspetta!', 'Anche solo i 3 Respiri fanno bene.'],
+      worst: ['Torna in pista!', 'Oggi puoi ricominciare, anche un solo esercizio.']
+    }
     let deferredPrompt = null
 
     if ('serviceWorker' in navigator) {
@@ -129,9 +144,13 @@
         exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
       }
       renderProtocol()
+      pagellUrl = 'pagella.html?token=' + token
+      loadSmile()
     }
 
-    function renderProtocol() {
+    function renderProtocol()
+      pagellUrl = 'pagella.html?token=' + token
+      loadSmile() {
       const oggi = new Date()
       const inizio = new Date(protocol.data_inizio)
       const giorno = Math.max(1, Math.floor((oggi - inizio) / (1000*60*60*24)) + 1)
@@ -178,6 +197,30 @@
       document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>' + msg + '</h2></div>'
     }
 
+    async function loadSmile() {
+      try {
+        const { data: entries } = await _supabase.from('diary_entries').select('data,completato').eq('patient_id', patient.id).order('data', { ascending: false }).limit(30)
+        const completate = (entries || []).filter(e => e.completato)
+        const oggi = new Date(); oggi.setHours(0,0,0,0)
+        let streak = 0, dc = new Date(oggi)
+        for (let i = 0; i < 30; i++) {
+          const ds = dc.toISOString().split('T')[0]
+          if (completate.find(e => e.data === ds)) { streak++; dc.setDate(dc.getDate()-1) } else break
+        }
+        const ultima = completate.length > 0 ? new Date(completate[0].data) : null
+        const diff = ultima ? Math.floor((oggi - ultima)/(1000*60*60*24)) : 999
+        let emoji, title, frasePick
+        if (diff===0 && streak>=6) { emoji='🤩'; title=streak+' giorni di fila!'; frasePick=frasi.top }
+        else if (diff===0 && streak>=3) { emoji='😄'; title=streak+' giorni consecutivi!'; frasePick=frasi.great }
+        else if (diff===0) { emoji='😊'; title='Hai fatto gli esercizi oggi!'; frasePick=frasi.good }
+        else if (diff===1) { emoji='😐'; title='Ieri hai saltato'; frasePick=frasi.neutral }
+        else if (diff===2) { emoji='😔'; title='2 giorni senza esercizi'; frasePick=frasi.bad }
+        else { emoji='😢'; title=diff+' giorni senza esercizi'; frasePick=frasi.worst }
+        document.getElementById('smile-emoji').textContent = emoji
+        document.getElementById('smile-title').textContent = title
+        document.getElementById('smile-sub').textContent = frasePick[Math.floor(Math.random()*frasePick.length)]
+      } catch(e) {}
+    }
     function showNoProtocol() {
       document.getElementById('greeting-sub').textContent = 'Nessun protocollo attivo'
       document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>'
