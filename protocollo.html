@@ -19,6 +19,11 @@
     .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
     .navbar-name { color: #999; font-size: 13px; }
     .main { max-width: 480px; margin: 0 auto; padding: 24px 20px 80px; }
+    .smile-card { text-align: center; background: #111; border: 1px solid #222; border-radius: 20px; padding: 28px 20px; margin-bottom: 20px; }
+    .smile-big { font-size: 72px; margin-bottom: 10px; }
+    .smile-title { font-size: 18px; font-weight: 700; color: #FFD008; margin-bottom: 6px; }
+    .smile-sub { font-size: 13px; color: #888; line-height: 1.5; margin-bottom: 16px; }
+    .btn-pagella { background: transparent; border: 1px solid #FFD008; color: #FFD008; padding: 8px 20px; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
     .greeting h1 { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 6px; }
     .greeting p { font-size: 14px; color: #888; margin-bottom: 28px; }
     .protocol-card { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
@@ -59,6 +64,7 @@
     .install-banner { background: #1a1a00; border: 1px solid #FFD008; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: none; }
     .install-banner p { font-size: 13px; color: #FFD008; margin-bottom: 10px; }
     .btn-install { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .ios-banner { background: #1a1a00; border: 1px solid #FFD008; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: none; }
   </style>
 </head>
 <body>
@@ -67,16 +73,23 @@
     <span class="navbar-name" id="nav-name"></span>
   </nav>
   <div class="main">
+    <div class="ios-banner" id="ios-banner">
+      <p style="font-size:13px;color:#FFD008;margin-bottom:8px;font-weight:600">💛 Salva l'app sulla Home</p>
+      <p style="font-size:12px;color:#aaa;line-height:1.6">1. Tocca <strong style="color:#fff">Condividi</strong> in basso<br>2. Tocca <strong style="color:#fff">Aggiungi alla schermata Home</strong><br>3. Tocca <strong style="color:#fff">Aggiungi</strong></p>
+      <button onclick="document.getElementById('ios-banner').style.display='none'" style="margin-top:10px;background:transparent;border:1px solid #FFD008;color:#FFD008;padding:6px 14px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">Ho capito</button>
+    </div>
     <div class="install-banner" id="install-banner">
-      <p>💛 Aggiungi Policettivo® alla schermata Home per accedere più facilmente ogni giorno!</p>
+      <p>💛 Aggiungi Policettivo® alla schermata Home!</p>
       <button class="btn-install" id="btn-install">Aggiungi alla Home</button>
     </div>
-    <div id="smile-card" style="text-align:center;background:#111;border:1px solid #222;border-radius:20px;padding:28px 20px;margin-bottom:20px">
-      <div id="smile-emoji" style="font-size:72px;margin-bottom:10px">😐</div>
-      <div id="smile-title" style="font-size:18px;font-weight:700;color:#FFD008;margin-bottom:6px">Caricamento...</div>
-      <div id="smile-sub" style="font-size:13px;color:#888;line-height:1.5;margin-bottom:16px"></div>
-      <button onclick="window.location.href=pagellUrl" style="background:transparent;border:1px solid #FFD008;color:#FFD008;padding:8px 20px;border-radius:20px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer">📊 Vedi la mia pagella</button>
+
+    <div class="smile-card" id="smile-card" style="display:none">
+      <div class="smile-big" id="smile-emoji">😐</div>
+      <div class="smile-title" id="smile-title"></div>
+      <div class="smile-sub" id="smile-sub"></div>
+      <button class="btn-pagella" id="btn-pagella">📊 Vedi la mia pagella</button>
     </div>
+
     <div class="greeting">
       <h1 id="greeting-title">Ciao 👋</h1>
       <p id="greeting-sub">Il tuo programma di oggi</p>
@@ -85,6 +98,7 @@
       <div class="no-protocol"><h2>Caricamento...</h2></div>
     </div>
   </div>
+
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
@@ -92,7 +106,8 @@
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     let patient = null, protocol = null, exercises = []
-    let pagellUrl = ''
+    let deferredPrompt = null
+
     const frasi = {
       top: ['Sei una leggenda della postura!', 'Inarrestabile! Il tuo corpo ti ringrazia.', 'Champion! Continua cosi.'],
       great: ['Stai andando alla grande!', 'Costanza perfetta. Sei sulla strada giusta!'],
@@ -101,35 +116,34 @@
       bad: ['Il tuo corpo ti aspetta!', 'Anche solo i 3 Respiri fanno bene.'],
       worst: ['Torna in pista!', 'Oggi puoi ricominciare, anche un solo esercizio.']
     }
-    let deferredPrompt = null
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {})
     }
 
     window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault()
-      deferredPrompt = e
+      e.preventDefault(); deferredPrompt = e
       document.getElementById('install-banner').style.display = 'block'
     })
 
     document.getElementById('btn-install').addEventListener('click', () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt()
-        deferredPrompt.userChoice.then(() => {
-          deferredPrompt = null
-          document.getElementById('install-banner').style.display = 'none'
-        })
-      }
+      if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; document.getElementById('install-banner').style.display = 'none' }) }
     })
 
     async function init() {
       if (!token) { showError('Link non valido.'); return }
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+      const isStandalone = window.navigator.standalone === true
+      if (isIOS && !isStandalone && !localStorage.getItem('ios_banner_dismissed')) {
+        document.getElementById('ios-banner').style.display = 'block'
+      }
+
       const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
       if (!p) { showError('Paziente non trovato.'); return }
       patient = p
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome + ' 👋'
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
+      document.getElementById('btn-pagella').onclick = () => window.location.href = 'pagella.html?token=' + token
 
       const { data: prots } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
       if (!prots || prots.length === 0) { showNoProtocol(); return }
@@ -144,57 +158,7 @@
         exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
       }
       renderProtocol()
-      pagellUrl = 'pagella.html?token=' + token
       loadSmile()
-    }
-
-    function renderProtocol()
-      pagellUrl = 'pagella.html?token=' + token
-      loadSmile() {
-      const oggi = new Date()
-      const inizio = new Date(protocol.data_inizio)
-      const giorno = Math.max(1, Math.floor((oggi - inizio) / (1000*60*60*24)) + 1)
-      const cfg = protocol.configurazione_generale || patient.configurazione_default || 'NPL'
-      const cfgClass = cfg === 'NPL' ? 'config-npl' : 'config-gpl'
-
-      let exHtml = ''
-      if (exercises.length > 0) {
-        exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' +
-          exercises.map((e, i) => {
-            const ex = e.exercise
-            const ecfg = e.configurazione || cfg
-            return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div><span class="exercise-config cfg-' + ecfg.toLowerCase() + '">' + ecfg + '</span></div>'
-          }).join('') + '</div>'
-      }
-
-      document.getElementById('content-area').innerHTML =
-        '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + exercises.length + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">▶ Inizia gli esercizi</button></div>' +
-        exHtml +
-        '<div class="diary-card"><div class="diary-title">📓 Come stai oggi?</div><div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="document.getElementById(\'val-dolore\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Rigidità</span><span class="slider-value" id="val-rigidita">0</span></div><input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="document.getElementById(\'val-rigidita\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div><input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="document.getElementById(\'val-equilibrio\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div><input type="range" id="sl-energia" min="0" max="10" value="5" oninput="document.getElementById(\'val-energia\').textContent=this.value"></div><textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea><button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button><div class="success-msg" id="diary-success">✓ Diario salvato! Ottimo lavoro.</div></div>'
-    }
-
-    function iniziaEsercizi() {
-      if (exercises.length === 0) { alert('Nessun esercizio nel protocollo.'); return }
-      window.location.href = 'esercizio.html?token=' + token + '&idx=0'
-    }
-
-    async function salvaDiario() {
-      const today = new Date().toISOString().split('T')[0]
-      const { error } = await _supabase.from('diary_entries').insert({
-        patient_id: patient.id, patient_protocol_id: protocol.id, data: today,
-        dolore: parseInt(document.getElementById('sl-dolore').value),
-        rigidita: parseInt(document.getElementById('sl-rigidita').value),
-        equilibrio: parseInt(document.getElementById('sl-equilibrio').value),
-        energia: parseInt(document.getElementById('sl-energia').value),
-        note: document.getElementById('diary-note').value.trim() || null,
-        completato: true
-      })
-      if (error) { alert('Errore: ' + error.message); return }
-      document.getElementById('diary-success').classList.add('visible')
-    }
-
-    function showError(msg) {
-      document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>' + msg + '</h2></div>'
     }
 
     async function loadSmile() {
@@ -219,8 +183,56 @@
         document.getElementById('smile-emoji').textContent = emoji
         document.getElementById('smile-title').textContent = title
         document.getElementById('smile-sub').textContent = frasePick[Math.floor(Math.random()*frasePick.length)]
+        document.getElementById('smile-card').style.display = 'block'
       } catch(e) {}
     }
+
+    function renderProtocol() {
+      const oggi = new Date()
+      const inizio = new Date(protocol.data_inizio)
+      const giorno = Math.max(1, Math.floor((oggi - inizio) / (1000*60*60*24)) + 1)
+      const cfg = protocol.configurazione_generale || patient.configurazione_default || 'NPL'
+      const cfgClass = cfg === 'NPL' ? 'config-npl' : 'config-gpl'
+      let exHtml = ''
+      if (exercises.length > 0) {
+        exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' +
+          exercises.map((e, i) => {
+            const ex = e.exercise
+            const ecfg = e.configurazione || cfg
+            return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div><span class="exercise-config cfg-' + ecfg.toLowerCase() + '">' + ecfg + '</span></div>'
+          }).join('') + '</div>'
+      }
+      document.getElementById('content-area').innerHTML =
+        '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + exercises.length + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">▶ Inizia gli esercizi</button></div>' +
+        exHtml +
+        '<div class="diary-card"><div class="diary-title">📓 Come stai oggi?</div><div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="document.getElementById(\'val-dolore\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Rigidità</span><span class="slider-value" id="val-rigidita">0</span></div><input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="document.getElementById(\'val-rigidita\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div><input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="document.getElementById(\'val-equilibrio\').textContent=this.value"></div><div class="slider-group"><div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div><input type="range" id="sl-energia" min="0" max="10" value="5" oninput="document.getElementById(\'val-energia\').textContent=this.value"></div><textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea><button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button><div class="success-msg" id="diary-success">✓ Diario salvato! Ottimo lavoro.</div></div>'
+    }
+
+    function iniziaEsercizi() {
+      if (exercises.length === 0) { alert('Nessun esercizio nel protocollo.'); return }
+      window.location.href = 'esercizio.html?token=' + token + '&idx=0'
+    }
+
+    async function salvaDiario() {
+      const today = new Date().toISOString().split('T')[0]
+      const { error } = await _supabase.from('diary_entries').insert({
+        patient_id: patient.id, patient_protocol_id: protocol.id, data: today,
+        dolore: parseInt(document.getElementById('sl-dolore').value),
+        rigidita: parseInt(document.getElementById('sl-rigidita').value),
+        equilibrio: parseInt(document.getElementById('sl-equilibrio').value),
+        energia: parseInt(document.getElementById('sl-energia').value),
+        note: document.getElementById('diary-note').value.trim() || null,
+        completato: true
+      })
+      if (error) { alert('Errore: ' + error.message); return }
+      document.getElementById('diary-success').classList.add('visible')
+      loadSmile()
+    }
+
+    function showError(msg) {
+      document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>' + msg + '</h2></div>'
+    }
+
     function showNoProtocol() {
       document.getElementById('greeting-sub').textContent = 'Nessun protocollo attivo'
       document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>'
