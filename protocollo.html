@@ -172,7 +172,7 @@
           if (completate.find(e => e.data === ds)) { streak++; dc.setDate(dc.getDate()-1) } else break
         }
         const ultima = completate.length > 0 ? new Date(completate[0].data) : null
-        const diff = ultima ? Math.floor((oggi - ultima)/(1000*60*60*24)) : 999
+        const diff = ultima ? Math.max(0, Math.floor((oggi - ultima)/(1000*60*60*24))) : 999
         let emoji, title, frasePick
         if (diff===0 && streak>=6) { emoji='🤩'; title=streak+' giorni di fila!'; frasePick=frasi.top }
         else if (diff===0 && streak>=3) { emoji='😄'; title=streak+' giorni consecutivi!'; frasePick=frasi.great }
