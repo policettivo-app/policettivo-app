@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Consenso e Privacy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; color: #fff; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #111; border: 1px solid #222; border-radius: 20px; padding: 36px 28px; max-width: 480px; width: 100%; }
+    .logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
+    h1 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .subtitle { font-size: 13px; color: #888; margin-bottom: 28px; line-height: 1.5; }
+    .section { margin-bottom: 20px; }
+    .section-title { font-size: 12px; font-weight: 700; color: #FFD008; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .section-text { font-size: 13px; color: #aaa; line-height: 1.7; }
+    .divider { border: none; border-top: 1px solid #222; margin: 20px 0; }
+    .checkbox-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; cursor: pointer; }
+    .checkbox-row input { margin-top: 2px; flex-shrink: 0; accent-color: #FFD008; width: 18px; height: 18px; cursor: pointer; }
+    .checkbox-label { font-size: 13px; color: #aaa; line-height: 1.5; }
+    .checkbox-label strong { color: #fff; }
+    .btn-accetta { width: 100%; padding: 16px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 20px; }
+    .btn-accetta:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .btn-accetta:not(:disabled):hover { background: #e6bc00; }
+    .note-legale { font-size: 10px; color: #444; margin-top: 14px; text-align: center; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">POLICETTIVO®</div>
+    <h1>Informativa e consenso</h1>
+    <p class="subtitle">Prima di accedere al tuo protocollo, ti chiediamo di leggere e accettare le seguenti informazioni.</p>
+
+    <div class="section">
+      <div class="section-title">Cosa fa questa app</div>
+      <div class="section-text">L'app Policettivo® ti guida nell'esecuzione del protocollo posturale assegnato dal tuo professionista. Registra i tuoi progressi giornalieri (dolore, rigidità, equilibrio, energia) e li condivide con il professionista che ti segue.</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Dati raccolti</div>
+      <div class="section-text">L'app raccoglie e condivide con il tuo professionista: le sessioni completate, il diario giornaliero, le note che inserisci. I dati sono utilizzati esclusivamente per il monitoraggio clinico.</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Note di sicurezza</div>
+      <div class="section-text">Gli esercizi proposti sono stati selezionati dal tuo professionista. In caso di dolore acuto, interrompi immediatamente l'esercizio e contatta il professionista. L'app non sostituisce la visita clinica.</div>
+    </div>
+
+    <hr class="divider">
+
+    <label class="checkbox-row">
+      <input type="checkbox" id="check1" onchange="checkAll()">
+      <span class="checkbox-label">Ho letto l'informativa sulla privacy e acconsento al <strong>trattamento dei miei dati sanitari</strong> da parte del professionista che mi segue.</span>
+    </label>
+
+    <label class="checkbox-row">
+      <input type="checkbox" id="check2" onchange="checkAll()">
+      <span class="checkbox-label">Confermo di <strong>eseguire gli esercizi sotto supervisione</strong> del professionista e di interrompere in caso di dolore.</span>
+    </label>
+
+    <label class="checkbox-row">
+      <input type="checkbox" id="check3" onchange="checkAll()">
+      <span class="checkbox-label">Accetto i <strong>Termini di utilizzo</strong> dell'app Policettivo®.</span>
+    </label>
+
+    <button class="btn-accetta" id="btn-accetta" disabled onclick="accetta()">Accetto — Accedi al protocollo</button>
+
+    <div class="note-legale">Titolare del trattamento: il professionista Policettivo® che ti ha assegnato il protocollo. Puoi richiedere la cancellazione dei tuoi dati in qualsiasi momento contattandolo direttamente.</div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+
+    function checkAll() {
+      const ok = document.getElementById('check1').checked &&
+                 document.getElementById('check2').checked &&
+                 document.getElementById('check3').checked
+      document.getElementById('btn-accetta').disabled = !ok
+    }
+
+    function accetta() {
+      localStorage.setItem('policettivo_consenso_' + token, '1')
+      window.location.href = 'protocollo.html?token=' + token
+    }
+
+    if (localStorage.getItem('policettivo_consenso_' + token)) {
+      window.location.href = 'protocollo.html?token=' + token
+    }
+  </script>
+</body>
+</html>

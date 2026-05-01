@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Il tuo protocollo</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#FFD008">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Policettivo">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -74,7 +80,10 @@
     const token = params.get('token')
     let patient = null, protocol = null, exercises = []
 
-    async function init() {
+    async function if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+    }
+    init() {
       if (!token) { showError('Link non valido.'); return }
       const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
       if (!p) { showError('Paziente non trovato.'); return }
@@ -191,6 +200,9 @@
     function showNoProtocol() {
       document.getElementById('greeting-sub').textContent = 'Nessun protocollo attivo'
       document.getElementById('content-area').innerHTML = `<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>`
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
     }
     init()
   </script>
