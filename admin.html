@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .navbar-badge { background: #c62828; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; }
+    .btn-logout { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .main { max-width: 1000px; margin: 0 auto; padding: 36px 24px; }
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; color: #000; }
+    .page-header p { font-size: 13px; color: #666; margin-top: 4px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #eee; text-align: center; }
+    .stat-value { font-size: 32px; font-weight: 700; color: #000; }
+    .stat-value.yellow { color: #FFD008; }
+    .stat-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .section { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; }
+    .btn-primary { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-primary:hover { background: #e6bc00; }
+    .invite-form { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .invite-form input { flex: 1; min-width: 200px; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; }
+    .invite-form input:focus { border-color: #FFD008; }
+    .invite-link-box { background: #f0f9f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #2e7d32; word-break: break-all; margin-top: 12px; display: none; }
+    .invite-link-box.visible { display: block; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .table td { font-size: 13px; color: #333; padding: 12px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    .table tr:last-child td { border-bottom: none; }
+    .table tr:hover td { background: #fffdf0; }
+    .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-attivo { background: #e8f5e9; color: #2e7d32; }
+    .status-bloccato { background: #ffebee; color: #c62828; }
+    .status-invitato { background: #fff8e1; color: #f57f17; }
+    .action-btn { background: transparent; border: 1px solid #ddd; color: #333; padding: 4px 10px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 11px; cursor: pointer; margin-right: 4px; }
+    .action-btn.danger { border-color: #ffcdd2; color: #c62828; }
+    .action-btn.warning { border-color: #ffe082; color: #f57f17; }
+    .action-btn.success { border-color: #c8e6c9; color: #2e7d32; }
+    .empty-state { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+    .copy-btn { background: #000; color: #FFD008; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">Pannello Admin</span>
+      <span class="navbar-badge">MASTER</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Esci</button>
+  </nav>
+
+  <div class="main">
+    <div class="page-header">
+      <h1>Pannello di controllo</h1>
+      <p>Gestisci i professionisti autorizzati alla piattaforma Policettivo®</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value yellow" id="stat-prof">—</div><div class="stat-label">Professionisti attivi</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-pazienti">—</div><div class="stat-label">Pazienti totali</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-inviti">—</div><div class="stat-label">Inviti pendenti</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-sessioni">—</div><div class="stat-label">Sessioni totali</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Genera invito</div>
+      </div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Inserisci nome e email del professionista da invitare. Verrà generato un link univoco da inviare.</p>
+      <div class="invite-form">
+        <input type="text" id="invite-nome" placeholder="Nome professionista">
+        <input type="email" id="invite-email" placeholder="Email (opzionale)">
+        <button class="btn-primary" onclick="generaInvito()">Genera link invito</button>
+      </div>
+      <div class="invite-link-box" id="invite-link-box">
+        <strong>Link invito:</strong><br>
+        <span id="invite-link-text"></span>
+        <button class="copy-btn" onclick="copiaInvito()">Copia</button>
+        <button class="copy-btn" style="background:#25D366" onclick="inviaWhatsAppInvito()">📲 WhatsApp</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Inviti pendenti</div>
+      </div>
+      <div id="inviti-list"><div class="empty-state">Nessun invito pendente.</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Professionisti registrati</div>
+      </div>
+      <div id="prof-list"><div class="empty-state">Nessun professionista registrato.</div></div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
+    let lastInviteLink = ''
+
+    async function init() {
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+      if (session.user.email !== ADMIN_EMAIL) {
+        alert('Accesso non autorizzato.')
+        window.location.href = 'dashboard.html'
+        return
+      }
+      loadAll()
+    }
+
+    async function loadAll() {
+      const { data: profs } = await _supabase.from('professionals').select('*, profiles(*)').order('created_at', { ascending: false })
+      const { data: pazienti } = await _supabase.from('patients').select('id')
+      const { data: inviti } = await _supabase.from('invites').select('*').eq('usato', false).order('created_at', { ascending: false })
+      const { data: sessioni } = await _supabase.from('diary_entries').select('id')
+
+      document.getElementById('stat-prof').textContent = profs ? profs.length : 0
+      document.getElementById('stat-pazienti').textContent = pazienti ? pazienti.length : 0
+      document.getElementById('stat-inviti').textContent = inviti ? inviti.length : 0
+      document.getElementById('stat-sessioni').textContent = sessioni ? sessioni.length : 0
+
+      renderInviti(inviti || [])
+      renderProfessionisti(profs || [])
+    }
+
+    function renderInviti(inviti) {
+      const el = document.getElementById('inviti-list')
+      if (inviti.length === 0) { el.innerHTML = '<div class="empty-state">Nessun invito pendente.</div>'; return }
+      el.innerHTML = '<table class="table"><thead><tr><th>Nome</th><th>Email</th><th>Creato il</th><th>Link</th><th>Azioni</th></tr></thead><tbody>' +
+        inviti.map(inv => {
+          const link = 'https://policettivo-app.vercel.app/registrazione.html?token=' + inv.token
+          const data = new Date(inv.created_at).toLocaleDateString('it-IT')
+          return '<tr><td><strong>' + (inv.nome || '—') + '</strong></td><td>' + (inv.email || '—') + '</td><td>' + data + '</td><td><button class="copy-btn" onclick="navigator.clipboard.writeText(\'' + link + '\').then(()=>alert(\'Copiato!\'))">Copia link</button></td><td><button class="action-btn danger" onclick="eliminaInvito(\'' + inv.id + '\')">Elimina</button></td></tr>'
+        }).join('') +
+        '</tbody></table>'
+    }
+
+    function renderProfessionisti(profs) {
+      const el = document.getElementById('prof-list')
+      if (profs.length === 0) { el.innerHTML = '<div class="empty-state">Nessun professionista ancora.</div>'; return }
+      el.innerHTML = '<table class="table"><thead><tr><th>Nome</th><th>Email</th><th>Centro</th><th>Città</th><th>Stato</th><th>Azioni</th></tr></thead><tbody>' +
+        profs.map(p => {
+          const nome = (p.profiles ? p.profiles.nome + ' ' + p.profiles.cognome : '—')
+          const stato = p.attivo ? 'attivo' : 'bloccato'
+          return '<tr><td><strong>' + nome + '</strong></td><td>' + (p.email || '—') + '</td><td>' + (p.centro || '—') + '</td><td>' + (p.citta || '—') + '</td><td><span class="status-badge status-' + stato + '">' + stato + '</span></td><td>' +
+            (p.attivo
+              ? '<button class="action-btn warning" onclick="bloccaProfessionista(\'' + p.id + '\')">Blocca</button>'
+              : '<button class="action-btn success" onclick="sbloccaProfessionista(\'' + p.id + '\')">Sblocca</button>') +
+            '<button class="action-btn danger" onclick="eliminaProfessionista(\'' + p.id + '\',\'' + nome + '\')">Elimina</button></td></tr>'
+        }).join('') +
+        '</tbody></table>'
+    }
+
+    async function generaInvito() {
+      const nome = document.getElementById('invite-nome').value.trim()
+      if (!nome) { alert('Inserisci il nome del professionista'); return }
+      const email = document.getElementById('invite-email').value.trim()
+      const { data, error } = await _supabase.from('invites').insert({ nome, email: email || null }).select().single()
+      if (error) { alert('Errore: ' + error.message); return }
+      lastInviteLink = 'https://policettivo-app.vercel.app/registrazione.html?token=' + data.token
+      document.getElementById('invite-link-text').textContent = lastInviteLink
+      document.getElementById('invite-link-box').classList.add('visible')
+      document.getElementById('invite-nome').value = ''
+      document.getElementById('invite-email').value = ''
+      loadAll()
+    }
+
+    function copiaInvito() {
+      navigator.clipboard.writeText(lastInviteLink).then(() => alert('Link copiato!'))
+    }
+
+    function inviaWhatsAppInvito() {
+      const nome = document.getElementById('invite-link-text').textContent.split('token=')[1] ? 'professionista' : 'professionista'
+      const testo = 'Ciao! Ti invito ad accedere alla piattaforma Policettivo®. Registrati da questo link: ' + lastInviteLink
+      window.open('https://wa.me/?text=' + encodeURIComponent(testo))
+    }
+
+    async function eliminaInvito(id) {
+      if (!confirm('Eliminare questo invito?')) return
+      await _supabase.from('invites').delete().eq('id', id)
+      loadAll()
+    }
+
+    async function bloccaProfessionista(id) {
+      if (!confirm('Bloccare questo professionista? Non potrà più accedere.')) return
+      await _supabase.from('professionals').update({ attivo: false }).eq('id', id)
+      loadAll()
+    }
+
+    async function sbloccaProfessionista(id) {
+      await _supabase.from('professionals').update({ attivo: true }).eq('id', id)
+      loadAll()
+    }
+
+    async function eliminaProfessionista(id, nome) {
+      if (!confirm('Eliminare definitivamente ' + nome + ' e tutti i suoi dati? Operazione irreversibile.')) return
+      await _supabase.from('professionals').delete().eq('id', id)
+      loadAll()
+    }
+
+    async function doLogout() {
+      await _supabase.auth.signOut()
+      window.location.href = 'login.html'
+    }
+
+    init()
+  </script>
+</body>
+</html>
