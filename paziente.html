@@ -307,7 +307,8 @@
       <div class="actions-row">
         <button class="btn-primary" onclick="generaLink()">Genera link paziente</button>
         <button class="btn-secondary" onclick="copiaLink()">Copia link</button>
-        <button class="btn-secondary" onclick="inviaWhatsApp()" style="background:#25D366;color:#fff;border-color:#25D366">📲 Invia WhatsApp</button>
+        <button class="btn-secondary" onclick="inviaWhatsApp()" style="background:#25D366;color:#fff;border-color:#25D366">📲 Invia link WhatsApp</button>
+        <button class="btn-secondary" onclick="scriviPaziente()" style="background:#128C7E;color:#fff;border-color:#128C7E">💬 Scrivi al paziente</button>
       </div>
       <div class="link-box" id="link-box"></div>
     </div>
@@ -496,6 +497,12 @@
       navigator.clipboard.writeText(link).then(() => alert('Link copiato!'))
     }
 
+    function scriviPaziente() {
+      if (!patient.telefono) { alert('Numero di telefono non inserito per questo paziente.'); return }
+      const tel = patient.telefono.replace(/[^0-9+]/g, '')
+      const msg = 'Ciao ' + patient.nome + ', ti scrivo riguardo al tuo percorso Policettivo.'
+      window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg))
+    }
     function inviaWhatsApp() {
       const link = 'https://policettivo-app.vercel.app/consenso.html?token=' + patient.access_token
       const testo = 'Ciao ' + patient.nome + ', ecco il tuo protocollo Policettivo®. Aprilo da qui: ' + link
