@@ -13,18 +13,17 @@
     .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
     .navbar-name { color: #999; font-size: 13px; }
     .main { max-width: 480px; margin: 0 auto; padding: 24px 20px 80px; }
-    .greeting { margin-bottom: 28px; }
-    .greeting h1 { font-size: 26px; font-weight: 700; color: #fff; }
-    .greeting p { font-size: 14px; color: #888; margin-top: 6px; }
+    .greeting h1 { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .greeting p { font-size: 14px; color: #888; margin-bottom: 28px; }
     .protocol-card { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
     .protocol-name { font-size: 18px; font-weight: 700; color: #FFD008; margin-bottom: 4px; }
-    .protocol-info { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
-    .protocol-info-item { font-size: 12px; color: #666; }
-    .protocol-info-item span { color: #fff; font-weight: 600; }
-    .config-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 12px; }
+    .config-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 8px; margin-bottom: 12px; }
     .config-npl { background: #FFD008; color: #000; }
     .config-gpl { background: #fff; color: #000; }
-    .btn-start { width: 100%; padding: 18px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 16px; }
+    .protocol-info { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .protocol-info-item { font-size: 12px; color: #666; }
+    .protocol-info-item span { color: #fff; font-weight: 600; }
+    .btn-start { width: 100%; padding: 18px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; }
     .btn-start:hover { background: #e6bc00; }
     .section-title { font-size: 13px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
     .exercise-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
@@ -41,7 +40,7 @@
     .slider-group { margin-bottom: 16px; }
     .slider-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
     .slider-name { font-size: 13px; color: #aaa; }
-    .slider-value { font-size: 16px; font-weight: 700; color: #FFD008; min-width: 24px; text-align: right; }
+    .slider-value { font-size: 16px; font-weight: 700; color: #FFD008; }
     input[type=range] { width: 100%; accent-color: #FFD008; height: 4px; }
     .diary-note { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-family: 'Montserrat', sans-serif; font-size: 13px; resize: none; outline: none; margin-top: 4px; }
     .diary-note:focus { border-color: #FFD008; }
@@ -71,44 +70,38 @@
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
-    let patient = null
-    let protocol = null
-    let exercises = []
+    let patient = null, protocol = null, exercises = []
 
     async function init() {
       if (!token) { showError('Link non valido.'); return }
-
-      const { data: p, error: pe } = await _supabase
-        .from('patients')
-        .select('*')
-        .eq('access_token', token)
-        .single()
+      const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
       if (!p) { showError('Paziente non trovato.'); return }
       patient = p
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome + ' 👋'
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
 
       const { data: prots } = await _supabase
-        .from('patient_protocols')
-        .select('*')
-        .eq('patient_id', patient.id)
-        .eq('stato', 'attivo')
+        .from('patient_protocols').select('*')
+        .eq('patient_id', patient.id).eq('stato', 'attivo')
         .order('created_at', { ascending: false })
-
       if (!prots || prots.length === 0) { showNoProtocol(); return }
       protocol = prots[0]
 
-      const { data: exList, error: exErr } = await _supabase
-        .from('patient_protocol_exercises')
-        .select('*, exercise:exercise_id(*)')
+      const { data: ppe } = await _supabase
+        .from('patient_protocol_exercises').select('*')
         .eq('patient_protocol_id', protocol.id)
         .order('ordine', { ascending: true })
 
-      if (exErr) { console.error('Errore esercizi:', exErr); }
-      exercises = exList || []
+      if (ppe && ppe.length > 0) {
+        const exIds = ppe.map(e => e.exercise_id)
+        const { data: exData } = await _supabase
+          .from('exercises').select('*').in('id', exIds)
+        const exMap = {}
+        if (exData) exData.forEach(e => exMap[e.id] = e)
+        exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
+      }
       renderProtocol()
     }
 
@@ -122,20 +115,18 @@
       let exHtml = ''
       if (exercises.length > 0) {
         exHtml = `<div class="section-title">Il tuo programma</div>
-        <div class="exercise-list">
-          ${exercises.map((e, i) => {
-            const ex = e.exercise
-            const ecfg = e.configurazione || cfg
-            return `<div class="exercise-item">
-              <div class="exercise-num">${i+1}</div>
-              <div class="exercise-info">
-                <div class="exercise-name">${ex ? ex.nome : 'Esercizio'}</div>
-                <div class="exercise-meta">${e.durata || (ex ? ex.durata_default : 90)} sec</div>
-              </div>
-              <span class="exercise-config cfg-${ecfg.toLowerCase()}">${ecfg}</span>
-            </div>`
-          }).join('')}
-        </div>`
+        <div class="exercise-list">${exercises.map((e, i) => {
+          const ex = e.exercise
+          const ecfg = e.configurazione || cfg
+          return `<div class="exercise-item">
+            <div class="exercise-num">${i+1}</div>
+            <div class="exercise-info">
+              <div class="exercise-name">${ex ? ex.nome : 'Esercizio'}</div>
+              <div class="exercise-meta">${e.durata || (ex ? ex.durata_default : 90)} sec</div>
+            </div>
+            <span class="exercise-config cfg-${ecfg.toLowerCase()}">${ecfg}</span>
+          </div>`
+        }).join('')}</div>`
       }
 
       document.getElementById('content-area').innerHTML = `
@@ -171,8 +162,7 @@
           <textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea>
           <button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button>
           <div class="success-msg" id="diary-success">✓ Diario salvato! Ottimo lavoro.</div>
-        </div>
-      `
+        </div>`
     }
 
     function iniziaEsercizi() {
@@ -181,18 +171,14 @@
     }
 
     async function salvaDiario() {
-      const dolore = parseInt(document.getElementById('sl-dolore').value)
-      const rigidita = parseInt(document.getElementById('sl-rigidita').value)
-      const equilibrio = parseInt(document.getElementById('sl-equilibrio').value)
-      const energia = parseInt(document.getElementById('sl-energia').value)
-      const note = document.getElementById('diary-note').value.trim()
       const today = new Date().toISOString().split('T')[0]
       const { error } = await _supabase.from('diary_entries').insert({
-        patient_id: patient.id,
-        patient_protocol_id: protocol.id,
-        data: today,
-        dolore, rigidita, equilibrio, energia,
-        note: note || null,
+        patient_id: patient.id, patient_protocol_id: protocol.id, data: today,
+        dolore: parseInt(document.getElementById('sl-dolore').value),
+        rigidita: parseInt(document.getElementById('sl-rigidita').value),
+        equilibrio: parseInt(document.getElementById('sl-equilibrio').value),
+        energia: parseInt(document.getElementById('sl-energia').value),
+        note: document.getElementById('diary-note').value.trim() || null,
         completato: true
       })
       if (error) { alert('Errore: ' + error.message); return }
@@ -200,14 +186,12 @@
     }
 
     function showError(msg) {
-      document.getElementById('content-area').innerHTML = `<div class="no-protocol"><h2>${msg}</h2><p>Contatta il tuo professionista.</p></div>`
+      document.getElementById('content-area').innerHTML = `<div class="no-protocol"><h2>${msg}</h2></div>`
     }
-
     function showNoProtocol() {
       document.getElementById('greeting-sub').textContent = 'Nessun protocollo attivo'
-      document.getElementById('content-area').innerHTML = `<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Il tuo professionista non ha ancora assegnato un protocollo.</p></div>`
+      document.getElementById('content-area').innerHTML = `<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>`
     }
-
     init()
   </script>
 </body>
