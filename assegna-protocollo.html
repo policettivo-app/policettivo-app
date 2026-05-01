@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Assegna Protocollo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-back:hover { border-color: #FFD008; color: #FFD008; }
+    .main { max-width: 800px; margin: 0 auto; padding: 36px 24px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #000; margin-bottom: 8px; }
+    .page-sub { font-size: 13px; color: #666; margin-bottom: 32px; }
+    .section { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #000; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; }
+    .patient-info { background: #000; color: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
+    .patient-info-name { font-size: 18px; font-weight: 700; }
+    .patient-info-sub { font-size: 12px; color: #aaa; margin-top: 2px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .badge-npl { background: #FFD008; color: #000; }
+    .badge-gpl { background: #fff; color: #000; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 600; color: #000; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #FFD008; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+    .config-option { border: 2px solid #eee; border-radius: 8px; padding: 14px; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .config-option.selected-npl { border-color: #000; background: #000; color: #FFD008; }
+    .config-option.selected-gpl { border-color: #FFD008; background: #FFD008; color: #000; }
+    .config-name { font-weight: 700; font-size: 16px; }
+    .config-desc { font-size: 10px; margin-top: 2px; opacity: 0.7; }
+    .exercise-list { display: flex; flex-direction: column; gap: 10px; }
+    .exercise-item { border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.15s; }
+    .exercise-item:hover { border-color: #FFD008; background: #fffdf0; }
+    .exercise-item.selected { border-color: #000; background: #000; color: #fff; }
+    .exercise-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; }
+    .exercise-item.selected .exercise-check { background: #FFD008; border-color: #FFD008; color: #000; }
+    .exercise-info { flex: 1; }
+    .exercise-name { font-size: 14px; font-weight: 600; }
+    .exercise-meta { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+    .exercise-cfg { display: flex; gap: 6px; align-items: center; }
+    .cfg-mini { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; cursor: pointer; }
+    .cfg-npl { background: #FFD008; color: #000; }
+    .cfg-gpl { background: #333; color: #FFD008; }
+    .cfg-inactive { background: #eee; color: #999; }
+    .btn-primary { background: #FFD008; color: #000; border: none; padding: 16px 32px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 8px; }
+    .btn-primary:hover { background: #e6bc00; }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .success-banner { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 10px; padding: 16px 20px; font-size: 14px; color: #2e7d32; font-weight: 600; display: none; margin-top: 16px; text-align: center; }
+    .success-banner.show { display: block; }
+    .order-hint { font-size: 11px; color: #999; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">Assegna Protocollo</span>
+    </div>
+    <button class="btn-back" id="btn-back">← Scheda paziente</button>
+  </nav>
+
+  <div class="main">
+    <div class="patient-info" id="patient-info">
+      <div>
+        <div class="patient-info-name" id="pi-nome">Caricamento...</div>
+        <div class="patient-info-sub" id="pi-sub"></div>
+      </div>
+      <div id="pi-config"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Dettagli protocollo</div>
+      <div class="form-group">
+        <label>Nome protocollo</label>
+        <input type="text" id="proto-nome" placeholder="es. Protocollo mattino — Lombalgia">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data inizio</label>
+          <input type="date" id="proto-inizio">
+        </div>
+        <div class="form-group">
+          <label>Data fine</label>
+          <input type="date" id="proto-fine">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Frequenza</label>
+        <select id="proto-frequenza">
+          <option value="Tutti i giorni">Tutti i giorni</option>
+          <option value="5 volte a settimana">5 volte a settimana</option>
+          <option value="3 volte a settimana">3 volte a settimana</option>
+          <option value="2 volte a settimana">2 volte a settimana</option>
+          <option value="1 volta a settimana">1 volta a settimana</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Configurazione generale cuscini</label>
+        <div class="config-selector">
+          <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')">
+            <div class="config-name">NPL</div>
+            <div class="config-desc">Nero Posteriore Laterale</div>
+          </div>
+          <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')">
+            <div class="config-name">GPL</div>
+            <div class="config-desc">Giallo Posteriore Laterale</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Seleziona esercizi</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Clicca per selezionare gli esercizi. L'ordine è quello di selezione. Puoi cambiare la configurazione di ogni esercizio singolarmente.</p>
+      <div class="exercise-list" id="exercise-list">
+        <div style="color:#999;font-size:13px">Caricamento esercizi...</div>
+      </div>
+      <div class="order-hint" id="order-hint"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Note al paziente</div>
+      <div class="form-group">
+        <textarea id="proto-note" rows="3" placeholder="Istruzioni o note visibili al paziente nel protocollo..."></textarea>
+      </div>
+      <button class="btn-primary" id="btn-salva" onclick="salvaProtocollo()">✓ Assegna protocollo</button>
+      <div class="success-banner" id="success-banner">✅ Protocollo assegnato con successo! Il paziente può ora accedere agli esercizi.</div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const params = new URLSearchParams(window.location.search)
+    const patientId = params.get('id')
+    let patient = null, professional = null
+    let selectedConfig = null
+    let selectedExercises = []
+    let exerciseCfg = {}
+    let allExercises = []
+
+    document.getElementById('btn-back').onclick = () => window.location.href = 'paziente.html?id=' + patientId
+
+    const today = new Date()
+    const in30 = new Date(today); in30.setDate(in30.getDate() + 30)
+    document.getElementById('proto-inizio').value = today.toISOString().split('T')[0]
+    document.getElementById('proto-fine').value = in30.toISOString().split('T')[0]
+
+    async function init() {
+      if (!patientId) { window.location.href = 'dashboard.html'; return }
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      if (!p) { window.location.href = 'dashboard.html'; return }
+      patient = p
+      const { data: prof } = await _supabase.from('professionals').select('*').eq('user_id', session.user.id).single()
+      professional = prof
+
+      document.getElementById('pi-nome').textContent = p.nome + ' ' + p.cognome
+      document.getElementById('pi-sub').textContent = p.problema_principale || ''
+      if (p.configurazione_default) {
+        selectedConfig = p.configurazione_default
+        updateConfigUI()
+        document.getElementById('pi-config').innerHTML = '<span class="badge badge-' + p.configurazione_default.toLowerCase() + '">' + p.configurazione_default + '</span>'
+      }
+      document.getElementById('proto-nome').value = 'Protocollo — ' + p.nome + ' ' + p.cognome
+
+      const { data: exList } = await _supabase.from('exercises').select('*').eq('active', true).order('nome')
+      allExercises = exList || []
+      renderExercises()
+    }
+
+    function renderExercises() {
+      const list = document.getElementById('exercise-list')
+      list.innerHTML = allExercises.map(ex => {
+        const isSelected = selectedExercises.includes(ex.id)
+        const cfg = exerciseCfg[ex.id] || selectedConfig || 'NPL'
+        const ordine = selectedExercises.indexOf(ex.id) + 1
+        return `<div class="exercise-item ${isSelected ? 'selected' : ''}" id="ex-item-${ex.id}" onclick="toggleExercise('${ex.id}')">
+          <div class="exercise-check">${isSelected ? '✓' : ''}</div>
+          <div class="exercise-info">
+            <div class="exercise-name">${ex.nome}</div>
+            <div class="exercise-meta">${ex.durata_default || 90} sec · ${ex.livello}</div>
+          </div>
+          ${isSelected ? `<div class="exercise-cfg" onclick="event.stopPropagation()">
+            <span class="cfg-mini ${cfg === 'NPL' ? 'cfg-npl' : 'cfg-inactive'}" onclick="setCfg('${ex.id}','NPL')">NPL</span>
+            <span class="cfg-mini ${cfg === 'GPL' ? 'cfg-gpl' : 'cfg-inactive'}" onclick="setCfg('${ex.id}','GPL')">GPL</span>
+          </div>` : ''}
+          ${isSelected ? `<div style="font-size:11px;font-weight:700;color:#FFD008;min-width:20px;text-align:right">${ordine}</div>` : ''}
+        </div>`
+      }).join('')
+      const hint = document.getElementById('order-hint')
+      hint.textContent = selectedExercises.length > 0 ? selectedExercises.length + ' esercizi selezionati' : ''
+    }
+
+    function toggleExercise(id) {
+      const idx = selectedExercises.indexOf(id)
+      if (idx === -1) {
+        selectedExercises.push(id)
+        exerciseCfg[id] = selectedConfig || 'NPL'
+      } else {
+        selectedExercises.splice(idx, 1)
+      }
+      renderExercises()
+    }
+
+    function setCfg(id, cfg) {
+      exerciseCfg[id] = cfg
+      renderExercises()
+    }
+
+    function selectConfig(val) {
+      selectedConfig = val
+      updateConfigUI()
+      selectedExercises.forEach(id => { if (!exerciseCfg[id]) exerciseCfg[id] = val })
+      renderExercises()
+    }
+
+    function updateConfigUI() {
+      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig === 'NPL' ? ' selected-npl' : '')
+      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig === 'GPL' ? ' selected-gpl' : '')
+    }
+
+    async function salvaProtocollo() {
+      const nome = document.getElementById('proto-nome').value.trim()
+      if (!nome) { alert('Inserisci un nome per il protocollo'); return }
+      if (!selectedConfig) { alert('Seleziona la configurazione NPL o GPL'); return }
+      if (selectedExercises.length === 0) { alert('Seleziona almeno un esercizio'); return }
+
+      const btn = document.getElementById('btn-salva')
+      btn.disabled = true; btn.textContent = 'Salvataggio...'
+
+      await _supabase.from('patient_protocols').update({ stato: 'sospeso' }).eq('patient_id', patientId).eq('stato', 'attivo')
+
+      const { data: proto, error } = await _supabase.from('patient_protocols').insert({
+        patient_id: patientId,
+        professional_id: professional ? professional.id : null,
+        nome_personalizzato: nome,
+        data_inizio: document.getElementById('proto-inizio').value,
+        data_fine: document.getElementById('proto-fine').value,
+        frequenza: document.getElementById('proto-frequenza').value,
+        configurazione_generale: selectedConfig,
+        stato: 'attivo'
+      }).select().single()
+
+      if (error) { alert('Errore: ' + error.message); btn.disabled = false; btn.textContent = '✓ Assegna protocollo'; return }
+
+      const exRows = selectedExercises.map((id, i) => ({
+        patient_protocol_id: proto.id,
+        exercise_id: id,
+        ordine: i + 1,
+        configurazione: exerciseCfg[id] || selectedConfig,
+        durata: allExercises.find(e => e.id === id)?.durata_default || 90,
+        ripetizioni: allExercises.find(e => e.id === id)?.ripetizioni || 1
+      }))
+
+      const { error: exErr } = await _supabase.from('patient_protocol_exercises').insert(exRows)
+      if (exErr) { alert('Errore esercizi: ' + exErr.message); return }
+
+      btn.textContent = '✓ Assegnato!'
+      document.getElementById('success-banner').classList.add('show')
+      setTimeout(() => { window.location.href = 'paziente.html?id=' + patientId }, 2000)
+    }
+
+    init()
+  </script>
+</body>
+</html>
