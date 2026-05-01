@@ -13,8 +13,9 @@
     .navbar-brand { display: flex; align-items: center; gap: 12px; }
     .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
     .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
-    .navbar-right { display: flex; align-items: center; gap: 16px; }
+    .navbar-right { display: flex; align-items: center; gap: 12px; }
     .navbar-user { color: #999; font-size: 13px; }
+    .btn-admin { background: #FFD008; color: #000; border: none; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
     .btn-logout { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
     .btn-logout:hover { border-color: #FFD008; color: #FFD008; }
     .main { max-width: 1100px; margin: 0 auto; padding: 36px 24px; }
@@ -34,20 +35,27 @@
     .search-count { font-size: 12px; color: #999; white-space: nowrap; }
     .section-title { font-size: 16px; font-weight: 700; color: #000; margin-bottom: 16px; }
     .patients-table { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; }
-    .table-header { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr 1fr; padding: 12px 24px; background: #f9f9f9; border-bottom: 1px solid #eee; font-size: 11px; font-weight: 600; color: #999; letter-spacing: 1px; text-transform: uppercase; }
-    .patient-row { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr 1fr; padding: 16px 24px; border-bottom: 1px solid #f0f0f0; align-items: center; cursor: pointer; transition: background 0.15s; }
+    .table-header { display: grid; grid-template-columns: 2.5fr 1.5fr 1fr 1fr 120px 40px; padding: 12px 24px; background: #f9f9f9; border-bottom: 1px solid #eee; font-size: 11px; font-weight: 600; color: #999; letter-spacing: 1px; text-transform: uppercase; }
+    .patient-row { display: grid; grid-template-columns: 2.5fr 1.5fr 1fr 1fr 120px 40px; padding: 14px 24px; border-bottom: 1px solid #f0f0f0; align-items: center; cursor: pointer; transition: background 0.15s; }
     .patient-row:last-child { border-bottom: none; }
     .patient-row:hover { background: #fffdf0; }
     .patient-name { font-weight: 600; font-size: 14px; color: #000; }
-    .patient-email { font-size: 13px; color: #666; }
+    .patient-email { font-size: 12px; color: #666; margin-top: 2px; }
     .patient-problem { font-size: 12px; color: #888; }
     .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
     .badge-npl { background: #000; color: #FFD008; }
     .badge-gpl { background: #FFD008; color: #000; }
     .badge-attivo { background: #e8f5e9; color: #2e7d32; }
-    .empty-state { text-align: center; padding: 60px 24px; color: #999; }
-    .empty-state p { font-size: 14px; margin-bottom: 16px; }
     .highlight { background: #FFD008; border-radius: 2px; padding: 0 1px; }
+    .smile-cell { display: flex; flex-direction: column; gap: 4px; }
+    .smile-row { display: flex; align-items: center; gap: 6px; }
+    .smile-emoji { font-size: 18px; }
+    .smile-days { font-size: 11px; color: #666; font-weight: 600; white-space: nowrap; }
+    .smile-bar-bg { height: 4px; background: #eee; border-radius: 2px; width: 100%; }
+    .smile-bar-fill { height: 4px; border-radius: 2px; transition: width 0.3s; }
+    .empty-state { text-align: center; padding: 60px 24px; color: #999; }
+    .empty-state p { font-size: 14px; }
+    .btn-del { background: transparent; border: 1px solid #ffcdd2; color: #ef5350; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.open { display: flex; }
     .modal { background: #fff; border-radius: 16px; padding: 36px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
@@ -75,11 +83,12 @@
       <span class="navbar-title">Area Professionista</span>
     </div>
     <div class="navbar-right">
-      <button onclick="window.location.href='admin.html'" style="background:#FFD008;color:#000;border:none;padding:6px 14px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer;margin-right:8px">⚙️ Admin</button>
+      <button class="btn-admin" onclick="window.location.href='admin.html'">⚙️ Admin</button>
       <span class="navbar-user" id="user-email"></span>
       <button class="btn-logout" onclick="doLogout()">Esci</button>
     </div>
   </nav>
+
   <div class="main">
     <div class="page-header">
       <div><h1>Dashboard</h1><p id="welcome-msg">Bentornato</p></div>
@@ -96,10 +105,13 @@
       <span class="search-count" id="search-count"></span>
     </div>
     <div class="patients-table">
-      <div class="table-header"><span>Paziente</span><span>Problema</span><span>Config.</span><span>Stato</span><span></span></div>
+      <div class="table-header">
+        <span>Paziente</span><span>Problema</span><span>Config.</span><span>Stato</span><span>Aderenza</span><span></span>
+      </div>
       <div id="patients-list"><div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div></div>
     </div>
   </div>
+
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
       <h2>Nuovo paziente</h2>
@@ -126,6 +138,7 @@
       </div>
     </div>
   </div>
+
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
@@ -147,30 +160,63 @@
       const { data: patients } = await _supabase.from('patients').select('*').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('cognome', { ascending: true })
       allPatients = patients || []
       document.getElementById('stat-pazienti').textContent = allPatients.length
-      renderPatients(allPatients, '')
+
+      const diaryMap = {}
+      if (allPatients.length > 0) {
+        const ids = allPatients.map(p => p.id)
+        const { data: diaries } = await _supabase.from('diary_entries').select('patient_id,data,completato').in('patient_id', ids).order('data', { ascending: false })
+        if (diaries) {
+          diaries.forEach(d => {
+            if (!diaryMap[d.patient_id]) diaryMap[d.patient_id] = []
+            diaryMap[d.patient_id].push(d)
+          })
+        }
+      }
+      renderPatients(allPatients, '', diaryMap)
     }
 
-    function renderPatients(list, query) {
+    function getSmileData(entries) {
+      if (!entries || entries.length === 0) return { emoji: '😐', giorni: 0, color: '#ddd', pct: 0, label: 'Nessuna sessione' }
+      const oggi = new Date(); oggi.setHours(0,0,0,0)
+      const ultimaData = new Date(entries[0].data); ultimaData.setHours(0,0,0,0)
+      const diffGiorni = Math.floor((oggi - ultimaData) / (1000*60*60*24))
+      const completate = entries.filter(e => e.completato)
+      let streak = 0
+      let dataCheck = new Date(oggi)
+      for (let i = 0; i < 30; i++) {
+        const dateStr = dataCheck.toISOString().split('T')[0]
+        if (completate.find(e => e.data === dateStr)) { streak++; dataCheck.setDate(dataCheck.getDate() - 1) }
+        else break
+      }
+      if (diffGiorni === 0 && streak >= 6) return { emoji: '🤩', giorni: streak, color: '#FFD008', pct: 100, label: streak + ' gg' }
+      if (diffGiorni === 0 && streak >= 3) return { emoji: '😄', giorni: streak, color: '#4CAF50', pct: 80, label: streak + ' gg' }
+      if (diffGiorni === 0 && streak >= 1) return { emoji: '😊', giorni: streak, color: '#8BC34A', pct: 60, label: streak + ' gg' }
+      if (diffGiorni === 1) return { emoji: '😐', giorni: 0, color: '#FFC107', pct: 30, label: '1 gg fa' }
+      if (diffGiorni === 2) return { emoji: '😔', giorni: 0, color: '#FF9800', pct: 15, label: '2 gg fa' }
+      if (diffGiorni >= 3) return { emoji: '😢', giorni: 0, color: '#f44336', pct: 5, label: diffGiorni + ' gg fa' }
+      return { emoji: '😐', giorni: 0, color: '#ddd', pct: 0, label: '—' }
+    }
+
+    function renderPatients(list, query, diaryMap) {
       const el = document.getElementById('patients-list')
       const count = document.getElementById('search-count')
       if (!list || list.length === 0) {
-        el.innerHTML = query
-          ? '<div class="empty-state"><p>Nessun paziente trovato per "' + query + '"</p></div>'
-          : '<div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>'
-        count.textContent = ''
-        return
+        el.innerHTML = query ? '<div class="empty-state"><p>Nessun paziente trovato per "' + query + '"</p></div>' : '<div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>'
+        count.textContent = ''; return
       }
       count.textContent = list.length + ' pazient' + (list.length === 1 ? 'e' : 'i')
       el.innerHTML = list.map(p => {
         const nome = highlight(p.nome + ' ' + p.cognome, query)
         const prob = highlight(p.problema_principale || '—', query)
-        return `<div class="patient-row" onclick="goToPatient('${p.id}')">
-          <div><div class="patient-name">${nome}</div><div class="patient-email">${p.email || ''}</div></div>
-          <div class="patient-problem">${prob}</div>
-          <div>${p.configurazione_default ? `<span class="badge badge-${p.configurazione_default.toLowerCase()}">${p.configurazione_default}</span>` : '—'}</div>
-          <div><span class="badge badge-attivo">${p.stato}</span></div>
-          <div style="text-align:right;color:#ccc;font-size:18px">›</div>
-        </div>`
+        const smile = getSmileData(diaryMap ? diaryMap[p.id] : null)
+        return '<div class="patient-row" onclick="goToPatient(\'' + p.id + '\')">' +
+          '<div><div class="patient-name">' + nome + '</div><div class="patient-email">' + (p.email || '') + '</div></div>' +
+          '<div class="patient-problem">' + prob + '</div>' +
+          '<div>' + (p.configurazione_default ? '<span class="badge badge-' + p.configurazione_default.toLowerCase() + '">' + p.configurazione_default + '</span>' : '—') + '</div>' +
+          '<div><span class="badge badge-attivo">' + p.stato + '</span></div>' +
+          '<div class="smile-cell"><div class="smile-row"><span class="smile-emoji">' + smile.emoji + '</span><span class="smile-days">' + smile.label + '</span></div><div class="smile-bar-bg"><div class="smile-bar-fill" style="width:' + smile.pct + '%;background:' + smile.color + '"></div></div></div>' +
+          '<div><button class="btn-del" onclick="event.stopPropagation();eliminaPaziente(\'' + p.id + '\',\'' + p.nome + ' ' + p.cognome + '\')">🗑</button></div>' +
+          '</div>'
       }).join('')
     }
 
@@ -182,13 +228,9 @@
 
     function filterPatients(query) {
       const q = query.toLowerCase().trim()
-      if (!q) { renderPatients(allPatients, ''); return }
-      const filtered = allPatients.filter(p =>
-        (p.nome + ' ' + p.cognome).toLowerCase().includes(q) ||
-        (p.problema_principale || '').toLowerCase().includes(q) ||
-        (p.email || '').toLowerCase().includes(q)
-      )
-      renderPatients(filtered, q)
+      if (!q) { loadPatients(); return }
+      const filtered = allPatients.filter(p => (p.nome + ' ' + p.cognome).toLowerCase().includes(q) || (p.problema_principale || '').toLowerCase().includes(q))
+      renderPatients(filtered, q, null)
     }
 
     async function loadStats() {
@@ -228,6 +270,13 @@
       closeModal(); loadPatients(); loadStats()
     }
     function goToPatient(id) { window.location.href = 'paziente.html?id=' + id }
+    async function eliminaPaziente(id, nome) {
+      if (!confirm('Eliminare ' + nome + '? Operazione irreversibile.')) return
+      await _supabase.from('diary_entries').delete().eq('patient_id', id)
+      await _supabase.from('patient_protocols').delete().eq('patient_id', id)
+      await _supabase.from('patients').delete().eq('id', id)
+      loadPatients(); loadStats()
+    }
     async function doLogout() { await _supabase.auth.signOut(); window.location.href = 'login.html' }
     init()
   </script>
