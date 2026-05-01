@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Monitoraggio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-back:hover { border-color: #FFD008; color: #FFD008; }
+    .main { max-width: 900px; margin: 0 auto; padding: 36px 24px; }
+    .patient-header { background: #fff; border-radius: 16px; padding: 24px 28px; border: 1px solid #eee; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .patient-name { font-size: 22px; font-weight: 700; color: #000; }
+    .patient-sub { font-size: 13px; color: #666; margin-top: 3px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .badge-npl { background: #000; color: #FFD008; }
+    .badge-gpl { background: #FFD008; color: #000; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #eee; text-align: center; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #000; }
+    .stat-value.yellow { color: #FFD008; }
+    .stat-value.green { color: #2e7d32; }
+    .stat-value.red { color: #c62828; }
+    .stat-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .section { background: #fff; border-radius: 16px; padding: 24px 28px; border: 1px solid #eee; margin-bottom: 24px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #000; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; }
+    .chart-container { position: relative; height: 220px; }
+    .diary-table { width: 100%; border-collapse: collapse; }
+    .diary-table th { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .diary-table td { font-size: 13px; color: #333; padding: 10px 12px; border-bottom: 1px solid #f5f5f5; }
+    .diary-table tr:last-child td { border-bottom: none; }
+    .diary-table tr:hover td { background: #fffdf0; }
+    .completato-si { color: #2e7d32; font-weight: 600; }
+    .completato-no { color: #c62828; font-weight: 600; }
+    .empty-state { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+    .aderenza-bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+    .aderenza-fill { height: 100%; border-radius: 4px; background: #FFD008; transition: width 0.5s; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">Monitoraggio paziente</span>
+    </div>
+    <button class="btn-back" id="btn-back">← Scheda paziente</button>
+  </nav>
+
+  <div class="main">
+    <div class="patient-header">
+      <div>
+        <div class="patient-name" id="ph-nome">Caricamento...</div>
+        <div class="patient-sub" id="ph-sub"></div>
+      </div>
+      <div id="ph-config"></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value yellow" id="stat-aderenza">—</div>
+        <div class="stat-label">Aderenza %</div>
+        <div class="aderenza-bar"><div class="aderenza-fill" id="aderenza-fill" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-sessioni">—</div>
+        <div class="stat-label">Sessioni totali</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value green" id="stat-streak">—</div>
+        <div class="stat-label">🔥 Streak giorni</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-ultimo">—</div>
+        <div class="stat-label">Ultimo accesso</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Andamento nel tempo</div>
+      <div class="chart-container">
+        <canvas id="chart-andamento"></canvas>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Diario paziente</div>
+      <div id="diary-content">
+        <div class="empty-state">Nessuna voce di diario ancora.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const params = new URLSearchParams(window.location.search)
+    const patientId = params.get('id')
+    let patient = null
+
+    document.getElementById('btn-back').onclick = () => window.location.href = 'paziente.html?id=' + patientId
+
+    async function init() {
+      if (!patientId) { window.location.href = 'dashboard.html'; return }
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+
+      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      if (!p) { window.location.href = 'dashboard.html'; return }
+      patient = p
+
+      document.getElementById('ph-nome').textContent = p.nome + ' ' + p.cognome
+      document.getElementById('ph-sub').textContent = p.problema_principale || ''
+      if (p.configurazione_default) {
+        document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + p.configurazione_default.toLowerCase() + '">' + p.configurazione_default + '</span>'
+      }
+
+      const { data: entries } = await _supabase
+        .from('diary_entries')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('data', { ascending: false })
+        .limit(30)
+
+      const { data: proto } = await _supabase
+        .from('patient_protocols')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('stato', 'attivo')
+        .single()
+
+      renderStats(entries || [], proto)
+      renderChart(entries || [])
+      renderDiary(entries || [])
+    }
+
+    function renderStats(entries, proto) {
+      const completate = entries.filter(e => e.completato).length
+      const totale = entries.length
+      const aderenza = totale > 0 ? Math.round((completate / totale) * 100) : 0
+
+      document.getElementById('stat-aderenza').textContent = aderenza + '%'
+      document.getElementById('stat-sessioni').textContent = completate
+      document.getElementById('aderenza-fill').style.width = aderenza + '%'
+
+      if (proto) {
+        const inizio = new Date(proto.data_inizio)
+        const oggi = new Date()
+        const giorniTotali = Math.floor((oggi - inizio) / (1000*60*60*24)) + 1
+        const streak = calcolaStreak(entries)
+        document.getElementById('stat-streak').textContent = streak + ' gg'
+      }
+
+      if (entries.length > 0) {
+        const ultimo = new Date(entries[0].data)
+        document.getElementById('stat-ultimo').textContent = ultimo.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })
+      } else {
+        document.getElementById('stat-ultimo').textContent = '—'
+      }
+    }
+
+    function calcolaStreak(entries) {
+      const completate = entries.filter(e => e.completato).sort((a,b) => new Date(b.data) - new Date(a.data))
+      if (completate.length === 0) return 0
+      let streak = 1
+      for (let i = 0; i < completate.length - 1; i++) {
+        const d1 = new Date(completate[i].data)
+        const d2 = new Date(completate[i+1].data)
+        const diff = (d1 - d2) / (1000*60*60*24)
+        if (diff === 1) streak++
+        else break
+      }
+      return streak
+    }
+
+    function renderChart(entries) {
+      const sorted = [...entries].filter(e => e.completato).sort((a,b) => new Date(a.data) - new Date(b.data)).slice(-14)
+      if (sorted.length === 0) return
+
+      const labels = sorted.map(e => new Date(e.data).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }))
+      const ctx = document.getElementById('chart-andamento').getContext('2d')
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Dolore',
+              data: sorted.map(e => e.dolore),
+              borderColor: '#ef5350',
+              backgroundColor: 'rgba(239,83,80,0.1)',
+              tension: 0.4,
+              fill: false,
+              pointRadius: 4
+            },
+            {
+              label: 'Rigidità',
+              data: sorted.map(e => e.rigidita),
+              borderColor: '#FF9800',
+              backgroundColor: 'rgba(255,152,0,0.1)',
+              tension: 0.4,
+              fill: false,
+              pointRadius: 4
+            },
+            {
+              label: 'Equilibrio',
+              data: sorted.map(e => e.equilibrio),
+              borderColor: '#FFD008',
+              backgroundColor: 'rgba(255,208,8,0.1)',
+              tension: 0.4,
+              fill: false,
+              pointRadius: 4
+            },
+            {
+              label: 'Energia',
+              data: sorted.map(e => e.energia),
+              borderColor: '#4CAF50',
+              backgroundColor: 'rgba(76,175,80,0.1)',
+              tension: 0.4,
+              fill: false,
+              pointRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { family: 'Montserrat', size: 11 },
+                boxWidth: 12,
+                padding: 16
+              }
+            }
+          },
+          scales: {
+            y: {
+              min: 0, max: 10,
+              ticks: { font: { family: 'Montserrat', size: 11 }, stepSize: 2 },
+              grid: { color: '#f0f0f0' }
+            },
+            x: {
+              ticks: { font: { family: 'Montserrat', size: 10 } },
+              grid: { display: false }
+            }
+          }
+        }
+      })
+    }
+
+    function renderDiary(entries) {
+      const el = document.getElementById('diary-content')
+      if (entries.length === 0) {
+        el.innerHTML = '<div class="empty-state">Nessuna voce di diario ancora.</div>'
+        return
+      }
+      el.innerHTML = '<table class="diary-table"><thead><tr><th>Data</th><th>Dolore</th><th>Rigidità</th><th>Equilibrio</th><th>Energia</th><th>Note</th><th>Completato</th></tr></thead><tbody>' +
+        entries.map(e => {
+          const data = new Date(e.data).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })
+          return '<tr><td><strong>' + data + '</strong></td><td>' + (e.dolore ?? '—') + '/10</td><td>' + (e.rigidita ?? '—') + '/10</td><td>' + (e.equilibrio ?? '—') + '/10</td><td>' + (e.energia ?? '—') + '/10</td><td style="max-width:200px;font-size:12px;color:#888">' + (e.note || '—') + '</td><td class="' + (e.completato ? 'completato-si' : 'completato-no') + '">' + (e.completato ? '✓ Sì' : '✗ No') + '</td></tr>'
+        }).join('') +
+        '</tbody></table>'
+    }
+
+    init()
+  </script>
+</body>
+</html>
