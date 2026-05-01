@@ -243,6 +243,7 @@
       <div class="actions-row">
         <button class="btn-primary" onclick="generaLink()">Genera link paziente</button>
         <button class="btn-secondary" onclick="copiaLink()">Copia link</button>
+        <button class="btn-secondary" onclick="inviaWhatsApp()" style="background:#25D366;color:#fff;border-color:#25D366">📲 Invia WhatsApp</button>
       </div>
       <div class="link-box" id="link-box"></div>
     </div>
@@ -383,6 +384,11 @@
       document.getElementById('link-box').classList.add('visible')
     }
 
+    function inviaWhatsApp() {
+      const link = 'https://policettivo-app.vercel.app/protocollo.html?token=' + patient.access_token
+      const testo = 'Ciao ' + patient.nome + ', ecco il tuo protocollo Policettivo®. Aprilo da qui: ' + link
+      window.open('https://wa.me/?text=' + encodeURIComponent(testo))
+    }
     function copiaLink() {
       const link = 'https://policettivo-app.vercel.app/protocollo.html?token=' + patient.access_token
       navigator.clipboard.writeText(link).then(() => alert('Link copiato!'))
