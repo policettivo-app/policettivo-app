@@ -13,6 +13,8 @@
     .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
     .nav-progress { font-size: 13px; color: #666; }
     .main { max-width: 480px; margin: 0 auto; padding: 24px 20px 40px; }
+    .progress-bar { height: 3px; background: #222; border-radius: 2px; margin-bottom: 24px; }
+    .progress-fill { height: 100%; background: #FFD008; border-radius: 2px; transition: width 0.3s; }
     .ex-header { margin-bottom: 24px; }
     .ex-counter { font-size: 12px; color: #666; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
     .ex-name { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 4px; }
@@ -20,14 +22,13 @@
     .config-pill { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 10px; }
     .pill-npl { background: #FFD008; color: #000; }
     .pill-gpl { background: #fff; color: #000; }
-    .video-box { background: #111; border: 1px solid #222; border-radius: 16px; overflow: hidden; margin-bottom: 24px; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+    .video-box { background: #111; border: 1px solid #222; border-radius: 16px; overflow: hidden; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; }
+    .video-box.shorts { aspect-ratio: 9/16; max-height: 400px; }
+    .video-box.normal { aspect-ratio: 16/9; }
     .video-box iframe { width: 100%; height: 100%; border: none; }
-    .video-placeholder { text-align: center; color: #444; }
+    .video-placeholder { text-align: center; color: #444; padding: 40px; }
     .video-placeholder div { font-size: 40px; margin-bottom: 8px; }
-    .video-placeholder p { font-size: 13px; }
     .timer-section { background: #111; border: 1px solid #222; border-radius: 20px; padding: 32px 24px; text-align: center; margin-bottom: 24px; }
-    .timer-display { font-size: 72px; font-weight: 700; color: #FFD008; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
-    .timer-label { font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; margin-bottom: 24px; }
     .timer-ring { position: relative; width: 160px; height: 160px; margin: 0 auto 24px; }
     .timer-ring svg { transform: rotate(-90deg); }
     .timer-ring-bg { fill: none; stroke: #222; stroke-width: 8; }
@@ -46,7 +47,6 @@
     .btn-complete { width: 100%; padding: 18px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; }
     .btn-complete:hover { background: #e6bc00; }
     .btn-pain { width: 100%; padding: 14px; background: transparent; border: 1px solid #c62828; color: #ef9a9a; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; }
-    .btn-pain:hover { background: #1a0000; }
     .btn-prev { width: 100%; padding: 14px; background: transparent; border: 1px solid #333; color: #666; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 14px; cursor: pointer; }
     .completed-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 100; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 40px; }
     .completed-overlay.show { display: flex; }
@@ -55,34 +55,24 @@
     .completed-sub { font-size: 16px; color: #888; margin-bottom: 40px; }
     .btn-next { padding: 18px 40px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; }
     .btn-finish { padding: 18px 40px; background: transparent; border: 1px solid #FFD008; color: #FFD008; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 12px; }
-    .progress-bar { height: 3px; background: #222; border-radius: 2px; margin-bottom: 24px; }
-    .progress-fill { height: 100%; background: #FFD008; border-radius: 2px; transition: width 0.3s; }
   </style>
 </head>
 <body>
-
   <nav class="navbar">
     <span class="navbar-logo">POLICETTIVO®</span>
     <span class="nav-progress" id="nav-progress"></span>
   </nav>
-
   <div class="main">
     <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-
     <div class="ex-header">
       <div class="ex-counter" id="ex-counter">Esercizio 1 di 1</div>
       <div class="ex-name" id="ex-name">Caricamento...</div>
       <div class="ex-desc" id="ex-desc"></div>
       <div id="ex-config"></div>
     </div>
-
     <div class="video-box" id="video-box">
-      <div class="video-placeholder">
-        <div>▶</div>
-        <p>Video non disponibile</p>
-      </div>
+      <div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>
     </div>
-
     <div class="timer-section">
       <div class="timer-ring">
         <svg width="160" height="160" viewBox="0 0 160 160">
@@ -97,7 +87,6 @@
       </div>
       <div class="breathing-hint" id="breathing-hint">Respira liberamente e rilassa le spalle</div>
     </div>
-
     <div class="actions">
       <button class="btn-complete" onclick="completeExercise()">✓ Esercizio completato</button>
       <button class="btn-pain" onclick="painAlert()">⚠ Ho dolore — interrompi</button>
@@ -105,7 +94,6 @@
     </div>
   </div>
 
-  <!-- OVERLAY COMPLETATO -->
   <div class="completed-overlay" id="completed-overlay">
     <div class="completed-icon" id="completed-icon">✅</div>
     <div class="completed-title" id="completed-title">Esercizio completato!</div>
@@ -118,75 +106,73 @@
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     let idx = parseInt(params.get('idx') || '0')
-    let patient = null
-    let protocol = null
-    let exercises = []
-    let currentEx = null
-    let totalSeconds = 90
-    let remaining = 90
-    let timerInterval = null
-    let isRunning = false
+    let patient = null, protocol = null, exercises = []
+    let totalSeconds = 90, remaining = 90, timerInterval = null, isRunning = false
 
     async function init() {
       if (!token) { window.location.href = 'protocollo.html'; return }
       const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
       if (!p) { window.location.href = 'protocollo.html?token=' + token; return }
       patient = p
-
-      const { data: prot } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false }).limit(1).single()
-      if (!prot) { window.location.href = 'protocollo.html?token=' + token; return }
-      protocol = prot
-
-      const { data: exList } = await _supabase
-        .from('patient_protocol_exercises')
-        .select('*, exercise:exercises(*)')
-        .eq('patient_protocol_id', protocol.id)
-        .order('ordine')
-      exercises = exList || []
-
+      const { data: prots } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
+      if (!prots || prots.length === 0) { window.location.href = 'protocollo.html?token=' + token; return }
+      protocol = prots[0]
+      const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
+      if (ppe && ppe.length > 0) {
+        const exIds = ppe.map(e => e.exercise_id)
+        const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
+        const exMap = {}
+        if (exData) exData.forEach(e => exMap[e.id] = e)
+        exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
+      }
       if (idx >= exercises.length) { finishSession(); return }
       loadExercise()
     }
 
-    function loadExercise() {
-      currentEx = exercises[idx]
-      const ex = currentEx.exercise
-      const cfg = currentEx.configurazione || protocol.configurazione_generale || patient.configurazione_default
-      const total = exercises.length
+    function extractVideoId(url) {
+      if (!url) return { id: null, isShorts: false }
+      const shortsMatch = url.match(/youtube\.com\/shorts\/([^?&\n]+)/)
+      if (shortsMatch) return { id: shortsMatch[1], isShorts: true }
+      const normalMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)
+      if (normalMatch) return { id: normalMatch[1], isShorts: false }
+      return { id: null, isShorts: false }
+    }
 
+    function loadExercise() {
+      const currentEx = exercises[idx]
+      const ex = currentEx.exercise
+      const cfg = currentEx.configurazione || protocol.configurazione_generale || patient.configurazione_default || 'NPL'
+      const total = exercises.length
       document.getElementById('ex-counter').textContent = `Esercizio ${idx+1} di ${total}`
       document.getElementById('nav-progress').textContent = `${idx+1} / ${total}`
       document.getElementById('ex-name').textContent = ex ? ex.nome : 'Esercizio'
       document.getElementById('ex-desc').textContent = ex ? ex.descrizione_paziente : ''
       document.getElementById('progress-fill').style.width = ((idx / total) * 100) + '%'
-
       if (cfg) {
         document.getElementById('ex-config').innerHTML = `<span class="config-pill pill-${cfg.toLowerCase()}">${cfg} — ${cfg === 'NPL' ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'}</span>`
       }
-
+      const videoBox = document.getElementById('video-box')
       if (ex && ex.video_url) {
-        const videoId = extractYouTubeId(ex.video_url)
-        if (videoId) {
-          document.getElementById('video-box').innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`
+        const { id, isShorts } = extractVideoId(ex.video_url)
+        if (id) {
+          videoBox.className = 'video-box ' + (isShorts ? 'shorts' : 'normal')
+          videoBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?playsinline=1&rel=0" allowfullscreen allow="autoplay"></iframe>`
+        } else {
+          videoBox.className = 'video-box normal'
+          videoBox.innerHTML = `<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>`
         }
+      } else {
+        videoBox.className = 'video-box normal'
+        videoBox.innerHTML = `<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>`
       }
-
       totalSeconds = currentEx.durata || (ex ? ex.durata_default : 90) || 90
       remaining = totalSeconds
       updateTimerDisplay()
       updateRing()
-
       document.getElementById('btn-prev').style.display = idx > 0 ? 'block' : 'none'
-    }
-
-    function extractYouTubeId(url) {
-      if (!url) return null
-      const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)
-      return m ? m[1] : null
     }
 
     function updateTimerDisplay() {
@@ -196,15 +182,13 @@
     }
 
     function updateRing() {
-      const circumference = 427
-      const offset = circumference * (1 - remaining / totalSeconds)
+      const offset = 427 * (1 - remaining / totalSeconds)
       document.getElementById('ring-fg').style.strokeDashoffset = offset
     }
 
     function toggleTimer() {
       if (isRunning) {
-        clearInterval(timerInterval)
-        isRunning = false
+        clearInterval(timerInterval); isRunning = false
         document.getElementById('play-btn').textContent = '▶ Riprendi'
         document.getElementById('breathing-hint').classList.remove('active')
       } else {
@@ -212,79 +196,35 @@
         document.getElementById('play-btn').textContent = '⏸ Pausa'
         document.getElementById('breathing-hint').classList.add('active')
         timerInterval = setInterval(() => {
-          if (remaining > 0) {
-            remaining--
-            updateTimerDisplay()
-            updateRing()
-          } else {
-            clearInterval(timerInterval)
-            isRunning = false
-            document.getElementById('play-btn').textContent = '▶ Avvia'
-            document.getElementById('breathing-hint').classList.remove('active')
-            try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA...').play() } catch(e) {}
-            showCompleted()
-          }
+          if (remaining > 0) { remaining--; updateTimerDisplay(); updateRing() }
+          else { clearInterval(timerInterval); isRunning = false; document.getElementById('play-btn').textContent = '▶ Avvia'; document.getElementById('breathing-hint').classList.remove('active'); showCompleted() }
         }, 1000)
       }
     }
 
     function resetTimer() {
-      clearInterval(timerInterval)
-      isRunning = false
-      remaining = totalSeconds
-      updateTimerDisplay()
-      updateRing()
+      clearInterval(timerInterval); isRunning = false; remaining = totalSeconds
+      updateTimerDisplay(); updateRing()
       document.getElementById('play-btn').textContent = '▶ Avvia'
       document.getElementById('breathing-hint').classList.remove('active')
     }
 
-    function completeExercise() {
-      clearInterval(timerInterval)
-      isRunning = false
-      showCompleted()
-    }
+    function completeExercise() { clearInterval(timerInterval); isRunning = false; showCompleted() }
 
     function showCompleted() {
       const isLast = idx >= exercises.length - 1
-      const overlay = document.getElementById('completed-overlay')
       document.getElementById('completed-icon').textContent = isLast ? '🏆' : '✅'
       document.getElementById('completed-title').textContent = isLast ? 'Sessione completata!' : 'Esercizio completato!'
-      document.getElementById('completed-sub').textContent = isLast
-        ? 'Hai finito tutti gli esercizi di oggi. Ottimo lavoro!'
-        : `Prossimo: ${exercises[idx+1] ? exercises[idx+1].exercise.nome : ''}`
+      document.getElementById('completed-sub').textContent = isLast ? 'Hai finito tutti gli esercizi di oggi. Ottimo lavoro!' : `Prossimo: ${exercises[idx+1] ? exercises[idx+1].exercise.nome : ''}`
       document.getElementById('btn-next').style.display = isLast ? 'none' : 'block'
       document.getElementById('btn-finish').style.display = isLast ? 'block' : 'none'
-      overlay.classList.add('show')
+      document.getElementById('completed-overlay').classList.add('show')
     }
 
-    function nextExercise() {
-      idx++
-      document.getElementById('completed-overlay').classList.remove('show')
-      resetTimer()
-      loadExercise()
-      window.scrollTo(0, 0)
-    }
-
-    function prevExercise() {
-      if (idx > 0) {
-        idx--
-        resetTimer()
-        loadExercise()
-        window.scrollTo(0, 0)
-      }
-    }
-
-    function finishSession() {
-      window.location.href = 'protocollo.html?token=' + token
-    }
-
-    function painAlert() {
-      if (confirm('Vuoi interrompere l\'esercizio per dolore?')) {
-        clearInterval(timerInterval)
-        alert('Sessione interrotta. Contatta il tuo professionista se il dolore persiste.')
-        finishSession()
-      }
-    }
+    function nextExercise() { idx++; document.getElementById('completed-overlay').classList.remove('show'); resetTimer(); loadExercise(); window.scrollTo(0,0) }
+    function prevExercise() { if (idx > 0) { idx--; resetTimer(); loadExercise(); window.scrollTo(0,0) } }
+    function finishSession() { window.location.href = 'protocollo.html?token=' + token }
+    function painAlert() { if (confirm('Vuoi interrompere l\'esercizio per dolore?')) { clearInterval(timerInterval); finishSession() } }
 
     init()
   </script>
