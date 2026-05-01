@@ -272,7 +272,8 @@
     const patientId = params.get('id')
     let patient = null, selectedConfig = null, obsSelections = {}, noteSaveTimer = null
 
-    async function init() {
+    async function function getPatientId() { return patientId }
+    init() {
       if (!patientId) { window.location.href = 'dashboard.html'; return }
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
@@ -404,6 +405,7 @@
       navigator.clipboard.writeText(link).then(() => alert('Link copiato!'))
     }
 
+    function getPatientId() { return patientId }
     init()
   </script>
 </body>

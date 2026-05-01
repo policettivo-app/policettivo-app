@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scheda Clinica — Policettivo®</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f0f0f0; padding: 20px; }
+    .screen-only { }
+    .page {
+      background: #fff;
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto 20px;
+      padding: 16mm 16mm 12mm;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10mm; border-bottom: 3px solid #000; margin-bottom: 8mm; }
+    .header-logo { display: flex; align-items: center; gap: 10px; }
+    .logo-badge { background: #FFD008; color: #000; font-weight: 700; font-size: 14px; letter-spacing: 2px; padding: 6px 14px; border-radius: 4px; }
+    .logo-title { font-size: 18px; font-weight: 700; color: #000; }
+    .header-date { font-size: 11px; color: #666; text-align: right; }
+    .patient-banner { background: #000; color: #fff; padding: 8mm 10mm; border-radius: 8px; margin-bottom: 8mm; display: flex; justify-content: space-between; align-items: center; }
+    .patient-banner-name { font-size: 22px; font-weight: 700; }
+    .patient-banner-sub { font-size: 12px; color: #aaa; margin-top: 3px; }
+    .config-tag { background: #FFD008; color: #000; font-weight: 700; font-size: 14px; padding: 6px 16px; border-radius: 20px; }
+    .section { margin-bottom: 8mm; }
+    .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #000; border-bottom: 2px solid #FFD008; padding-bottom: 3px; margin-bottom: 5mm; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5mm; }
+    .info-item { }
+    .info-label { font-size: 9px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .info-value { font-size: 12px; color: #000; font-weight: 500; }
+    .note-content { background: #f9f9f9; border-left: 3px solid #FFD008; padding: 5mm; border-radius: 0 4px 4px 0; font-size: 11px; color: #333; line-height: 1.7; white-space: pre-wrap; }
+    .foto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-bottom: 5mm; }
+    .foto-box { border: 1px solid #eee; border-radius: 6px; overflow: hidden; }
+    .foto-label-bar { background: #000; color: #FFD008; font-size: 9px; font-weight: 700; padding: 3px 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .foto-img { width: 100%; height: 55mm; object-fit: cover; display: block; }
+    .foto-img.portrait { height: 70mm; object-fit: cover; }
+    .foto-empty { width: 100%; height: 55mm; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc; }
+    .obs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+    .obs-item { background: #f9f9f9; border-radius: 6px; padding: 3mm 4mm; }
+    .obs-key { font-size: 9px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .obs-val { font-size: 11px; color: #000; font-weight: 600; margin-top: 2px; }
+    .footer { border-top: 1px solid #eee; padding-top: 5mm; margin-top: 8mm; display: flex; justify-content: space-between; font-size: 9px; color: #bbb; }
+    .btn-print { position: fixed; bottom: 24px; right: 24px; background: #FFD008; color: #000; border: none; padding: 14px 28px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 100; }
+    .btn-print:hover { background: #e6bc00; }
+    .btn-back-pdf { position: fixed; bottom: 24px; left: 24px; background: #000; color: #fff; border: none; padding: 14px 28px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; z-index: 100; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .page { box-shadow: none; margin: 0; }
+      .btn-print, .btn-back-pdf { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <button class="btn-back-pdf" onclick="history.back()">← Torna</button>
+  <button class="btn-print" onclick="window.print()">🖨 Stampa / Salva PDF</button>
+
+  <div class="page" id="page">
+    <div class="header">
+      <div class="header-logo">
+        <span class="logo-badge">POLICETTIVO®</span>
+        <span class="logo-title">Scheda Clinica</span>
+      </div>
+      <div class="header-date" id="header-date"></div>
+    </div>
+
+    <div class="patient-banner">
+      <div>
+        <div class="patient-banner-name" id="pdf-nome">—</div>
+        <div class="patient-banner-sub" id="pdf-sub">—</div>
+      </div>
+      <div class="config-tag" id="pdf-config">—</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Dati anagrafici</div>
+      <div class="info-grid">
+        <div class="info-item"><div class="info-label">Email</div><div class="info-value" id="pdf-email">—</div></div>
+        <div class="info-item"><div class="info-label">Telefono</div><div class="info-value" id="pdf-tel">—</div></div>
+        <div class="info-item"><div class="info-label">Problema principale</div><div class="info-value" id="pdf-problema">—</div></div>
+      </div>
+    </div>
+
+    <div class="section" id="section-note" style="display:none">
+      <div class="section-title">Note cliniche</div>
+      <div class="note-content" id="pdf-note"></div>
+    </div>
+
+    <div class="section" id="section-foto-sag">
+      <div class="section-title">Foto posturali — Piano sagittale</div>
+      <div style="font-size:10px;color:#999;margin-bottom:4mm;font-weight:600">PRIMA dei 3 Respiri</div>
+      <div class="foto-grid" id="foto-prima"></div>
+      <div style="font-size:10px;color:#999;margin-bottom:4mm;font-weight:600;margin-top:4mm">DOPO i 3 Respiri</div>
+      <div class="foto-grid" id="foto-dopo"></div>
+    </div>
+
+    <div class="section" id="section-foto-front" style="display:none">
+      <div class="section-title">Foto posturali — Piano frontale e posteriore</div>
+      <div class="foto-grid" id="foto-frontale"></div>
+    </div>
+
+    <div class="section" id="section-podo" style="display:none">
+      <div class="section-title">Osservazione podoscopica</div>
+      <div class="foto-grid" id="foto-podo"></div>
+    </div>
+
+    <div class="section" id="section-obs" style="display:none">
+      <div class="section-title">Osservazioni cliniche</div>
+      <div class="obs-grid" id="pdf-obs"></div>
+    </div>
+
+    <div class="footer">
+      <span>Scheda generata da App Policettivo® — uso riservato al professionista</span>
+      <span id="footer-date"></span>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const params = new URLSearchParams(window.location.search)
+    const patientId = params.get('id')
+
+    const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+    document.getElementById('header-date').innerHTML = `Data: <strong>${oggi}</strong><br>Documento riservato`
+    document.getElementById('footer-date').textContent = oggi
+
+    async function init() {
+      if (!patientId) { alert('ID paziente mancante'); return }
+      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      if (!p) { alert('Paziente non trovato'); return }
+
+      document.getElementById('pdf-nome').textContent = p.nome + ' ' + p.cognome
+      document.getElementById('pdf-sub').textContent = p.problema_principale || 'Nessun problema indicato'
+      document.getElementById('pdf-config').textContent = p.configurazione_default || 'Da definire'
+      document.getElementById('pdf-email').textContent = p.email || '—'
+      document.getElementById('pdf-tel').textContent = p.telefono || '—'
+      document.getElementById('pdf-problema').textContent = p.problema_principale || '—'
+
+      if (p.note_cliniche) {
+        document.getElementById('pdf-note').textContent = p.note_cliniche
+        document.getElementById('section-note').style.display = 'block'
+        const righe = p.note_cliniche.split('\n').filter(r => r.trim())
+        if (righe.length > 0) {
+          const obsGrid = document.getElementById('pdf-obs')
+          const keywords = ['Piano scapolare', 'Rotazione', 'Inclinazione', 'Morfologia', 'Asse calcaneare']
+          const obsRighe = righe.filter(r => keywords.some(k => r.includes(k)))
+          if (obsRighe.length > 0) {
+            obsGrid.innerHTML = obsRighe.map(r => {
+              const parts = r.split(': ')
+              return `<div class="obs-item"><div class="obs-key">${parts[0] || ''}</div><div class="obs-val">${parts[1] || ''}</div></div>`
+            }).join('')
+            document.getElementById('section-obs').style.display = 'block'
+          }
+        }
+      }
+
+      if (p.foto_url) {
+        try {
+          const urls = JSON.parse(p.foto_url)
+          renderFotoGrid('foto-prima', [
+            { key: 'prima-sx', label: 'Piano sagittale sinistro — PRIMA' },
+            { key: 'prima-dx', label: 'Piano sagittale destro — PRIMA' }
+          ], urls)
+          renderFotoGrid('foto-dopo', [
+            { key: 'dopo-sx', label: 'Piano sagittale sinistro — DOPO' },
+            { key: 'dopo-dx', label: 'Piano sagittale destro — DOPO' }
+          ], urls)
+          const hasFront = urls['frontale'] || urls['posteriore']
+          if (hasFront) {
+            renderFotoGrid('foto-frontale', [
+              { key: 'frontale', label: 'Piano frontale' },
+              { key: 'posteriore', label: 'Piano posteriore' }
+            ], urls)
+            document.getElementById('section-foto-front').style.display = 'block'
+          }
+          const hasPodo = urls['podo-sotto'] || urls['podo-dietro']
+          if (hasPodo) {
+            renderFotoGrid('foto-podo', [
+              { key: 'podo-sotto', label: 'Piede da sotto' },
+              { key: 'podo-dietro', label: 'Piede da dietro' }
+            ], urls)
+            document.getElementById('section-podo').style.display = 'block'
+          }
+        } catch(e) {}
+      }
+    }
+
+    function renderFotoGrid(containerId, slots, urls) {
+      const container = document.getElementById(containerId)
+      container.innerHTML = slots.map(slot => {
+        const src = urls[slot.key]
+        return `<div class="foto-box">
+          <div class="foto-label-bar">${slot.label}</div>
+          ${src ? `<img class="foto-img" src="${src}" alt="${slot.label}">` : '<div class="foto-empty">Foto non disponibile</div>'}
+        </div>`
+      }).join('')
+    }
+
+    init()
+  </script>
+</body>
+</html>
