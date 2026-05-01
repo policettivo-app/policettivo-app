@@ -28,17 +28,27 @@
     .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
     .info-item label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
     .info-item span { font-size: 14px; color: #000; font-weight: 500; }
-    .note-box { background: #f9f9f9; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #444; margin-top: 12px; line-height: 1.6; }
-    .foto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .foto-slot { border: 2px dashed #ddd; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; position: relative; overflow: hidden; min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .foto-slot:hover { border-color: #FFD008; }
-    .foto-slot.has-photo { border-style: solid; border-color: #eee; padding: 0; }
-    .foto-slot img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; }
-    .foto-slot .foto-label { font-size: 12px; font-weight: 600; color: #999; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .foto-slot .foto-icon { font-size: 32px; margin-bottom: 8px; }
+    .note-box { background: #f9f9f9; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #444; margin-top: 12px; line-height: 1.6; white-space: pre-wrap; }
+    .foto-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; }
+    .foto-grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .foto-group-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; margin-top: 16px; }
+    .confronto-divider { border: none; border-top: 2px dashed #FFD008; margin: 20px 0; }
+    .foto-slot { border: 2px dashed #ddd; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; position: relative; overflow: hidden; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fafafa; }
+    .foto-slot:hover { border-color: #FFD008; background: #fffdf0; }
+    .foto-slot.has-photo { border-style: solid; border-color: #eee; padding: 0; background: #000; }
+    .foto-slot img { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; display: block; }
+    .foto-slot .foto-label { font-size: 11px; font-weight: 600; color: #999; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .foto-slot .foto-icon { font-size: 28px; margin-bottom: 6px; }
     .foto-slot .foto-hint { font-size: 11px; color: #bbb; }
-    .foto-slot input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-    .foto-overlay { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
+    .foto-overlay { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 4px; cursor: pointer; z-index: 2; }
+    .osservazione-group { margin-bottom: 20px; }
+    .osservazione-label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 10px; }
+    .osservazione-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+    .obs-btn { padding: 8px 18px; border: 2px solid #ddd; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: #555; transition: all 0.15s; }
+    .obs-btn:hover { border-color: #FFD008; color: #000; }
+    .obs-btn.selected { background: #FFD008; border-color: #FFD008; color: #000; }
+    .notes-textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; color: #000; outline: none; resize: vertical; min-height: 100px; margin-top: 8px; }
+    .notes-textarea:focus { border-color: #FFD008; }
     .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
     .config-option { border: 2px solid #eee; border-radius: 8px; padding: 16px; cursor: pointer; text-align: center; transition: all 0.2s; }
     .config-option:hover { border-color: #ccc; }
@@ -50,10 +60,12 @@
     .btn-primary:hover { background: #e6bc00; }
     .btn-secondary { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
     .btn-secondary:hover { border-color: #999; }
+    .btn-save { background: #000; color: #FFD008; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
     .actions-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
     .link-box { background: #f0f9f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #2e7d32; word-break: break-all; margin-top: 12px; display: none; }
     .link-box.visible { display: block; }
     .saving-indicator { font-size: 12px; color: #999; margin-top: 8px; display: none; }
+    .step-label { background: #000; color: #FFD008; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; margin-right: 8px; }
   </style>
 </head>
 <body>
@@ -66,7 +78,7 @@
   </nav>
 
   <div class="main">
-    <!-- HEADER PAZIENTE -->
+
     <div class="patient-header">
       <div>
         <div class="patient-name" id="ph-nome">Caricamento...</div>
@@ -89,27 +101,97 @@
     <!-- FOTO POSTURALI -->
     <div class="section">
       <div class="section-title">Foto posturali</div>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta o carica le foto sul piano sagittale per determinare la configurazione corretta.</p>
-      <div class="foto-grid">
-        <div class="foto-slot" id="slot-sx" onclick="document.getElementById('input-sx').click()">
-          <div class="foto-label">Piano sagittale sinistro</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta le foto sul piano sagittale prima e dopo la Tecnica dei 3 Respiri per scegliere la configurazione corretta.</p>
+
+      <div class="foto-group-label"><span class="step-label">PRIMA</span> Piano sagittale — prima dei 3R</div>
+      <div class="foto-grid-2">
+        <div class="foto-slot" id="slot-prima-sx" onclick="triggerInput('prima-sx')">
+          <div class="foto-label">Sinistro</div>
           <div class="foto-icon">📷</div>
-          <div class="foto-hint">Clicca per scattare o caricare</div>
-          <input type="file" id="input-sx" accept="image/*" capture="environment" onchange="handleFoto('sx', this)">
+          <div class="foto-hint">Tocca per foto</div>
         </div>
-        <div class="foto-slot" id="slot-dx" onclick="document.getElementById('input-dx').click()">
-          <div class="foto-label">Piano sagittale destro</div>
+        <div class="foto-slot" id="slot-prima-dx" onclick="triggerInput('prima-dx')">
+          <div class="foto-label">Destro</div>
           <div class="foto-icon">📷</div>
-          <div class="foto-hint">Clicca per scattare o caricare</div>
-          <input type="file" id="input-dx" accept="image/*" capture="environment" onchange="handleFoto('dx', this)">
+          <div class="foto-hint">Tocca per foto</div>
         </div>
       </div>
+
+      <hr class="confronto-divider">
+
+      <div class="foto-group-label"><span class="step-label">DOPO</span> Piano sagittale — dopo i 3R</div>
+      <div class="foto-grid-2">
+        <div class="foto-slot" id="slot-dopo-sx" onclick="triggerInput('dopo-sx')">
+          <div class="foto-label">Sinistro</div>
+          <div class="foto-icon">📷</div>
+          <div class="foto-hint">Tocca per foto</div>
+        </div>
+        <div class="foto-slot" id="slot-dopo-dx" onclick="triggerInput('dopo-dx')">
+          <div class="foto-label">Destro</div>
+          <div class="foto-icon">📷</div>
+          <div class="foto-hint">Tocca per foto</div>
+        </div>
+      </div>
+
+      <input type="file" id="input-prima-sx" accept="image/*" style="display:none" onchange="handleFoto('prima-sx',this)">
+      <input type="file" id="input-prima-dx" accept="image/*" style="display:none" onchange="handleFoto('prima-dx',this)">
+      <input type="file" id="input-dopo-sx" accept="image/*" style="display:none" onchange="handleFoto('dopo-sx',this)">
+      <input type="file" id="input-dopo-dx" accept="image/*" style="display:none" onchange="handleFoto('dopo-dx',this)">
+    </div>
+
+    <!-- PODOSCOPIO -->
+    <div class="section">
+      <div class="section-title">Osservazione podoscopica</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta le foto al podoscopio e seleziona le osservazioni. Verranno aggiunte automaticamente alle note cliniche.</p>
+
+      <div class="foto-grid-2" style="margin-bottom:20px">
+        <div>
+          <div class="foto-group-label">Vista plantare (da sotto)</div>
+          <div class="foto-slot" id="slot-podo-sotto" onclick="triggerInput('podo-sotto')">
+            <div class="foto-label">Piede da sotto</div>
+            <div class="foto-icon">🦶</div>
+            <div class="foto-hint">Tocca per foto</div>
+          </div>
+          <input type="file" id="input-podo-sotto" accept="image/*" style="display:none" onchange="handleFoto('podo-sotto',this)">
+          <div class="osservazione-group" style="margin-top:12px">
+            <div class="osservazione-label">Morfologia piede:</div>
+            <div class="osservazione-buttons">
+              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede normale',this)">Normale</button>
+              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede piatto',this)">Piatto</button>
+              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede cavo',this)">Cavo</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="foto-group-label">Vista posteriore (da dietro)</div>
+          <div class="foto-slot" id="slot-podo-dietro" onclick="triggerInput('podo-dietro')">
+            <div class="foto-label">Piede da dietro</div>
+            <div class="foto-icon">🦶</div>
+            <div class="foto-hint">Tocca per foto</div>
+          </div>
+          <input type="file" id="input-podo-dietro" accept="image/*" style="display:none" onchange="handleFoto('podo-dietro',this)">
+          <div class="osservazione-group" style="margin-top:12px">
+            <div class="osservazione-label">Asse calcaneare:</div>
+            <div class="osservazione-buttons">
+              <button class="obs-btn" onclick="selectObs('piede-asse','Calcagno normale',this)">Normale</button>
+              <button class="obs-btn" onclick="selectObs('piede-asse','Piede valgo',this)">Valgo</button>
+              <button class="obs-btn" onclick="selectObs('piede-asse','Piede varo',this)">Varo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="osservazione-label" style="margin-bottom:6px">Note aggiuntive podoscopio:</div>
+        <textarea class="notes-textarea" id="note-podo" placeholder="Aggiungi osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
+      </div>
+      <div class="saving-indicator" id="saving-note">Salvataggio note...</div>
     </div>
 
     <!-- CONFIGURAZIONE NPL/GPL -->
     <div class="section">
       <div class="section-title">Configurazione cuscini</div>
-      <p style="font-size:13px;color:#666;margin-bottom:12px">Dopo aver osservato il piano scapolare nelle foto, scegli la configurazione.</p>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">Dopo aver osservato le foto e il piano scapolare, scegli la configurazione.</p>
       <div class="config-selector">
         <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')">
           <div class="config-name">NPL</div>
@@ -120,19 +202,20 @@
           <div class="config-desc">Giallo Posteriore Laterale</div>
         </div>
       </div>
-      <div class="saving-indicator" id="saving-indicator">Salvataggio...</div>
+      <div class="saving-indicator" id="saving-config">Salvataggio...</div>
     </div>
 
     <!-- LINK PAZIENTE -->
     <div class="section">
       <div class="section-title">Accesso paziente</div>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">Genera il link personale da inviare al paziente. Il paziente potrà accedere al proprio protocollo senza password.</p>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Genera il link personale da inviare al paziente. Il paziente accede al proprio protocollo senza password.</p>
       <div class="actions-row">
         <button class="btn-primary" onclick="generaLink()">Genera link paziente</button>
         <button class="btn-secondary" onclick="copiaLink()">Copia link</button>
       </div>
       <div class="link-box" id="link-box"></div>
     </div>
+
   </div>
 
   <script>
@@ -144,12 +227,13 @@
     const patientId = params.get('id')
     let patient = null
     let selectedConfig = null
+    let obsSelections = {}
+    let noteSaveTimer = null
 
     async function init() {
       if (!patientId) { window.location.href = 'dashboard.html'; return }
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
-
       const { data, error } = await _supabase.from('patients').select('*').eq('id', patientId).single()
       if (error || !data) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }
       patient = data
@@ -163,9 +247,9 @@
       document.getElementById('info-tel').textContent = patient.telefono || '—'
       document.getElementById('info-problema').textContent = patient.problema_principale || '—'
       if (patient.note_cliniche) {
-        const noteBox = document.getElementById('info-note')
-        noteBox.textContent = '📋 ' + patient.note_cliniche
-        noteBox.style.display = 'block'
+        const nb = document.getElementById('info-note')
+        nb.textContent = patient.note_cliniche
+        nb.style.display = 'block'
       }
       if (patient.configurazione_default) {
         selectedConfig = patient.configurazione_default
@@ -177,10 +261,89 @@
       if (patient.foto_url) {
         try {
           const urls = JSON.parse(patient.foto_url)
-          if (urls.sx) showFotoPreview('sx', urls.sx)
-          if (urls.dx) showFotoPreview('dx', urls.dx)
+          Object.keys(urls).forEach(k => { if (urls[k]) showFotoPreview(k, urls[k]) })
         } catch(e) {}
       }
+    }
+
+    function triggerInput(id) {
+      const inp = document.getElementById('input-' + id)
+      if (inp) inp.click()
+    }
+
+    function resizeImage(file, maxW, maxH, cb) {
+      const reader = new FileReader()
+      reader.onload = e => {
+        const img = new Image()
+        img.onload = () => {
+          let w = img.width, h = img.height
+          if (w > maxW || h > maxH) {
+            const ratio = Math.min(maxW/w, maxH/h)
+            w = Math.round(w * ratio); h = Math.round(h * ratio)
+          }
+          const canvas = document.createElement('canvas')
+          canvas.width = w; canvas.height = h
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+          cb(canvas.toDataURL('image/jpeg', 0.82))
+        }
+        img.src = e.target.result
+      }
+      reader.readAsDataURL(file)
+    }
+
+    async function handleFoto(slot, input) {
+      const file = input.files[0]
+      if (!file) return
+      resizeImage(file, 1200, 1600, async (dataUrl) => {
+        showFotoPreview(slot, dataUrl)
+        let urls = {}
+        try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
+        urls[slot] = dataUrl
+        patient.foto_url = JSON.stringify(urls)
+        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+      })
+    }
+
+    function showFotoPreview(slot, src) {
+      const el = document.getElementById('slot-' + slot)
+      if (!el) return
+      el.classList.add('has-photo')
+      el.onclick = null
+      el.innerHTML = `
+        <img src="${src}" alt="foto">
+        <div class="foto-overlay" onclick="triggerInput('${slot}')">Cambia</div>
+        <input type="file" id="input-${slot}" accept="image/*" style="display:none" onchange="handleFoto('${slot}',this)">
+      `
+    }
+
+    function selectObs(gruppo, valore, btn) {
+      const parent = btn.closest('.osservazione-buttons')
+      parent.querySelectorAll('.obs-btn').forEach(b => b.classList.remove('selected'))
+      btn.classList.add('selected')
+      obsSelections[gruppo] = valore
+      aggiornaNoteCliniche()
+    }
+
+    function scheduleNoteSave() {
+      clearTimeout(noteSaveTimer)
+      noteSaveTimer = setTimeout(() => aggiornaNoteCliniche(), 1200)
+    }
+
+    async function aggiornaNoteCliniche() {
+      const righe = []
+      if (obsSelections['piede-morfologia']) righe.push('Morfologia piede: ' + obsSelections['piede-morfologia'])
+      if (obsSelections['piede-asse']) righe.push('Asse calcaneare: ' + obsSelections['piede-asse'])
+      const noteLibere = document.getElementById('note-podo').value.trim()
+      if (noteLibere) righe.push('Note podoscopio: ' + noteLibere)
+      const noteFinali = righe.join('\n')
+      const ind = document.getElementById('saving-note')
+      ind.style.display = 'block'
+      await _supabase.from('patients').update({ note_cliniche: noteFinali }).eq('id', patientId)
+      patient.note_cliniche = noteFinali
+      const nb = document.getElementById('info-note')
+      if (noteFinali) { nb.textContent = noteFinali; nb.style.display = 'block' }
+      ind.textContent = '✓ Note salvate'
+      setTimeout(() => { ind.style.display = 'none'; ind.textContent = 'Salvataggio note...' }, 2000)
     }
 
     function updateConfigUI() {
@@ -192,36 +355,11 @@
       selectedConfig = val
       updateConfigUI()
       document.getElementById('ph-config').innerHTML = `<span class="badge badge-${val.toLowerCase()}">${val}</span>`
-      const indicator = document.getElementById('saving-indicator')
-      indicator.style.display = 'block'
+      const ind = document.getElementById('saving-config')
+      ind.style.display = 'block'
       await _supabase.from('patients').update({ configurazione_default: val }).eq('id', patientId)
-      indicator.textContent = '✓ Salvato'
-      setTimeout(() => { indicator.style.display = 'none'; indicator.textContent = 'Salvataggio...' }, 2000)
-    }
-
-    async function handleFoto(lato, input) {
-      const file = input.files[0]
-      if (!file) return
-      const reader = new FileReader()
-      reader.onload = async (e) => {
-        showFotoPreview(lato, e.target.result)
-        let urls = {}
-        try { urls = JSON.parse(patient.foto_url || '{}') } catch(err) {}
-        urls[lato] = e.target.result
-        patient.foto_url = JSON.stringify(urls)
-        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
-      }
-      reader.readAsDataURL(file)
-    }
-
-    function showFotoPreview(lato, src) {
-      const slot = document.getElementById('slot-' + lato)
-      slot.classList.add('has-photo')
-      slot.innerHTML = `
-        <img src="${src}" alt="Foto ${lato}">
-        <div class="foto-overlay" onclick="document.getElementById('input-${lato}').click()">Cambia</div>
-        <input type="file" id="input-${lato}" accept="image/*" capture="environment" onchange="handleFoto('${lato}', this)" style="display:none">
-      `
+      ind.textContent = '✓ Salvato'
+      setTimeout(() => { ind.style.display = 'none'; ind.textContent = 'Salvataggio...' }, 2000)
     }
 
     function generaLink() {
@@ -232,7 +370,7 @@
 
     function copiaLink() {
       const link = `https://policettivo-app.vercel.app/protocollo.html?token=${patient.access_token}`
-      navigator.clipboard.writeText(link).then(() => alert('Link copiato!'))
+      navigator.clipboard.writeText(link).then(() => alert('Link copiato negli appunti!'))
     }
 
     init()
