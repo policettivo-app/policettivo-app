@@ -24,7 +24,7 @@
     .config-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 12px; }
     .config-npl { background: #FFD008; color: #000; }
     .config-gpl { background: #fff; color: #000; }
-    .btn-start { width: 100%; padding: 18px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 16px; letter-spacing: 0.5px; }
+    .btn-start { width: 100%; padding: 18px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 16px; }
     .btn-start:hover { background: #e6bc00; }
     .section-title { font-size: 13px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
     .exercise-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
@@ -58,20 +58,15 @@
     <span class="navbar-logo">POLICETTIVO®</span>
     <span class="navbar-name" id="nav-name"></span>
   </nav>
-
   <div class="main">
-
     <div class="greeting">
       <h1 id="greeting-title">Ciao 👋</h1>
       <p id="greeting-sub">Il tuo programma di oggi</p>
     </div>
-
     <div id="content-area">
       <div class="no-protocol"><h2>Caricamento...</h2></div>
     </div>
-
   </div>
-
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
@@ -85,23 +80,34 @@
 
     async function init() {
       if (!token) { showError('Link non valido.'); return }
-      const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
+
+      const { data: p, error: pe } = await _supabase
+        .from('patients')
+        .select('*')
+        .eq('access_token', token)
+        .single()
       if (!p) { showError('Paziente non trovato.'); return }
       patient = p
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome + ' 👋'
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
 
-      const { data: prot } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false }).limit(1).single()
+      const { data: prots } = await _supabase
+        .from('patient_protocols')
+        .select('*')
+        .eq('patient_id', patient.id)
+        .eq('stato', 'attivo')
+        .order('created_at', { ascending: false })
 
-      if (!prot) { showNoProtocol(); return }
-      protocol = prot
+      if (!prots || prots.length === 0) { showNoProtocol(); return }
+      protocol = prots[0]
 
-      const { data: exList } = await _supabase
+      const { data: exList, error: exErr } = await _supabase
         .from('patient_protocol_exercises')
-        .select('*, exercise:exercises(*)')
+        .select('*, exercise:exercise_id(*)')
         .eq('patient_protocol_id', protocol.id)
-        .order('ordine')
+        .order('ordine', { ascending: true })
 
+      if (exErr) { console.error('Errore esercizi:', exErr); }
       exercises = exList || []
       renderProtocol()
     }
@@ -109,24 +115,13 @@
     function renderProtocol() {
       const oggi = new Date()
       const inizio = new Date(protocol.data_inizio)
-      const giorno = Math.floor((oggi - inizio) / (1000*60*60*24)) + 1
-
-      const cfg = protocol.configurazione_generale || patient.configurazione_default
+      const giorno = Math.max(1, Math.floor((oggi - inizio) / (1000*60*60*24)) + 1)
+      const cfg = protocol.configurazione_generale || patient.configurazione_default || 'NPL'
       const cfgClass = cfg === 'NPL' ? 'config-npl' : 'config-gpl'
 
-      let html = `
-        <div class="protocol-card">
-          <div class="protocol-name">${protocol.nome_personalizzato || 'Protocollo'}</div>
-          <div class="config-badge ${cfgClass}">${cfg || '—'}</div>
-          <div class="protocol-info">
-            <div class="protocol-info-item">Giorno <span>${giorno}</span></div>
-            <div class="protocol-info-item">Esercizi <span>${exercises.length}</span></div>
-            <div class="protocol-info-item">Frequenza <span>${protocol.frequenza || 'Quotidiana'}</span></div>
-          </div>
-          <button class="btn-start" onclick="iniziaEsercizi()">▶ Inizia gli esercizi</button>
-        </div>
-
-        <div class="section-title">Il tuo programma</div>
+      let exHtml = ''
+      if (exercises.length > 0) {
+        exHtml = `<div class="section-title">Il tuo programma</div>
         <div class="exercise-list">
           ${exercises.map((e, i) => {
             const ex = e.exercise
@@ -135,37 +130,49 @@
               <div class="exercise-num">${i+1}</div>
               <div class="exercise-info">
                 <div class="exercise-name">${ex ? ex.nome : 'Esercizio'}</div>
-                <div class="exercise-meta">${e.durata || (ex ? ex.durata_default : 90)} sec${e.ripetizioni ? ' · ' + e.ripetizioni + ' rip.' : ''}</div>
+                <div class="exercise-meta">${e.durata || (ex ? ex.durata_default : 90)} sec</div>
               </div>
-              <span class="exercise-config cfg-${ecfg ? ecfg.toLowerCase() : 'npl'}">${ecfg || ''}</span>
+              <span class="exercise-config cfg-${ecfg.toLowerCase()}">${ecfg}</span>
             </div>`
           }).join('')}
-        </div>
+        </div>`
+      }
 
+      document.getElementById('content-area').innerHTML = `
+        <div class="protocol-card">
+          <div class="protocol-name">${protocol.nome_personalizzato || 'Protocollo'}</div>
+          <div class="config-badge ${cfgClass}">${cfg}</div>
+          <div class="protocol-info">
+            <div class="protocol-info-item">Giorno <span>${giorno}</span></div>
+            <div class="protocol-info-item">Esercizi <span>${exercises.length}</span></div>
+            <div class="protocol-info-item">Frequenza <span>${protocol.frequenza || 'Quotidiana'}</span></div>
+          </div>
+          <button class="btn-start" onclick="iniziaEsercizi()">▶ Inizia gli esercizi</button>
+        </div>
+        ${exHtml}
         <div class="diary-card">
           <div class="diary-title">📓 Come stai oggi?</div>
           <div class="slider-group">
             <div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div>
-            <input type="range" min="0" max="10" value="0" oninput="document.getElementById('val-dolore').textContent=this.value">
+            <input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="document.getElementById('val-dolore').textContent=this.value">
           </div>
           <div class="slider-group">
             <div class="slider-label"><span class="slider-name">Rigidità</span><span class="slider-value" id="val-rigidita">0</span></div>
-            <input type="range" min="0" max="10" value="0" oninput="document.getElementById('val-rigidita').textContent=this.value">
+            <input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="document.getElementById('val-rigidita').textContent=this.value">
           </div>
           <div class="slider-group">
             <div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div>
-            <input type="range" min="0" max="10" value="5" oninput="document.getElementById('val-equilibrio').textContent=this.value">
+            <input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="document.getElementById('val-equilibrio').textContent=this.value">
           </div>
           <div class="slider-group">
             <div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div>
-            <input type="range" min="0" max="10" value="5" oninput="document.getElementById('val-energia').textContent=this.value">
+            <input type="range" id="sl-energia" min="0" max="10" value="5" oninput="document.getElementById('val-energia').textContent=this.value">
           </div>
           <textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea>
           <button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button>
           <div class="success-msg" id="diary-success">✓ Diario salvato! Ottimo lavoro.</div>
         </div>
       `
-      document.getElementById('content-area').innerHTML = html
     }
 
     function iniziaEsercizi() {
@@ -174,22 +181,21 @@
     }
 
     async function salvaDiario() {
-      const dolore = parseInt(document.querySelector('input[type=range]:nth-of-type(1)') ? document.querySelectorAll('input[type=range]')[0].value : 0)
-      const rigidita = parseInt(document.querySelectorAll('input[type=range]')[1].value)
-      const equilibrio = parseInt(document.querySelectorAll('input[type=range]')[2].value)
-      const energia = parseInt(document.querySelectorAll('input[type=range]')[3].value)
+      const dolore = parseInt(document.getElementById('sl-dolore').value)
+      const rigidita = parseInt(document.getElementById('sl-rigidita').value)
+      const equilibrio = parseInt(document.getElementById('sl-equilibrio').value)
+      const energia = parseInt(document.getElementById('sl-energia').value)
       const note = document.getElementById('diary-note').value.trim()
       const today = new Date().toISOString().split('T')[0]
-
       const { error } = await _supabase.from('diary_entries').insert({
         patient_id: patient.id,
         patient_protocol_id: protocol.id,
         data: today,
-        dolore, rigidita: rigidita, equilibrio, energia,
+        dolore, rigidita, equilibrio, energia,
         note: note || null,
         completato: true
       })
-      if (error) { alert('Errore salvataggio: ' + error.message); return }
+      if (error) { alert('Errore: ' + error.message); return }
       document.getElementById('diary-success').classList.add('visible')
     }
 
@@ -199,11 +205,7 @@
 
     function showNoProtocol() {
       document.getElementById('greeting-sub').textContent = 'Nessun protocollo attivo'
-      document.getElementById('content-area').innerHTML = `
-        <div class="no-protocol">
-          <h2>Nessun protocollo attivo</h2>
-          <p>Il tuo professionista non ha ancora assegnato un protocollo.<br>Contattalo per iniziare.</p>
-        </div>`
+      document.getElementById('content-area').innerHTML = `<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Il tuo professionista non ha ancora assegnato un protocollo.</p></div>`
     }
 
     init()
