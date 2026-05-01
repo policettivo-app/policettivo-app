@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Comparazione posturale</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #111; min-height: 100vh; color: #fff; }
+    .navbar { background: #000; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-right { display: flex; align-items: center; gap: 12px; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-print { background: #FFD008; color: #000; border: none; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .patient-title { font-size: 20px; font-weight: 700; color: #FFD008; margin-bottom: 4px; }
+    .patient-sub { font-size: 13px; color: #666; margin-bottom: 24px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .tab { padding: 8px 20px; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid #333; color: #666; background: transparent; transition: all 0.2s; }
+    .tab.active { background: #FFD008; color: #000; border-color: #FFD008; }
+    .comparazione-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #333; border: 1px solid #333; border-radius: 12px; overflow: hidden; }
+    .foto-panel { position: relative; background: #000; }
+    .foto-label-bar { background: rgba(0,0,0,0.85); color: #FFD008; font-size: 11px; font-weight: 700; padding: 6px 12px; text-transform: uppercase; letter-spacing: 1px; position: absolute; top: 0; left: 0; right: 0; z-index: 2; }
+    .foto-label-bar.dopo { color: #4CAF50; }
+    .foto-img-wrap { position: relative; width: 100%; padding-top: 133%; overflow: hidden; }
+    .foto-img-wrap img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+    .foto-empty { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #333; font-size: 13px; }
+    .griglia { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    .griglia-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+    .griglia-toggle label { font-size: 13px; color: #888; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .griglia-toggle input { accent-color: #FFD008; width: 16px; height: 16px; cursor: pointer; }
+    .lato-label { text-align: center; font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 1px; padding: 8px; background: #0a0a0a; }
+    .header-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-bottom: 2px; }
+    .separatore { height: 2px; background: #FFD008; margin: 2px 0; }
+    .info-bar { display: flex; gap: 16px; align-items: center; background: #0a0a0a; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .info-item { font-size: 12px; color: #666; }
+    .info-item span { color: #fff; font-weight: 600; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .badge-npl { background: #FFD008; color: #000; }
+    .badge-gpl { background: #fff; color: #000; }
+    @media print {
+      .navbar, .tabs, .griglia-toggle, .btn-back, .btn-print { display: none; }
+      body { background: #fff; color: #000; }
+      .foto-label-bar { color: #000; background: rgba(255,255,255,0.9); }
+      .lato-label { color: #333; background: #f5f5f5; }
+      .comparazione-grid { border-color: #ccc; background: #ccc; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <span class="navbar-logo">POLICETTIVO®</span>
+    <div class="navbar-right">
+      <button class="btn-back" onclick="history.back()">← Torna</button>
+      <button class="btn-print" onclick="window.print()">🖨 Stampa</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="patient-title" id="pt-nome">Caricamento...</div>
+    <div class="patient-sub" id="pt-sub"></div>
+
+    <div class="info-bar" id="info-bar"></div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="setTab('sagittale', this)">Piano sagittale</button>
+      <button class="tab" onclick="setTab('frontale', this)">Piano frontale/posteriore</button>
+      <button class="tab" onclick="setTab('podoscopio', this)">Podoscopio</button>
+    </div>
+
+    <div class="griglia-toggle">
+      <label><input type="checkbox" id="toggle-griglia" onchange="toggleGriglia(this.checked)" checked> Mostra griglia di riferimento</label>
+      <label style="margin-left:16px"><input type="checkbox" id="toggle-linea" onchange="toggleLinea(this.checked)"> Mostra linea centrale</label>
+    </div>
+
+    <div id="comparazione-content"></div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const params = new URLSearchParams(window.location.search)
+    const patientId = params.get('id')
+    let patient = null
+    let showGriglia = true
+    let showLinea = false
+    let currentTab = 'sagittale'
+
+    async function init() {
+      if (!patientId) return
+      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      if (!p) return
+      patient = p
+      document.getElementById('pt-nome').textContent = p.nome + ' ' + p.cognome
+      document.getElementById('pt-sub').textContent = (p.problema_principale || '') + ' — Comparazione posturale'
+      const cfg = p.configurazione_default
+      document.getElementById('info-bar').innerHTML =
+        '<div class="info-item">Configurazione: <span>' + (cfg ? '<span class="badge badge-' + cfg.toLowerCase() + '">' + cfg + '</span>' : '—') + '</span></div>' +
+        '<div class="info-item">Data: <span>' + new Date().toLocaleDateString('it-IT') + '</span></div>' +
+        (p.note_cliniche ? '<div class="info-item" style="flex:1;font-size:11px;color:#555">' + p.note_cliniche.split('\n')[0] + '</div>' : '')
+      renderTab()
+    }
+
+    function setTab(tab, btn) {
+      currentTab = tab
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+      btn.classList.add('active')
+      renderTab()
+    }
+
+    function renderTab() {
+      if (!patient) return
+      let urls = {}
+      try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
+
+      if (currentTab === 'sagittale') {
+        renderComparazione([
+          { key: 'prima-sx', label: 'PRIMA — Sinistro', tipo: 'prima' },
+          { key: 'prima-dx', label: 'PRIMA — Destro', tipo: 'prima' },
+          { key: 'dopo-sx', label: 'DOPO — Sinistro', tipo: 'dopo' },
+          { key: 'dopo-dx', label: 'DOPO — Destro', tipo: 'dopo' }
+        ], urls, true)
+      } else if (currentTab === 'frontale') {
+        renderComparazione([
+          { key: 'frontale', label: 'Piano frontale', tipo: 'prima' },
+          { key: 'posteriore', label: 'Piano posteriore', tipo: 'prima' }
+        ], urls, false)
+      } else {
+        renderComparazione([
+          { key: 'podo-sotto', label: 'Piede da sotto', tipo: 'prima' },
+          { key: 'podo-dietro', label: 'Piede da dietro', tipo: 'prima' }
+        ], urls, false)
+      }
+    }
+
+    function renderComparazione(slots, urls, hasPrimaDopoSplit) {
+      const container = document.getElementById('comparazione-content')
+      const cols = slots.length <= 2 ? slots.length : 2
+
+      if (hasPrimaDopoSplit) {
+        container.innerHTML = `
+          <div class="header-row">
+            <div class="lato-label" style="color:#aaa">◀ Sinistro</div>
+            <div class="lato-label" style="color:#aaa">Destro ▶</div>
+          </div>
+          <div class="comparazione-grid" id="grid-prima" style="margin-bottom:4px">
+            ${renderPanel(slots[0], urls)}
+            ${renderPanel(slots[1], urls)}
+          </div>
+          <div class="separatore"></div>
+          <div class="comparazione-grid" id="grid-dopo">
+            ${renderPanel(slots[2], urls)}
+            ${renderPanel(slots[3], urls)}
+          </div>`
+      } else {
+        container.innerHTML = `<div class="comparazione-grid" style="grid-template-columns:${cols===1?'1fr':'1fr 1fr'}">${slots.map(s => renderPanel(s, urls)).join('')}</div>`
+      }
+    }
+
+    function renderPanel(slot, urls) {
+      const src = urls[slot.key]
+      const grigliaSvg = showGriglia ? buildGriglia() : ''
+      const lineaSvg = showLinea ? buildLinea() : ''
+      return `<div class="foto-panel">
+        <div class="foto-label-bar ${slot.tipo}">${slot.label}</div>
+        <div class="foto-img-wrap">
+          ${src ? '<img src="' + src + '" alt="' + slot.label + '">' : '<div class="foto-empty">Foto non disponibile</div>'}
+          <svg class="griglia" viewBox="0 0 100 133" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            ${grigliaSvg}${lineaSvg}
+          </svg>
+        </div>
+      </div>`
+    }
+
+    function buildGriglia() {
+      let svg = ''
+      for (let x = 10; x < 100; x += 10) {
+        svg += `<line x1="${x}" y1="0" x2="${x}" y2="133" stroke="rgba(255,208,8,0.15)" stroke-width="0.3"/>`
+      }
+      for (let y = 10; y < 133; y += 10) {
+        svg += `<line x1="0" y1="${y}" x2="100" y2="${y}" stroke="rgba(255,208,8,0.15)" stroke-width="0.3"/>`
+      }
+      return svg
+    }
+
+    function buildLinea() {
+      return `<line x1="50" y1="0" x2="50" y2="133" stroke="rgba(255,100,100,0.6)" stroke-width="0.5" stroke-dasharray="2 2"/>`
+    }
+
+    function toggleGriglia(checked) {
+      showGriglia = checked
+      renderTab()
+    }
+
+    function toggleLinea(checked) {
+      showLinea = checked
+      renderTab()
+    }
+
+    init()
+  </script>
+</body>
+</html>
