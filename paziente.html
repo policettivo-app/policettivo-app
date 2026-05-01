@@ -61,12 +61,12 @@
     .btn-primary { background: #FFD008; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
     .btn-primary:hover { background: #e6bc00; }
     .btn-secondary { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-secondary:hover { border-color: #999; }
     .actions-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
     .link-box { background: #f0f9f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #2e7d32; word-break: break-all; margin-top: 12px; display: none; }
     .link-box.visible { display: block; }
     .saving-indicator { font-size: 12px; color: #999; margin-top: 8px; display: none; }
     .step-label { background: #000; color: #FFD008; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
-    .optional-label { background: #eee; color: #888; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -87,7 +87,6 @@
       <div id="ph-config"></div>
     </div>
 
-    <!-- DATI ANAGRAFICI -->
     <div class="section">
       <div class="section-title">Dati anagrafici</div>
       <div class="info-grid">
@@ -98,19 +97,13 @@
       <div class="note-box" id="info-note" style="display:none"></div>
     </div>
 
-    <!-- FOTO POSTURALI SAGITTALI -->
     <div class="section">
       <div class="section-title">Foto posturali — Piano sagittale</div>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta le foto sul piano sagittale prima e dopo la Tecnica dei 3 Respiri. Poi osserva il piano scapolare e seleziona il risultato.</p>
-
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta le foto prima e dopo la Tecnica dei 3 Respiri. Poi seleziona il piano scapolare.</p>
       <div class="foto-group-label"><span class="step-label">PRIMA</span> Piano sagittale — prima dei 3R</div>
       <div class="foto-grid-2">
-        <div class="foto-slot" id="slot-prima-sx" onclick="triggerInput('prima-sx')">
-          <div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div>
-        </div>
-        <div class="foto-slot" id="slot-prima-dx" onclick="triggerInput('prima-dx')">
-          <div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div>
-        </div>
+        <div class="foto-slot" id="slot-prima-sx" onclick="triggerInput('prima-sx')"><div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+        <div class="foto-slot" id="slot-prima-dx" onclick="triggerInput('prima-dx')"><div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
       </div>
       <div class="piano-scapolare-box">
         <div class="piano-scapolare-title">Piano scapolare — prima dei 3R</div>
@@ -120,17 +113,11 @@
           <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare posteriore (prima)',this)">Posteriore</button>
         </div>
       </div>
-
       <hr class="confronto-divider">
-
       <div class="foto-group-label"><span class="step-label">DOPO</span> Piano sagittale — dopo i 3R</div>
       <div class="foto-grid-2">
-        <div class="foto-slot" id="slot-dopo-sx" onclick="triggerInput('dopo-sx')">
-          <div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div>
-        </div>
-        <div class="foto-slot" id="slot-dopo-dx" onclick="triggerInput('dopo-dx')">
-          <div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div>
-        </div>
+        <div class="foto-slot" id="slot-dopo-sx" onclick="triggerInput('dopo-sx')"><div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+        <div class="foto-slot" id="slot-dopo-dx" onclick="triggerInput('dopo-dx')"><div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
       </div>
       <div class="piano-scapolare-box">
         <div class="piano-scapolare-title">Piano scapolare — dopo i 3R</div>
@@ -140,11 +127,10 @@
           <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare posteriore (dopo)',this)">Posteriore</button>
         </div>
       </div>
-      <div>
-        <div class="osservazione-label" style="margin-top:12px">Note piano sagittale:</div>
+      <div style="margin-top:12px">
+        <div class="osservazione-label">Note piano sagittale:</div>
         <textarea class="notes-textarea" id="note-sagittale" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
       </div>
-
       <input type="file" id="input-prima-sx" accept="image/*" style="display:none" onchange="handleFoto('prima-sx',this)">
       <input type="file" id="input-prima-dx" accept="image/*" style="display:none" onchange="handleFoto('prima-dx',this)">
       <input type="file" id="input-dopo-sx" accept="image/*" style="display:none" onchange="handleFoto('dopo-sx',this)">
@@ -152,23 +138,17 @@
       <div class="saving-indicator" id="saving-sagittale">✓ Salvato</div>
     </div>
 
-    <!-- FOTO FRONTALE/POSTERIORE -->
     <div class="section">
       <div class="section-title">Piano frontale e posteriore <span class="section-optional">(facoltativo)</span></div>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">Sezione opzionale. Scatta le foto e seleziona le osservazioni.</p>
       <div class="foto-grid-2" style="margin-bottom:16px">
         <div>
           <div class="foto-group-label">Piano frontale</div>
-          <div class="foto-slot" id="slot-frontale" onclick="triggerInput('frontale')">
-            <div class="foto-label">Vista frontale</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div>
-          </div>
+          <div class="foto-slot" id="slot-frontale" onclick="triggerInput('frontale')"><div class="foto-label">Vista frontale</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
           <input type="file" id="input-frontale" accept="image/*" style="display:none" onchange="handleFoto('frontale',this)">
         </div>
         <div>
           <div class="foto-group-label">Piano posteriore</div>
-          <div class="foto-slot" id="slot-posteriore" onclick="triggerInput('posteriore')">
-            <div class="foto-label">Vista posteriore</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div>
-          </div>
+          <div class="foto-slot" id="slot-posteriore" onclick="triggerInput('posteriore')"><div class="foto-label">Vista posteriore</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
           <input type="file" id="input-posteriore" accept="image/*" style="display:none" onchange="handleFoto('posteriore',this)">
         </div>
       </div>
@@ -195,15 +175,12 @@
       <div class="saving-indicator" id="saving-frontale">✓ Salvato</div>
     </div>
 
-    <!-- PODOSCOPIO -->
     <div class="section">
       <div class="section-title">Osservazione podoscopica</div>
       <div class="foto-grid-2" style="margin-bottom:16px">
         <div>
           <div class="foto-group-label">Vista plantare (da sotto)</div>
-          <div class="foto-slot" id="slot-podo-sotto" onclick="triggerInput('podo-sotto')">
-            <div class="foto-label">Piede da sotto</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div>
-          </div>
+          <div class="foto-slot" id="slot-podo-sotto" onclick="triggerInput('podo-sotto')"><div class="foto-label">Piede da sotto</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div></div>
           <input type="file" id="input-podo-sotto" accept="image/*" style="display:none" onchange="handleFoto('podo-sotto',this)">
           <div class="osservazione-group" style="margin-top:12px">
             <div class="osservazione-label">Morfologia piede:</div>
@@ -216,9 +193,7 @@
         </div>
         <div>
           <div class="foto-group-label">Vista posteriore (da dietro)</div>
-          <div class="foto-slot" id="slot-podo-dietro" onclick="triggerInput('podo-dietro')">
-            <div class="foto-label">Piede da dietro</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div>
-          </div>
+          <div class="foto-slot" id="slot-podo-dietro" onclick="triggerInput('podo-dietro')"><div class="foto-label">Piede da dietro</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div></div>
           <input type="file" id="input-podo-dietro" accept="image/*" style="display:none" onchange="handleFoto('podo-dietro',this)">
           <div class="osservazione-group" style="margin-top:12px">
             <div class="osservazione-label">Asse calcaneare:</div>
@@ -237,22 +212,24 @@
       <div class="saving-indicator" id="saving-note">✓ Salvato</div>
     </div>
 
-    <!-- CONFIGURAZIONE -->
     <div class="section">
       <div class="section-title">Configurazione cuscini</div>
       <p style="font-size:13px;color:#666;margin-bottom:12px">Dopo aver osservato le foto e il piano scapolare, scegli la configurazione.</p>
       <div class="config-selector">
-        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')">
-          <div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div>
-        </div>
-        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')">
-          <div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div>
-        </div>
+        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div></div>
+        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div></div>
       </div>
       <div class="saving-indicator" id="saving-config">✓ Salvato</div>
     </div>
 
-    <!-- LINK PAZIENTE -->
+    <div class="section">
+      <div class="section-title">Scheda clinica PDF</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Genera la scheda clinica completa con foto e note, pronta per la stampa.</p>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="window.open('scheda-pdf.html?id=' + patientId)">🖨 Genera scheda PDF</button>
+      </div>
+    </div>
+
     <div class="section">
       <div class="section-title">Accesso paziente</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Genera il link personale da inviare al paziente.</p>
@@ -272,8 +249,7 @@
     const patientId = params.get('id')
     let patient = null, selectedConfig = null, obsSelections = {}, noteSaveTimer = null
 
-    async function function getPatientId() { return patientId }
-    init() {
+    async function init() {
       if (!patientId) { window.location.href = 'dashboard.html'; return }
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
@@ -297,7 +273,7 @@
       if (patient.configurazione_default) {
         selectedConfig = patient.configurazione_default
         updateConfigUI()
-        document.getElementById('ph-config').innerHTML = `<span class="badge badge-${selectedConfig.toLowerCase()}">${selectedConfig}</span>`
+        document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + selectedConfig.toLowerCase() + '">' + selectedConfig + '</span>'
       } else {
         document.getElementById('ph-config').innerHTML = '<span class="badge badge-none">Config. da definire</span>'
       }
@@ -343,7 +319,7 @@
     function showFotoPreview(slot, src) {
       const el = document.getElementById('slot-' + slot); if (!el) return
       el.classList.add('has-photo'); el.onclick = null
-      el.innerHTML = `<img src="${src}" alt="foto"><div class="foto-overlay" onclick="triggerInput('${slot}')">Cambia</div><input type="file" id="input-${slot}" accept="image/*" style="display:none" onchange="handleFoto('${slot}',this)">`
+      el.innerHTML = '<img src="' + src + '" alt="foto"><div class="foto-overlay" onclick="triggerInput(\'' + slot + '\')">Cambia</div><input type="file" id="input-' + slot + '" accept="image/*" style="display:none" onchange="handleFoto(\'' + slot + '\',this)">'
     }
 
     function selectObs(gruppo, valore, btn) {
@@ -388,24 +364,23 @@
 
     async function selectConfig(val) {
       selectedConfig = val; updateConfigUI()
-      document.getElementById('ph-config').innerHTML = `<span class="badge badge-${val.toLowerCase()}">${val}</span>`
+      document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + val.toLowerCase() + '">' + val + '</span>'
       const ind = document.getElementById('saving-config'); ind.style.display = 'block'
       await _supabase.from('patients').update({ configurazione_default: val }).eq('id', patientId)
       setTimeout(() => { ind.style.display = 'none' }, 2000)
     }
 
     function generaLink() {
-      const link = `https://policettivo-app.vercel.app/protocollo.html?token=${patient.access_token}`
+      const link = 'https://policettivo-app.vercel.app/protocollo.html?token=' + patient.access_token
       document.getElementById('link-box').textContent = link
       document.getElementById('link-box').classList.add('visible')
     }
 
     function copiaLink() {
-      const link = `https://policettivo-app.vercel.app/protocollo.html?token=${patient.access_token}`
+      const link = 'https://policettivo-app.vercel.app/protocollo.html?token=' + patient.access_token
       navigator.clipboard.writeText(link).then(() => alert('Link copiato!'))
     }
 
-    function getPatientId() { return patientId }
     init()
   </script>
 </body>
