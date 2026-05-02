@@ -258,6 +258,16 @@
       const nome = document.getElementById('p-nome').value.trim()
       const cognome = document.getElementById('p-cognome').value.trim()
       if (!nome || !cognome) { alert('Nome e cognome sono obbligatori.'); return }
+      const email = document.getElementById('p-email').value.trim()
+      const telefono = document.getElementById('p-telefono').value.trim()
+      if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(email)) { alert('Inserisci un indirizzo email valido (es. mario@gmail.com).'); return }
+      }
+      if (telefono) {
+        const digits = telefono.replace(/[^0-9]/g, '')
+        if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return }
+      }
       const { error } = await _supabase.from('patients').insert({
         professional_id: currentProfessionalId, nome, cognome,
         email: document.getElementById('p-email').value.trim() || null,
