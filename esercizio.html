@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Esercizio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; color: #fff; }
+    .navbar { background: #000; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .nav-progress { font-size: 13px; color: #666; }
+    .btn-exit { background: transparent; border: 1px solid #333; color: #666; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-exit:hover { border-color: #666; color: #fff; }
+    .main { max-width: 480px; margin: 0 auto; padding: 24px 20px 40px; }
+    .progress-bar { height: 3px; background: #222; border-radius: 2px; margin-bottom: 24px; }
+    .progress-fill { height: 100%; background: #FFD008; border-radius: 2px; transition: width 0.3s; }
+    .ex-header { margin-bottom: 20px; }
+    .ex-counter { font-size: 12px; color: #666; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+    .ex-name { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .ex-desc { font-size: 14px; color: #888; line-height: 1.6; }
+    .config-pill { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 10px; }
+    .pill-npl { background: #FFD008; color: #000; }
+    .pill-gpl { background: #fff; color: #000; }
+    .hint-3r { background: #1a1a00; border: 1px solid #FFD008; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #FFD008; margin-top: 12px; line-height: 1.5; }
+    .video-box { background: #111; border: 1px solid #222; border-radius: 16px; overflow: hidden; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; }
+    .video-box.shorts { aspect-ratio: 9/16; max-height: 380px; }
+    .video-box.normal { aspect-ratio: 16/9; }
+    .video-box iframe { width: 100%; height: 100%; border: none; }
+    .video-placeholder { text-align: center; color: #444; padding: 40px; }
+    .video-placeholder div { font-size: 40px; margin-bottom: 8px; }
+    .timer-section { background: #111; border: 1px solid #222; border-radius: 20px; padding: 28px 24px; text-align: center; margin-bottom: 24px; }
+    .timer-ring { position: relative; width: 140px; height: 140px; margin: 0 auto 20px; }
+    .timer-ring svg { transform: rotate(-90deg); }
+    .timer-ring-bg { fill: none; stroke: #222; stroke-width: 8; }
+    .timer-ring-fg { fill: none; stroke: #FFD008; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+    .timer-time { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 32px; font-weight: 700; color: #FFD008; }
+    .timer-controls { display: flex; gap: 12px; justify-content: center; }
+    .btn-timer { padding: 14px 28px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; border: none; }
+    .btn-play { background: #FFD008; color: #000; flex: 1; }
+    .btn-play:hover { background: #e6bc00; }
+    .btn-reset { background: #1a1a1a; color: #666; border: 1px solid #333; }
+    .btn-reset:hover { border-color: #666; color: #fff; }
+    .breathing-hint { font-size: 13px; color: #555; margin-top: 14px; }
+    .breathing-hint.active { color: #FFD008; animation: pulse 4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+    .actions { display: flex; flex-direction: column; gap: 12px; }
+    .btn-complete { width: 100%; padding: 18px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .btn-complete:hover { background: #e6bc00; }
+    .btn-pain { width: 100%; padding: 14px; background: transparent; border: 1px solid #c62828; color: #ef9a9a; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-prev { width: 100%; padding: 14px; background: transparent; border: 1px solid #333; color: #666; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 14px; cursor: pointer; }
+    .completed-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 100; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 40px; overflow-y: auto; }
+    .completed-overlay.show { display: flex; }
+    .completed-icon { font-size: 70px; margin-bottom: 16px; }
+    .completed-title { font-size: 26px; font-weight: 700; color: #FFD008; margin-bottom: 8px; }
+    .completed-sub { font-size: 15px; color: #888; margin-bottom: 20px; }
+    .streak-box { background: #111; border: 1px solid #FFD008; border-radius: 16px; padding: 20px 28px; margin-bottom: 24px; }
+    .streak-num { font-size: 48px; font-weight: 700; color: #FFD008; }
+    .streak-label { font-size: 13px; color: #888; margin-top: 4px; }
+    .smile-row { display: flex; gap: 8px; justify-content: center; margin: 16px 0; }
+    .smile-dot { width: 12px; height: 12px; border-radius: 50%; background: #222; transition: background 0.3s; }
+    .smile-dot.done { background: #FFD008; }
+    .motivational { background: #111; border-radius: 12px; padding: 16px 20px; font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 24px; font-style: italic; }
+    .motivational span { color: #FFD008; font-style: normal; font-weight: 600; }
+    .btn-next { padding: 18px 40px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; margin-bottom: 12px; }
+    .btn-finish { padding: 16px 40px; background: transparent; border: 1px solid #FFD008; color: #FFD008; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; }
+    .evening-hint { background: #0a1a0a; border: 1px solid #2e7d32; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #81c784; margin-top: 16px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <span class="navbar-logo">POLICETTIVO®</span>
+    <div class="nav-right">
+      <span class="nav-progress" id="nav-progress"></span>
+      <button class="btn-exit" onclick="exitWithConfirm()">← Esci</button>
+    </div>
+  </nav>
+  <div class="main">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="ex-header">
+      <div class="ex-counter" id="ex-counter">Esercizio 1 di 1</div>
+      <div class="ex-name" id="ex-name">Caricamento...</div>
+      <div class="ex-desc" id="ex-desc"></div>
+      <div id="ex-config"></div>
+      <div id="hint-3r" style="display:none" class="hint-3r">💛 La Tecnica dei 3 Respiri è il tuo rituale di igiene posturale quotidiana. Eseguila sempre, ogni giorno, anche nei giorni in cui salti gli altri esercizi.</div>
+    </div>
+    <div class="video-box normal" id="video-box">
+      <div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>
+    </div>
+    <div class="timer-section">
+      <div class="timer-ring">
+        <svg width="140" height="140" viewBox="0 0 140 140">
+          <circle class="timer-ring-bg" cx="70" cy="70" r="58"/>
+          <circle class="timer-ring-fg" id="ring-fg" cx="70" cy="70" r="58" stroke-dasharray="364" stroke-dashoffset="0"/>
+        </svg>
+        <div class="timer-time" id="timer-display">1:30</div>
+      </div>
+      <div class="timer-controls">
+        <button class="btn-timer btn-reset" onclick="resetTimer()">↺</button>
+        <button class="btn-timer btn-play" id="play-btn" onclick="toggleTimer()">▶ Avvia</button>
+      </div>
+      <div class="breathing-hint" id="breathing-hint">Respira liberamente e rilassa le spalle</div>
+    </div>
+    <div class="actions">
+      <button class="btn-complete" onclick="completeExercise()">✓ Esercizio completato</button>
+      <button class="btn-pain" onclick="painAlert()">⚠ Ho dolore — interrompi</button>
+      <button class="btn-prev" id="btn-prev" onclick="prevExercise()" style="display:none">← Esercizio precedente</button>
+    </div>
+  </div>
+
+  <div class="completed-overlay" id="completed-overlay">
+    <div style="position:absolute;top:16px;right:16px">
+      <button id="btn-sound" onclick="toggleSound()" style="background:transparent;border:1px solid #333;color:#666;padding:6px 12px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:13px;cursor:pointer">🔊</button>
+    </div>
+    <div class="completed-icon" id="completed-icon">✅</div>
+    <div class="completed-title" id="completed-title">Esercizio completato!</div>
+    <div class="completed-sub" id="completed-sub"></div>
+    <div id="streak-section" style="display:none">
+      <div class="streak-box">
+        <div class="streak-num" id="streak-num">1</div>
+        <div class="streak-label">🔥 giorni consecutivi</div>
+        <div class="smile-row" id="smile-row"></div>
+      </div>
+      <div class="motivational" id="motivational-msg"></div>
+      <div class="evening-hint">🌙 Ricorda: puoi ripetere gli esercizi anche la sera per amplificare i benefici. Anche solo la Tecnica dei 3 Respiri va benissimo!</div>
+    </div>
+    <button class="btn-next" id="btn-next" onclick="nextExercise()">Prossimo esercizio →</button>
+    <button class="btn-finish" id="btn-finish" onclick="finishSession()" style="display:none">🏁 Torna al protocollo</button>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+    let idx = parseInt(params.get('idx') || '0')
+    let patient = null, protocol = null, exercises = []
+    let totalSeconds = 90, remaining = 90, timerInterval = null, isRunning = false
+
+    const frasi = [
+      '💪 Il tuo corpo ti ringrazia. Ogni giorno che pratichi costruisci una versione migliore di te.',
+      '🌟 Costanza batte perfezione. Essere qui oggi è già una vittoria.',
+      '🧘 Il movimento corretto è un regalo che fai al tuo futuro.',
+      '⚡ Il tuo sistema nervoso sta imparando. Stai migliorando anche quando non lo senti.',
+      '🌱 Piccoli passi ogni giorno portano lontano. Stai facendo la cosa giusta.',
+      '🏆 Chi si allena oggi vive meglio domani. Sei sulla strada giusta.',
+      '✨ La postura migliora ogni volta che ti alleni. Il tuo corpo lo sa anche se tu non lo vedi ancora.',
+    ]
+
+    async function init() {
+      if (!token) { window.location.href = 'protocollo.html'; return }
+      const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
+      if (!p) { window.location.href = 'protocollo.html?token=' + token; return }
+      patient = p
+      const { data: prots } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
+      if (!prots || prots.length === 0) { window.location.href = 'protocollo.html?token=' + token; return }
+      protocol = prots[0]
+      const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
+      if (ppe && ppe.length > 0) {
+        const exIds = ppe.map(e => e.exercise_id)
+        const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
+        const exMap = {}
+        if (exData) exData.forEach(e => exMap[e.id] = e)
+        exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
+      }
+      if (idx >= exercises.length) { finishSession(); return }
+      loadExercise()
+    }
+
+    function extractVideoId(url) {
+      if (!url) return { id: null, isShorts: false }
+      const shortsMatch = url.match(/youtube\.com\/shorts\/([^?&\n]+)/)
+      if (shortsMatch) return { id: shortsMatch[1], isShorts: true }
+      const normalMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)
+      if (normalMatch) return { id: normalMatch[1], isShorts: false }
+      return { id: null, isShorts: false }
+    }
+
+    function loadExercise() {
+      const currentEx = exercises[idx]
+      const ex = currentEx.exercise
+      const cfg = currentEx.configurazione || protocol.configurazione_generale || patient.configurazione_default || 'NPL'
+      const total = exercises.length
+      document.getElementById('ex-counter').textContent = `Esercizio ${idx+1} di ${total}`
+      document.getElementById('nav-progress').textContent = `${idx+1} / ${total}`
+      document.getElementById('ex-name').textContent = ex ? ex.nome : 'Esercizio'
+      document.getElementById('ex-desc').textContent = ex ? ex.descrizione_paziente : ''
+      document.getElementById('progress-fill').style.width = ((idx / total) * 100) + '%'
+      document.getElementById('hint-3r').style.display = (ex && ex.slug === '0-3r') ? 'block' : 'none'
+      if (cfg) {
+        document.getElementById('ex-config').innerHTML = `<span class="config-pill pill-${cfg.toLowerCase()}">${cfg} — ${cfg === 'NPL' ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'}</span>`
+      }
+      const videoBox = document.getElementById('video-box')
+      if (ex && ex.video_url) {
+        const { id, isShorts } = extractVideoId(ex.video_url)
+        if (id) {
+          videoBox.className = 'video-box ' + (isShorts ? 'shorts' : 'normal')
+          videoBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?playsinline=1&rel=0" allowfullscreen allow="autoplay"></iframe>`
+        } else {
+          videoBox.className = 'video-box normal'
+          videoBox.innerHTML = `<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>`
+        }
+      } else {
+        videoBox.className = 'video-box normal'
+        videoBox.innerHTML = `<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>`
+      }
+      totalSeconds = currentEx.durata || (ex ? ex.durata_default : 90) || 90
+      remaining = totalSeconds
+      updateTimerDisplay()
+      updateRing()
+      document.getElementById('btn-prev').style.display = idx > 0 ? 'block' : 'none'
+    }
+
+    function updateTimerDisplay() {
+      const m = Math.floor(remaining / 60)
+      const s = remaining % 60
+      document.getElementById('timer-display').textContent = m + ':' + (s < 10 ? '0' : '') + s
+    }
+
+    function updateRing() {
+      const offset = 364 * (1 - remaining / totalSeconds)
+      document.getElementById('ring-fg').style.strokeDashoffset = offset
+    }
+
+    function toggleTimer() {
+      if (isRunning) {
+        clearInterval(timerInterval); isRunning = false
+        document.getElementById('play-btn').textContent = '▶ Riprendi'
+        document.getElementById('breathing-hint').classList.remove('active')
+      } else {
+        isRunning = true
+        document.getElementById('play-btn').textContent = '⏸ Pausa'
+        document.getElementById('breathing-hint').classList.add('active')
+        timerInterval = setInterval(() => {
+          if (remaining > 0) { remaining--; updateTimerDisplay(); updateRing() }
+          else {
+            clearInterval(timerInterval); isRunning = false
+            document.getElementById('play-btn').textContent = '▶ Avvia'
+            document.getElementById('breathing-hint').classList.remove('active')
+            showCompleted()
+          }
+        }, 1000)
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval); isRunning = false; remaining = totalSeconds
+      updateTimerDisplay(); updateRing()
+      document.getElementById('play-btn').textContent = '▶ Avvia'
+      document.getElementById('breathing-hint').classList.remove('active')
+    }
+
+    function completeExercise() { clearInterval(timerInterval); isRunning = false; showCompleted() }
+
+    async function showCompleted() {
+      const isLast = idx >= exercises.length - 1
+      document.getElementById('completed-icon').textContent = isLast ? '🏆' : '✅'
+      document.getElementById('completed-title').textContent = isLast ? 'Sessione completata!' : 'Esercizio completato!'
+      document.getElementById('btn-next').style.display = isLast ? 'none' : 'block'
+      document.getElementById('btn-finish').style.display = isLast ? 'block' : 'none'
+
+      if (isLast) {
+        playVictorySound()
+        launchConfetti()
+        document.getElementById('completed-sub').textContent = 'Hai completato tutti gli esercizi di oggi!'
+        document.getElementById('streak-section').style.display = 'block'
+        const streak = await calcolaStreak()
+        document.getElementById('streak-num').textContent = streak
+        const smileRow = document.getElementById('smile-row')
+        smileRow.innerHTML = ''
+        for (let i = 0; i < Math.min(streak, 7); i++) {
+          const dot = document.createElement('div')
+          dot.className = 'smile-dot done'
+          smileRow.appendChild(dot)
+        }
+        const frase = frasi[Math.floor(Math.random() * frasi.length)]
+        document.getElementById('motivational-msg').innerHTML = frase
+        await salvaDiarioAutomatico(streak)
+      } else {
+        document.getElementById('completed-sub').textContent = `Prossimo: ${exercises[idx+1] ? exercises[idx+1].exercise.nome : ''}`
+        document.getElementById('streak-section').style.display = 'none'
+      }
+      document.getElementById('completed-overlay').classList.add('show')
+    }
+
+    async function calcolaStreak() {
+      const { data } = await _supabase
+        .from('diary_entries')
+        .select('data')
+        .eq('patient_id', patient.id)
+        .eq('completato', true)
+        .order('data', { ascending: false })
+        .limit(30)
+      if (!data || data.length === 0) return 1
+      let streak = 1
+      const today = new Date()
+      today.setHours(0,0,0,0)
+      for (let i = 0; i < data.length - 1; i++) {
+        const d1 = new Date(data[i].data)
+        const d2 = new Date(data[i+1].data)
+        const diff = (d1 - d2) / (1000*60*60*24)
+        if (diff === 1) streak++
+        else break
+      }
+      return streak
+    }
+
+    async function salvaDiarioAutomatico(streak) {
+      const today = new Date().toISOString().split('T')[0]
+      const nota = `Sessione completata automaticamente. ${streak > 1 ? streak + ' giorni consecutivi! 🔥' : 'Prima sessione completata! 🌟'}`
+      await _supabase.from('diary_entries').insert({
+        patient_id: patient.id,
+        patient_protocol_id: protocol.id,
+        data: today,
+        dolore: 0, rigidita: 0, equilibrio: 5, energia: 5,
+        note: nota,
+        completato: true
+      })
+    }
+
+    function nextExercise() {
+      idx++
+      document.getElementById('completed-overlay').classList.remove('show')
+      resetTimer(); loadExercise(); window.scrollTo(0,0)
+    }
+
+    function prevExercise() {
+      if (idx > 0) { idx--; resetTimer(); loadExercise(); window.scrollTo(0,0) }
+    }
+
+    function finishSession() { window.location.href = 'protocollo.html?token=' + token }
+
+    function exitWithConfirm() {
+      if (isRunning || idx > 0) {
+        if (confirm('Vuoi uscire? L\'esercizio corrente non verrà registrato come completato.')) {
+          clearInterval(timerInterval)
+          finishSession()
+        }
+      } else {
+        finishSession()
+      }
+    }
+
+    function painAlert() {
+      clearInterval(timerInterval)
+      if (confirm('Vuoi interrompere per dolore? Verrà registrata una nota sul tuo diario.')) {
+        _supabase.from('diary_entries').insert({
+          patient_id: patient.id,
+          patient_protocol_id: protocol.id,
+          data: new Date().toISOString().split('T')[0],
+          dolore: 7, rigidita: 0, equilibrio: 5, energia: 5,
+          note: 'Sessione interrotta per dolore durante ' + (exercises[idx].exercise ? exercises[idx].exercise.nome : 'esercizio'),
+          completato: false
+        })
+        finishSession()
+      }
+    }
+
+    // --- MUSICA VITTORIA ---
+    let soundEnabled = localStorage.getItem('policettivo_sound') !== 'off'
+
+    document.addEventListener('DOMContentLoaded', () => { const b = document.getElementById('btn-sound'); if(b) b.textContent = soundEnabled ? '🔊' : '🔇' })
+    function toggleSound() {
+      soundEnabled = !soundEnabled
+      localStorage.setItem('policettivo_sound', soundEnabled ? 'on' : 'off')
+      document.getElementById('btn-sound').textContent = soundEnabled ? '🔊' : '🔇'
+    }
+
+    function playVictorySound() {
+      if (!soundEnabled) return
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)()
+        const notes = [523, 659, 784, 1047]
+        const times = [0, 0.18, 0.36, 0.54]
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.type = 'sine'
+          osc.frequency.value = freq
+          gain.gain.setValueAtTime(0, ctx.currentTime + times[i])
+          gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + times[i] + 0.05)
+          gain.gain.linearRampToValueAtTime(0, ctx.currentTime + times[i] + 0.35)
+          osc.start(ctx.currentTime + times[i])
+          osc.stop(ctx.currentTime + times[i] + 0.4)
+        })
+      } catch(e) {}
+    }
+
+    init()
+  </script>
+</body>
+</html>
