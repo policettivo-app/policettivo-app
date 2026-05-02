@@ -202,6 +202,18 @@
       })
     }
 
+    function valColor(id, val) {
+      if (id === 'dolore' || id === 'rigidita') {
+        if (val > 6) return '#f44336'
+        if (val > 3) return '#FF9800'
+        return '#4CAF50'
+      } else {
+        if (val < 4) return '#f44336'
+        if (val < 7) return '#FF9800'
+        return '#4CAF50'
+      }
+    }
+
     function renderHistory(entries) {
       const el = document.getElementById('history-list')
       if (entries.length === 0) { el.innerHTML = '<div style="color:#555;font-size:13px;text-align:center;padding:20px">Nessuna sessione ancora.</div>'; return }
@@ -213,11 +225,35 @@
         if (score >= 2) return '😐'
         return '😔'
       }
-      el.innerHTML = entries.slice(0,20).map(e => {
-        const data = new Date(e.data).toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'2-digit' })
+      el.innerHTML = entries.slice(0,30).map((e, i) => {
+        const data = new Date(e.data).toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
         const emoji = smileMap(e.dolore||0, e.rigidita||0, e.equilibrio||5, e.energia||5)
-        return '<div class="history-item"><div class="history-emoji">' + emoji + '</div><div class="history-info"><div class="history-date">' + data + '</div><div class="history-note">' + (e.note || 'Sessione completata') + '</div></div><div class="history-check">' + (e.completato ? '✅' : '⬜') + '</div></div>'
+        const d = e.dolore || 0
+        const r = e.rigidita || 0
+        const eq = e.equilibrio !== null && e.equilibrio !== undefined ? e.equilibrio : 5
+        const en = e.energia !== null && e.energia !== undefined ? e.energia : 5
+        const dettagli =
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0 8px">' +
+          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">DOLORE</div><div style="font-size:18px;font-weight:700;color:' + valColor('dolore',d) + '">' + d + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
+          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">RIGIDITA</div><div style="font-size:18px;font-weight:700;color:' + valColor('rigidita',r) + '">' + r + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
+          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">EQUILIBRIO</div><div style="font-size:18px;font-weight:700;color:' + valColor('equilibrio',eq) + '">' + eq + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
+          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">ENERGIA</div><div style="font-size:18px;font-weight:700;color:' + valColor('energia',en) + '">' + en + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
+          '</div>' +
+          (e.note ? '<div style="background:#1a1a1a;border-left:3px solid #FFD008;border-radius:4px;padding:8px 12px;font-size:12px;color:#aaa;line-height:1.5">' + e.note + '</div>' : '')
+        return '<div style="background:#1a1a1a;border-radius:12px;margin-bottom:8px;overflow:hidden">' +
+          '<div onclick="toggleDetail(' + i + ')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">' +
+          '<div style="font-size:22px">' + emoji + '</div>' +
+          '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:#fff">' + data + '</div>' +
+          '<div style="font-size:11px;color:#555;margin-top:2px">Dolore ' + d + ' · Energia ' + en + ' · ' + (e.completato ? '✅ completata' : '⬜ non completata') + '</div></div>' +
+          '<div style="font-size:12px;color:#444">▼</div></div>' +
+          '<div id="detail-' + i + '" style="display:none;padding:0 14px 14px">' + dettagli + '</div>' +
+          '</div>'
       }).join('')
+    }
+
+    function toggleDetail(i) {
+      const el = document.getElementById('detail-' + i)
+      el.style.display = el.style.display === 'none' ? 'block' : 'none'
     }
 
     init()
