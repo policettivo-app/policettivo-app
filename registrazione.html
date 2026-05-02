@@ -116,7 +116,7 @@
       const userId = authData.user.id
 
       await _supabase.from('profiles').insert({ id: userId, role: 'professionista', nome, cognome })
-      await _supabase.from('professionals').insert({ user_id: userId, qualifica, centro, citta, email, attivo: true })
+      await _supabase.from('professionals').insert({ user_id: userId, qualifica, centro, citta, attivo: true })
       await _supabase.from('invites').update({ usato: true, used_at: new Date().toISOString() }).eq('token', token)
 
       document.getElementById('form-state').style.display = 'none'
