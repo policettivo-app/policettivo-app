@@ -112,6 +112,9 @@
   </div>
 
   <div class="completed-overlay" id="completed-overlay">
+    <div style="position:absolute;top:16px;right:16px">
+      <button id="btn-sound" onclick="toggleSound()" style="background:transparent;border:1px solid #333;color:#666;padding:6px 12px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:13px;cursor:pointer">🔊</button>
+    </div>
     <div class="completed-icon" id="completed-icon">✅</div>
     <div class="completed-title" id="completed-title">Esercizio completato!</div>
     <div class="completed-sub" id="completed-sub"></div>
@@ -261,6 +264,7 @@
       document.getElementById('btn-finish').style.display = isLast ? 'block' : 'none'
 
       if (isLast) {
+        playVictorySound()
         document.getElementById('completed-sub').textContent = 'Hai completato tutti gli esercizi di oggi!'
         document.getElementById('streak-section').style.display = 'block'
         const streak = await calcolaStreak()
@@ -353,6 +357,38 @@
         })
         finishSession()
       }
+    }
+
+    // --- MUSICA VITTORIA ---
+    let soundEnabled = localStorage.getItem('policettivo_sound') !== 'off'
+
+    document.addEventListener('DOMContentLoaded', () => { const b = document.getElementById('btn-sound'); if(b) b.textContent = soundEnabled ? '🔊' : '🔇' })
+    function toggleSound() {
+      soundEnabled = !soundEnabled
+      localStorage.setItem('policettivo_sound', soundEnabled ? 'on' : 'off')
+      document.getElementById('btn-sound').textContent = soundEnabled ? '🔊' : '🔇'
+    }
+
+    function playVictorySound() {
+      if (!soundEnabled) return
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)()
+        const notes = [523, 659, 784, 1047]
+        const times = [0, 0.18, 0.36, 0.54]
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.type = 'sine'
+          osc.frequency.value = freq
+          gain.gain.setValueAtTime(0, ctx.currentTime + times[i])
+          gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + times[i] + 0.05)
+          gain.gain.linearRampToValueAtTime(0, ctx.currentTime + times[i] + 0.35)
+          osc.start(ctx.currentTime + times[i])
+          osc.stop(ctx.currentTime + times[i] + 0.4)
+        })
+      } catch(e) {}
     }
 
     init()
