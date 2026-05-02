@@ -380,6 +380,14 @@
         problema_principale: document.getElementById('edit-problema').value.trim() || null
       }
       if (!updates.nome || !updates.cognome) { alert('Nome e cognome sono obbligatori'); return }
+      if (updates.email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(updates.email)) { alert('Inserisci un indirizzo email valido (es. mario@gmail.com).'); return }
+      }
+      if (updates.telefono) {
+        const digits = updates.telefono.replace(/[^0-9]/g, '')
+        if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return }
+      }
       const { error } = await _supabase.from('patients').update(updates).eq('id', patientId)
       if (error) { alert('Errore: ' + error.message); return }
       Object.assign(patient, updates)

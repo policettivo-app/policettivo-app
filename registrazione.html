@@ -106,6 +106,8 @@
 
       if (!nome || !cognome || !email || !password) { showError('Compila tutti i campi obbligatori.'); return }
       if (password.length < 8) { showError('La password deve essere di almeno 8 caratteri.'); return }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) { showError('Inserisci un indirizzo email valido (es. mario@gmail.com).'); return }
 
       const btn = document.getElementById('reg-btn')
       btn.disabled = true; btn.textContent = 'Registrazione in corso...'
