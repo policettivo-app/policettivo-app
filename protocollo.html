@@ -209,8 +209,8 @@
         '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + exercises.length + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">Inizia gli esercizi</button></div>' +
         exHtml +
         '<div class="diary-card"><div class="diary-title">Come stai oggi?</div>' +
-        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="document.getElementById(\'val-dolore\').textContent=this.value"></div>' +
-        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Rigidita</span><span class="slider-value" id="val-rigidita">0</span></div><input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="document.getElementById(\'val-rigidita\').textContent=this.value"></div>' +
+        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="updateSlider(\'dolore\',this.value)"><div id="bar-dolore" style="height:4px;border-radius:2px;margin-top:4px;background:#4CAF50;width:0%;transition:all 0.3s"></div></div>' +
+        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Rigidita</span><span class="slider-value" id="val-rigidita">0</span></div><input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="updateSlider(\'rigidita\',this.value)"><div id="bar-rigidita" style="height:4px;border-radius:2px;margin-top:4px;background:#4CAF50;width:0%;transition:all 0.3s"></div></div>' +
         '<div class="slider-group"><div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div><input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="document.getElementById(\'val-equilibrio\').textContent=this.value"></div>' +
         '<div class="slider-group"><div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div><input type="range" id="sl-energia" min="0" max="10" value="5" oninput="document.getElementById(\'val-energia\').textContent=this.value"></div>' +
         '<textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea>' +
@@ -222,6 +222,21 @@
     function iniziaEsercizi() {
       if (exercises.length === 0) { alert('Nessun esercizio nel protocollo.'); return }
       window.location.href = 'esercizio.html?token=' + token + '&idx=0'
+    }
+
+    function updateSlider(id, val) {
+      val = parseInt(val)
+      document.getElementById('val-' + id).textContent = val
+      if (id === 'dolore' || id === 'rigidita') {
+        const bar = document.getElementById('bar-' + id)
+        const pct = (val / 10 * 100) + '%'
+        let color = '#4CAF50'
+        if (val > 6) color = '#f44336'
+        else if (val > 3) color = '#FF9800'
+        bar.style.width = pct
+        bar.style.background = color
+        document.getElementById('val-' + id).style.color = color
+      }
     }
 
     async function salvaDiario() {
