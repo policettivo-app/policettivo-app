@@ -84,6 +84,7 @@
     </div>
     <div class="navbar-right">
       <button class="btn-admin" onclick="window.location.href='admin.html'">⚙️ Admin</button>
+      <button class="btn-admin" onclick="openGuida()" style="background:#222;color:#FFD008;border:1px solid #FFD008">? Guida</button>
       <span class="navbar-user" id="user-email"></span>
       <button class="btn-logout" onclick="doLogout()">Esci</button>
     </div>
@@ -287,8 +288,35 @@
       await _supabase.from('patients').delete().eq('id', id)
       loadPatients(); loadStats()
     }
+    function openGuida() { document.getElementById('guida-overlay').style.display = 'flex' }
+    function closeGuida() { document.getElementById('guida-overlay').style.display = 'none' }
+
     async function doLogout() { await _supabase.auth.signOut(); window.location.href = 'login.html' }
     init()
   </script>
+  <div class="modal-overlay" id="guida-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+    <div style="background:#111;border:1px solid #333;border-radius:16px;padding:32px 28px;width:100%;max-width:640px;margin:auto;position:relative">
+      <button onclick="closeGuida()" style="position:absolute;top:16px;right:16px;background:transparent;border:1px solid #444;color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:Montserrat,sans-serif;font-size:13px">✕ Chiudi</button>
+      <div style="background:#FFD008;color:#000;font-weight:700;font-size:11px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px">POLICETTIVO®</div>
+      <h2 style="font-size:20px;font-weight:700;color:#fff;margin-bottom:6px">Guida rapida</h2>
+      <p style="font-size:13px;color:#888;margin-bottom:24px">Come usare l app in pochi passi</p>
+
+      <div style="background:#000;border-radius:12px;overflow:hidden;margin-bottom:24px;aspect-ratio:16/9">
+        <iframe width="100%" height="100%" src="https://www.youtube.com/embed/mVAvNZgUaPg?rel=0" allowfullscreen style="border:none;display:block"></iframe>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;color:#aaa;line-height:1.7">
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">1. AGGIUNGERE UN PAZIENTE</div>Dalla Dashboard clicca <strong style="color:#fff">+ Nuovo paziente</strong> e inserisci nome, cognome, email e telefono. Clicca Salva.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">2. SCHEDA PAZIENTE</div>Clicca sul paziente per aprire la scheda. Puoi scattare foto posturali, selezionare piano scapolare, osservazioni podoscopiche e scegliere la configurazione <strong style="color:#fff">NPL</strong> o <strong style="color:#fff">GPL</strong>.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">3. ASSEGNARE IL PROTOCOLLO</div>Dalla scheda paziente clicca <strong style="color:#fff">+ Assegna protocollo</strong>, scegli gli esercizi, definisci l ordine e salva.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">4. LINK PAZIENTE</div>Clicca <strong style="color:#fff">Genera link</strong> poi <strong style="color:#fff">Invia via WhatsApp</strong>. Il paziente apre il link, accetta il consenso e accede al protocollo. Il link e come una password: va tenuto riservato.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">5. MONITORAGGIO</div>Dalla scheda paziente clicca <strong style="color:#fff">Vedi monitoraggio</strong> per vedere grafici di aderenza, dolore, energia e il diario completo.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">6. WHATSAPP</div>Puoi scrivere al paziente con il pulsante <strong style="color:#fff">Scrivi al paziente</strong>. Il paziente puo scriverti dal suo protocollo.</div>
+        <div style="background:#1a1000;border:1px solid #FFD008;border-radius:8px;padding:12px 14px"><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">CONSIGLI PRATICI</div>Usa l app da smartphone durante la visita per scattare le foto. Assegna sempre prima la Tecnica dei 3 Respiri. Controlla il monitoraggio prima di ogni visita.</div>
+        <div style="text-align:center;color:#555;font-size:12px">Per assistenza: appuntamentimft@gmail.com</div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
