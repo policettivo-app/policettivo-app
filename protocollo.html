@@ -211,8 +211,8 @@
         '<div class="diary-card"><div class="diary-title">Come stai oggi?</div>' +
         '<div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="updateSlider(\'dolore\',this.value)"><div id="bar-dolore" style="height:4px;border-radius:2px;margin-top:4px;background:#4CAF50;width:0%;transition:all 0.3s"></div></div>' +
         '<div class="slider-group"><div class="slider-label"><span class="slider-name">Rigidita</span><span class="slider-value" id="val-rigidita">0</span></div><input type="range" id="sl-rigidita" min="0" max="10" value="0" oninput="updateSlider(\'rigidita\',this.value)"><div id="bar-rigidita" style="height:4px;border-radius:2px;margin-top:4px;background:#4CAF50;width:0%;transition:all 0.3s"></div></div>' +
-        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div><input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="document.getElementById(\'val-equilibrio\').textContent=this.value"></div>' +
-        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div><input type="range" id="sl-energia" min="0" max="10" value="5" oninput="document.getElementById(\'val-energia\').textContent=this.value"></div>' +
+        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div><input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="updateSlider(\'equilibrio\',this.value)"><div id="bar-equilibrio" style="height:4px;border-radius:2px;margin-top:4px;background:#FF9800;width:50%;transition:all 0.3s"></div></div>' +
+        '<div class="slider-group"><div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div><input type="range" id="sl-energia" min="0" max="10" value="5" oninput="updateSlider(\'energia\',this.value)"><div id="bar-energia" style="height:4px;border-radius:2px;margin-top:4px;background:#FF9800;width:50%;transition:all 0.3s"></div></div>' +
         '<textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea>' +
         '<button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button>' +
         '<button class="btn-wa" onclick="contattaProfessionista()">Scrivi al professionista</button>' +
@@ -227,16 +227,22 @@
     function updateSlider(id, val) {
       val = parseInt(val)
       document.getElementById('val-' + id).textContent = val
+      const bar = document.getElementById('bar-' + id)
+      if (!bar) return
+      const pct = (val / 10 * 100) + '%'
+      let color = '#4CAF50'
       if (id === 'dolore' || id === 'rigidita') {
-        const bar = document.getElementById('bar-' + id)
-        const pct = (val / 10 * 100) + '%'
-        let color = '#4CAF50'
         if (val > 6) color = '#f44336'
         else if (val > 3) color = '#FF9800'
-        bar.style.width = pct
-        bar.style.background = color
-        document.getElementById('val-' + id).style.color = color
+        else color = '#4CAF50'
+      } else {
+        if (val < 4) color = '#f44336'
+        else if (val < 7) color = '#FF9800'
+        else color = '#4CAF50'
       }
+      bar.style.width = pct
+      bar.style.background = color
+      document.getElementById('val-' + id).style.color = color
     }
 
     async function salvaDiario() {
