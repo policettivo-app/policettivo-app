@@ -47,6 +47,11 @@
       <div class="section-text">Gli esercizi proposti sono stati selezionati dal tuo professionista. In caso di dolore acuto, interrompi immediatamente l'esercizio e contatta il professionista. L'app non sostituisce la visita clinica.</div>
     </div>
 
+    <div class="section" style="background:#1a1000;border:1px solid #FFD008;border-radius:10px;padding:14px 16px">
+      <div class="section-title">🔐 Riservatezza del link personale</div>
+      <div class="section-text">Il link che hai ricevuto è strettamente personale e funge da password di accesso al tuo profilo. <strong style="color:#fff">Non condividerlo con nessuno.</strong> Chiunque ne sia in possesso potrà accedere ai tuoi dati. Il professionista e Policettivo® non si assumono alcuna responsabilità per perdita, fuga o furto di dati derivanti dalla condivisione volontaria o involontaria del link personale.</div>
+    </div>
+
     <hr class="divider">
 
     <label class="checkbox-row">
@@ -64,6 +69,11 @@
       <span class="checkbox-label">Accetto i <strong>Termini di utilizzo</strong> dell'app Policettivo®.</span>
     </label>
 
+    <label class="checkbox-row">
+      <input type="checkbox" id="check4" onchange="checkAll()">
+      <span class="checkbox-label">Dichiaro di aver preso visione che il <strong>link personale ricevuto è riservato</strong> e non va condiviso. Sollevo il professionista e Policettivo® da responsabilità in caso di accesso non autorizzato derivante dalla condivisione del link.</span>
+    </label>
+
     <button class="btn-accetta" id="btn-accetta" disabled onclick="accetta()">Accetto — Accedi al protocollo</button>
 
     <div class="note-legale">Titolare del trattamento: il professionista Policettivo® che ti ha assegnato il protocollo. Puoi richiedere la cancellazione dei tuoi dati in qualsiasi momento contattandolo direttamente.</div>
@@ -76,7 +86,8 @@
     function checkAll() {
       const ok = document.getElementById('check1').checked &&
                  document.getElementById('check2').checked &&
-                 document.getElementById('check3').checked
+                 document.getElementById('check3').checked &&
+                 document.getElementById('check4').checked
       document.getElementById('btn-accetta').disabled = !ok
     }
 
