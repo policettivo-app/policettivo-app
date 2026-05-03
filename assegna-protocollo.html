@@ -66,7 +66,7 @@
     .lib-card { border: 1.5px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: all 0.2s; display: flex; flex-direction: column; }
     .lib-card:hover { border-color: #FFD008; box-shadow: 0 4px 16px rgba(255,208,8,0.15); }
     .lib-card.added { border-color: #000; }
-    .lib-card-preview { width: 100%; height: 120px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .lib-card-preview { width: 100%; height: 110px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .lib-card-body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; }
     .lib-card-name { font-size: 13px; font-weight: 700; color: #000; margin-bottom: 6px; text-transform: capitalize; }
     .lib-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; flex: 1; }
@@ -90,21 +90,25 @@
     .lib-hint { font-size: 11px; color: #aaa; margin-top: 4px; margin-bottom: 16px; }
     .selected-summary { background: #fffdf0; border: 1.5px solid #FFD008; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #000; display: none; }
     .selected-summary.show { display: block; }
-    /* MODALE */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.hidden { display: none; }
-    .modal-box { background: #fff; border-radius: 16px; max-width: 460px; width: 100%; overflow: hidden; }
-    .modal-header { background: #000; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .modal-box { background: #fff; border-radius: 16px; max-width: 460px; width: 100%; overflow: hidden; max-height: 90vh; overflow-y: auto; }
+    .modal-header { background: #000; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; }
     .modal-title { color: #fff; font-size: 13px; font-weight: 700; text-transform: capitalize; flex: 1; margin-right: 10px; }
     .modal-close { background: #FFD008; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
-    .modal-gif-wrap { width: 100%; height: 260px; background: #000; overflow: hidden; }
-    .modal-gif-wrap img { width: 100%; height: 260px; object-fit: contain; }
+    .modal-preview { width: 100%; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
     .modal-body { padding: 18px 20px; }
-    .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; max-height: 200px; overflow-y: auto; }
+    .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .modal-istruzioni { margin-bottom: 16px; }
+    .modal-istruzioni-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 8px; }
+    .modal-step { font-size: 12px; color: #333; margin-bottom: 6px; display: flex; gap: 8px; line-height: 1.5; }
+    .modal-step-num { font-weight: 700; color: #FFD008; flex-shrink: 0; background: #000; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; margin-top: 1px; }
     .modal-btn-add { width: 100%; border: none; padding: 12px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
     .modal-btn-add.not-added { background: #FFD008; color: #000; }
     .modal-btn-add.not-added:hover { background: #e6bc00; }
     .modal-btn-add.is-added { background: #000; color: #FFD008; }
+    .btn-youtube { display: inline-flex; align-items: center; gap: 8px; background: #FF0000; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; margin-bottom: 14px; }
+    .btn-youtube:hover { background: #cc0000; }
   </style>
 </head>
 <body>
@@ -207,18 +211,17 @@
     </div>
   </div>
 
-  <!-- MODALE ANTEPRIMA GIF -->
   <div class="modal-overlay hidden" id="modal-overlay" onclick="chiudiModaleClick(event)">
     <div class="modal-box">
       <div class="modal-header">
         <div class="modal-title" id="modal-nome"></div>
         <button class="modal-close" onclick="chiudiModale()">&#x2715;</button>
       </div>
-      <div class="modal-gif-wrap" id="modal-gif-wrap">
-        <div style="text-align:center;color:#aaa;font-size:13px">Caricamento...</div>
-      </div>
+      <div class="modal-preview" id="modal-preview"></div>
       <div class="modal-body">
+        <a class="btn-youtube" id="modal-yt-link" href="#" target="_blank">&#9654; Guarda su YouTube</a>
         <div class="modal-tags" id="modal-tags"></div>
+        <div class="modal-istruzioni" id="modal-istruzioni"></div>
         <button class="modal-btn-add not-added" id="modal-btn-add" onclick="toggleDalModale()">+ Aggiungi al protocollo</button>
       </div>
     </div>
@@ -277,20 +280,6 @@
       'back':'#eff6ff','chest':'#fef2f2','shoulders':'#f5f3ff','upper arms':'#fffbeb',
       'lower arms':'#fef3c7','upper legs':'#ecfdf5','lower legs':'#d1fae5',
       'waist':'#fdf2f8','neck':'#eef2ff','cardio':'#fff1f2'
-    }
-
-    function getPreviewHTML(ex) {
-      const bp = (ex.bodyPart || '').toLowerCase()
-      const emoji = bodyPartEmoji[bp] || '💪'
-      const label = bodyPartLabel[bp] || ex.bodyPart || 'Esercizio'
-      const bg = bodyPartBg[bp] || '#f5f5f5'
-      return '<div class="lib-card-preview" style="background:' + bg + ';cursor:pointer" onclick="apriModale(\'' + ex.id + '\')">' +
-        '<div style="text-align:center">' +
-          '<div style="font-size:40px;margin-bottom:4px">' + emoji + '</div>' +
-          '<div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px">' + label + '</div>' +
-          '<div style="font-size:10px;color:#aaa;margin-top:2px">Clicca per anteprima GIF</div>' +
-        '</div>' +
-      '</div>'
     }
 
     document.getElementById('btn-back').onclick = () => window.location.href = 'paziente.html?id=' + patientId
@@ -352,9 +341,7 @@
     }
 
     function setCfg(id, cfg) { exerciseCfg[id] = cfg; renderExercises() }
-
     function selectConfig(val) { selectedConfig = val; updateConfigUI(); renderExercises() }
-
     function updateConfigUI() {
       document.getElementById('opt-npl').className = 'config-option' + (selectedConfig==='NPL'?' selected-npl':'')
       document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig==='GPL'?' selected-gpl':'')
@@ -415,9 +402,19 @@
       resEl.className = 'library-grid'
       resEl.innerHTML = items.map(ex => {
         const isAdded = selectedExercises.some(s => s.id === ex.id && s.source === 'lib')
+        const bp = (ex.bodyPart||'').toLowerCase()
+        const emoji = bodyPartEmoji[bp] || '💪'
+        const label = bodyPartLabel[bp] || ex.bodyPart || ''
+        const bg = bodyPartBg[bp] || '#f5f5f5'
         const muscles = [ex.target, ...(ex.secondaryMuscles||[])].filter(Boolean).slice(0,2)
         return '<div class="lib-card ' + (isAdded?'added':'') + '">' +
-          getPreviewHTML(ex) +
+          '<div class="lib-card-preview" style="background:' + bg + '" onclick="apriModale(\'' + ex.id + '\')">' +
+            '<div style="text-align:center">' +
+              '<div style="font-size:36px">' + emoji + '</div>' +
+              '<div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-top:4px">' + label + '</div>' +
+              '<div style="font-size:9px;color:#aaa;margin-top:2px">Clicca per dettagli</div>' +
+            '</div>' +
+          '</div>' +
           '<div class="lib-card-body">' +
             '<div class="lib-card-name">' + ex.name + '</div>' +
             '<div class="lib-card-tags">' +
@@ -425,7 +422,7 @@
               muscles.map(m => '<span class="lib-tag lib-tag-muscle">' + m + '</span>').join('') +
             '</div>' +
             '<div class="lib-card-btns">' +
-              '<button class="btn-preview" onclick="apriModale(\'' + ex.id + '\')">&#128065; GIF</button>' +
+              '<button class="btn-preview" onclick="apriModale(\'' + ex.id + '\')">&#128065; Dettagli</button>' +
               '<button class="btn-add-lib ' + (isAdded?'is-added':'not-added') + '" onclick="toggleExercise(\'' + ex.id + '\',\'lib\')">' +
                 (isAdded ? '&#10003; Aggiunto' : '+ Aggiungi') +
               '</button>' +
@@ -455,22 +452,27 @@
       document.getElementById('modal-nome').textContent = ex.name
       const bp = (ex.bodyPart||'').toLowerCase()
       const emoji = bodyPartEmoji[bp] || '💪'
-      const gifWrap = document.getElementById('modal-gif-wrap')
-      gifWrap.innerHTML = '<div style="text-align:center;padding:40px"><div style="font-size:48px">' + emoji + '</div><div style="color:#aaa;font-size:12px;margin-top:8px">Caricamento GIF...</div></div>'
-      const img = new Image()
-      img.style.width = '100%'
-      img.style.height = '260px'
-      img.style.objectFit = 'contain'
-      img.onload = function() { gifWrap.innerHTML = ''; gifWrap.appendChild(img) }
-      img.onerror = function() {
-        gifWrap.innerHTML = '<iframe src="' + ex.gifUrl + '" style="width:100%;height:260px;border:none;background:#f5f5f5" sandbox="allow-same-origin"></iframe>'
-      }
-      img.src = ex.gifUrl
+      const label = bodyPartLabel[bp] || ex.bodyPart || 'Esercizio'
+      const bg = bodyPartBg[bp] || '#f5f5f5'
+      document.getElementById('modal-preview').style.background = bg
+      document.getElementById('modal-preview').innerHTML =
+        '<div style="font-size:56px">' + emoji + '</div>' +
+        '<div style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px">' + label + '</div>' +
+        '<div style="font-size:11px;color:#888">' + (ex.difficulty||'') + ' &middot; ' + (ex.category||'') + '</div>'
+      const ytQuery = encodeURIComponent(ex.name + ' exercise tutorial')
+      document.getElementById('modal-yt-link').href = 'https://www.youtube.com/results?search_query=' + ytQuery
       const muscles = [ex.target, ...(ex.secondaryMuscles||[])].filter(Boolean)
       document.getElementById('modal-tags').innerHTML =
         '<span class="lib-tag" style="background:#e3f2fd;color:#1565c0">' + (ex.bodyPart||'') + '</span>' +
         '<span class="lib-tag lib-tag-equip">' + (ex.equipment||'corpo libero') + '</span>' +
         muscles.map(m => '<span class="lib-tag lib-tag-muscle">' + m + '</span>').join('')
+      const instructions = ex.instructions || []
+      document.getElementById('modal-istruzioni').innerHTML = instructions.length
+        ? '<div class="modal-istruzioni-title">Istruzioni</div>' +
+          instructions.map((s,i) =>
+            '<div class="modal-step"><div class="modal-step-num">' + (i+1) + '</div><div>' + s + '</div></div>'
+          ).join('')
+        : ''
       aggiornaModalBtn()
       document.getElementById('modal-overlay').classList.remove('hidden')
     }
@@ -519,8 +521,8 @@
           if (libEx) {
             const desc = 'Muscolo: ' + libEx.target + (libEx.secondaryMuscles?.length ? ' | Secondari: '+libEx.secondaryMuscles.join(', ') : '') + ' | Attrezzatura: '+(libEx.equipment||'corpo libero')
             const { data: newEx, error: ne } = await _supabase.from('exercises').insert({
-              nome: libEx.name, descrizione: desc, video_url: libEx.gifUrl,
-              livello:'base', durata_default:60, ripetizioni:1, active:false, fonte:'exercisedb'
+              nome: libEx.name, descrizione: desc, video_url: '',
+              livello: libEx.difficulty||'base', durata_default:60, ripetizioni:1, active:false, fonte:'exercisedb'
             }).select().single()
             if (!ne && newEx) exRows.push({ patient_protocol_id:proto.id, exercise_id:newEx.id, ordine:i+1, configurazione:selectedConfig, durata:60, ripetizioni:1 })
           }
