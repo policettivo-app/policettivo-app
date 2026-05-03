@@ -522,7 +522,7 @@
             const desc = 'Muscolo: ' + libEx.target + (libEx.secondaryMuscles?.length ? ' | Secondari: '+libEx.secondaryMuscles.join(', ') : '') + ' | Attrezzatura: '+(libEx.equipment||'corpo libero')
             const { data: newEx, error: ne } = await _supabase.from('exercises').insert({
               nome: libEx.name, descrizione: desc, video_url: '',
-              livello: libEx.difficulty||'base', durata_default:60, ripetizioni:1, active:false, fonte:'exercisedb'
+              livello: libEx.difficulty||'base', durata_default:60, ripetizioni:1, active:true, fonte:'exercisedb'
             }).select().single()
             if (!ne && newEx) exRows.push({ patient_protocol_id:proto.id, exercise_id:newEx.id, ordine:i+1, configurazione:selectedConfig, durata:60, ripetizioni:1 })
           }
