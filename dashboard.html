@@ -395,7 +395,7 @@
       }).select().single()
       if (errProt) { alert('Errore protocollo: ' + errProt.message); btn.textContent = 'Crea paziente'; btn.disabled = false; return }
       await _supabase.from('patient_protocol_exercises').insert({
-        protocol_id: protocollo.id,
+        patient_protocol_id: protocollo.id,
         exercise_id: DEFAULT_EXERCISE_ID,
         ordine: 1
       })
