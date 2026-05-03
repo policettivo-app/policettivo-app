@@ -51,17 +51,26 @@
     .btn-salva:disabled { opacity: 0.5; cursor: not-allowed; }
     .success-banner { background: #000; color: #FFD008; padding: 16px 24px; border-radius: 12px; text-align: center; font-weight: 700; margin-bottom: 20px; display: none; }
     .success-banner.show { display: block; }
+
+    /* TOAST */
+    .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+    .toast { background: #1a1a1a; color: #fff; padding: 14px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: 'Montserrat', sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px; min-width: 260px; max-width: 340px; animation: slideIn 0.3s ease; }
+    .toast.error { border-left: 4px solid #ff4444; }
+    .toast.success { border-left: 4px solid #FFD008; }
+    .toast-icon { font-size: 16px; flex-shrink: 0; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
   </style>
 </head>
 <body>
   <nav class="navbar">
     <span class="navbar-brand">POLICETTIVO®</span>
-    <a class="btn-back" id="btn-back" href="#">← Torna alla scheda</a>
+    <a class="btn-back" id="btn-back" href="#">&#8592; Torna alla scheda</a>
   </nav>
   <div class="main">
     <div class="page-title">Assegna Protocollo</div>
     <div class="page-sub" id="patient-name">Caricamento...</div>
-    <div class="success-banner" id="success-banner">✓ Protocollo assegnato con successo!</div>
+    <div class="success-banner" id="success-banner">&#10003; Protocollo assegnato con successo!</div>
     <div class="section">
       <div class="section-title">Dettagli protocollo</div>
       <div class="form-group">
@@ -103,15 +112,18 @@
       </div>
     </div>
     <div class="section">
-      <div class="section-title">Esercizi Policettivo®</div>
+      <div class="section-title">Esercizi Policettivo&#174;</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Clicca per selezionare. L'ordine di selezione diventa l'ordine del protocollo.</p>
       <div class="exercise-grid" id="exercise-grid">
         <div style="color:#999;font-size:13px">Caricamento esercizi...</div>
       </div>
     </div>
     <div class="selected-summary" id="selected-summary"></div>
-    <button class="btn-salva" id="btn-salva" onclick="salvaProtocollo()">✓ Assegna protocollo</button>
+    <button class="btn-salva" id="btn-salva" onclick="salvaProtocollo()">&#10003; Assegna protocollo</button>
   </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
@@ -123,6 +135,18 @@
     let selectedExercises = []
     let exerciseCfg = {}
     let allExercises = []
+
+    function showToast(msg, type = 'error') {
+      const container = document.getElementById('toast-container')
+      const toast = document.createElement('div')
+      toast.className = 'toast ' + type
+      toast.innerHTML = '<span class="toast-icon">' + (type === 'error' ? '&#9888;' : '&#10003;') + '</span><span>' + msg + '</span>'
+      container.appendChild(toast)
+      setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease forwards'
+        setTimeout(() => toast.remove(), 300)
+      }, 3500)
+    }
 
     async function init() {
       document.getElementById('btn-back').href = 'paziente.html?id=' + patientId
@@ -201,9 +225,9 @@
 
     async function salvaProtocollo() {
       const nome = document.getElementById('proto-nome').value.trim()
-      if (!nome) { alert('Inserisci un nome per il protocollo'); return }
-      if (!selectedConfig) { alert('Seleziona la configurazione NPL o GPL'); return }
-      if (!selectedExercises.length) { alert('Seleziona almeno un esercizio'); return }
+      if (!nome) { showToast('Inserisci un nome per il protocollo'); return }
+      if (!selectedConfig) { showToast('Seleziona la configurazione NPL o GPL'); return }
+      if (!selectedExercises.length) { showToast('Seleziona almeno un esercizio'); return }
       const btn = document.getElementById('btn-salva')
       btn.disabled = true; btn.textContent = 'Salvataggio...'
       await _supabase.from('patient_protocols').update({ stato: 'sospeso' }).eq('patient_id', patientId).eq('stato', 'attivo')
@@ -215,13 +239,13 @@
         frequenza: document.getElementById('proto-frequenza').value,
         configurazione_generale: selectedConfig, stato: 'attivo'
       }).select().single()
-      if (error) { alert('Errore: ' + error.message); btn.disabled = false; btn.textContent = '\u2713 Assegna protocollo'; return }
+      if (error) { showToast('Errore: ' + error.message); btn.disabled = false; btn.textContent = '\u2713 Assegna protocollo'; return }
       const exRows = selectedExercises.map((sel, i) => {
         const ex = allExercises.find(e => e.id === sel.id)
         return { patient_protocol_id: proto.id, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default || 90, ripetizioni: ex?.ripetizioni || 1 }
       })
       const { error: exErr } = await _supabase.from('patient_protocol_exercises').insert(exRows)
-      if (exErr) { alert('Errore esercizi: ' + exErr.message); return }
+      if (exErr) { showToast('Errore esercizi: ' + exErr.message); return }
       btn.textContent = '\u2713 Assegnato!'
       document.getElementById('success-banner').classList.add('show')
       setTimeout(() => { window.location.href = 'paziente.html?id=' + patientId }, 2000)
