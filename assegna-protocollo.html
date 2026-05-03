@@ -519,6 +519,7 @@
         } else {
           const libEx = libExercisesMap[sel.id]
           if (libEx) {
+            console.log('Inserisco esercizio ExerciseDB:', libEx.name)
             const desc = 'Muscolo: ' + libEx.target + (libEx.secondaryMuscles?.length ? ' | Secondari: '+libEx.secondaryMuscles.join(', ') : '') + ' | Attrezzatura: '+(libEx.equipment||'corpo libero')
             const { data: newEx, error: ne } = await _supabase.from('exercises').insert({
               nome: libEx.name, descrizione: desc, video_url: '',
