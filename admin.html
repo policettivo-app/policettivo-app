@@ -211,7 +211,29 @@
 
     async function eliminaProfessionista(id, nome) {
       if (!confirm('Eliminare definitivamente ' + nome + ' e tutti i suoi dati? Operazione irreversibile.')) return
-      await _supabase.from('professionals').delete().eq('id', id)
+      const { data: prof } = await _supabase.from('professionals').select('user_id').eq('id', id).single()
+      if (prof && prof.user_id) {
+        const { data: pats } = await _supabase.from('patients').select('id').eq('professional_id', id)
+        if (pats && pats.length > 0) {
+          const patIds = pats.map(p => p.id)
+          for (const pid of patIds) {
+            const { data: pp } = await _supabase.from('patient_protocols').select('id').eq('patient_id', pid)
+            if (pp && pp.length > 0) {
+              for (const prot of pp) {
+                await _supabase.from('patient_protocol_exercises').delete().eq('patient_protocol_id', prot.id)
+              }
+              await _supabase.from('patient_protocols').delete().eq('patient_id', pid)
+            }
+            await _supabase.from('diary_entries').delete().eq('patient_id', pid)
+          }
+          await _supabase.from('patients').delete().eq('professional_id', id)
+        }
+        await _supabase.from('professionals').delete().eq('id', id)
+        await _supabase.from('profiles').delete().eq('id', prof.user_id)
+      } else {
+        await _supabase.from('professionals').delete().eq('id', id)
+      }
+      alert(nome + ' eliminato con successo.')
       loadAll()
     }
 
