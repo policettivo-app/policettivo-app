@@ -107,8 +107,7 @@
     .modal-btn-add.not-added { background: #FFD008; color: #000; }
     .modal-btn-add.not-added:hover { background: #e6bc00; }
     .modal-btn-add.is-added { background: #000; color: #FFD008; }
-    .btn-youtube { display: inline-flex; align-items: center; gap: 8px; background: #FF0000; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; margin-bottom: 14px; }
-    .btn-youtube:hover { background: #cc0000; }
+    /* YouTube rimosso */
   </style>
 </head>
 <body>
@@ -219,7 +218,7 @@
       </div>
       <div class="modal-preview" id="modal-preview"></div>
       <div class="modal-body">
-        <a class="btn-youtube" id="modal-yt-link" href="#" target="_blank">&#9654; Guarda su YouTube</a>
+        <!-- YouTube rimosso -->
         <div class="modal-tags" id="modal-tags"></div>
         <div class="modal-istruzioni" id="modal-istruzioni"></div>
         <button class="modal-btn-add not-added" id="modal-btn-add" onclick="toggleDalModale()">+ Aggiungi al protocollo</button>
@@ -408,12 +407,10 @@
         const bg = bodyPartBg[bp] || '#f5f5f5'
         const muscles = [ex.target, ...(ex.secondaryMuscles||[])].filter(Boolean).slice(0,2)
         return '<div class="lib-card ' + (isAdded?'added':'') + '">' +
-          '<div class="lib-card-preview" style="background:' + bg + '" onclick="apriModale(\'' + ex.id + '\')">' +
-            '<div style="text-align:center">' +
-              '<div style="font-size:36px">' + emoji + '</div>' +
-              '<div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-top:4px">' + label + '</div>' +
-              '<div style="font-size:9px;color:#aaa;margin-top:2px">Clicca per dettagli</div>' +
-            '</div>' +
+          '<div class="lib-card-preview" style="background:' + bg + ';padding:0;overflow:hidden" onclick="apriModale(\'' + ex.id + '\')">' +
+            (ex.gifUrl
+              ? '<img src="/api/gif?url=' + encodeURIComponent(ex.gifUrl) + '" style="width:100%;height:110px;object-fit:cover" loading="lazy" onerror="this.parentNode.innerHTML=\'<div style=text-align:center><div style=font-size:36px>' + emoji + '</div></div>\'">'
+              : '<div style="text-align:center;padding:20px"><div style="font-size:36px">' + emoji + '</div><div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-top:4px">' + label + '</div></div>') +
           '</div>' +
           '<div class="lib-card-body">' +
             '<div class="lib-card-name">' + ex.name + '</div>' +
@@ -454,13 +451,20 @@
       const emoji = bodyPartEmoji[bp] || '💪'
       const label = bodyPartLabel[bp] || ex.bodyPart || 'Esercizio'
       const bg = bodyPartBg[bp] || '#f5f5f5'
-      document.getElementById('modal-preview').style.background = bg
-      document.getElementById('modal-preview').innerHTML =
-        '<div style="font-size:56px">' + emoji + '</div>' +
-        '<div style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px">' + label + '</div>' +
-        '<div style="font-size:11px;color:#888">' + (ex.difficulty||'') + ' &middot; ' + (ex.category||'') + '</div>'
-      const ytQuery = encodeURIComponent(ex.name + ' exercise tutorial')
-      document.getElementById('modal-yt-link').href = 'https://www.youtube.com/results?search_query=' + ytQuery
+      const modalPreview = document.getElementById('modal-preview')
+      modalPreview.style.background = bg
+      if (ex.gifUrl) {
+        modalPreview.style.padding = '0'
+        modalPreview.style.overflow = 'hidden'
+        modalPreview.innerHTML = '<img src="/api/gif?url=' + encodeURIComponent(ex.gifUrl) + '" style="width:100%;height:220px;object-fit:cover" onerror="this.parentNode.innerHTML='<div style=text-align:center;padding:30px><div style=font-size:56px>' + emoji + '</div><div style=font-size:12px;font-weight:700;color:#555>' + label + '</div></div>'">'
+      } else {
+        modalPreview.style.padding = ''
+        modalPreview.innerHTML =
+          '<div style="font-size:56px">' + emoji + '</div>' +
+          '<div style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px">' + label + '</div>' +
+          '<div style="font-size:11px;color:#888">' + (ex.difficulty||'') + ' &middot; ' + (ex.category||'') + '</div>'
+      }
+      // YouTube rimosso — si usano le GIF animate
       const muscles = [ex.target, ...(ex.secondaryMuscles||[])].filter(Boolean)
       document.getElementById('modal-tags').innerHTML =
         '<span class="lib-tag" style="background:#e3f2fd;color:#1565c0">' + (ex.bodyPart||'') + '</span>' +
@@ -521,7 +525,7 @@
           if (libEx) {
             const desc = 'Muscolo: ' + libEx.target + (libEx.secondaryMuscles?.length ? ' | Secondari: '+libEx.secondaryMuscles.join(', ') : '') + ' | Attrezzatura: '+(libEx.equipment||'corpo libero')
             const { data: newEx, error: ne } = await _supabase.from('exercises').insert({
-              nome: libEx.name, descrizione: desc, video_url: 'https://www.youtube.com/results?search_query=' + encodeURIComponent(libEx.name + ' exercise tutorial'),
+              nome: libEx.name, descrizione: desc, video_url: null,
               livello: 'base', durata_default:60, ripetizioni:1, active:true, fonte:'exercisedb'
             }).select().single()
             if (ne) { alert('Errore salvataggio esercizio: ' + ne.message); btn.disabled=false; btn.textContent='\u2713 Assegna protocollo'; return }
