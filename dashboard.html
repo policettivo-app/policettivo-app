@@ -74,6 +74,25 @@
     .config-option.selected-gpl { border-color: #FFD008; background: #FFD008; color: #000; }
     .config-option .config-name { font-weight: 700; font-size: 16px; }
     .config-option .config-desc { font-size: 10px; margin-top: 2px; opacity: 0.7; }
+    .wizard-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
+    .wizard-overlay.open { display: flex; }
+    .wizard-box { background: #fff; border-radius: 20px; padding: 40px 36px; width: 100%; max-width: 520px; }
+    .wizard-step { display: none; }
+    .wizard-step.active { display: block; }
+    .wizard-badge { background: #FFD008; color: #000; font-size: 10px; font-weight: 700; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
+    .wizard-title { font-size: 22px; font-weight: 700; color: #000; margin-bottom: 8px; line-height: 1.3; }
+    .wizard-sub { font-size: 13px; color: #666; margin-bottom: 28px; line-height: 1.6; }
+    .wizard-steps-indicator { display: flex; gap: 6px; margin-bottom: 32px; }
+    .wizard-dot { width: 8px; height: 8px; border-radius: 50%; background: #eee; transition: background 0.3s; }
+    .wizard-dot.active { background: #FFD008; }
+    .wizard-dot.done { background: #000; }
+    .wizard-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; }
+    .btn-skip { background: transparent; border: none; color: #bbb; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; padding: 0; }
+    .btn-skip:hover { color: #999; }
+    .wizard-link-box { background: #f5f5f5; border-radius: 10px; padding: 14px 16px; font-size: 12px; color: #333; word-break: break-all; margin-bottom: 16px; border: 1.5px dashed #ddd; }
+    .wizard-link-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-copy { background: #000; color: #FFD008; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .btn-wa { background: #25D366; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -140,6 +159,56 @@
     </div>
   </div>
 
+  <div class="wizard-overlay" id="wizard-overlay">
+    <div class="wizard-box">
+      <div class="wizard-steps-indicator">
+        <div class="wizard-dot active" id="wdot-0"></div>
+        <div class="wizard-dot" id="wdot-1"></div>
+        <div class="wizard-dot" id="wdot-2"></div>
+      </div>
+      <div class="wizard-step active" id="wstep-0">
+        <div class="wizard-badge">POLICETTIVO</div>
+        <div class="wizard-title">Benvenuto nell'app! 👋</div>
+        <div class="wizard-sub">Sei nel posto giusto. In <strong>3 minuti</strong> sei operativo e il tuo primo paziente puo gia iniziare il protocollo oggi stesso.<br><br>Ti guidiamo passo dopo passo.</div>
+        <div class="wizard-actions">
+          <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
+          <button class="btn-primary" onclick="goWizardStep(1)">Inizia</button>
+        </div>
+      </div>
+      <div class="wizard-step" id="wstep-1">
+        <div class="wizard-badge">STEP 1 DI 2</div>
+        <div class="wizard-title">Crea il tuo primo paziente</div>
+        <div class="wizard-sub">Inserisci i dati base. Potrai completare la scheda clinica in seguito.</div>
+        <div class="form-row">
+          <div class="form-group"><label>Nome *</label><input type="text" id="w-nome" placeholder="Mario"></div>
+          <div class="form-group"><label>Cognome *</label><input type="text" id="w-cognome" placeholder="Rossi"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Telefono</label><input type="tel" id="w-telefono" placeholder="+39 333 000 0000"></div>
+          <div class="form-group"><label>Problema</label><input type="text" id="w-problema" placeholder="es. Lombalgia"></div>
+        </div>
+        <div class="wizard-actions">
+          <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
+          <button class="btn-primary" id="btn-crea-paziente" onclick="wizardSavePatient()">Crea paziente</button>
+        </div>
+      </div>
+      <div class="wizard-step" id="wstep-2">
+        <div class="wizard-badge">STEP 2 DI 2</div>
+        <div class="wizard-title">Invia il link al paziente</div>
+        <div class="wizard-sub">Il paziente apre il link, accetta il consenso e accede al protocollo. Trattalo come una password: va tenuto riservato.</div>
+        <div class="wizard-link-box" id="wizard-link-text">—</div>
+        <div class="wizard-link-actions">
+          <button class="btn-copy" onclick="wizardCopyLink()">Copia link</button>
+          <button class="btn-wa" onclick="wizardSendWA()">Invia via WhatsApp</button>
+        </div>
+        <div class="wizard-actions" style="margin-top:24px">
+          <span></span>
+          <button class="btn-primary" onclick="finishWizard()">Vai alla dashboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
@@ -154,24 +223,23 @@
       document.getElementById('user-email').textContent = session.user.email
       document.getElementById('welcome-msg').textContent = 'Bentornato, ' + session.user.email.split('@')[0]
       const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
-      if (prof) { currentProfessionalId = prof.id; loadPatients(); loadStats(); }
+      if (prof) {
+        currentProfessionalId = prof.id
+        await loadPatients()
+        loadStats()
+        if (shouldShowWizard() && allPatients.length === 0) openWizard()
+      }
     }
 
     async function loadPatients() {
       const { data: patients } = await _supabase.from('patients').select('*').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('cognome', { ascending: true })
       allPatients = patients || []
       document.getElementById('stat-pazienti').textContent = allPatients.length
-
       const diaryMap = {}
       if (allPatients.length > 0) {
         const ids = allPatients.map(p => p.id)
         const { data: diaries } = await _supabase.from('diary_entries').select('patient_id,data,completato').in('patient_id', ids).order('data', { ascending: false })
-        if (diaries) {
-          diaries.forEach(d => {
-            if (!diaryMap[d.patient_id]) diaryMap[d.patient_id] = []
-            diaryMap[d.patient_id].push(d)
-          })
-        }
+        if (diaries) { diaries.forEach(d => { if (!diaryMap[d.patient_id]) diaryMap[d.patient_id] = []; diaryMap[d.patient_id].push(d) }) }
       }
       renderPatients(allPatients, '', diaryMap)
     }
@@ -261,18 +329,11 @@
       if (!nome || !cognome) { alert('Nome e cognome sono obbligatori.'); return }
       const email = document.getElementById('p-email').value.trim()
       const telefono = document.getElementById('p-telefono').value.trim()
-      if (email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(email)) { alert('Inserisci un indirizzo email valido (es. mario@gmail.com).'); return }
-      }
-      if (telefono) {
-        const digits = telefono.replace(/[^0-9]/g, '')
-        if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return }
-      }
+      if (email) { const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; if (!emailRegex.test(email)) { alert('Inserisci un indirizzo email valido.'); return } }
+      if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return } }
       const { error } = await _supabase.from('patients').insert({
         professional_id: currentProfessionalId, nome, cognome,
-        email: document.getElementById('p-email').value.trim() || null,
-        telefono: document.getElementById('p-telefono').value.trim() || null,
+        email: email || null, telefono: telefono || null,
         problema_principale: document.getElementById('p-problema').value.trim() || null,
         note_cliniche: document.getElementById('p-note').value.trim() || null,
         configurazione_default: selectedConfig, stato: 'attivo'
@@ -290,29 +351,78 @@
     }
     function openGuida() { document.getElementById('guida-overlay').style.display = 'flex' }
     function closeGuida() { document.getElementById('guida-overlay').style.display = 'none' }
-
     async function doLogout() { await _supabase.auth.signOut(); window.location.href = 'login.html' }
+
+    // ONBOARDING WIZARD
+    let wizardPatientId = null
+    let wizardPatientNome = ''
+    function shouldShowWizard() { return localStorage.getItem('policettivo_onboarding_done') !== '1' }
+    function markWizardDone() { localStorage.setItem('policettivo_onboarding_done', '1') }
+    function openWizard() { document.getElementById('wizard-overlay').classList.add('open') }
+    function skipWizard() { markWizardDone(); document.getElementById('wizard-overlay').classList.remove('open') }
+    function finishWizard() { markWizardDone(); document.getElementById('wizard-overlay').classList.remove('open'); loadPatients(); loadStats() }
+    function goWizardStep(n) {
+      for (let i = 0; i < 3; i++) {
+        document.getElementById('wstep-' + i).classList.toggle('active', i === n)
+        const dot = document.getElementById('wdot-' + i)
+        dot.classList.remove('active', 'done')
+        if (i < n) dot.classList.add('done')
+        else if (i === n) dot.classList.add('active')
+      }
+    }
+    async function wizardSavePatient() {
+      const nome = document.getElementById('w-nome').value.trim()
+      const cognome = document.getElementById('w-cognome').value.trim()
+      if (!nome || !cognome) { alert('Nome e cognome sono obbligatori.'); return }
+      const telefono = document.getElementById('w-telefono').value.trim()
+      if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Numero di telefono non valido.'); return } }
+      const btn = document.getElementById('btn-crea-paziente')
+      btn.textContent = 'Salvataggio...'; btn.disabled = true
+      const { data, error } = await _supabase.from('patients').insert({
+        professional_id: currentProfessionalId, nome, cognome,
+        telefono: telefono || null,
+        problema_principale: document.getElementById('w-problema').value.trim() || null,
+        stato: 'attivo'
+      }).select().single()
+      btn.textContent = 'Crea paziente'; btn.disabled = false
+      if (error) { alert('Errore: ' + error.message); return }
+      wizardPatientId = data.id
+      wizardPatientNome = nome + ' ' + cognome
+      document.getElementById('wizard-link-text').textContent = 'https://policettivo-app.vercel.app/protocollo.html?pid=' + data.id
+      goWizardStep(2)
+    }
+    function wizardCopyLink() {
+      const link = document.getElementById('wizard-link-text').textContent
+      navigator.clipboard.writeText(link).then(() => {
+        const btn = document.querySelector('.btn-copy')
+        btn.textContent = 'Copiato!'; setTimeout(() => btn.textContent = 'Copia link', 2000)
+      })
+    }
+    function wizardSendWA() {
+      const link = document.getElementById('wizard-link-text').textContent
+      const msg = encodeURIComponent('Ciao ' + wizardPatientNome.split(' ')[0] + ', ecco il tuo link personale per il protocollo Policettivo:\n' + link + '\nAprilo dal tuo smartphone e segui le istruzioni.')
+      window.open('https://wa.me/?text=' + msg, '_blank')
+    }
+
     init()
   </script>
+
   <div class="modal-overlay" id="guida-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
     <div style="background:#111;border:1px solid #333;border-radius:16px;padding:32px 28px;width:100%;max-width:640px;margin:auto;position:relative">
-      <button onclick="closeGuida()" style="position:absolute;top:16px;right:16px;background:transparent;border:1px solid #444;color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:Montserrat,sans-serif;font-size:13px">✕ Chiudi</button>
-      <div style="background:#FFD008;color:#000;font-weight:700;font-size:11px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px">POLICETTIVO®</div>
+      <button onclick="closeGuida()" style="position:absolute;top:16px;right:16px;background:transparent;border:1px solid #444;color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:Montserrat,sans-serif;font-size:13px">X Chiudi</button>
+      <div style="background:#FFD008;color:#000;font-weight:700;font-size:11px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px">POLICETTIVO</div>
       <h2 style="font-size:20px;font-weight:700;color:#fff;margin-bottom:6px">Guida rapida</h2>
       <p style="font-size:13px;color:#888;margin-bottom:24px">Come usare l app in pochi passi</p>
-
       <div style="background:#000;border-radius:12px;overflow:hidden;margin-bottom:24px;aspect-ratio:16/9">
         <iframe width="100%" height="100%" src="https://www.youtube.com/embed/mVAvNZgUaPg?rel=0" allowfullscreen style="border:none;display:block"></iframe>
       </div>
-
       <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;color:#aaa;line-height:1.7">
-        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">1. AGGIUNGERE UN PAZIENTE</div>Dalla Dashboard clicca <strong style="color:#fff">+ Nuovo paziente</strong> e inserisci nome, cognome, email e telefono. Clicca Salva.</div>
-        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">2. SCHEDA PAZIENTE</div>Clicca sul paziente per aprire la scheda. Puoi scattare foto posturali, selezionare piano scapolare, osservazioni podoscopiche e scegliere la configurazione <strong style="color:#fff">NPL</strong> o <strong style="color:#fff">GPL</strong>.</div>
-        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">3. ASSEGNARE IL PROTOCOLLO</div>Dalla scheda paziente clicca <strong style="color:#fff">+ Assegna protocollo</strong>, scegli gli esercizi, definisci l ordine e salva.</div>
-        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">4. LINK PAZIENTE</div>Clicca <strong style="color:#fff">Genera link</strong> poi <strong style="color:#fff">Invia via WhatsApp</strong>. Il paziente apre il link, accetta il consenso e accede al protocollo. Il link e come una password: va tenuto riservato.</div>
-        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">5. MONITORAGGIO</div>Dalla scheda paziente clicca <strong style="color:#fff">Vedi monitoraggio</strong> per vedere grafici di aderenza, dolore, energia e il diario completo.</div>
-        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">6. WHATSAPP</div>Puoi scrivere al paziente con il pulsante <strong style="color:#fff">Scrivi al paziente</strong>. Il paziente puo scriverti dal suo protocollo.</div>
-        <div style="background:#1a1000;border:1px solid #FFD008;border-radius:8px;padding:12px 14px"><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">CONSIGLI PRATICI</div>Usa l app da smartphone durante la visita per scattare le foto. Assegna sempre prima la Tecnica dei 3 Respiri. Controlla il monitoraggio prima di ogni visita.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">1. AGGIUNGERE UN PAZIENTE</div>Dalla Dashboard clicca <strong style="color:#fff">Nuovo paziente</strong> e inserisci nome, cognome, email e telefono. Clicca Salva.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">2. SCHEDA PAZIENTE</div>Clicca sul paziente per aprire la scheda. Puoi scattare foto posturali e scegliere la configurazione <strong style="color:#fff">NPL</strong> o <strong style="color:#fff">GPL</strong>.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">3. ASSEGNARE IL PROTOCOLLO</div>Dalla scheda paziente clicca <strong style="color:#fff">Assegna protocollo</strong>, scegli gli esercizi e salva.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">4. LINK PAZIENTE</div>Clicca <strong style="color:#fff">Genera link</strong> poi <strong style="color:#fff">Invia via WhatsApp</strong>. Il paziente accede al protocollo dal suo smartphone.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">5. MONITORAGGIO</div>Dalla scheda paziente clicca <strong style="color:#fff">Vedi monitoraggio</strong> per grafici di aderenza e diario completo.</div>
+        <div style="background:#1a1000;border:1px solid #FFD008;border-radius:8px;padding:12px 14px"><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">CONSIGLI PRATICI</div>Usa l app da smartphone durante la visita. Assegna sempre prima la Tecnica dei 3 Respiri. Controlla il monitoraggio prima di ogni visita.</div>
         <div style="text-align:center;color:#555;font-size:12px">Per assistenza: appuntamentimft@gmail.com</div>
       </div>
     </div>
