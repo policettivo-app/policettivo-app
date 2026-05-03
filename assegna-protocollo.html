@@ -528,6 +528,7 @@
           }
         }
       }
+      alert('exRows: ' + JSON.stringify(exRows.length) + ' righe. Prima riga: ' + JSON.stringify(exRows[0]))
       const { error: exErr } = await _supabase.from('patient_protocol_exercises').insert(exRows)
       if (exErr) { alert('Errore esercizi: '+exErr.message); return }
       btn.textContent = '\u2713 Assegnato!'
