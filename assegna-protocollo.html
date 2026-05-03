@@ -137,7 +137,7 @@
         if (patient.configurazione_default) setConfig(patient.configurazione_default)
       }
       document.getElementById('proto-inizio').value = new Date().toISOString().split('T')[0]
-      const { data: exs } = await _supabase.from('exercises').select('*').eq('active', true).is('fonte', null).order('ordine')
+      const { data: exs } = await _supabase.from('exercises').select('*').eq('active', true).eq('fonte', 'policettivo').order('ordine')
       allExercises = exs || []
       renderExercises()
     }
