@@ -279,6 +279,17 @@
       </div>
     </div>
 
+    <!-- STORICO PROTOCOLLI -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Storico protocolli</div>
+        <button class="btn-edit" onclick="toggleStorico()" id="btn-storico">▼ Mostra</button>
+      </div>
+      <div id="storico-container" style="display:none">
+        <div id="storico-lista"><p style="font-size:13px;color:#888">Caricamento...</p></div>
+      </div>
+    </div>
+
     <!-- COMPARAZIONE -->
     <div class="section">
       <div class="section-title-plain">Comparazione posturale</div>
@@ -551,6 +562,60 @@
       const link = 'https://policettivo-app.vercel.app/consenso.html?token=' + patient.access_token
       const testo = 'Ciao ' + patient.nome + ', ecco il tuo protocollo Policettivo®. Aprilo da qui: ' + link
       window.open('https://wa.me/?text=' + encodeURIComponent(testo))
+    }
+
+    async function toggleStorico() {
+      const container = document.getElementById('storico-container')
+      const btn = document.getElementById('btn-storico')
+      if (container.style.display === 'none') {
+        container.style.display = 'block'
+        btn.textContent = '▲ Nascondi'
+        await caricaStorico()
+      } else {
+        container.style.display = 'none'
+        btn.textContent = '▼ Mostra'
+      }
+    }
+
+    async function caricaStorico() {
+      const { data: prots } = await _supabase
+        .from('patient_protocols')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+
+      const lista = document.getElementById('storico-lista')
+      if (!prots || prots.length === 0) {
+        lista.innerHTML = '<p style="font-size:13px;color:#888">Nessun protocollo trovato.</p>'
+        return
+      }
+
+      let html = ''
+      for (const prot of prots) {
+        const dataInizio = prot.created_at ? new Date(prot.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric'}) : '—'
+        const stato = prot.stato || 'sconosciuto'
+        const statoColor = stato === 'attivo' ? '#2e7d32' : stato === 'completato' ? '#1565c0' : '#888'
+        const statoLabel = stato === 'attivo' ? '✅ Attivo' : stato === 'completato' ? '✔ Completato' : '⏹ ' + stato
+
+        const { data: ppe } = await _supabase
+          .from('patient_protocol_exercises')
+          .select('*, exercises(nome)')
+          .eq('patient_protocol_id', prot.id)
+          .order('ordine', { ascending: true })
+
+        const esercizi = ppe ? ppe.map(e => e.exercises ? e.exercises.nome : '—').join(', ') : '—'
+        const numEx = ppe ? ppe.length : 0
+
+        html += '<div style="border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:12px;background:#fafafa">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
+          '<span style="font-weight:700;font-size:14px;color:#000">' + (prot.nome_personalizzato || 'Protocollo') + '</span>' +
+          '<span style="font-size:11px;font-weight:700;color:' + statoColor + ';margin-left:auto">' + statoLabel + '</span>' +
+          '</div>' +
+          '<div style="font-size:12px;color:#555;margin-bottom:6px">📅 ' + dataInizio + ' &nbsp;·&nbsp; ' + numEx + ' esercizi</div>' +
+          '<div style="font-size:12px;color:#666"><strong>Esercizi:</strong> ' + esercizi + '</div>' +
+          '</div>'
+      }
+      lista.innerHTML = html
     }
 
     init()
