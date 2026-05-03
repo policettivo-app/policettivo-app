@@ -398,11 +398,11 @@
       }
 
       resultsEl.className = 'library-grid'
-      resultsEl.innerHTML = pageItems.map(ex => {
+      resultsEl.innerHTML = pageItems.map((ex, i) => { i = start + i;
         const isAdded = selectedExercises.some(s => s.id === ex.id && s.source === 'lib')
         const muscles = [ex.target, ...(ex.secondaryMuscles || [])].filter(Boolean).slice(0, 3)
         return '<div class="lib-card ' + (isAdded ? 'added' : '') + '">' +
-          '<img src="' + ex.gifUrl + '" alt="' + ex.name + '" loading="lazy" onerror="this.style.display=\'none\'">' +
+          '<img src="https://images.weserv.nl/?url=' + encodeURIComponent(ex.gifUrl) + '&w=300&h=160&fit=cover" alt="' + ex.name + '" loading="lazy" onerror="this.style.background=\'#f0f0f0\';this.style.height=\'120px\'">' +
           '<div class="lib-card-body">' +
             '<div class="lib-card-name">' + ex.name + '</div>' +
             '<div class="lib-card-tags">' +
@@ -434,6 +434,12 @@
       libPage = Math.max(0, Math.min(totPages - 1, libPage + dir))
       renderLibResults()
       document.getElementById('library-results').scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    function aggiungiDaLibreriaById(idx) {
+      const ex = libTotalResults[idx]
+      if (!ex) return
+      aggiungiDaLibreria(ex)
     }
 
     function aggiungiDaLibreria(ex) {
