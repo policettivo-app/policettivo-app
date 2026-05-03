@@ -93,6 +93,7 @@
     .wizard-link-actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .btn-copy { background: #000; color: #FFD008; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
     .btn-wa { background: #25D366; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .wizard-info-box { background: #fffdf0; border: 1.5px solid #FFD008; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #555; margin-bottom: 16px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -195,7 +196,7 @@
       <div class="wizard-step" id="wstep-2">
         <div class="wizard-badge">STEP 2 DI 2</div>
         <div class="wizard-title">Invia il link al paziente</div>
-        <div class="wizard-sub">Il paziente apre il link, accetta il consenso e accede al protocollo. Trattalo come una password: va tenuto riservato.</div>
+        <div class="wizard-info-box">Il paziente ha gia la <strong>Tecnica dei 3 Respiri</strong> assegnata e puo iniziare subito. Dalla scheda paziente potrai aggiungere altri esercizi.</div>
         <div class="wizard-link-box" id="wizard-link-text">—</div>
         <div class="wizard-link-actions">
           <button class="btn-copy" onclick="wizardCopyLink()">Copia link</button>
@@ -213,6 +214,7 @@
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const DEFAULT_EXERCISE_ID = '220f3eab-3a2f-44b3-9008-162eceb82ff6'
     let currentProfessionalId = null
     let selectedConfig = null
     let allPatients = []
@@ -378,17 +380,29 @@
       if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Numero di telefono non valido.'); return } }
       const btn = document.getElementById('btn-crea-paziente')
       btn.textContent = 'Salvataggio...'; btn.disabled = true
-      const { data, error } = await _supabase.from('patients').insert({
+      const { data: paziente, error: errPaz } = await _supabase.from('patients').insert({
         professional_id: currentProfessionalId, nome, cognome,
         telefono: telefono || null,
         problema_principale: document.getElementById('w-problema').value.trim() || null,
         stato: 'attivo'
       }).select().single()
+      if (errPaz) { alert('Errore: ' + errPaz.message); btn.textContent = 'Crea paziente'; btn.disabled = false; return }
+      const { data: protocollo, error: errProt } = await _supabase.from('patient_protocols').insert({
+        patient_id: paziente.id,
+        professional_id: currentProfessionalId,
+        stato: 'attivo',
+        nome: 'Protocollo base'
+      }).select().single()
+      if (errProt) { alert('Paziente creato ma errore nel protocollo: ' + errProt.message); btn.textContent = 'Crea paziente'; btn.disabled = false; return }
+      await _supabase.from('patient_protocol_exercises').insert({
+        protocol_id: protocollo.id,
+        exercise_id: DEFAULT_EXERCISE_ID,
+        ordine: 1
+      })
       btn.textContent = 'Crea paziente'; btn.disabled = false
-      if (error) { alert('Errore: ' + error.message); return }
-      wizardPatientId = data.id
+      wizardPatientId = paziente.id
       wizardPatientNome = nome + ' ' + cognome
-      document.getElementById('wizard-link-text').textContent = 'https://policettivo-app.vercel.app/protocollo.html?pid=' + data.id
+      document.getElementById('wizard-link-text').textContent = 'https://policettivo-app.vercel.app/protocollo.html?pid=' + paziente.id
       goWizardStep(2)
     }
     function wizardCopyLink() {
