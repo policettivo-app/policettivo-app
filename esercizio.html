@@ -225,7 +225,12 @@
           videoBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?playsinline=1&rel=0" allowfullscreen allow="autoplay"></iframe>`
         } else {
           videoBox.className = 'video-box normal'
-          videoBox.innerHTML = `<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>`
+          const isSearch = url.includes('youtube.com/results')
+          if (isSearch) {
+            videoBox.innerHTML = `<div class="video-placeholder"><div>▶</div><p style="margin-bottom:12px">Video non incorporabile</p><a href="${url}" target="_blank" style="background:#FF0000;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px">▶ Guarda su YouTube</a></div>`
+          } else {
+            videoBox.innerHTML = `<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>`
+          }
         }
       } else {
         videoBox.className = 'video-box normal'
