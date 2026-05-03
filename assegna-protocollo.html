@@ -8,139 +8,79 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
-    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
-    .navbar-brand { display: flex; align-items: center; gap: 12px; }
-    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
-    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
-    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
-    .btn-back:hover { border-color: #FFD008; color: #FFD008; }
-    .main { max-width: 800px; margin: 0 auto; padding: 36px 24px; }
-    .section { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; }
-    .section-title { font-size: 14px; font-weight: 700; color: #000; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; }
-    .patient-info { background: #000; color: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
-    .patient-info-name { font-size: 18px; font-weight: 700; }
-    .patient-info-sub { font-size: 12px; color: #aaa; margin-top: 2px; }
-    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-    .badge-npl { background: #FFD008; color: #000; }
-    .badge-gpl { background: #fff; color: #000; }
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; font-size: 11px; font-weight: 600; color: #000; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
-    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #FFD008; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; }
+    .navbar { background: #000; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { color: #FFD008; font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+    .btn-back { background: transparent; border: 1px solid #333; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; text-decoration: none; }
+    .main { max-width: 700px; margin: 0 auto; padding: 24px 20px 60px; }
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .page-sub { font-size: 14px; color: #666; margin-bottom: 24px; }
+    .section { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #000; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #FFD008; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-input { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; outline: none; }
+    .form-input:focus { border-color: #FFD008; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
-    .config-option { border: 2px solid #eee; border-radius: 8px; padding: 14px; cursor: pointer; text-align: center; transition: all 0.2s; }
-    .config-option.selected-npl { border-color: #000; background: #000; color: #FFD008; }
-    .config-option.selected-gpl { border-color: #FFD008; background: #FFD008; color: #000; }
-    .config-name { font-weight: 700; font-size: 16px; }
-    .config-desc { font-size: 10px; margin-top: 2px; opacity: 0.7; }
-    .exercise-list { display: flex; flex-direction: column; gap: 10px; }
-    .exercise-item { border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.15s; }
-    .exercise-item:hover { border-color: #FFD008; background: #fffdf0; }
+    .config-btns { display: flex; gap: 12px; }
+    .config-btn { flex: 1; padding: 16px; border: 2px solid #eee; border-radius: 12px; cursor: pointer; text-align: center; background: #fff; font-family: 'Montserrat', sans-serif; transition: all 0.2s; }
+    .config-btn.npl.active { background: #000; border-color: #000; color: #FFD008; }
+    .config-btn.gpl.active { background: #FFD008; border-color: #FFD008; color: #000; }
+    .config-btn-label { font-size: 16px; font-weight: 700; }
+    .config-btn-sub { font-size: 10px; margin-top: 4px; opacity: 0.7; }
+    .exercise-grid { display: flex; flex-direction: column; gap: 8px; }
+    .exercise-item { border: 2px solid #eee; border-radius: 10px; padding: 14px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s; background: #fff; }
+    .exercise-item:hover { border-color: #FFD008; }
     .exercise-item.selected { border-color: #000; background: #000; color: #fff; }
-    .exercise-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; }
-    .exercise-item.selected .exercise-check { background: #FFD008; border-color: #FFD008; color: #000; }
+    .exercise-num { width: 28px; height: 28px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; color: #000; }
+    .exercise-item.selected .exercise-num { background: #FFD008; color: #000; }
     .exercise-info { flex: 1; }
     .exercise-name { font-size: 14px; font-weight: 600; }
-    .exercise-meta { font-size: 12px; opacity: 0.6; margin-top: 2px; }
-    .exercise-cfg { display: flex; gap: 6px; align-items: center; }
-    .cfg-mini { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; cursor: pointer; }
-    .cfg-npl { background: #FFD008; color: #000; }
-    .cfg-gpl { background: #333; color: #FFD008; }
-    .cfg-inactive { background: #eee; color: #999; }
-    .btn-primary { background: #FFD008; color: #000; border: none; padding: 16px 32px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 8px; }
-    .btn-primary:hover { background: #e6bc00; }
-    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-    .success-banner { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 10px; padding: 16px 20px; font-size: 14px; color: #2e7d32; font-weight: 600; display: none; margin-top: 16px; text-align: center; }
-    .success-banner.show { display: block; }
-    .order-hint { font-size: 11px; color: #999; margin-top: 8px; }
-    .library-search-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-    .library-search-row input { flex: 1; min-width: 160px; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; outline: none; }
-    .library-search-row input:focus { border-color: #FFD008; }
-    .library-search-row select { padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; }
-    .btn-search { background: #000; color: #FFD008; border: none; padding: 12px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .btn-search:hover { background: #222; }
-    .library-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
-    @media (max-width: 600px) { .library-grid { grid-template-columns: 1fr; } }
-    .lib-card { border: 1.5px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: all 0.2s; display: flex; flex-direction: column; }
-    .lib-card:hover { border-color: #FFD008; box-shadow: 0 4px 16px rgba(255,208,8,0.15); }
-    .lib-card.added { border-color: #000; }
-    .lib-card-preview { width: 100%; height: 110px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    .lib-card-body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; }
-    .lib-card-name { font-size: 13px; font-weight: 700; color: #000; margin-bottom: 6px; text-transform: capitalize; }
-    .lib-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; flex: 1; }
-    .lib-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #f0f0f0; color: #555; text-transform: capitalize; }
-    .lib-tag-muscle { background: #fff3cd; color: #856404; }
-    .lib-tag-equip { background: #e8f5e9; color: #2e7d32; }
-    .lib-card-btns { display: flex; gap: 6px; }
-    .btn-preview { flex: 0 0 auto; background: #f0f0f0; border: none; padding: 9px 12px; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
-    .btn-preview:hover { background: #e0e0e0; }
-    .btn-add-lib { flex: 1; border: none; padding: 9px; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-    .btn-add-lib.not-added { background: #FFD008; color: #000; }
-    .btn-add-lib.not-added:hover { background: #e6bc00; }
-    .btn-add-lib.is-added { background: #000; color: #FFD008; }
-    .lib-loading { text-align: center; padding: 32px; color: #999; font-size: 13px; }
-    .lib-empty { text-align: center; padding: 32px; color: #bbb; font-size: 13px; }
-    .lib-pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 16px; }
-    .btn-page { background: #f0f0f0; border: none; padding: 8px 16px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
-    .btn-page:hover:not(:disabled) { background: #FFD008; }
-    .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
-    .lib-info-bar { font-size: 12px; color: #888; margin-bottom: 12px; }
-    .lib-hint { font-size: 11px; color: #aaa; margin-top: 4px; margin-bottom: 16px; }
-    .selected-summary { background: #fffdf0; border: 1.5px solid #FFD008; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #000; display: none; }
+    .exercise-meta { font-size: 11px; color: #999; margin-top: 2px; }
+    .exercise-item.selected .exercise-meta { color: #aaa; }
+    .exercise-cfg { margin-left: auto; }
+    .cfg-toggle { display: flex; border: 1px solid #333; border-radius: 6px; overflow: hidden; }
+    .cfg-btn { padding: 4px 8px; font-size: 10px; font-weight: 700; cursor: pointer; background: transparent; border: none; color: #666; font-family: 'Montserrat', sans-serif; }
+    .cfg-btn.active-npl { background: #000; color: #FFD008; }
+    .cfg-btn.active-gpl { background: #FFD008; color: #000; }
+    .selected-summary { background: #fff; border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: none; }
     .selected-summary.show { display: block; }
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .modal-overlay.hidden { display: none; }
-    .modal-box { background: #fff; border-radius: 16px; max-width: 460px; width: 100%; overflow: hidden; max-height: 90vh; overflow-y: auto; }
-    .modal-header { background: #000; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; }
-    .modal-title { color: #fff; font-size: 13px; font-weight: 700; text-transform: capitalize; flex: 1; margin-right: 10px; }
-    .modal-close { background: #FFD008; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
-    .modal-preview { width: 100%; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
-    .modal-body { padding: 18px 20px; }
-    .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
-    .modal-istruzioni { margin-bottom: 16px; }
-    .modal-istruzioni-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 8px; }
-    .modal-step { font-size: 12px; color: #333; margin-bottom: 6px; display: flex; gap: 8px; line-height: 1.5; }
-    .modal-step-num { font-weight: 700; color: #FFD008; flex-shrink: 0; background: #000; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; margin-top: 1px; }
-    .modal-btn-add { width: 100%; border: none; padding: 12px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
-    .modal-btn-add.not-added { background: #FFD008; color: #000; }
-    .modal-btn-add.not-added:hover { background: #e6bc00; }
-    .modal-btn-add.is-added { background: #000; color: #FFD008; }
-    /* YouTube rimosso */
+    .summary-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .summary-list { font-size: 13px; color: #555; }
+    .btn-salva { width: 100%; padding: 18px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .btn-salva:disabled { opacity: 0.5; cursor: not-allowed; }
+    .success-banner { background: #000; color: #FFD008; padding: 16px 24px; border-radius: 12px; text-align: center; font-weight: 700; margin-bottom: 20px; display: none; }
+    .success-banner.show { display: block; }
   </style>
 </head>
 <body>
   <nav class="navbar">
-    <div class="navbar-brand">
-      <span class="navbar-logo">POLICETTIVO®</span>
-      <span class="navbar-title">Assegna Protocollo</span>
-    </div>
-    <button class="btn-back" id="btn-back">&#8592; Scheda paziente</button>
+    <span class="navbar-brand">POLICETTIVO®</span>
+    <a class="btn-back" id="btn-back" href="#">← Torna alla scheda</a>
   </nav>
-
   <div class="main">
-    <div class="patient-info">
-      <div>
-        <div class="patient-info-name" id="pi-nome">Caricamento...</div>
-        <div class="patient-info-sub" id="pi-sub"></div>
-      </div>
-      <div id="pi-config"></div>
-    </div>
-
+    <div class="page-title">Assegna Protocollo</div>
+    <div class="page-sub" id="patient-name">Caricamento...</div>
+    <div class="success-banner" id="success-banner">✓ Protocollo assegnato con successo!</div>
     <div class="section">
       <div class="section-title">Dettagli protocollo</div>
       <div class="form-group">
-        <label>Nome protocollo</label>
-        <input type="text" id="proto-nome" placeholder="es. Protocollo mattino — Lombalgia">
+        <label class="form-label">Nome protocollo</label>
+        <input class="form-input" type="text" id="proto-nome" placeholder="es. Protocollo posturale base">
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Data inizio</label><input type="date" id="proto-inizio"></div>
-        <div class="form-group"><label>Data fine</label><input type="date" id="proto-fine"></div>
+        <div class="form-group">
+          <label class="form-label">Data inizio</label>
+          <input class="form-input" type="date" id="proto-inizio">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data fine (opzionale)</label>
+          <input class="form-input" type="date" id="proto-fine">
+        </div>
       </div>
       <div class="form-group">
-        <label>Frequenza</label>
-        <select id="proto-frequenza">
+        <label class="form-label">Frequenza</label>
+        <select class="form-input" id="proto-frequenza">
           <option value="Tutti i giorni">Tutti i giorni</option>
           <option value="5 volte a settimana">5 volte a settimana</option>
           <option value="3 volte a settimana">3 volte a settimana</option>
@@ -148,88 +88,33 @@
           <option value="1 volta a settimana">1 volta a settimana</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>Configurazione generale cuscini</label>
-        <div class="config-selector">
-          <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')">
-            <div class="config-name">NPL</div>
-            <div class="config-desc">Nero Posteriore Laterale</div>
-          </div>
-          <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')">
-            <div class="config-name">GPL</div>
-            <div class="config-desc">Giallo Posteriore Laterale</div>
-          </div>
-        </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Configurazione</div>
+      <div class="config-btns">
+        <button class="config-btn npl" onclick="setConfig('NPL')">
+          <div class="config-btn-label">NPL</div>
+          <div class="config-btn-sub">Nero Posteriore Laterale</div>
+        </button>
+        <button class="config-btn gpl" onclick="setConfig('GPL')">
+          <div class="config-btn-label">GPL</div>
+          <div class="config-btn-sub">Giallo Posteriore Laterale</div>
+        </button>
       </div>
     </div>
-
     <div class="section">
-      <div class="section-title">Esercizi Policettivo&#174;</div>
+      <div class="section-title">Esercizi Policettivo®</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Clicca per selezionare. L'ordine di selezione diventa l'ordine del protocollo.</p>
-      <div class="exercise-list" id="exercise-list">
+      <div class="exercise-grid" id="exercise-grid">
         <div style="color:#999;font-size:13px">Caricamento esercizi...</div>
       </div>
     </div>
-
-    <div class="section">
-      <div class="section-title">Libreria esercizi <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;background:#e3f2fd;color:#1565c0;vertical-align:middle;letter-spacing:0;text-transform:none">ExerciseDB</span></div>
-      <p style="font-size:13px;color:#666;margin-bottom:2px">Cerca tra oltre 1300 esercizi e aggiungili al protocollo.</p>
-      <p class="lib-hint">Puoi cercare in italiano: lombari, spalle, addome, petto, gambe, braccia...</p>
-      <div class="library-search-row">
-        <input type="text" id="lib-search" placeholder="es. lombari, squat, spalle, core..." onkeydown="if(event.key==='Enter')cercaEsercizi()">
-        <select id="lib-muscle">
-          <option value="">Tutti i distretti</option>
-          <option value="back">Schiena</option>
-          <option value="cardio">Cardio</option>
-          <option value="chest">Petto</option>
-          <option value="lower arms">Avambracci</option>
-          <option value="lower legs">Polpacci</option>
-          <option value="neck">Collo</option>
-          <option value="shoulders">Spalle</option>
-          <option value="upper arms">Braccia</option>
-          <option value="upper legs">Gambe</option>
-          <option value="waist">Addome / Core</option>
-        </select>
-        <button class="btn-search" onclick="cercaEsercizi()">&#128269; Cerca</button>
-      </div>
-      <div class="lib-info-bar" id="lib-info-bar"></div>
-      <div id="library-results"><div class="lib-empty">Cerca un esercizio per iniziare.</div></div>
-      <div class="lib-pagination" id="lib-pagination"></div>
-    </div>
-
     <div class="selected-summary" id="selected-summary"></div>
-
-    <div class="section">
-      <div class="section-title">Note al paziente</div>
-      <div class="form-group">
-        <textarea id="proto-note" rows="3" placeholder="Istruzioni o note visibili al paziente nel protocollo..."></textarea>
-      </div>
-      <div class="order-hint" id="order-hint"></div>
-      <button class="btn-primary" id="btn-salva" onclick="salvaProtocollo()">&#10003; Assegna protocollo</button>
-      <div class="success-banner" id="success-banner">&#9989; Protocollo assegnato con successo! Il paziente può ora accedere agli esercizi.</div>
-    </div>
+    <button class="btn-salva" id="btn-salva" onclick="salvaProtocollo()">✓ Assegna protocollo</button>
   </div>
-
-  <div class="modal-overlay hidden" id="modal-overlay" onclick="chiudiModaleClick(event)">
-    <div class="modal-box">
-      <div class="modal-header">
-        <div class="modal-title" id="modal-nome"></div>
-        <button class="modal-close" onclick="chiudiModale()">&#x2715;</button>
-      </div>
-      <div class="modal-preview" id="modal-preview"></div>
-      <div class="modal-body">
-        <!-- YouTube rimosso -->
-        <div class="modal-tags" id="modal-tags"></div>
-        <div class="modal-istruzioni" id="modal-istruzioni"></div>
-        <button class="modal-btn-add not-added" id="modal-btn-add" onclick="toggleDalModale()">+ Aggiungi al protocollo</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
-    const RAPIDAPI_KEY = 'a72cf08819msh2876171502d57aep18e41ajsn5a7971a175a8'
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     const params = new URLSearchParams(window.location.search)
     const patientId = params.get('id')
@@ -238,258 +123,81 @@
     let selectedExercises = []
     let exerciseCfg = {}
     let allExercises = []
-    let libTotalResults = []
-    let libExercisesMap = {}
-    let libPage = 0
-    let modalCurrentId = null
-    const LIB_PAGE_SIZE = 6
-
-    const traduzioneIT = {
-      'lombari':'lower back','lombare':'lower back','schiena':'back','dorso':'back',
-      'spalle':'shoulder','spalla':'shoulder','deltoide':'shoulder','deltoidi':'shoulder',
-      'petto':'chest','pettorale':'chest','pettorali':'chest',
-      'gambe':'legs','gamba':'leg','quadricipite':'quadriceps','quadricipiti':'quadriceps',
-      'femorali':'hamstring','femorale':'hamstring','polpaccio':'calf','polpacci':'calves',
-      'addome':'abs','addominali':'abs','core':'abs','addominale':'abs',
-      'braccia':'arm','braccio':'arm','bicipite':'bicep','bicipiti':'bicep',
-      'tricipite':'tricep','tricipiti':'tricep','avambraccio':'forearm','avambracci':'forearm',
-      'collo':'neck','cervicale':'neck','cervicali':'neck',
-      'glutei':'glute','gluteo':'glute','fianchi':'hip','anca':'hip',
-      'cardio':'cardio','stretching':'stretch','squat':'squat','plank':'plank',
-      'ponte':'bridge','affondi':'lunge','stacchi':'deadlift','rematore':'row'
-    }
-
-    function traduci(t) {
-      const low = t.toLowerCase().trim()
-      if (traduzioneIT[low]) return traduzioneIT[low]
-      return low.split(' ').map(p => traduzioneIT[p] || p).join(' ')
-    }
-
-    const bodyPartEmoji = {
-      'back':'🔵','chest':'🔴','shoulders':'🟣','upper arms':'🟡',
-      'lower arms':'🟠','upper legs':'🟢','lower legs':'🍃',
-      'waist':'🌸','neck':'🔷','cardio':'❤️'
-    }
-    const bodyPartLabel = {
-      'back':'Schiena','chest':'Petto','shoulders':'Spalle','upper arms':'Braccia',
-      'lower arms':'Avambracci','upper legs':'Gambe','lower legs':'Polpacci',
-      'waist':'Core / Addome','neck':'Collo','cardio':'Cardio'
-    }
-    const bodyPartBg = {
-      'back':'#eff6ff','chest':'#fef2f2','shoulders':'#f5f3ff','upper arms':'#fffbeb',
-      'lower arms':'#fef3c7','upper legs':'#ecfdf5','lower legs':'#d1fae5',
-      'waist':'#fdf2f8','neck':'#eef2ff','cardio':'#fff1f2'
-    }
-
-    document.getElementById('btn-back').onclick = () => window.location.href = 'paziente.html?id=' + patientId
-
-    const today = new Date()
-    const in30 = new Date(today); in30.setDate(in30.getDate() + 30)
-    document.getElementById('proto-inizio').value = today.toISOString().split('T')[0]
-    document.getElementById('proto-fine').value = in30.toISOString().split('T')[0]
 
     async function init() {
-      if (!patientId) { window.location.href = 'dashboard.html'; return }
-      const { data: { session } } = await _supabase.auth.getSession()
-      if (!session) { window.location.href = 'login.html'; return }
-      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
-      if (!p) { window.location.href = 'dashboard.html'; return }
-      patient = p
-      const { data: prof } = await _supabase.from('professionals').select('*').eq('user_id', session.user.id).single()
+      document.getElementById('btn-back').href = 'paziente.html?id=' + patientId
+      const { data: { user } } = await _supabase.auth.getUser()
+      if (!user) { window.location.href = 'login.html'; return }
+      const { data: prof } = await _supabase.from('professionals').select('*').eq('user_id', user.id).single()
       professional = prof
-      document.getElementById('pi-nome').textContent = p.nome + ' ' + p.cognome
-      document.getElementById('pi-sub').textContent = p.problema_principale || ''
-      if (p.configurazione_default) {
-        selectedConfig = p.configurazione_default
-        updateConfigUI()
-        document.getElementById('pi-config').innerHTML = '<span class="badge badge-' + p.configurazione_default.toLowerCase() + '">' + p.configurazione_default + '</span>'
+      const { data: pat } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      patient = pat
+      if (patient) {
+        document.getElementById('patient-name').textContent = 'Paziente: ' + patient.nome + ' ' + patient.cognome
+        if (patient.configurazione_default) setConfig(patient.configurazione_default)
       }
-      document.getElementById('proto-nome').value = 'Protocollo \u2014 ' + p.nome + ' ' + p.cognome
-      const { data: exList } = await _supabase.from('exercises').select('*').eq('active', true).order('nome')
-      allExercises = exList || []
+      document.getElementById('proto-inizio').value = new Date().toISOString().split('T')[0]
+      const { data: exs } = await _supabase.from('exercises').select('*').eq('active', true).is('fonte', null).order('ordine')
+      allExercises = exs || []
       renderExercises()
     }
 
-    function renderExercises() {
-      const list = document.getElementById('exercise-list')
-      if (!allExercises.length) { list.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio disponibile.</div>'; return }
-      list.innerHTML = allExercises.map(ex => {
-        const isSel = selectedExercises.some(s => s.id === ex.id && s.source === 'policettivo')
-        const cfg = exerciseCfg[ex.id] || selectedConfig || 'NPL'
-        const ord = selectedExercises.findIndex(s => s.id === ex.id && s.source === 'policettivo') + 1
-        return '<div class="exercise-item ' + (isSel ? 'selected' : '') + '" onclick="toggleExercise(\'' + ex.id + '\',\'policettivo\')">' +
-          '<div class="exercise-check">' + (isSel ? '&#10003;' : '') + '</div>' +
-          '<div class="exercise-info"><div class="exercise-name">' + ex.nome + '</div>' +
-          '<div class="exercise-meta">' + (ex.durata_default||90) + ' sec &middot; ' + ex.livello + '</div></div>' +
-          (isSel ? '<div class="exercise-cfg" onclick="event.stopPropagation()">' +
-            '<span class="cfg-mini ' + (cfg==='NPL'?'cfg-npl':'cfg-inactive') + '" onclick="setCfg(\'' + ex.id + '\',\'NPL\')">NPL</span>' +
-            '<span class="cfg-mini ' + (cfg==='GPL'?'cfg-gpl':'cfg-inactive') + '" onclick="setCfg(\'' + ex.id + '\',\'GPL\')">GPL</span>' +
-          '</div>' : '') +
-          (isSel ? '<div style="font-size:11px;font-weight:700;color:#FFD008;min-width:20px;text-align:right">' + ord + '</div>' : '') +
-        '</div>'
-      }).join('')
+    function setConfig(cfg) {
+      selectedConfig = cfg
+      document.querySelectorAll('.config-btn').forEach(b => b.classList.remove('active'))
+      document.querySelector('.config-btn.' + cfg.toLowerCase()).classList.add('active')
+      selectedExercises.forEach(sel => { if (!exerciseCfg[sel.id]) exerciseCfg[sel.id] = cfg })
+      renderExercises()
       updateSummary()
     }
 
-    function toggleExercise(id, source) {
-      const idx = selectedExercises.findIndex(s => s.id === id && s.source === source)
-      if (idx === -1) { selectedExercises.push({id, source}); if (source==='policettivo') exerciseCfg[id] = selectedConfig||'NPL' }
-      else selectedExercises.splice(idx, 1)
-      renderExercises()
-      if (libTotalResults.length) renderLibResults()
+    function renderExercises() {
+      const grid = document.getElementById('exercise-grid')
+      if (!allExercises.length) { grid.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio disponibile</div>'; return }
+      grid.innerHTML = allExercises.map(ex => {
+        const isSelected = selectedExercises.some(s => s.id === ex.id)
+        const selIdx = selectedExercises.findIndex(s => s.id === ex.id)
+        const cfg = exerciseCfg[ex.id] || selectedConfig || 'NPL'
+        return '<div class="exercise-item ' + (isSelected ? 'selected' : '') + '" onclick="toggleExercise(\'' + ex.id + '\')">' +
+          '<div class="exercise-num">' + (isSelected ? (selIdx + 1) : '') + '</div>' +
+          '<div class="exercise-info">' +
+            '<div class="exercise-name">' + ex.nome + '</div>' +
+            '<div class="exercise-meta">' + (ex.durata_default || 90) + ' sec &middot; ' + (ex.livello || 'base') + '</div>' +
+          '</div>' +
+          (isSelected ? '<div class="exercise-cfg" onclick="event.stopPropagation()"><div class="cfg-toggle">' +
+            '<button class="cfg-btn ' + (cfg === 'NPL' ? 'active-npl' : '') + '" onclick="setCfg(\'' + ex.id + '\',\'NPL\')">NPL</button>' +
+            '<button class="cfg-btn ' + (cfg === 'GPL' ? 'active-gpl' : '') + '" onclick="setCfg(\'' + ex.id + '\',\'GPL\')">GPL</button>' +
+          '</div></div>' : '') +
+        '</div>'
+      }).join('')
     }
 
-    function setCfg(id, cfg) { exerciseCfg[id] = cfg; renderExercises() }
-    function selectConfig(val) { selectedConfig = val; updateConfigUI(); renderExercises() }
-    function updateConfigUI() {
-      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig==='NPL'?' selected-npl':'')
-      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig==='GPL'?' selected-gpl':'')
+    function toggleExercise(id) {
+      const idx = selectedExercises.findIndex(s => s.id === id)
+      if (idx >= 0) {
+        selectedExercises.splice(idx, 1)
+        delete exerciseCfg[id]
+      } else {
+        selectedExercises.push({ id, source: 'policettivo' })
+        exerciseCfg[id] = selectedConfig || 'NPL'
+      }
+      renderExercises()
+      updateSummary()
+    }
+
+    function setCfg(id, cfg) {
+      exerciseCfg[id] = cfg
+      renderExercises()
     }
 
     function updateSummary() {
-      const tot = selectedExercises.length
       const el = document.getElementById('selected-summary')
-      const hint = document.getElementById('order-hint')
-      if (!tot) { el.classList.remove('show'); hint.textContent=''; return }
-      const pol = selectedExercises.filter(s=>s.source==='policettivo').length
-      const lib = selectedExercises.filter(s=>s.source==='lib').length
-      let txt = '<strong>' + tot + ' esercizi selezionati</strong>'
-      if (pol && lib) txt += ' &mdash; ' + pol + ' Policettivo® + ' + lib + ' dalla libreria'
-      else if (lib) txt += ' &mdash; ' + lib + ' dalla libreria ExerciseDB'
-      el.innerHTML = txt; el.classList.add('show')
-      hint.textContent = 'Verranno assegnati nell\'ordine di selezione.'
+      if (!selectedExercises.length) { el.classList.remove('show'); return }
+      el.classList.add('show')
+      const pol = selectedExercises.length
+      el.innerHTML = '<div class="summary-title">Riepilogo protocollo</div>' +
+        '<div class="summary-list">' + pol + ' esercizi selezionati</div>'
     }
-
-    async function cercaEsercizi() {
-      const queryRaw = document.getElementById('lib-search').value.trim()
-      const muscle = document.getElementById('lib-muscle').value
-      const resEl = document.getElementById('library-results')
-      const infoEl = document.getElementById('lib-info-bar')
-      if (!queryRaw && !muscle) { resEl.innerHTML = '<div class="lib-empty">Inserisci un termine o seleziona un distretto.</div>'; return }
-      resEl.innerHTML = '<div class="lib-loading">&#8987; Ricerca in corso...</div>'
-      infoEl.textContent = ''
-      document.getElementById('lib-pagination').innerHTML = ''
-      const query = queryRaw ? traduci(queryRaw) : ''
-      try {
-        const opts = { method:'GET', headers:{'x-rapidapi-key':RAPIDAPI_KEY,'x-rapidapi-host':'exercisedb.p.rapidapi.com'} }
-        const url = muscle
-          ? 'https://exercisedb.p.rapidapi.com/exercises/bodyPart/' + encodeURIComponent(muscle) + '?limit=100&offset=0'
-          : 'https://exercisedb.p.rapidapi.com/exercises/name/' + encodeURIComponent(query) + '?limit=100&offset=0'
-        const resp = await fetch(url, opts)
-        if (!resp.ok) throw new Error('Errore API ' + resp.status)
-        const data = await resp.json()
-        if (!data || !data.length) { resEl.innerHTML = '<div class="lib-empty">Nessun esercizio trovato.</div>'; return }
-        let filtered = data
-        if (muscle && query) filtered = data.filter(e => e.name.toLowerCase().includes(query.toLowerCase()))
-        filtered.forEach(e => { libExercisesMap[e.id] = e })
-        libTotalResults = filtered
-        libPage = 0
-        const nota = (query && query !== queryRaw) ? ' (cercato: "' + query + '")' : ''
-        infoEl.textContent = filtered.length + ' esercizi trovati' + nota
-        renderLibResults()
-      } catch(err) {
-        resEl.innerHTML = '<div class="lib-empty">&#9888; Errore: ' + err.message + '</div>'
-      }
-    }
-
-    function renderLibResults() {
-      if (!libTotalResults.length) return
-      const start = libPage * LIB_PAGE_SIZE
-      const items = libTotalResults.slice(start, start + LIB_PAGE_SIZE)
-      const resEl = document.getElementById('library-results')
-      const pagEl = document.getElementById('lib-pagination')
-      resEl.className = 'library-grid'
-      resEl.innerHTML = items.map(ex => {
-        const isAdded = selectedExercises.some(s => s.id === ex.id && s.source === 'lib')
-        const bp = (ex.bodyPart||'').toLowerCase()
-        const emoji = bodyPartEmoji[bp] || '💪'
-        const label = bodyPartLabel[bp] || ex.bodyPart || ''
-        const bg = bodyPartBg[bp] || '#f5f5f5'
-        const muscles = [ex.target, ...(ex.secondaryMuscles||[])].filter(Boolean).slice(0,2)
-        return '<div class="lib-card ' + (isAdded?'added':'') + '">' +
-          '<div class="lib-card-preview" style="background:' + bg + '" onclick="apriModale(\'' + ex.id + '\')">' +
-            '<div style="text-align:center">' +
-              '<div style="font-size:36px">' + emoji + '</div>' +
-              '<div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-top:4px">' + label + '</div>' +
-              '<div style="font-size:9px;color:#aaa;margin-top:2px">Clicca per dettagli</div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="lib-card-body">' +
-            '<div class="lib-card-name">' + ex.name + '</div>' +
-            '<div class="lib-card-tags">' +
-              '<span class="lib-tag lib-tag-equip">' + (ex.equipment||'corpo libero') + '</span>' +
-              muscles.map(m => '<span class="lib-tag lib-tag-muscle">' + m + '</span>').join('') +
-            '</div>' +
-            '<div class="lib-card-btns">' +
-              '<button class="btn-preview" onclick="apriModale(\'' + ex.id + '\')">&#128065; Dettagli</button>' +
-              '<button class="btn-add-lib ' + (isAdded?'is-added':'not-added') + '" onclick="toggleExercise(\'' + ex.id + '\',\'lib\')">' +
-                (isAdded ? '&#10003; Aggiunto' : '+ Aggiungi') +
-              '</button>' +
-            '</div>' +
-          '</div>' +
-        '</div>'
-      }).join('')
-      const tot = Math.ceil(libTotalResults.length / LIB_PAGE_SIZE)
-      pagEl.innerHTML = tot > 1
-        ? '<button class="btn-page" onclick="cambiaLibPagina(-1)" ' + (libPage===0?'disabled':'') + '>&larr;</button>' +
-          '<span style="font-size:12px;color:#888">' + (libPage+1) + ' / ' + tot + '</span>' +
-          '<button class="btn-page" onclick="cambiaLibPagina(1)" ' + (libPage>=tot-1?'disabled':'') + '>&rarr;</button>'
-        : ''
-    }
-
-    function cambiaLibPagina(dir) {
-      const tot = Math.ceil(libTotalResults.length / LIB_PAGE_SIZE)
-      libPage = Math.max(0, Math.min(tot-1, libPage+dir))
-      renderLibResults()
-      document.getElementById('library-results').scrollIntoView({behavior:'smooth',block:'start'})
-    }
-
-    function apriModale(exId) {
-      const ex = libExercisesMap[exId]
-      if (!ex) return
-      modalCurrentId = exId
-      document.getElementById('modal-nome').textContent = ex.name
-      const bp = (ex.bodyPart||'').toLowerCase()
-      const emoji = bodyPartEmoji[bp] || '💪'
-      const label = bodyPartLabel[bp] || ex.bodyPart || 'Esercizio'
-      const bg = bodyPartBg[bp] || '#f5f5f5'
-      document.getElementById('modal-preview').style.background = bg
-      document.getElementById('modal-preview').innerHTML =
-        '<div style="font-size:56px">' + emoji + '</div>' +
-        '<div style="font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px">' + label + '</div>' +
-        '<div style="font-size:11px;color:#888">' + (ex.difficulty||'') + ' &middot; ' + (ex.category||'') + '</div>'
-      // YouTube rimosso — si usano le GIF animate
-      const muscles = [ex.target, ...(ex.secondaryMuscles||[])].filter(Boolean)
-      document.getElementById('modal-tags').innerHTML =
-        '<span class="lib-tag" style="background:#e3f2fd;color:#1565c0">' + (ex.bodyPart||'') + '</span>' +
-        '<span class="lib-tag lib-tag-equip">' + (ex.equipment||'corpo libero') + '</span>' +
-        muscles.map(m => '<span class="lib-tag lib-tag-muscle">' + m + '</span>').join('')
-      const instructions = ex.instructions || []
-      document.getElementById('modal-istruzioni').innerHTML = instructions.length
-        ? '<div class="modal-istruzioni-title">Istruzioni</div>' +
-          instructions.map((s,i) =>
-            '<div class="modal-step"><div class="modal-step-num">' + (i+1) + '</div><div>' + s + '</div></div>'
-          ).join('')
-        : ''
-      aggiornaModalBtn()
-      document.getElementById('modal-overlay').classList.remove('hidden')
-    }
-
-    function aggiornaModalBtn() {
-      const isAdded = selectedExercises.some(s => s.id === modalCurrentId && s.source === 'lib')
-      const btn = document.getElementById('modal-btn-add')
-      btn.className = 'modal-btn-add ' + (isAdded ? 'is-added' : 'not-added')
-      btn.textContent = isAdded ? '\u2713 Aggiunto al protocollo' : '+ Aggiungi al protocollo'
-    }
-
-    function toggleDalModale() {
-      if (!modalCurrentId) return
-      toggleExercise(modalCurrentId, 'lib')
-      aggiornaModalBtn()
-    }
-
-    function chiudiModale() { document.getElementById('modal-overlay').classList.add('hidden') }
-    function chiudiModaleClick(e) { if (e.target === document.getElementById('modal-overlay')) chiudiModale() }
 
     async function salvaProtocollo() {
       const nome = document.getElementById('proto-nome').value.trim()
@@ -498,40 +206,25 @@
       if (!selectedExercises.length) { alert('Seleziona almeno un esercizio'); return }
       const btn = document.getElementById('btn-salva')
       btn.disabled = true; btn.textContent = 'Salvataggio...'
-      await _supabase.from('patient_protocols').update({stato:'sospeso'}).eq('patient_id',patientId).eq('stato','attivo')
+      await _supabase.from('patient_protocols').update({ stato: 'sospeso' }).eq('patient_id', patientId).eq('stato', 'attivo')
       const { data: proto, error } = await _supabase.from('patient_protocols').insert({
-        patient_id: patientId, professional_id: professional?.id||null,
+        patient_id: patientId, professional_id: professional?.id || null,
         nome_personalizzato: nome,
         data_inizio: document.getElementById('proto-inizio').value,
         data_fine: document.getElementById('proto-fine').value,
         frequenza: document.getElementById('proto-frequenza').value,
         configurazione_generale: selectedConfig, stato: 'attivo'
       }).select().single()
-      if (error) { alert('Errore: '+error.message); btn.disabled=false; btn.textContent='\u2713 Assegna protocollo'; return }
-      const exRows = []
-      for (let i=0; i<selectedExercises.length; i++) {
-        const sel = selectedExercises[i]
-        if (sel.source === 'policettivo') {
-          const ex = allExercises.find(e => e.id===sel.id)
-          exRows.push({ patient_protocol_id:proto.id, exercise_id:sel.id, ordine:i+1, configurazione:exerciseCfg[sel.id]||selectedConfig, durata:ex?.durata_default||90, ripetizioni:ex?.ripetizioni||1 })
-        } else {
-          const libEx = libExercisesMap[sel.id]
-          if (libEx) {
-            const desc = 'Muscolo: ' + libEx.target + (libEx.secondaryMuscles?.length ? ' | Secondari: '+libEx.secondaryMuscles.join(', ') : '') + ' | Attrezzatura: '+(libEx.equipment||'corpo libero')
-            const { data: newEx, error: ne } = await _supabase.from('exercises').insert({
-              nome: libEx.name, descrizione: desc, video_url: null,
-              livello: 'base', durata_default:60, ripetizioni:1, active:true, fonte:'exercisedb'
-            }).select().single()
-            if (ne) { alert('Errore salvataggio esercizio: ' + ne.message); btn.disabled=false; btn.textContent='\u2713 Assegna protocollo'; return }
-            if (newEx) exRows.push({ patient_protocol_id:proto.id, exercise_id:newEx.id, ordine:i+1, configurazione:selectedConfig, durata:60, ripetizioni:1 })
-          }
-        }
-      }
+      if (error) { alert('Errore: ' + error.message); btn.disabled = false; btn.textContent = '\u2713 Assegna protocollo'; return }
+      const exRows = selectedExercises.map((sel, i) => {
+        const ex = allExercises.find(e => e.id === sel.id)
+        return { patient_protocol_id: proto.id, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default || 90, ripetizioni: ex?.ripetizioni || 1 }
+      })
       const { error: exErr } = await _supabase.from('patient_protocol_exercises').insert(exRows)
-      if (exErr) { alert('Errore esercizi: '+exErr.message); return }
+      if (exErr) { alert('Errore esercizi: ' + exErr.message); return }
       btn.textContent = '\u2713 Assegnato!'
       document.getElementById('success-banner').classList.add('show')
-      setTimeout(() => { window.location.href = 'paziente.html?id='+patientId }, 2000)
+      setTimeout(() => { window.location.href = 'paziente.html?id=' + patientId }, 2000)
     }
 
     init()

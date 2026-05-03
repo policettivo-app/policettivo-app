@@ -198,26 +198,12 @@
       const cfgClass = cfg === 'NPL' ? 'config-npl' : 'config-gpl'
       let exHtml = ''
       if (exercises.length > 0) {
-        const exPolicettivo = exercises.filter(function(e) { return !e.exercise || e.exercise.fonte !== 'exercisedb' })
-        const exLibreria = exercises.filter(function(e) { return e.exercise && e.exercise.fonte === 'exercisedb' })
-        let policettivoHtml = ''
-        if (exPolicettivo.length > 0) {
-          policettivoHtml = '<div class="section-title">Esercizi Policettivo®</div><div class="exercise-list">' +
-            exPolicettivo.map(function(e, i) {
-              const ex = e.exercise
-              const ecfg = e.configurazione || cfg
-              return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div><span class="exercise-config cfg-' + ecfg.toLowerCase() + '">' + ecfg + '</span></div>'
-            }).join('') + '</div>'
-        }
-        let libreriaHtml = ''
-        if (exLibreria.length > 0) {
-          libreriaHtml = '<div class="section-title" style="margin-top:20px">Esercizi complementari</div><div class="exercise-list">' +
-            exLibreria.map(function(e, i) {
-              const ex = e.exercise
-              return '<div class="exercise-item"><div class="exercise-num" style="background:#e3f2fd;color:#1565c0">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name" style="text-transform:capitalize">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 60)) + ' sec</div></div></div>'
-            }).join('') + '</div>'
-        }
-        exHtml = policettivoHtml + libreriaHtml
+        exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' +
+          exercises.map(function(e, i) {
+            const ex = e.exercise
+            const ecfg = e.configurazione || cfg
+            return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div><span class="exercise-config cfg-' + ecfg.toLowerCase() + '">' + ecfg + '</span></div>'
+          }).join('') + '</div>'
       }
       document.getElementById('content-area').innerHTML =
         '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + exercises.length + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">Inizia gli esercizi</button></div>' +
