@@ -195,7 +195,10 @@
         </div>
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
-          <button class="btn-primary" id="btn-crea-paziente" onclick="wizardSavePatient()">Crea paziente di prova</button>
+          <div style="display:flex;gap:10px;">
+            <button class="btn-secondary" onclick="goWizardStep(0)">Indietro</button>
+            <button class="btn-primary" id="btn-crea-paziente" onclick="wizardSavePatient()">Crea paziente di prova</button>
+          </div>
         </div>
       </div>
       <div class="wizard-step" id="wstep-2">
@@ -212,6 +215,7 @@
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
           <div style="display:flex;gap:10px;">
+            <button class="btn-secondary" onclick="goWizardStep(1)">Indietro</button>
             <button class="btn-copy" onclick="window.open('paziente.html?id=' + wizardPatientId, '_blank')">Apri scheda paziente</button>
             <button class="btn-primary" onclick="goWizardStep(3)">Ho esplorato, continua</button>
           </div>
@@ -231,6 +235,7 @@
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
           <div style="display:flex;gap:10px;">
+            <button class="btn-secondary" onclick="goWizardStep(2)">Indietro</button>
             <button class="btn-copy" onclick="window.open('assegna-protocollo.html?id=' + wizardPatientId, '_blank')">Apri protocollo</button>
             <button class="btn-primary" onclick="goWizardStep(4)">Ho capito, continua</button>
           </div>
@@ -258,8 +263,14 @@
         <div style="background:#fffdf0;border:1.5px solid #FFD008;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-top:16px;line-height:1.6;">
           Questo e un link di prova. Quando sei pronto per il primo paziente vero, crea una nuova scheda dalla dashboard e completa la visita posturale. Il paziente trovera il suo protocollo personale con esercizi, timer e <strong>premi per ogni sessione completata</strong> — questo lo motiva a fare gli esercizi ogni giorno.
         </div>
+        <div style="background:#f5f5f5;border:1.5px solid #ddd;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-top:12px;line-height:1.6;">
+          Non preoccuparti se non hai capito tutto subito — e normale! La <strong>Guida</strong> e sempre disponibile nell'app in alto a destra con il pulsante <strong>? Guida</strong>. Troverai spiegazioni e video per ogni funzione, quando ne hai bisogno.
+        </div>
         <div class="wizard-actions" style="margin-top:24px">
-          <span></span>
+          <div style="display:flex;gap:10px;">
+            <button class="btn-secondary" onclick="goWizardStep(3)">Indietro</button>
+            <button class="btn-copy" onclick="finishWizard();setTimeout(()=>openGuida(),300)">Apri la Guida</button>
+          </div>
           <button class="btn-primary" onclick="finishWizard()">Vai alla dashboard</button>
         </div>
       </div>
