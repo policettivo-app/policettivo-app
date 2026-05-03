@@ -65,7 +65,10 @@
 
     <div class="success-msg" id="success-msg">
       ✅ Registrazione completata!<br><br>
-      Il tuo account è stato creato. Verrai reindirizzato alla dashboard tra pochi secondi...
+      Il tuo account è stato creato con successo.<br><br>
+      <strong>Salva questo link per accedere ogni volta:</strong><br>
+      <a href="https://policettivo-app.vercel.app/login.html" style="color:#2e7d32;font-weight:700;word-break:break-all;">https://policettivo-app.vercel.app/login.html</a><br><br>
+      <a href="https://policettivo-app.vercel.app/login.html" style="display:inline-block;background:#FFD008;color:#000;padding:12px 24px;border-radius:8px;font-weight:700;text-decoration:none;margin-top:8px;">Vai al login →</a>
     </div>
   </div>
 
@@ -117,14 +120,16 @@
 
       const userId = authData.user.id
 
-      await _supabase.from('profiles').insert({ id: userId, role: 'professionista', nome, cognome })
-      await _supabase.from('professionals').insert({ user_id: userId, qualifica, centro, citta, attivo: true })
+      const { error: profileError } = await _supabase.from('profiles').insert({ id: userId, role: 'professionista', nome, cognome })
+      if (profileError) { showError('Errore creazione profilo: ' + profileError.message); btn.disabled = false; btn.textContent = 'Crea account e accedi'; return }
+
+      const { error: profError } = await _supabase.from('professionals').insert({ user_id: userId, qualifica, centro, citta, attivo: true })
+      if (profError) { showError('Errore salvataggio dati: ' + profError.message); btn.disabled = false; btn.textContent = 'Crea account e accedi'; return }
+
       await _supabase.from('invites').update({ usato: true, used_at: new Date().toISOString() }).eq('token', token)
 
       document.getElementById('form-state').style.display = 'none'
       document.getElementById('success-msg').style.display = 'block'
-
-      setTimeout(() => { window.location.href = 'dashboard.html' }, 3000)
     }
 
     function showError(msg) {
