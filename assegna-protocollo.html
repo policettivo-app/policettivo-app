@@ -519,10 +519,9 @@
         } else {
           const libEx = libExercisesMap[sel.id]
           if (libEx) {
-            console.log('Inserisco esercizio ExerciseDB:', libEx.name)
             const desc = 'Muscolo: ' + libEx.target + (libEx.secondaryMuscles?.length ? ' | Secondari: '+libEx.secondaryMuscles.join(', ') : '') + ' | Attrezzatura: '+(libEx.equipment||'corpo libero')
             const { data: newEx, error: ne } = await _supabase.from('exercises').insert({
-              nome: libEx.name, descrizione: desc, video_url: '',
+              nome: libEx.name, descrizione: desc, video_url: 'https://www.youtube.com/results?search_query=' + encodeURIComponent(libEx.name + ' exercise tutorial'),
               livello: 'base', durata_default:60, ripetizioni:1, active:true, fonte:'exercisedb'
             }).select().single()
             if (ne) { alert('Errore salvataggio esercizio: ' + ne.message); btn.disabled=false; btn.textContent='\u2713 Assegna protocollo'; return }
