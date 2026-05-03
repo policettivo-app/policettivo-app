@@ -57,6 +57,40 @@
     .success-banner { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 10px; padding: 16px 20px; font-size: 14px; color: #2e7d32; font-weight: 600; display: none; margin-top: 16px; text-align: center; }
     .success-banner.show { display: block; }
     .order-hint { font-size: 11px; color: #999; margin-top: 8px; }
+
+    /* ExerciseDB Library */
+    .library-search-row { display: flex; gap: 10px; margin-bottom: 16px; }
+    .library-search-row input { flex: 1; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; outline: none; }
+    .library-search-row input:focus { border-color: #FFD008; }
+    .library-search-row select { padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; }
+    .library-search-row select:focus { border-color: #FFD008; }
+    .btn-search { background: #000; color: #FFD008; border: none; padding: 12px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-search:hover { background: #222; }
+    .library-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
+    @media (max-width: 600px) { .library-grid { grid-template-columns: 1fr; } }
+    .lib-card { border: 1.5px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: all 0.2s; }
+    .lib-card:hover { border-color: #FFD008; box-shadow: 0 4px 16px rgba(255,208,8,0.15); }
+    .lib-card.added { border-color: #000; background: #f9f9f9; }
+    .lib-card img { width: 100%; height: 160px; object-fit: cover; background: #f0f0f0; display: block; }
+    .lib-card-body { padding: 12px 14px; }
+    .lib-card-name { font-size: 13px; font-weight: 700; color: #000; margin-bottom: 4px; text-transform: capitalize; }
+    .lib-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+    .lib-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #f0f0f0; color: #555; text-transform: capitalize; }
+    .lib-tag-muscle { background: #fff3cd; color: #856404; }
+    .btn-add-lib { width: 100%; background: #FFD008; color: #000; border: none; padding: 8px; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .btn-add-lib:hover { background: #e6bc00; }
+    .btn-add-lib.added { background: #000; color: #FFD008; cursor: default; }
+    .lib-loading { text-align: center; padding: 32px; color: #999; font-size: 13px; }
+    .lib-empty { text-align: center; padding: 32px; color: #bbb; font-size: 13px; }
+    .lib-pagination { display: flex; justify-content: center; gap: 10px; margin-top: 16px; }
+    .btn-page { background: #f0f0f0; border: none; padding: 8px 16px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-page:hover { background: #FFD008; }
+    .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
+    .lib-info-bar { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .selected-summary { background: #fffdf0; border: 1.5px solid #FFD008; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #000; display: none; }
+    .selected-summary.show { display: block; }
+    .selected-summary strong { font-weight: 700; }
+    .lib-source-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: #e3f2fd; color: #1565c0; margin-left: 6px; vertical-align: middle; }
   </style>
 </head>
 <body>
@@ -77,6 +111,7 @@
       <div id="pi-config"></div>
     </div>
 
+    <!-- DETTAGLI PROTOCOLLO -->
     <div class="section">
       <div class="section-title">Dettagli protocollo</div>
       <div class="form-group">
@@ -118,28 +153,62 @@
       </div>
     </div>
 
+    <!-- ESERCIZI POLICETTIVO -->
     <div class="section">
-      <div class="section-title">Seleziona esercizi</div>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">Clicca per selezionare gli esercizi. L'ordine è quello di selezione. Puoi cambiare la configurazione di ogni esercizio singolarmente.</p>
+      <div class="section-title">Esercizi Policettivo®</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Clicca per selezionare gli esercizi. L'ordine è quello di selezione.</p>
       <div class="exercise-list" id="exercise-list">
         <div style="color:#999;font-size:13px">Caricamento esercizi...</div>
       </div>
-      <div class="order-hint" id="order-hint"></div>
     </div>
 
+    <!-- LIBRERIA EXERCISEDB -->
+    <div class="section">
+      <div class="section-title">Libreria esercizi <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;background:#e3f2fd;color:#1565c0;vertical-align:middle;letter-spacing:0">ExerciseDB</span></div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Cerca tra oltre 1300 esercizi e aggiungili al protocollo. Le GIF animate saranno visibili dal paziente.</p>
+
+      <div class="library-search-row">
+        <input type="text" id="lib-search" placeholder="Cerca esercizio... (es. squat, plank, bicep)" onkeydown="if(event.key==='Enter')cercaEsercizi()">
+        <select id="lib-muscle">
+          <option value="">Tutti i muscoli</option>
+          <option value="back">Schiena</option>
+          <option value="cardio">Cardio</option>
+          <option value="chest">Petto</option>
+          <option value="lower arms">Avambracci</option>
+          <option value="lower legs">Polpacci</option>
+          <option value="neck">Collo</option>
+          <option value="shoulders">Spalle</option>
+          <option value="upper arms">Braccia</option>
+          <option value="upper legs">Gambe</option>
+          <option value="waist">Addome</option>
+        </select>
+        <button class="btn-search" onclick="cercaEsercizi()">🔍 Cerca</button>
+      </div>
+
+      <div class="lib-info-bar" id="lib-info-bar"></div>
+      <div id="library-results" class="lib-empty">Cerca un esercizio per iniziare.</div>
+      <div class="lib-pagination" id="lib-pagination"></div>
+    </div>
+
+    <!-- RIEPILOGO SELEZIONATI -->
+    <div class="selected-summary" id="selected-summary"></div>
+
+    <!-- NOTE E SALVA -->
     <div class="section">
       <div class="section-title">Note al paziente</div>
       <div class="form-group">
         <textarea id="proto-note" rows="3" placeholder="Istruzioni o note visibili al paziente nel protocollo..."></textarea>
       </div>
-      <button class="btn-primary" id="btn-salva" onclick="salvaProtocollo()">✓ Assegna protocollo</button>
-      <div class="success-banner" id="success-banner">✅ Protocollo assegnato con successo! Il paziente può ora accedere agli esercizi.</div>
+      <div class="order-hint" id="order-hint"></div>
+      <button class="btn-primary" id="btn-salva" onclick="salvaProtocollo()">&#10003; Assegna protocollo</button>
+      <div class="success-banner" id="success-banner">&#9989; Protocollo assegnato con successo! Il paziente può ora accedere agli esercizi.</div>
     </div>
   </div>
 
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const RAPIDAPI_KEY = 'a72cf08819msh2876171502d57aep18e41ajsn5a7971a175a8'
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     const params = new URLSearchParams(window.location.search)
     const patientId = params.get('id')
@@ -148,6 +217,10 @@
     let selectedExercises = []
     let exerciseCfg = {}
     let allExercises = []
+    let libExercises = []
+    let libPage = 0
+    const LIB_PAGE_SIZE = 6
+    let libTotalResults = []
 
     document.getElementById('btn-back').onclick = () => window.location.href = 'paziente.html?id=' + patientId
 
@@ -173,7 +246,7 @@
         updateConfigUI()
         document.getElementById('pi-config').innerHTML = '<span class="badge badge-' + p.configurazione_default.toLowerCase() + '">' + p.configurazione_default + '</span>'
       }
-      document.getElementById('proto-nome').value = 'Protocollo — ' + p.nome + ' ' + p.cognome
+      document.getElementById('proto-nome').value = 'Protocollo \u2014 ' + p.nome + ' ' + p.cognome
 
       const { data: exList } = await _supabase.from('exercises').select('*').eq('active', true).order('nome')
       allExercises = exList || []
@@ -182,36 +255,40 @@
 
     function renderExercises() {
       const list = document.getElementById('exercise-list')
+      if (allExercises.length === 0) {
+        list.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio disponibile.</div>'
+        return
+      }
       list.innerHTML = allExercises.map(ex => {
-        const isSelected = selectedExercises.includes(ex.id)
+        const isSelected = selectedExercises.some(s => s.id === ex.id && s.source === 'policettivo')
         const cfg = exerciseCfg[ex.id] || selectedConfig || 'NPL'
-        const ordine = selectedExercises.indexOf(ex.id) + 1
-        return `<div class="exercise-item ${isSelected ? 'selected' : ''}" id="ex-item-${ex.id}" onclick="toggleExercise('${ex.id}')">
-          <div class="exercise-check">${isSelected ? '✓' : ''}</div>
-          <div class="exercise-info">
-            <div class="exercise-name">${ex.nome}</div>
-            <div class="exercise-meta">${ex.durata_default || 90} sec · ${ex.livello}</div>
-          </div>
-          ${isSelected ? `<div class="exercise-cfg" onclick="event.stopPropagation()">
-            <span class="cfg-mini ${cfg === 'NPL' ? 'cfg-npl' : 'cfg-inactive'}" onclick="setCfg('${ex.id}','NPL')">NPL</span>
-            <span class="cfg-mini ${cfg === 'GPL' ? 'cfg-gpl' : 'cfg-inactive'}" onclick="setCfg('${ex.id}','GPL')">GPL</span>
-          </div>` : ''}
-          ${isSelected ? `<div style="font-size:11px;font-weight:700;color:#FFD008;min-width:20px;text-align:right">${ordine}</div>` : ''}
-        </div>`
+        const ordine = selectedExercises.findIndex(s => s.id === ex.id && s.source === 'policettivo') + 1
+        return '<div class="exercise-item ' + (isSelected ? 'selected' : '') + '" id="ex-item-' + ex.id + '" onclick="toggleExercise(\'' + ex.id + '\',\'policettivo\')">' +
+          '<div class="exercise-check">' + (isSelected ? '&#10003;' : '') + '</div>' +
+          '<div class="exercise-info">' +
+            '<div class="exercise-name">' + ex.nome + '</div>' +
+            '<div class="exercise-meta">' + (ex.durata_default || 90) + ' sec \u00b7 ' + ex.livello + '</div>' +
+          '</div>' +
+          (isSelected ? '<div class="exercise-cfg" onclick="event.stopPropagation()">' +
+            '<span class="cfg-mini ' + (cfg === 'NPL' ? 'cfg-npl' : 'cfg-inactive') + '" onclick="setCfg(\'' + ex.id + '\',\'NPL\')">NPL</span>' +
+            '<span class="cfg-mini ' + (cfg === 'GPL' ? 'cfg-gpl' : 'cfg-inactive') + '" onclick="setCfg(\'' + ex.id + '\',\'GPL\')">GPL</span>' +
+          '</div>' : '') +
+          (isSelected ? '<div style="font-size:11px;font-weight:700;color:#FFD008;min-width:20px;text-align:right">' + ordine + '</div>' : '') +
+        '</div>'
       }).join('')
-      const hint = document.getElementById('order-hint')
-      hint.textContent = selectedExercises.length > 0 ? selectedExercises.length + ' esercizi selezionati' : ''
+      updateSummary()
     }
 
-    function toggleExercise(id) {
-      const idx = selectedExercises.indexOf(id)
+    function toggleExercise(id, source) {
+      const idx = selectedExercises.findIndex(s => s.id === id && s.source === source)
       if (idx === -1) {
-        selectedExercises.push(id)
-        exerciseCfg[id] = selectedConfig || 'NPL'
+        selectedExercises.push({ id, source })
+        if (source === 'policettivo') exerciseCfg[id] = selectedConfig || 'NPL'
       } else {
         selectedExercises.splice(idx, 1)
       }
       renderExercises()
+      if (source === 'lib') renderLibResults()
     }
 
     function setCfg(id, cfg) {
@@ -222,7 +299,6 @@
     function selectConfig(val) {
       selectedConfig = val
       updateConfigUI()
-      selectedExercises.forEach(id => { if (!exerciseCfg[id]) exerciseCfg[id] = val })
       renderExercises()
     }
 
@@ -230,6 +306,147 @@
       document.getElementById('opt-npl').className = 'config-option' + (selectedConfig === 'NPL' ? ' selected-npl' : '')
       document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig === 'GPL' ? ' selected-gpl' : '')
     }
+
+    function updateSummary() {
+      const tot = selectedExercises.length
+      const sumEl = document.getElementById('selected-summary')
+      const hintEl = document.getElementById('order-hint')
+      if (tot === 0) {
+        sumEl.classList.remove('show')
+        hintEl.textContent = ''
+        return
+      }
+      const pol = selectedExercises.filter(s => s.source === 'policettivo').length
+      const lib = selectedExercises.filter(s => s.source === 'lib').length
+      let txt = '<strong>' + tot + ' esercizi selezionati</strong>'
+      if (pol > 0 && lib > 0) txt += ' &mdash; ' + pol + ' Policettivo® + ' + lib + ' dalla libreria'
+      else if (pol > 0) txt += ' &mdash; ' + pol + ' Policettivo®'
+      else txt += ' &mdash; ' + lib + ' dalla libreria ExerciseDB'
+      sumEl.innerHTML = txt
+      sumEl.classList.add('show')
+      hintEl.textContent = 'Verranno assegnati nell\'ordine di selezione.'
+    }
+
+    // ——— EXERCISEDB ———
+
+    async function cercaEsercizi() {
+      const query = document.getElementById('lib-search').value.trim()
+      const muscle = document.getElementById('lib-muscle').value
+      const resultsEl = document.getElementById('library-results')
+      const infoEl = document.getElementById('lib-info-bar')
+
+      if (!query && !muscle) {
+        resultsEl.innerHTML = '<div class="lib-empty">Inserisci un termine di ricerca o seleziona un muscolo.</div>'
+        return
+      }
+
+      resultsEl.innerHTML = '<div class="lib-loading">&#8987; Ricerca in corso...</div>'
+      infoEl.textContent = ''
+      document.getElementById('lib-pagination').innerHTML = ''
+
+      try {
+        let url, opts
+        opts = {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-key': RAPIDAPI_KEY,
+            'x-rapidapi-host': 'exercisedb.p.rapidapi.com'
+          }
+        }
+
+        if (muscle) {
+          url = 'https://exercisedb.p.rapidapi.com/exercises/bodyPart/' + encodeURIComponent(muscle) + '?limit=50&offset=0'
+        } else {
+          url = 'https://exercisedb.p.rapidapi.com/exercises/name/' + encodeURIComponent(query.toLowerCase()) + '?limit=50&offset=0'
+        }
+
+        const resp = await fetch(url, opts)
+        if (!resp.ok) throw new Error('Errore API: ' + resp.status)
+        const data = await resp.json()
+
+        if (!data || data.length === 0) {
+          resultsEl.innerHTML = '<div class="lib-empty">Nessun esercizio trovato. Prova con un altro termine.</div>'
+          return
+        }
+
+        // Se c'e' anche un filtro testo con muscolo, filtra lato client
+        let filtered = data
+        if (muscle && query) {
+          filtered = data.filter(e => e.name.toLowerCase().includes(query.toLowerCase()))
+        }
+
+        libTotalResults = filtered
+        libPage = 0
+        infoEl.textContent = filtered.length + ' esercizi trovati'
+        renderLibResults()
+
+      } catch(err) {
+        resultsEl.innerHTML = '<div class="lib-empty">&#9888; Errore di connessione. Verifica la API key o la connessione internet.<br><small>' + err.message + '</small></div>'
+      }
+    }
+
+    function renderLibResults() {
+      const start = libPage * LIB_PAGE_SIZE
+      const pageItems = libTotalResults.slice(start, start + LIB_PAGE_SIZE)
+      const resultsEl = document.getElementById('library-results')
+      const pagEl = document.getElementById('lib-pagination')
+
+      if (pageItems.length === 0) {
+        resultsEl.innerHTML = '<div class="lib-empty">Nessun esercizio trovato.</div>'
+        pagEl.innerHTML = ''
+        return
+      }
+
+      resultsEl.className = 'library-grid'
+      resultsEl.innerHTML = pageItems.map(ex => {
+        const isAdded = selectedExercises.some(s => s.id === ex.id && s.source === 'lib')
+        const muscles = [ex.target, ...(ex.secondaryMuscles || [])].filter(Boolean).slice(0, 3)
+        return '<div class="lib-card ' + (isAdded ? 'added' : '') + '">' +
+          '<img src="' + ex.gifUrl + '" alt="' + ex.name + '" loading="lazy" onerror="this.style.display=\'none\'">' +
+          '<div class="lib-card-body">' +
+            '<div class="lib-card-name">' + ex.name + '</div>' +
+            '<div class="lib-card-tags">' +
+              '<span class="lib-tag">' + (ex.bodyPart || '') + '</span>' +
+              '<span class="lib-tag">' + (ex.equipment || '') + '</span>' +
+              muscles.map(m => '<span class="lib-tag lib-tag-muscle">' + m + '</span>').join('') +
+            '</div>' +
+            '<button class="btn-add-lib ' + (isAdded ? 'added' : '') + '" onclick="aggiungiDaLibreria(' + JSON.stringify(ex).replace(/'/g, "\\'") + ')">' +
+              (isAdded ? '&#10003; Aggiunto' : '+ Aggiungi al protocollo') +
+            '</button>' +
+          '</div>' +
+        '</div>'
+      }).join('')
+
+      // Paginazione
+      const totPages = Math.ceil(libTotalResults.length / LIB_PAGE_SIZE)
+      if (totPages > 1) {
+        pagEl.innerHTML =
+          '<button class="btn-page" onclick="cambiaLibPagina(-1)" ' + (libPage === 0 ? 'disabled' : '') + '>&larr; Prec</button>' +
+          '<span style="font-size:12px;color:#888;padding:8px 4px">' + (libPage+1) + ' / ' + totPages + '</span>' +
+          '<button class="btn-page" onclick="cambiaLibPagina(1)" ' + (libPage >= totPages-1 ? 'disabled' : '') + '>Succ &rarr;</button>'
+      } else {
+        pagEl.innerHTML = ''
+      }
+    }
+
+    function cambiaLibPagina(dir) {
+      const totPages = Math.ceil(libTotalResults.length / LIB_PAGE_SIZE)
+      libPage = Math.max(0, Math.min(totPages - 1, libPage + dir))
+      renderLibResults()
+      document.getElementById('library-results').scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    function aggiungiDaLibreria(ex) {
+      const isAdded = selectedExercises.some(s => s.id === ex.id && s.source === 'lib')
+      if (isAdded) {
+        toggleExercise(ex.id, 'lib')
+      } else {
+        libExercises.push(ex)
+        toggleExercise(ex.id, 'lib')
+      }
+    }
+
+    // ——— SALVA ———
 
     async function salvaProtocollo() {
       const nome = document.getElementById('proto-nome').value.trim()
@@ -253,21 +470,58 @@
         stato: 'attivo'
       }).select().single()
 
-      if (error) { alert('Errore: ' + error.message); btn.disabled = false; btn.textContent = '✓ Assegna protocollo'; return }
+      if (error) { alert('Errore: ' + error.message); btn.disabled = false; btn.textContent = '\u2713 Assegna protocollo'; return }
 
-      const exRows = selectedExercises.map((id, i) => ({
-        patient_protocol_id: proto.id,
-        exercise_id: id,
-        ordine: i + 1,
-        configurazione: exerciseCfg[id] || selectedConfig,
-        durata: allExercises.find(e => e.id === id)?.durata_default || 90,
-        ripetizioni: allExercises.find(e => e.id === id)?.ripetizioni || 1
-      }))
+      // Prepara righe esercizi
+      const exRows = []
+      for (let i = 0; i < selectedExercises.length; i++) {
+        const sel = selectedExercises[i]
+        if (sel.source === 'policettivo') {
+          const ex = allExercises.find(e => e.id === sel.id)
+          exRows.push({
+            patient_protocol_id: proto.id,
+            exercise_id: sel.id,
+            ordine: i + 1,
+            configurazione: exerciseCfg[sel.id] || selectedConfig,
+            durata: ex?.durata_default || 90,
+            ripetizioni: ex?.ripetizioni || 1
+          })
+        } else {
+          // Esercizio da libreria ExerciseDB: salviamo senza exercise_id fisso
+          // Usiamo exercise_id null e salviamo i dati nella colonna note_esercizio (se esiste)
+          // oppure creiamo un record exercise temporaneo
+          const libEx = libExercises.find(e => e.id === sel.id)
+          if (libEx) {
+            // Inserisci prima nella tabella exercises come esercizio esterno
+            const { data: newEx, error: newExErr } = await _supabase.from('exercises').insert({
+              nome: libEx.name,
+              descrizione: 'Muscolo: ' + libEx.target + (libEx.secondaryMuscles?.length ? ' | Secondari: ' + libEx.secondaryMuscles.join(', ') : '') + ' | Attrezzatura: ' + libEx.equipment,
+              video_url: libEx.gifUrl,
+              livello: 'base',
+              durata_default: 60,
+              ripetizioni: 1,
+              active: false,
+              fonte: 'exercisedb'
+            }).select().single()
+
+            if (!newExErr && newEx) {
+              exRows.push({
+                patient_protocol_id: proto.id,
+                exercise_id: newEx.id,
+                ordine: i + 1,
+                configurazione: selectedConfig,
+                durata: 60,
+                ripetizioni: 1
+              })
+            }
+          }
+        }
+      }
 
       const { error: exErr } = await _supabase.from('patient_protocol_exercises').insert(exRows)
       if (exErr) { alert('Errore esercizi: ' + exErr.message); return }
 
-      btn.textContent = '✓ Assegnato!'
+      btn.textContent = '\u2713 Assegnato!'
       document.getElementById('success-banner').classList.add('show')
       setTimeout(() => { window.location.href = 'paziente.html?id=' + patientId }, 2000)
     }
