@@ -456,7 +456,13 @@
       if (ex.gifUrl) {
         modalPreview.style.padding = '0'
         modalPreview.style.overflow = 'hidden'
-        modalPreview.innerHTML = '<img src="/api/gif?url=' + encodeURIComponent(ex.gifUrl) + '" style="width:100%;height:220px;object-fit:cover" onerror="this.parentNode.innerHTML='<div style=text-align:center;padding:30px><div style=font-size:56px>' + emoji + '</div><div style=font-size:12px;font-weight:700;color:#555>' + label + '</div></div>'">'
+        const fallback = '<div style="text-align:center;padding:30px"><div style="font-size:56px">' + emoji + '</div><div style="font-size:12px;font-weight:700;color:#555">' + label + '</div></div>'
+        const img = document.createElement('img')
+        img.src = '/api/gif?url=' + encodeURIComponent(ex.gifUrl)
+        img.style.cssText = 'width:100%;height:220px;object-fit:cover'
+        img.onerror = function() { modalPreview.innerHTML = fallback }
+        modalPreview.innerHTML = ''
+        modalPreview.appendChild(img)
       } else {
         modalPreview.style.padding = ''
         modalPreview.innerHTML =
