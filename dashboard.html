@@ -390,10 +390,9 @@
       const { data: protocollo, error: errProt } = await _supabase.from('patient_protocols').insert({
         patient_id: paziente.id,
         professional_id: currentProfessionalId,
-        stato: 'attivo',
-        nome: 'Protocollo base'
+        stato: 'attivo'
       }).select().single()
-      if (errProt) { alert('Paziente creato ma errore nel protocollo: ' + errProt.message); btn.textContent = 'Crea paziente'; btn.disabled = false; return }
+      if (errProt) { alert('Errore protocollo: ' + errProt.message); btn.textContent = 'Crea paziente'; btn.disabled = false; return }
       await _supabase.from('patient_protocol_exercises').insert({
         protocol_id: protocollo.id,
         exercise_id: DEFAULT_EXERCISE_ID,
