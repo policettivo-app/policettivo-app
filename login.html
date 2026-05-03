@@ -38,6 +38,14 @@
     <label for="password">Password</label>
     <input type="password" id="password" placeholder="••••••••">
     <button class="btn" id="login-btn" onclick="doLogin()">Accedi</button>
+    <div style="text-align:center;margin-top:16px">
+      <button onclick="mostraResetPassword()" style="background:transparent;border:none;color:#999;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer;text-decoration:underline">Password dimenticata?</button>
+    </div>
+    <div id="reset-box" style="display:none;margin-top:16px">
+      <input type="email" id="reset-email" placeholder="Inserisci la tua email" style="width:100%;padding:12px 14px;border:1.5px solid #ddd;border-radius:8px;font-family:Montserrat,sans-serif;font-size:14px;outline:none;margin-bottom:10px">
+      <button onclick="inviaReset()" style="width:100%;padding:14px;background:#000;color:#FFD008;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer">Invia email di reset</button>
+      <div id="reset-msg" style="display:none;margin-top:12px;background:#f0fff0;border:1px solid #c8e6c9;border-radius:8px;padding:12px;font-size:13px;color:#2e7d32;text-align:center"></div>
+    </div>
     <div class="footer-note">Sistema Policettivo® — Solo per professionisti autorizzati</div>
   </div>
   <script>
@@ -59,6 +67,25 @@
     }
     function showError(msg) { const el = document.getElementById('error-msg'); el.textContent = msg; el.style.display = 'block'; }
     document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
+    function mostraResetPassword() {
+      const box = document.getElementById('reset-box')
+      box.style.display = box.style.display === 'none' ? 'block' : 'none'
+    }
+    async function inviaReset() {
+      const email = document.getElementById('reset-email').value.trim()
+      if (!email) { alert('Inserisci la tua email.'); return }
+      const { error } = await _supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://policettivo-app.vercel.app/login.html'
+      })
+      const msg = document.getElementById('reset-msg')
+      if (error) {
+        msg.style.background = '#fff3f3'; msg.style.borderColor = '#ffcdd2'; msg.style.color = '#c62828'
+        msg.textContent = 'Errore: ' + error.message
+      } else {
+        msg.textContent = 'Email inviata! Controlla la casella di posta e segui le istruzioni.'
+      }
+      msg.style.display = 'block'
+    }
   </script>
 </body>
 </html>

@@ -291,6 +291,10 @@
       if (!session) { window.location.href = 'login.html'; return }
       document.getElementById('user-email').textContent = session.user.email
       document.getElementById('welcome-msg').textContent = 'Bentornato, ' + session.user.email.split('@')[0]
+      if (session.user.email !== 'appuntamentimft@gmail.com') {
+        const btnAdmin = document.querySelector('.btn-admin')
+        if (btnAdmin) btnAdmin.style.display = 'none'
+      }
       const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
       if (prof) {
         currentProfessionalId = prof.id
