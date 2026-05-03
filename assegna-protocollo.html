@@ -59,25 +59,27 @@
     .library-search-row input { flex: 1; min-width: 160px; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; outline: none; }
     .library-search-row input:focus { border-color: #FFD008; }
     .library-search-row select { padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; }
-    .library-search-row select:focus { border-color: #FFD008; }
-    .btn-search { background: #000; color: #FFD008; border: none; padding: 12px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-search { background: #000; color: #FFD008; border: none; padding: 12px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
     .btn-search:hover { background: #222; }
     .library-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
     @media (max-width: 600px) { .library-grid { grid-template-columns: 1fr; } }
     .lib-card { border: 1.5px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; transition: all 0.2s; display: flex; flex-direction: column; }
     .lib-card:hover { border-color: #FFD008; box-shadow: 0 4px 16px rgba(255,208,8,0.15); }
     .lib-card.added { border-color: #000; }
-    .lib-card-preview { width: 100%; height: 130px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+    .lib-card-preview { width: 100%; height: 120px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .lib-card-body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; }
     .lib-card-name { font-size: 13px; font-weight: 700; color: #000; margin-bottom: 6px; text-transform: capitalize; }
     .lib-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; flex: 1; }
     .lib-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #f0f0f0; color: #555; text-transform: capitalize; }
     .lib-tag-muscle { background: #fff3cd; color: #856404; }
     .lib-tag-equip { background: #e8f5e9; color: #2e7d32; }
-    .btn-add-lib { width: 100%; border: none; padding: 9px; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .lib-card-btns { display: flex; gap: 6px; }
+    .btn-preview { flex: 0 0 auto; background: #f0f0f0; border: none; padding: 9px 12px; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .btn-preview:hover { background: #e0e0e0; }
+    .btn-add-lib { flex: 1; border: none; padding: 9px; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .btn-add-lib.not-added { background: #FFD008; color: #000; }
     .btn-add-lib.not-added:hover { background: #e6bc00; }
-    .btn-add-lib.is-added { background: #000; color: #FFD008; cursor: default; }
+    .btn-add-lib.is-added { background: #000; color: #FFD008; }
     .lib-loading { text-align: center; padding: 32px; color: #999; font-size: 13px; }
     .lib-empty { text-align: center; padding: 32px; color: #bbb; font-size: 13px; }
     .lib-pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 16px; }
@@ -85,23 +87,24 @@
     .btn-page:hover:not(:disabled) { background: #FFD008; }
     .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
     .lib-info-bar { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .lib-hint { font-size: 11px; color: #aaa; margin-top: 4px; margin-bottom: 16px; }
     .selected-summary { background: #fffdf0; border: 1.5px solid #FFD008; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #000; display: none; }
     .selected-summary.show { display: block; }
-
-    .lib-hint { font-size: 11px; color: #aaa; margin-top: 6px; }
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    /* MODALE */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.hidden { display: none; }
-    .modal-box { background: #fff; border-radius: 16px; max-width: 480px; width: 100%; overflow: hidden; position: relative; }
-    .modal-header { background: #000; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
-    .modal-title { color: #fff; font-size: 14px; font-weight: 700; text-transform: capitalize; }
-    .modal-close { background: #FFD008; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .modal-gif { width: 100%; height: 280px; object-fit: contain; background: #f5f5f5; display: block; }
-    .modal-gif-placeholder { width: 100%; height: 280px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; }
-    .modal-body { padding: 20px; }
-    .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
-    .modal-btn-add { width: 100%; background: #FFD008; color: #000; border: none; padding: 12px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .modal-box { background: #fff; border-radius: 16px; max-width: 460px; width: 100%; overflow: hidden; }
+    .modal-header { background: #000; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .modal-title { color: #fff; font-size: 13px; font-weight: 700; text-transform: capitalize; flex: 1; margin-right: 10px; }
+    .modal-close { background: #FFD008; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+    .modal-gif-wrap { width: 100%; height: 260px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .modal-gif-wrap img { width: 100%; height: 260px; object-fit: contain; }
+    .modal-body { padding: 18px 20px; }
+    .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .modal-btn-add { width: 100%; border: none; padding: 12px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .modal-btn-add.not-added { background: #FFD008; color: #000; }
+    .modal-btn-add.not-added:hover { background: #e6bc00; }
     .modal-btn-add.is-added { background: #000; color: #FFD008; }
-    .modal-btn-add:hover:not(.is-added) { background: #e6bc00; }
   </style>
 </head>
 <body>
@@ -114,7 +117,7 @@
   </nav>
 
   <div class="main">
-    <div class="patient-info" id="patient-info">
+    <div class="patient-info">
       <div>
         <div class="patient-info-name" id="pi-nome">Caricamento...</div>
         <div class="patient-info-sub" id="pi-sub"></div>
@@ -129,14 +132,8 @@
         <input type="text" id="proto-nome" placeholder="es. Protocollo mattino — Lombalgia">
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label>Data inizio</label>
-          <input type="date" id="proto-inizio">
-        </div>
-        <div class="form-group">
-          <label>Data fine</label>
-          <input type="date" id="proto-fine">
-        </div>
+        <div class="form-group"><label>Data inizio</label><input type="date" id="proto-inizio"></div>
+        <div class="form-group"><label>Data fine</label><input type="date" id="proto-fine"></div>
       </div>
       <div class="form-group">
         <label>Frequenza</label>
@@ -173,9 +170,8 @@
 
     <div class="section">
       <div class="section-title">Libreria esercizi <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;background:#e3f2fd;color:#1565c0;vertical-align:middle;letter-spacing:0;text-transform:none">ExerciseDB</span></div>
-      <p style="font-size:13px;color:#666;margin-bottom:4px">Cerca tra oltre 1300 esercizi e aggiungili al protocollo.</p>
+      <p style="font-size:13px;color:#666;margin-bottom:2px">Cerca tra oltre 1300 esercizi e aggiungili al protocollo.</p>
       <p class="lib-hint">Puoi cercare in italiano: lombari, spalle, addome, petto, gambe, braccia...</p>
-      <br>
       <div class="library-search-row">
         <input type="text" id="lib-search" placeholder="es. lombari, squat, spalle, core..." onkeydown="if(event.key==='Enter')cercaEsercizi()">
         <select id="lib-muscle">
@@ -209,19 +205,21 @@
       <button class="btn-primary" id="btn-salva" onclick="salvaProtocollo()">&#10003; Assegna protocollo</button>
       <div class="success-banner" id="success-banner">&#9989; Protocollo assegnato con successo! Il paziente può ora accedere agli esercizi.</div>
     </div>
+  </div>
 
-    <!-- MODALE ANTEPRIMA -->
-    <div class="modal-overlay hidden" id="modal-overlay" onclick="chiudiModale(event)">
-      <div class="modal-box">
-        <div class="modal-header">
-          <div class="modal-title" id="modal-nome"></div>
-          <button class="modal-close" onclick="document.getElementById('modal-overlay').classList.add('hidden')">&#x2715;</button>
-        </div>
-        <div id="modal-gif-container"></div>
-        <div class="modal-body">
-          <div class="modal-tags" id="modal-tags"></div>
-          <button class="modal-btn-add" id="modal-btn-add" onclick="toggleLibExerciseFromModal()">+ Aggiungi al protocollo</button>
-        </div>
+  <!-- MODALE ANTEPRIMA GIF -->
+  <div class="modal-overlay hidden" id="modal-overlay" onclick="chiudiModaleClick(event)">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-nome"></div>
+        <button class="modal-close" onclick="chiudiModale()">&#x2715;</button>
+      </div>
+      <div class="modal-gif-wrap" id="modal-gif-wrap">
+        <div style="text-align:center;color:#aaa;font-size:13px">Caricamento...</div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-tags" id="modal-tags"></div>
+        <button class="modal-btn-add not-added" id="modal-btn-add" onclick="toggleDalModale()">+ Aggiungi al protocollo</button>
       </div>
     </div>
   </div>
@@ -241,67 +239,58 @@
     let libTotalResults = []
     let libExercisesMap = {}
     let libPage = 0
+    let modalCurrentId = null
     const LIB_PAGE_SIZE = 6
 
-    // Traduzione IT -> EN per ricerca
     const traduzioneIT = {
-      'lombari': 'lower back', 'lombare': 'lower back', 'schiena': 'back', 'dorso': 'back',
-      'spalle': 'shoulder', 'spalla': 'shoulder', 'deltoide': 'shoulder', 'deltoidi': 'shoulder',
-      'petto': 'chest', 'pettorale': 'chest', 'pettorali': 'chest',
-      'gambe': 'legs', 'gamba': 'leg', 'quadricipite': 'quadriceps', 'quadricipiti': 'quadriceps',
-      'femorali': 'hamstring', 'femorale': 'hamstring', 'polpaccio': 'calf', 'polpacci': 'calves',
-      'addome': 'abs', 'addominali': 'abs', 'core': 'abs', 'addominale': 'abs',
-      'braccia': 'arm', 'braccio': 'arm', 'bicipite': 'bicep', 'bicipiti': 'bicep',
-      'tricipite': 'tricep', 'tricipiti': 'tricep', 'avambraccio': 'forearm', 'avambracci': 'forearm',
-      'collo': 'neck', 'cervicale': 'neck', 'cervicali': 'neck',
-      'glutei': 'glute', 'gluteo': 'glute', 'fianchi': 'hip', 'anca': 'hip',
-      'cardio': 'cardio', 'stretching': 'stretch', 'mobilita': 'mobility',
-      'squat': 'squat', 'plank': 'plank', 'ponte': 'bridge', 'affondi': 'lunge',
-      'stacchi': 'deadlift', 'rematore': 'row', 'tirate': 'pull'
+      'lombari':'lower back','lombare':'lower back','schiena':'back','dorso':'back',
+      'spalle':'shoulder','spalla':'shoulder','deltoide':'shoulder','deltoidi':'shoulder',
+      'petto':'chest','pettorale':'chest','pettorali':'chest',
+      'gambe':'legs','gamba':'leg','quadricipite':'quadriceps','quadricipiti':'quadriceps',
+      'femorali':'hamstring','femorale':'hamstring','polpaccio':'calf','polpacci':'calves',
+      'addome':'abs','addominali':'abs','core':'abs','addominale':'abs',
+      'braccia':'arm','braccio':'arm','bicipite':'bicep','bicipiti':'bicep',
+      'tricipite':'tricep','tricipiti':'tricep','avambraccio':'forearm','avambracci':'forearm',
+      'collo':'neck','cervicale':'neck','cervicali':'neck',
+      'glutei':'glute','gluteo':'glute','fianchi':'hip','anca':'hip',
+      'cardio':'cardio','stretching':'stretch','squat':'squat','plank':'plank',
+      'ponte':'bridge','affondi':'lunge','stacchi':'deadlift','rematore':'row'
     }
 
-    function traduci(testo) {
-      const t = testo.toLowerCase().trim()
-      if (traduzioneIT[t]) return traduzioneIT[t]
-      // prova parola per parola
-      const parole = t.split(' ')
-      const tradotte = parole.map(p => traduzioneIT[p] || p)
-      return tradotte.join(' ')
+    function traduci(t) {
+      const low = t.toLowerCase().trim()
+      if (traduzioneIT[low]) return traduzioneIT[low]
+      return low.split(' ').map(p => traduzioneIT[p] || p).join(' ')
     }
 
-    // Colori e icone SVG per bodyPart
-    const bodyPartConfig = {
-      'back':       { color: '#3b82f6', bg: '#eff6ff', icon: 'M12 2C8 2 6 5 6 8c0 2 1 4 3 5v7h6V13c2-1 3-3 3-5 0-3-2-6-6-6z', label: 'Schiena' },
-      'chest':      { color: '#ef4444', bg: '#fef2f2', icon: 'M12 3C9 3 6 5 5 8l-1 4h16l-1-4c-1-3-4-5-7-5z M5 12v4c0 3 3 5 7 5s7-2 7-5v-4H5z', label: 'Petto' },
-      'shoulders':  { color: '#8b5cf6', bg: '#f5f3ff', icon: 'M4 10c0-2 2-4 4-4h1v8H8c-2 0-4-2-4-4z M20 10c0-2-2-4-4-4h-1v8h1c2 0 4-2 4-4z M9 6h6v12H9z', label: 'Spalle' },
-      'upper arms': { color: '#f59e0b', bg: '#fffbeb', icon: 'M9 4h6v6l2 6H7l2-6V4z', label: 'Braccia' },
-      'lower arms': { color: '#d97706', bg: '#fef3c7', icon: 'M10 4h4v10l1 6H9l1-6V4z', label: 'Avambracci' },
-      'upper legs': { color: '#10b981', bg: '#ecfdf5', icon: 'M8 4h8l2 10H6L8 4z M6 14h5v6H8l-2-6z M18 14h-5v6h3l2-6z', label: 'Gambe' },
-      'lower legs': { color: '#059669', bg: '#d1fae5', icon: 'M9 4h6v8H9V4z M8 12h3v8H9l-1-8z M16 12h-3v8h2l1-8z', label: 'Polpacci' },
-      'waist':      { color: '#ec4899', bg: '#fdf2f8', icon: 'M6 8h12v8H6z M8 6h8v2H8z M8 16h8v2H8z', label: 'Core/Addome' },
-      'neck':       { color: '#6366f1', bg: '#eef2ff', icon: 'M10 2h4v6l1 4H9l1-4V2z M8 12h8v6c0 2-1 4-4 4s-4-2-4-4v-6z', label: 'Collo' },
-      'cardio':     { color: '#f43f5e', bg: '#fff1f2', icon: 'M12 21l-1-1C5 14 2 11 2 8c0-3 2-5 5-5 2 0 4 1 5 3 1-2 3-3 5-3 3 0 5 2 5 5 0 3-3 6-9 12l-1 1z', label: 'Cardio' }
+    const bodyPartEmoji = {
+      'back':'🔵','chest':'🔴','shoulders':'🟣','upper arms':'🟡',
+      'lower arms':'🟠','upper legs':'🟢','lower legs':'🍃',
+      'waist':'🌸','neck':'🔷','cardio':'❤️'
+    }
+    const bodyPartLabel = {
+      'back':'Schiena','chest':'Petto','shoulders':'Spalle','upper arms':'Braccia',
+      'lower arms':'Avambracci','upper legs':'Gambe','lower legs':'Polpacci',
+      'waist':'Core / Addome','neck':'Collo','cardio':'Cardio'
+    }
+    const bodyPartBg = {
+      'back':'#eff6ff','chest':'#fef2f2','shoulders':'#f5f3ff','upper arms':'#fffbeb',
+      'lower arms':'#fef3c7','upper legs':'#ecfdf5','lower legs':'#d1fae5',
+      'waist':'#fdf2f8','neck':'#eef2ff','cardio':'#fff1f2'
     }
 
-    function getMusclePreview(bodyPart, exName) {
-      const bp = (bodyPart || '').toLowerCase()
-      const cfg = bodyPartConfig[bp] || { color: '#666', bg: '#f5f5f5', label: bodyPart || 'Esercizio' }
-      const initials = exName.split(' ').slice(0,2).map(w => w[0]||'').join('').toUpperCase()
-      return '<div class="lib-card-preview" style="background:' + cfg.bg + '">' +
+    function getPreviewHTML(ex) {
+      const bp = (ex.bodyPart || '').toLowerCase()
+      const emoji = bodyPartEmoji[bp] || '💪'
+      const label = bodyPartLabel[bp] || ex.bodyPart || 'Esercizio'
+      const bg = bodyPartBg[bp] || '#f5f5f5'
+      return '<div class="lib-card-preview" style="background:' + bg + ';cursor:pointer" onclick="apriModale(\'' + ex.id + '\')">' +
         '<div style="text-align:center">' +
-          '<div style="font-size:36px;margin-bottom:6px">' + getBodyPartEmoji(bp) + '</div>' +
-          '<div style="font-size:11px;font-weight:700;color:' + cfg.color + ';text-transform:uppercase;letter-spacing:1px">' + cfg.label + '</div>' +
+          '<div style="font-size:40px;margin-bottom:4px">' + emoji + '</div>' +
+          '<div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px">' + label + '</div>' +
+          '<div style="font-size:10px;color:#aaa;margin-top:2px">Clicca per anteprima GIF</div>' +
         '</div>' +
       '</div>'
-    }
-
-    function getBodyPartEmoji(bp) {
-      const map = {
-        'back': '🔵', 'chest': '🔴', 'shoulders': '🟣', 'upper arms': '🟡',
-        'lower arms': '🟠', 'upper legs': '🟢', 'lower legs': '🍃',
-        'waist': '🌸', 'neck': '🔷', 'cardio': '❤️'
-      }
-      return map[bp] || '💪'
     }
 
     document.getElementById('btn-back').onclick = () => window.location.href = 'paziente.html?id=' + patientId
@@ -335,22 +324,20 @@
 
     function renderExercises() {
       const list = document.getElementById('exercise-list')
-      if (allExercises.length === 0) { list.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio disponibile.</div>'; return }
+      if (!allExercises.length) { list.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio disponibile.</div>'; return }
       list.innerHTML = allExercises.map(ex => {
-        const isSelected = selectedExercises.some(s => s.id === ex.id && s.source === 'policettivo')
+        const isSel = selectedExercises.some(s => s.id === ex.id && s.source === 'policettivo')
         const cfg = exerciseCfg[ex.id] || selectedConfig || 'NPL'
-        const ordine = selectedExercises.findIndex(s => s.id === ex.id && s.source === 'policettivo') + 1
-        return '<div class="exercise-item ' + (isSelected ? 'selected' : '') + '" onclick="toggleExercise(\'' + ex.id + '\',\'policettivo\')">' +
-          '<div class="exercise-check">' + (isSelected ? '&#10003;' : '') + '</div>' +
-          '<div class="exercise-info">' +
-            '<div class="exercise-name">' + ex.nome + '</div>' +
-            '<div class="exercise-meta">' + (ex.durata_default || 90) + ' sec &middot; ' + ex.livello + '</div>' +
-          '</div>' +
-          (isSelected ? '<div class="exercise-cfg" onclick="event.stopPropagation()">' +
-            '<span class="cfg-mini ' + (cfg === 'NPL' ? 'cfg-npl' : 'cfg-inactive') + '" onclick="setCfg(\'' + ex.id + '\',\'NPL\')">NPL</span>' +
-            '<span class="cfg-mini ' + (cfg === 'GPL' ? 'cfg-gpl' : 'cfg-inactive') + '" onclick="setCfg(\'' + ex.id + '\',\'GPL\')">GPL</span>' +
+        const ord = selectedExercises.findIndex(s => s.id === ex.id && s.source === 'policettivo') + 1
+        return '<div class="exercise-item ' + (isSel ? 'selected' : '') + '" onclick="toggleExercise(\'' + ex.id + '\',\'policettivo\')">' +
+          '<div class="exercise-check">' + (isSel ? '&#10003;' : '') + '</div>' +
+          '<div class="exercise-info"><div class="exercise-name">' + ex.nome + '</div>' +
+          '<div class="exercise-meta">' + (ex.durata_default||90) + ' sec &middot; ' + ex.livello + '</div></div>' +
+          (isSel ? '<div class="exercise-cfg" onclick="event.stopPropagation()">' +
+            '<span class="cfg-mini ' + (cfg==='NPL'?'cfg-npl':'cfg-inactive') + '" onclick="setCfg(\'' + ex.id + '\',\'NPL\')">NPL</span>' +
+            '<span class="cfg-mini ' + (cfg==='GPL'?'cfg-gpl':'cfg-inactive') + '" onclick="setCfg(\'' + ex.id + '\',\'GPL\')">GPL</span>' +
           '</div>' : '') +
-          (isSelected ? '<div style="font-size:11px;font-weight:700;color:#FFD008;min-width:20px;text-align:right">' + ordine + '</div>' : '') +
+          (isSel ? '<div style="font-size:11px;font-weight:700;color:#FFD008;min-width:20px;text-align:right">' + ord + '</div>' : '') +
         '</div>'
       }).join('')
       updateSummary()
@@ -358,236 +345,190 @@
 
     function toggleExercise(id, source) {
       const idx = selectedExercises.findIndex(s => s.id === id && s.source === source)
-      if (idx === -1) {
-        selectedExercises.push({ id, source })
-        if (source === 'policettivo') exerciseCfg[id] = selectedConfig || 'NPL'
-      } else {
-        selectedExercises.splice(idx, 1)
-      }
+      if (idx === -1) { selectedExercises.push({id, source}); if (source==='policettivo') exerciseCfg[id] = selectedConfig||'NPL' }
+      else selectedExercises.splice(idx, 1)
       renderExercises()
-      renderLibResults()
+      if (libTotalResults.length) renderLibResults()
     }
 
     function setCfg(id, cfg) { exerciseCfg[id] = cfg; renderExercises() }
 
-    function selectConfig(val) {
-      selectedConfig = val
-      updateConfigUI()
-      renderExercises()
-    }
+    function selectConfig(val) { selectedConfig = val; updateConfigUI(); renderExercises() }
 
     function updateConfigUI() {
-      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig === 'NPL' ? ' selected-npl' : '')
-      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig === 'GPL' ? ' selected-gpl' : '')
+      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig==='NPL'?' selected-npl':'')
+      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig==='GPL'?' selected-gpl':'')
     }
 
     function updateSummary() {
       const tot = selectedExercises.length
-      const sumEl = document.getElementById('selected-summary')
-      const hintEl = document.getElementById('order-hint')
-      if (tot === 0) { sumEl.classList.remove('show'); hintEl.textContent = ''; return }
-      const pol = selectedExercises.filter(s => s.source === 'policettivo').length
-      const lib = selectedExercises.filter(s => s.source === 'lib').length
+      const el = document.getElementById('selected-summary')
+      const hint = document.getElementById('order-hint')
+      if (!tot) { el.classList.remove('show'); hint.textContent=''; return }
+      const pol = selectedExercises.filter(s=>s.source==='policettivo').length
+      const lib = selectedExercises.filter(s=>s.source==='lib').length
       let txt = '<strong>' + tot + ' esercizi selezionati</strong>'
-      if (pol > 0 && lib > 0) txt += ' &mdash; ' + pol + ' Policettivo® + ' + lib + ' dalla libreria'
-      else if (lib > 0) txt += ' &mdash; ' + lib + ' dalla libreria ExerciseDB'
-      sumEl.innerHTML = txt
-      sumEl.classList.add('show')
-      hintEl.textContent = 'Verranno assegnati nell\'ordine di selezione.'
+      if (pol && lib) txt += ' &mdash; ' + pol + ' Policettivo® + ' + lib + ' dalla libreria'
+      else if (lib) txt += ' &mdash; ' + lib + ' dalla libreria ExerciseDB'
+      el.innerHTML = txt; el.classList.add('show')
+      hint.textContent = 'Verranno assegnati nell\'ordine di selezione.'
     }
 
     async function cercaEsercizi() {
       const queryRaw = document.getElementById('lib-search').value.trim()
       const muscle = document.getElementById('lib-muscle').value
-      const resultsEl = document.getElementById('library-results')
+      const resEl = document.getElementById('library-results')
       const infoEl = document.getElementById('lib-info-bar')
-
-      if (!queryRaw && !muscle) {
-        resultsEl.innerHTML = '<div class="lib-empty">Inserisci un termine o seleziona un distretto muscolare.</div>'
-        return
-      }
-
-      resultsEl.innerHTML = '<div class="lib-loading">&#8987; Ricerca in corso...</div>'
+      if (!queryRaw && !muscle) { resEl.innerHTML = '<div class="lib-empty">Inserisci un termine o seleziona un distretto.</div>'; return }
+      resEl.innerHTML = '<div class="lib-loading">&#8987; Ricerca in corso...</div>'
       infoEl.textContent = ''
       document.getElementById('lib-pagination').innerHTML = ''
-
       const query = queryRaw ? traduci(queryRaw) : ''
-
       try {
-        const opts = { method: 'GET', headers: { 'x-rapidapi-key': RAPIDAPI_KEY, 'x-rapidapi-host': 'exercisedb.p.rapidapi.com' } }
-        let url
-        if (muscle) {
-          url = 'https://exercisedb.p.rapidapi.com/exercises/bodyPart/' + encodeURIComponent(muscle) + '?limit=100&offset=0'
-        } else {
-          url = 'https://exercisedb.p.rapidapi.com/exercises/name/' + encodeURIComponent(query) + '?limit=100&offset=0'
-        }
+        const opts = { method:'GET', headers:{'x-rapidapi-key':RAPIDAPI_KEY,'x-rapidapi-host':'exercisedb.p.rapidapi.com'} }
+        const url = muscle
+          ? 'https://exercisedb.p.rapidapi.com/exercises/bodyPart/' + encodeURIComponent(muscle) + '?limit=100&offset=0'
+          : 'https://exercisedb.p.rapidapi.com/exercises/name/' + encodeURIComponent(query) + '?limit=100&offset=0'
         const resp = await fetch(url, opts)
         if (!resp.ok) throw new Error('Errore API ' + resp.status)
         const data = await resp.json()
-        if (!data || data.length === 0) {
-          resultsEl.innerHTML = '<div class="lib-empty">Nessun esercizio trovato. Prova con un altro termine.</div>'
-          return
-        }
+        if (!data || !data.length) { resEl.innerHTML = '<div class="lib-empty">Nessun esercizio trovato.</div>'; return }
         let filtered = data
-        if (muscle && query) {
-          filtered = data.filter(e => e.name.toLowerCase().includes(query.toLowerCase()))
-        }
-        // salva in mappa per recupero rapido
+        if (muscle && query) filtered = data.filter(e => e.name.toLowerCase().includes(query.toLowerCase()))
         filtered.forEach(e => { libExercisesMap[e.id] = e })
         libTotalResults = filtered
         libPage = 0
-        const termineUsato = query !== queryRaw && query ? ' (cercato: "' + query + '")' : ''
-        infoEl.textContent = filtered.length + ' esercizi trovati' + termineUsato
+        const nota = (query && query !== queryRaw) ? ' (cercato: "' + query + '")' : ''
+        infoEl.textContent = filtered.length + ' esercizi trovati' + nota
         renderLibResults()
       } catch(err) {
-        resultsEl.innerHTML = '<div class="lib-empty">&#9888; Errore di connessione.<br><small>' + err.message + '</small></div>'
+        resEl.innerHTML = '<div class="lib-empty">&#9888; Errore: ' + err.message + '</div>'
       }
     }
 
     function renderLibResults() {
-      if (libTotalResults.length === 0) return
+      if (!libTotalResults.length) return
       const start = libPage * LIB_PAGE_SIZE
-      const pageItems = libTotalResults.slice(start, start + LIB_PAGE_SIZE)
-      const resultsEl = document.getElementById('library-results')
+      const items = libTotalResults.slice(start, start + LIB_PAGE_SIZE)
+      const resEl = document.getElementById('library-results')
       const pagEl = document.getElementById('lib-pagination')
-      resultsEl.className = 'library-grid'
-      resultsEl.innerHTML = pageItems.map((ex, i) => {
-        const globalIdx = start + i
+      resEl.className = 'library-grid'
+      resEl.innerHTML = items.map(ex => {
         const isAdded = selectedExercises.some(s => s.id === ex.id && s.source === 'lib')
-        const muscles = [ex.target, ...(ex.secondaryMuscles || [])].filter(Boolean).slice(0,2)
-        return '<div class="lib-card ' + (isAdded ? 'added' : '') + '">' +
-          getMusclePreview(ex.bodyPart, ex.name) +
+        const muscles = [ex.target, ...(ex.secondaryMuscles||[])].filter(Boolean).slice(0,2)
+        return '<div class="lib-card ' + (isAdded?'added':'') + '">' +
+          getPreviewHTML(ex) +
           '<div class="lib-card-body">' +
             '<div class="lib-card-name">' + ex.name + '</div>' +
             '<div class="lib-card-tags">' +
-              '<span class="lib-tag lib-tag-equip">' + (ex.equipment || 'corpo libero') + '</span>' +
+              '<span class="lib-tag lib-tag-equip">' + (ex.equipment||'corpo libero') + '</span>' +
               muscles.map(m => '<span class="lib-tag lib-tag-muscle">' + m + '</span>').join('') +
             '</div>' +
-            '<div style="display:flex;gap:6px">' +
-            '<button style="flex:0 0 auto;background:#f0f0f0;border:none;padding:9px 12px;border-radius:7px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer" onclick="apriModale(\'' + ex.id + '\')">' +
-              '&#128065; Anteprima' +
-            '</button>' +
-            '<button class="btn-add-lib ' + (isAdded ? 'is-added' : 'not-added') + '" onclick="toggleLibExercise(\'' + ex.id + '\')">' +
-              (isAdded ? '&#10003; Aggiunto' : '+ Aggiungi') +
-            '</button>' +
+            '<div class="lib-card-btns">' +
+              '<button class="btn-preview" onclick="apriModale(\'' + ex.id + '\')">&#128065; GIF</button>' +
+              '<button class="btn-add-lib ' + (isAdded?'is-added':'not-added') + '" onclick="toggleExercise(\'' + ex.id + '\',\'lib\')">' +
+                (isAdded ? '&#10003; Aggiunto' : '+ Aggiungi') +
+              '</button>' +
             '</div>' +
           '</div>' +
         '</div>'
       }).join('')
-      const totPages = Math.ceil(libTotalResults.length / LIB_PAGE_SIZE)
-      if (totPages > 1) {
-        pagEl.innerHTML =
-          '<button class="btn-page" onclick="cambiaLibPagina(-1)" ' + (libPage===0?'disabled':'') + '>&larr;</button>' +
-          '<span style="font-size:12px;color:#888">' + (libPage+1) + ' / ' + totPages + '</span>' +
-          '<button class="btn-page" onclick="cambiaLibPagina(1)" ' + (libPage>=totPages-1?'disabled':'') + '>&rarr;</button>'
-      } else { pagEl.innerHTML = '' }
-    }
-
-    function toggleLibExercise(exId) {
-      toggleExercise(exId, 'lib')
+      const tot = Math.ceil(libTotalResults.length / LIB_PAGE_SIZE)
+      pagEl.innerHTML = tot > 1
+        ? '<button class="btn-page" onclick="cambiaLibPagina(-1)" ' + (libPage===0?'disabled':'') + '>&larr;</button>' +
+          '<span style="font-size:12px;color:#888">' + (libPage+1) + ' / ' + tot + '</span>' +
+          '<button class="btn-page" onclick="cambiaLibPagina(1)" ' + (libPage>=tot-1?'disabled':'') + '>&rarr;</button>'
+        : ''
     }
 
     function cambiaLibPagina(dir) {
-      const totPages = Math.ceil(libTotalResults.length / LIB_PAGE_SIZE)
-      libPage = Math.max(0, Math.min(totPages-1, libPage+dir))
+      const tot = Math.ceil(libTotalResults.length / LIB_PAGE_SIZE)
+      libPage = Math.max(0, Math.min(tot-1, libPage+dir))
       renderLibResults()
-      document.getElementById('library-results').scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById('library-results').scrollIntoView({behavior:'smooth',block:'start'})
     }
-
-    async function salvaProtocollo() {
-      const nome = document.getElementById('proto-nome').value.trim()
-      if (!nome) { alert('Inserisci un nome per il protocollo'); return }
-      if (!selectedConfig) { alert('Seleziona la configurazione NPL o GPL'); return }
-      if (selectedExercises.length === 0) { alert('Seleziona almeno un esercizio'); return }
-      const btn = document.getElementById('btn-salva')
-      btn.disabled = true; btn.textContent = 'Salvataggio...'
-      await _supabase.from('patient_protocols').update({ stato: 'sospeso' }).eq('patient_id', patientId).eq('stato', 'attivo')
-      const { data: proto, error } = await _supabase.from('patient_protocols').insert({
-        patient_id: patientId,
-        professional_id: professional ? professional.id : null,
-        nome_personalizzato: nome,
-        data_inizio: document.getElementById('proto-inizio').value,
-        data_fine: document.getElementById('proto-fine').value,
-        frequenza: document.getElementById('proto-frequenza').value,
-        configurazione_generale: selectedConfig,
-        stato: 'attivo'
-      }).select().single()
-      if (error) { alert('Errore: ' + error.message); btn.disabled=false; btn.textContent='\u2713 Assegna protocollo'; return }
-      const exRows = []
-      for (let i = 0; i < selectedExercises.length; i++) {
-        const sel = selectedExercises[i]
-        if (sel.source === 'policettivo') {
-          const ex = allExercises.find(e => e.id === sel.id)
-          exRows.push({ patient_protocol_id: proto.id, exercise_id: sel.id, ordine: i+1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default||90, ripetizioni: ex?.ripetizioni||1 })
-        } else {
-          const libEx = libExercisesMap[sel.id]
-          if (libEx) {
-            const desc = 'Muscolo: ' + libEx.target + (libEx.secondaryMuscles?.length ? ' | Secondari: ' + libEx.secondaryMuscles.join(', ') : '') + ' | Attrezzatura: ' + (libEx.equipment||'corpo libero')
-            const { data: newEx, error: newExErr } = await _supabase.from('exercises').insert({
-              nome: libEx.name,
-              descrizione: desc,
-              video_url: libEx.gifUrl,
-              livello: 'base',
-              durata_default: 60,
-              ripetizioni: 1,
-              active: false,
-              fonte: 'exercisedb'
-            }).select().single()
-            if (!newExErr && newEx) {
-              exRows.push({ patient_protocol_id: proto.id, exercise_id: newEx.id, ordine: i+1, configurazione: selectedConfig, durata: 60, ripetizioni: 1 })
-            }
-          }
-        }
-      }
-      const { error: exErr } = await _supabase.from('patient_protocol_exercises').insert(exRows)
-      if (exErr) { alert('Errore esercizi: ' + exErr.message); return }
-      btn.textContent = '\u2713 Assegnato!'
-      document.getElementById('success-banner').classList.add('show')
-      setTimeout(() => { window.location.href = 'paziente.html?id=' + patientId }, 2000)
-    }
-
-
-    let modalCurrentId = null
 
     function apriModale(exId) {
       const ex = libExercisesMap[exId]
       if (!ex) return
       modalCurrentId = exId
       document.getElementById('modal-nome').textContent = ex.name
-      const gifContainer = document.getElementById('modal-gif-container')
-      gifContainer.innerHTML = '<div class="modal-gif-placeholder"><div style="font-size:48px">' + getBodyPartEmoji((ex.bodyPart||'').toLowerCase()) + '</div><div style="font-size:12px;color:#999">Caricamento GIF...</div></div>'
+      const bp = (ex.bodyPart||'').toLowerCase()
+      const emoji = bodyPartEmoji[bp] || '💪'
+      const gifWrap = document.getElementById('modal-gif-wrap')
+      gifWrap.innerHTML = '<div style="text-align:center;padding:40px"><div style="font-size:48px">' + emoji + '</div><div style="color:#aaa;font-size:12px;margin-top:8px">Caricamento GIF...</div></div>'
       const img = new Image()
-      img.className = 'modal-gif'
-      img.alt = ex.name
-      img.onload = function() { gifContainer.innerHTML = ''; gifContainer.appendChild(img) }
-      img.onerror = function() { gifContainer.innerHTML = '<div class="modal-gif-placeholder"><div style="font-size:48px">' + getBodyPartEmoji((ex.bodyPart||'').toLowerCase()) + '</div><div style="font-size:12px;color:#aaa">Anteprima non disponibile</div></div>' }
+      img.style.width = '100%'
+      img.style.height = '260px'
+      img.style.objectFit = 'contain'
+      img.onload = function() { gifWrap.innerHTML = ''; gifWrap.appendChild(img) }
+      img.onerror = function() { gifWrap.innerHTML = '<div style="text-align:center;padding:40px"><div style="font-size:48px">' + emoji + '</div><div style="color:#aaa;font-size:12px;margin-top:8px">GIF non disponibile</div></div>' }
       img.src = ex.gifUrl
       const muscles = [ex.target, ...(ex.secondaryMuscles||[])].filter(Boolean)
       document.getElementById('modal-tags').innerHTML =
         '<span class="lib-tag" style="background:#e3f2fd;color:#1565c0">' + (ex.bodyPart||'') + '</span>' +
         '<span class="lib-tag lib-tag-equip">' + (ex.equipment||'corpo libero') + '</span>' +
         muscles.map(m => '<span class="lib-tag lib-tag-muscle">' + m + '</span>').join('')
-      aggiornaModaleBtnAdd()
+      aggiornaModalBtn()
       document.getElementById('modal-overlay').classList.remove('hidden')
     }
 
-    function aggiornaModaleBtnAdd() {
+    function aggiornaModalBtn() {
       const isAdded = selectedExercises.some(s => s.id === modalCurrentId && s.source === 'lib')
       const btn = document.getElementById('modal-btn-add')
-      btn.className = 'modal-btn-add' + (isAdded ? ' is-added' : '')
+      btn.className = 'modal-btn-add ' + (isAdded ? 'is-added' : 'not-added')
       btn.textContent = isAdded ? '\u2713 Aggiunto al protocollo' : '+ Aggiungi al protocollo'
     }
 
-    function toggleLibExerciseFromModal() {
+    function toggleDalModale() {
       if (!modalCurrentId) return
-      toggleLibExercise(modalCurrentId)
-      aggiornaModaleBtnAdd()
+      toggleExercise(modalCurrentId, 'lib')
+      aggiornaModalBtn()
     }
 
-    function chiudiModale(event) {
-      if (event.target === document.getElementById('modal-overlay')) {
-        document.getElementById('modal-overlay').classList.add('hidden')
+    function chiudiModale() { document.getElementById('modal-overlay').classList.add('hidden') }
+    function chiudiModaleClick(e) { if (e.target === document.getElementById('modal-overlay')) chiudiModale() }
+
+    async function salvaProtocollo() {
+      const nome = document.getElementById('proto-nome').value.trim()
+      if (!nome) { alert('Inserisci un nome per il protocollo'); return }
+      if (!selectedConfig) { alert('Seleziona la configurazione NPL o GPL'); return }
+      if (!selectedExercises.length) { alert('Seleziona almeno un esercizio'); return }
+      const btn = document.getElementById('btn-salva')
+      btn.disabled = true; btn.textContent = 'Salvataggio...'
+      await _supabase.from('patient_protocols').update({stato:'sospeso'}).eq('patient_id',patientId).eq('stato','attivo')
+      const { data: proto, error } = await _supabase.from('patient_protocols').insert({
+        patient_id: patientId, professional_id: professional?.id||null,
+        nome_personalizzato: nome,
+        data_inizio: document.getElementById('proto-inizio').value,
+        data_fine: document.getElementById('proto-fine').value,
+        frequenza: document.getElementById('proto-frequenza').value,
+        configurazione_generale: selectedConfig, stato: 'attivo'
+      }).select().single()
+      if (error) { alert('Errore: '+error.message); btn.disabled=false; btn.textContent='\u2713 Assegna protocollo'; return }
+      const exRows = []
+      for (let i=0; i<selectedExercises.length; i++) {
+        const sel = selectedExercises[i]
+        if (sel.source === 'policettivo') {
+          const ex = allExercises.find(e => e.id===sel.id)
+          exRows.push({ patient_protocol_id:proto.id, exercise_id:sel.id, ordine:i+1, configurazione:exerciseCfg[sel.id]||selectedConfig, durata:ex?.durata_default||90, ripetizioni:ex?.ripetizioni||1 })
+        } else {
+          const libEx = libExercisesMap[sel.id]
+          if (libEx) {
+            const desc = 'Muscolo: ' + libEx.target + (libEx.secondaryMuscles?.length ? ' | Secondari: '+libEx.secondaryMuscles.join(', ') : '') + ' | Attrezzatura: '+(libEx.equipment||'corpo libero')
+            const { data: newEx, error: ne } = await _supabase.from('exercises').insert({
+              nome: libEx.name, descrizione: desc, video_url: libEx.gifUrl,
+              livello:'base', durata_default:60, ripetizioni:1, active:false, fonte:'exercisedb'
+            }).select().single()
+            if (!ne && newEx) exRows.push({ patient_protocol_id:proto.id, exercise_id:newEx.id, ordine:i+1, configurazione:selectedConfig, durata:60, ripetizioni:1 })
+          }
+        }
       }
+      const { error: exErr } = await _supabase.from('patient_protocol_exercises').insert(exRows)
+      if (exErr) { alert('Errore esercizi: '+exErr.message); return }
+      btn.textContent = '\u2713 Assegnato!'
+      document.getElementById('success-banner').classList.add('show')
+      setTimeout(() => { window.location.href = 'paziente.html?id='+patientId }, 2000)
     }
 
     init()
