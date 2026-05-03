@@ -209,8 +209,8 @@
       loadAll()
     }
 
-    async function eliminaProfessionista(id, nome) {
-      if (!confirm('Eliminare definitivamente ' + nome + ' e tutti i suoi dati? Operazione irreversibile.')) return
+    async function eliminaProfessionista(id) {
+      if (!confirm('Eliminare definitivamente questo professionista e tutti i suoi dati? Operazione irreversibile.')) return
       const { data: prof } = await _supabase.from('professionals').select('user_id').eq('id', id).single()
       if (prof && prof.user_id) {
         const { data: pats } = await _supabase.from('patients').select('id').eq('professional_id', id)
