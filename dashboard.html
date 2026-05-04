@@ -412,7 +412,8 @@
         configurazione_default: selectedConfig, stato: 'attivo'
       })
       if (error) { alert('Errore: ' + error.message); return }
-      closeModal(); loadPatients(); loadStats()
+      const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).single()
+      if (nuovo) { window.location.href = 'paziente.html?id=' + nuovo.id } else { closeModal(); loadPatients(); loadStats() }
     }
     function goToPatient(id) { window.location.href = 'paziente.html?id=' + id }
     async function eliminaPaziente(id, nome) {
