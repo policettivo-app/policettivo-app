@@ -326,36 +326,43 @@
       </div>
       <div id="cartella-container" style="display:none">
         <div class="upload-form" id="upload-form">
-          <div style="margin-bottom:10px">
+          <div style="margin-bottom:12px">
             <div class="osservazione-label" style="margin-bottom:8px">Tipo documento:</div>
             <div class="doc-tipo-selector">
-              <button class="doc-tipo-btn selected" onclick="selectTipo(this,'lastra')">Lastra</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'referto')">Referto</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'visita')">Visita spec.</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'esame')">Esame lab.</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'altro')">Altro</button>
+              <button class="doc-tipo-btn selected" onclick="selectTipo(this,'lastra')">🩻 Lastra</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'referto')">📄 Referto</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'visita')">👨‍⚕️ Visita</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'esame')">🧪 Esame</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'altro')">📎 Altro</button>
             </div>
           </div>
-          <div class="edit-group" style="margin-bottom:10px">
-            <label>Descrizione</label>
+          <div class="edit-group" style="margin-bottom:12px">
+            <label>Descrizione <span style="font-weight:400;color:#bbb">(opzionale)</span></label>
             <input type="text" id="doc-descrizione" placeholder="Es. RMN lombare gennaio 2025">
           </div>
-          <div class="doc-upload-area" onclick="document.getElementById('doc-file-input').click()">
-            <div class="upload-icon">&#128193;</div>
-            <div class="upload-text">Clicca per scegliere il file</div>
-            <div class="upload-hint">Immagini JPG PNG o PDF - max 10MB</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="doc-upload-area" onclick="document.getElementById('doc-file-input').click()" style="margin-bottom:0">
+              <div class="upload-icon">📁</div>
+              <div class="upload-text" style="font-weight:600">Scegli file</div>
+              <div class="upload-hint">JPG, PNG o PDF</div>
+            </div>
+            <div class="doc-upload-area" onclick="document.getElementById('doc-camera-input').click()" style="margin-bottom:0;border-color:#FFD008;background:#fffdf0">
+              <div class="upload-icon">📷</div>
+              <div class="upload-text" style="font-weight:600">Scatta foto</div>
+              <div class="upload-hint">Usa la fotocamera</div>
+            </div>
           </div>
           <input type="file" id="doc-file-input" accept="image/*,.pdf" style="display:none" onchange="handleDocFile(this)">
+          <input type="file" id="doc-camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleDocFile(this)">
           <div id="doc-file-preview" style="font-size:12px;color:#666;margin-bottom:10px;display:none"></div>
-          <div style="display:flex;gap:8px">
-            <button class="btn-save" onclick="uploadDocumento()">Carica documento</button>
+          <div id="upload-progress" style="font-size:12px;color:#999;margin-top:4px;display:none">⏳ Caricamento in corso...</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
             <button class="btn-cancel" onclick="chiudiUploadForm()">Annulla</button>
           </div>
-          <div id="upload-progress" style="font-size:12px;color:#999;margin-top:8px;display:none">Caricamento in corso...</div>
         </div>
         <div class="actions-row" style="margin-bottom:16px">
           <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
-          <button class="btn-secondary" id="btn-ai-analisi" onclick="avviaAnalisiAI()" style="display:none">Analisi AI</button>
+          <button class="btn-secondary" id="btn-ai-analisi" onclick="avviaAnalisiAI()" style="display:none">🤖 Analisi AI</button>
         </div>
         <div class="doc-list" id="doc-list">
           <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
@@ -741,14 +748,16 @@
       docFileSelezionato = file
       const preview = document.getElementById('doc-file-preview')
       const kb = (file.size / 1024).toFixed(0)
-      preview.textContent = 'File: ' + file.name + ' (' + kb + ' KB)'
+      preview.textContent = 'File selezionato: ' + file.name + ' (' + kb + ' KB)'
       preview.style.display = 'block'
+      uploadDocumento()
     }
 
     async function uploadDocumento() {
-      if (!docFileSelezionato) { alert('Seleziona un file prima di caricare.'); return }
+      if (!docFileSelezionato) return
       const descrizione = document.getElementById('doc-descrizione').value.trim()
-      if (!descrizione) { alert('Inserisci una descrizione per il documento.'); return }
+      const tipoLabel = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita', esame: 'Esame', altro: 'Documento' }
+      const descFinale = descrizione || tipoLabel[docTipoSelezionato] || 'Documento'
       const progress = document.getElementById('upload-progress')
       progress.style.display = 'block'
       const ext = docFileSelezionato.name.split('.').pop()
@@ -769,7 +778,7 @@
         patient_id: patientId,
         professional_id: prof ? prof.id : null,
         tipo: docTipoSelezionato,
-        descrizione: descrizione,
+        descrizione: descFinale,
         file_url: fileUrl,
         file_type: docFileSelezionato.type
       })
