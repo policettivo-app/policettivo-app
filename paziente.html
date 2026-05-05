@@ -87,7 +87,7 @@
     .doc-upload-area .upload-text { font-size: 13px; color: #666; }
     .doc-upload-area .upload-hint { font-size: 11px; color: #bbb; margin-top: 4px; }
     .doc-tipo-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-    .doc-tipo-btn { padding: 6px 14px; border: 1.5px solid #ddd; border-radius: 20px; font-family: "Montserrat", sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: #555; transition: all 0.15s; }
+    .doc-tipo-btn { padding: 6px 14px; border: 1.5px solid #ddd; border-radius: 20px; font-family: Montserrat, sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: #555; transition: all 0.15s; }
     .doc-tipo-btn:hover { border-color: #FFD008; }
     .doc-tipo-btn.selected { background: #FFD008; border-color: #FFD008; color: #000; }
     .doc-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
@@ -98,8 +98,8 @@
     .doc-item-desc { font-size: 13px; font-weight: 600; color: #000; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .doc-item-date { font-size: 11px; color: #aaa; margin-top: 2px; }
     .doc-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
-    .btn-doc-view { background: #FFD008; border: none; color: #000; padding: 6px 12px; border-radius: 6px; font-family: "Montserrat", sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; }
-    .btn-doc-del { background: transparent; border: 1px solid #ddd; color: #c62828; padding: 6px 10px; border-radius: 6px; font-family: "Montserrat", sans-serif; font-size: 11px; cursor: pointer; }
+    .btn-doc-view { background: #FFD008; border: none; color: #000; padding: 6px 12px; border-radius: 6px; font-family: Montserrat, sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .btn-doc-del { background: transparent; border: 1px solid #ddd; color: #c62828; padding: 6px 10px; border-radius: 6px; font-family: Montserrat, sans-serif; font-size: 11px; cursor: pointer; }
     .ai-report-box { background: #f0f4ff; border: 1.5px solid #90caf9; border-radius: 12px; padding: 20px; margin-top: 16px; display: none; }
     .ai-report-box.visible { display: block; }
     .ai-report-title { font-size: 13px; font-weight: 700; color: #1565c0; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -322,58 +322,49 @@
     <div class="section">
       <div class="section-header">
         <div class="section-title">Cartella Clinica <span class="section-optional">documenti e referti</span></div>
-        <button class="btn-edit" onclick="toggleCartella()" id="btn-cartella">▼ Mostra</button>
+        <button class="btn-edit" onclick="toggleCartella()" id="btn-cartella">&#9660; Mostra</button>
       </div>
       <div id="cartella-container" style="display:none">
-
-        <!-- Form upload -->
         <div class="upload-form" id="upload-form">
           <div style="margin-bottom:10px">
             <div class="osservazione-label" style="margin-bottom:8px">Tipo documento:</div>
             <div class="doc-tipo-selector">
-              <button class="doc-tipo-btn selected" onclick="selectTipo(this,'lastra')">🩻 Lastra</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'referto')">📄 Referto</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'visita')">👨‍⚕️ Visita specialist.</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'esame')">🧪 Esame lab.</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'altro')">📎 Altro</button>
+              <button class="doc-tipo-btn selected" onclick="selectTipo(this,'lastra')">Lastra</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'referto')">Referto</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'visita')">Visita spec.</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'esame')">Esame lab.</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'altro')">Altro</button>
             </div>
           </div>
           <div class="edit-group" style="margin-bottom:10px">
-            <label>Descrizione (es. "RMN lombare gen 2025")</label>
-            <input type="text" id="doc-descrizione" placeholder="Descrizione documento...">
+            <label>Descrizione</label>
+            <input type="text" id="doc-descrizione" placeholder="Es. RMN lombare gennaio 2025">
           </div>
           <div class="doc-upload-area" onclick="document.getElementById('doc-file-input').click()">
-            <div class="upload-icon">📁</div>
+            <div class="upload-icon">&#128193;</div>
             <div class="upload-text">Clicca per scegliere il file</div>
-            <div class="upload-hint">Immagini (JPG, PNG) o PDF — max 10MB</div>
+            <div class="upload-hint">Immagini JPG PNG o PDF - max 10MB</div>
           </div>
           <input type="file" id="doc-file-input" accept="image/*,.pdf" style="display:none" onchange="handleDocFile(this)">
           <div id="doc-file-preview" style="font-size:12px;color:#666;margin-bottom:10px;display:none"></div>
           <div style="display:flex;gap:8px">
-            <button class="btn-save" onclick="uploadDocumento()">⬆ Carica documento</button>
+            <button class="btn-save" onclick="uploadDocumento()">Carica documento</button>
             <button class="btn-cancel" onclick="chiudiUploadForm()">Annulla</button>
           </div>
           <div id="upload-progress" style="font-size:12px;color:#999;margin-top:8px;display:none">Caricamento in corso...</div>
         </div>
-
-        <!-- Bottoni azioni -->
         <div class="actions-row" style="margin-bottom:16px">
           <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
-          <button class="btn-secondary" id="btn-ai-analisi" onclick="avviaAnalisiAI()" style="display:none">🤖 Analisi AI</button>
+          <button class="btn-secondary" id="btn-ai-analisi" onclick="avviaAnalisiAI()" style="display:none">Analisi AI</button>
         </div>
-
-        <!-- Lista documenti -->
         <div class="doc-list" id="doc-list">
           <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
         </div>
-
-        <!-- Report AI -->
-        <div class="ai-loading" id="ai-loading">🤖 Analisi in corso... attendere</div>
+        <div class="ai-loading" id="ai-loading">Analisi AI in corso... attendere</div>
         <div class="ai-report-box" id="ai-report-box">
-          <div class="ai-report-title">🤖 Analisi AI — <span id="ai-report-date"></span></div>
+          <div class="ai-report-title">Analisi AI - <span id="ai-report-date"></span></div>
           <div class="ai-report-content" id="ai-report-content"></div>
         </div>
-
       </div>
     </div>
 
@@ -706,7 +697,7 @@
     }
 
 
-    // ===== CARTELLA CLINICA =====
+    // CARTELLA CLINICA
     let docTipoSelezionato = 'lastra'
     let docFileSelezionato = null
     let documentiCaricati = []
@@ -725,7 +716,7 @@
     }
 
     function selectTipo(btn, tipo) {
-      document.querySelectorAll('.doc-tipo-btn').forEach(b => b.classList.remove('selected'))
+      document.querySelectorAll('.doc-tipo-btn').forEach(function(b) { b.classList.remove('selected') })
       btn.classList.add('selected')
       docTipoSelezionato = tipo
     }
@@ -749,7 +740,8 @@
       if (file.size > 10 * 1024 * 1024) { alert('File troppo grande. Massimo 10MB.'); return }
       docFileSelezionato = file
       const preview = document.getElementById('doc-file-preview')
-      preview.textContent = 'File selezionato: ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)'
+      const kb = (file.size / 1024).toFixed(0)
+      preview.textContent = 'File: ' + file.name + ' (' + kb + ' KB)'
       preview.style.display = 'block'
     }
 
@@ -757,30 +749,22 @@
       if (!docFileSelezionato) { alert('Seleziona un file prima di caricare.'); return }
       const descrizione = document.getElementById('doc-descrizione').value.trim()
       if (!descrizione) { alert('Inserisci una descrizione per il documento.'); return }
-
       const progress = document.getElementById('upload-progress')
       progress.style.display = 'block'
-      progress.textContent = 'Caricamento in corso...'
-
-      const { data: { session } } = await _supabase.auth.getSession()
       const ext = docFileSelezionato.name.split('.').pop()
       const fileName = patientId + '/' + Date.now() + '.' + ext
-
-      const { data: storageData, error: storageError } = await _supabase.storage
+      const { error: storageError } = await _supabase.storage
         .from('clinical-docs')
         .upload(fileName, docFileSelezionato, { upsert: false })
-
       if (storageError) {
         progress.style.display = 'none'
         alert('Errore upload: ' + storageError.message)
         return
       }
-
       const { data: urlData } = _supabase.storage.from('clinical-docs').getPublicUrl(fileName)
       const fileUrl = urlData.publicUrl
-
+      const { data: { session } } = await _supabase.auth.getSession()
       const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
-
       const { error: dbError } = await _supabase.from('clinical_documents').insert({
         patient_id: patientId,
         professional_id: prof ? prof.id : null,
@@ -789,13 +773,11 @@
         file_url: fileUrl,
         file_type: docFileSelezionato.type
       })
-
       if (dbError) {
         progress.style.display = 'none'
         alert('Errore salvataggio: ' + dbError.message)
         return
       }
-
       progress.style.display = 'none'
       chiudiUploadForm()
       caricaDocumenti()
@@ -807,46 +789,43 @@
         .select('*')
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
-
       documentiCaricati = docs || []
       const lista = document.getElementById('doc-list')
       const btnAI = document.getElementById('btn-ai-analisi')
-
       if (!docs || docs.length === 0) {
         lista.innerHTML = '<p style="font-size:13px;color:#888">Nessun documento caricato.</p>'
         btnAI.style.display = 'none'
         return
       }
-
       btnAI.style.display = 'inline-block'
-
-      const tipoIcon = { lastra: '🩻', referto: '📄', visita: '👨‍⚕️', esame: '🧪', altro: '📎' }
+      const tipoIcon = { lastra: '🩻', referto: '📄', visita: '👨', esame: '🧪', altro: '📎' }
       const tipoLabel = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita spec.', esame: 'Esame lab.', altro: 'Altro' }
-
-      lista.innerHTML = docs.map(doc => {
+      let html = ''
+      docs.forEach(function(doc) {
         const icon = tipoIcon[doc.tipo] || '📎'
         const label = tipoLabel[doc.tipo] || doc.tipo
         const data = new Date(doc.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric'})
-        const isPdf = doc.file_type && doc.file_type.includes('pdf')
-        return '<div class="doc-item">' +
-          '<div class="doc-item-icon">' + icon + '</div>' +
-          '<div class="doc-item-info">' +
-          '<div class="doc-item-tipo">' + label + '</div>' +
-          '<div class="doc-item-desc">' + doc.descrizione + '</div>' +
-          '<div class="doc-item-date">' + data + '</div>' +
-          '</div>' +
-          '<div class="doc-item-actions">' +
-          '<button class="btn-doc-view" onclick="window.open('' + doc.file_url + '')">👁 Apri</button>' +
-          '<button class="btn-doc-del" onclick="eliminaDocumento('' + doc.id + '','' + doc.file_url + '')">🗑</button>' +
-          '</div>' +
-          '</div>'
-      }).join('')
+        html += '<div class="doc-item">'
+        html += '<div class="doc-item-icon">' + icon + '</div>'
+        html += '<div class="doc-item-info">'
+        html += '<div class="doc-item-tipo">' + label + '</div>'
+        html += '<div class="doc-item-desc">' + doc.descrizione + '</div>'
+        html += '<div class="doc-item-date">' + data + '</div>'
+        html += '</div>'
+        html += '<div class="doc-item-actions">'
+        html += '<button class="btn-doc-view" onclick="window.open(' + "'" + doc.file_url + "'" + ')">Apri</button>'
+        html += '<button class="btn-doc-del" onclick="eliminaDocumento(' + "'" + doc.id + "','" + doc.file_url + "'" + ')">🗑</button>'
+        html += '</div></div>'
+      })
+      lista.innerHTML = html
     }
 
     async function eliminaDocumento(id, fileUrl) {
       if (!confirm('Eliminare questo documento?')) return
-      const path = fileUrl.split('/clinical-docs/')[1]
-      await _supabase.storage.from('clinical-docs').remove([path])
+      const parts = fileUrl.split('/clinical-docs/')
+      if (parts.length > 1) {
+        await _supabase.storage.from('clinical-docs').remove([parts[1]])
+      }
       await _supabase.from('clinical_documents').delete().eq('id', id)
       caricaDocumenti()
     }
@@ -857,25 +836,15 @@
       const reportBox = document.getElementById('ai-report-box')
       reportBox.classList.remove('visible')
       loading.style.display = 'block'
-
-      const elencoDoc = documentiCaricati.map((d, i) => {
+      let elencoDoc = ''
+      documentiCaricati.forEach(function(d, i) {
         const data = new Date(d.created_at).toLocaleDateString('it-IT')
-        return (i+1) + '. [' + d.tipo.toUpperCase() + '] ' + d.descrizione + ' — ' + data
-      }).join('\n')
-
-      const prompt = 'Sei un assistente clinico per fisioterapisti. Analizza i seguenti documenti clinici del paziente e produci un report strutturato.\n\n' +
-        'PAZIENTE: ' + patient.nome + ' ' + patient.cognome + '\n' +
-        'PROBLEMA PRINCIPALE: ' + (patient.problema_principale || 'non specificato') + '\n' +
-        'NOTE CLINICHE: ' + (patient.note_cliniche || 'nessuna') + '\n\n' +
-        'DOCUMENTI PRESENTI:\n' + elencoDoc + '\n\n' +
-        'Produci un report con queste sezioni:\n' +
-        '1. SINTESI CRONOLOGICA — riassunto dei documenti in ordine di data\n' +
-        '2. RED FLAG — eventuali segnali di allerta da non ignorare\n' +
-        '3. CONDIZIONI DA RISPETTARE — limitazioni, controindicazioni, precauzioni\n' +
-        '4. ORDINE DI INTERVENTO — priorita di trattamento consigliata\n' +
-        '5. PROTOCOLLO SUGGERITO — approccio fisioterapico raccomandato\n\n' +
-        'Sii preciso, conciso e usa un linguaggio professionale per fisioterapisti.'
-
+        elencoDoc += (i+1) + '. [' + d.tipo.toUpperCase() + '] ' + d.descrizione + ' - ' + data + '\n'
+      })
+      const nomePaz = patient.nome + ' ' + patient.cognome
+      const problema = patient.problema_principale || 'non specificato'
+      const note = patient.note_cliniche || 'nessuna'
+      const prompt = 'Sei un assistente clinico per fisioterapisti. Analizza i documenti clinici del paziente e produci un report strutturato.\n\nPAZIENTE: ' + nomePaz + '\nPROBLEMA PRINCIPALE: ' + problema + '\nNOTE CLINICHE: ' + note + '\n\nDOCUMENTI:\n' + elencoDoc + '\nProduci un report con queste sezioni:\n1. SINTESI CRONOLOGICA\n2. RED FLAG\n3. CONDIZIONI DA RISPETTARE\n4. ORDINE DI INTERVENTO\n5. PROTOCOLLO SUGGERITO\n\nUsa linguaggio professionale per fisioterapisti.'
       try {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
@@ -890,7 +859,7 @@
         const testo = data.content && data.content[0] ? data.content[0].text : 'Errore nella risposta AI.'
         loading.style.display = 'none'
         document.getElementById('ai-report-content').textContent = testo
-        document.getElementById('ai-report-date').textContent = new Date().toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric', hour:'2-digit',minute:'2-digit'})
+        document.getElementById('ai-report-date').textContent = new Date().toLocaleDateString('it-IT')
         reportBox.classList.add('visible')
       } catch(e) {
         loading.style.display = 'none'
