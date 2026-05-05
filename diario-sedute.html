@@ -746,14 +746,14 @@ Rispondi SOLO con un JSON valido in questo formato esatto:
   "protocollo_prossima": "suggerimento per la prossima seduta come progressione logica"
 }`;
 
-    const response = await fetch('https://kazlnoikvwdqwvxtigej.supabase.co/functions/v1/analyze-document', {
+    const response = await fetch('/api/ai-analisi', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}` },
-      body: JSON.stringify({ prompt, type: 'session_planning' })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
     });
 
     const result = await response.json();
-    let aiText = result.result || result.analysis || '';
+    let aiText = result.testo || '';
     aiText = aiText.replace(/```json|```/g, '').trim();
     const ai = JSON.parse(aiText);
 
