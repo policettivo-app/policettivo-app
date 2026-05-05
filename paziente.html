@@ -80,6 +80,33 @@
     .link-box.visible { display: block; }
     .saving-indicator { font-size: 12px; color: #999; margin-top: 8px; display: none; }
     .step-label { background: #000; color: #FFD008; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+
+    .doc-upload-area { border: 2px dashed #ddd; border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.2s; margin-bottom: 16px; }
+    .doc-upload-area:hover { border-color: #FFD008; background: #fffdf0; }
+    .doc-upload-area .upload-icon { font-size: 32px; margin-bottom: 8px; }
+    .doc-upload-area .upload-text { font-size: 13px; color: #666; }
+    .doc-upload-area .upload-hint { font-size: 11px; color: #bbb; margin-top: 4px; }
+    .doc-tipo-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .doc-tipo-btn { padding: 6px 14px; border: 1.5px solid #ddd; border-radius: 20px; font-family: "Montserrat", sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: #555; transition: all 0.15s; }
+    .doc-tipo-btn:hover { border-color: #FFD008; }
+    .doc-tipo-btn.selected { background: #FFD008; border-color: #FFD008; color: #000; }
+    .doc-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    .doc-item { display: flex; align-items: center; gap: 12px; background: #f9f9f9; border: 1px solid #eee; border-radius: 10px; padding: 12px 14px; }
+    .doc-item-icon { font-size: 24px; flex-shrink: 0; }
+    .doc-item-info { flex: 1; min-width: 0; }
+    .doc-item-tipo { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+    .doc-item-desc { font-size: 13px; font-weight: 600; color: #000; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .doc-item-date { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .doc-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-doc-view { background: #FFD008; border: none; color: #000; padding: 6px 12px; border-radius: 6px; font-family: "Montserrat", sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .btn-doc-del { background: transparent; border: 1px solid #ddd; color: #c62828; padding: 6px 10px; border-radius: 6px; font-family: "Montserrat", sans-serif; font-size: 11px; cursor: pointer; }
+    .ai-report-box { background: #f0f4ff; border: 1.5px solid #90caf9; border-radius: 12px; padding: 20px; margin-top: 16px; display: none; }
+    .ai-report-box.visible { display: block; }
+    .ai-report-title { font-size: 13px; font-weight: 700; color: #1565c0; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .ai-report-content { font-size: 13px; color: #222; line-height: 1.7; white-space: pre-wrap; }
+    .ai-loading { text-align: center; padding: 20px; font-size: 13px; color: #666; display: none; }
+    .upload-form { background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; display: none; }
+    .upload-form.visible { display: block; }
   </style>
 </head>
 <body>
@@ -287,6 +314,66 @@
       </div>
       <div id="storico-container" style="display:none">
         <div id="storico-lista"><p style="font-size:13px;color:#888">Caricamento...</p></div>
+      </div>
+    </div>
+
+
+    <!-- CARTELLA CLINICA -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Cartella Clinica <span class="section-optional">documenti e referti</span></div>
+        <button class="btn-edit" onclick="toggleCartella()" id="btn-cartella">▼ Mostra</button>
+      </div>
+      <div id="cartella-container" style="display:none">
+
+        <!-- Form upload -->
+        <div class="upload-form" id="upload-form">
+          <div style="margin-bottom:10px">
+            <div class="osservazione-label" style="margin-bottom:8px">Tipo documento:</div>
+            <div class="doc-tipo-selector">
+              <button class="doc-tipo-btn selected" onclick="selectTipo(this,'lastra')">🩻 Lastra</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'referto')">📄 Referto</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'visita')">👨‍⚕️ Visita specialist.</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'esame')">🧪 Esame lab.</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'altro')">📎 Altro</button>
+            </div>
+          </div>
+          <div class="edit-group" style="margin-bottom:10px">
+            <label>Descrizione (es. "RMN lombare gen 2025")</label>
+            <input type="text" id="doc-descrizione" placeholder="Descrizione documento...">
+          </div>
+          <div class="doc-upload-area" onclick="document.getElementById('doc-file-input').click()">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Clicca per scegliere il file</div>
+            <div class="upload-hint">Immagini (JPG, PNG) o PDF — max 10MB</div>
+          </div>
+          <input type="file" id="doc-file-input" accept="image/*,.pdf" style="display:none" onchange="handleDocFile(this)">
+          <div id="doc-file-preview" style="font-size:12px;color:#666;margin-bottom:10px;display:none"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-save" onclick="uploadDocumento()">⬆ Carica documento</button>
+            <button class="btn-cancel" onclick="chiudiUploadForm()">Annulla</button>
+          </div>
+          <div id="upload-progress" style="font-size:12px;color:#999;margin-top:8px;display:none">Caricamento in corso...</div>
+        </div>
+
+        <!-- Bottoni azioni -->
+        <div class="actions-row" style="margin-bottom:16px">
+          <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
+          <button class="btn-secondary" id="btn-ai-analisi" onclick="avviaAnalisiAI()" style="display:none">🤖 Analisi AI</button>
+        </div>
+
+        <!-- Lista documenti -->
+        <div class="doc-list" id="doc-list">
+          <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
+        </div>
+
+        <!-- Report AI -->
+        <div class="ai-loading" id="ai-loading">🤖 Analisi in corso... attendere</div>
+        <div class="ai-report-box" id="ai-report-box">
+          <div class="ai-report-title">🤖 Analisi AI — <span id="ai-report-date"></span></div>
+          <div class="ai-report-content" id="ai-report-content"></div>
+        </div>
+
       </div>
     </div>
 
@@ -616,6 +703,199 @@
           '</div>'
       }
       lista.innerHTML = html
+    }
+
+
+    // ===== CARTELLA CLINICA =====
+    let docTipoSelezionato = 'lastra'
+    let docFileSelezionato = null
+    let documentiCaricati = []
+
+    function toggleCartella() {
+      const container = document.getElementById('cartella-container')
+      const btn = document.getElementById('btn-cartella')
+      if (container.style.display === 'none') {
+        container.style.display = 'block'
+        btn.textContent = 'Nascondi'
+        caricaDocumenti()
+      } else {
+        container.style.display = 'none'
+        btn.textContent = 'Mostra'
+      }
+    }
+
+    function selectTipo(btn, tipo) {
+      document.querySelectorAll('.doc-tipo-btn').forEach(b => b.classList.remove('selected'))
+      btn.classList.add('selected')
+      docTipoSelezionato = tipo
+    }
+
+    function apriUploadForm() {
+      document.getElementById('upload-form').classList.add('visible')
+      document.getElementById('doc-descrizione').focus()
+    }
+
+    function chiudiUploadForm() {
+      document.getElementById('upload-form').classList.remove('visible')
+      document.getElementById('doc-file-input').value = ''
+      document.getElementById('doc-descrizione').value = ''
+      document.getElementById('doc-file-preview').style.display = 'none'
+      docFileSelezionato = null
+    }
+
+    function handleDocFile(input) {
+      const file = input.files[0]
+      if (!file) return
+      if (file.size > 10 * 1024 * 1024) { alert('File troppo grande. Massimo 10MB.'); return }
+      docFileSelezionato = file
+      const preview = document.getElementById('doc-file-preview')
+      preview.textContent = 'File selezionato: ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)'
+      preview.style.display = 'block'
+    }
+
+    async function uploadDocumento() {
+      if (!docFileSelezionato) { alert('Seleziona un file prima di caricare.'); return }
+      const descrizione = document.getElementById('doc-descrizione').value.trim()
+      if (!descrizione) { alert('Inserisci una descrizione per il documento.'); return }
+
+      const progress = document.getElementById('upload-progress')
+      progress.style.display = 'block'
+      progress.textContent = 'Caricamento in corso...'
+
+      const { data: { session } } = await _supabase.auth.getSession()
+      const ext = docFileSelezionato.name.split('.').pop()
+      const fileName = patientId + '/' + Date.now() + '.' + ext
+
+      const { data: storageData, error: storageError } = await _supabase.storage
+        .from('clinical-docs')
+        .upload(fileName, docFileSelezionato, { upsert: false })
+
+      if (storageError) {
+        progress.style.display = 'none'
+        alert('Errore upload: ' + storageError.message)
+        return
+      }
+
+      const { data: urlData } = _supabase.storage.from('clinical-docs').getPublicUrl(fileName)
+      const fileUrl = urlData.publicUrl
+
+      const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
+
+      const { error: dbError } = await _supabase.from('clinical_documents').insert({
+        patient_id: patientId,
+        professional_id: prof ? prof.id : null,
+        tipo: docTipoSelezionato,
+        descrizione: descrizione,
+        file_url: fileUrl,
+        file_type: docFileSelezionato.type
+      })
+
+      if (dbError) {
+        progress.style.display = 'none'
+        alert('Errore salvataggio: ' + dbError.message)
+        return
+      }
+
+      progress.style.display = 'none'
+      chiudiUploadForm()
+      caricaDocumenti()
+    }
+
+    async function caricaDocumenti() {
+      const { data: docs } = await _supabase
+        .from('clinical_documents')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+
+      documentiCaricati = docs || []
+      const lista = document.getElementById('doc-list')
+      const btnAI = document.getElementById('btn-ai-analisi')
+
+      if (!docs || docs.length === 0) {
+        lista.innerHTML = '<p style="font-size:13px;color:#888">Nessun documento caricato.</p>'
+        btnAI.style.display = 'none'
+        return
+      }
+
+      btnAI.style.display = 'inline-block'
+
+      const tipoIcon = { lastra: '🩻', referto: '📄', visita: '👨‍⚕️', esame: '🧪', altro: '📎' }
+      const tipoLabel = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita spec.', esame: 'Esame lab.', altro: 'Altro' }
+
+      lista.innerHTML = docs.map(doc => {
+        const icon = tipoIcon[doc.tipo] || '📎'
+        const label = tipoLabel[doc.tipo] || doc.tipo
+        const data = new Date(doc.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric'})
+        const isPdf = doc.file_type && doc.file_type.includes('pdf')
+        return '<div class="doc-item">' +
+          '<div class="doc-item-icon">' + icon + '</div>' +
+          '<div class="doc-item-info">' +
+          '<div class="doc-item-tipo">' + label + '</div>' +
+          '<div class="doc-item-desc">' + doc.descrizione + '</div>' +
+          '<div class="doc-item-date">' + data + '</div>' +
+          '</div>' +
+          '<div class="doc-item-actions">' +
+          '<button class="btn-doc-view" onclick="window.open('' + doc.file_url + '')">👁 Apri</button>' +
+          '<button class="btn-doc-del" onclick="eliminaDocumento('' + doc.id + '','' + doc.file_url + '')">🗑</button>' +
+          '</div>' +
+          '</div>'
+      }).join('')
+    }
+
+    async function eliminaDocumento(id, fileUrl) {
+      if (!confirm('Eliminare questo documento?')) return
+      const path = fileUrl.split('/clinical-docs/')[1]
+      await _supabase.storage.from('clinical-docs').remove([path])
+      await _supabase.from('clinical_documents').delete().eq('id', id)
+      caricaDocumenti()
+    }
+
+    async function avviaAnalisiAI() {
+      if (documentiCaricati.length === 0) { alert('Nessun documento da analizzare.'); return }
+      const loading = document.getElementById('ai-loading')
+      const reportBox = document.getElementById('ai-report-box')
+      reportBox.classList.remove('visible')
+      loading.style.display = 'block'
+
+      const elencoDoc = documentiCaricati.map((d, i) => {
+        const data = new Date(d.created_at).toLocaleDateString('it-IT')
+        return (i+1) + '. [' + d.tipo.toUpperCase() + '] ' + d.descrizione + ' — ' + data
+      }).join('\n')
+
+      const prompt = 'Sei un assistente clinico per fisioterapisti. Analizza i seguenti documenti clinici del paziente e produci un report strutturato.\n\n' +
+        'PAZIENTE: ' + patient.nome + ' ' + patient.cognome + '\n' +
+        'PROBLEMA PRINCIPALE: ' + (patient.problema_principale || 'non specificato') + '\n' +
+        'NOTE CLINICHE: ' + (patient.note_cliniche || 'nessuna') + '\n\n' +
+        'DOCUMENTI PRESENTI:\n' + elencoDoc + '\n\n' +
+        'Produci un report con queste sezioni:\n' +
+        '1. SINTESI CRONOLOGICA — riassunto dei documenti in ordine di data\n' +
+        '2. RED FLAG — eventuali segnali di allerta da non ignorare\n' +
+        '3. CONDIZIONI DA RISPETTARE — limitazioni, controindicazioni, precauzioni\n' +
+        '4. ORDINE DI INTERVENTO — priorita di trattamento consigliata\n' +
+        '5. PROTOCOLLO SUGGERITO — approccio fisioterapico raccomandato\n\n' +
+        'Sii preciso, conciso e usa un linguaggio professionale per fisioterapisti.'
+
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        })
+        const data = await response.json()
+        const testo = data.content && data.content[0] ? data.content[0].text : 'Errore nella risposta AI.'
+        loading.style.display = 'none'
+        document.getElementById('ai-report-content').textContent = testo
+        document.getElementById('ai-report-date').textContent = new Date().toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric', hour:'2-digit',minute:'2-digit'})
+        reportBox.classList.add('visible')
+      } catch(e) {
+        loading.style.display = 'none'
+        alert('Errore connessione AI: ' + e.message)
+      }
     }
 
     init()
