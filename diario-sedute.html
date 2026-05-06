@@ -486,6 +486,19 @@ async function salvaSeduta() {
   if (error) { alert('Errore salvataggio: ' + error.message); return }
   chiudiModal()
   caricaSedute()
+  if (protocolloProssima) {
+    const domani = new Date()
+    domani.setDate(domani.getDate() + 7)
+    const dataStr = domani.toISOString().replace(/-|:|\.\d+/g, '').slice(0, 15) + 'Z'
+    const dataFine = new Date(domani.getTime() + 60*60*1000).toISOString().replace(/-|:|\.\d+/g, '').slice(0, 15) + 'Z'
+    const nomePaz = patient ? patient.nome + ' ' + patient.cognome : 'Paziente'
+    const titolo = encodeURIComponent('Seduta ' + nomePaz)
+    const dettagli = encodeURIComponent('Prossima seduta:\n' + protocolloProssima)
+    const calUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + titolo + '&dates=' + dataStr + '/' + dataFine + '&details=' + dettagli
+    if (confirm('Vuoi aggiungere la prossima seduta a Google Calendar?')) {
+      window.open(calUrl, '_blank')
+    }
+  }
 }
 
 init()
