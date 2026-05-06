@@ -14,7 +14,8 @@
     .btn-back { background: transparent; border: 1px solid #333; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; text-decoration: none; }
     .main { max-width: 700px; margin: 0 auto; padding: 24px 20px 60px; }
     .page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-    .page-sub { font-size: 14px; color: #666; margin-bottom: 24px; }
+    .page-sub { font-size: 14px; color: #666; margin-bottom: 8px; }
+    .mode-badge { display: inline-block; background: #FFD008; color: #000; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-bottom: 20px; }
     .section { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #000; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #FFD008; }
     .form-group { margin-bottom: 16px; }
@@ -51,8 +52,6 @@
     .btn-salva:disabled { opacity: 0.5; cursor: not-allowed; }
     .success-banner { background: #000; color: #FFD008; padding: 16px 24px; border-radius: 12px; text-align: center; font-weight: 700; margin-bottom: 20px; display: none; }
     .success-banner.show { display: block; }
-
-    /* TOAST */
     .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
     .toast { background: #1a1a1a; color: #fff; padding: 14px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: 'Montserrat', sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px; min-width: 260px; max-width: 340px; animation: slideIn 0.3s ease; }
     .toast.error { border-left: 4px solid #ff4444; }
@@ -68,14 +67,15 @@
     <a class="btn-back" id="btn-back" href="#">&#8592; Torna alla scheda</a>
   </nav>
   <div class="main">
-    <div class="page-title">Assegna Protocollo</div>
+    <div class="page-title" id="page-title">Assegna Protocollo</div>
     <div class="page-sub" id="patient-name">Caricamento...</div>
-    <div class="success-banner" id="success-banner">&#10003; Protocollo assegnato con successo!</div>
+    <div class="mode-badge" id="mode-badge">Nuovo protocollo</div>
+    <div class="success-banner" id="success-banner">&#10003; Protocollo salvato con successo!</div>
     <div class="section">
       <div class="section-title">Dettagli protocollo</div>
       <div class="form-group">
         <label class="form-label">Nome protocollo</label>
-        <input class="form-input" type="text" id="proto-nome" placeholder="es. Protocollo posturale base">
+        <input class="form-input" type="text" id="proto-nome" placeholder="es. Protocollo 1">
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -121,7 +121,6 @@
     <div class="selected-summary" id="selected-summary"></div>
     <button class="btn-salva" id="btn-salva" onclick="salvaProtocollo()">&#10003; Assegna protocollo</button>
   </div>
-
   <div class="toast-container" id="toast-container"></div>
 
   <script>
@@ -130,11 +129,13 @@
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     const params = new URLSearchParams(window.location.search)
     const patientId = params.get('id')
+    const editProtocolId = params.get('edit')
     let patient = null, professional = null
     let selectedConfig = null
     let selectedExercises = []
     let exerciseCfg = {}
     let allExercises = []
+    let isEditMode = !!editProtocolId
 
     function showToast(msg, type = 'error') {
       const container = document.getElementById('toast-container')
@@ -160,16 +161,63 @@
         document.getElementById('patient-name').textContent = 'Paziente: ' + patient.nome + ' ' + patient.cognome
         if (patient.configurazione_default) setConfig(patient.configurazione_default)
       }
-      document.getElementById('proto-inizio').value = new Date().toISOString().split('T')[0]
+
       const { data: exs } = await _supabase.from('exercises').select('*').eq('active', true).eq('fonte', 'policettivo').order('nome')
       allExercises = exs || []
+
+      if (isEditMode) {
+        document.getElementById('page-title').textContent = 'Modifica Protocollo'
+        document.getElementById('mode-badge').textContent = 'Modifica protocollo esistente'
+        document.getElementById('btn-salva').textContent = '✓ Salva modifiche'
+        await caricaProtocolloEsistente()
+      } else {
+        document.getElementById('proto-inizio').value = new Date().toISOString().split('T')[0]
+        await impostaNomeAutomatico()
+      }
+
       renderExercises()
+    }
+
+    async function impostaNomeAutomatico() {
+      const { data: prots } = await _supabase
+        .from('patient_protocols')
+        .select('id')
+        .eq('patient_id', patientId)
+      const num = prots ? prots.length + 1 : 1
+      document.getElementById('proto-nome').value = 'Protocollo ' + num
+    }
+
+    async function caricaProtocolloEsistente() {
+      const { data: prot } = await _supabase
+        .from('patient_protocols')
+        .select('*')
+        .eq('id', editProtocolId)
+        .single()
+      if (!prot) { showToast('Protocollo non trovato'); return }
+
+      document.getElementById('proto-nome').value = prot.nome_personalizzato || ''
+      document.getElementById('proto-inizio').value = prot.data_inizio || new Date().toISOString().split('T')[0]
+      document.getElementById('proto-fine').value = prot.data_fine || ''
+      document.getElementById('proto-frequenza').value = prot.frequenza || 'Tutti i giorni'
+      if (prot.configurazione_generale) setConfig(prot.configurazione_generale)
+
+      const { data: ppe } = await _supabase
+        .from('patient_protocol_exercises')
+        .select('*, exercises(*)')
+        .eq('patient_protocol_id', editProtocolId)
+        .order('ordine', { ascending: true })
+
+      if (ppe) {
+        selectedExercises = ppe.map(e => ({ id: e.exercise_id, source: 'policettivo' }))
+        ppe.forEach(e => { exerciseCfg[e.exercise_id] = e.configurazione || prot.configurazione_generale || 'NPL' })
+      }
     }
 
     function setConfig(cfg) {
       selectedConfig = cfg
       document.querySelectorAll('.config-btn').forEach(b => b.classList.remove('active'))
-      document.querySelector('.config-btn.' + cfg.toLowerCase()).classList.add('active')
+      const btn = document.querySelector('.config-btn.' + cfg.toLowerCase())
+      if (btn) btn.classList.add('active')
       selectedExercises.forEach(sel => { if (!exerciseCfg[sel.id]) exerciseCfg[sel.id] = cfg })
       renderExercises()
       updateSummary()
@@ -218,9 +266,8 @@
       const el = document.getElementById('selected-summary')
       if (!selectedExercises.length) { el.classList.remove('show'); return }
       el.classList.add('show')
-      const pol = selectedExercises.length
       el.innerHTML = '<div class="summary-title">Riepilogo protocollo</div>' +
-        '<div class="summary-list">' + pol + ' esercizi selezionati</div>'
+        '<div class="summary-list">' + selectedExercises.length + ' esercizi selezionati</div>'
     }
 
     async function salvaProtocollo() {
@@ -230,23 +277,40 @@
       if (!selectedExercises.length) { showToast('Seleziona almeno un esercizio'); return }
       const btn = document.getElementById('btn-salva')
       btn.disabled = true; btn.textContent = 'Salvataggio...'
-      await _supabase.from('patient_protocols').update({ stato: 'sospeso' }).eq('patient_id', patientId).eq('stato', 'attivo')
-      const { data: proto, error } = await _supabase.from('patient_protocols').insert({
-        patient_id: patientId, professional_id: professional?.id || null,
-        nome_personalizzato: nome,
-        data_inizio: document.getElementById('proto-inizio').value,
-        data_fine: document.getElementById('proto-fine').value || null,
-        frequenza: document.getElementById('proto-frequenza').value,
-        configurazione_generale: selectedConfig, stato: 'attivo'
-      }).select().single()
-      if (error) { showToast('Errore: ' + error.message); btn.disabled = false; btn.textContent = '\u2713 Assegna protocollo'; return }
-      const exRows = selectedExercises.map((sel, i) => {
-        const ex = allExercises.find(e => e.id === sel.id)
-        return { patient_protocol_id: proto.id, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default || 90, ripetizioni: ex?.ripetizioni || 1 }
-      })
-      const { error: exErr } = await _supabase.from('patient_protocol_exercises').insert(exRows)
-      if (exErr) { showToast('Errore esercizi: ' + exErr.message); return }
-      btn.textContent = '\u2713 Assegnato!'
+
+      if (isEditMode) {
+        const { error } = await _supabase.from('patient_protocols').update({
+          nome_personalizzato: nome,
+          data_inizio: document.getElementById('proto-inizio').value,
+          data_fine: document.getElementById('proto-fine').value || null,
+          frequenza: document.getElementById('proto-frequenza').value,
+          configurazione_generale: selectedConfig
+        }).eq('id', editProtocolId)
+        if (error) { showToast('Errore: ' + error.message); btn.disabled = false; btn.textContent = '✓ Salva modifiche'; return }
+        await _supabase.from('patient_protocol_exercises').delete().eq('patient_protocol_id', editProtocolId)
+        const exRows = selectedExercises.map((sel, i) => {
+          const ex = allExercises.find(e => e.id === sel.id)
+          return { patient_protocol_id: editProtocolId, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default || 90, ripetizioni: ex?.ripetizioni || 1 }
+        })
+        await _supabase.from('patient_protocol_exercises').insert(exRows)
+      } else {
+        await _supabase.from('patient_protocols').update({ stato: 'sospeso' }).eq('patient_id', patientId).eq('stato', 'attivo')
+        const { data: proto, error } = await _supabase.from('patient_protocols').insert({
+          patient_id: patientId, professional_id: professional?.id || null,
+          nome_personalizzato: nome,
+          data_inizio: document.getElementById('proto-inizio').value,
+          data_fine: document.getElementById('proto-fine').value || null,
+          frequenza: document.getElementById('proto-frequenza').value,
+          configurazione_generale: selectedConfig, stato: 'attivo'
+        }).select().single()
+        if (error) { showToast('Errore: ' + error.message); btn.disabled = false; btn.textContent = '✓ Assegna protocollo'; return }
+        const exRows = selectedExercises.map((sel, i) => {
+          const ex = allExercises.find(e => e.id === sel.id)
+          return { patient_protocol_id: proto.id, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default || 90, ripetizioni: ex?.ripetizioni || 1 }
+        })
+        await _supabase.from('patient_protocol_exercises').insert(exRows)
+      }
+
       document.getElementById('success-banner').classList.add('show')
       setTimeout(() => { window.location.href = 'paziente.html?id=' + patientId }, 2000)
     }

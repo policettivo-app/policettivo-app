@@ -364,6 +364,7 @@
         <div class="actions-row" style="margin-bottom:16px">
           <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
           <button class="btn-secondary" id="btn-ai-analisi" onclick="avviaAnalisiAI()" style="display:none">🤖 Analisi AI</button>
+          <button class="btn-secondary" id="btn-stampa-cartella" onclick="stampaCartella()" style="display:none">🖨 Stampa / PDF</button>
         </div>
         <div class="doc-list" id="doc-list">
           <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
@@ -446,7 +447,7 @@
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
         '<span style="font-size:18px">✅</span>' +
         '<span style="font-weight:700;font-size:15px;color:#000">' + (prot.nome || 'Protocollo attivo') + '</span>' +
-        '<span class="badge badge-' + cfg.toLowerCase() + '" style="margin-left:auto">' + cfg + '</span>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-left:auto">' +'<button onclick="window.location.href=\'assegna-protocollo.html?id=' + patientId + '&edit=' + prot.id + '\'" style="background:transparent;border:1.5px solid #FFD008;color:#000;padding:4px 12px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer">✏️ Modifica</button>' +'<span class="badge badge-' + cfg.toLowerCase() + '">' + cfg + '</span></div>' +
         '</div>' +
         '<div style="font-size:12px;color:#555;margin-bottom:6px">📅 Attivo dal ' + dataInizio + ' &nbsp;·&nbsp; ' + numEx + ' esercizi</div>' +
         '<div style="font-size:12px;color:#666;line-height:1.6"><strong>Esercizi:</strong> ' + nomiEsercizi + '</div>' +
@@ -710,13 +711,16 @@
     let docFileSelezionato = null
     let documentiCaricati = []
 
-    function toggleCartella() {
+    function toggleCartella(autoApri) {
       const container = document.getElementById('cartella-container')
       const btn = document.getElementById('btn-cartella')
-      if (container.style.display === 'none') {
+      if (container.style.display === 'none' || autoApri) {
         container.style.display = 'block'
         btn.textContent = 'Nascondi'
         caricaDocumenti()
+        setTimeout(() => {
+          document.querySelector('.section:has(#cartella-container)').scrollIntoView({behavior:'smooth', block:'start'})
+        }, 100)
       } else {
         container.style.display = 'none'
         btn.textContent = 'Mostra'
@@ -805,9 +809,11 @@
       if (!docs || docs.length === 0) {
         lista.innerHTML = '<p style="font-size:13px;color:#888">Nessun documento caricato.</p>'
         btnAI.style.display = 'none'
+        document.getElementById('btn-stampa-cartella').style.display = 'none'
         return
       }
       btnAI.style.display = 'inline-block'
+      document.getElementById('btn-stampa-cartella').style.display = 'inline-block'
       const tipoIcon = { lastra: '🩻', referto: '📄', visita: '👨', esame: '🧪', altro: '📎' }
       const tipoLabel = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita spec.', esame: 'Esame lab.', altro: 'Altro' }
       let html = ''
@@ -881,6 +887,46 @@
       }
     }
 
+    function stampaCartella() {
+      const nomePaz = patient.nome + ' ' + patient.cognome
+      const problema = patient.problema_principale || ''
+      const note = patient.note_cliniche || ''
+      const tipoIcon = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita', esame: 'Esame', altro: 'Documento' }
+      let docsHtml = ''
+      documentiCaricati.forEach(function(doc) {
+        const data = new Date(doc.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'long',year:'numeric'})
+        const tipo = tipoIcon[doc.tipo] || doc.tipo
+        const isImg = doc.file_type && doc.file_type.startsWith('image/')
+        docsHtml += '<div style="margin-bottom:20px;padding:16px;border:1px solid #ddd;border-radius:8px">'
+        docsHtml += '<div style="font-size:11px;color:#999;text-transform:uppercase;margin-bottom:4px">' + tipo + ' — ' + data + '</div>'
+        docsHtml += '<div style="font-size:14px;font-weight:700;margin-bottom:8px">' + doc.descrizione + '</div>'
+        if (isImg) docsHtml += '<img src="' + doc.file_url + '" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:6px">'
+        else docsHtml += '<a href="' + doc.file_url + '" target="_blank" style="font-size:12px;color:#1565c0">Apri documento PDF</a>'
+        docsHtml += '</div>'
+      })
+      const aiContent = document.getElementById('ai-report-content')
+      let aiHtml = ''
+      if (aiContent && aiContent.innerHTML) {
+        aiHtml = '<div style="margin-top:24px"><div style="font-size:13px;font-weight:700;color:#1565c0;margin-bottom:12px">Analisi AI</div>' + aiContent.innerHTML + '</div>'
+      }
+      const win = window.open('', '_blank')
+      win.document.write('<html><head><title>Cartella Clinica — ' + nomePaz + '</title>')
+      win.document.write('<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">')
+      win.document.write('<style>body{font-family:Montserrat,sans-serif;max-width:800px;margin:0 auto;padding:40px 32px;color:#000} h1{font-size:24px;margin-bottom:4px} .sub{font-size:13px;color:#666;margin-bottom:24px} .logo{background:#FFD008;color:#000;font-weight:700;font-size:11px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px} .note{background:#f9f9f9;border-radius:8px;padding:14px;font-size:13px;color:#444;margin-bottom:24px;white-space:pre-wrap} @media print{button{display:none}}</style>')
+      win.document.write('</head><body>')
+      win.document.write('<div class="logo">POLICETTIVO</div>')
+      win.document.write('<h1>' + nomePaz + '</h1>')
+      win.document.write('<div class="sub">' + problema + '</div>')
+      if (note) win.document.write('<div class="note">' + note + '</div>')
+      win.document.write('<div style="font-size:14px;font-weight:700;margin-bottom:16px;border-bottom:2px solid #FFD008;padding-bottom:8px">Documenti (' + documentiCaricati.length + ')</div>')
+      win.document.write(docsHtml)
+      win.document.write(aiHtml)
+      win.document.write('<div style="margin-top:32px;font-size:11px;color:#999;text-align:center">Generato il ' + new Date().toLocaleDateString('it-IT') + ' — Policettivo</div>')
+      win.document.write('<br><button onclick="window.print()" style="background:#FFD008;border:none;padding:12px 24px;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;cursor:pointer">Stampa / Salva PDF</button>')
+      win.document.write('</body></html>')
+      win.document.close()
+    }
+
     init()
   </script>
 
@@ -889,7 +935,7 @@
     <button onclick="window.location.href='monitoraggio.html?id='+patientId" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📊<span>Monitoraggio</span></button>
     <button onclick="window.location.href='diario-sedute.html?pid='+patientId" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📋<span>Diario Sedute</span></button>
     <button onclick="window.location.href='assegna-protocollo.html?id='+patientId" style="flex:1;max-width:120px;background:#FFD008;border:none;color:#000;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">➕<span>Protocollo</span></button>
-    <button onclick="toggleCartella()" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📁<span>Cartella</span></button>
+    <button onclick="toggleCartella(true)" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📁<span>Cartella</span></button>
   </div>
 </body>
 </html>
