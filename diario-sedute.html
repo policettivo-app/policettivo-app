@@ -9,816 +9,439 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; min-height: 100vh; }
-
-.topbar {
-  background: #FFD008;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-.topbar .back-btn {
-  background: #000;
-  color: #FFD008;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 14px;
-}
-.topbar h1 {
-  font-size: 18px;
-  font-weight: 900;
-  color: #000;
-  flex: 1;
-}
-.topbar .patient-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #000;
-  opacity: 0.7;
-}
-
+.topbar { background: #FFD008; padding: 16px 20px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.topbar .back-btn { background: #000; color: #FFD008; border: none; border-radius: 8px; padding: 8px 14px; font-family: 'Montserrat', sans-serif; font-weight: 700; cursor: pointer; font-size: 14px; }
+.topbar h1 { font-size: 18px; font-weight: 900; color: #000; flex: 1; }
+.topbar .patient-name { font-size: 13px; font-weight: 600; color: #000; opacity: 0.7; }
 .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-
-.btn-new {
-  background: #FFD008;
-  color: #000;
-  border: none;
-  border-radius: 12px;
-  padding: 14px 24px;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  width: 100%;
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(255,208,8,0.4);
-  transition: transform 0.2s;
-}
-.btn-new:hover { transform: translateY(-2px); }
-
-/* MODAL */
-.modal-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  z-index: 200;
-  overflow-y: auto;
-  padding: 20px;
-}
-.modal-overlay.active { display: flex; align-items: flex-start; justify-content: center; }
-.modal {
-  background: #fff;
-  border-radius: 20px;
-  padding: 24px;
-  width: 100%;
-  max-width: 680px;
-  margin: auto;
-}
-.modal h2 {
-  font-size: 20px;
-  font-weight: 900;
-  margin-bottom: 6px;
-}
-.modal .ai-badge {
-  display: inline-block;
-  background: #FFD008;
-  color: #000;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 20px;
-  margin-bottom: 20px;
-}
-
-.ai-loading {
-  background: #fffbea;
-  border: 2px solid #FFD008;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-  text-align: center;
-  display: none;
-}
-.ai-loading.active { display: block; }
-.ai-loading p { font-size: 13px; font-weight: 600; color: #666; }
-.spinner {
-  width: 28px; height: 28px;
-  border: 3px solid #FFD008;
-  border-top-color: #000;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 8px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.form-section {
-  background: #f9f9f9;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
-.form-section h3 {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #666;
-  margin-bottom: 14px;
-}
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-group { margin-bottom: 12px; }
-.form-group label {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  margin-bottom: 5px;
-  color: #333;
-}
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 13px;
-  background: #fff;
-  transition: border-color 0.2s;
-}
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #FFD008;
-}
-.form-group textarea { resize: vertical; min-height: 80px; }
-
-.vas-container { display: flex; align-items: center; gap: 10px; }
-.vas-container input[type="range"] {
-  flex
-cat > ~/Desktop/policettivo-app/diario-sedute.html << 'ENDOFFILE'
-<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diario Sedute — Policettivo®</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; min-height: 100vh; }
-
-.topbar {
-  background: #FFD008;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-.topbar .back-btn {
-  background: #000;
-  color: #FFD008;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 14px;
-}
-.topbar h1 {
-  font-size: 18px;
-  font-weight: 900;
-  color: #000;
-  flex: 1;
-}
-.topbar .patient-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #000;
-  opacity: 0.7;
-}
-
-.container { max-width: 800px; margin: 0 auto; padding: 20px; }
-
-.btn-new {
-  background: #FFD008;
-  color: #000;
-  border: none;
-  border-radius: 12px;
-  padding: 14px 24px;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  width: 100%;
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(255,208,8,0.4);
-  transition: transform 0.2s;
-}
-.btn-new:hover { transform: translateY(-2px); }
-
-/* MODAL */
-.modal-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  z-index: 200;
-  overflow-y: auto;
-  padding: 20px;
-}
-.modal-overlay.active { display: flex; align-items: flex-start; justify-content: center; }
-.modal {
-  background: #fff;
-  border-radius: 20px;
-  padding: 24px;
-  width: 100%;
-  max-width: 680px;
-  margin: auto;
-}
-.modal h2 {
-  font-size: 20px;
-  font-weight: 900;
-  margin-bottom: 6px;
-}
-.modal .ai-badge {
-  display: inline-block;
-  background: #FFD008;
-  color: #000;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 20px;
-  margin-bottom: 20px;
-}
-
-.ai-loading {
-  background: #fffbea;
-  border: 2px solid #FFD008;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-  text-align: center;
-  display: none;
-}
-.ai-loading.active { display: block; }
-.ai-loading p { font-size: 13px; font-weight: 600; color: #666; }
-.spinner {
-  width: 28px; height: 28px;
-  border: 3px solid #FFD008;
-  border-top-color: #000;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 8px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.form-section {
-  background: #f9f9f9;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
-.form-section h3 {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #666;
-  margin-bottom: 14px;
-}
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-group { margin-bottom: 12px; }
-.form-group label {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  margin-bottom: 5px;
-  color: #333;
-}
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 13px;
-  background: #fff;
-  transition: border-color 0.2s;
-}
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #FFD008;
-}
-.form-group textarea { resize: vertical; min-height: 80px; }
-
-.vas-container { display: flex; align-items: center; gap: 10px; }
-.vas-container input[type="range"] {
-  flex: 1;
-  padding: 0;
-  border: none;
-  accent-color: #FFD008;
-}
-.vas-value {
-  background: #FFD008;
-  color: #000;
-  font-weight: 900;
-  font-size: 16px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ai-suggestion {
-  background: #fffbea;
-  border-left: 4px solid #FFD008;
-  border-radius: 8px;
-  padding: 12px;
-  margin-top: 6px;
-  font-size: 12px;
-  color: #555;
-  display: none;
-}
-.ai-suggestion.visible { display: block; }
-.ai-suggestion strong { color: #000; display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; }
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 20px;
-}
-.btn-save {
-  background: #000;
-  color: #FFD008;
-  border: none;
-  border-radius: 10px;
-  padding: 14px 24px;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  flex: 1;
-}
-.btn-cancel {
-  background: #e0e0e0;
-  color: #333;
-  border: none;
-  border-radius: 10px;
-  padding: 14px 24px;
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-/* LISTA SEDUTE */
-.sessions-list { display: flex; flex-direction: column; gap: 16px; }
-.session-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.session-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
-.session-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 14px;
-}
-.session-date { font-size: 16px; font-weight: 900; }
-.session-duration { font-size: 13px; color: #666; font-weight: 600; }
-.session-risposta {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.risposta-ottima { background: #d4edda; color: #155724; }
-.risposta-buona { background: #cce5ff; color: #004085; }
-.risposta-nella_norma { background: #fff3cd; color: #856404; }
-.risposta-scarsa { background: #f8d7da; color: #721c24; }
-
-.vas-pills { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.vas-pill {
-  background: #f0f0f0;
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.vas-pill span { font-weight: 900; color: #000; }
-
-.session-note {
-  font-size: 13px;
-  color: #555;
-  line-height: 1.5;
-  border-top: 1px solid #f0f0f0;
-  padding-top: 12px;
-  margin-top: 4px;
-}
-
-.feedback-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: #fffbea;
-  border: 1px solid #FFD008;
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  margin-top: 10px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #999;
-}
-.empty-state .emoji { font-size: 48px; margin-bottom: 16px; }
-.empty-state p { font-size: 15px; font-weight: 600; }
-
-.loading-state { text-align: center; padding: 40px; color: #999; font-weight: 600; }
+.btn-new { background: #000; color: #FFD008; border: none; border-radius: 12px; padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; margin-bottom: 24px; }
+.btn-new:hover { background: #222; }
+.card { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 16px; border: 1px solid #eee; }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.card-title { font-size: 16px; font-weight: 700; }
+.card-date { font-size: 12px; color: #999; }
+.field-group { margin-bottom: 18px; }
+.field-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.field-input { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; resize: vertical; min-height: 60px; }
+.field-input:focus { border-color: #FFD008; }
+input.field-input { min-height: unset; resize: none; }
+.vas-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+.vas-box { background: #f9f9f9; border-radius: 12px; padding: 16px; }
+.vas-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; margin-bottom: 10px; display: block; }
+.vas-value { font-size: 32px; font-weight: 900; text-align: center; margin-bottom: 8px; }
+.vas-slider { width: 100%; accent-color: #FFD008; }
+.btn-ai { background: #000; color: #FFD008; border: none; border-radius: 10px; padding: 12px 20px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-bottom: 18px; }
+.btn-ai:hover { background: #222; }
+.btn-ai:disabled { opacity: 0.6; cursor: not-allowed; }
+.ai-badge { background: #FFD008; color: #000; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.btn-save { background: #FFD008; color: #000; border: none; border-radius: 10px; padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; margin-top: 8px; }
+.btn-save:hover { background: #e6bc00; }
+.session-item { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 12px; border: 1px solid #eee; cursor: pointer; transition: border-color 0.2s; }
+.session-item:hover { border-color: #FFD008; }
+.session-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.session-item-date { font-size: 14px; font-weight: 700; }
+.session-item-vas { display: flex; gap: 8px; }
+.vas-pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.vas-pill-start { background: #ffe0e0; color: #c62828; }
+.vas-pill-end { background: #e8f5e9; color: #2e7d32; }
+.session-item-preview { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; overflow-y: auto; padding: 20px; }
+.modal.open { display: flex; align-items: flex-start; justify-content: center; }
+.modal-content { background: #fff; border-radius: 20px; padding: 28px; width: 100%; max-width: 700px; margin: auto; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.modal-title { font-size: 18px; font-weight: 900; }
+.btn-close { background: #f5f5f5; border: none; border-radius: 8px; padding: 8px 14px; font-size: 18px; cursor: pointer; }
+.ai-loading { text-align: center; padding: 16px; font-size: 13px; color: #666; display: none; }
+.ai-loading.visible { display: block; }
+.empty-state { text-align: center; padding: 48px 20px; color: #999; }
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+.foto-seduta-section { margin-bottom: 18px; }
+.foto-seduta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+.foto-slot-small { border: 2px dashed #ddd; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.2s; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+.foto-slot-small:hover { border-color: #FFD008; background: #fffdf0; }
+.foto-slot-small.has-photo { border-style: solid; border-color: #eee; padding: 0; background: #000; }
+.foto-slot-small img { width: 100%; height: 120px; object-fit: cover; border-radius: 10px; display: block; }
+.foto-slot-small .slot-icon { font-size: 24px; margin-bottom: 4px; }
+.foto-slot-small .slot-label { font-size: 11px; color: #999; font-weight: 600; }
+.foto-overlay-small { position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+.foto-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.btn-foto { background: #f5f5f5; border: 1.5px solid #ddd; border-radius: 8px; padding: 8px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; text-align: center; }
+.btn-foto:hover { border-color: #FFD008; background: #fffdf0; }
+.premium-note { font-size: 11px; color: #999; text-align: center; margin-top: 6px; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <button class="back-btn" onclick="goBack()">← Indietro</button>
+  <button class="back-btn" onclick="torna()">← Indietro</button>
   <h1>📋 Diario Sedute</h1>
-  <span class="patient-name" id="patientNameTop"></span>
+  <span class="patient-name" id="patient-name-top">...</span>
 </div>
 
 <div class="container">
-  <button class="btn-new" onclick="openNewSession()">
-    ✨ Nuova Seduta — AI precompila
-  </button>
-  <div id="sessionsList" class="sessions-list">
-    <div class="loading-state">Caricamento sedute...</div>
-  </div>
+  <button class="btn-new" onclick="apriNuovaSeduta()">+ Nuova seduta</button>
+  <div id="lista-sedute"></div>
 </div>
 
-<!-- MODAL NUOVA/MODIFICA SEDUTA -->
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <h2 id="modalTitle">Nuova Seduta</h2>
-    <span class="ai-badge">✨ Precompilato da AI</span>
-
-    <div class="ai-loading" id="aiLoading">
-      <div class="spinner"></div>
-      <p>L'AI sta analizzando il protocollo e la storia del paziente...</p>
+<!-- MODAL NUOVA SEDUTA -->
+<div class="modal" id="modal-seduta">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">📋 Nuova seduta</div>
+      <button class="btn-close" onclick="chiudiModal()">✕</button>
     </div>
 
-    <div class="form-section">
-      <h3>📅 Informazioni Seduta</h3>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Data seduta</label>
-          <input type="date" id="dataSeduta">
-        </div>
-        <div class="form-group">
-          <label>Durata (minuti)</label>
-          <input type="number" id="durata" placeholder="es. 45" min="5" max="180">
-        </div>
-      </div>
-    </div>
+    <!-- PULSANTE AI -->
+    <button class="btn-ai" id="btn-ai" onclick="precompilaAI()">
+      🤖 <span>Precompila con AI</span> <span class="ai-badge">PREMIUM</span>
+    </button>
+    <div class="ai-loading" id="ai-loading">⏳ L'AI sta analizzando la scheda del paziente...</div>
 
-    <div class="form-section">
-      <h3>📊 VAS Dolore</h3>
-      <div class="form-group">
-        <label>VAS inizio seduta</label>
-        <div class="vas-container">
-          <input type="range" id="vasInizio" min="0" max="10" value="5" oninput="document.getElementById('vasInizioVal').textContent=this.value">
-          <div class="vas-value" id="vasInizioVal">5</div>
-        </div>
+    <!-- VAS -->
+    <div class="vas-row">
+      <div class="vas-box">
+        <span class="vas-label">VAS inizio seduta</span>
+        <div class="vas-value" id="vas-inizio-val" style="color:#c62828">5</div>
+        <input type="range" class="vas-slider" id="vas-inizio" min="0" max="10" value="5" oninput="updateVas('inizio',this.value)">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:4px"><span>0</span><span>10</span></div>
       </div>
-      <div class="form-group">
-        <label>VAS fine seduta</label>
-        <div class="vas-container">
-          <input type="range" id="vasFine" min="0" max="10" value="3" oninput="document.getElementById('vasFinale').textContent=this.value">
-          <div class="vas-value" id="vasFinale">3</div>
-        </div>
+      <div class="vas-box">
+        <span class="vas-label">VAS fine seduta</span>
+        <div class="vas-value" id="vas-fine-val" style="color:#2e7d32">3</div>
+        <input type="range" class="vas-slider" id="vas-fine" min="0" max="10" value="3" oninput="updateVas('fine',this.value)">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:4px"><span>0</span><span>10</span></div>
       </div>
     </div>
 
-    <div class="form-section">
-      <h3>🏋️ Contenuto Seduta</h3>
-      <div class="form-group">
-        <label>Protocollo applicato in questa seduta</label>
-        <textarea id="protocolloSeduta" placeholder="L'AI suggerirà in base al protocollo attivo..."></textarea>
-        <div class="ai-suggestion" id="aiSuggestProtocollo">
-          <strong>💡 Suggerimento AI</strong>
-          <span id="aiSuggestProtocolloText"></span>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Tecniche usate</label>
-        <textarea id="tecniche" placeholder="es. Mobilizzazione cervicale, stretching catena posteriore..."></textarea>
-      </div>
-      <div class="form-group">
-        <label>Risposta del paziente</label>
-        <select id="rispostaPaziente">
-          <option value="">Seleziona...</option>
-          <option value="ottima">✅ Ottima</option>
-          <option value="buona">👍 Buona</option>
-          <option value="nella_norma">🤔 Nella norma</option>
-          <option value="scarsa">⚠️ Scarsa</option>
-        </select>
-      </div>
+    <!-- CAMPI TESTO -->
+    <div class="field-group">
+      <label class="field-label">Protocollo eseguito in seduta</label>
+      <textarea class="field-input" id="f-protocollo-seduta" placeholder="Es. Tecnica dei 3 respiri, schema-1, schema-2..." rows="3"></textarea>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Protocollo per prossima seduta</label>
+      <textarea class="field-input" id="f-protocollo-prossima" placeholder="Es. Aggiungere schema-3, aumentare ripetizioni..." rows="3"></textarea>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Tecniche utilizzate</label>
+      <textarea class="field-input" id="f-tecniche" placeholder="Es. Mobilizzazione passiva, stretching, massoterapia..." rows="2"></textarea>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Risposta del paziente</label>
+      <textarea class="field-input" id="f-risposta" placeholder="Es. Buona risposta, leggero affaticamento post-seduta..." rows="2"></textarea>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Note cliniche</label>
+      <textarea class="field-input" id="f-note" placeholder="Osservazioni cliniche libere..." rows="3"></textarea>
     </div>
 
-    <div class="form-section">
-      <h3>📝 Note e Prossima Seduta</h3>
-      <div class="form-group">
-        <label>Note cliniche</label>
-        <textarea id="noteCliniche" placeholder="L'AI precompilerà in base al trend del paziente..."></textarea>
-        <div class="ai-suggestion" id="aiSuggestNote">
-          <strong>💡 Analisi AI</strong>
-          <span id="aiSuggestNoteText"></span>
+    <!-- FOTO SEDUTA -->
+    <div class="foto-seduta-section">
+      <label class="field-label">📷 Foto seduta <span style="font-weight:400;color:#bbb">(max 2 — opzionale)</span></label>
+      <div class="foto-seduta-grid">
+        <div>
+          <div class="foto-slot-small" id="foto-slot-1" onclick="triggerFoto(1)">
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">Foto 1</div>
+          </div>
+          <div class="foto-actions">
+            <button class="btn-foto" onclick="triggerFoto(1)">📁 Carica</button>
+            <button class="btn-foto" onclick="triggerFotoCamera(1)">📷 Scatta</button>
+          </div>
+        </div>
+        <div>
+          <div class="foto-slot-small" id="foto-slot-2" onclick="triggerFoto(2)">
+            <div class="slot-icon">📷</div>
+            <div class="slot-label">Foto 2</div>
+          </div>
+          <div class="foto-actions">
+            <button class="btn-foto" onclick="triggerFoto(2)">📁 Carica</button>
+            <button class="btn-foto" onclick="triggerFotoCamera(2)">📷 Scatta</button>
+          </div>
         </div>
       </div>
-      <div class="form-group">
-        <label>Protocollo previsto prossima seduta</label>
-        <textarea id="protocolloProssima" placeholder="L'AI suggerirà il passo successivo logico..."></textarea>
-        <div class="ai-suggestion" id="aiSuggestProssima">
-          <strong>💡 Prossima seduta — AI</strong>
-          <span id="aiSuggestProssimaText"></span>
-        </div>
-      </div>
+      <input type="file" id="foto-input-1" accept="image/*" style="display:none" onchange="handleFotoSeduta(1,this)">
+      <input type="file" id="foto-input-1-camera" accept="image/*" capture="environment" style="display:none" onchange="handleFotoSeduta(1,this)">
+      <input type="file" id="foto-input-2" accept="image/*" style="display:none" onchange="handleFotoSeduta(2,this)">
+      <input type="file" id="foto-input-2-camera" accept="image/*" capture="environment" style="display:none" onchange="handleFotoSeduta(2,this)">
+      <p class="premium-note">⭐ Funzione Premium — disponibile nella versione a pagamento</p>
     </div>
 
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal()">Annulla</button>
-      <button class="btn-save" onclick="saveSession()">💾 Salva Seduta</button>
-    </div>
+    <button class="btn-save" onclick="salvaSeduta()">💾 Salva seduta</button>
   </div>
 </div>
 
 <script>
-const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+const params = new URLSearchParams(window.location.search)
+const patientId = params.get('pid')
+let patient = null, protocolloAttivo = null
+let foto1 = null, foto2 = null
 
-let currentPatientId = null;
-let currentProfessionalId = null;
-let currentPatientData = null;
-let currentProtocol = null;
-let editingSessionId = null;
+function torna() {
+  window.location.href = 'paziente.html?id=' + patientId
+}
+
+function updateVas(tipo, val) {
+  const el = document.getElementById('vas-' + tipo + '-val')
+  el.textContent = val
+  const v = parseInt(val)
+  el.style.color = v <= 3 ? '#2e7d32' : v <= 6 ? '#f57c00' : '#c62828'
+}
 
 async function init() {
-  const params = new URLSearchParams(window.location.search);
-  currentPatientId = params.get('pid');
-  if (!currentPatientId) { window.location.href = 'dashboard.html'; return; }
+  if (!patientId) { window.location.href = 'dashboard.html'; return }
+  const { data: { session } } = await _supabase.auth.getSession()
+  if (!session) { window.location.href = 'login.html'; return }
 
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) { window.location.href = 'login.html'; return; }
+  const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+  if (!p) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }
+  patient = p
+  document.getElementById('patient-name-top').textContent = p.nome + ' ' + p.cognome
 
-  const { data: prof } = await sb.from('professionals').select('id').eq('user_id', user.id).single();
-  if (!prof) { window.location.href = 'dashboard.html'; return; }
-  currentProfessionalId = prof.id;
-
-  const { data: patient } = await sb.from('patients').select('*').eq('id', currentPatientId).single();
-  if (!patient) { window.location.href = 'dashboard.html'; return; }
-  currentPatientData = patient;
-  document.getElementById('patientNameTop').textContent = patient.nome + ' ' + patient.cognome;
-
-  const { data: protocol } = await sb.from('patient_protocols')
-    .select('*, patient_protocol_exercises(*, exercises(*))')
-    .eq('patient_id', currentPatientId)
+  const { data: prots } = await _supabase
+    .from('patient_protocols')
+    .select('*, patient_protocol_exercises(*, exercises(nome, descrizione))')
+    .eq('patient_id', patientId)
     .eq('stato', 'attivo')
-    .single();
-  currentProtocol = protocol;
+    .order('created_at', { ascending: false })
+    .limit(1)
+  if (prots && prots.length > 0) protocolloAttivo = prots[0]
 
-  await loadSessions();
+  caricaSedute()
 }
 
-async function loadSessions() {
-  const { data: sessions, error } = await sb.from('therapy_sessions')
+async function caricaSedute() {
+  const { data: sedute } = await _supabase
+    .from('therapy_sessions')
     .select('*')
-    .eq('patient_id', currentPatientId)
-    .order('data_seduta', { ascending: false });
+    .eq('patient_id', patientId)
+    .order('data_seduta', { ascending: false })
 
-  const list = document.getElementById('sessionsList');
-
-  if (error || !sessions || sessions.length === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div class="emoji">📋</div>
-        <p>Nessuna seduta registrata.<br>Clicca il pulsante per aggiungere la prima.</p>
-      </div>`;
-    return;
+  const lista = document.getElementById('lista-sedute')
+  if (!sedute || sedute.length === 0) {
+    lista.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>Nessuna seduta registrata.<br>Premi il pulsante per aggiungere la prima.</p></div>'
+    return
   }
 
-  list.innerHTML = sessions.map(s => {
-    const data = new Date(s.data_seduta).toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
-    const risposta = s.risposta_paziente ? `<span class="session-risposta risposta-${s.risposta_paziente}">${s.risposta_paziente.replace('_',' ')}</span>` : '';
-    const feedback = s.feedback_paziente_benessere ? `<div class="feedback-badge">🧑 Paziente: benessere ${s.feedback_paziente_benessere}/5 · esercizi ${s.feedback_paziente_esercizi || 'n.d.'}</div>` : '';
-    return `
-      <div class="session-card" onclick="editSession('${s.id}')">
-        <div class="session-header">
-          <div>
-            <div class="session-date">${data}</div>
-            <div class="session-duration">${s.durata_minuti ? s.durata_minuti + ' min' : ''}</div>
-          </div>
-          ${risposta}
-        </div>
-        <div class="vas-pills">
-          ${s.vas_inizio !== null ? `<div class="vas-pill">VAS inizio: <span>${s.vas_inizio}</span></div>` : ''}
-          ${s.vas_fine !== null ? `<div class="vas-pill">VAS fine: <span>${s.vas_fine}</span></div>` : ''}
-          ${s.vas_inizio !== null && s.vas_fine !== null ? `<div class="vas-pill">Δ VAS: <span>${s.vas_inizio - s.vas_fine > 0 ? '↓ ' : '→ '}${Math.abs(s.vas_inizio - s.vas_fine)}</span></div>` : ''}
-        </div>
-        ${s.protocollo_seduta ? `<div class="session-note"><strong>Seduta:</strong> ${s.protocollo_seduta.substring(0,120)}${s.protocollo_seduta.length > 120 ? '...' : ''}</div>` : ''}
-        ${s.note_cliniche ? `<div class="session-note">${s.note_cliniche.substring(0,120)}${s.note_cliniche.length > 120 ? '...' : ''}</div>` : ''}
-        ${feedback}
-      </div>`;
-  }).join('');
+  let html = ''
+  sedute.forEach(s => {
+    const data = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
+    const preview = s.protocollo_seduta || s.note_cliniche || s.tecniche || '—'
+    html += '<div class="session-item" onclick="apriDettaglio(' + "'" + JSON.stringify(s).replace(/'/g, "\\'") + "'" + ')">'
+    html += '<div class="session-item-header">'
+    html += '<div class="session-item-date">' + data + '</div>'
+    html += '<div class="session-item-vas">'
+    html += '<span class="vas-pill vas-pill-start">VAS i: ' + (s.vas_inizio ?? '—') + '</span>'
+    html += '<span class="vas-pill vas-pill-end">VAS f: ' + (s.vas_fine ?? '—') + '</span>'
+    html += '</div></div>'
+    html += '<div class="session-item-preview">' + preview.substring(0, 80) + (preview.length > 80 ? '...' : '') + '</div>'
+    html += '</div>'
+  })
+  lista.innerHTML = html
 }
 
-async function openNewSession() {
-  editingSessionId = null;
-  document.getElementById('modalTitle').textContent = 'Nuova Seduta';
-  document.getElementById('dataSeduta').value = new Date().toISOString().split('T')[0];
-  document.getElementById('durata').value = '45';
-  document.getElementById('vasInizio').value = 5;
-  document.getElementById('vasInizioVal').textContent = '5';
-  document.getElementById('vasFine').value = 3;
-  document.getElementById('vasFinale').textContent = '3';
-  document.getElementById('protocolloSeduta').value = '';
-  document.getElementById('tecniche').value = '';
-  document.getElementById('rispostaPaziente').value = '';
-  document.getElementById('noteCliniche').value = '';
-  document.getElementById('protocolloProssima').value = '';
-  document.getElementById('modalOverlay').classList.add('active');
-  await runAI();
+function apriNuovaSeduta() {
+  document.getElementById('f-protocollo-seduta').value = ''
+  document.getElementById('f-protocollo-prossima').value = ''
+  document.getElementById('f-tecniche').value = ''
+  document.getElementById('f-risposta').value = ''
+  document.getElementById('f-note').value = ''
+  document.getElementById('vas-inizio').value = 5
+  document.getElementById('vas-fine').value = 3
+  updateVas('inizio', 5)
+  updateVas('fine', 3)
+  foto1 = null; foto2 = null
+  resetFotoSlot(1); resetFotoSlot(2)
+  document.getElementById('modal-seduta').classList.add('open')
 }
 
-async function editSession(sessionId) {
-  editingSessionId = sessionId;
-  const { data: s } = await sb.from('therapy_sessions').select('*').eq('id', sessionId).single();
-  if (!s) return;
-  document.getElementById('modalTitle').textContent = 'Modifica Seduta';
-  document.getElementById('dataSeduta').value = s.data_seduta;
-  document.getElementById('durata').value = s.durata_minuti || '';
-  document.getElementById('vasInizio').value = s.vas_inizio ?? 5;
-  document.getElementById('vasInizioVal').textContent = s.vas_inizio ?? 5;
-  document.getElementById('vasFine').value = s.vas_fine ?? 3;
-  document.getElementById('vasFinale').textContent = s.vas_fine ?? 3;
-  document.getElementById('protocolloSeduta').value = s.protocollo_seduta || '';
-  document.getElementById('tecniche').value = s.tecniche || '';
-  document.getElementById('rispostaPaziente').value = s.risposta_paziente || '';
-  document.getElementById('noteCliniche').value = s.note_cliniche || '';
-  document.getElementById('protocolloProssima').value = s.protocollo_prossima || '';
-  document.getElementById('modalOverlay').classList.add('active');
+function chiudiModal() {
+  document.getElementById('modal-seduta').classList.remove('open')
 }
 
-async function runAI() {
-  document.getElementById('aiLoading').classList.add('active');
-  document.getElementById('aiSuggestProtocollo').classList.remove('visible');
-  document.getElementById('aiSuggestNote').classList.remove('visible');
-  document.getElementById('aiSuggestProssima').classList.remove('visible');
+function resetFotoSlot(n) {
+  const slot = document.getElementById('foto-slot-' + n)
+  slot.classList.remove('has-photo')
+  slot.innerHTML = '<div class="slot-icon">📷</div><div class="slot-label">Foto ' + n + '</div>'
+  slot.onclick = function() { triggerFoto(n) }
+}
+
+function triggerFoto(n) { document.getElementById('foto-input-' + n).click() }
+function triggerFotoCamera(n) { document.getElementById('foto-input-' + n + '-camera').click() }
+
+function resizeFoto(file, cb) {
+  const reader = new FileReader()
+  reader.onload = e => {
+    const img = new Image()
+    img.onload = () => {
+      let w = img.width, h = img.height
+      const max = 1200
+      if (w > max || h > max) { const r = Math.min(max/w, max/h); w = Math.round(w*r); h = Math.round(h*r) }
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      cb(canvas.toDataURL('image/jpeg', 0.82))
+    }
+    img.src = e.target.result
+  }
+  reader.readAsDataURL(file)
+}
+
+function handleFotoSeduta(n, input) {
+  const file = input.files[0]; if (!file) return
+  resizeFoto(file, dataUrl => {
+    if (n === 1) foto1 = dataUrl
+    else foto2 = dataUrl
+    const slot = document.getElementById('foto-slot-' + n)
+    slot.classList.add('has-photo')
+    slot.innerHTML = '<img src="' + dataUrl + '" alt="foto ' + n + '"><div class="foto-overlay-small" onclick="resetFotoSlot(' + n + ')">✕</div>'
+    slot.onclick = null
+  })
+}
+
+async function precompilaAI() {
+  const btn = document.getElementById('btn-ai')
+  const loading = document.getElementById('ai-loading')
+  btn.disabled = true
+  loading.classList.add('visible')
+
+  const nomePaz = patient.nome + ' ' + patient.cognome
+  const problema = patient.problema_principale || 'non specificato'
+  const note = patient.note_cliniche || 'nessuna nota posturale'
+
+  let esercizi = 'nessun protocollo attivo'
+  let nomeProtocollo = ''
+  if (protocolloAttivo) {
+    nomeProtocollo = protocolloAttivo.nome_personalizzato || 'Protocollo attivo'
+    const ppe = protocolloAttivo.patient_protocol_exercises || []
+    esercizi = ppe.map(e => e.exercises ? e.exercises.nome : '—').join(', ')
+  }
+
+  const { data: sedutePrecedenti } = await _supabase
+    .from('therapy_sessions')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('data_seduta', { ascending: false })
+    .limit(3)
+
+  let storicoTesto = 'Prima seduta con questo paziente.'
+  if (sedutePrecedenti && sedutePrecedenti.length > 0) {
+    storicoTesto = 'Ultime sedute:\n' + sedutePrecedenti.map(s => {
+      const d = new Date(s.data_seduta).toLocaleDateString('it-IT')
+      return d + ' — VAS: ' + s.vas_inizio + '→' + s.vas_fine + ' — ' + (s.protocollo_seduta || '') + ' — Risposta: ' + (s.risposta_paziente || '')
+    }).join('\n')
+  }
+
+  const prompt = `Sei un assistente per fisioterapisti. Compila il diario di seduta per il paziente ${nomePaz}.
+Problema principale: ${problema}
+Note posturali: ${note}
+Protocollo assegnato: ${nomeProtocollo} — Esercizi: ${esercizi}
+${storicoTesto}
+
+Rispondi SOLO con un JSON valido (niente testo prima o dopo) con questi campi:
+{
+  "protocollo_seduta": "...",
+  "protocollo_prossima": "...",
+  "tecniche": "...",
+  "risposta_paziente": "...",
+  "note_cliniche": "..."
+}
+Sii specifico e clinicamente appropriato. Max 2 righe per campo.`
 
   try {
-    const { data: sessions } = await sb.from('therapy_sessions')
-      .select('*').eq('patient_id', currentPatientId)
-      .order('data_seduta', { ascending: false }).limit(5);
-
-    const { data: diary } = await sb.from('diary_entries')
-      .select('*').eq('patient_id', currentPatientId)
-      .order('created_at', { ascending: false }).limit(7);
-
-    const protocolloEsercizi = currentProtocol?.patient_protocol_exercises
-      ?.map(e => e.exercises?.nome || e.exercises?.codice).filter(Boolean).join(', ') || 'Non assegnato';
-
-    const prompt = `Sei un assistente clinico per fisioterapisti. Analizza questi dati del paziente e fornisci suggerimenti per il diario seduta.
-
-PAZIENTE: ${currentPatientData.nome} ${currentPatientData.cognome}
-PROBLEMA PRINCIPALE: ${currentPatientData.problema_principale || 'non specificato'}
-NOTE CLINICHE: ${currentPatientData.note_cliniche || 'nessuna'}
-
-PROTOCOLLO ATTIVO: ${protocolloEsercizi}
-
-ULTIME SEDUTE:
-${sessions && sessions.length > 0 ? sessions.slice(0,3).map(s => `- ${s.data_seduta}: VAS ${s.vas_inizio}→${s.vas_fine}, risposta: ${s.risposta_paziente || 'n.d.'}, note: ${s.note_cliniche || 'nessuna'}`).join('\n') : 'Prima seduta'}
-
-DIARIO PAZIENTE ULTIMI 7 GIORNI:
-${diary && diary.length > 0 ? diary.map(d => `- ${new Date(d.created_at).toLocaleDateString('it-IT')}: dolore ${d.dolore || 'n.d.'}, rigidità ${d.rigidita || 'n.d.'}, energia ${d.energia || 'n.d.'}`).join('\n') : 'Nessun dato diario'}
-
-Rispondi SOLO con un JSON valido in questo formato esatto:
-{
-  "protocollo_seduta": "descrizione concisa del protocollo da applicare oggi basato sul protocollo attivo",
-  "note_cliniche": "osservazione clinica sintetica sul trend del paziente",
-  "protocollo_prossima": "suggerimento per la prossima seduta come progressione logica"
-}`;
-
     const response = await fetch('/api/ai-analisi', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt })
-    });
-
-    const result = await response.json();
-    let aiText = result.testo || '';
-    aiText = aiText.replace(/```json|```/g, '').trim();
-    const ai = JSON.parse(aiText);
-
-    if (ai.protocollo_seduta) {
-      document.getElementById('protocolloSeduta').value = ai.protocollo_seduta;
-      document.getElementById('aiSuggestProtocolloText').textContent = ai.protocollo_seduta;
-      document.getElementById('aiSuggestProtocollo').classList.add('visible');
-    }
-    if (ai.note_cliniche) {
-      document.getElementById('noteCliniche').value = ai.note_cliniche;
-      document.getElementById('aiSuggestNoteText').textContent = ai.note_cliniche;
-      document.getElementById('aiSuggestNote').classList.add('visible');
-    }
-    if (ai.protocollo_prossima) {
-      document.getElementById('protocolloProssima').value = ai.protocollo_prossima;
-      document.getElementById('aiSuggestProssimaText').textContent = ai.protocollo_prossima;
-      document.getElementById('aiSuggestProssima').classList.add('visible');
+    })
+    const data = await response.json()
+    const testo = data.testo || ''
+    const jsonMatch = testo.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      if (parsed.protocollo_seduta) document.getElementById('f-protocollo-seduta').value = parsed.protocollo_seduta
+      if (parsed.protocollo_prossima) document.getElementById('f-protocollo-prossima').value = parsed.protocollo_prossima
+      if (parsed.tecniche) document.getElementById('f-tecniche').value = parsed.tecniche
+      if (parsed.risposta_paziente) document.getElementById('f-risposta').value = parsed.risposta_paziente
+      if (parsed.note_cliniche) document.getElementById('f-note').value = parsed.note_cliniche
+    } else {
+      alert('AI non ha restituito un formato valido. Riprova.')
     }
   } catch(e) {
-    console.error('AI error:', e);
+    alert('Errore AI: ' + e.message)
   }
 
-  document.getElementById('aiLoading').classList.remove('active');
+  btn.disabled = false
+  loading.classList.remove('visible')
 }
 
-async function saveSession() {
-  const data = {
-    patient_id: currentPatientId,
-    professional_id: currentProfessionalId,
-    data_seduta: document.getElementById('dataSeduta').value,
-    durata_minuti: parseInt(document.getElementById('durata').value) || null,
-    vas_inizio: parseInt(document.getElementById('vasInizio').value),
-    vas_fine: parseInt(document.getElementById('vasFine').value),
-    protocollo_seduta: document.getElementById('protocolloSeduta').value,
-    tecniche: document.getElementById('tecniche').value,
-    risposta_paziente: document.getElementById('rispostaPaziente').value || null,
-    note_cliniche: document.getElementById('noteCliniche').value,
-    protocollo_prossima: document.getElementById('protocolloProssima').value
-  };
+async function salvaSeduta() {
+  const vasInizio = parseInt(document.getElementById('vas-inizio').value)
+  const vasFine = parseInt(document.getElementById('vas-fine').value)
+  const protocolloSeduta = document.getElementById('f-protocollo-seduta').value.trim()
+  const protocolloProssima = document.getElementById('f-protocollo-prossima').value.trim()
+  const tecniche = document.getElementById('f-tecniche').value.trim()
+  const risposta = document.getElementById('f-risposta').value.trim()
+  const note = document.getElementById('f-note').value.trim()
 
-  if (!data.data_seduta) { alert('Inserisci la data della seduta'); return; }
+  const { data: { session } } = await _supabase.auth.getSession()
+  const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
 
-  let error;
-  if (editingSessionId) {
-    ({ error } = await sb.from('therapy_sessions').update(data).eq('id', editingSessionId));
-  } else {
-    ({ error } = await sb.from('therapy_sessions').insert(data));
+  const fotoJson = {}
+  if (foto1) fotoJson.foto1 = foto1
+  if (foto2) fotoJson.foto2 = foto2
+
+  const { error } = await _supabase.from('therapy_sessions').insert({
+    patient_id: patientId,
+    professional_id: prof ? prof.id : null,
+    data_seduta: new Date().toISOString(),
+    vas_inizio: vasInizio,
+    vas_fine: vasFine,
+    protocollo_seduta: protocolloSeduta || null,
+    protocollo_prossima: protocolloProssima || null,
+    tecniche: tecniche || null,
+    risposta_paziente: risposta || null,
+    note_cliniche: note || null,
+    foto_seduta: Object.keys(fotoJson).length > 0 ? JSON.stringify(fotoJson) : null
+  })
+
+  if (error) { alert('Errore salvataggio: ' + error.message); return }
+  chiudiModal()
+  caricaSedute()
+}
+
+function apriDettaglio(sedutaJson) {
+  const s = typeof sedutaJson === 'string' ? JSON.parse(sedutaJson) : sedutaJson
+  const data = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
+  let html = '<div style="font-size:13px;line-height:1.8">'
+  html += '<div style="font-weight:700;font-size:16px;margin-bottom:12px">' + data + '</div>'
+  html += '<div style="display:flex;gap:8px;margin-bottom:16px">'
+  html += '<span class="vas-pill vas-pill-start">VAS inizio: ' + (s.vas_inizio ?? '—') + '</span>'
+  html += '<span class="vas-pill vas-pill-end">VAS fine: ' + (s.vas_fine ?? '—') + '</span>'
+  html += '</div>'
+  if (s.protocollo_seduta) html += '<p><strong>Protocollo seduta:</strong><br>' + s.protocollo_seduta + '</p><br>'
+  if (s.protocollo_prossima) html += '<p><strong>Prossima seduta:</strong><br>' + s.protocollo_prossima + '</p><br>'
+  if (s.tecniche) html += '<p><strong>Tecniche:</strong><br>' + s.tecniche + '</p><br>'
+  if (s.risposta_paziente) html += '<p><strong>Risposta paziente:</strong><br>' + s.risposta_paziente + '</p><br>'
+  if (s.note_cliniche) html += '<p><strong>Note cliniche:</strong><br>' + s.note_cliniche + '</p><br>'
+  if (s.foto_seduta) {
+    try {
+      const foto = JSON.parse(s.foto_seduta)
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+      if (foto.foto1) html += '<img src="' + foto.foto1 + '" style="width:100%;border-radius:8px;object-fit:cover">'
+      if (foto.foto2) html += '<img src="' + foto.foto2 + '" style="width:100%;border-radius:8px;object-fit:cover">'
+      html += '</div>'
+    } catch(e) {}
   }
-
-  if (error) { alert('Errore nel salvataggio: ' + error.message); return; }
-
-  closeModal();
-  await loadSessions();
+  html += '</div>'
+  alert(html)
 }
 
-function closeModal() {
-  document.getElementById('modalOverlay').classList.remove('active');
-  editingSessionId = null;
-}
-
-function goBack() {
-  window.location.href = `paziente.html?id=${currentPatientId}`;
-}
-
-init();
+init()
 </script>
 </body>
 </html>
