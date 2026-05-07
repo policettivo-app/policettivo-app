@@ -130,168 +130,221 @@ input.fi { min-height: unset; resize: none; }
 </div>
 
 <script>
-const SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
-const _sb = window.supabase.createClient(SB_URL, SB_KEY)
-const pid = new URLSearchParams(window.location.search).get('pid')
-let patient = null, protAtt = null, calON = false, sedutaId = null
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var _sb = window.supabase.createClient(SB_URL, SB_KEY);
+var pid = new URLSearchParams(window.location.search).get('pid');
+var patient = null;
+var protAtt = null;
+var calON = false;
+var sedutaId = null;
 
-function torna() { window.location.href = 'paziente.html?id=' + pid }
+function torna() {
+  window.location.href = 'paziente.html?id=' + pid;
+}
 
 function updateVas(t, v) {
-  const el = document.getElementById('vas-' + t + '-val')
-  el.textContent = v
-  const n = parseInt(v)
-  el.style.color = n <= 3 ? '#2e7d32' : n <= 6 ? '#f57c00' : '#c62828'
+  var el = document.getElementById('vas-' + t + '-val');
+  el.textContent = v;
+  var n = parseInt(v);
+  el.style.color = n <= 3 ? '#2e7d32' : n <= 6 ? '#f57c00' : '#c62828';
 }
 
 function toggleCalendar() {
-  calON = !calON
-  const c = document.getElementById('cal-check')
-  c.style.background = calON ? '#FFD008' : ''
-  c.style.borderColor = calON ? '#FFD008' : '#ddd'
-  c.textContent = calON ? 'V' : ''
-}
-
-async function init() {
-  if (!pid) { window.location.href = 'dashboard.html'; return }
-  const { data: { session } } = await _sb.auth.getSession()
-  if (!session) { window.location.href = 'login.html'; return }
-  const { data: p } = await _sb.from('patients').select('*').eq('id', pid).single()
-  if (!p) { window.location.href = 'dashboard.html'; return }
-  patient = p
-  document.getElementById('pname').textContent = p.nome + ' ' + p.cognome
-  const { data: pr } = await _sb.from('patient_protocols').select('*, patient_protocol_exercises(*, exercises(nome))').eq('patient_id', pid).eq('stato', 'attivo').order('created_at', { ascending: false }).limit(1)
-  if (pr && pr.length > 0) protAtt = pr[0]
-  caricaSedute()
-}
-
-async function caricaSedute() {
-  const { data: s } = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false })
-  const lista = document.getElementById('lista-sedute')
-  if (!s || s.length === 0) { lista.innerHTML = '<div class="empty-state">Nessuna seduta registrata. Premi + per aggiungere la prima.</div>'; return }
-  lista.innerHTML = s.map(function(x) {
-    const d = new Date(x.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
-    const prev = (x.protocollo_seduta || x.note_cliniche || x.tecniche || '-').substring(0, 80)
-    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(x))))
-    return '<div class="session-item" onclick="apriDet(\'' + b64 + '\')">' +
-      '<div class="sih"><div class="sid">' + d + '</div>' +
-      '<div class="vas-pills"><span class="vp vps">i:' + (x.vas_inizio != null ? x.vas_inizio : '-') + '</span><span class="vp vpe">f:' + (x.vas_fine != null ? x.vas_fine : '-') + '</span></div></div>' +
-      '<div class="sip">' + prev + '</div></div>'
-  }).join('')
-}
-
-function apriDet(b64) {
-  const s = JSON.parse(decodeURIComponent(escape(atob(b64))))
-  sedutaId = s.id
-  const d = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
-  document.getElementById('det-date').textContent = d
-  document.getElementById('det-vas').innerHTML = '<span class="vp vps">VAS i:' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</span><span class="vp vpe">VAS f:' + (s.vas_fine != null ? s.vas_fine : '-') + '</span>'
-  let body = ''
-  if (s.protocollo_seduta) body += '<div class="det-sec"><div class="det-lbl">Protocollo eseguito</div><div class="det-val">' + s.protocollo_seduta + '</div></div>'
-  if (s.protocollo_prossima) body += '<div class="det-sec"><div class="det-lbl">Prossima seduta</div><div class="det-val">' + s.protocollo_prossima + '</div></div>'
-  if (s.tecniche) body += '<div class="det-sec"><div class="det-lbl">Tecniche</div><div class="det-val">' + s.tecniche + '</div></div>'
-  if (s.risposta_paziente) body += '<div class="det-sec"><div class="det-lbl">Risposta paziente</div><div class="det-val">' + s.risposta_paziente + '</div></div>'
-  if (s.note_cliniche) body += '<div class="det-sec"><div class="det-lbl">Note cliniche</div><div class="det-val">' + s.note_cliniche + '</div></div>'
-  if (s.feedback_paziente) body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + s.feedback_paziente + '</div></div>'
-  if (!body) body = '<div style="text-align:center;padding:32px;color:#999">Nessun dettaglio.</div>'
-  document.getElementById('det-body').innerHTML = body
-  document.getElementById('det-modal').classList.add('open')
-}
-
-function chiudiDettaglio() { document.getElementById('det-modal').classList.remove('open'); sedutaId = null }
-
-async function eliminaSeduta() {
-  if (!sedutaId) return
-  if (!confirm('Eliminare questa seduta?')) return
-  await _sb.from('therapy_sessions').delete().eq('id', sedutaId)
-  chiudiDettaglio()
-  caricaSedute()
+  calON = !calON;
+  var c = document.getElementById('cal-check');
+  c.style.background = calON ? '#FFD008' : '';
+  c.style.borderColor = calON ? '#FFD008' : '#ddd';
+  c.textContent = calON ? 'V' : '';
 }
 
 function apriNuovaSeduta() {
-  ['f-ps','f-pp','f-tec','f-risp','f-note'].forEach(function(id) { document.getElementById(id).value = '' })
-  document.getElementById('vas-inizio').value = 5
-  document.getElementById('vas-fine').value = 3
-  updateVas('inizio', 5)
-  updateVas('fine', 3)
-  calON = false
-  const c = document.getElementById('cal-check')
-  c.style.background = ''; c.style.borderColor = '#ddd'; c.textContent = ''
-  const d = new Date(); d.setDate(d.getDate() + 7)
-  document.getElementById('f-dp').value = d.toISOString().split('T')[0]
-  document.getElementById('modal-seduta').classList.add('open')
+  var campi = ['f-ps','f-pp','f-tec','f-risp','f-note'];
+  for (var i = 0; i < campi.length; i++) {
+    document.getElementById(campi[i]).value = '';
+  }
+  document.getElementById('vas-inizio').value = 5;
+  document.getElementById('vas-fine').value = 3;
+  updateVas('inizio', 5);
+  updateVas('fine', 3);
+  calON = false;
+  var c = document.getElementById('cal-check');
+  c.style.background = '';
+  c.style.borderColor = '#ddd';
+  c.textContent = '';
+  var d = new Date();
+  d.setDate(d.getDate() + 7);
+  document.getElementById('f-dp').value = d.toISOString().split('T')[0];
+  document.getElementById('modal-seduta').classList.add('open');
 }
 
-function chiudiModal() { document.getElementById('modal-seduta').classList.remove('open') }
+function chiudiModal() {
+  document.getElementById('modal-seduta').classList.remove('open');
+}
+
+function chiudiDettaglio() {
+  document.getElementById('det-modal').classList.remove('open');
+  sedutaId = null;
+}
+
+async function init() {
+  if (!pid) { window.location.href = 'dashboard.html'; return; }
+  var sess = await _sb.auth.getSession();
+  if (!sess.data.session) { window.location.href = 'login.html'; return; }
+  var res = await _sb.from('patients').select('*').eq('id', pid).single();
+  if (!res.data) { window.location.href = 'dashboard.html'; return; }
+  patient = res.data;
+  document.getElementById('pname').textContent = patient.nome + ' ' + patient.cognome;
+  var pr = await _sb.from('patient_protocols').select('*, patient_protocol_exercises(*, exercises(nome))').eq('patient_id', pid).eq('stato', 'attivo').order('created_at', { ascending: false }).limit(1);
+  if (pr.data && pr.data.length > 0) protAtt = pr.data[0];
+  caricaSedute();
+}
+
+async function caricaSedute() {
+  var res = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false });
+  var lista = document.getElementById('lista-sedute');
+  var s = res.data;
+  if (!s || s.length === 0) {
+    lista.innerHTML = '<div class="empty-state">Nessuna seduta registrata.<br>Premi + per aggiungere la prima.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < s.length; i++) {
+    var x = s[i];
+    var d = new Date(x.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+    var prev = (x.protocollo_seduta || x.note_cliniche || x.tecniche || '-').substring(0, 80);
+    var encoded = encodeURIComponent(JSON.stringify(x));
+    html += '<div class="session-item" onclick="apriDet(this)"';
+    html += ' data-session="' + encoded.replace(/"/g, '&quot;') + '">';
+    html += '<div class="sih"><div class="sid">' + d + '</div>';
+    html += '<div class="vas-pills"><span class="vp vps">i:' + (x.vas_inizio != null ? x.vas_inizio : '-') + '</span>';
+    html += '<span class="vp vpe">f:' + (x.vas_fine != null ? x.vas_fine : '-') + '</span></div></div>';
+    html += '<div class="sip">' + prev + '</div></div>';
+  }
+  lista.innerHTML = html;
+}
+
+function apriDet(el) {
+  var raw = decodeURIComponent(el.getAttribute('data-session'));
+  var s = JSON.parse(raw);
+  sedutaId = s.id;
+  var d = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+  document.getElementById('det-date').textContent = d;
+  document.getElementById('det-vas').innerHTML =
+    '<span class="vp vps">VAS i:' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</span>' +
+    '<span class="vp vpe">VAS f:' + (s.vas_fine != null ? s.vas_fine : '-') + '</span>';
+  var body = '';
+  if (s.protocollo_seduta) body += '<div class="det-sec"><div class="det-lbl">Protocollo eseguito</div><div class="det-val">' + s.protocollo_seduta + '</div></div>';
+  if (s.protocollo_prossima) body += '<div class="det-sec"><div class="det-lbl">Prossima seduta</div><div class="det-val">' + s.protocollo_prossima + '</div></div>';
+  if (s.tecniche) body += '<div class="det-sec"><div class="det-lbl">Tecniche</div><div class="det-val">' + s.tecniche + '</div></div>';
+  if (s.risposta_paziente) body += '<div class="det-sec"><div class="det-lbl">Risposta paziente</div><div class="det-val">' + s.risposta_paziente + '</div></div>';
+  if (s.note_cliniche) body += '<div class="det-sec"><div class="det-lbl">Note cliniche</div><div class="det-val">' + s.note_cliniche + '</div></div>';
+  if (s.feedback_paziente) body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + s.feedback_paziente + '</div></div>';
+  if (!body) body = '<div style="text-align:center;padding:32px;color:#999">Nessun dettaglio.</div>';
+  document.getElementById('det-body').innerHTML = body;
+  document.getElementById('det-modal').classList.add('open');
+}
+
+async function eliminaSeduta() {
+  if (!sedutaId) return;
+  if (!confirm('Eliminare questa seduta?')) return;
+  await _sb.from('therapy_sessions').delete().eq('id', sedutaId);
+  chiudiDettaglio();
+  caricaSedute();
+}
 
 async function precompilaAI() {
-  const btn = document.getElementById('btn-ai')
-  const loading = document.getElementById('ai-loading')
-  btn.disabled = true
-  loading.classList.add('visible')
-  const nomePaz = patient.nome + ' ' + patient.cognome
-  const problema = patient.problema_principale || 'non specificato'
-  let esercizi = 'nessun protocollo'
-  let nomeProt = ''
+  var btn = document.getElementById('btn-ai');
+  var loading = document.getElementById('ai-loading');
+  btn.disabled = true;
+  loading.classList.add('visible');
+  var nomePaz = patient.nome + ' ' + patient.cognome;
+  var problema = patient.problema_principale || 'non specificato';
+  var esercizi = 'nessun protocollo';
+  var nomeProt = '';
   if (protAtt) {
-    nomeProt = protAtt.nome_personalizzato || 'Protocollo attivo'
-    esercizi = (protAtt.patient_protocol_exercises || []).map(function(e) { return e.exercises ? e.exercises.nome : '-' }).join(', ')
-  }
-  const { data: sp } = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(3)
-  let storico = 'Prima seduta.'
-  if (sp && sp.length > 0) storico = sp.map(function(s) { return new Date(s.data_seduta).toLocaleDateString('it-IT') + ' VAS:' + s.vas_inizio + '->' + s.vas_fine + ' ' + (s.protocollo_seduta || '') }).join(' | ')
-  const prompt = 'Fisioterapista. Paziente: ' + nomePaz + '. Problema: ' + problema + '. Protocollo: ' + nomeProt + ' esercizi: ' + esercizi + '. Storico: ' + storico + '. Rispondi SOLO JSON: {"protocollo_seduta":"...","protocollo_prossima":"...","tecniche":"...","risposta_paziente":"...","note_cliniche":"..."}'
-  try {
-    const r = await fetch('/api/ai-analisi', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({prompt}) })
-    const data = await r.json()
-    const m = (data.testo || '').match(/\{[\s\S]*\}/)
-    if (m) {
-      const p = JSON.parse(m[0])
-      if (p.protocollo_seduta) document.getElementById('f-ps').value = p.protocollo_seduta
-      if (p.protocollo_prossima) document.getElementById('f-pp').value = p.protocollo_prossima
-      if (p.tecniche) document.getElementById('f-tec').value = p.tecniche
-      if (p.risposta_paziente) document.getElementById('f-risp').value = p.risposta_paziente
-      if (p.note_cliniche) document.getElementById('f-note').value = p.note_cliniche
+    nomeProt = protAtt.nome_personalizzato || 'Protocollo attivo';
+    var exList = protAtt.patient_protocol_exercises || [];
+    var nomi = [];
+    for (var i = 0; i < exList.length; i++) {
+      nomi.push(exList[i].exercises ? exList[i].exercises.nome : '-');
     }
-  } catch(e) { alert('Errore AI: ' + e.message) }
-  btn.disabled = false
-  loading.classList.remove('visible')
+    esercizi = nomi.join(', ');
+  }
+  var sp = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(3);
+  var storico = 'Prima seduta.';
+  if (sp.data && sp.data.length > 0) {
+    var parts = [];
+    for (var j = 0; j < sp.data.length; j++) {
+      var sx = sp.data[j];
+      parts.push(new Date(sx.data_seduta).toLocaleDateString('it-IT') + ' VAS:' + sx.vas_inizio + '->' + sx.vas_fine + ' ' + (sx.protocollo_seduta || ''));
+    }
+    storico = parts.join(' | ');
+  }
+  var prompt = 'Fisioterapista. Paziente: ' + nomePaz + '. Problema: ' + problema + '. Protocollo: ' + nomeProt + ' esercizi: ' + esercizi + '. Storico: ' + storico + '. Rispondi SOLO JSON: {"protocollo_seduta":"...","protocollo_prossima":"...","tecniche":"...","risposta_paziente":"...","note_cliniche":"..."}';
+  try {
+    var r = await fetch('/api/ai-analisi', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({prompt: prompt})
+    });
+    var data = await r.json();
+    var testo = data.testo || '';
+    var match = testo.match(/\{[\s\S]*\}/);
+    if (match) {
+      var p = JSON.parse(match[0]);
+      if (p.protocollo_seduta) document.getElementById('f-ps').value = p.protocollo_seduta;
+      if (p.protocollo_prossima) document.getElementById('f-pp').value = p.protocollo_prossima;
+      if (p.tecniche) document.getElementById('f-tec').value = p.tecniche;
+      if (p.risposta_paziente) document.getElementById('f-risp').value = p.risposta_paziente;
+      if (p.note_cliniche) document.getElementById('f-note').value = p.note_cliniche;
+    }
+  } catch(e) {
+    alert('Errore AI: ' + e.message);
+  }
+  btn.disabled = false;
+  loading.classList.remove('visible');
 }
 
 async function salvaSeduta() {
-  const vi = parseInt(document.getElementById('vas-inizio').value)
-  const vf = parseInt(document.getElementById('vas-fine').value)
-  const ps = document.getElementById('f-ps').value.trim()
-  const pp = document.getElementById('f-pp').value.trim()
-  const dp = document.getElementById('f-dp').value
-  const tec = document.getElementById('f-tec').value.trim()
-  const risp = document.getElementById('f-risp').value.trim()
-  const note = document.getElementById('f-note').value.trim()
-  const { data: { session } } = await _sb.auth.getSession()
-  const { data: prof } = await _sb.from('professionals').select('id').eq('user_id', session.user.id).single()
-  const { error } = await _sb.from('therapy_sessions').insert({
-    patient_id: pid, professional_id: prof ? prof.id : null,
+  var vi = parseInt(document.getElementById('vas-inizio').value);
+  var vf = parseInt(document.getElementById('vas-fine').value);
+  var ps = document.getElementById('f-ps').value.trim();
+  var pp = document.getElementById('f-pp').value.trim();
+  var dp = document.getElementById('f-dp').value;
+  var tec = document.getElementById('f-tec').value.trim();
+  var risp = document.getElementById('f-risp').value.trim();
+  var note = document.getElementById('f-note').value.trim();
+  var sess = await _sb.auth.getSession();
+  var profRes = await _sb.from('professionals').select('id').eq('user_id', sess.data.session.user.id).single();
+  var profId = profRes.data ? profRes.data.id : null;
+  var ins = await _sb.from('therapy_sessions').insert({
+    patient_id: pid,
+    professional_id: profId,
     data_seduta: new Date().toISOString(),
-    vas_inizio: vi, vas_fine: vf,
-    protocollo_seduta: ps || null, protocollo_prossima: pp || null,
-    tecniche: tec || null, risposta_paziente: risp || null, note_cliniche: note || null
-  })
-  if (error) { alert('Errore: ' + error.message); return }
+    vas_inizio: vi,
+    vas_fine: vf,
+    protocollo_seduta: ps || null,
+    protocollo_prossima: pp || null,
+    tecniche: tec || null,
+    risposta_paziente: risp || null,
+    note_cliniche: note || null
+  });
+  if (ins.error) { alert('Errore: ' + ins.error.message); return; }
   if (calON && dp) {
-    const d = new Date(dp)
-    const pad = function(n) { return n.toString().padStart(2,'0') }
-    const ds = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T090000'
-    const df = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T100000'
-    const nom = patient ? patient.nome + ' ' + patient.cognome : 'Paziente'
-    const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('Seduta - ' + nom) + '&dates=' + ds + '/' + df + '&details=' + encodeURIComponent(pp || '')
-    window.open(url, '_blank')
+    var d = new Date(dp);
+    var pad = function(n) { return n.toString().padStart(2,'0'); };
+    var ds = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T090000';
+    var df = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T100000';
+    var nom = patient ? patient.nome + ' ' + patient.cognome : 'Paziente';
+    var url = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('Seduta - ' + nom) + '&dates=' + ds + '/' + df + '&details=' + encodeURIComponent(pp || '');
+    window.open(url, '_blank');
   }
-  chiudiModal()
-  caricaSedute()
+  chiudiModal();
+  caricaSedute();
 }
 
-init()
+init();
 </script>
 </body>
 </html>
