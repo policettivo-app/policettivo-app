@@ -16,8 +16,28 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; 
 .container { max-width: 800px; margin: 0 auto; padding: 20px; }
 .btn-new { background: #000; color: #FFD008; border: none; border-radius: 12px; padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; margin-bottom: 24px; }
 .btn-new:hover { background: #222; }
-.session-item { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 12px; border: 1px solid #eee; cursor: pointer; transition: all 0.2s; }
-.session-item:hover { border-color: #FFD008; box-shadow: 0 2px 12px rgba(255,208,8,0.2); }
+.card { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 16px; border: 1px solid #eee; }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.card-title { font-size: 16px; font-weight: 700; }
+.card-date { font-size: 12px; color: #999; }
+.field-group { margin-bottom: 18px; }
+.field-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.field-input { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; resize: vertical; min-height: 60px; }
+.field-input:focus { border-color: #FFD008; }
+input.field-input { min-height: unset; resize: none; }
+.vas-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+.vas-box { background: #f9f9f9; border-radius: 12px; padding: 16px; }
+.vas-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; margin-bottom: 10px; display: block; }
+.vas-value { font-size: 32px; font-weight: 900; text-align: center; margin-bottom: 8px; }
+.vas-slider { width: 100%; accent-color: #FFD008; }
+.btn-ai { background: #000; color: #FFD008; border: none; border-radius: 10px; padding: 12px 20px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-bottom: 18px; }
+.btn-ai:hover { background: #222; }
+.btn-ai:disabled { opacity: 0.6; cursor: not-allowed; }
+.ai-badge { background: #FFD008; color: #000; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.btn-save { background: #FFD008; color: #000; border: none; border-radius: 10px; padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; margin-top: 8px; }
+.btn-save:hover { background: #e6bc00; }
+.session-item { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 12px; border: 1px solid #eee; cursor: pointer; transition: border-color 0.2s; }
+.session-item:hover { border-color: #FFD008; }
 .session-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .session-item-date { font-size: 14px; font-weight: 700; }
 .session-item-vas { display: flex; gap: 8px; }
@@ -25,53 +45,17 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; 
 .vas-pill-start { background: #ffe0e0; color: #c62828; }
 .vas-pill-end { background: #e8f5e9; color: #2e7d32; }
 .session-item-preview { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.session-item-footer { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.feedback-stars { font-size: 13px; }
-.feedback-label { font-size: 11px; color: #999; }
-.empty-state { text-align: center; padding: 48px 20px; color: #999; }
-.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
-.empty-state p { font-size: 14px; }
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; overflow-y: auto; padding: 20px; }
 .modal.open { display: flex; align-items: flex-start; justify-content: center; }
 .modal-content { background: #fff; border-radius: 20px; padding: 28px; width: 100%; max-width: 700px; margin: auto; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .modal-title { font-size: 18px; font-weight: 900; }
 .btn-close { background: #f5f5f5; border: none; border-radius: 8px; padding: 8px 14px; font-size: 18px; cursor: pointer; }
-.detail-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; overflow-y: auto; padding: 20px; }
-.detail-modal.open { display: flex; align-items: flex-start; justify-content: center; }
-.detail-content { background: #fff; border-radius: 20px; padding: 0; width: 100%; max-width: 700px; margin: auto; overflow: hidden; }
-.detail-header { background: #000; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; }
-.detail-header-date { color: #FFD008; font-size: 16px; font-weight: 700; }
-.detail-header-vas { display: flex; gap: 8px; margin-top: 6px; }
-.btn-close-detail { background: #333; border: none; border-radius: 8px; padding: 8px 14px; font-size: 16px; cursor: pointer; color: #fff; }
-.detail-body { padding: 24px; }
-.detail-section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #f0f0f0; }
-.detail-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-.detail-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-.detail-value { font-size: 14px; color: #000; line-height: 1.6; }
-.detail-foto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
-.detail-foto-grid img { width: 100%; border-radius: 10px; object-fit: cover; max-height: 200px; cursor: pointer; }
-.detail-feedback { background: #fffdf0; border: 1px solid #FFD008; border-radius: 12px; padding: 16px; }
-.detail-feedback-stars { font-size: 24px; margin-bottom: 6px; }
-.detail-feedback-text { font-size: 13px; color: #555; }
-.vas-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
-.vas-box { background: #f9f9f9; border-radius: 12px; padding: 16px; }
-.vas-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; margin-bottom: 10px; display: block; }
-.vas-value { font-size: 32px; font-weight: 900; text-align: center; margin-bottom: 8px; }
-.vas-slider { width: 100%; accent-color: #FFD008; }
-.field-group { margin-bottom: 18px; }
-.field-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
-.field-input { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; resize: vertical; min-height: 60px; }
-.field-input:focus { border-color: #FFD008; }
-input.field-input { min-height: unset; resize: none; }
-.btn-ai { background: #000; color: #FFD008; border: none; border-radius: 10px; padding: 12px 20px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-bottom: 18px; }
-.btn-ai:hover { background: #222; }
-.btn-ai:disabled { opacity: 0.6; cursor: not-allowed; }
-.ai-badge { background: #FFD008; color: #000; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-.btn-save { background: #FFD008; color: #000; border: none; border-radius: 10px; padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; margin-top: 8px; }
-.btn-save:hover { background: #e6bc00; }
 .ai-loading { text-align: center; padding: 16px; font-size: 13px; color: #666; display: none; }
 .ai-loading.visible { display: block; }
+.empty-state { text-align: center; padding: 48px 20px; color: #999; }
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
 .foto-seduta-section { margin-bottom: 18px; }
 .foto-seduta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
 .foto-slot-small { border: 2px dashed #ddd; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.2s; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
@@ -85,16 +69,13 @@ input.field-input { min-height: unset; resize: none; }
 .btn-foto { background: #f5f5f5; border: 1.5px solid #ddd; border-radius: 8px; padding: 8px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; text-align: center; }
 .btn-foto:hover { border-color: #FFD008; background: #fffdf0; }
 .premium-note { font-size: 11px; color: #999; text-align: center; margin-top: 6px; }
-.cal-box { background: #f9f9f9; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; border: 1.5px solid #eee; transition: border-color 0.2s; }
-.cal-box:hover { border-color: #FFD008; }
-.cal-check { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; transition: all 0.2s; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <button class="back-btn" onclick="torna()">&#8592; Indietro</button>
-  <h1>&#128203; Diario Sedute</h1>
+  <button class="back-btn" onclick="torna()">← Indietro</button>
+  <h1>📋 Diario Sedute</h1>
   <span class="patient-name" id="patient-name-top">...</span>
 </div>
 
@@ -107,13 +88,17 @@ input.field-input { min-height: unset; resize: none; }
 <div class="modal" id="modal-seduta">
   <div class="modal-content">
     <div class="modal-header">
-      <div class="modal-title">&#128203; Nuova seduta</div>
-      <button class="btn-close" onclick="chiudiModal()">&#10005;</button>
+      <div class="modal-title">📋 Nuova seduta</div>
+      <button class="btn-close" onclick="chiudiModal()">✕</button>
     </div>
+
+    <!-- PULSANTE AI -->
     <button class="btn-ai" id="btn-ai" onclick="precompilaAI()">
-      &#129302; <span>Precompila con AI</span> <span class="ai-badge">PREMIUM</span>
+      🤖 <span>Precompila con AI</span> <span class="ai-badge">PREMIUM</span>
     </button>
-    <div class="ai-loading" id="ai-loading">&#9203; L'AI sta analizzando la scheda del paziente...</div>
+    <div class="ai-loading" id="ai-loading">⏳ L'AI sta analizzando la scheda del paziente...</div>
+
+    <!-- VAS -->
     <div class="vas-row">
       <div class="vas-box">
         <span class="vas-label">VAS inizio seduta</span>
@@ -128,6 +113,8 @@ input.field-input { min-height: unset; resize: none; }
         <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:4px"><span>0</span><span>10</span></div>
       </div>
     </div>
+
+    <!-- CAMPI TESTO -->
     <div class="field-group">
       <label class="field-label">Protocollo eseguito in seduta</label>
       <textarea class="field-input" id="f-protocollo-seduta" placeholder="Es. Tecnica dei 3 respiri, schema-1, schema-2..." rows="3"></textarea>
@@ -137,49 +124,40 @@ input.field-input { min-height: unset; resize: none; }
       <textarea class="field-input" id="f-protocollo-prossima" placeholder="Es. Aggiungere schema-3, aumentare ripetizioni..." rows="3"></textarea>
     </div>
     <div class="field-group">
-      <label class="field-label">&#128197; Data prossima seduta <span style="font-weight:400;color:#bbb">(opzionale)</span></label>
-      <input type="date" class="field-input" id="f-data-prossima" style="min-height:unset;resize:none" min="2024-01-01" max="2099-12-31">
-    </div>
-    <div class="cal-box" onclick="toggleCalendar()">
-      <div class="cal-check" id="cal-check"></div>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:#000">&#128198; Aggiungi a Google Calendar</div>
-        <div style="font-size:11px;color:#999;margin-top:2px">Apre Google Calendar con la prossima seduta precompilata</div>
-      </div>
-    </div>
-    <div class="field-group">
       <label class="field-label">Tecniche utilizzate</label>
-      <textarea class="field-input" id="f-tecniche" placeholder="Es. Mobilizzazione passiva, stretching..." rows="2"></textarea>
+      <textarea class="field-input" id="f-tecniche" placeholder="Es. Mobilizzazione passiva, stretching, massoterapia..." rows="2"></textarea>
     </div>
     <div class="field-group">
       <label class="field-label">Risposta del paziente</label>
-      <textarea class="field-input" id="f-risposta" placeholder="Es. Buona risposta, leggero affaticamento..." rows="2"></textarea>
+      <textarea class="field-input" id="f-risposta" placeholder="Es. Buona risposta, leggero affaticamento post-seduta..." rows="2"></textarea>
     </div>
     <div class="field-group">
       <label class="field-label">Note cliniche</label>
       <textarea class="field-input" id="f-note" placeholder="Osservazioni cliniche libere..." rows="3"></textarea>
     </div>
+
+    <!-- FOTO SEDUTA -->
     <div class="foto-seduta-section">
-      <label class="field-label">&#128247; Foto seduta <span style="font-weight:400;color:#bbb">(max 2 - opzionale)</span></label>
+      <label class="field-label">📷 Foto seduta <span style="font-weight:400;color:#bbb">(max 2 — opzionale)</span></label>
       <div class="foto-seduta-grid">
         <div>
           <div class="foto-slot-small" id="foto-slot-1" onclick="triggerFoto(1)">
-            <div class="slot-icon">&#128247;</div>
+            <div class="slot-icon">📷</div>
             <div class="slot-label">Foto 1</div>
           </div>
           <div class="foto-actions">
-            <button class="btn-foto" onclick="triggerFoto(1)">&#128193; Carica</button>
-            <button class="btn-foto" onclick="triggerFotoCamera(1)">&#128247; Scatta</button>
+            <button class="btn-foto" onclick="triggerFoto(1)">📁 Carica</button>
+            <button class="btn-foto" onclick="triggerFotoCamera(1)">📷 Scatta</button>
           </div>
         </div>
         <div>
           <div class="foto-slot-small" id="foto-slot-2" onclick="triggerFoto(2)">
-            <div class="slot-icon">&#128247;</div>
+            <div class="slot-icon">📷</div>
             <div class="slot-label">Foto 2</div>
           </div>
           <div class="foto-actions">
-            <button class="btn-foto" onclick="triggerFoto(2)">&#128193; Carica</button>
-            <button class="btn-foto" onclick="triggerFotoCamera(2)">&#128247; Scatta</button>
+            <button class="btn-foto" onclick="triggerFoto(2)">📁 Carica</button>
+            <button class="btn-foto" onclick="triggerFotoCamera(2)">📷 Scatta</button>
           </div>
         </div>
       </div>
@@ -187,26 +165,10 @@ input.field-input { min-height: unset; resize: none; }
       <input type="file" id="foto-input-1-camera" accept="image/*" capture="environment" style="display:none" onchange="handleFotoSeduta(1,this)">
       <input type="file" id="foto-input-2" accept="image/*" style="display:none" onchange="handleFotoSeduta(2,this)">
       <input type="file" id="foto-input-2-camera" accept="image/*" capture="environment" style="display:none" onchange="handleFotoSeduta(2,this)">
-      <p class="premium-note">&#11088; Funzione Premium - disponibile nella versione a pagamento</p>
+      <p class="premium-note">⭐ Funzione Premium — disponibile nella versione a pagamento</p>
     </div>
-    <button class="btn-save" onclick="salvaSeduta()">&#128190; Salva seduta</button>
-  </div>
-</div>
 
-<!-- MODAL DETTAGLIO SEDUTA -->
-<div class="detail-modal" id="detail-modal">
-  <div class="detail-content">
-    <div class="detail-header">
-      <div>
-        <div class="detail-header-date" id="detail-date">-</div>
-        <div class="detail-header-vas" id="detail-vas"></div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button id="btn-elimina-seduta" onclick="eliminaSeduta()" style="background:transparent;border:1px solid #c62828;color:#ef9a9a;padding:6px 12px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">&#128465; Elimina</button>
-        <button class="btn-close-detail" onclick="chiudiDettaglio()">&#10005;</button>
-      </div>
-    </div>
-    <div class="detail-body" id="detail-body"></div>
+    <button class="btn-save" onclick="salvaSeduta()">💾 Salva seduta</button>
   </div>
 </div>
 
@@ -218,10 +180,10 @@ const params = new URLSearchParams(window.location.search)
 const patientId = params.get('pid')
 let patient = null, protocolloAttivo = null
 let foto1 = null, foto2 = null
-let calendarEnabled = false
-let sedutaCorrenteId = null
 
-function torna() { window.location.href = 'paziente.html?id=' + patientId }
+function torna() {
+  window.location.href = 'paziente.html?id=' + patientId
+}
 
 function updateVas(tipo, val) {
   const el = document.getElementById('vas-' + tipo + '-val')
@@ -230,22 +192,16 @@ function updateVas(tipo, val) {
   el.style.color = v <= 3 ? '#2e7d32' : v <= 6 ? '#f57c00' : '#c62828'
 }
 
-function toggleCalendar() {
-  calendarEnabled = !calendarEnabled
-  const check = document.getElementById('cal-check')
-  check.style.background = calendarEnabled ? '#FFD008' : ''
-  check.style.borderColor = calendarEnabled ? '#FFD008' : '#ddd'
-  check.textContent = calendarEnabled ? '✓' : ''
-}
-
 async function init() {
   if (!patientId) { window.location.href = 'dashboard.html'; return }
   const { data: { session } } = await _supabase.auth.getSession()
   if (!session) { window.location.href = 'login.html'; return }
+
   const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
   if (!p) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }
   patient = p
   document.getElementById('patient-name-top').textContent = p.nome + ' ' + p.cognome
+
   const { data: prots } = await _supabase
     .from('patient_protocols')
     .select('*, patient_protocol_exercises(*, exercises(nome, descrizione))')
@@ -254,6 +210,7 @@ async function init() {
     .order('created_at', { ascending: false })
     .limit(1)
   if (prots && prots.length > 0) protocolloAttivo = prots[0]
+
   caricaSedute()
 }
 
@@ -266,87 +223,25 @@ async function caricaSedute() {
 
   const lista = document.getElementById('lista-sedute')
   if (!sedute || sedute.length === 0) {
-    lista.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128203;</div><p>Nessuna seduta registrata.<br>Premi il pulsante per aggiungere la prima.</p></div>'
+    lista.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>Nessuna seduta registrata.<br>Premi il pulsante per aggiungere la prima.</p></div>'
     return
   }
 
   let html = ''
   sedute.forEach(s => {
     const data = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
-    const preview = s.protocollo_seduta || s.note_cliniche || s.tecniche || '-'
-    let feedbackHtml = ''
-    if (s.feedback_paziente) {
-      const stelle = parseInt(s.feedback_paziente)
-      const starsStr = stelle ? '⭐'.repeat(stelle) : ''
-      feedbackHtml = '<div class="session-item-footer"><span class="feedback-stars">' + starsStr + '</span><span class="feedback-label">feedback paziente</span></div>'
-    }
-    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(s))))
-    html += '<div class="session-item" onclick="apriDettaglio(\'' + b64 + '\')">'
+    const preview = s.protocollo_seduta || s.note_cliniche || s.tecniche || '—'
+    html += '<div class="session-item" onclick="apriDettaglio(' + "'" + JSON.stringify(s).replace(/'/g, "\\'") + "'" + ')">'
     html += '<div class="session-item-header">'
     html += '<div class="session-item-date">' + data + '</div>'
     html += '<div class="session-item-vas">'
-    html += '<span class="vas-pill vas-pill-start">VAS i: ' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</span>'
-    html += '<span class="vas-pill vas-pill-end">VAS f: ' + (s.vas_fine != null ? s.vas_fine : '-') + '</span>'
+    html += '<span class="vas-pill vas-pill-start">VAS i: ' + (s.vas_inizio ?? '—') + '</span>'
+    html += '<span class="vas-pill vas-pill-end">VAS f: ' + (s.vas_fine ?? '—') + '</span>'
     html += '</div></div>'
     html += '<div class="session-item-preview">' + preview.substring(0, 80) + (preview.length > 80 ? '...' : '') + '</div>'
-    html += feedbackHtml
     html += '</div>'
   })
   lista.innerHTML = html
-}
-
-function apriDettaglio(b64) {
-  const s = JSON.parse(decodeURIComponent(escape(atob(b64))))
-  sedutaCorrenteId = s.id
-  const data = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
-  document.getElementById('detail-date').textContent = data
-  document.getElementById('detail-vas').innerHTML =
-    '<span class="vas-pill vas-pill-start">VAS inizio: ' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</span>' +
-    '<span class="vas-pill vas-pill-end">VAS fine: ' + (s.vas_fine != null ? s.vas_fine : '-') + '</span>'
-
-  let body = ''
-  if (s.protocollo_seduta) body += '<div class="detail-section"><div class="detail-label">Protocollo eseguito</div><div class="detail-value">' + s.protocollo_seduta + '</div></div>'
-  if (s.protocollo_prossima) body += '<div class="detail-section"><div class="detail-label">Prossima seduta</div><div class="detail-value">' + s.protocollo_prossima + '</div></div>'
-  if (s.tecniche) body += '<div class="detail-section"><div class="detail-label">Tecniche utilizzate</div><div class="detail-value">' + s.tecniche + '</div></div>'
-  if (s.risposta_paziente) body += '<div class="detail-section"><div class="detail-label">Risposta del paziente</div><div class="detail-value">' + s.risposta_paziente + '</div></div>'
-  if (s.note_cliniche) body += '<div class="detail-section"><div class="detail-label">Note cliniche</div><div class="detail-value">' + s.note_cliniche + '</div></div>'
-  if (s.foto_seduta) {
-    try {
-      const foto = JSON.parse(s.foto_seduta)
-      if (foto.foto1 || foto.foto2) {
-        body += '<div class="detail-section"><div class="detail-label">Foto seduta</div><div class="detail-foto-grid">'
-        if (foto.foto1) body += '<img src="' + foto.foto1 + '" onclick="window.open(this.src)">'
-        if (foto.foto2) body += '<img src="' + foto.foto2 + '" onclick="window.open(this.src)">'
-        body += '</div></div>'
-      }
-    } catch(e) {}
-  }
-  if (s.feedback_paziente) {
-    const stelle = parseInt(s.feedback_paziente)
-    const starsStr = stelle ? '⭐'.repeat(stelle) : ''
-    const testoFeedback = s.feedback_paziente.replace(/^\d+ stelle — ?/, '')
-    body += '<div class="detail-section"><div class="detail-label">Feedback paziente</div>'
-    body += '<div class="detail-feedback"><div class="detail-feedback-stars">' + starsStr + '</div>'
-    if (testoFeedback && testoFeedback !== s.feedback_paziente) body += '<div class="detail-feedback-text">' + testoFeedback + '</div>'
-    body += '</div></div>'
-  }
-  if (!body) body = '<div style="text-align:center;padding:32px;color:#999">Nessun dettaglio disponibile.</div>'
-  document.getElementById('detail-body').innerHTML = body
-  document.getElementById('detail-modal').classList.add('open')
-}
-
-function chiudiDettaglio() {
-  document.getElementById('detail-modal').classList.remove('open')
-  sedutaCorrenteId = null
-}
-
-async function eliminaSeduta() {
-  if (!sedutaCorrenteId) return
-  if (!confirm('Eliminare questa seduta? Operazione irreversibile.')) return
-  const { error } = await _supabase.from('therapy_sessions').delete().eq('id', sedutaCorrenteId)
-  if (error) { alert('Errore: ' + error.message); return }
-  chiudiDettaglio()
-  caricaSedute()
 }
 
 function apriNuovaSeduta() {
@@ -359,23 +254,19 @@ function apriNuovaSeduta() {
   document.getElementById('vas-fine').value = 3
   updateVas('inizio', 5)
   updateVas('fine', 3)
-  calendarEnabled = false
-  const check = document.getElementById('cal-check')
-  if (check) { check.style.background = ''; check.style.borderColor = '#ddd'; check.textContent = '' }
-  const oggi = new Date()
-  oggi.setDate(oggi.getDate() + 7)
-  document.getElementById('f-data-prossima').value = oggi.toISOString().split('T')[0]
   foto1 = null; foto2 = null
   resetFotoSlot(1); resetFotoSlot(2)
   document.getElementById('modal-seduta').classList.add('open')
 }
 
-function chiudiModal() { document.getElementById('modal-seduta').classList.remove('open') }
+function chiudiModal() {
+  document.getElementById('modal-seduta').classList.remove('open')
+}
 
 function resetFotoSlot(n) {
   const slot = document.getElementById('foto-slot-' + n)
   slot.classList.remove('has-photo')
-  slot.innerHTML = '<div class="slot-icon">&#128247;</div><div class="slot-label">Foto ' + n + '</div>'
+  slot.innerHTML = '<div class="slot-icon">📷</div><div class="slot-label">Foto ' + n + '</div>'
   slot.onclick = function() { triggerFoto(n) }
 }
 
@@ -407,7 +298,7 @@ function handleFotoSeduta(n, input) {
     else foto2 = dataUrl
     const slot = document.getElementById('foto-slot-' + n)
     slot.classList.add('has-photo')
-    slot.innerHTML = '<img src="' + dataUrl + '" alt="foto ' + n + '"><div class="foto-overlay-small" onclick="resetFotoSlot(' + n + ')">&#10005;</div>'
+    slot.innerHTML = '<img src="' + dataUrl + '" alt="foto ' + n + '"><div class="foto-overlay-small" onclick="resetFotoSlot(' + n + ')">✕</div>'
     slot.onclick = null
   })
 }
@@ -417,30 +308,50 @@ async function precompilaAI() {
   const loading = document.getElementById('ai-loading')
   btn.disabled = true
   loading.classList.add('visible')
+
   const nomePaz = patient.nome + ' ' + patient.cognome
   const problema = patient.problema_principale || 'non specificato'
   const note = patient.note_cliniche || 'nessuna nota posturale'
+
   let esercizi = 'nessun protocollo attivo'
   let nomeProtocollo = ''
   if (protocolloAttivo) {
     nomeProtocollo = protocolloAttivo.nome_personalizzato || 'Protocollo attivo'
     const ppe = protocolloAttivo.patient_protocol_exercises || []
-    esercizi = ppe.map(e => e.exercises ? e.exercises.nome : '-').join(', ')
+    esercizi = ppe.map(e => e.exercises ? e.exercises.nome : '—').join(', ')
   }
+
   const { data: sedutePrecedenti } = await _supabase
     .from('therapy_sessions')
     .select('*')
     .eq('patient_id', patientId)
     .order('data_seduta', { ascending: false })
     .limit(3)
+
   let storicoTesto = 'Prima seduta con questo paziente.'
   if (sedutePrecedenti && sedutePrecedenti.length > 0) {
     storicoTesto = 'Ultime sedute:\n' + sedutePrecedenti.map(s => {
       const d = new Date(s.data_seduta).toLocaleDateString('it-IT')
-      return d + ' - VAS: ' + s.vas_inizio + '->' + s.vas_fine + ' - ' + (s.protocollo_seduta || '') + ' - Risposta: ' + (s.risposta_paziente || '')
+      return d + ' — VAS: ' + s.vas_inizio + '→' + s.vas_fine + ' — ' + (s.protocollo_seduta || '') + ' — Risposta: ' + (s.risposta_paziente || '')
     }).join('\n')
   }
-  const prompt = 'Sei un assistente per fisioterapisti. Compila il diario di seduta per il paziente ' + nomePaz + '. Problema principale: ' + problema + '. Note posturali: ' + note + '. Protocollo assegnato: ' + nomeProtocollo + ' - Esercizi: ' + esercizi + '. ' + storicoTesto + '. Rispondi SOLO con un JSON valido (niente testo prima o dopo) con questi campi: {"protocollo_seduta": "...","protocollo_prossima": "...","tecniche": "...","risposta_paziente": "...","note_cliniche": "..."}. Sii specifico e clinicamente appropriato. Max 2 righe per campo.'
+
+  const prompt = `Sei un assistente per fisioterapisti. Compila il diario di seduta per il paziente ${nomePaz}.
+Problema principale: ${problema}
+Note posturali: ${note}
+Protocollo assegnato: ${nomeProtocollo} — Esercizi: ${esercizi}
+${storicoTesto}
+
+Rispondi SOLO con un JSON valido (niente testo prima o dopo) con questi campi:
+{
+  "protocollo_seduta": "...",
+  "protocollo_prossima": "...",
+  "tecniche": "...",
+  "risposta_paziente": "...",
+  "note_cliniche": "..."
+}
+Sii specifico e clinicamente appropriato. Max 2 righe per campo.`
+
   try {
     const response = await fetch('/api/ai-analisi', {
       method: 'POST',
@@ -463,6 +374,7 @@ async function precompilaAI() {
   } catch(e) {
     alert('Errore AI: ' + e.message)
   }
+
   btn.disabled = false
   loading.classList.remove('visible')
 }
@@ -472,15 +384,17 @@ async function salvaSeduta() {
   const vasFine = parseInt(document.getElementById('vas-fine').value)
   const protocolloSeduta = document.getElementById('f-protocollo-seduta').value.trim()
   const protocolloProssima = document.getElementById('f-protocollo-prossima').value.trim()
-  const dataProssima = document.getElementById('f-data-prossima').value
   const tecniche = document.getElementById('f-tecniche').value.trim()
   const risposta = document.getElementById('f-risposta').value.trim()
   const note = document.getElementById('f-note').value.trim()
+
   const { data: { session } } = await _supabase.auth.getSession()
   const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
+
   const fotoJson = {}
   if (foto1) fotoJson.foto1 = foto1
   if (foto2) fotoJson.foto2 = foto2
+
   const { error } = await _supabase.from('therapy_sessions').insert({
     patient_id: patientId,
     professional_id: prof ? prof.id : null,
@@ -494,20 +408,37 @@ async function salvaSeduta() {
     note_cliniche: note || null,
     foto_seduta: Object.keys(fotoJson).length > 0 ? JSON.stringify(fotoJson) : null
   })
+
   if (error) { alert('Errore salvataggio: ' + error.message); return }
-  if (calendarEnabled && dataProssima) {
-    const d = new Date(dataProssima)
-    const pad = n => n.toString().padStart(2, '0')
-    const dataStr = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T090000'
-    const dataFine = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T100000'
-    const nomePaz = patient ? patient.nome + ' ' + patient.cognome : 'Paziente'
-    const titolo = encodeURIComponent('Seduta fisioterapica - ' + nomePaz)
-    const dettagli = encodeURIComponent((protocolloProssima ? 'Protocollo: ' + protocolloProssima : '') + (note ? '\nNote: ' + note : ''))
-    const calUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + titolo + '&dates=' + dataStr + '/' + dataFine + '&details=' + dettagli
-    window.open(calUrl, '_blank')
-  }
   chiudiModal()
   caricaSedute()
+}
+
+function apriDettaglio(sedutaJson) {
+  const s = typeof sedutaJson === 'string' ? JSON.parse(sedutaJson) : sedutaJson
+  const data = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
+  let html = '<div style="font-size:13px;line-height:1.8">'
+  html += '<div style="font-weight:700;font-size:16px;margin-bottom:12px">' + data + '</div>'
+  html += '<div style="display:flex;gap:8px;margin-bottom:16px">'
+  html += '<span class="vas-pill vas-pill-start">VAS inizio: ' + (s.vas_inizio ?? '—') + '</span>'
+  html += '<span class="vas-pill vas-pill-end">VAS fine: ' + (s.vas_fine ?? '—') + '</span>'
+  html += '</div>'
+  if (s.protocollo_seduta) html += '<p><strong>Protocollo seduta:</strong><br>' + s.protocollo_seduta + '</p><br>'
+  if (s.protocollo_prossima) html += '<p><strong>Prossima seduta:</strong><br>' + s.protocollo_prossima + '</p><br>'
+  if (s.tecniche) html += '<p><strong>Tecniche:</strong><br>' + s.tecniche + '</p><br>'
+  if (s.risposta_paziente) html += '<p><strong>Risposta paziente:</strong><br>' + s.risposta_paziente + '</p><br>'
+  if (s.note_cliniche) html += '<p><strong>Note cliniche:</strong><br>' + s.note_cliniche + '</p><br>'
+  if (s.foto_seduta) {
+    try {
+      const foto = JSON.parse(s.foto_seduta)
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+      if (foto.foto1) html += '<img src="' + foto.foto1 + '" style="width:100%;border-radius:8px;object-fit:cover">'
+      if (foto.foto2) html += '<img src="' + foto.foto2 + '" style="width:100%;border-radius:8px;object-fit:cover">'
+      html += '</div>'
+    } catch(e) {}
+  }
+  html += '</div>'
+  alert(html)
 }
 
 init()
