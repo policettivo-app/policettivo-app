@@ -188,6 +188,7 @@
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
       document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token }
+      const btnRapida = document.getElementById('btn-rapida'); if(btnRapida) btnRapida.style.display = 'block'
 
       const { data: prots } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
       if (!prots || prots.length === 0) { showNoProtocol(); return }
@@ -302,7 +303,7 @@
       }
       document.getElementById('content-area').innerHTML =
         '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + exercises.length + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">Inizia gli esercizi</button>
-<button onclick="window.location.href='rapida.html?token=' + token" style="width:100%;padding:14px;background:#1a1a1a;border:1.5px solid #FFD008;color:#FFD008;border-radius:12px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px">⚡ Modalità Rapida — Ho poco tempo</button></div>' +
+      <button id="btn-rapida" onclick="modalitaRapida()" style="width:100%;padding:14px;background:#1a1a1a;border:1.5px solid #FFD008;color:#FFD008;border-radius:12px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px;display:none">&#9889; Modalita Rapida</button></div>' +
         exHtml +
         '<div class="diary-card"><div class="diary-title">Come stai oggi?</div>' +
         '<div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="updateSlider(\'dolore\',this.value)"><div id="bar-dolore" style="height:4px;border-radius:2px;margin-top:4px;background:#4CAF50;width:0%;transition:all 0.3s"></div></div>' +
@@ -313,6 +314,10 @@
         '<button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button>' +
         '<button class="btn-wa" onclick="contattaProfessionista()">Scrivi al professionista</button>' +
         '<div class="success-msg" id="diary-success">Diario salvato! Ottimo lavoro.</div></div>'
+    }
+
+    function modalitaRapida() {
+      window.location.href = 'rapida.html?token=' + token
     }
 
     function iniziaEsercizi() {
