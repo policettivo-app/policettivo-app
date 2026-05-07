@@ -198,10 +198,13 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; 
   <div class="detail-content">
     <div class="detail-header">
       <div>
-        <div class="detail-header-date" id="detail-date">—</div>
+        <div class="detail-header-date" id="detail-date" id="detail-date-id">—</div>
         <div class="detail-header-vas" id="detail-vas"></div>
       </div>
-      <button class="btn-close-detail" onclick="chiudiDettaglio()">✕</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="eliminaSeduta(document.getElementById('detail-date-id').getAttribute('data-id'))" style="background:transparent;border:1px solid #c62828;color:#ef9a9a;padding:6px 12px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">🗑 Elimina</button>
+        <button class="btn-close-detail" onclick="chiudiDettaglio()">✕</button>
+      </div>
     </div>
     <div class="detail-body" id="detail-body"></div>
   </div>
@@ -338,11 +341,20 @@ function apriDettaglio(b64) {
   }
 
   document.getElementById('detail-body').innerHTML = body
+  document.getElementById('detail-date-id').setAttribute('data-id', s.id)
   document.getElementById('detail-modal').classList.add('open')
 }
 
 function chiudiDettaglio() {
   document.getElementById('detail-modal').classList.remove('open')
+}
+
+async function eliminaSeduta(id) {
+  if (!confirm('Eliminare questa seduta? Operazione irreversibile.')) return
+  const { error } = await _supabase.from('therapy_sessions').delete().eq('id', id)
+  if (error) { alert('Errore: ' + error.message); return }
+  chiudiDettaglio()
+  caricaSedute()
 }
 
 let calendarEnabled = false
