@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Policettivo® — Modalità Rapida</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Montserrat', sans-serif; background: #000; color: #fff; min-height: 100vh; }
+.navbar { background: #000; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; }
+.navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+.btn-exit { background: transparent; border: 1px solid #333; color: #666; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+.main { max-width: 480px; margin: 0 auto; padding: 24px 20px 60px; }
+.header-box { background: #111; border: 1px solid #FFD008; border-radius: 16px; padding: 20px; margin-bottom: 24px; text-align: center; }
+.header-icon { font-size: 36px; margin-bottom: 8px; }
+.header-title { font-size: 20px; font-weight: 900; color: #FFD008; margin-bottom: 4px; }
+.header-sub { font-size: 13px; color: #888; }
+.section-label { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+.exercise-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.ex-item { background: #111; border: 1px solid #222; border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 14px; transition: border-color 0.2s; }
+.ex-item.done { border-color: #FFD008; background: #1a1a00; }
+.ex-check { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #333; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; flex-shrink: 0; transition: all 0.2s; }
+.ex-item.done .ex-check { background: #FFD008; border-color: #FFD008; color: #000; }
+.ex-info { flex: 1; }
+.ex-name { font-size: 14px; font-weight: 700; color: #fff; }
+.ex-item.done .ex-name { color: #FFD008; }
+.ex-meta { font-size: 12px; color: #555; margin-top: 2px; }
+.ex-timer-btn { background: #1a1a1a; border: 1px solid #333; color: #666; padding: 6px 12px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.ex-timer-btn.running { border-color: #FFD008; color: #FFD008; }
+.timer-mini { font-size: 13px; color: #FFD008; font-weight: 700; margin-top: 6px; display: none; }
+.timer-mini.visible { display: block; }
+.diary-section { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; margin-bottom: 24px; }
+.diary-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+.slider-group { margin-bottom: 14px; }
+.slider-label { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.slider-name { font-size: 13px; color: #aaa; }
+.slider-val { font-size: 14px; font-weight: 700; color: #FFD008; }
+input[type=range] { width: 100%; accent-color: #FFD008; }
+.note-input { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-family: 'Montserrat', sans-serif; font-size: 13px; resize: none; outline: none; margin-top: 8px; }
+.note-input:focus { border-color: #FFD008; }
+.btn-completa { width: 100%; padding: 18px; background: #FFD008; color: #000; border: none; border-radius: 14px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 900; cursor: pointer; margin-bottom: 12px; }
+.btn-completa:hover { background: #e6bc00; }
+.btn-salta { width: 100%; padding: 14px; background: transparent; border: 1px solid #333; color: #555; border-radius: 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; cursor: pointer; }
+.completed-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; }
+.completed-overlay.show { display: flex; }
+.completed-icon { font-size: 80px; margin-bottom: 16px; }
+.completed-title { font-size: 26px; font-weight: 900; color: #FFD008; margin-bottom: 8px; }
+.completed-sub { font-size: 14px; color: #888; margin-bottom: 32px; }
+.btn-torna { padding: 18px 40px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; }
+.motivational { background: #111; border-radius: 12px; padding: 16px 20px; font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 24px; font-style: italic; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <span class="navbar-logo">POLICETTIVO®</span>
+  <button class="btn-exit" onclick="torna()">← Esci</button>
+</nav>
+<div class="main">
+  <div class="header-box">
+    <div class="header-icon">⚡</div>
+    <div class="header-title">Modalità Rapida</div>
+    <div class="header-sub">Spunta gli esercizi eseguiti e completa la seduta</div>
+  </div>
+  <div class="section-label">Il tuo protocollo di oggi</div>
+  <div class="exercise-list" id="exercise-list">
+    <div style="color:#555;font-size:13px">Caricamento...</div>
+  </div>
+  <div class="diary-section">
+    <div class="diary-title">Come ti senti?</div>
+    <div class="slider-group">
+      <div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-val" id="val-dolore">0</span></div>
+      <input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="updateSlider('dolore',this.value)">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span class="slider-name">Energia</span><span class="slider-val" id="val-energia">5</span></div>
+      <input type="range" id="sl-energia" min="0" max="10" value="5" oninput="updateSlider('energia',this.value)">
+    </div>
+    <textarea class="note-input" id="note" rows="2" placeholder="Note libere (opzionale)..."></textarea>
+  </div>
+  <button class="btn-completa" onclick="completaSeduta()">✅ Completa seduta</button>
+  <button class="btn-salta" onclick="saltaECompleta()">Salta tutto e segna come completato</button>
+</div>
+
+<div class="completed-overlay" id="completed-overlay">
+  <div class="completed-icon">🏆</div>
+  <div class="completed-title">Ottimo lavoro!</div>
+  <div class="completed-sub">Seduta registrata con successo</div>
+  <div class="motivational" id="motivational-msg"></div>
+  <button class="btn-torna" onclick="torna()">Torna al protocollo</button>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+const params = new URLSearchParams(window.location.search)
+const token = params.get('token')
+let patient = null, protocol = null, exercises = []
+let checkedItems = new Set()
+let timers = {}
+
+const frasi = [
+  'Ogni sessione completata e una promessa mantenuta a te stesso.',
+  'Non serve fare tutto perfettamente. Serve farlo con intenzione.',
+  'Il corpo che vuoi e esattamente quello che stai costruendo adesso.',
+  'La costanza non chiede la perfezione. Chiede solo che tu ci sia.',
+  'Anche oggi hai scelto di muoverti. Questa e la differenza.'
+]
+
+function torna() { window.location.href = 'protocollo.html?token=' + token }
+
+function updateSlider(id, val) {
+  document.getElementById('val-' + id).textContent = val
+}
+
+async function init() {
+  if (!token) { torna(); return }
+  const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
+  if (!p) { torna(); return }
+  patient = p
+  const { data: prots } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
+  if (!prots || prots.length === 0) { torna(); return }
+  protocol = prots[0]
+  const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
+  if (ppe && ppe.length > 0) {
+    const exIds = ppe.map(e => e.exercise_id)
+    const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
+    const exMap = {}
+    if (exData) exData.forEach(e => exMap[e.id] = e)
+    exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
+  }
+  renderExercises()
+}
+
+function renderExercises() {
+  const list = document.getElementById('exercise-list')
+  if (!exercises.length) { list.innerHTML = '<div style="color:#555;font-size:13px">Nessun esercizio</div>'; return }
+  list.innerHTML = exercises.map((e, i) => {
+    const ex = e.exercise
+    const durata = e.durata || (ex ? ex.durata_default : 90) || 90
+    const nome = ex ? ex.nome : 'Esercizio ' + (i+1)
+    const isDone = checkedItems.has(i)
+    return '<div class="ex-item' + (isDone ? ' done' : '') + '" id="ex-item-' + i + '">' +
+      '<div class="ex-check" onclick="toggleCheck(' + i + ')">' + (isDone ? '✓' : '') + '</div>' +
+      '<div class="ex-info">' +
+        '<div class="ex-name">' + nome + '</div>' +
+        '<div class="ex-meta">' + durata + ' sec</div>' +
+        '<div class="timer-mini" id="timer-' + i + '"></div>' +
+      '</div>' +
+      '<button class="ex-timer-btn" id="tbtn-' + i + '" onclick="toggleTimer(' + i + ',' + durata + ')">' +
+        (timers[i] && timers[i].running ? '⏸' : '▶') +
+      '</button>' +
+    '</div>'
+  }).join('')
+}
+
+function toggleCheck(i) {
+  if (checkedItems.has(i)) checkedItems.delete(i)
+  else checkedItems.add(i)
+  renderExercises()
+}
+
+function toggleTimer(i, durata) {
+  if (!timers[i]) timers[i] = { remaining: durata, running: false, interval: null }
+  const t = timers[i]
+  if (t.running) {
+    clearInterval(t.interval)
+    t.running = false
+  } else {
+    t.running = true
+    t.interval = setInterval(() => {
+      t.remaining--
+      const el = document.getElementById('timer-' + i)
+      if (el) {
+        const m = Math.floor(t.remaining / 60)
+        const s = t.remaining % 60
+        el.textContent = m + ':' + (s < 10 ? '0' : '') + s
+        el.classList.add('visible')
+      }
+      if (t.remaining <= 0) {
+        clearInterval(t.interval)
+        t.running = false
+        checkedItems.add(i)
+        renderExercises()
+      }
+      const btn = document.getElementById('tbtn-' + i)
+      if (btn) btn.textContent = t.running ? '⏸' : '▶'
+    }, 1000)
+  }
+  renderExercises()
+}
+
+async function completaSeduta() {
+  const dolore = parseInt(document.getElementById('sl-dolore').value)
+  const energia = parseInt(document.getElementById('sl-energia').value)
+  const note = document.getElementById('note').value.trim()
+  const today = new Date().toISOString().split('T')[0]
+  await _supabase.from('diary_entries').insert({
+    patient_id: patient.id,
+    patient_protocol_id: protocol.id,
+    data: today,
+    dolore, rigidita: 0, equilibrio: 5, energia,
+    note: note || 'Seduta rapida completata',
+    completato: true
+  })
+  mostraCompletato()
+}
+
+async function saltaECompleta() {
+  const today = new Date().toISOString().split('T')[0]
+  await _supabase.from('diary_entries').insert({
+    patient_id: patient.id,
+    patient_protocol_id: protocol.id,
+    data: today,
+    dolore: 0, rigidita: 0, equilibrio: 5, energia: 5,
+    note: 'Seduta rapida completata',
+    completato: true
+  })
+  mostraCompletato()
+}
+
+function mostraCompletato() {
+  const frase = frasi[Math.floor(Math.random() * frasi.length)]
+  document.getElementById('motivational-msg').textContent = frase
+  document.getElementById('completed-overlay').classList.add('show')
+  try {
+    const audio = new Audio('magnific_epic-victory.mp3')
+    audio.volume = 0.7
+    audio.play()
+  } catch(e) {}
+}
+
+init()
+</script>
+</body>
+</html>
