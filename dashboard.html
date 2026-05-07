@@ -37,6 +37,12 @@
     .patients-table { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; }
     .table-header { display: grid; grid-template-columns: 2.5fr 1.5fr 1fr 1fr 120px 40px; padding: 12px 24px; background: #f9f9f9; border-bottom: 1px solid #eee; font-size: 11px; font-weight: 600; color: #999; letter-spacing: 1px; text-transform: uppercase; }
     .patient-row { display: grid; grid-template-columns: 2.5fr 1.5fr 1fr 1fr 120px 40px; padding: 14px 24px; border-bottom: 1px solid #f0f0f0; align-items: center; cursor: pointer; transition: background 0.15s; }
+    @media (max-width: 600px) {
+      .table-header { grid-template-columns: 1fr 80px 40px; }
+      .table-header span:nth-child(2), .table-header span:nth-child(3), .table-header span:nth-child(4) { display: none; }
+      .patient-row { grid-template-columns: 1fr 80px 40px; }
+      .patient-row > div:nth-child(2), .patient-row > div:nth-child(3), .patient-row > div:nth-child(4) { display: none; }
+    }
     .patient-row:last-child { border-bottom: none; }
     .patient-row:hover { background: #fffdf0; }
     .patient-name { font-weight: 600; font-size: 14px; color: #000; }
@@ -298,8 +304,7 @@
       const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
       if (prof) {
         currentProfessionalId = prof.id
-        await loadPatients()
-        loadStats()
+        await Promise.all([loadPatients(), loadStats()])
         if (shouldShowWizard() && allPatients.length === 0) openWizard()
       }
     }
@@ -376,11 +381,13 @@
     }
 
     async function loadStats() {
-      const { count: protCount } = await _supabase.from('patient_protocols').select('*', { count: 'exact', head: true }).eq('professional_id', currentProfessionalId).eq('stato', 'attivo')
-      document.getElementById('stat-protocolli').textContent = protCount || 0
       const today = new Date().toISOString().split('T')[0]
-      const { count: sessCount } = await _supabase.from('session_logs').select('*', { count: 'exact', head: true }).gte('started_at', today)
-      document.getElementById('stat-sessioni').textContent = sessCount || 0
+      const [protRes, sessRes] = await Promise.all([
+        _supabase.from('patient_protocols').select('*', { count: 'exact', head: true }).eq('professional_id', currentProfessionalId).eq('stato', 'attivo'),
+        _supabase.from('session_logs').select('*', { count: 'exact', head: true }).gte('started_at', today)
+      ])
+      document.getElementById('stat-protocolli').textContent = protRes.count || 0
+      document.getElementById('stat-sessioni').textContent = sessRes.count || 0
     }
 
     function openModal() { document.getElementById('modal-overlay').classList.add('open') }
