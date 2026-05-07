@@ -314,14 +314,18 @@
     }
 
     async function loadPatients() {
-      const { data: patients } = await _supabase.from('patients').select('*').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('cognome', { ascending: true })
-      allPatients = patients || []
+      const [patientsRes, diariesRes] = await Promise.all([
+        _supabase.from('patients').select('id,nome,cognome,email,problema_principale,configurazione_default,stato,access_token').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('cognome', { ascending: true }),
+        _supabase.from('diary_entries').select('patient_id,data,completato').eq('completato', true).order('data', { ascending: false }).limit(200)
+      ])
+      allPatients = patientsRes.data || []
       document.getElementById('stat-pazienti').textContent = allPatients.length
       const diaryMap = {}
-      if (allPatients.length > 0) {
-        const ids = allPatients.map(p => p.id)
-        const { data: diaries } = await _supabase.from('diary_entries').select('patient_id,data,completato').in('patient_id', ids).order('data', { ascending: false })
-        if (diaries) { diaries.forEach(d => { if (!diaryMap[d.patient_id]) diaryMap[d.patient_id] = []; diaryMap[d.patient_id].push(d) }) }
+      if (diariesRes.data) {
+        diariesRes.data.forEach(d => {
+          if (!diaryMap[d.patient_id]) diaryMap[d.patient_id] = []
+          diaryMap[d.patient_id].push(d)
+        })
       }
       renderPatients(allPatients, '', diaryMap)
     }
