@@ -1,417 +1,229 @@
-<!-- v2 -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diario Sedute — Policettivo®</title>
+<title>Diario Sedute</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; min-height: 100vh; }
 .topbar { background: #FFD008; padding: 16px 20px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-.topbar .back-btn { background: #000; color: #FFD008; border: none; border-radius: 8px; padding: 8px 14px; font-family: 'Montserrat', sans-serif; font-weight: 700; cursor: pointer; font-size: 14px; }
+.back-btn { background: #000; color: #FFD008; border: none; border-radius: 8px; padding: 8px 14px; font-family: Montserrat,sans-serif; font-weight: 700; cursor: pointer; font-size: 14px; }
 .topbar h1 { font-size: 18px; font-weight: 900; color: #000; flex: 1; }
-.topbar .patient-name { font-size: 13px; font-weight: 600; color: #000; opacity: 0.7; }
+.pname { font-size: 13px; font-weight: 600; color: #000; opacity: 0.7; }
 .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-.btn-new { background: #000; color: #FFD008; border: none; border-radius: 12px; padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; margin-bottom: 24px; }
-.btn-new:hover { background: #222; }
+.btn-new { background: #000; color: #FFD008; border: none; border-radius: 12px; padding: 14px 24px; font-family: Montserrat,sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; margin-bottom: 24px; }
 .session-item { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 12px; border: 1px solid #eee; cursor: pointer; transition: all 0.2s; }
-.session-item:hover { border-color: #FFD008; box-shadow: 0 2px 12px rgba(255,208,8,0.2); }
-.session-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.session-item-date { font-size: 14px; font-weight: 700; }
-.session-item-vas { display: flex; gap: 8px; }
-.vas-pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
-.vas-pill-start { background: #ffe0e0; color: #c62828; }
-.vas-pill-end { background: #e8f5e9; color: #2e7d32; }
-.session-item-preview { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.session-item-footer { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.feedback-stars { font-size: 13px; }
-.feedback-label { font-size: 11px; color: #999; }
-.empty-state { text-align: center; padding: 48px 20px; color: #999; }
-.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
-.empty-state p { font-size: 14px; }
+.session-item:hover { border-color: #FFD008; }
+.sih { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.sid { font-size: 14px; font-weight: 700; }
+.vas-pills { display: flex; gap: 8px; }
+.vp { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.vps { background: #ffe0e0; color: #c62828; }
+.vpe { background: #e8f5e9; color: #2e7d32; }
+.sip { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.empty-state { text-align: center; padding: 48px 20px; color: #999; font-size: 14px; }
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; overflow-y: auto; padding: 20px; }
 .modal.open { display: flex; align-items: flex-start; justify-content: center; }
 .modal-content { background: #fff; border-radius: 20px; padding: 28px; width: 100%; max-width: 700px; margin: auto; }
-.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.modal-title { font-size: 18px; font-weight: 900; }
-.btn-close { background: #f5f5f5; border: none; border-radius: 8px; padding: 8px 14px; font-size: 18px; cursor: pointer; }
-.detail-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; overflow-y: auto; padding: 20px; }
-.detail-modal.open { display: flex; align-items: flex-start; justify-content: center; }
-.detail-content { background: #fff; border-radius: 20px; padding: 0; width: 100%; max-width: 700px; margin: auto; overflow: hidden; }
-.detail-header { background: #000; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; }
-.detail-header-date { color: #FFD008; font-size: 16px; font-weight: 700; }
-.detail-header-vas { display: flex; gap: 8px; margin-top: 6px; }
-.btn-close-detail { background: #333; border: none; border-radius: 8px; padding: 8px 14px; font-size: 16px; cursor: pointer; color: #fff; }
-.detail-body { padding: 24px; }
-.detail-section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #f0f0f0; }
-.detail-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-.detail-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-.detail-value { font-size: 14px; color: #000; line-height: 1.6; }
-.detail-foto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
-.detail-foto-grid img { width: 100%; border-radius: 10px; object-fit: cover; max-height: 200px; cursor: pointer; }
-.detail-feedback { background: #fffdf0; border: 1px solid #FFD008; border-radius: 12px; padding: 16px; }
-.detail-feedback-stars { font-size: 24px; margin-bottom: 6px; }
-.detail-feedback-text { font-size: 13px; color: #555; }
+.mh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.mt { font-size: 18px; font-weight: 900; }
+.bc { background: #f5f5f5; border: none; border-radius: 8px; padding: 8px 14px; font-size: 18px; cursor: pointer; }
+.det-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; overflow-y: auto; padding: 20px; }
+.det-modal.open { display: flex; align-items: flex-start; justify-content: center; }
+.det-content { background: #fff; border-radius: 20px; width: 100%; max-width: 700px; margin: auto; overflow: hidden; }
+.det-header { background: #000; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; }
+.det-date { color: #FFD008; font-size: 16px; font-weight: 700; }
+.det-vas { display: flex; gap: 8px; margin-top: 6px; }
+.bcd { background: #333; border: none; border-radius: 8px; padding: 8px 14px; font-size: 16px; cursor: pointer; color: #fff; }
+.det-body { padding: 24px; }
+.det-sec { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #f0f0f0; }
+.det-sec:last-child { border-bottom: none; margin-bottom: 0; }
+.det-lbl { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; margin-bottom: 6px; }
+.det-val { font-size: 14px; color: #000; line-height: 1.6; }
 .vas-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
 .vas-box { background: #f9f9f9; border-radius: 12px; padding: 16px; }
-.vas-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; margin-bottom: 10px; display: block; }
-.vas-value { font-size: 32px; font-weight: 900; text-align: center; margin-bottom: 8px; }
-.vas-slider { width: 100%; accent-color: #FFD008; }
-.field-group { margin-bottom: 18px; }
-.field-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
-.field-input { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; resize: vertical; min-height: 60px; }
-.field-input:focus { border-color: #FFD008; }
-input.field-input { min-height: unset; resize: none; }
-.btn-ai { background: #000; color: #FFD008; border: none; border-radius: 10px; padding: 12px 20px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-bottom: 18px; }
-.btn-ai:hover { background: #222; }
+.vas-lbl { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; margin-bottom: 10px; display: block; }
+.vas-val { font-size: 32px; font-weight: 900; text-align: center; margin-bottom: 8px; }
+.vas-sl { width: 100%; accent-color: #FFD008; }
+.fg { margin-bottom: 18px; }
+.fl { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.fi { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-family: Montserrat,sans-serif; font-size: 13px; outline: none; resize: vertical; min-height: 60px; }
+.fi:focus { border-color: #FFD008; }
+input.fi { min-height: unset; resize: none; }
+.btn-ai { background: #000; color: #FFD008; border: none; border-radius: 10px; padding: 12px 20px; font-family: Montserrat,sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-bottom: 18px; }
 .btn-ai:disabled { opacity: 0.6; cursor: not-allowed; }
 .ai-badge { background: #FFD008; color: #000; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-.btn-save { background: #FFD008; color: #000; border: none; border-radius: 10px; padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; margin-top: 8px; }
-.btn-save:hover { background: #e6bc00; }
 .ai-loading { text-align: center; padding: 16px; font-size: 13px; color: #666; display: none; }
 .ai-loading.visible { display: block; }
-.foto-seduta-section { margin-bottom: 18px; }
-.foto-seduta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
-.foto-slot-small { border: 2px dashed #ddd; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.2s; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-.foto-slot-small:hover { border-color: #FFD008; background: #fffdf0; }
-.foto-slot-small.has-photo { border-style: solid; border-color: #eee; padding: 0; background: #000; }
-.foto-slot-small img { width: 100%; height: 120px; object-fit: cover; border-radius: 10px; display: block; }
-.foto-slot-small .slot-icon { font-size: 24px; margin-bottom: 4px; }
-.foto-slot-small .slot-label { font-size: 11px; color: #999; font-weight: 600; }
-.foto-overlay-small { position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
-.foto-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
-.btn-foto { background: #f5f5f5; border: 1.5px solid #ddd; border-radius: 8px; padding: 8px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; text-align: center; }
-.btn-foto:hover { border-color: #FFD008; background: #fffdf0; }
-.premium-note { font-size: 11px; color: #999; text-align: center; margin-top: 6px; }
-.cal-box { background: #f9f9f9; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; border: 1.5px solid #eee; transition: border-color 0.2s; }
-.cal-box:hover { border-color: #FFD008; }
-.cal-check { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; transition: all 0.2s; }
+.btn-save { background: #FFD008; color: #000; border: none; border-radius: 10px; padding: 14px 24px; font-family: Montserrat,sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; margin-top: 8px; }
+.cal-box { background: #f9f9f9; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; border: 1.5px solid #eee; }
+.cal-check { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
 </style>
 </head>
 <body>
-
 <div class="topbar">
-  <button class="back-btn" onclick="torna()">&#8592; Indietro</button>
-  <h1>&#128203; Diario Sedute</h1>
-  <span class="patient-name" id="patient-name-top">...</span>
+  <button class="back-btn" onclick="torna()">Indietro</button>
+  <h1>Diario Sedute</h1>
+  <span class="pname" id="pname">...</span>
 </div>
-
 <div class="container">
   <button class="btn-new" onclick="apriNuovaSeduta()">+ Nuova seduta</button>
   <div id="lista-sedute"></div>
 </div>
 
-<!-- MODAL NUOVA SEDUTA -->
 <div class="modal" id="modal-seduta">
   <div class="modal-content">
-    <div class="modal-header">
-      <div class="modal-title">&#128203; Nuova seduta</div>
-      <button class="btn-close" onclick="chiudiModal()">&#10005;</button>
+    <div class="mh">
+      <div class="mt">Nuova seduta</div>
+      <button class="bc" onclick="chiudiModal()">X</button>
     </div>
     <button class="btn-ai" id="btn-ai" onclick="precompilaAI()">
-      &#129302; <span>Precompila con AI</span> <span class="ai-badge">PREMIUM</span>
+      AI <span>Precompila con AI</span> <span class="ai-badge">PREMIUM</span>
     </button>
-    <div class="ai-loading" id="ai-loading">&#9203; L'AI sta analizzando la scheda del paziente...</div>
+    <div class="ai-loading" id="ai-loading">Analisi in corso...</div>
     <div class="vas-row">
       <div class="vas-box">
-        <span class="vas-label">VAS inizio seduta</span>
-        <div class="vas-value" id="vas-inizio-val" style="color:#c62828">5</div>
-        <input type="range" class="vas-slider" id="vas-inizio" min="0" max="10" value="5" oninput="updateVas('inizio',this.value)">
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:4px"><span>0</span><span>10</span></div>
+        <span class="vas-lbl">VAS inizio</span>
+        <div class="vas-val" id="vas-inizio-val" style="color:#c62828">5</div>
+        <input type="range" class="vas-sl" id="vas-inizio" min="0" max="10" value="5" oninput="updateVas('inizio',this.value)">
       </div>
       <div class="vas-box">
-        <span class="vas-label">VAS fine seduta</span>
-        <div class="vas-value" id="vas-fine-val" style="color:#2e7d32">3</div>
-        <input type="range" class="vas-slider" id="vas-fine" min="0" max="10" value="3" oninput="updateVas('fine',this.value)">
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:4px"><span>0</span><span>10</span></div>
+        <span class="vas-lbl">VAS fine</span>
+        <div class="vas-val" id="vas-fine-val" style="color:#2e7d32">3</div>
+        <input type="range" class="vas-sl" id="vas-fine" min="0" max="10" value="3" oninput="updateVas('fine',this.value)">
       </div>
     </div>
-    <div class="field-group">
-      <label class="field-label">Protocollo eseguito in seduta</label>
-      <textarea class="field-input" id="f-protocollo-seduta" placeholder="Es. Tecnica dei 3 respiri, schema-1, schema-2..." rows="3"></textarea>
-    </div>
-    <div class="field-group">
-      <label class="field-label">Protocollo per prossima seduta</label>
-      <textarea class="field-input" id="f-protocollo-prossima" placeholder="Es. Aggiungere schema-3, aumentare ripetizioni..." rows="3"></textarea>
-    </div>
-    <div class="field-group">
-      <label class="field-label">&#128197; Data prossima seduta <span style="font-weight:400;color:#bbb">(opzionale)</span></label>
-      <input type="date" class="field-input" id="f-data-prossima" style="min-height:unset;resize:none" min="2024-01-01" max="2099-12-31">
-    </div>
+    <div class="fg"><label class="fl">Protocollo eseguito</label><textarea class="fi" id="f-ps" rows="3" placeholder="Es. Tecnica dei 3 respiri, schema-1..."></textarea></div>
+    <div class="fg"><label class="fl">Protocollo prossima seduta</label><textarea class="fi" id="f-pp" rows="2" placeholder="Es. Aggiungere schema-3..."></textarea></div>
+    <div class="fg"><label class="fl">Data prossima seduta (opzionale)</label><input type="date" class="fi" id="f-dp" min="2024-01-01" max="2099-12-31"></div>
     <div class="cal-box" onclick="toggleCalendar()">
       <div class="cal-check" id="cal-check"></div>
       <div>
-        <div style="font-size:13px;font-weight:700;color:#000">&#128198; Aggiungi a Google Calendar</div>
-        <div style="font-size:11px;color:#999;margin-top:2px">Apre Google Calendar con la prossima seduta precompilata</div>
+        <div style="font-size:13px;font-weight:700">Aggiungi a Google Calendar</div>
+        <div style="font-size:11px;color:#999;margin-top:2px">Apre Google Calendar con la prossima seduta</div>
       </div>
     </div>
-    <div class="field-group">
-      <label class="field-label">Tecniche utilizzate</label>
-      <textarea class="field-input" id="f-tecniche" placeholder="Es. Mobilizzazione passiva, stretching..." rows="2"></textarea>
-    </div>
-    <div class="field-group">
-      <label class="field-label">Risposta del paziente</label>
-      <textarea class="field-input" id="f-risposta" placeholder="Es. Buona risposta, leggero affaticamento..." rows="2"></textarea>
-    </div>
-    <div class="field-group">
-      <label class="field-label">Note cliniche</label>
-      <textarea class="field-input" id="f-note" placeholder="Osservazioni cliniche libere..." rows="3"></textarea>
-    </div>
-    <div class="foto-seduta-section">
-      <label class="field-label">&#128247; Foto seduta <span style="font-weight:400;color:#bbb">(max 2 - opzionale)</span></label>
-      <div class="foto-seduta-grid">
-        <div>
-          <div class="foto-slot-small" id="foto-slot-1" onclick="triggerFoto(1)">
-            <div class="slot-icon">&#128247;</div>
-            <div class="slot-label">Foto 1</div>
-          </div>
-          <div class="foto-actions">
-            <button class="btn-foto" onclick="triggerFoto(1)">&#128193; Carica</button>
-            <button class="btn-foto" onclick="triggerFotoCamera(1)">&#128247; Scatta</button>
-          </div>
-        </div>
-        <div>
-          <div class="foto-slot-small" id="foto-slot-2" onclick="triggerFoto(2)">
-            <div class="slot-icon">&#128247;</div>
-            <div class="slot-label">Foto 2</div>
-          </div>
-          <div class="foto-actions">
-            <button class="btn-foto" onclick="triggerFoto(2)">&#128193; Carica</button>
-            <button class="btn-foto" onclick="triggerFotoCamera(2)">&#128247; Scatta</button>
-          </div>
-        </div>
-      </div>
-      <input type="file" id="foto-input-1" accept="image/*" style="display:none" onchange="handleFotoSeduta(1,this)">
-      <input type="file" id="foto-input-1-camera" accept="image/*" capture="environment" style="display:none" onchange="handleFotoSeduta(1,this)">
-      <input type="file" id="foto-input-2" accept="image/*" style="display:none" onchange="handleFotoSeduta(2,this)">
-      <input type="file" id="foto-input-2-camera" accept="image/*" capture="environment" style="display:none" onchange="handleFotoSeduta(2,this)">
-      <p class="premium-note">&#11088; Funzione Premium - disponibile nella versione a pagamento</p>
-    </div>
-    <button class="btn-save" onclick="salvaSeduta()">&#128190; Salva seduta</button>
+    <div class="fg"><label class="fl">Tecniche utilizzate</label><textarea class="fi" id="f-tec" rows="2" placeholder="Es. Mobilizzazione passiva..."></textarea></div>
+    <div class="fg"><label class="fl">Risposta del paziente</label><textarea class="fi" id="f-risp" rows="2" placeholder="Es. Buona risposta..."></textarea></div>
+    <div class="fg"><label class="fl">Note cliniche</label><textarea class="fi" id="f-note" rows="3" placeholder="Osservazioni libere..."></textarea></div>
+    <button class="btn-save" onclick="salvaSeduta()">Salva seduta</button>
   </div>
 </div>
 
-<!-- MODAL DETTAGLIO SEDUTA -->
-<div class="detail-modal" id="detail-modal">
-  <div class="detail-content">
-    <div class="detail-header">
+<div class="det-modal" id="det-modal">
+  <div class="det-content">
+    <div class="det-header">
       <div>
-        <div class="detail-header-date" id="detail-date">-</div>
-        <div class="detail-header-vas" id="detail-vas"></div>
+        <div class="det-date" id="det-date">-</div>
+        <div class="det-vas" id="det-vas"></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button id="btn-elimina-seduta" onclick="eliminaSeduta()" style="background:transparent;border:1px solid #c62828;color:#ef9a9a;padding:6px 12px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">&#128465; Elimina</button>
-        <button class="btn-close-detail" onclick="chiudiDettaglio()">&#10005;</button>
+        <button onclick="eliminaSeduta()" style="background:transparent;border:1px solid #c62828;color:#ef9a9a;padding:6px 12px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">Elimina</button>
+        <button class="bcd" onclick="chiudiDettaglio()">X</button>
       </div>
     </div>
-    <div class="detail-body" id="detail-body"></div>
+    <div class="det-body" id="det-body"></div>
   </div>
 </div>
 
 <script>
-const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
-const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-const params = new URLSearchParams(window.location.search)
-const patientId = params.get('pid')
-let patient = null, protocolloAttivo = null
-let foto1 = null, foto2 = null
-let calendarEnabled = false
-let sedutaCorrenteId = null
+const SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+const _sb = window.supabase.createClient(SB_URL, SB_KEY)
+const pid = new URLSearchParams(window.location.search).get('pid')
+let patient = null, protAtt = null, calON = false, sedutaId = null
 
-function torna() { window.location.href = 'paziente.html?id=' + patientId }
+function torna() { window.location.href = 'paziente.html?id=' + pid }
 
-function updateVas(tipo, val) {
-  const el = document.getElementById('vas-' + tipo + '-val')
-  el.textContent = val
-  const v = parseInt(val)
-  el.style.color = v <= 3 ? '#2e7d32' : v <= 6 ? '#f57c00' : '#c62828'
+function updateVas(t, v) {
+  const el = document.getElementById('vas-' + t + '-val')
+  el.textContent = v
+  const n = parseInt(v)
+  el.style.color = n <= 3 ? '#2e7d32' : n <= 6 ? '#f57c00' : '#c62828'
 }
 
 function toggleCalendar() {
-  calendarEnabled = !calendarEnabled
-  const check = document.getElementById('cal-check')
-  check.style.background = calendarEnabled ? '#FFD008' : ''
-  check.style.borderColor = calendarEnabled ? '#FFD008' : '#ddd'
-  check.textContent = calendarEnabled ? '✓' : ''
+  calON = !calON
+  const c = document.getElementById('cal-check')
+  c.style.background = calON ? '#FFD008' : ''
+  c.style.borderColor = calON ? '#FFD008' : '#ddd'
+  c.textContent = calON ? 'V' : ''
 }
 
 async function init() {
-  if (!patientId) { window.location.href = 'dashboard.html'; return }
-  const { data: { session } } = await _supabase.auth.getSession()
+  if (!pid) { window.location.href = 'dashboard.html'; return }
+  const { data: { session } } = await _sb.auth.getSession()
   if (!session) { window.location.href = 'login.html'; return }
-  const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
-  if (!p) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }
+  const { data: p } = await _sb.from('patients').select('*').eq('id', pid).single()
+  if (!p) { window.location.href = 'dashboard.html'; return }
   patient = p
-  document.getElementById('patient-name-top').textContent = p.nome + ' ' + p.cognome
-  const { data: prots } = await _supabase
-    .from('patient_protocols')
-    .select('*, patient_protocol_exercises(*, exercises(nome, descrizione))')
-    .eq('patient_id', patientId)
-    .eq('stato', 'attivo')
-    .order('created_at', { ascending: false })
-    .limit(1)
-  if (prots && prots.length > 0) protocolloAttivo = prots[0]
+  document.getElementById('pname').textContent = p.nome + ' ' + p.cognome
+  const { data: pr } = await _sb.from('patient_protocols').select('*, patient_protocol_exercises(*, exercises(nome))').eq('patient_id', pid).eq('stato', 'attivo').order('created_at', { ascending: false }).limit(1)
+  if (pr && pr.length > 0) protAtt = pr[0]
   caricaSedute()
 }
 
 async function caricaSedute() {
-  const { data: sedute } = await _supabase
-    .from('therapy_sessions')
-    .select('*')
-    .eq('patient_id', patientId)
-    .order('data_seduta', { ascending: false })
-
+  const { data: s } = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false })
   const lista = document.getElementById('lista-sedute')
-  if (!sedute || sedute.length === 0) {
-    lista.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128203;</div><p>Nessuna seduta registrata.<br>Premi il pulsante per aggiungere la prima.</p></div>'
-    return
-  }
-
-  let html = ''
-  sedute.forEach(s => {
-    const data = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
-    const preview = s.protocollo_seduta || s.note_cliniche || s.tecniche || '-'
-    let feedbackHtml = ''
-    if (s.feedback_paziente) {
-      const stelle = parseInt(s.feedback_paziente)
-      const starsStr = stelle ? '⭐'.repeat(stelle) : ''
-      feedbackHtml = '<div class="session-item-footer"><span class="feedback-stars">' + starsStr + '</span><span class="feedback-label">feedback paziente</span></div>'
-    }
-    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(s))))
-    html += '<div class="session-item" onclick="apriDettaglio(\'' + b64 + '\')">'
-    html += '<div class="session-item-header">'
-    html += '<div class="session-item-date">' + data + '</div>'
-    html += '<div class="session-item-vas">'
-    html += '<span class="vas-pill vas-pill-start">VAS i: ' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</span>'
-    html += '<span class="vas-pill vas-pill-end">VAS f: ' + (s.vas_fine != null ? s.vas_fine : '-') + '</span>'
-    html += '</div></div>'
-    html += '<div class="session-item-preview">' + preview.substring(0, 80) + (preview.length > 80 ? '...' : '') + '</div>'
-    html += feedbackHtml
-    html += '</div>'
-  })
-  lista.innerHTML = html
+  if (!s || s.length === 0) { lista.innerHTML = '<div class="empty-state">Nessuna seduta registrata. Premi + per aggiungere la prima.</div>'; return }
+  lista.innerHTML = s.map(function(x) {
+    const d = new Date(x.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
+    const prev = (x.protocollo_seduta || x.note_cliniche || x.tecniche || '-').substring(0, 80)
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(x))))
+    return '<div class="session-item" onclick="apriDet(\'' + b64 + '\')">' +
+      '<div class="sih"><div class="sid">' + d + '</div>' +
+      '<div class="vas-pills"><span class="vp vps">i:' + (x.vas_inizio != null ? x.vas_inizio : '-') + '</span><span class="vp vpe">f:' + (x.vas_fine != null ? x.vas_fine : '-') + '</span></div></div>' +
+      '<div class="sip">' + prev + '</div></div>'
+  }).join('')
 }
 
-function apriDettaglio(b64) {
+function apriDet(b64) {
   const s = JSON.parse(decodeURIComponent(escape(atob(b64))))
-  sedutaCorrenteId = s.id
-  const data = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
-  document.getElementById('detail-date').textContent = data
-  document.getElementById('detail-vas').innerHTML =
-    '<span class="vas-pill vas-pill-start">VAS inizio: ' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</span>' +
-    '<span class="vas-pill vas-pill-end">VAS fine: ' + (s.vas_fine != null ? s.vas_fine : '-') + '</span>'
-
+  sedutaId = s.id
+  const d = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
+  document.getElementById('det-date').textContent = d
+  document.getElementById('det-vas').innerHTML = '<span class="vp vps">VAS i:' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</span><span class="vp vpe">VAS f:' + (s.vas_fine != null ? s.vas_fine : '-') + '</span>'
   let body = ''
-  if (s.protocollo_seduta) body += '<div class="detail-section"><div class="detail-label">Protocollo eseguito</div><div class="detail-value">' + s.protocollo_seduta + '</div></div>'
-  if (s.protocollo_prossima) body += '<div class="detail-section"><div class="detail-label">Prossima seduta</div><div class="detail-value">' + s.protocollo_prossima + '</div></div>'
-  if (s.tecniche) body += '<div class="detail-section"><div class="detail-label">Tecniche utilizzate</div><div class="detail-value">' + s.tecniche + '</div></div>'
-  if (s.risposta_paziente) body += '<div class="detail-section"><div class="detail-label">Risposta del paziente</div><div class="detail-value">' + s.risposta_paziente + '</div></div>'
-  if (s.note_cliniche) body += '<div class="detail-section"><div class="detail-label">Note cliniche</div><div class="detail-value">' + s.note_cliniche + '</div></div>'
-  if (s.foto_seduta) {
-    try {
-      const foto = JSON.parse(s.foto_seduta)
-      if (foto.foto1 || foto.foto2) {
-        body += '<div class="detail-section"><div class="detail-label">Foto seduta</div><div class="detail-foto-grid">'
-        if (foto.foto1) body += '<img src="' + foto.foto1 + '" onclick="window.open(this.src)">'
-        if (foto.foto2) body += '<img src="' + foto.foto2 + '" onclick="window.open(this.src)">'
-        body += '</div></div>'
-      }
-    } catch(e) {}
-  }
-  if (s.feedback_paziente) {
-    const stelle = parseInt(s.feedback_paziente)
-    const starsStr = stelle ? '⭐'.repeat(stelle) : ''
-    const testoFeedback = s.feedback_paziente.replace(/^\d+ stelle — ?/, '')
-    body += '<div class="detail-section"><div class="detail-label">Feedback paziente</div>'
-    body += '<div class="detail-feedback"><div class="detail-feedback-stars">' + starsStr + '</div>'
-    if (testoFeedback && testoFeedback !== s.feedback_paziente) body += '<div class="detail-feedback-text">' + testoFeedback + '</div>'
-    body += '</div></div>'
-  }
-  if (!body) body = '<div style="text-align:center;padding:32px;color:#999">Nessun dettaglio disponibile.</div>'
-  document.getElementById('detail-body').innerHTML = body
-  document.getElementById('detail-modal').classList.add('open')
+  if (s.protocollo_seduta) body += '<div class="det-sec"><div class="det-lbl">Protocollo eseguito</div><div class="det-val">' + s.protocollo_seduta + '</div></div>'
+  if (s.protocollo_prossima) body += '<div class="det-sec"><div class="det-lbl">Prossima seduta</div><div class="det-val">' + s.protocollo_prossima + '</div></div>'
+  if (s.tecniche) body += '<div class="det-sec"><div class="det-lbl">Tecniche</div><div class="det-val">' + s.tecniche + '</div></div>'
+  if (s.risposta_paziente) body += '<div class="det-sec"><div class="det-lbl">Risposta paziente</div><div class="det-val">' + s.risposta_paziente + '</div></div>'
+  if (s.note_cliniche) body += '<div class="det-sec"><div class="det-lbl">Note cliniche</div><div class="det-val">' + s.note_cliniche + '</div></div>'
+  if (s.feedback_paziente) body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + s.feedback_paziente + '</div></div>'
+  if (!body) body = '<div style="text-align:center;padding:32px;color:#999">Nessun dettaglio.</div>'
+  document.getElementById('det-body').innerHTML = body
+  document.getElementById('det-modal').classList.add('open')
 }
 
-function chiudiDettaglio() {
-  document.getElementById('detail-modal').classList.remove('open')
-  sedutaCorrenteId = null
-}
+function chiudiDettaglio() { document.getElementById('det-modal').classList.remove('open'); sedutaId = null }
 
 async function eliminaSeduta() {
-  if (!sedutaCorrenteId) return
-  if (!confirm('Eliminare questa seduta? Operazione irreversibile.')) return
-  const { error } = await _supabase.from('therapy_sessions').delete().eq('id', sedutaCorrenteId)
-  if (error) { alert('Errore: ' + error.message); return }
+  if (!sedutaId) return
+  if (!confirm('Eliminare questa seduta?')) return
+  await _sb.from('therapy_sessions').delete().eq('id', sedutaId)
   chiudiDettaglio()
   caricaSedute()
 }
 
 function apriNuovaSeduta() {
-  document.getElementById('f-protocollo-seduta').value = ''
-  document.getElementById('f-protocollo-prossima').value = ''
-  document.getElementById('f-tecniche').value = ''
-  document.getElementById('f-risposta').value = ''
-  document.getElementById('f-note').value = ''
+  ['f-ps','f-pp','f-tec','f-risp','f-note'].forEach(function(id) { document.getElementById(id).value = '' })
   document.getElementById('vas-inizio').value = 5
   document.getElementById('vas-fine').value = 3
   updateVas('inizio', 5)
   updateVas('fine', 3)
-  calendarEnabled = false
-  const check = document.getElementById('cal-check')
-  if (check) { check.style.background = ''; check.style.borderColor = '#ddd'; check.textContent = '' }
-  const oggi = new Date()
-  oggi.setDate(oggi.getDate() + 7)
-  document.getElementById('f-data-prossima').value = oggi.toISOString().split('T')[0]
-  foto1 = null; foto2 = null
-  resetFotoSlot(1); resetFotoSlot(2)
+  calON = false
+  const c = document.getElementById('cal-check')
+  c.style.background = ''; c.style.borderColor = '#ddd'; c.textContent = ''
+  const d = new Date(); d.setDate(d.getDate() + 7)
+  document.getElementById('f-dp').value = d.toISOString().split('T')[0]
   document.getElementById('modal-seduta').classList.add('open')
 }
 
 function chiudiModal() { document.getElementById('modal-seduta').classList.remove('open') }
-
-function resetFotoSlot(n) {
-  const slot = document.getElementById('foto-slot-' + n)
-  slot.classList.remove('has-photo')
-  slot.innerHTML = '<div class="slot-icon">&#128247;</div><div class="slot-label">Foto ' + n + '</div>'
-  slot.onclick = function() { triggerFoto(n) }
-}
-
-function triggerFoto(n) { document.getElementById('foto-input-' + n).click() }
-function triggerFotoCamera(n) { document.getElementById('foto-input-' + n + '-camera').click() }
-
-function resizeFoto(file, cb) {
-  const reader = new FileReader()
-  reader.onload = e => {
-    const img = new Image()
-    img.onload = () => {
-      let w = img.width, h = img.height
-      const max = 1200
-      if (w > max || h > max) { const r = Math.min(max/w, max/h); w = Math.round(w*r); h = Math.round(h*r) }
-      const canvas = document.createElement('canvas')
-      canvas.width = w; canvas.height = h
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-      cb(canvas.toDataURL('image/jpeg', 0.82))
-    }
-    img.src = e.target.result
-  }
-  reader.readAsDataURL(file)
-}
-
-function handleFotoSeduta(n, input) {
-  const file = input.files[0]; if (!file) return
-  resizeFoto(file, dataUrl => {
-    if (n === 1) foto1 = dataUrl
-    else foto2 = dataUrl
-    const slot = document.getElementById('foto-slot-' + n)
-    slot.classList.add('has-photo')
-    slot.innerHTML = '<img src="' + dataUrl + '" alt="foto ' + n + '"><div class="foto-overlay-small" onclick="resetFotoSlot(' + n + ')">&#10005;</div>'
-    slot.onclick = null
-  })
-}
 
 async function precompilaAI() {
   const btn = document.getElementById('btn-ai')
@@ -420,92 +232,60 @@ async function precompilaAI() {
   loading.classList.add('visible')
   const nomePaz = patient.nome + ' ' + patient.cognome
   const problema = patient.problema_principale || 'non specificato'
-  const note = patient.note_cliniche || 'nessuna nota posturale'
-  let esercizi = 'nessun protocollo attivo'
-  let nomeProtocollo = ''
-  if (protocolloAttivo) {
-    nomeProtocollo = protocolloAttivo.nome_personalizzato || 'Protocollo attivo'
-    const ppe = protocolloAttivo.patient_protocol_exercises || []
-    esercizi = ppe.map(e => e.exercises ? e.exercises.nome : '-').join(', ')
+  let esercizi = 'nessun protocollo'
+  let nomeProt = ''
+  if (protAtt) {
+    nomeProt = protAtt.nome_personalizzato || 'Protocollo attivo'
+    esercizi = (protAtt.patient_protocol_exercises || []).map(function(e) { return e.exercises ? e.exercises.nome : '-' }).join(', ')
   }
-  const { data: sedutePrecedenti } = await _supabase
-    .from('therapy_sessions')
-    .select('*')
-    .eq('patient_id', patientId)
-    .order('data_seduta', { ascending: false })
-    .limit(3)
-  let storicoTesto = 'Prima seduta con questo paziente.'
-  if (sedutePrecedenti && sedutePrecedenti.length > 0) {
-    storicoTesto = 'Ultime sedute:\n' + sedutePrecedenti.map(s => {
-      const d = new Date(s.data_seduta).toLocaleDateString('it-IT')
-      return d + ' - VAS: ' + s.vas_inizio + '->' + s.vas_fine + ' - ' + (s.protocollo_seduta || '') + ' - Risposta: ' + (s.risposta_paziente || '')
-    }).join('\n')
-  }
-  const prompt = 'Sei un assistente per fisioterapisti. Compila il diario di seduta per il paziente ' + nomePaz + '. Problema principale: ' + problema + '. Note posturali: ' + note + '. Protocollo assegnato: ' + nomeProtocollo + ' - Esercizi: ' + esercizi + '. ' + storicoTesto + '. Rispondi SOLO con un JSON valido (niente testo prima o dopo) con questi campi: {"protocollo_seduta": "...","protocollo_prossima": "...","tecniche": "...","risposta_paziente": "...","note_cliniche": "..."}. Sii specifico e clinicamente appropriato. Max 2 righe per campo.'
+  const { data: sp } = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(3)
+  let storico = 'Prima seduta.'
+  if (sp && sp.length > 0) storico = sp.map(function(s) { return new Date(s.data_seduta).toLocaleDateString('it-IT') + ' VAS:' + s.vas_inizio + '->' + s.vas_fine + ' ' + (s.protocollo_seduta || '') }).join(' | ')
+  const prompt = 'Fisioterapista. Paziente: ' + nomePaz + '. Problema: ' + problema + '. Protocollo: ' + nomeProt + ' esercizi: ' + esercizi + '. Storico: ' + storico + '. Rispondi SOLO JSON: {"protocollo_seduta":"...","protocollo_prossima":"...","tecniche":"...","risposta_paziente":"...","note_cliniche":"..."}'
   try {
-    const response = await fetch('/api/ai-analisi', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
-    })
-    const data = await response.json()
-    const testo = data.testo || ''
-    const jsonMatch = testo.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0])
-      if (parsed.protocollo_seduta) document.getElementById('f-protocollo-seduta').value = parsed.protocollo_seduta
-      if (parsed.protocollo_prossima) document.getElementById('f-protocollo-prossima').value = parsed.protocollo_prossima
-      if (parsed.tecniche) document.getElementById('f-tecniche').value = parsed.tecniche
-      if (parsed.risposta_paziente) document.getElementById('f-risposta').value = parsed.risposta_paziente
-      if (parsed.note_cliniche) document.getElementById('f-note').value = parsed.note_cliniche
-    } else {
-      alert('AI non ha restituito un formato valido. Riprova.')
+    const r = await fetch('/api/ai-analisi', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({prompt}) })
+    const data = await r.json()
+    const m = (data.testo || '').match(/\{[\s\S]*\}/)
+    if (m) {
+      const p = JSON.parse(m[0])
+      if (p.protocollo_seduta) document.getElementById('f-ps').value = p.protocollo_seduta
+      if (p.protocollo_prossima) document.getElementById('f-pp').value = p.protocollo_prossima
+      if (p.tecniche) document.getElementById('f-tec').value = p.tecniche
+      if (p.risposta_paziente) document.getElementById('f-risp').value = p.risposta_paziente
+      if (p.note_cliniche) document.getElementById('f-note').value = p.note_cliniche
     }
-  } catch(e) {
-    alert('Errore AI: ' + e.message)
-  }
+  } catch(e) { alert('Errore AI: ' + e.message) }
   btn.disabled = false
   loading.classList.remove('visible')
 }
 
 async function salvaSeduta() {
-  const vasInizio = parseInt(document.getElementById('vas-inizio').value)
-  const vasFine = parseInt(document.getElementById('vas-fine').value)
-  const protocolloSeduta = document.getElementById('f-protocollo-seduta').value.trim()
-  const protocolloProssima = document.getElementById('f-protocollo-prossima').value.trim()
-  const dataProssima = document.getElementById('f-data-prossima').value
-  const tecniche = document.getElementById('f-tecniche').value.trim()
-  const risposta = document.getElementById('f-risposta').value.trim()
+  const vi = parseInt(document.getElementById('vas-inizio').value)
+  const vf = parseInt(document.getElementById('vas-fine').value)
+  const ps = document.getElementById('f-ps').value.trim()
+  const pp = document.getElementById('f-pp').value.trim()
+  const dp = document.getElementById('f-dp').value
+  const tec = document.getElementById('f-tec').value.trim()
+  const risp = document.getElementById('f-risp').value.trim()
   const note = document.getElementById('f-note').value.trim()
-  const { data: { session } } = await _supabase.auth.getSession()
-  const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
-  const fotoJson = {}
-  if (foto1) fotoJson.foto1 = foto1
-  if (foto2) fotoJson.foto2 = foto2
-  const { error } = await _supabase.from('therapy_sessions').insert({
-    patient_id: patientId,
-    professional_id: prof ? prof.id : null,
+  const { data: { session } } = await _sb.auth.getSession()
+  const { data: prof } = await _sb.from('professionals').select('id').eq('user_id', session.user.id).single()
+  const { error } = await _sb.from('therapy_sessions').insert({
+    patient_id: pid, professional_id: prof ? prof.id : null,
     data_seduta: new Date().toISOString(),
-    vas_inizio: vasInizio,
-    vas_fine: vasFine,
-    protocollo_seduta: protocolloSeduta || null,
-    protocollo_prossima: protocolloProssima || null,
-    tecniche: tecniche || null,
-    risposta_paziente: risposta || null,
-    note_cliniche: note || null,
-    foto_seduta: Object.keys(fotoJson).length > 0 ? JSON.stringify(fotoJson) : null
+    vas_inizio: vi, vas_fine: vf,
+    protocollo_seduta: ps || null, protocollo_prossima: pp || null,
+    tecniche: tec || null, risposta_paziente: risp || null, note_cliniche: note || null
   })
-  if (error) { alert('Errore salvataggio: ' + error.message); return }
-  if (calendarEnabled && dataProssima) {
-    const d = new Date(dataProssima)
-    const pad = n => n.toString().padStart(2, '0')
-    const dataStr = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T090000'
-    const dataFine = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T100000'
-    const nomePaz = patient ? patient.nome + ' ' + patient.cognome : 'Paziente'
-    const titolo = encodeURIComponent('Seduta fisioterapica - ' + nomePaz)
-    const dettagli = encodeURIComponent((protocolloProssima ? 'Protocollo: ' + protocolloProssima : '') + (note ? '\nNote: ' + note : ''))
-    const calUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + titolo + '&dates=' + dataStr + '/' + dataFine + '&details=' + dettagli
-    window.open(calUrl, '_blank')
+  if (error) { alert('Errore: ' + error.message); return }
+  if (calON && dp) {
+    const d = new Date(dp)
+    const pad = function(n) { return n.toString().padStart(2,'0') }
+    const ds = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T090000'
+    const df = d.getFullYear() + '' + pad(d.getMonth()+1) + '' + pad(d.getDate()) + 'T100000'
+    const nom = patient ? patient.nome + ' ' + patient.cognome : 'Paziente'
+    const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('Seduta - ' + nom) + '&dates=' + ds + '/' + df + '&details=' + encodeURIComponent(pp || '')
+    window.open(url, '_blank')
   }
   chiudiModal()
   caricaSedute()
