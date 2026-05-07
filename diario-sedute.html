@@ -137,6 +137,17 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; 
       <textarea class="field-input" id="f-protocollo-prossima" placeholder="Es. Aggiungere schema-3, aumentare ripetizioni..." rows="3"></textarea>
     </div>
     <div class="field-group">
+      <label class="field-label">📅 Data prossima seduta <span style="font-weight:400;color:#bbb">(opzionale)</span></label>
+      <input type="date" class="field-input" id="f-data-prossima" style="min-height:unset;resize:none" min="2024-01-01" max="2099-12-31">
+    </div>
+    <div style="background:#f9f9f9;border-radius:10px;padding:14px 16px;margin-bottom:18px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="toggleCalendar()">
+      <div id="cal-check" style="width:24px;height:24px;border-radius:6px;border:2px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all 0.2s"></div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#000">📆 Aggiungi a Google Calendar</div>
+        <div style="font-size:11px;color:#999;margin-top:2px">Apre Google Calendar con la prossima seduta precompilata</div>
+      </div>
+    </div>
+    <div class="field-group">
       <label class="field-label">Tecniche utilizzate</label>
       <textarea class="field-input" id="f-tecniche" placeholder="Es. Mobilizzazione passiva, stretching..." rows="2"></textarea>
     </div>
@@ -334,6 +345,16 @@ function chiudiDettaglio() {
   document.getElementById('detail-modal').classList.remove('open')
 }
 
+let calendarEnabled = false
+
+function toggleCalendar() {
+  calendarEnabled = !calendarEnabled
+  const check = document.getElementById('cal-check')
+  check.style.background = calendarEnabled ? '#FFD008' : ''
+  check.style.borderColor = calendarEnabled ? '#FFD008' : '#ddd'
+  check.textContent = calendarEnabled ? '✓' : ''
+}
+
 function apriNuovaSeduta() {
   document.getElementById('f-protocollo-seduta').value = ''
   document.getElementById('f-protocollo-prossima').value = ''
@@ -345,6 +366,12 @@ function apriNuovaSeduta() {
   updateVas('inizio', 5)
   updateVas('fine', 3)
   foto1 = null; foto2 = null
+  calendarEnabled = false
+  const check = document.getElementById('cal-check')
+  if(check) { check.style.background=''; check.style.borderColor='#ddd'; check.textContent='' }
+  const oggi = new Date()
+  oggi.setDate(oggi.getDate() + 7)
+  document.getElementById('f-data-prossima').value = oggi.toISOString().split('T')[0]
   resetFotoSlot(1); resetFotoSlot(2)
   document.getElementById('modal-seduta').classList.add('open')
 }
@@ -484,6 +511,21 @@ async function salvaSeduta() {
   })
 
   if (error) { alert('Errore salvataggio: ' + error.message); return }
+  if (calendarEnabled) {
+    const dataProssima = document.getElementById('f-data-prossima').value
+    if (dataProssima) {
+      const d = new Date(dataProssima)
+      const pad = n => n.toString().padStart(2,'0')
+      const dataStr = d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + 'T090000'
+      const dataFine = d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + 'T100000'
+      const nomePaz = patient ? patient.nome + ' ' + patient.cognome : 'Paziente'
+      const titolo = encodeURIComponent('Seduta fisioterapica — ' + nomePaz)
+      const dettagli = encodeURIComponent((protocolloProssima ? 'Protocollo: ' + protocolloProssima : '') + (note ? '
+Note: ' + note : ''))
+      const calUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + titolo + '&dates=' + dataStr + '/' + dataFine + '&details=' + dettagli
+      window.open(calUrl, '_blank')
+    }
+  }
   chiudiModal()
   caricaSedute()
   if (protocolloProssima) {
