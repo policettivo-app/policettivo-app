@@ -3,11 +3,11 @@ const { createClient } = require('@supabase/supabase-js')
 const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   const order = req.body
-  if (!order || order.status !== 'completed') return res.status(200).json({ ok: true })
+  if (!order || order.status !== 'completed') return res.status(200).json({ ok: true, msg: 'Not completed' })
 
   const email = order.billing?.email
   if (!email) return res.status(400).json({ error: 'No email' })
@@ -23,8 +23,8 @@ export default async function handler(req, res) {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-  const { data: authUsers } = await supabase.auth.admin.listUsers()
-  const user = authUsers?.users?.find(u => u.email === email)
+  const { data: authData } = await supabase.auth.admin.listUsers()
+  const user = authData?.users?.find(u => u.email === email)
   if (!user) return res.status(200).json({ ok: true, msg: 'User not found' })
 
   const { data: profData } = await supabase
