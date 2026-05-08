@@ -108,7 +108,7 @@
       <span class="navbar-logo">POLICETTIVO®</span>
       <span class="navbar-title">Area Professionista</span>
     </div>
-    <div class="navbar-right">
+    <div class="navbar-right"><span id="piano-badge" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:1px">FREE</span>
       <button class="btn-admin" onclick="window.location.href='admin.html'">⚙️ Admin</button>
       <button class="btn-admin" onclick="openGuida()" style="background:#222;color:#FFD008;border:1px solid #FFD008">? Guida</button>
       <span class="navbar-user" id="user-email"></span>
@@ -305,9 +305,16 @@
         const btnAdmin = document.querySelector('.btn-admin')
         if (btnAdmin) btnAdmin.style.display = 'none'
       }
-      const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
+      const { data: prof } = await _supabase.from('professionals').select('id,piano').eq('user_id', session.user.id).single()
       if (prof) {
         currentProfessionalId = prof.id
+        window.isPremium = (prof.piano === 'premium')
+        const badge = document.getElementById('piano-badge')
+        if (badge) {
+          badge.textContent = window.isPremium ? '⭐ PREMIUM' : 'FREE'
+          badge.style.background = window.isPremium ? '#FFD008' : '#333'
+          badge.style.color = window.isPremium ? '#000' : '#fff'
+        }
         await Promise.all([loadPatients(), loadStats()])
         if (shouldShowWizard() && allPatients.length === 0) openWizard()
       }
