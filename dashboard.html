@@ -308,6 +308,21 @@
       const { data: prof } = await _supabase.from('professionals').select('id,piano').eq('user_id', session.user.id).single()
       if (prof) {
         currentProfessionalId = prof.id
+        // Controlla scadenza subscription
+        if (prof.piano === 'premium') {
+          const { data: sub } = await _supabase.from('subscriptions')
+            .select('data_scadenza')
+            .eq('professional_id', prof.id)
+            .eq('stato', 'attivo')
+            .order('data_scadenza', { ascending: false })
+            .limit(1)
+            .single()
+          if (sub && new Date(sub.data_scadenza) < new Date()) {
+            await _supabase.from('professionals').update({ piano: 'free' }).eq('id', prof.id)
+            await _supabase.from('subscriptions').update({ stato: 'scaduto' }).eq('professional_id', prof.id).eq('stato', 'attivo')
+            prof.piano = 'free'
+          }
+        }
         window.isPremium = (prof.piano === 'premium')
         const badge = document.getElementById('piano-badge')
         if (badge) {
