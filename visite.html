@@ -59,6 +59,7 @@
     .detail-foto-box { border-radius: 8px; overflow: hidden; }
     .detail-foto-bar { background: #000; color: #888; font-size: 9px; font-weight: 700; padding: 3px 7px; text-transform: uppercase; letter-spacing: 0.5px; }
     .detail-foto-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+    .detail-foto-note { font-size: 11px; color: #888; padding: 6px 8px; background: #000; line-height: 1.4; white-space: pre-wrap; }
 
     /* ── New Visit Panel ── */
     .nvp {
@@ -95,6 +96,10 @@
 
     .foto-section-label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 24px; margin-bottom: 12px; }
     .foto-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+    .foto-note-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .foto-note-input { width: 100%; background: #111; border: 1.5px solid #222; color: #fff; border-radius: 8px; padding: 8px 10px; font-family: 'Montserrat', sans-serif; font-size: 11px; outline: none; resize: none; height: 52px; }
+    .foto-note-input:focus { border-color: #FFD008; }
+    .foto-note-input::placeholder { color: #444; }
     .foto-slot-v {
       border: 2px dashed #222; border-radius: 12px; aspect-ratio: 3/4;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -200,6 +205,10 @@
           <div class="slot-icon-v">📷</div>
         </div>
       </div>
+      <div class="foto-note-grid">
+        <textarea id="nv-note-sag-sx" class="foto-note-input" placeholder="Note su questa foto..."></textarea>
+        <textarea id="nv-note-sag-dx" class="foto-note-input" placeholder="Note su questa foto..."></textarea>
+      </div>
 
       <!-- Foto frontale -->
       <div class="foto-section-label">Piano Frontale e Posteriore <span style="color:#555;font-size:9px">(facoltativo)</span></div>
@@ -212,6 +221,10 @@
           <div class="slot-label-v">Posteriore</div>
           <div class="slot-icon-v">📷</div>
         </div>
+      </div>
+      <div class="foto-note-grid">
+        <textarea id="nv-note-frontale" class="foto-note-input" placeholder="Note su questa foto..."></textarea>
+        <textarea id="nv-note-posteriore" class="foto-note-input" placeholder="Note su questa foto..."></textarea>
       </div>
 
       <!-- Foto podoscopica -->
@@ -339,7 +352,7 @@
         empty.innerHTML = `
           <div class="empty-patient-name">${escHtml(patient.nome + ' ' + patient.cognome)}</div>
           ${noteCardHtml}
-          <button class="btn-prima-visita" onclick="apriNuovaVisita()">📅 Aggiungi prima visita</button>
+          <button class="btn-prima-visita" onclick="apriNuovaVisita()">📅 Aggiungi nuova visita</button>
           <p class="empty-cta-desc">Registra la prima visita di controllo per iniziare a monitorare i progressi nel tempo</p>
         `
         empty.style.display = 'block'
@@ -362,6 +375,7 @@
       let fotos = {}
       try { fotos = JSON.parse(v.foto_url || '{}') } catch(e) {}
       const thumbSrcs = Object.values(fotos).filter(Boolean).slice(0, 4)
+        .map(f => typeof f === 'object' ? f.url : f)
 
       const card = document.createElement('div')
       card.className = 'visit-card'
@@ -407,10 +421,14 @@
       if (hasFotos) {
         html += '<div class="detail-label" style="margin-top:14px">Foto</div><div class="detail-foto-grid">'
         fotoSlots.forEach(s => {
-          if (fotos[s]) {
+          const entry = fotos[s]
+          if (entry) {
+            const src      = typeof entry === 'object' ? entry.url  : entry
+            const fotoNote = typeof entry === 'object' ? entry.note : ''
             html += `<div class="detail-foto-box">
               <div class="detail-foto-bar">${SLOT_LABELS[s]}</div>
-              <img class="detail-foto-img" src="${fotos[s]}" alt="${SLOT_LABELS[s]}">
+              <img class="detail-foto-img" src="${src}" alt="${SLOT_LABELS[s]}">
+              ${fotoNote ? `<div class="detail-foto-note">${escHtml(fotoNote)}</div>` : ''}
             </div>`
           }
         })
@@ -465,6 +483,10 @@
         el.classList.remove('has-photo')
         el.innerHTML = `<div class="slot-label-v">${slotDefaultLabel(s)}</div><div class="slot-icon-v">${s.startsWith('podo') ? '🦶' : '📷'}</div>`
         el.onclick = () => apriFotoSlot(s)
+      });
+      ['sag-sx','sag-dx','frontale','posteriore'].forEach(s => {
+        const n = document.getElementById('nv-note-' + s)
+        if (n) n.value = ''
       })
     }
 
@@ -564,13 +586,24 @@
       const data = document.getElementById('nv-data').value
       if (!data) { alert('Inserisci la data della visita'); return }
 
+      const noteSlots = ['sag-sx','sag-dx','frontale','posteriore']
+      const fotoData = {}
+      Object.keys(nvFotos).forEach(slot => {
+        if (noteSlots.includes(slot)) {
+          const noteEl = document.getElementById('nv-note-' + slot)
+          fotoData[slot] = { url: nvFotos[slot], note: noteEl ? noteEl.value.trim() : '' }
+        } else {
+          fotoData[slot] = nvFotos[slot]
+        }
+      })
+
       const { error } = await _supabase.from('visite').insert({
         patient_id:     patientId,
         data_visita:    data,
         tipo:           nvTipo,
         note:           document.getElementById('nv-note').value.trim() || null,
         configurazione: nvConfig,
-        foto_url:       Object.keys(nvFotos).length ? JSON.stringify(nvFotos) : null
+        foto_url:       Object.keys(fotoData).length ? JSON.stringify(fotoData) : null
       })
 
       if (error) { alert('Errore salvataggio: ' + error.message); return }
