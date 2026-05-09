@@ -968,8 +968,6 @@
       }
     }
 
-    const ANTHROPIC_KEY = '' // ⚠️ Impostare la chiave — usare un proxy/edge function in produzione
-
     function apriModaleAIP() {
       if (!window.isPremium) { mostraModalePremium(); return }
       document.getElementById('aip-step-scelta').style.display = 'block'
@@ -1040,19 +1038,14 @@
         `{"suggerimento":"NPL"|"GPL"|"NEUTRO","confidenza":"alta"|"media"|"bassa","motivazione":"1-2 frasi","osservazioni_chiave":["..."]}`
 
       try {
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        const resp = await fetch('/api/analisi-posturale', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 300,
-            system: systemPrompt,
-            messages: [{ role: 'user', content: content }]
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ system: systemPrompt, content: content })
         })
         const data = await resp.json()
         let result
-        try { result = JSON.parse(data.content?.[0]?.text || '{}') }
+        try { result = JSON.parse(data.testo || '{}') }
         catch(e) { result = { suggerimento: 'NEUTRO', confidenza: 'bassa', motivazione: 'Errore nel parsing della risposta AI.', osservazioni_chiave: [] } }
         mostraRisultatoAIP(result)
       } catch(e) {
