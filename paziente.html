@@ -382,14 +382,14 @@
       <div class="section-title-plain">Comparazione posturale</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Visualizza le 4 foto prima e dopo affiancate con griglia di riferimento per comparare l andamento posturale.</p>
       <div class="actions-row">
-        <button class="btn-primary" onclick="window.open('comparazione.html?id=' + patientId)">🔍 Apri comparazione</button>
+        <button class="btn-primary" onclick="apriComparazione()">🔍 Apri comparazione</button>
       </div>
     </div>
     <div class="section">
       <div class="section-title-plain">Scheda clinica PDF</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Genera la scheda clinica completa con foto e note, pronta per la stampa.</p>
       <div class="actions-row">
-        <button class="btn-primary" onclick="window.open('scheda-pdf.html?id=' + patientId)">🖨 Genera scheda PDF</button>
+        <button class="btn-primary" onclick="apriSchedaPDF()">🖨 Genera scheda PDF</button>
       </div>
     </div>
 
@@ -846,7 +846,18 @@
       caricaDocumenti()
     }
 
+    function apriComparazione() {
+      if (!window.isPremium) { alert('Funzione Premium - vai su upgrade.html'); return }
+      window.open('comparazione.html?id=' + patientId)
+    }
+
+    function apriSchedaPDF() {
+      if (!window.isPremium) { alert('Funzione Premium - vai su upgrade.html'); return }
+      window.open('scheda-pdf.html?id=' + patientId)
+    }
+
     async function avviaAnalisiAI() {
+      if (!window.isPremium) { alert('Funzione Premium - vai su upgrade.html'); return }
       if (documentiCaricati.length === 0) { alert('Nessun documento da analizzare.'); return }
       const loading = document.getElementById('ai-loading')
       const reportBox = document.getElementById('ai-report-box')
