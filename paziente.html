@@ -66,10 +66,9 @@
     .piano-scapolare-box { background: #f9f9f9; border-radius: 12px; padding: 16px; margin-top: 16px; border: 1px solid #eee; }
     .piano-scapolare-title { font-size: 12px; font-weight: 700; color: #333; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
     .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
-    .config-option { border: 2px solid #eee; border-radius: 8px; padding: 16px; cursor: pointer; text-align: center; transition: all 0.2s; }
-    .config-option:hover { border-color: #ccc; }
-    .config-option.selected-npl { border-color: #000; background: #000; color: #FFD008; }
-    .config-option.selected-gpl { border-color: #FFD008; background: #FFD008; color: #000; }
+    .config-option { border: 2px solid #333; border-radius: 10px; padding: 16px; cursor: pointer; text-align: center; transition: all 0.2s; background: #000; color: #fff; }
+    .config-option:hover { border-color: #555; }
+    .config-option.selected { border-color: #FFD008; background: #111; }
     .config-name { font-weight: 700; font-size: 20px; }
     .config-desc { font-size: 11px; margin-top: 4px; opacity: 0.7; }
     .btn-primary { background: #FFD008; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
@@ -338,6 +337,7 @@
           <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare anteriore (prima)',this)">Anteriore</button>
           <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare posteriore (prima)',this)">Posteriore</button>
         </div>
+        <div id="ai-hint-prima" style="display:none;margin-top:10px;font-size:12px;color:#666;line-height:1.5"></div>
       </div>
       <hr class="confronto-divider">
       <div class="foto-group-label"><span class="step-label">DOPO</span> Piano sagittale — dopo i 3R</div>
@@ -443,19 +443,9 @@
     <!-- CONFIGURAZIONE -->
     <div class="section">
       <div class="section-title-plain">Configurazione cuscini</div>
-      <p style="font-size:13px;color:#666;margin-bottom:12px">Dopo aver osservato le foto e il piano scapolare, scegli la configurazione.</p>
-      <div id="cuscino-visual" style="display:none;margin-bottom:20px;padding:20px;background:#111;border-radius:14px">
-        <div id="cuscino-badge" style="margin-bottom:10px"></div>
-        <div id="cuscino-label" style="font-size:13px;color:#aaa;margin-bottom:16px"></div>
-        <div style="font-size:11px;color:#666;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Cambia manualmente</div>
-        <div style="display:flex;gap:8px">
-          <button onclick="selectConfig('NPL');renderCuscino('NPL')" style="background:#000;color:#9AFF00;border:2px solid #444;border-radius:8px;padding:8px 20px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">NPL</button>
-          <button onclick="selectConfig('GPL');renderCuscino('GPL')" style="background:#9AFF00;color:#000;border:none;border-radius:8px;padding:8px 20px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">GPL</button>
-        </div>
-      </div>
       <div class="config-selector">
-        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL');renderCuscino('NPL')"><div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div></div>
-        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL');renderCuscino('GPL')"><div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div></div>
+        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div></div>
+        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div></div>
       </div>
       <div class="saving-indicator" id="saving-config">✓ Salvato</div>
     </div>
@@ -684,7 +674,6 @@
       if (patient.configurazione_default) {
         selectedConfig = patient.configurazione_default
         updateConfigUI()
-        renderCuscino(selectedConfig)
         document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + selectedConfig.toLowerCase() + '">' + selectedConfig + '</span>'
       } else {
         document.getElementById('ph-config').innerHTML = '<span class="badge badge-none">Config. da definire</span>'
@@ -911,6 +900,51 @@
         '<div class="foto-draw-btn" onclick="event.stopPropagation();window.location.href=\'disegno.html?id=' + patientId + '&foto=' + slot + '\'">✏️</div>' +
         '<div class="foto-overlay" onclick="triggerInput(\'' + slot + '\')">Cambia</div>' +
         '<input type="file" id="input-' + slot + '" accept="image/*" style="display:none" onchange="handleFoto(\'' + slot + '\',this)">'
+      if (slot === 'prima-sx' || slot === 'prima-dx') avviaAIHintPrima()
+    }
+
+    async function avviaAIHintPrima() {
+      const hintEl = document.getElementById('ai-hint-prima')
+      if (!hintEl || hintEl.dataset.stato === 'fatto' || hintEl.dataset.stato === 'caricamento') return
+      let fotoUrls = {}
+      try { fotoUrls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
+      if (!fotoUrls['prima-sx'] || !fotoUrls['prima-dx']) return
+      hintEl.textContent = '🤖 Analisi AI in corso...'
+      hintEl.style.display = 'block'
+      hintEl.dataset.stato = 'caricamento'
+      try {
+        const content = []
+        for (const slot of ['prima-sx', 'prima-dx']) {
+          const img = await imgUrlToBase64(fotoUrls[slot])
+          if (img) content.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })
+        }
+        content.push({ type: 'text', text:
+          'Analizza queste foto posturali sagittali (piano scapolare pre-tecnica). ' +
+          'Determina se il piano scapolare è ANTERIORE, POSTERIORE o IN ASSE. ' +
+          'Poi suggerisci NPL (scapolare anteriore) o GPL (scapolare posteriore) o NEUTRO. ' +
+          'Rispondi SOLO con JSON valido: {"rilevamento":"piano scapolare anteriore"|"piano scapolare posteriore"|"allineamento neutro","suggerimento":"NPL"|"GPL"|"NEUTRO"}'
+        })
+        const resp = await fetch('/api/analisi-posturale', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system: 'Sei un assistente AI per fisioterapisti. Analizza la postura scapolare e rispondi SOLO con JSON valido, nessun testo extra.',
+            content: content
+          })
+        })
+        const data = await resp.json()
+        let result
+        try { result = JSON.parse(data.testo || '{}') } catch(e) { result = {} }
+        const rilevamento = result.rilevamento || 'allineamento neutro'
+        const sug = result.suggerimento || 'NEUTRO'
+        if (sug === 'NPL') hintEl.textContent = `🤖 L'AI rileva: ${rilevamento} — suggerisce NPL`
+        else if (sug === 'GPL') hintEl.textContent = `🤖 L'AI rileva: ${rilevamento} — suggerisce GPL`
+        else hintEl.textContent = `🤖 L'AI rileva: ${rilevamento} — valutazione del professionista necessaria`
+        hintEl.dataset.stato = 'fatto'
+      } catch(e) {
+        hintEl.style.display = 'none'
+        hintEl.dataset.stato = ''
+      }
     }
 
     function selectObs(gruppo, valore, btn) {
@@ -949,8 +983,8 @@
     }
 
     function updateConfigUI() {
-      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig === 'NPL' ? ' selected-npl' : '')
-      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig === 'GPL' ? ' selected-gpl' : '')
+      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig === 'NPL' ? ' selected' : '')
+      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig === 'GPL' ? ' selected' : '')
     }
 
     async function selectConfig(val) {
@@ -1328,7 +1362,6 @@
     function impostaColorazione(tipo) {
       chiudiAIPModal()
       selectConfig(tipo)
-      renderCuscino(tipo)
       const isNPL = tipo === 'NPL'
       document.getElementById('aip-last-content').innerHTML =
         `<span style="background:${isNPL ? '#111' : '#C6F135'};color:${isNPL ? '#fff' : '#000'};` +
