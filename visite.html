@@ -170,7 +170,7 @@
   <!-- ── New Visit Panel ── -->
   <div class="nvp" id="nvp">
     <div class="nvp-header">
-      <button class="btn-nvp-cancel" onclick="chiudiNuovaVisita()">Annulla</button>
+      <button class="btn-nvp-cancel" onclick="annullaNuovaVisita()">&#x2190; Annulla</button>
       <span class="nvp-title" id="nvp-title">Nuova visita</span>
       <button class="btn-nvp-save" onclick="salvaVisita()">Salva</button>
     </div>
@@ -470,6 +470,17 @@
       document.getElementById('nvp').classList.remove('open')
     }
 
+    function annullaNuovaVisita() {
+      const haDati = Object.keys(nvFotos).length > 0
+        || document.getElementById('nv-note').value.trim()
+        || ['sag-sx','sag-dx','frontale','posteriore'].some(s => {
+             const el = document.getElementById('nv-note-' + s)
+             return el && el.value.trim()
+           })
+      if (haDati && !confirm('Sei sicuro? I dati non salvati andranno persi.')) return
+      chiudiNuovaVisita()
+    }
+
     function setTipo(t) {
       nvTipo = t
       document.getElementById('tipo-prima').classList.toggle('active', t === 'prima-visita')
@@ -597,16 +608,23 @@
         }
       })
 
-      const { error } = await _supabase.from('visite').insert({
+      const payload = {
         patient_id:     patientId,
         data_visita:    data,
         tipo:           nvTipo,
         note:           document.getElementById('nv-note').value.trim() || null,
         configurazione: nvConfig,
         foto_url:       Object.keys(fotoData).length ? JSON.stringify(fotoData) : null
-      })
+      }
+      console.log('Payload visita:', payload)
 
-      if (error) { alert('Errore salvataggio: ' + error.message); return }
+      const { error } = await _supabase.from('visite').insert(payload)
+
+      if (error) {
+        console.error('Errore Supabase:', error)
+        alert('Errore salvataggio: ' + error.message + '\nCodice: ' + error.code)
+        return
+      }
       chiudiNuovaVisita()
       await caricaVisite()
     }
