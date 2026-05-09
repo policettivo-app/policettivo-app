@@ -106,6 +106,7 @@
     <div class="greeting">
       <h1 id="greeting-title">Ciao</h1>
       <p id="greeting-sub">Il tuo programma di oggi</p>
+      <div id="cuscino-cfg-badge" style="display:none;margin-top:4px;margin-bottom:4px"></div>
     </div>
     <div id="content-area">
       <div class="no-protocol"><h2>Caricamento...</h2></div>
@@ -187,6 +188,17 @@
       patient = p
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
+      const cfg = patient.configurazione_default
+      if (cfg === 'NPL' || cfg === 'GPL') {
+        const isNPL = cfg === 'NPL'
+        const desc = isNPL ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'
+        const badge = document.getElementById('cuscino-cfg-badge')
+        badge.innerHTML =
+          `<span style="display:inline-block;background:${isNPL ? '#000' : '#9AFF00'};color:${isNPL ? '#9AFF00' : '#000'};` +
+          `font-size:13px;font-weight:700;padding:8px 16px;border-radius:8px;letter-spacing:1px;` +
+          `border:${isNPL ? '1.5px solid #333' : 'none'}">🛏 Configurazione: ${cfg} — ${desc}</span>`
+        badge.style.display = 'block'
+      }
       document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token }
       const btnRapida = document.getElementById('btn-rapida'); if(btnRapida) btnRapida.style.display = 'block'
 

@@ -371,13 +371,13 @@
     <div class="section">
       <div class="section-title-plain">Configurazione cuscini</div>
       <p style="font-size:13px;color:#666;margin-bottom:12px">Dopo aver osservato le foto e il piano scapolare, scegli la configurazione.</p>
-      <div id="cuscino-visual" style="display:none;margin-bottom:20px;padding:16px;background:#111;border-radius:14px">
-        <div id="cuscino-svg-wrap" style="margin-bottom:10px"></div>
-        <div id="cuscino-label" style="font-size:14px;font-weight:700;color:#fff;margin-bottom:12px"></div>
-        <div style="font-size:11px;color:#888;margin-bottom:12px">Cambia manualmente:</div>
+      <div id="cuscino-visual" style="display:none;margin-bottom:20px;padding:20px;background:#111;border-radius:14px">
+        <div id="cuscino-badge" style="margin-bottom:10px"></div>
+        <div id="cuscino-label" style="font-size:13px;color:#aaa;margin-bottom:16px"></div>
+        <div style="font-size:11px;color:#666;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Cambia manualmente</div>
         <div style="display:flex;gap:8px">
-          <button onclick="selectConfig('NPL');renderCuscino('NPL')" style="background:#000;color:#9AFF00;border:2px solid #555;border-radius:8px;padding:7px 18px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer">NPL</button>
-          <button onclick="selectConfig('GPL');renderCuscino('GPL')" style="background:#9AFF00;color:#000;border:none;border-radius:8px;padding:7px 18px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer">GPL</button>
+          <button onclick="selectConfig('NPL');renderCuscino('NPL')" style="background:#000;color:#9AFF00;border:2px solid #444;border-radius:8px;padding:8px 20px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">NPL</button>
+          <button onclick="selectConfig('GPL');renderCuscino('GPL')" style="background:#9AFF00;color:#000;border:none;border-radius:8px;padding:8px 20px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">GPL</button>
         </div>
       </div>
       <div class="config-selector">
@@ -1114,29 +1114,13 @@
 
     function renderCuscino(tipo) {
       if (!tipo) return
-      const c1 = tipo === 'NPL' ? '#000' : '#9AFF00'
-      const c2 = tipo === 'NPL' ? '#9AFF00' : '#000'
-      const id = tipo.toLowerCase()
-      document.getElementById('cuscino-svg-wrap').innerHTML =
-        `<svg width="220" height="100" viewBox="0 0 220 100">
-          <defs>
-            <pattern id="ptn-${id}" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-              <rect width="10" height="10" fill="${c1}"/>
-              <rect x="10" y="10" width="10" height="10" fill="${c1}"/>
-              <rect x="10" y="0" width="10" height="10" fill="${c2}"/>
-              <rect x="0" y="10" width="10" height="10" fill="${c2}"/>
-            </pattern>
-            <clipPath id="clip-${id}">
-              <rect x="4" y="18" width="212" height="64" rx="32"/>
-            </clipPath>
-          </defs>
-          <rect x="4" y="18" width="212" height="64" rx="32" fill="url(#ptn-${id})" clip-path="url(#clip-${id})"/>
-          <rect x="4" y="18" width="212" height="64" rx="32" fill="none" stroke="#555" stroke-width="2"/>
-          <ellipse cx="30" cy="50" rx="16" ry="26" fill="none" stroke="#666" stroke-width="1.5"/>
-          <ellipse cx="190" cy="50" rx="16" ry="26" fill="none" stroke="#666" stroke-width="1.5"/>
-        </svg>`
+      const isNPL = tipo === 'NPL'
+      document.getElementById('cuscino-badge').innerHTML =
+        `<span style="display:inline-block;background:${isNPL ? '#000' : '#9AFF00'};color:${isNPL ? '#9AFF00' : '#000'};` +
+        `font-size:28px;font-weight:700;letter-spacing:4px;padding:12px 32px;border-radius:10px;` +
+        `border:${isNPL ? '2px solid #333' : 'none'}">${tipo}</span>`
       document.getElementById('cuscino-label').textContent =
-        tipo === 'NPL' ? 'NPL — Nero Posteriore Laterale' : 'GPL — Giallo Posteriore Laterale'
+        isNPL ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'
       document.getElementById('cuscino-visual').style.display = 'block'
     }
 
