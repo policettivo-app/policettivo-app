@@ -146,6 +146,47 @@
     .aip-close { background: #222; color: #fff; border: none; border-radius: 8px; padding: 10px 28px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
     .aip-last-box { margin-top: 16px; background: #f9f9f9; border-radius: 10px; padding: 14px 16px; display: none; }
     .aip-last-box.visible { display: block; }
+
+    /* ── Camera Modal + Livella ── */
+    #camera-modal { display: none; position: fixed; inset: 0; z-index: 2000; background: #000; }
+    #camera-modal.open { display: block; }
+    #camera-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #livella-wrap {
+      position: absolute; inset: 0; pointer-events: none;
+      display: flex; align-items: center; justify-content: center; flex-direction: column;
+    }
+    #livella-inner { width: 100%; transition: transform 0.07s linear; }
+    #livella-line {
+      width: 100%; height: 2px; background: #e53935;
+      box-shadow: 0 0 8px rgba(229,57,53,0.7);
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    #livella-testo {
+      text-align: center; margin-top: 8px;
+      font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700;
+      color: #e53935; text-shadow: 0 1px 5px rgba(0,0,0,0.95);
+      transition: color 0.2s; letter-spacing: 0.5px;
+    }
+    #camera-close-btn {
+      position: absolute; top: 20px; left: 20px;
+      background: rgba(0,0,0,0.55); color: #fff; border: none;
+      width: 44px; height: 44px; border-radius: 50%; font-size: 20px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    #camera-gallery-btn {
+      position: absolute; top: 20px; right: 20px;
+      background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 22px;
+      padding: 10px 16px; font-family: 'Montserrat', sans-serif; font-size: 12px;
+      font-weight: 700; cursor: pointer;
+    }
+    #camera-shutter-btn {
+      position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%);
+      width: 76px; height: 76px; border-radius: 50%;
+      background: #fff; border: 5px solid rgba(255,255,255,0.35);
+      cursor: pointer; box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
+      transition: transform 0.1s, opacity 0.1s;
+    }
+    #camera-shutter-btn:active { transform: translateX(-50%) scale(0.9); opacity: 0.75; }
   </style>
 </head>
 <body>
@@ -676,7 +717,98 @@
       window.location.href = 'dashboard.html'
     }
 
-    function triggerInput(id) { const inp = document.getElementById('input-' + id); if (inp) inp.click() }
+    // ── Camera Modal + Livella ──
+    let _camStream = null, _camSlot = null, _orientHandler = null
+
+    function triggerInput(id) {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        apriCameraModal(id)
+      } else {
+        const inp = document.getElementById('input-' + id)
+        if (inp) inp.click()
+      }
+    }
+
+    async function apriCameraModal(slot) {
+      _camSlot = slot
+      try {
+        _camStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        })
+        document.getElementById('camera-video').srcObject = _camStream
+        document.getElementById('camera-modal').classList.add('open')
+        initLivella()
+      } catch(e) {
+        const inp = document.getElementById('input-' + slot)
+        if (inp) inp.click()
+      }
+    }
+
+    async function initLivella() {
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const perm = await DeviceOrientationEvent.requestPermission()
+          if (perm !== 'granted') return
+        } catch(e) { return }
+      }
+      const inner = document.getElementById('livella-inner')
+      const line  = document.getElementById('livella-line')
+      const testo = document.getElementById('livella-testo')
+      _orientHandler = e => {
+        const gamma = e.gamma || 0
+        const shift = Math.max(-90, Math.min(90, gamma * 5))
+        inner.style.transform = `translateY(${shift}px)`
+        const ok = Math.abs(gamma) <= 2
+        line.style.background  = ok ? '#00C853' : '#e53935'
+        line.style.boxShadow   = ok ? '0 0 10px #00C85355' : '0 0 8px rgba(229,57,53,0.7)'
+        testo.style.color      = ok ? '#00C853' : '#e53935'
+        testo.textContent      = ok ? 'In asse ✓' : `${Math.abs(gamma).toFixed(1)}°`
+      }
+      window.addEventListener('deviceorientation', _orientHandler)
+    }
+
+    function chiudiCameraModal() {
+      if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null }
+      if (_orientHandler) { window.removeEventListener('deviceorientation', _orientHandler); _orientHandler = null }
+      document.getElementById('camera-modal').classList.remove('open')
+      document.getElementById('livella-inner').style.transform = ''
+      document.getElementById('livella-line').style.background = '#e53935'
+      document.getElementById('livella-testo').textContent = '—'
+    }
+
+    async function scattaFoto() {
+      const video = document.getElementById('camera-video')
+      const raw = document.createElement('canvas')
+      raw.width = video.videoWidth; raw.height = video.videoHeight
+      raw.getContext('2d').drawImage(video, 0, 0)
+      const slot = _camSlot
+      chiudiCameraModal()
+      // Resize identically to handleFoto (max 1200×1600, jpeg 0.82)
+      const tmp = new Image()
+      tmp.onload = async () => {
+        let w = tmp.width, h = tmp.height
+        if (w > 1200 || h > 1600) { const r = Math.min(1200/w, 1600/h); w = Math.round(w*r); h = Math.round(h*r) }
+        const c2 = document.createElement('canvas'); c2.width = w; c2.height = h
+        c2.getContext('2d').drawImage(tmp, 0, 0, w, h)
+        const dataUrl = c2.toDataURL('image/jpeg', 0.82)
+        showFotoPreview(slot, dataUrl)
+        let urls = {}
+        try { urls = JSON.parse(patient.foto_url || '{}') } catch(_) {}
+        urls[slot] = dataUrl
+        patient.foto_url = JSON.stringify(urls)
+        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+      }
+      tmp.src = raw.toDataURL()
+    }
+
+    function apriGalleria() {
+      const slot = _camSlot
+      chiudiCameraModal()
+      const inp = document.getElementById('input-' + slot)
+      if (inp) inp.click()
+    }
 
     function resizeImage(file, maxW, maxH, cb) {
       const reader = new FileReader()
@@ -1243,5 +1375,20 @@
     <button onclick="toggleCartella(true)" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📁<span>Cartella</span></button>
     <button onclick="apriModaleAIP()" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">🤖<span>AI</span></button>
   </div>
+
+  <!-- Camera Modal con Livella Digitale -->
+  <div id="camera-modal">
+    <video id="camera-video" autoplay playsinline muted></video>
+    <div id="livella-wrap">
+      <div id="livella-inner">
+        <div id="livella-line"></div>
+        <div id="livella-testo">—</div>
+      </div>
+    </div>
+    <button id="camera-close-btn" onclick="chiudiCameraModal()">&#x2715;</button>
+    <button id="camera-gallery-btn" onclick="apriGalleria()">&#x1F5BC; Galleria</button>
+    <button id="camera-shutter-btn" onclick="scattaFoto()"></button>
+  </div>
+
 </body>
 </html>
