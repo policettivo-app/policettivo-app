@@ -130,6 +130,64 @@
     document.getElementById('header-date').innerHTML = `Data: <strong>${oggi}</strong><br>Documento riservato`
     document.getElementById('footer-date').textContent = oggi
 
+    // Combines a photo src with its saved annotations and returns a data URL
+    function componiImmagine(src, stored) {
+      return new Promise(resolve => {
+        const arr = Array.isArray(stored) ? stored : (stored.lines || [])
+        if (!arr.length) { resolve(src); return }
+
+        const img = new Image()
+        img.onload = () => {
+          const nw = img.naturalWidth, nh = img.naturalHeight
+          const off = document.createElement('canvas')
+          off.width = nw; off.height = nh
+          const octx = off.getContext('2d')
+          octx.drawImage(img, 0, 0, nw, nh)
+
+          // Use original display canvas dims (stored) to reconstruct letterbox mapping
+          const refCw = Array.isArray(stored) ? nw : (stored.cw || nw)
+          const refCh = Array.isArray(stored) ? nh : (stored.ch || nh)
+          const imgA = nw / nh, wrapA = refCw / refCh
+          let drawW, drawH, ox, oy
+          if (imgA > wrapA) {
+            drawW = refCw; oy = (refCh - (drawH = refCw / imgA)) / 2; ox = 0
+          } else {
+            drawH = refCh; ox = (refCw - (drawW = refCh * imgA)) / 2; oy = 0
+          }
+          const sx = nw / drawW, sy = nh / drawH
+
+          arr.forEach(l => {
+            if (l.type === 'point') {
+              octx.beginPath()
+              octx.fillStyle = l.color
+              octx.arc((l.nx * refCw - ox) * sx, (l.ny * refCh - oy) * sy, Math.max(8, l.r * sx), 0, Math.PI * 2)
+              octx.fill()
+            } else {
+              octx.beginPath()
+              octx.strokeStyle = l.color
+              octx.lineWidth = Math.max(4, l.lw * sx)
+              octx.lineCap = 'round'
+              if (l.lt === 'h') {
+                octx.moveTo(0,  (l.ny1 * refCh - oy) * sy)
+                octx.lineTo(nw, (l.ny1 * refCh - oy) * sy)
+              } else if (l.lt === 'v') {
+                octx.moveTo((l.nx1 * refCw - ox) * sx, 0)
+                octx.lineTo((l.nx1 * refCw - ox) * sx, nh)
+              } else {
+                octx.moveTo((l.nx1 * refCw - ox) * sx, (l.ny1 * refCh - oy) * sy)
+                octx.lineTo((l.nx2 * refCw - ox) * sx, (l.ny2 * refCh - oy) * sy)
+              }
+              octx.stroke()
+            }
+          })
+
+          resolve(off.toDataURL('image/jpeg', 0.92))
+        }
+        img.onerror = () => resolve(src)
+        img.src = src
+      })
+    }
+
     async function init() {
       if (!patientId) { alert('ID paziente mancante'); return }
       const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
@@ -163,43 +221,47 @@
       if (p.foto_url) {
         try {
           const urls = JSON.parse(p.foto_url)
-          renderFotoGrid('foto-prima', [
+          let ann = {}
+          try { ann = JSON.parse(p.foto_annotazioni || '{}') } catch(e) {}
+
+          await renderFotoGrid('foto-prima', [
             { key: 'prima-sx', label: 'Piano sagittale sinistro — PRIMA' },
             { key: 'prima-dx', label: 'Piano sagittale destro — PRIMA' }
-          ], urls)
-          renderFotoGrid('foto-dopo', [
+          ], urls, ann)
+          await renderFotoGrid('foto-dopo', [
             { key: 'dopo-sx', label: 'Piano sagittale sinistro — DOPO' },
             { key: 'dopo-dx', label: 'Piano sagittale destro — DOPO' }
-          ], urls)
+          ], urls, ann)
           const hasFront = urls['frontale'] || urls['posteriore']
           if (hasFront) {
-            renderFotoGrid('foto-frontale', [
+            await renderFotoGrid('foto-frontale', [
               { key: 'frontale', label: 'Piano frontale' },
               { key: 'posteriore', label: 'Piano posteriore' }
-            ], urls)
+            ], urls, ann)
             document.getElementById('section-foto-front').style.display = 'block'
           }
           const hasPodo = urls['podo-sotto'] || urls['podo-dietro']
           if (hasPodo) {
-            renderFotoGrid('foto-podo', [
+            await renderFotoGrid('foto-podo', [
               { key: 'podo-sotto', label: 'Piede da sotto' },
               { key: 'podo-dietro', label: 'Piede da dietro' }
-            ], urls)
+            ], urls, ann)
             document.getElementById('section-podo').style.display = 'block'
           }
         } catch(e) {}
       }
     }
 
-    function renderFotoGrid(containerId, slots, urls) {
+    async function renderFotoGrid(containerId, slots, urls, ann) {
       const container = document.getElementById(containerId)
-      container.innerHTML = slots.map(slot => {
+      const parts = await Promise.all(slots.map(async slot => {
         const src = urls[slot.key]
-        return `<div class="foto-box">
-          <div class="foto-label-bar">${slot.label}</div>
-          ${src ? `<img class="foto-img" src="${src}" alt="${slot.label}">` : '<div class="foto-empty">Foto non disponibile</div>'}
-        </div>`
-      }).join('')
+        if (!src) return `<div class="foto-box"><div class="foto-label-bar">${slot.label}</div><div class="foto-empty">Foto non disponibile</div></div>`
+        const stored = ann && ann[slot.key]
+        const finalSrc = stored ? await componiImmagine(src, stored) : src
+        return `<div class="foto-box"><div class="foto-label-bar">${slot.label}</div><img class="foto-img" src="${finalSrc}" alt="${slot.label}"></div>`
+      }))
+      container.innerHTML = parts.join('')
     }
 
     init()

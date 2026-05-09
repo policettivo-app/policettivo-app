@@ -136,22 +136,26 @@
 
     function linesToJSON() {
       const cw = canvas.width, ch = canvas.height
-      return lines.map(l => {
-        if (l.type === 'point') {
-          return { type: 'point', nx: l.x / cw, ny: l.y / ch, color: l.color, r: l.r }
-        } else {
-          return { type: 'line', lt: l.lt, nx1: l.x1 / cw, ny1: l.y1 / ch, nx2: l.x2 / cw, ny2: l.y2 / ch, color: l.color, lw: l.lw }
-        }
-      })
+      return {
+        cw, ch,
+        lines: lines.map(l => {
+          if (l.type === 'point') {
+            return { type: 'point', nx: l.x / cw, ny: l.y / ch, color: l.color, r: l.r }
+          } else {
+            return { type: 'line', lt: l.lt, nx1: l.x1/cw, ny1: l.y1/ch, nx2: l.x2/cw, ny2: l.y2/ch, color: l.color, lw: l.lw }
+          }
+        })
+      }
     }
 
-    function linesFromJSON(arr) {
+    function linesFromJSON(stored) {
       const cw = canvas.width, ch = canvas.height
+      const arr = Array.isArray(stored) ? stored : (stored.lines || [])
       return arr.map(l => {
         if (l.type === 'point') {
           return { type: 'point', x: l.nx * cw, y: l.ny * ch, color: l.color, r: l.r }
         } else {
-          return { type: 'line', lt: l.lt, x1: l.nx1 * cw, y1: l.ny1 * ch, x2: l.nx2 * cw, y2: l.ny2 * ch, color: l.color, lw: l.lw }
+          return { type: 'line', lt: l.lt, x1: l.nx1*cw, y1: l.ny1*ch, x2: l.nx2*cw, y2: l.ny2*ch, color: l.color, lw: l.lw }
         }
       })
     }
@@ -186,8 +190,9 @@
         let annotazioni = {}
         try { annotazioni = JSON.parse(p.foto_annotazioni || '{}') } catch(e) {}
         const saved = annotazioni[fotoSlot]
-        if (Array.isArray(saved) && saved.length > 0) {
-          lines = linesFromJSON(saved)
+        if (saved) {
+          const arr = Array.isArray(saved) ? saved : (saved.lines || [])
+          if (arr.length > 0) lines = linesFromJSON(saved)
         }
         redraw()
       }
@@ -326,7 +331,7 @@
         .from('patients').update({ foto_annotazioni: patient.foto_annotazioni }).eq('id', patientId)
     }
 
-    // --- Export: download composite image without saving ---
+    // --- Export: download composite PNG without saving to DB ---
 
     function esporta() {
       if (!bgImg.naturalWidth) return
@@ -372,11 +377,19 @@
         }
       })
 
-      const link = document.createElement('a')
       const nomePaziente = patient ? (patient.nome + '-' + patient.cognome).replace(/\s+/g, '-') : 'paziente'
-      link.download = nomePaziente + '-' + fotoSlot + '.jpg'
-      link.href = off.toDataURL('image/jpeg', 0.92)
-      link.click()
+      const filename = nomePaziente + '-' + fotoSlot + '.png'
+
+      off.toBlob(blob => {
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = filename
+        link.href = url
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+      }, 'image/png')
     }
 
     canvas.addEventListener('touchstart', handleTap, { passive: false })
