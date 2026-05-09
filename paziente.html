@@ -116,6 +116,35 @@
     .premium-modal .btn-scopri:hover { background: #e6bb00; }
     .premium-modal .btn-annulla { background: transparent; color: #aaa; border: 1px solid #333; border-radius: 8px; padding: 11px 28px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; width: 100%; }
     .premium-modal .btn-annulla:hover { border-color: #666; color: #fff; }
+    .aip-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9998; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .aip-overlay.visible { opacity: 1; pointer-events: all; }
+    .aip-modal { background: #111; color: #fff; border-radius: 16px; padding: 32px 28px; max-width: 440px; width: 92%; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+    .aip-modal h2 { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
+    .aip-sub { font-size: 13px; color: #aaa; margin: 0 0 24px; }
+    .aip-base-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .aip-base-btn { background: #1a1a1a; border: 2px solid #333; border-radius: 12px; padding: 22px 12px; color: #fff; font-family: 'Montserrat',sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; line-height: 1.5; }
+    .aip-base-btn:hover { border-color: #FFD008; color: #FFD008; }
+    .aip-cancel { background: transparent; color: #888; border: 1px solid #333; border-radius: 8px; padding: 10px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; }
+    .aip-cancel:hover { color: #fff; border-color: #666; }
+    .aip-spinner { width: 36px; height: 36px; border: 3px solid #333; border-top-color: #FFD008; border-radius: 50%; animation: aip-spin 0.8s linear infinite; margin: 0 auto 14px; }
+    @keyframes aip-spin { to { transform: rotate(360deg); } }
+    .aip-loading { text-align: center; padding: 36px 0; }
+    .aip-loading-text { color: #aaa; font-size: 14px; }
+    .aip-risultato { text-align: center; }
+    .aip-badge-npl { display: inline-block; background: #111; border: 2px solid #555; color: #fff; padding: 10px 36px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 14px; }
+    .aip-badge-gpl { display: inline-block; background: #C6F135; color: #000; padding: 10px 36px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 14px; }
+    .aip-badge-neutro { display: inline-block; background: #444; color: #fff; padding: 10px 36px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 14px; }
+    .aip-motivazione { font-size: 13px; color: #ccc; margin-bottom: 16px; line-height: 1.6; }
+    .aip-obs-box { background: #1a1a1a; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; text-align: left; list-style: none; }
+    .aip-obs-box li { font-size: 12px; color: #aaa; margin-bottom: 3px; padding-left: 12px; position: relative; }
+    .aip-obs-box li::before { content: '•'; position: absolute; left: 0; color: #666; }
+    .aip-override { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+    .aip-btn-npl { background: #111; color: #fff; border: 2px solid #555; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .aip-btn-gpl { background: #C6F135; color: #000; border: none; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .aip-disclaimer { font-size: 11px; color: #555; font-style: italic; margin-bottom: 20px; }
+    .aip-close { background: #222; color: #fff; border: none; border-radius: 8px; padding: 10px 28px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .aip-last-box { margin-top: 16px; background: #f9f9f9; border-radius: 10px; padding: 14px 16px; display: none; }
+    .aip-last-box.visible { display: block; }
   </style>
 </head>
 <body>
@@ -126,6 +155,40 @@
       <p>Questa funzione è disponibile solo con il piano Premium. Scopri tutti i vantaggi e attiva il tuo abbonamento.</p>
       <button class="btn-scopri" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
       <button class="btn-annulla" onclick="document.getElementById('premium-overlay').classList.remove('visible')">Annulla</button>
+    </div>
+  </div>
+
+  <div class="aip-overlay" id="aip-overlay">
+    <div class="aip-modal">
+      <div id="aip-step-scelta">
+        <h2>🤖 Analisi AI Posturale</h2>
+        <p class="aip-sub">Su cosa vuoi basare la scelta della colorazione?</p>
+        <div class="aip-base-btns">
+          <button class="aip-base-btn" onclick="avviaAnalisiPosturale('scapolare')">🦴 Piano<br>Scapolare</button>
+          <button class="aip-base-btn" onclick="avviaAnalisiPosturale('piede')">🦶 Piede</button>
+        </div>
+        <button class="aip-cancel" onclick="chiudiAIPModal()">Annulla</button>
+      </div>
+      <div id="aip-step-loading" style="display:none">
+        <div class="aip-loading">
+          <div class="aip-spinner"></div>
+          <div class="aip-loading-text">L'AI sta analizzando le foto...</div>
+        </div>
+      </div>
+      <div id="aip-step-risultato" style="display:none">
+        <div class="aip-risultato">
+          <div id="aip-badge"></div>
+          <svg id="aip-svg" width="160" height="80" viewBox="0 0 160 80" style="margin:0 auto 14px;display:block"></svg>
+          <div class="aip-motivazione" id="aip-motivazione"></div>
+          <ul class="aip-obs-box" id="aip-obs-box"></ul>
+          <div class="aip-override">
+            <button class="aip-btn-npl" onclick="impostaColorazione('NPL')">Scegli NPL</button>
+            <button class="aip-btn-gpl" onclick="impostaColorazione('GPL')">Scegli GPL</button>
+          </div>
+          <div class="aip-disclaimer">⚠️ Suggerimento AI — la valutazione finale è sempre del professionista</div>
+          <button class="aip-close" onclick="chiudiAIPModal()">Chiudi</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -402,6 +465,19 @@
       <p style="font-size:13px;color:#666;margin-bottom:16px">Visualizza le 4 foto prima e dopo affiancate con griglia di riferimento per comparare l andamento posturale.</p>
       <div class="actions-row">
         <button class="btn-primary" onclick="apriComparazione()">🔍 Apri comparazione</button>
+      </div>
+    </div>
+
+    <!-- AI POSTURALE -->
+    <div class="section">
+      <div class="section-title-plain">🤖 Analisi AI Posturale</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">L'AI analizza le osservazioni del piano scapolare e del piede e suggerisce la colorazione NPL o GPL del cuscino.</p>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="apriModaleAIP()">🤖 Avvia Analisi AI Posturale</button>
+      </div>
+      <div class="aip-last-box" id="aip-last-box">
+        <div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Ultimo suggerimento AI</div>
+        <div id="aip-last-content"></div>
       </div>
     </div>
     <div class="section">
@@ -873,6 +949,133 @@
       if (e.target === document.getElementById('premium-overlay')) {
         document.getElementById('premium-overlay').classList.remove('visible')
       }
+    }
+
+    const ANTHROPIC_KEY = '' // ⚠️ Impostare la chiave — usare un proxy/edge function in produzione
+
+    function apriModaleAIP() {
+      if (!window.isPremium) { mostraModalePremium(); return }
+      document.getElementById('aip-step-scelta').style.display = 'block'
+      document.getElementById('aip-step-loading').style.display = 'none'
+      document.getElementById('aip-step-risultato').style.display = 'none'
+      document.getElementById('aip-overlay').classList.add('visible')
+    }
+
+    function chiudiAIPModal() {
+      document.getElementById('aip-overlay').classList.remove('visible')
+    }
+
+    async function imgUrlToBase64(url) {
+      try {
+        const resp = await fetch(url)
+        const blob = await resp.blob()
+        return new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve({ data: reader.result.split(',')[1], mediaType: blob.type || 'image/jpeg' })
+          reader.readAsDataURL(blob)
+        })
+      } catch(e) { return null }
+    }
+
+    async function avviaAnalisiPosturale(base) {
+      document.getElementById('aip-step-scelta').style.display = 'none'
+      document.getElementById('aip-step-loading').style.display = 'block'
+
+      const scapPrima = obsSelections['scapolare-prima'] || ''
+      const scapDopo  = obsSelections['scapolare-dopo']  || ''
+      const piede     = obsSelections['piede-morfologia'] || ''
+      const calcagno  = obsSelections['piede-asse']       || ''
+      const rotSup    = obsSelections['rotazione-sup']    || ''
+      const incCapo   = obsSelections['inclinazione-capo'] || ''
+
+      let fotoUrls = {}
+      try { fotoUrls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
+
+      const slotsPerBase = {
+        scapolare: ['prima-sx', 'prima-dx', 'dopo-sx', 'dopo-dx'],
+        piede: ['podo-sotto', 'podo-dietro']
+      }
+      const content = []
+      for (const slot of (slotsPerBase[base] || [])) {
+        if (fotoUrls[slot]) {
+          const img = await imgUrlToBase64(fotoUrls[slot])
+          if (img) content.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })
+        }
+      }
+      content.push({ type: 'text', text:
+        `Osservazioni posturali — base: ${base === 'scapolare' ? 'piano scapolare' : 'piede'}.\n` +
+        `Piano scapolare prima 3R: ${scapPrima || 'non rilevato'}\n` +
+        `Piano scapolare dopo 3R: ${scapDopo || 'non rilevato'}\n` +
+        `Morfologia piede: ${piede || 'non rilevata'}\n` +
+        `Asse calcaneare: ${calcagno || 'non rilevato'}\n` +
+        `Rotazione superiore: ${rotSup || 'non rilevata'}\n` +
+        `Inclinazione capo: ${incCapo || 'non rilevata'}\n\n` +
+        `Applica la logica NPL/GPL e rispondi SOLO con JSON valido senza markdown.`
+      })
+
+      const systemPrompt =
+        `Sei un assistente AI per fisioterapisti specializzato in posturologia e colorazione dei cuscini NPL/GPL.\n\n` +
+        `Logica di scelta:\n` +
+        `- NPL (cuscino nero, tonico): piano scapolare POSTERIORE, piede CAVO, calcagno VARO\n` +
+        `- GPL (cuscino verde lime, decompressivo): piano scapolare ANTERIORE, piede PIATTO, calcagno VALGO\n` +
+        `- NEUTRO: osservazioni in asse/normali o contraddittorie — lascia decidere al professionista\n\n` +
+        `Rispondi ESCLUSIVAMENTE con questo JSON (nessun testo extra):\n` +
+        `{"suggerimento":"NPL"|"GPL"|"NEUTRO","confidenza":"alta"|"media"|"bassa","motivazione":"1-2 frasi","osservazioni_chiave":["..."]}`
+
+      try {
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 300,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: content }]
+          })
+        })
+        const data = await resp.json()
+        let result
+        try { result = JSON.parse(data.content?.[0]?.text || '{}') }
+        catch(e) { result = { suggerimento: 'NEUTRO', confidenza: 'bassa', motivazione: 'Errore nel parsing della risposta AI.', osservazioni_chiave: [] } }
+        mostraRisultatoAIP(result)
+      } catch(e) {
+        document.getElementById('aip-step-loading').style.display = 'none'
+        document.getElementById('aip-step-scelta').style.display = 'block'
+        alert('Errore connessione AI: ' + e.message)
+      }
+    }
+
+    function mostraRisultatoAIP(result) {
+      document.getElementById('aip-step-loading').style.display = 'none'
+      const sug = result.suggerimento || 'NEUTRO'
+      const badgeEl = document.getElementById('aip-badge')
+      const svgEl   = document.getElementById('aip-svg')
+      const svgNPL = `<rect x="10" y="22" width="140" height="36" rx="18" fill="#111" stroke="#555" stroke-width="1.5"/>
+        <ellipse cx="28" cy="40" rx="9" ry="13" fill="#1d1d1d"/>
+        <ellipse cx="132" cy="40" rx="9" ry="13" fill="#1d1d1d"/>
+        <text x="80" y="45" text-anchor="middle" fill="#fff" font-size="13" font-family="Montserrat,sans-serif" font-weight="700" letter-spacing="2">NPL</text>`
+      const svgGPL = `<rect x="10" y="22" width="140" height="36" rx="18" fill="#C6F135" stroke="#9ec01a" stroke-width="1.5"/>
+        <ellipse cx="28" cy="40" rx="9" ry="13" fill="#b5de2e"/>
+        <ellipse cx="132" cy="40" rx="9" ry="13" fill="#b5de2e"/>
+        <text x="80" y="45" text-anchor="middle" fill="#000" font-size="13" font-family="Montserrat,sans-serif" font-weight="700" letter-spacing="2">GPL</text>`
+      const svgNEU = `<rect x="10" y="22" width="140" height="36" rx="18" fill="#444" stroke="#666" stroke-width="1.5"/>
+        <text x="80" y="45" text-anchor="middle" fill="#fff" font-size="11" font-family="Montserrat,sans-serif" font-weight="700">NPL / GPL</text>`
+      if (sug === 'NPL')      { badgeEl.innerHTML = '<div class="aip-badge-npl">⬛ NPL</div>'; svgEl.innerHTML = svgNPL }
+      else if (sug === 'GPL') { badgeEl.innerHTML = '<div class="aip-badge-gpl">🟢 GPL</div>'; svgEl.innerHTML = svgGPL }
+      else                    { badgeEl.innerHTML = '<div class="aip-badge-neutro">⚪ NEUTRO</div>'; svgEl.innerHTML = svgNEU }
+      document.getElementById('aip-motivazione').textContent = result.motivazione || ''
+      document.getElementById('aip-obs-box').innerHTML = (result.osservazioni_chiave || []).map(o => `<li>${o}</li>`).join('')
+      document.getElementById('aip-step-risultato').style.display = 'block'
+    }
+
+    function impostaColorazione(tipo) {
+      chiudiAIPModal()
+      const isNPL = tipo === 'NPL'
+      document.getElementById('aip-last-content').innerHTML =
+        `<span style="background:${isNPL ? '#111' : '#C6F135'};color:${isNPL ? '#fff' : '#000'};` +
+        `padding:5px 18px;border-radius:6px;font-weight:700;font-size:15px;letter-spacing:2px">${tipo}</span>` +
+        `<span style="font-size:12px;color:#888;margin-left:10px">Scelta confermata dal professionista</span>`
+      document.getElementById('aip-last-box').classList.add('visible')
     }
 
     function apriComparazione() {
