@@ -188,19 +188,35 @@
     }
     #camera-shutter-btn:active { transform: translateX(-50%) scale(0.9); opacity: 0.75; }
 
-    /* ── Sagoma Guida ── */
-    #sagoma-wrap {
-      position: absolute; inset: 0; pointer-events: none;
-      display: none; flex-direction: column;
-      align-items: center; justify-content: center;
+    /* ── Sagoma Guida (croce centratrice) ── */
+    #sagoma-wrap { position: absolute; inset: 0; pointer-events: none; display: none; }
+    #sagoma-wrap.visible { display: block; }
+    #sagoma-v-line {
+      position: absolute; top: 0; bottom: 0; left: 50%;
+      width: 1px; background: rgba(255,255,255,0.5); transform: translateX(-50%);
     }
-    #sagoma-wrap.visible { display: flex; }
-    #sagoma-svg-el { height: 68vh; width: auto; overflow: visible; }
+    #sagoma-h-line {
+      position: absolute; top: 35%; left: 0; right: 0;
+      height: 1px; background: rgba(255,255,255,0.5);
+    }
     #sagoma-hint {
       position: absolute; bottom: 142px; left: 50%; transform: translateX(-50%);
       color: rgba(255,255,255,0.88); font-size: 11px; font-weight: 700;
       background: rgba(0,0,0,0.52); border-radius: 20px; padding: 6px 16px;
       font-family: 'Montserrat', sans-serif; white-space: nowrap; letter-spacing: 0.3px;
+    }
+    /* Livella iOS permission button */
+    #livella-ios-btn {
+      display: none; position: absolute; bottom: 142px; left: 50%; transform: translateX(-50%);
+      background: #FFD008; color: #000; border: none; border-radius: 22px;
+      padding: 10px 20px; font-family: 'Montserrat', sans-serif; font-size: 13px;
+      font-weight: 700; cursor: pointer; white-space: nowrap; z-index: 10;
+    }
+    /* Debug gamma (piccolo, angolo) */
+    #livella-debug {
+      position: absolute; top: 76px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.55); font-size: 10px; font-family: monospace;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -735,42 +751,9 @@
     // ── Camera Modal + Livella + Sagoma ──
     let _camStream = null, _camSlot = null, _orientHandler = null
 
-    const _SVG_G = (d) => `fill="rgba(255,255,255,0.14)" stroke="rgba(255,255,255,0.78)" stroke-width="1.4" stroke-linejoin="round" ${d}`
-
-    // Silhouette frontale: persona vista di fronte
-    const SVG_FRONTALE = `
-      <circle cx="50" cy="16" r="14" ${_SVG_G('')}/>
-      <path d="M44 30 L56 30 L55 38 L45 38Z" ${_SVG_G('')}/>
-      <path d="M30 38 L70 38 L67 112 L33 112Z" ${_SVG_G('')}/>
-      <path d="M14 38 L30 38 L26 100 L10 100Z" ${_SVG_G('')}/>
-      <path d="M70 38 L86 38 L90 100 L74 100Z" ${_SVG_G('')}/>
-      <path d="M33 112 L30 244 L45 244 L47 112Z" ${_SVG_G('')}/>
-      <path d="M67 112 L70 244 L55 244 L53 112Z" ${_SVG_G('')}/>
-    `
-    // Silhouette di profilo: persona vista di lato (piano sagittale)
-    const SVG_PROFILO = `
-      <ellipse cx="53" cy="16" rx="13" ry="14" ${_SVG_G('')}/>
-      <path d="M47 30 L56 30 L55 38 L48 38Z" ${_SVG_G('')}/>
-      <path d="M38 38 C40 38 62 40 60 112 L46 112 C44 76 36 38 38 38Z" ${_SVG_G('')}/>
-      <path d="M56 42 L66 42 L70 102 L60 102Z" ${_SVG_G('')}/>
-      <path d="M46 112 L42 244 L52 244 L54 112Z" ${_SVG_G('')}/>
-      <path d="M60 112 L64 244 L54 244 L54 112Z" ${_SVG_G('')}/>
-    `
-
     function mostraSagoma(slot) {
-      const sagittale = ['prima-sx','prima-dx','dopo-sx','dopo-dx']
-      const frontale  = ['frontale','posteriore']
-      const wrap = document.getElementById('sagoma-wrap')
-      const svg  = document.getElementById('sagoma-svg-el')
-      if (sagittale.includes(slot)) {
-        svg.innerHTML = SVG_PROFILO
-        wrap.classList.add('visible')
-      } else if (frontale.includes(slot)) {
-        svg.innerHTML = SVG_FRONTALE
-        wrap.classList.add('visible')
-      } else {
-        wrap.classList.remove('visible')
-      }
+      const noCross = ['podo-sotto', 'podo-dietro']
+      document.getElementById('sagoma-wrap').classList.toggle('visible', !noCross.includes(slot))
     }
 
     function triggerInput(id) {
@@ -799,37 +782,64 @@
       }
     }
 
-    async function initLivella() {
-      if (typeof DeviceOrientationEvent !== 'undefined' &&
-          typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-          const perm = await DeviceOrientationEvent.requestPermission()
-          if (perm !== 'granted') return
-        } catch(e) { return }
+    function initLivella() {
+      const attachOrientListener = () => {
+        if (_orientHandler) return  // già attivo
+        _orientHandler = e => {
+          const gamma = e.gamma != null ? e.gamma : 0
+          document.getElementById('livella-debug').textContent = `γ ${gamma.toFixed(2)}°`
+          const shift = Math.max(-90, Math.min(90, gamma * 5))
+          document.getElementById('livella-inner').style.transform = `translateY(${shift}px)`
+          const ok = Math.abs(gamma) <= 2
+          const line  = document.getElementById('livella-line')
+          const testo = document.getElementById('livella-testo')
+          line.style.background = ok ? '#00C853' : '#e53935'
+          line.style.boxShadow  = ok ? '0 0 10px #00C85355' : '0 0 8px rgba(229,57,53,0.7)'
+          testo.style.color     = ok ? '#00C853' : '#e53935'
+          testo.textContent     = ok ? 'In asse ✓' : `${Math.abs(gamma).toFixed(1)}°`
+        }
+        window.addEventListener('deviceorientation', _orientHandler, true)
       }
-      const inner = document.getElementById('livella-inner')
-      const line  = document.getElementById('livella-line')
-      const testo = document.getElementById('livella-testo')
-      _orientHandler = e => {
-        const gamma = e.gamma || 0
-        const shift = Math.max(-90, Math.min(90, gamma * 5))
-        inner.style.transform = `translateY(${shift}px)`
-        const ok = Math.abs(gamma) <= 2
-        line.style.background  = ok ? '#00C853' : '#e53935'
-        line.style.boxShadow   = ok ? '0 0 10px #00C85355' : '0 0 8px rgba(229,57,53,0.7)'
-        testo.style.color      = ok ? '#00C853' : '#e53935'
-        testo.textContent      = ok ? 'In asse ✓' : `${Math.abs(gamma).toFixed(1)}°`
+
+      const needsPermission = (
+        typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function'
+      )
+
+      if (needsPermission) {
+        // iOS 13+: getUserMedia() ha già consumato il contesto di gesto.
+        // Mostriamo un bottone che l'utente tocca direttamente → gesto valido.
+        const btn = document.getElementById('livella-ios-btn')
+        btn.textContent = '🎯 Abilita Livella'
+        btn.style.display = 'block'
+        btn.onclick = async () => {
+          try {
+            const perm = await DeviceOrientationEvent.requestPermission()
+            if (perm === 'granted') {
+              btn.style.display = 'none'
+              attachOrientListener()
+            } else {
+              btn.textContent = 'Permesso negato'
+            }
+          } catch(err) {
+            btn.textContent = 'Errore: ' + err.message
+          }
+        }
+      } else {
+        // Android / desktop: nessun permesso necessario
+        attachOrientListener()
       }
-      window.addEventListener('deviceorientation', _orientHandler)
     }
 
     function chiudiCameraModal() {
       if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null }
-      if (_orientHandler) { window.removeEventListener('deviceorientation', _orientHandler); _orientHandler = null }
+      if (_orientHandler) { window.removeEventListener('deviceorientation', _orientHandler, true); _orientHandler = null }
       document.getElementById('camera-modal').classList.remove('open')
       document.getElementById('livella-inner').style.transform = ''
       document.getElementById('livella-line').style.background = '#e53935'
       document.getElementById('livella-testo').textContent = '—'
+      document.getElementById('livella-debug').textContent = ''
+      document.getElementById('livella-ios-btn').style.display = 'none'
       document.getElementById('sagoma-wrap').classList.remove('visible')
     }
 
@@ -1431,14 +1441,15 @@
     <button onclick="apriModaleAIP()" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">🤖<span>AI</span></button>
   </div>
 
-  <!-- Camera Modal con Livella Digitale e Sagoma Guida -->
+  <!-- Camera Modal con Livella Digitale e Croce Centratrice -->
   <div id="camera-modal">
     <video id="camera-video" autoplay playsinline muted></video>
 
-    <!-- Sagoma guida (solo foto posturali, non podoscopiche) -->
+    <!-- Croce centratrice (no per podo) -->
     <div id="sagoma-wrap">
-      <svg id="sagoma-svg-el" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 250"></svg>
-      <div id="sagoma-hint">Allinea il paziente alla sagoma &mdash; distanza 2,5&nbsp;m</div>
+      <div id="sagoma-v-line"></div>
+      <div id="sagoma-h-line"></div>
+      <div id="sagoma-hint">Centra il paziente &bull; distanza 2,5&nbsp;m</div>
     </div>
 
     <!-- Livella digitale -->
@@ -1448,6 +1459,12 @@
         <div id="livella-testo">—</div>
       </div>
     </div>
+
+    <!-- Debug gamma (sempre visibile durante sviluppo) -->
+    <div id="livella-debug"></div>
+
+    <!-- iOS 13+: bottone per richiedere permesso orientamento -->
+    <button id="livella-ios-btn" style="display:none"></button>
 
     <button id="camera-close-btn" onclick="chiudiCameraModal()">&#x2715;</button>
     <button id="camera-gallery-btn" onclick="apriGalleria()">&#x1F5BC; Galleria</button>
