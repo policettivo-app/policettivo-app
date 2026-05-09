@@ -159,14 +159,17 @@
     // --- Init ---
 
     async function init() {
+      console.log('[disegno] patientId:', patientId, '| fotoSlot:', fotoSlot)
       if (!patientId || !fotoSlot) { alert('Parametri URL mancanti'); return }
 
       const { data: { session } } = await _supabase.auth.getSession()
+      console.log('[disegno] session:', session ? session.user.email : null)
       if (!session) { window.location.href = 'login.html'; return }
 
       const { data: p, error } = await _supabase
-        .from('patients').select('nome, cognome, foto_url, foto_annotazioni').eq('id', patientId).single()
-      if (error || !p) { alert('Paziente non trovato'); return }
+        .from('patients').select('*').eq('id', patientId).single()
+      console.log('[disegno] query result — data:', p, '| error:', error)
+      if (error || !p) { alert('Paziente non trovato: ' + (error ? error.message : 'nessun dato')); return }
       patient = p
 
       const slotLabel = fotoSlot.replace(/-/g, ' ')
