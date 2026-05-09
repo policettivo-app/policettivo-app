@@ -40,28 +40,36 @@
       position: fixed; bottom: 0; left: 0; right: 0; height: 88px;
       background: #111; border-top: 1px solid #222;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 10px; gap: 6px;
+      padding: 0 8px; gap: 5px;
     }
-    .t-group { display: flex; align-items: center; gap: 5px; }
+    .t-group { display: flex; align-items: center; gap: 4px; }
     .t-btn {
       background: #1a1a1a; border: 1.5px solid #2a2a2a; color: #bbb;
-      border-radius: 8px; padding: 11px 12px; font-size: 17px; cursor: pointer;
+      border-radius: 8px; padding: 10px 10px; font-size: 16px; cursor: pointer;
       font-family: 'Montserrat',sans-serif; transition: all 0.12s; line-height: 1;
-      min-width: 44px; text-align: center;
+      min-width: 40px; text-align: center;
     }
     .t-btn.active { border-color: #FFD008; color: #FFD008; background: #1a1500; }
     .t-btn:active { opacity: 0.7; }
     .c-dot {
-      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+      width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
       border: 2px solid #333; flex-shrink: 0; transition: transform 0.12s;
     }
     .c-dot.active { border-color: #FFD008; transform: scale(1.15); }
-    .btn-save {
-      background: #FFD008; color: #000; border: none; border-radius: 8px;
-      padding: 10px 12px; font-family: 'Montserrat',sans-serif; font-size: 11px;
-      font-weight: 700; cursor: pointer; line-height: 1.4; text-align: center; min-width: 52px;
+    .t-actions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+      flex-shrink: 0;
     }
-    .btn-save:active { background: #e6bb00; }
+    .t-act {
+      background: #1a1a1a; border: 1.5px solid #2a2a2a; color: #bbb;
+      border-radius: 7px; padding: 5px 4px; font-family: 'Montserrat',sans-serif;
+      font-size: 10px; font-weight: 600; cursor: pointer; text-align: center;
+      line-height: 1.4; white-space: nowrap;
+    }
+    .t-act:active { opacity: 0.7; }
+    .t-act-save { background: #FFD008; color: #000; border-color: #FFD008; }
+    .t-act-export { background: #1a1500; color: #FFD008; border-color: #FFD008; }
+    .t-act-reset { color: #e53935; border-color: #3a1a1a; background: #1a1010; }
     .divider { width: 1px; height: 36px; background: #2a2a2a; flex-shrink: 0; }
   </style>
 </head>
@@ -84,18 +92,21 @@
       <button class="t-btn active" id="btn-h" onclick="setMode('h')" title="Orizzontale">━</button>
       <button class="t-btn" id="btn-v" onclick="setMode('v')" title="Verticale">┃</button>
       <button class="t-btn" id="btn-f" onclick="setMode('f')" title="Libera">╱</button>
+      <button class="t-btn" id="btn-p" onclick="setMode('p')" title="Punto">●</button>
     </div>
     <div class="divider"></div>
     <div class="t-group">
       <div class="c-dot active" id="c-white"  style="background:#fff"     onclick="setColor('#ffffff')"></div>
       <div class="c-dot"        id="c-yellow" style="background:#FFD008"  onclick="setColor('#FFD008')"></div>
+      <div class="c-dot"        id="c-green"  style="background:#00C853"  onclick="setColor('#00C853')"></div>
       <div class="c-dot"        id="c-red"    style="background:#e53935"  onclick="setColor('#e53935')"></div>
     </div>
     <div class="divider"></div>
-    <div class="t-group">
-      <button class="t-btn" onclick="annulla()"      title="Annulla">↩</button>
-      <button class="t-btn" onclick="cancellaTutto()" title="Cancella">🗑</button>
-      <button class="btn-save" onclick="salva()">💾<br>Salva</button>
+    <div class="t-actions">
+      <button class="t-act" onclick="annulla()" title="Annulla ultima">↩ Annulla</button>
+      <button class="t-act t-act-reset" onclick="cancellaRipristina()" title="Cancella tutto e ripristina">🗑 Reset</button>
+      <button class="t-act t-act-save" onclick="salva()">💾 Salva</button>
+      <button class="t-act t-act-export" onclick="esporta()">📤 Esporta</button>
     </div>
   </div>
 
@@ -121,6 +132,32 @@
     let lines      = []
     let firstPoint = null
 
+    // --- Coordinate normalization (0–1 range for device independence) ---
+
+    function linesToJSON() {
+      const cw = canvas.width, ch = canvas.height
+      return lines.map(l => {
+        if (l.type === 'point') {
+          return { type: 'point', nx: l.x / cw, ny: l.y / ch, color: l.color, r: l.r }
+        } else {
+          return { type: 'line', lt: l.lt, nx1: l.x1 / cw, ny1: l.y1 / ch, nx2: l.x2 / cw, ny2: l.y2 / ch, color: l.color, lw: l.lw }
+        }
+      })
+    }
+
+    function linesFromJSON(arr) {
+      const cw = canvas.width, ch = canvas.height
+      return arr.map(l => {
+        if (l.type === 'point') {
+          return { type: 'point', x: l.nx * cw, y: l.ny * ch, color: l.color, r: l.r }
+        } else {
+          return { type: 'line', lt: l.lt, x1: l.nx1 * cw, y1: l.ny1 * ch, x2: l.nx2 * cw, y2: l.ny2 * ch, color: l.color, lw: l.lw }
+        }
+      })
+    }
+
+    // --- Init ---
+
     async function init() {
       if (!patientId || !fotoSlot) { alert('Parametri URL mancanti'); return }
 
@@ -128,7 +165,7 @@
       if (!session) { window.location.href = 'login.html'; return }
 
       const { data: p, error } = await _supabase
-        .from('patients').select('nome, cognome, foto_url').eq('id', patientId).single()
+        .from('patients').select('nome, cognome, foto_url, foto_annotazioni').eq('id', patientId).single()
       if (error || !p) { alert('Paziente non trovato'); return }
       patient = p
 
@@ -141,7 +178,16 @@
       const src = urls[fotoSlot]
       if (!src) { alert('Foto non trovata per slot: ' + fotoSlot); tornaPaziente(); return }
 
-      bgImg.onload = () => { syncCanvas(); redraw() }
+      bgImg.onload = () => {
+        syncCanvas()
+        let annotazioni = {}
+        try { annotazioni = JSON.parse(p.foto_annotazioni || '{}') } catch(e) {}
+        const saved = annotazioni[fotoSlot]
+        if (Array.isArray(saved) && saved.length > 0) {
+          lines = linesFromJSON(saved)
+        }
+        redraw()
+      }
       bgImg.src = src
     }
 
@@ -158,14 +204,14 @@
     function setMode(m) {
       mode = m
       resetFirst()
-      ;['h', 'v', 'f'].forEach(k =>
+      ;['h', 'v', 'f', 'p'].forEach(k =>
         document.getElementById('btn-' + k).classList.toggle('active', k === m))
     }
 
     function setColor(c) {
       color = c
       resetFirst()
-      const map = { '#ffffff': 'c-white', '#FFD008': 'c-yellow', '#e53935': 'c-red' }
+      const map = { '#ffffff': 'c-white', '#FFD008': 'c-yellow', '#00C853': 'c-green', '#e53935': 'c-red' }
       Object.values(map).forEach(id => document.getElementById(id).classList.remove('active'))
       if (map[c]) document.getElementById(map[c]).classList.add('active')
     }
@@ -183,6 +229,12 @@
       e.preventDefault()
       const pos = getPos(e)
 
+      if (mode === 'p') {
+        lines.push({ type: 'point', x: pos.x, y: pos.y, color, r: 8 })
+        redraw()
+        return
+      }
+
       if (!firstPoint) {
         firstPoint = pos
         const cRect = canvas.getBoundingClientRect()
@@ -191,12 +243,16 @@
         fpDot.style.top  = (cRect.top  - wRect.top  + pos.y * (cRect.height / canvas.height)) + 'px'
         fpDot.style.display = 'block'
       } else {
-        const p1 = firstPoint, p2 = pos
-        let x1 = p1.x, y1 = p1.y, x2, y2
-        if      (mode === 'h') { x2 = p2.x; y2 = p1.y }
-        else if (mode === 'v') { x2 = p1.x; y2 = p2.y }
-        else                   { x2 = p2.x; y2 = p2.y }
-        lines.push({ x1, y1, x2, y2, color, lw: 2.5 })
+        const p1 = firstPoint
+        let lt, x1, y1, x2, y2
+        if (mode === 'h') {
+          lt = 'h'; x1 = 0; y1 = p1.y; x2 = canvas.width;  y2 = p1.y
+        } else if (mode === 'v') {
+          lt = 'v'; x1 = p1.x; y1 = 0; x2 = p1.x; y2 = canvas.height
+        } else {
+          lt = 'f'; x1 = p1.x; y1 = p1.y; x2 = pos.x; y2 = pos.y
+        }
+        lines.push({ type: 'line', lt, x1, y1, x2, y2, color, lw: 2.5 })
         resetFirst()
         redraw()
       }
@@ -210,34 +266,76 @@
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       lines.forEach(l => {
-        ctx.beginPath()
-        ctx.strokeStyle = l.color
-        ctx.lineWidth   = l.lw
-        ctx.lineCap     = 'round'
-        ctx.moveTo(l.x1, l.y1)
-        ctx.lineTo(l.x2, l.y2)
-        ctx.stroke()
+        if (l.type === 'point') {
+          ctx.beginPath()
+          ctx.fillStyle = l.color
+          ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2)
+          ctx.fill()
+        } else {
+          ctx.beginPath()
+          ctx.strokeStyle = l.color
+          ctx.lineWidth   = l.lw
+          ctx.lineCap     = 'round'
+          ctx.moveTo(l.x1, l.y1)
+          ctx.lineTo(l.x2, l.y2)
+          ctx.stroke()
+        }
       })
     }
 
-    function annulla()      { if (lines.length) { lines.pop(); resetFirst(); redraw() } }
-    function cancellaTutto() { lines = []; resetFirst(); redraw() }
+    function annulla() {
+      if (lines.length) { lines.pop(); resetFirst(); redraw() }
+    }
+
+    // --- Save (JSON only, never overwrites original photo) ---
 
     async function salva() {
       if (!patient) return
       const status = document.getElementById('nav-status')
       status.textContent = '⏳ Salvo...'
 
+      let annotazioni = {}
+      try { annotazioni = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) {}
+      annotazioni[fotoSlot] = linesToJSON()
+      patient.foto_annotazioni = JSON.stringify(annotazioni)
+
+      const { error } = await _supabase
+        .from('patients').update({ foto_annotazioni: patient.foto_annotazioni }).eq('id', patientId)
+
+      status.textContent = error ? '❌ Errore' : '✓ Salvato'
+      setTimeout(() => { status.textContent = '' }, 2500)
+    }
+
+    // --- Reset: clear canvas AND delete saved annotations from DB ---
+
+    async function cancellaRipristina() {
+      lines = []
+      resetFirst()
+      redraw()
+
+      if (!patient) return
+      let annotazioni = {}
+      try { annotazioni = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) {}
+      delete annotazioni[fotoSlot]
+      patient.foto_annotazioni = JSON.stringify(annotazioni)
+
+      await _supabase
+        .from('patients').update({ foto_annotazioni: patient.foto_annotazioni }).eq('id', patientId)
+    }
+
+    // --- Export: download composite image without saving ---
+
+    function esporta() {
+      if (!bgImg.naturalWidth) return
       const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
       const cw = canvas.width,       ch = canvas.height
 
-      // Compute letterbox offsets (object-fit: contain)
-      const imgA  = nw / nh, wrapA = cw / ch
+      const imgA = nw / nh, wrapA = cw / ch
       let drawW, drawH, ox, oy
       if (imgA > wrapA) {
-        drawW = cw;                oy = (ch - (drawH = cw / imgA)) / 2; ox = 0
+        drawW = cw; oy = (ch - (drawH = cw / imgA)) / 2; ox = 0
       } else {
-        drawH = ch;                ox = (cw - (drawW = ch * imgA)) / 2; oy = 0
+        drawH = ch; ox = (cw - (drawW = ch * imgA)) / 2; oy = 0
       }
       const sx = nw / drawW, sy = nh / drawH
 
@@ -247,31 +345,45 @@
       octx.drawImage(bgImg, 0, 0, nw, nh)
 
       lines.forEach(l => {
-        octx.beginPath()
-        octx.strokeStyle = l.color
-        octx.lineWidth   = Math.max(3, l.lw * sx)
-        octx.lineCap     = 'round'
-        octx.moveTo((l.x1 - ox) * sx, (l.y1 - oy) * sy)
-        octx.lineTo((l.x2 - ox) * sx, (l.y2 - oy) * sy)
-        octx.stroke()
+        if (l.type === 'point') {
+          octx.beginPath()
+          octx.fillStyle = l.color
+          octx.arc((l.x - ox) * sx, (l.y - oy) * sy, Math.max(6, l.r * sx), 0, Math.PI * 2)
+          octx.fill()
+        } else {
+          octx.beginPath()
+          octx.strokeStyle = l.color
+          octx.lineWidth   = Math.max(3, l.lw * sx)
+          octx.lineCap     = 'round'
+          if (l.lt === 'h') {
+            octx.moveTo(0,  (l.y1 - oy) * sy)
+            octx.lineTo(nw, (l.y1 - oy) * sy)
+          } else if (l.lt === 'v') {
+            octx.moveTo((l.x1 - ox) * sx, 0)
+            octx.lineTo((l.x1 - ox) * sx, nh)
+          } else {
+            octx.moveTo((l.x1 - ox) * sx, (l.y1 - oy) * sy)
+            octx.lineTo((l.x2 - ox) * sx, (l.y2 - oy) * sy)
+          }
+          octx.stroke()
+        }
       })
 
-      const dataUrl = off.toDataURL('image/jpeg', 0.92)
-      let urls = {}
-      try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
-      urls[fotoSlot] = dataUrl
-      patient.foto_url = JSON.stringify(urls)
-
-      const { error } = await _supabase
-        .from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
-
-      status.textContent = error ? '❌ Errore' : '✓ Salvato'
-      setTimeout(() => { status.textContent = '' }, 2500)
+      const link = document.createElement('a')
+      const nomePaziente = patient ? (patient.nome + '-' + patient.cognome).replace(/\s+/g, '-') : 'paziente'
+      link.download = nomePaziente + '-' + fotoSlot + '.jpg'
+      link.href = off.toDataURL('image/jpeg', 0.92)
+      link.click()
     }
 
     canvas.addEventListener('touchstart', handleTap, { passive: false })
     canvas.addEventListener('click', handleTap)
-    window.addEventListener('resize', () => { syncCanvas(); redraw() })
+    window.addEventListener('resize', () => {
+      const saved = linesToJSON()
+      syncCanvas()
+      lines = linesFromJSON(saved)
+      redraw()
+    })
 
     init()
   </script>
