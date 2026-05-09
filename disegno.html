@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Disegno Posturale — Policettivo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: #000; font-family: 'Montserrat', sans-serif; overflow: hidden; height: 100dvh; user-select: none; -webkit-user-select: none; }
+
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 52px;
+      background: #000; border-bottom: 1px solid #1a1a1a;
+      display: flex; align-items: center; padding: 0 16px; z-index: 100; gap: 12px;
+    }
+    .btn-back { background: none; border: none; color: #FFD008; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; flex-shrink: 0; }
+    .nav-title { color: #fff; font-size: 12px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nav-status { color: #aaa; font-size: 11px; flex-shrink: 0; }
+
+    #canvas-wrap {
+      position: fixed; top: 52px; left: 0; right: 0; bottom: 88px;
+      background: #000; overflow: hidden;
+    }
+    #bg-img {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: contain; display: block; pointer-events: none;
+    }
+    #draw-canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      touch-action: none; cursor: crosshair;
+    }
+    #fp-dot {
+      position: absolute; width: 16px; height: 16px; border-radius: 50%;
+      background: #FFD008; box-shadow: 0 0 10px #FFD008, 0 0 20px #FFD00866;
+      transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 5;
+    }
+
+    .toolbar {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 88px;
+      background: #111; border-top: 1px solid #222;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 10px; gap: 6px;
+    }
+    .t-group { display: flex; align-items: center; gap: 5px; }
+    .t-btn {
+      background: #1a1a1a; border: 1.5px solid #2a2a2a; color: #bbb;
+      border-radius: 8px; padding: 11px 12px; font-size: 17px; cursor: pointer;
+      font-family: 'Montserrat',sans-serif; transition: all 0.12s; line-height: 1;
+      min-width: 44px; text-align: center;
+    }
+    .t-btn.active { border-color: #FFD008; color: #FFD008; background: #1a1500; }
+    .t-btn:active { opacity: 0.7; }
+    .c-dot {
+      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+      border: 2px solid #333; flex-shrink: 0; transition: transform 0.12s;
+    }
+    .c-dot.active { border-color: #FFD008; transform: scale(1.15); }
+    .btn-save {
+      background: #FFD008; color: #000; border: none; border-radius: 8px;
+      padding: 10px 12px; font-family: 'Montserrat',sans-serif; font-size: 11px;
+      font-weight: 700; cursor: pointer; line-height: 1.4; text-align: center; min-width: 52px;
+    }
+    .btn-save:active { background: #e6bb00; }
+    .divider { width: 1px; height: 36px; background: #2a2a2a; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <button class="btn-back" onclick="tornaPaziente()">← Torna</button>
+    <span class="nav-title" id="nav-title">Disegno Posturale</span>
+    <span class="nav-status" id="nav-status"></span>
+  </div>
+
+  <div id="canvas-wrap">
+    <img id="bg-img" alt="foto posturale">
+    <canvas id="draw-canvas"></canvas>
+    <div id="fp-dot"></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="t-group">
+      <button class="t-btn active" id="btn-h" onclick="setMode('h')" title="Orizzontale">━</button>
+      <button class="t-btn" id="btn-v" onclick="setMode('v')" title="Verticale">┃</button>
+      <button class="t-btn" id="btn-f" onclick="setMode('f')" title="Libera">╱</button>
+    </div>
+    <div class="divider"></div>
+    <div class="t-group">
+      <div class="c-dot active" id="c-white"  style="background:#fff"     onclick="setColor('#ffffff')"></div>
+      <div class="c-dot"        id="c-yellow" style="background:#FFD008"  onclick="setColor('#FFD008')"></div>
+      <div class="c-dot"        id="c-red"    style="background:#e53935"  onclick="setColor('#e53935')"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="t-group">
+      <button class="t-btn" onclick="annulla()"      title="Annulla">↩</button>
+      <button class="t-btn" onclick="cancellaTutto()" title="Cancella">🗑</button>
+      <button class="btn-save" onclick="salva()">💾<br>Salva</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    const params    = new URLSearchParams(location.search)
+    const patientId = params.get('id')
+    const fotoSlot  = params.get('foto')
+
+    const canvas = document.getElementById('draw-canvas')
+    const ctx    = canvas.getContext('2d')
+    const bgImg  = document.getElementById('bg-img')
+    const fpDot  = document.getElementById('fp-dot')
+    const wrap   = document.getElementById('canvas-wrap')
+
+    let patient    = null
+    let mode       = 'h'
+    let color      = '#ffffff'
+    let lines      = []
+    let firstPoint = null
+
+    async function init() {
+      if (!patientId || !fotoSlot) { alert('Parametri URL mancanti'); return }
+
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+
+      const { data: p, error } = await _supabase
+        .from('patients').select('nome, cognome, foto_url').eq('id', patientId).single()
+      if (error || !p) { alert('Paziente non trovato'); return }
+      patient = p
+
+      const slotLabel = fotoSlot.replace(/-/g, ' ')
+      document.getElementById('nav-title').textContent =
+        p.nome + ' ' + p.cognome + ' — ' + slotLabel
+
+      let urls = {}
+      try { urls = JSON.parse(p.foto_url || '{}') } catch(e) {}
+      const src = urls[fotoSlot]
+      if (!src) { alert('Foto non trovata per slot: ' + fotoSlot); tornaPaziente(); return }
+
+      bgImg.onload = () => { syncCanvas(); redraw() }
+      bgImg.src = src
+    }
+
+    function syncCanvas() {
+      const r = wrap.getBoundingClientRect()
+      canvas.width  = r.width
+      canvas.height = r.height
+    }
+
+    function tornaPaziente() {
+      window.location.href = 'paziente.html?id=' + patientId
+    }
+
+    function setMode(m) {
+      mode = m
+      resetFirst()
+      ;['h', 'v', 'f'].forEach(k =>
+        document.getElementById('btn-' + k).classList.toggle('active', k === m))
+    }
+
+    function setColor(c) {
+      color = c
+      resetFirst()
+      const map = { '#ffffff': 'c-white', '#FFD008': 'c-yellow', '#e53935': 'c-red' }
+      Object.values(map).forEach(id => document.getElementById(id).classList.remove('active'))
+      if (map[c]) document.getElementById(map[c]).classList.add('active')
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect()
+      const src  = e.changedTouches ? e.changedTouches[0] : (e.touches ? e.touches[0] : e)
+      return {
+        x: (src.clientX - rect.left) * (canvas.width  / rect.width),
+        y: (src.clientY - rect.top)  * (canvas.height / rect.height)
+      }
+    }
+
+    function handleTap(e) {
+      e.preventDefault()
+      const pos = getPos(e)
+
+      if (!firstPoint) {
+        firstPoint = pos
+        const cRect = canvas.getBoundingClientRect()
+        const wRect = wrap.getBoundingClientRect()
+        fpDot.style.left = (cRect.left - wRect.left + pos.x * (cRect.width  / canvas.width))  + 'px'
+        fpDot.style.top  = (cRect.top  - wRect.top  + pos.y * (cRect.height / canvas.height)) + 'px'
+        fpDot.style.display = 'block'
+      } else {
+        const p1 = firstPoint, p2 = pos
+        let x1 = p1.x, y1 = p1.y, x2, y2
+        if      (mode === 'h') { x2 = p2.x; y2 = p1.y }
+        else if (mode === 'v') { x2 = p1.x; y2 = p2.y }
+        else                   { x2 = p2.x; y2 = p2.y }
+        lines.push({ x1, y1, x2, y2, color, lw: 2.5 })
+        resetFirst()
+        redraw()
+      }
+    }
+
+    function resetFirst() {
+      firstPoint = null
+      fpDot.style.display = 'none'
+    }
+
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      lines.forEach(l => {
+        ctx.beginPath()
+        ctx.strokeStyle = l.color
+        ctx.lineWidth   = l.lw
+        ctx.lineCap     = 'round'
+        ctx.moveTo(l.x1, l.y1)
+        ctx.lineTo(l.x2, l.y2)
+        ctx.stroke()
+      })
+    }
+
+    function annulla()      { if (lines.length) { lines.pop(); resetFirst(); redraw() } }
+    function cancellaTutto() { lines = []; resetFirst(); redraw() }
+
+    async function salva() {
+      if (!patient) return
+      const status = document.getElementById('nav-status')
+      status.textContent = '⏳ Salvo...'
+
+      const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
+      const cw = canvas.width,       ch = canvas.height
+
+      // Compute letterbox offsets (object-fit: contain)
+      const imgA  = nw / nh, wrapA = cw / ch
+      let drawW, drawH, ox, oy
+      if (imgA > wrapA) {
+        drawW = cw;                oy = (ch - (drawH = cw / imgA)) / 2; ox = 0
+      } else {
+        drawH = ch;                ox = (cw - (drawW = ch * imgA)) / 2; oy = 0
+      }
+      const sx = nw / drawW, sy = nh / drawH
+
+      const off  = document.createElement('canvas')
+      off.width  = nw; off.height = nh
+      const octx = off.getContext('2d')
+      octx.drawImage(bgImg, 0, 0, nw, nh)
+
+      lines.forEach(l => {
+        octx.beginPath()
+        octx.strokeStyle = l.color
+        octx.lineWidth   = Math.max(3, l.lw * sx)
+        octx.lineCap     = 'round'
+        octx.moveTo((l.x1 - ox) * sx, (l.y1 - oy) * sy)
+        octx.lineTo((l.x2 - ox) * sx, (l.y2 - oy) * sy)
+        octx.stroke()
+      })
+
+      const dataUrl = off.toDataURL('image/jpeg', 0.92)
+      let urls = {}
+      try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
+      urls[fotoSlot] = dataUrl
+      patient.foto_url = JSON.stringify(urls)
+
+      const { error } = await _supabase
+        .from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+
+      status.textContent = error ? '❌ Errore' : '✓ Salvato'
+      setTimeout(() => { status.textContent = '' }, 2500)
+    }
+
+    canvas.addEventListener('touchstart', handleTap, { passive: false })
+    canvas.addEventListener('click', handleTap)
+    window.addEventListener('resize', () => { syncCanvas(); redraw() })
+
+    init()
+  </script>
+</body>
+</html>
