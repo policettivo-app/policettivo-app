@@ -107,9 +107,28 @@
     .ai-loading { text-align: center; padding: 20px; font-size: 13px; color: #666; display: none; }
     .upload-form { background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; display: none; }
     .upload-form.visible { display: block; }
+    .premium-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .premium-overlay.visible { opacity: 1; pointer-events: all; }
+    .premium-modal { background: #111; color: #fff; border-radius: 16px; padding: 36px 32px 28px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+    .premium-modal h2 { font-size: 22px; font-weight: 700; margin: 0 0 14px; letter-spacing: -0.3px; }
+    .premium-modal p { font-size: 14px; color: #ccc; line-height: 1.6; margin: 0 0 28px; }
+    .premium-modal .btn-scopri { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 13px 28px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; margin-bottom: 10px; }
+    .premium-modal .btn-scopri:hover { background: #e6bb00; }
+    .premium-modal .btn-annulla { background: transparent; color: #aaa; border: 1px solid #333; border-radius: 8px; padding: 11px 28px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; width: 100%; }
+    .premium-modal .btn-annulla:hover { border-color: #666; color: #fff; }
   </style>
 </head>
 <body>
+
+  <div class="premium-overlay" id="premium-overlay" onclick="chiudiModalePremium(event)">
+    <div class="premium-modal">
+      <h2>⭐ Funzione Premium</h2>
+      <p>Questa funzione è disponibile solo con il piano Premium. Scopri tutti i vantaggi e attiva il tuo abbonamento.</p>
+      <button class="btn-scopri" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
+      <button class="btn-annulla" onclick="document.getElementById('premium-overlay').classList.remove('visible')">Annulla</button>
+    </div>
+  </div>
+
   <nav class="navbar">
     <div class="navbar-brand">
       <span class="navbar-logo">POLICETTIVO®</span>
@@ -846,18 +865,28 @@
       caricaDocumenti()
     }
 
+    function mostraModalePremium() {
+      document.getElementById('premium-overlay').classList.add('visible')
+    }
+
+    function chiudiModalePremium(e) {
+      if (e.target === document.getElementById('premium-overlay')) {
+        document.getElementById('premium-overlay').classList.remove('visible')
+      }
+    }
+
     function apriComparazione() {
-      if (!window.isPremium) { alert('Funzione Premium - vai su upgrade.html'); return }
+      if (!window.isPremium) { mostraModalePremium(); return }
       window.open('comparazione.html?id=' + patientId)
     }
 
     function apriSchedaPDF() {
-      if (!window.isPremium) { alert('Funzione Premium - vai su upgrade.html'); return }
+      if (!window.isPremium) { mostraModalePremium(); return }
       window.open('scheda-pdf.html?id=' + patientId)
     }
 
     async function avviaAnalisiAI() {
-      if (!window.isPremium) { alert('Funzione Premium - vai su upgrade.html'); return }
+      if (!window.isPremium) { mostraModalePremium(); return }
       if (documentiCaricati.length === 0) { alert('Nessun documento da analizzare.'); return }
       const loading = document.getElementById('ai-loading')
       const reportBox = document.getElementById('ai-report-box')
