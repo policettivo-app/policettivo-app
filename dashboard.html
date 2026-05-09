@@ -333,7 +333,7 @@
             prof.piano = 'free'
           }
         }
-        window.isPremium = (prof.piano === 'premium')
+        window.isPremium = (prof.piano === 'premium') || (session.user.email === 'appuntamentimft@gmail.com')
         const banner = document.getElementById('premium-banner')
         if (banner && !window.isPremium) banner.classList.add('visible')
         const badge = document.getElementById('piano-badge')
