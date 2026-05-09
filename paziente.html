@@ -169,6 +169,16 @@
         </div>
         <button class="aip-cancel" onclick="chiudiAIPModal()">Annulla</button>
       </div>
+      <div id="aip-step-obs" style="display:none">
+        <h2>🔍 Osservazione scapolare</h2>
+        <p class="aip-sub">Qual è la tua osservazione del piano scapolare?</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+          <button class="aip-base-btn" style="padding:16px" onclick="confermaOsservazioneAIP('Piano scapolare anteriore (prima)')">Anteriore</button>
+          <button class="aip-base-btn" style="padding:16px" onclick="confermaOsservazioneAIP('Piano scapolare in asse (prima)')">In asse</button>
+          <button class="aip-base-btn" style="padding:16px" onclick="confermaOsservazioneAIP('Piano scapolare posteriore (prima)')">Posteriore</button>
+        </div>
+        <button class="aip-cancel" onclick="chiudiAIPModal()">Annulla</button>
+      </div>
       <div id="aip-step-loading" style="display:none">
         <div class="aip-loading">
           <div class="aip-spinner"></div>
@@ -992,22 +1002,36 @@
       } catch(e) { return null }
     }
 
-    async function avviaAnalisiPosturale(base) {
-      document.getElementById('aip-step-scelta').style.display = 'none'
-      document.getElementById('aip-step-loading').style.display = 'block'
+    function confermaOsservazioneAIP(valore) {
+      obsSelections['scapolare-prima'] = valore
+      document.getElementById('aip-step-obs').style.display = 'none'
+      avviaAnalisiPosturale('scapolare')
+    }
 
+    async function avviaAnalisiPosturale(base) {
       const scapPrima = obsSelections['scapolare-prima'] || ''
       const scapDopo  = obsSelections['scapolare-dopo']  || ''
-      const piede     = obsSelections['piede-morfologia'] || ''
-      const calcagno  = obsSelections['piede-asse']       || ''
-      const rotSup    = obsSelections['rotazione-sup']    || ''
-      const incCapo   = obsSelections['inclinazione-capo'] || ''
+
+      if (base === 'scapolare' && !scapPrima && !scapDopo) {
+        document.getElementById('aip-step-scelta').style.display = 'none'
+        document.getElementById('aip-step-obs').style.display = 'block'
+        return
+      }
+
+      document.getElementById('aip-step-scelta').style.display = 'none'
+      document.getElementById('aip-step-obs').style.display = 'none'
+      document.getElementById('aip-step-loading').style.display = 'block'
+
+      const piede    = obsSelections['piede-morfologia'] || ''
+      const calcagno = obsSelections['piede-asse']       || ''
+      const rotSup   = obsSelections['rotazione-sup']    || ''
+      const incCapo  = obsSelections['inclinazione-capo'] || ''
 
       let fotoUrls = {}
       try { fotoUrls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
 
       const slotsPerBase = {
-        scapolare: ['prima-sx', 'prima-dx', 'dopo-sx', 'dopo-dx'],
+        scapolare: ['prima-sx', 'prima-dx'],
         piede: ['podo-sotto', 'podo-dietro']
       }
       const content = []
@@ -1018,22 +1042,22 @@
         }
       }
       content.push({ type: 'text', text:
-        `Osservazioni posturali — base: ${base === 'scapolare' ? 'piano scapolare' : 'piede'}.\n` +
-        `Piano scapolare prima 3R: ${scapPrima || 'non rilevato'}\n` +
-        `Piano scapolare dopo 3R: ${scapDopo || 'non rilevato'}\n` +
+        `Osservazioni posturali — base: ${base === 'scapolare' ? 'piano scapolare (pre-3R)' : 'piede'}.\n` +
+        `Piano scapolare (osservazione professionista): ${scapPrima || 'non rilevato'}\n` +
         `Morfologia piede: ${piede || 'non rilevata'}\n` +
         `Asse calcaneare: ${calcagno || 'non rilevato'}\n` +
         `Rotazione superiore: ${rotSup || 'non rilevata'}\n` +
         `Inclinazione capo: ${incCapo || 'non rilevata'}\n\n` +
+        `Le foto allegate sono SOLO quelle pre-tecnica (postura naturale del paziente).\n` +
         `Applica la logica NPL/GPL e rispondi SOLO con JSON valido senza markdown.`
       })
 
       const systemPrompt =
         `Sei un assistente AI per fisioterapisti specializzato in posturologia e colorazione dei cuscini NPL/GPL.\n\n` +
         `Logica di scelta:\n` +
-        `- NPL (cuscino nero, tonico): piano scapolare POSTERIORE, piede CAVO, calcagno VARO\n` +
-        `- GPL (cuscino verde lime, decompressivo): piano scapolare ANTERIORE, piede PIATTO, calcagno VALGO\n` +
-        `- NEUTRO: osservazioni in asse/normali o contraddittorie — lascia decidere al professionista\n\n` +
+        `- NPL (cuscino nero, tonico): piano scapolare ANTERIORE, piede CAVO, calcagno VARO\n` +
+        `- GPL (cuscino verde lime, decompressivo): piano scapolare POSTERIORE, piede PIATTO, calcagno VALGO\n` +
+        `- NEUTRO: piano scapolare in asse/normali o osservazioni contraddittorie — lascia decidere al professionista\n\n` +
         `Rispondi ESCLUSIVAMENTE con questo JSON (nessun testo extra):\n` +
         `{"suggerimento":"NPL"|"GPL"|"NEUTRO","confidenza":"alta"|"media"|"bassa","motivazione":"1-2 frasi","osservazioni_chiave":["..."]}`
 
