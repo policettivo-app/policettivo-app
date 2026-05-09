@@ -554,6 +554,23 @@
       if (!patientId) { window.location.href = 'dashboard.html'; return }
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
+
+      if (session.user.email === 'appuntamentimft@gmail.com') {
+        window.isPremium = true
+      } else {
+        const { data: prof } = await _supabase.from('professionals').select('id, piano').eq('user_id', session.user.id).single()
+        if (prof) {
+          let piano = prof.piano
+          if (piano === 'premium') {
+            const { data: sub } = await _supabase.from('subscriptions').select('data_scadenza').eq('professional_id', prof.id).eq('stato', 'attivo').order('data_scadenza', { ascending: false }).limit(1).single()
+            if (sub && new Date(sub.data_scadenza) < new Date()) piano = 'free'
+          }
+          window.isPremium = (piano === 'premium')
+        } else {
+          window.isPremium = false
+        }
+      }
+
       const { data, error } = await _supabase.from('patients').select('*').eq('id', patientId).single()
       if (error || !data) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }
       patient = data
