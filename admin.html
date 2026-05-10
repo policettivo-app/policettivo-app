@@ -459,14 +459,22 @@
 
     async function attivaPremiump(id) {
       if (!confirm('Attivare Piano Premium per questo professionista?')) return
-      const { error } = await _supabase.from('professionals').update({ piano: 'premium' }).eq('id', id)
+      const dataScadenza = new Date()
+      dataScadenza.setFullYear(dataScadenza.getFullYear() + 1)
+      const { error } = await _supabase
+        .from('professionals')
+        .update({ piano: 'premium', premium_scadenza: dataScadenza.toISOString() })
+        .eq('id', id)
       if (error) { alert('Errore: ' + error.message); return }
       await loadStatsProfessionisti()
     }
 
     async function revocaPremium(id) {
       if (!confirm('Revocare il Piano Premium? Il professionista tornerà al piano Free.')) return
-      const { error } = await _supabase.from('professionals').update({ piano: 'free' }).eq('id', id)
+      const { error } = await _supabase
+        .from('professionals')
+        .update({ piano: 'free', premium_scadenza: null })
+        .eq('id', id)
       if (error) { alert('Errore: ' + error.message); return }
       await loadStatsProfessionisti()
     }
@@ -616,47 +624,56 @@
     }
 
     async function salvaModifichePannello() {
-      if (!_panelProfId || !_panelProfData) return
+      if (!_panelProfId) return
 
-      const nome       = document.getElementById('p-nome').value.trim()
-      const cognome    = document.getElementById('p-cognome').value.trim()
-      const qualifica  = document.getElementById('p-qualifica').value.trim()
-      const centro     = document.getElementById('p-centro').value.trim()
-      const citta      = document.getElementById('p-citta').value.trim()
-      const telefono   = document.getElementById('p-telefono').value.trim()
-      const scadenza   = document.getElementById('p-scadenza').value
-      const piano      = _panelProfData.piano || 'free'
-      const note_admin = document.getElementById('note-admin-field').value
+      const nome      = document.getElementById('p-nome').value.trim()
+      const cognome   = document.getElementById('p-cognome').value.trim()
+      const telefono  = document.getElementById('p-telefono').value.trim()
+      const qualifica = document.getElementById('p-qualifica').value.trim()
+      const centro    = document.getElementById('p-centro').value.trim()
+      const citta     = document.getElementById('p-citta').value.trim()
+      const noteAdmin = document.getElementById('note-admin-field').value
 
-      const profUpd = { qualifica, centro, citta, piano, note_admin }
-      if (scadenza) profUpd.premium_scadenza = scadenza
-
-      // professionals.user_id = profiles.id (FK su auth.users)
-      const userId = _panelProfData.user_id
-      console.log('[salvaModifiche] profId:', _panelProfId, 'user_id:', userId)
-      if (!userId) { alert('Errore: user_id non trovato. Riapri il pannello e riprova.'); return }
+      console.log('[salvaModifiche] inizio — profId:', _panelProfId)
+      console.log('[salvaModifiche] valori → nome:', nome, 'cognome:', cognome, 'telefono:', telefono)
+      console.log('[salvaModifiche] valori → qualifica:', qualifica, 'centro:', centro, 'citta:', citta)
 
       const btn = document.querySelector('[onclick="salvaModifichePannello()"]')
       if (btn) { btn.disabled = true; btn.textContent = 'Salvataggio...' }
 
-      // 1. Aggiorna professionals
-      const { error: r1err } = await _supabase.from('professionals').update(profUpd).eq('id', _panelProfId)
-      console.log('[salvaModifiche] professionals error:', r1err)
-      if (r1err) {
-        alert('Errore salvataggio professionals: ' + r1err.message)
+      // Legge user_id fresco dal DB per essere sicuri
+      const { data: profData, error: fetchErr } = await _supabase
+        .from('professionals').select('user_id').eq('id', _panelProfId).single()
+      console.log('[salvaModifiche] profData:', profData, 'fetchErr:', fetchErr)
+
+      if (fetchErr || !profData?.user_id) {
+        alert('Errore: impossibile leggere user_id. ' + (fetchErr?.message || ''))
         if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
         return
       }
 
-      // 2. Aggiorna profiles — WHERE profiles.id = professionals.user_id
-      console.log('[salvaModifiche] update profiles WHERE id =', userId, '→ nome:', nome, 'cognome:', cognome)
-      const { error: r2err } = await _supabase
+      console.log('[salvaModifiche] user_id trovato:', profData.user_id)
+
+      // 1. Aggiorna profiles (nome, cognome, telefono) WHERE id = user_id
+      const { error: profilesErr } = await _supabase
         .from('profiles')
-        .update({ nome, cognome, telefono })
-        .eq('id', userId)
-      console.log('[salvaModifiche] profiles error:', r2err)
-      if (r2err) {
-        alert('Errore salvataggio nome/cognome/telefono: ' + r2err.message)
+        .update({ nome: nome, cognome: cognome, telefono: telefono })
+        .eq('id', profData.user_id)
+      console.log('[salvaModifiche] profiles error:', profilesErr)
+      if (profilesErr) {
+        alert('Errore salvataggio nome/cognome: ' + profilesErr.message)
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
+        return
+      }
+
+      // 2. Aggiorna professionals (qualifica, centro, citta, note_admin)
+      const { error: profErr } = await _supabase
+        .from('professionals')
+        .update({ qualifica: qualifica, centro: centro, citta: citta, note_admin: noteAdmin })
+        .eq('id', _panelProfId)
+      console.log('[salvaModifiche] professionals error:', profErr)
+      if (profErr) {
+        alert('Errore salvataggio dati professionista: ' + profErr.message)
         if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
         return
       }
