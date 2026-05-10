@@ -62,7 +62,14 @@
       btn.textContent = 'Accesso in corso...'
       errEl.style.display = 'none'
       const { data, error } = await _supabase.auth.signInWithPassword({ email, password })
-      if (error) { showError('Credenziali non valide. Riprova.'); btn.disabled = false; btn.textContent = 'Accedi'; return }
+      if (error) {
+        const isUnverified = error.message?.toLowerCase().includes('email not confirmed') ||
+                             error.code === 'email_not_confirmed'
+        showError(isUnverified
+          ? '📧 Email non verificata — controlla la tua casella di posta e clicca il link di conferma prima di accedere.'
+          : 'Credenziali non valide. Riprova.')
+        btn.disabled = false; btn.textContent = 'Accedi'; return
+      }
       window.location.href = 'dashboard.html'
     }
     function showError(msg) { const el = document.getElementById('error-msg'); el.textContent = msg; el.style.display = 'block'; }

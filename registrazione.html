@@ -64,10 +64,10 @@
     </div>
 
     <div class="success-msg" id="success-msg">
-      ✅ Registrazione completata!<br><br>
-      Il tuo account è stato creato con successo.<br><br>
-      <strong>Salva questo link per accedere ogni volta:</strong><br>
-      <a href="https://policettivo-app.vercel.app/login.html" style="color:#2e7d32;font-weight:700;word-break:break-all;">https://policettivo-app.vercel.app/login.html</a><br><br>
+      ✅ Account creato con successo!<br><br>
+      <strong>📧 Controlla la tua email per verificare l'account prima di accedere.</strong><br><br>
+      Ti abbiamo inviato un link di conferma a <span id="success-email" style="font-weight:700"></span>. Clicca il link nella email per attivare il tuo account.<br><br>
+      <em style="color:#888;font-size:12px">Non trovi la email? Controlla anche la cartella spam.</em><br><br>
       <a href="https://policettivo-app.vercel.app/login.html" style="display:inline-block;background:#FFD008;color:#000;padding:12px 24px;border-radius:8px;font-weight:700;text-decoration:none;margin-top:8px;">Vai al login →</a>
     </div>
   </div>
@@ -115,7 +115,11 @@
       const btn = document.getElementById('reg-btn')
       btn.disabled = true; btn.textContent = 'Registrazione in corso...'
 
-      const { data: authData, error: authError } = await _supabase.auth.signUp({ email, password })
+      const { data: authData, error: authError } = await _supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: 'https://policettivo-app.vercel.app/login.html' }
+      })
       if (authError) { showError('Errore: ' + authError.message); btn.disabled = false; btn.textContent = 'Crea account e accedi'; return }
 
       const userId = authData.user.id
@@ -128,6 +132,7 @@
 
       await _supabase.from('invites').update({ usato: true, used_at: new Date().toISOString() }).eq('token', token)
 
+      document.getElementById('success-email').textContent = email
       document.getElementById('form-state').style.display = 'none'
       document.getElementById('success-msg').style.display = 'block'
     }
