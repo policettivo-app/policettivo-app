@@ -512,6 +512,11 @@
     let _panelProfId   = null
     let _panelProfData = null
 
+    async function getAdminToken() {
+      const { data: { session } } = await _supabase.auth.getSession()
+      return session?.access_token || ''
+    }
+
     function switchTab(name) {
       document.querySelectorAll('.panel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name))
       document.querySelectorAll('.panel-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name))
@@ -620,25 +625,74 @@
       const piano      = _panelProfData.piano || 'free'
       const note_admin = document.getElementById('note-admin-field').value
 
-      // professionals: tutti i campi tranne nome/cognome/telefono che sono in profiles
       const profUpd = { qualifica, centro, citta, piano, note_admin }
       if (scadenza) profUpd.premium_scadenza = scadenza
 
-      // profiles.id = auth.users.id = professionals.user_id — lo usiamo direttamente dalla join
       const profileId = _panelProfData.profiles?.id
-      if (!profileId) { alert('Errore: profilo utente non trovato. Ricarica la pagina e riprova.'); return }
+      if (!profileId) { alert('Errore: profilo utente non trovato.'); return }
 
-      const [r1, r2] = await Promise.all([
-        _supabase.from('professionals').update(profUpd).eq('id', _panelProfId),
-        _supabase.from('profiles').update({ nome, cognome, telefono }).eq('id', profileId)
-      ])
+      const token = await getAdminToken()
+      const btn = document.querySelector('[onclick="salvaModifichePannello()"]')
+      if (btn) { btn.disabled = true; btn.textContent = 'Salvataggio...' }
 
-      if (r1.error) { alert('Errore salvataggio professionals: ' + r1.error.message); return }
-      if (r2.error) { alert('Errore salvataggio profiles (nome/cognome/telefono): ' + r2.error.message); return }
+      // 1. Aggiorna professionals con la anon key (admin può farlo tramite RLS)
+      const { error: r1err } = await _supabase.from('professionals').update(profUpd).eq('id', _panelProfId)
+      if (r1err) {
+        alert('Errore salvataggio professionals: ' + r1err.message)
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
+        return
+      }
 
+      // 2. Aggiorna profiles via API con service key (RLS impedisce update su profili altrui)
+      const r2 = await fetch('/api/admin-update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ profileId, nome, cognome, telefono })
+      })
+      const r2json = await r2.json()
+      if (!r2.ok) {
+        alert('Errore salvataggio nome/cognome/telefono: ' + (r2json.error || r2.status))
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
+        return
+      }
+
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
       document.getElementById('panel-title').textContent = (nome + ' ' + cognome).trim()
       alert('Modifiche salvate ✓')
       loadStatsProfessionisti()
+    }
+
+    async function eliminaProfessionistaDalPannello() {
+      if (!_panelProfId || !_panelProfData) return
+      const nome = document.getElementById('panel-title').textContent
+      const ok1 = confirm('Eliminare ' + nome + '?\n\nQuesta azione eliminerà tutti i dati del professionista: pazienti, sedute, protocolli, visite.')
+      if (!ok1) return
+      const ok2 = confirm('⚠️ CONFERMA FINALE\n\nStai per eliminare definitivamente ' + nome + ' e tutti i suoi dati. Operazione irreversibile.\n\nProcedere?')
+      if (!ok2) return
+
+      const profileId = _panelProfData.profiles?.id || _panelProfData.user_id
+      if (!profileId) { alert('Errore: user_id non trovato.'); return }
+
+      const token = await getAdminToken()
+      const btn = document.getElementById('btn-elimina-pannello')
+      if (btn) { btn.disabled = true; btn.textContent = 'Eliminazione...' }
+
+      const res = await fetch('/api/admin-delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ profId: _panelProfId, userId: profileId })
+      })
+      const json = await res.json()
+
+      if (!res.ok) {
+        alert('Errore eliminazione: ' + (json.error || res.status))
+        if (btn) { btn.disabled = false; btn.textContent = '🗑 Elimina professionista' }
+        return
+      }
+
+      chiudiPannello()
+      alert(nome + ' eliminato con successo.')
+      loadAll()
     }
 
     async function togglePianoPannello() {
@@ -716,6 +770,7 @@
 
         <button class="btn-save" onclick="salvaModifichePannello()">💾 Salva modifiche</button>
         <button class="btn-view-as" onclick="visualizzaComeProfessionista()">👁 Visualizza come questo professionista</button>
+        <button id="btn-elimina-pannello" onclick="eliminaProfessionistaDalPannello()" style="width:100%;margin-top:8px;padding:12px;background:transparent;border:1.5px solid #ffcdd2;color:#c62828;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Elimina professionista</button>
       </div>
 
       <!-- TAB ATTIVITÀ -->
