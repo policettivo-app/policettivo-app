@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Video Esercizio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .navbar { background: #000; padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 10px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 13px; font-weight: 600; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .btn-back:hover { border-color: #FFD008; color: #FFD008; }
+    .main { max-width: 600px; margin: 0 auto; padding: 20px 16px 40px; }
+    .patient-bar { background: #fff; border-radius: 10px; padding: 12px 16px; border: 1px solid #eee; margin-bottom: 16px; font-size: 13px; color: #333; display: flex; align-items: center; gap: 8px; }
+    .patient-bar strong { color: #000; }
+    .section { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #eee; margin-bottom: 16px; }
+    .section-title { font-size: 13px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .video-count { font-size: 12px; color: #999; font-weight: 600; }
+
+    /* Mode buttons */
+    .mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .mode-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 10px; background: #f9f9f9; border: 2px solid #eee; border-radius: 12px; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: all 0.15s; }
+    .mode-btn:hover { border-color: #FFD008; background: #fffdf0; }
+    .mode-icon { font-size: 28px; }
+    .mode-label { font-size: 12px; font-weight: 700; color: #000; text-align: center; }
+    .mode-hint { font-size: 10px; color: #999; text-align: center; }
+
+    /* Camera section */
+    .camera-wrap { position: relative; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+    #cam-video { width: 100%; display: block; max-height: 340px; object-fit: cover; }
+    .rec-badge { position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.7); color: #ff4444; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; display: none; }
+    .countdown-overlay { position: absolute; bottom: 12px; left: 12px; right: 12px; display: none; }
+    .countdown-num { font-size: 32px; font-weight: 700; color: #fff; text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,0.8); margin-bottom: 6px; }
+    .countdown-bar-bg { height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; }
+    .countdown-bar-fill { height: 4px; background: #FFD008; border-radius: 2px; width: 0%; transition: width 1s linear; }
+    .cam-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-rec { flex: 1; padding: 14px 10px; background: #ff4444; color: #fff; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-stop { flex: 1; padding: 14px 10px; background: #333; color: #fff; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-snap { flex: 1; padding: 14px 10px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-cancel-cam { padding: 14px 16px; background: transparent; border: 1px solid #ddd; color: #666; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; }
+
+    /* Preview */
+    #preview-container video, #preview-container img { width: 100%; border-radius: 8px; max-height: 300px; object-fit: contain; display: block; }
+    .btn-retry { margin-top: 12px; background: transparent; border: 1px solid #ddd; color: #666; padding: 10px 16px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-retry:hover { border-color: #999; }
+
+    /* Save form */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 700; color: #333; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+    .form-group input, .form-group textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; }
+    .form-group input:focus, .form-group textarea:focus { border-color: #FFD008; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .btn-primary { width: 100%; padding: 15px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .btn-primary:hover { background: #e6bc00; }
+    .btn-primary:disabled { background: #ddd; cursor: not-allowed; }
+
+    /* Video list cards */
+    .video-card { border: 1px solid #eee; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+    .video-card:last-child { margin-bottom: 0; }
+    .video-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .video-card-title { font-size: 14px; font-weight: 700; color: #000; margin-bottom: 2px; }
+    .video-card-meta { font-size: 11px; color: #999; }
+    .video-card-desc { font-size: 12px; color: #555; margin-top: 8px; line-height: 1.6; }
+    .video-card video, .video-card img { width: 100%; border-radius: 8px; margin-top: 10px; max-height: 220px; object-fit: contain; background: #000; display: block; }
+    .btn-del-video { background: transparent; border: 1px solid #ffcdd2; color: #e53935; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; flex-shrink: 0; font-family: 'Montserrat', sans-serif; }
+    .btn-del-video:hover { background: #ffebee; }
+    .empty-list { text-align: center; padding: 30px; color: #999; font-size: 13px; }
+
+    /* Premium modal */
+    .pm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9000; align-items: center; justify-content: center; padding: 24px; }
+    .pm-overlay.open { display: flex; }
+    .pm-box { background: #fff; border-radius: 20px; padding: 32px 28px; max-width: 360px; width: 100%; text-align: center; }
+    .pm-icon { font-size: 38px; margin-bottom: 14px; }
+    .pm-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .pm-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 22px; }
+    .pm-cta { width: 100%; background: #FFD008; border: none; border-radius: 10px; padding: 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; margin-bottom: 10px; }
+    .pm-close { width: 100%; background: transparent; border: 1px solid #ddd; border-radius: 10px; padding: 12px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; color: #666; }
+
+    @media (max-width: 480px) { .mode-grid { grid-template-columns: 1fr; } .mode-btn { flex-direction: row; justify-content: flex-start; padding: 14px 16px; gap: 12px; } .mode-icon { font-size: 24px; } }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">🎥 Video Esercizio</span>
+    </div>
+    <button class="btn-back" onclick="history.back()">← Torna</button>
+  </nav>
+
+  <div class="pm-overlay" id="premium-modal">
+    <div class="pm-box">
+      <div class="pm-icon">⭐</div>
+      <div class="pm-title">Funzione Premium</div>
+      <div class="pm-desc">I video esercizi personalizzati sono disponibili con il piano Premium. Carica video e foto dimostrative per guidare i tuoi pazienti.</div>
+      <button class="pm-cta" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
+      <button class="pm-close" onclick="chiudiModalePremium()">Non ora</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <div class="patient-bar" id="patient-bar">⏳ Caricamento...</div>
+
+    <!-- 1 — Modalità di aggiunta -->
+    <div class="section" id="mode-section">
+      <div class="section-title">Aggiungi contenuto</div>
+      <div class="mode-grid">
+        <button class="mode-btn" onclick="avviaCamera('video')">
+          <span class="mode-icon">📹</span>
+          <span class="mode-label">Registra video</span>
+          <span class="mode-hint">Max 40 sec</span>
+        </button>
+        <button class="mode-btn" onclick="avviaCamera('foto')">
+          <span class="mode-icon">📷</span>
+          <span class="mode-label">Scatta foto</span>
+          <span class="mode-hint">Foto singola</span>
+        </button>
+        <button class="mode-btn" onclick="apriFile()">
+          <span class="mode-icon">📁</span>
+          <span class="mode-label">Carica file</span>
+          <span class="mode-hint">Video o immagine</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2 — Camera live -->
+    <div class="section" id="camera-section" style="display:none">
+      <div class="camera-wrap">
+        <video id="cam-video" autoplay muted playsinline></video>
+        <div class="rec-badge" id="rec-badge">🔴 REC</div>
+        <div class="countdown-overlay" id="countdown-overlay">
+          <div class="countdown-num" id="countdown-num">40</div>
+          <div class="countdown-bar-bg"><div class="countdown-bar-fill" id="countdown-fill"></div></div>
+        </div>
+      </div>
+      <div class="cam-controls">
+        <button class="btn-rec"  id="btn-start-rec" onclick="iniziaRegistrazione()" style="display:none">⏺ Inizia registrazione</button>
+        <button class="btn-stop" id="btn-stop-rec"  onclick="fermaRegistrazione()" style="display:none">⏹ Ferma</button>
+        <button class="btn-snap" id="btn-snap"       onclick="scattaFoto()"          style="display:none">📸 Scatta foto</button>
+        <button class="btn-cancel-cam" onclick="chiudiCamera()">✕ Annulla</button>
+      </div>
+    </div>
+
+    <!-- 3 — Anteprima -->
+    <div class="section" id="preview-section" style="display:none">
+      <div class="section-title">Anteprima</div>
+      <div id="preview-container"></div>
+      <button class="btn-retry" onclick="nuovoFile()">🔄 Scegli un altro file</button>
+    </div>
+
+    <!-- 4 — Form salvataggio -->
+    <div class="section" id="save-section" style="display:none">
+      <div class="section-title">Dettagli esercizio</div>
+      <div class="form-group">
+        <label>Titolo esercizio</label>
+        <input type="text" id="titolo-input" placeholder="es. Respirazione diaframmatica">
+      </div>
+      <div class="form-group">
+        <label>Descrizione per il paziente</label>
+        <textarea id="desc-input" placeholder="Istruzioni per il paziente..."></textarea>
+      </div>
+      <button class="btn-primary" id="btn-salva" onclick="salvaVideo()">💾 Salva</button>
+    </div>
+
+    <!-- 5 — Lista esistente -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title" style="margin-bottom:0">Video e foto salvati</div>
+        <span class="video-count" id="video-count"></span>
+      </div>
+      <div id="videos-list"><div class="empty-list">Caricamento...</div></div>
+    </div>
+
+  </div>
+
+  <input type="file" id="file-input" accept="video/*,image/*" style="display:none" onchange="handleFileInput(this)">
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    const params     = new URLSearchParams(window.location.search)
+    const patientId  = params.get('id')
+    const protocolId = params.get('protocol') || null
+
+    let mediaStream       = null
+    let mediaRecorder     = null
+    let recordedChunks    = []
+    let countdownInterval = null
+    let pendingFile       = null
+    let pendingType       = null
+    let videosList        = []
+
+    async function init() {
+      if (!patientId) { document.getElementById('patient-bar').textContent = '⚠️ ID paziente mancante'; return }
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+
+      const { data: prof } = await _supabase.from('professionals').select('id,piano').eq('user_id', session.user.id).single()
+      window.isPremium = (prof?.piano === 'premium') || (session.user.email === 'appuntamentimft@gmail.com')
+
+      const { data: patient } = await _supabase.from('patients').select('nome,cognome').eq('id', patientId).single()
+      if (patient) {
+        document.getElementById('patient-bar').innerHTML = '👤 <strong>' + patient.nome + ' ' + patient.cognome + '</strong>'
+      }
+
+      await caricaVideos()
+    }
+
+    /* ── PREMIUM ── */
+    function mostraModalePremium() { document.getElementById('premium-modal').classList.add('open') }
+    function chiudiModalePremium() { document.getElementById('premium-modal').classList.remove('open') }
+
+    /* ── CAMERA ── */
+    async function avviaCamera(mode) {
+      if (!window.isPremium) { mostraModalePremium(); return }
+      if (!navigator.mediaDevices?.getUserMedia) { alert('La fotocamera non è supportata in questo browser.'); return }
+      try {
+        const constraints = {
+          video: { width: { ideal: 854 }, height: { ideal: 480 }, facingMode: 'environment' },
+          audio: mode === 'video'
+        }
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+        document.getElementById('cam-video').srcObject = mediaStream
+        document.getElementById('camera-section').style.display = 'block'
+        document.getElementById('mode-section').style.display = 'none'
+        document.getElementById('btn-start-rec').style.display = mode === 'video' ? 'flex' : 'none'
+        document.getElementById('btn-stop-rec').style.display  = 'none'
+        document.getElementById('btn-snap').style.display      = mode === 'foto'  ? 'flex' : 'none'
+      } catch(e) {
+        alert('Impossibile accedere alla fotocamera: ' + e.message)
+      }
+    }
+
+    function iniziaRegistrazione() {
+      if (!window.MediaRecorder) { alert('La registrazione video non è supportata in questo browser.'); return }
+      recordedChunks = []
+      const opts = {}
+      if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+        opts.mimeType = 'video/webm;codecs=vp8,opus'
+      } else if (MediaRecorder.isTypeSupported('video/webm')) {
+        opts.mimeType = 'video/webm'
+      } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+        opts.mimeType = 'video/mp4'
+      }
+      opts.videoBitsPerSecond = 600000
+
+      try { mediaRecorder = new MediaRecorder(mediaStream, opts) }
+      catch(e) { mediaRecorder = new MediaRecorder(mediaStream) }
+
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data) }
+      mediaRecorder.onstop = () => {
+        const mimeType = mediaRecorder.mimeType || 'video/webm'
+        const ext      = mimeType.includes('mp4') ? 'mp4' : 'webm'
+        const blob     = new Blob(recordedChunks, { type: mimeType })
+        const file     = new File([blob], 'registrazione.' + ext, { type: mimeType })
+        chiudiCamera()
+        setFile(file, 'video')
+      }
+      mediaRecorder.start(1000)
+
+      let secs = 40
+      document.getElementById('rec-badge').style.display        = 'block'
+      document.getElementById('countdown-overlay').style.display = 'flex'
+      document.getElementById('btn-start-rec').style.display    = 'none'
+      document.getElementById('btn-stop-rec').style.display     = 'flex'
+      document.getElementById('countdown-num').textContent = secs
+      document.getElementById('countdown-fill').style.width = '0%'
+
+      countdownInterval = setInterval(() => {
+        secs--
+        document.getElementById('countdown-num').textContent = secs
+        document.getElementById('countdown-fill').style.width = ((40 - secs) / 40 * 100) + '%'
+        if (secs <= 0) fermaRegistrazione()
+      }, 1000)
+    }
+
+    function fermaRegistrazione() {
+      clearInterval(countdownInterval)
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop()
+    }
+
+    function scattaFoto() {
+      const video  = document.getElementById('cam-video')
+      const canvas = document.createElement('canvas')
+      canvas.width  = video.videoWidth  || 854
+      canvas.height = video.videoHeight || 480
+      canvas.getContext('2d').drawImage(video, 0, 0)
+      canvas.toBlob(blob => {
+        const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' })
+        chiudiCamera()
+        setFile(file, 'foto')
+      }, 'image/jpeg', 0.85)
+    }
+
+    function chiudiCamera() {
+      clearInterval(countdownInterval)
+      if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null }
+      document.getElementById('camera-section').style.display   = 'none'
+      document.getElementById('mode-section').style.display     = 'block'
+      document.getElementById('rec-badge').style.display        = 'none'
+      document.getElementById('countdown-overlay').style.display = 'none'
+    }
+
+    /* ── FILE INPUT ── */
+    function apriFile() {
+      if (!window.isPremium) { mostraModalePremium(); return }
+      document.getElementById('file-input').click()
+    }
+
+    function handleFileInput(input) {
+      const file = input.files[0]
+      if (!file) return
+      const tipo = file.type.startsWith('video/') ? 'video' : 'foto'
+      setFile(file, tipo)
+      input.value = ''
+    }
+
+    /* ── PREVIEW ── */
+    function setFile(file, tipo) {
+      pendingFile = file
+      pendingType = tipo
+      const url = URL.createObjectURL(file)
+      const container = document.getElementById('preview-container')
+      if (tipo === 'video') {
+        container.innerHTML = '<video src="' + url + '" controls style="width:100%;border-radius:8px;max-height:300px"></video>'
+      } else {
+        container.innerHTML = '<img src="' + url + '" style="width:100%;border-radius:8px;max-height:300px;object-fit:contain">'
+      }
+      document.getElementById('preview-section').style.display = 'block'
+      document.getElementById('save-section').style.display    = 'block'
+      document.getElementById('mode-section').style.display    = 'none'
+    }
+
+    function nuovoFile() {
+      pendingFile = null; pendingType = null
+      document.getElementById('preview-container').innerHTML = ''
+      document.getElementById('preview-section').style.display = 'none'
+      document.getElementById('save-section').style.display    = 'none'
+      document.getElementById('mode-section').style.display    = 'block'
+    }
+
+    /* ── SALVA ── */
+    async function salvaVideo() {
+      if (!pendingFile) return
+      const btn = document.getElementById('btn-salva')
+      btn.disabled = true; btn.textContent = '⏳ Caricamento...'
+      const ext  = pendingFile.name.split('.').pop()
+      const path = patientId + '/' + Date.now() + '.' + ext
+      const { error: upErr } = await _supabase.storage.from('videos').upload(path, pendingFile, { contentType: pendingFile.type })
+      if (upErr) { alert('Errore upload: ' + upErr.message); btn.disabled = false; btn.textContent = '💾 Salva'; return }
+      const { data: { publicUrl } } = _supabase.storage.from('videos').getPublicUrl(path)
+      const { error: dbErr } = await _supabase.from('exercise_videos').insert({
+        patient_id:  patientId,
+        protocol_id: protocolId,
+        titolo:      document.getElementById('titolo-input').value.trim() || null,
+        descrizione: document.getElementById('desc-input').value.trim()   || null,
+        url:         publicUrl,
+        tipo:        pendingType
+      })
+      if (dbErr) { alert('Errore salvataggio: ' + dbErr.message); btn.disabled = false; btn.textContent = '💾 Salva'; return }
+      btn.disabled = false; btn.textContent = '💾 Salva'
+      document.getElementById('titolo-input').value = ''
+      document.getElementById('desc-input').value   = ''
+      nuovoFile()
+      await caricaVideos()
+    }
+
+    /* ── LISTA ── */
+    async function caricaVideos() {
+      const { data } = await _supabase.from('exercise_videos').select('*').eq('patient_id', patientId).order('created_at', { ascending: false })
+      videosList = data || []
+      renderVideos(videosList)
+    }
+
+    function renderVideos(list) {
+      const el    = document.getElementById('videos-list')
+      const count = document.getElementById('video-count')
+      count.textContent = list.length ? list.length + (list.length === 1 ? ' elemento' : ' elementi') : ''
+      if (!list.length) { el.innerHTML = '<div class="empty-list">Nessun video o foto salvato.</div>'; return }
+      el.innerHTML = list.map((v, i) => {
+        const data    = new Date(v.created_at).toLocaleDateString('it-IT')
+        const tipo    = v.tipo === 'video' ? '📹' : '📷'
+        const media   = v.tipo === 'video'
+          ? '<video src="' + v.url + '" controls preload="none" style="width:100%;border-radius:8px;margin-top:10px;max-height:220px;background:#000"></video>'
+          : '<img src="' + v.url + '" loading="lazy" style="width:100%;border-radius:8px;margin-top:10px;max-height:220px;object-fit:contain">'
+        return '<div class="video-card">' +
+          '<div class="video-card-header">' +
+            '<div>' +
+              '<div class="video-card-title">' + tipo + ' ' + escHtml(v.titolo || 'Senza titolo') + '</div>' +
+              '<div class="video-card-meta">' + data + (v.tipo === 'video' ? ' · Video' : ' · Foto') + '</div>' +
+            '</div>' +
+            '<button class="btn-del-video" onclick="eliminaVideo(' + i + ')">🗑 Elimina</button>' +
+          '</div>' +
+          (v.descrizione ? '<p class="video-card-desc">' + escHtml(v.descrizione) + '</p>' : '') +
+          media +
+          '</div>'
+      }).join('')
+    }
+
+    async function eliminaVideo(index) {
+      const v = videosList[index]
+      if (!v || !confirm('Eliminare questo elemento? L\'operazione è irreversibile.')) return
+      try {
+        const urlObj   = new URL(v.url)
+        const path     = decodeURIComponent(urlObj.pathname.split('/object/public/videos/')[1])
+        await _supabase.storage.from('videos').remove([path])
+      } catch(e) { /* ignora errori storage, elimina comunque il record DB */ }
+      await _supabase.from('exercise_videos').delete().eq('id', v.id)
+      await caricaVideos()
+    }
+
+    function escHtml(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    }
+
+    init()
+  </script>
+</body>
+</html>

@@ -78,6 +78,14 @@
     .feedback-success { background: #1a3a1a; border: 1px solid #2e7d32; color: #81c784; border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-top: 12px; display: none; text-align: center; }
     .feedback-success.visible { display: block; }
     .star-label { text-align: center; font-size: 13px; color: #888; margin-bottom: 12px; min-height: 20px; }
+    .video-section { margin-top: 24px; margin-bottom: 24px; }
+    .video-section-title { font-size: 13px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .video-card { background: #111; border: 1px solid #222; border-radius: 14px; overflow: hidden; margin-bottom: 14px; }
+    .video-card video, .video-card img { width: 100%; display: block; max-height: 240px; object-fit: cover; background: #000; }
+    .video-card-body { padding: 12px 14px; }
+    .video-card-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .video-card-desc { font-size: 12px; color: #888; line-height: 1.5; }
+    .video-card-tipo { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #1a1a1a; color: #FFD008; border: 1px solid #FFD008; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -217,6 +225,7 @@
       renderProtocol()
       loadSmile()
       caricaUltimaSeduta()
+      loadPatientVideos(patient.id)
     }
 
     async function caricaUltimaSeduta() {
@@ -376,6 +385,28 @@
     function contattaProfessionista() {
       const msg = 'Ciao, sono ' + patient.nome + ' ' + patient.cognome + '. Ti scrivo dall app Policettivo.'
       window.open('https://wa.me/?text=' + encodeURIComponent(msg))
+    }
+
+    async function loadPatientVideos(patientId) {
+      const { data: videos } = await _supabase
+        .from('exercise_videos')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+      if (!videos || videos.length === 0) return
+      const section = document.createElement('div')
+      section.className = 'video-section'
+      section.innerHTML = '<div class="video-section-title">🎥 Video esercizi</div>'
+      videos.forEach(function(v) {
+        const card = document.createElement('div')
+        card.className = 'video-card'
+        const media = v.tipo === 'foto'
+          ? '<img src="' + v.url + '" alt="' + (v.titolo || 'Foto') + '" loading="lazy">'
+          : '<video src="' + v.url + '" controls playsinline preload="metadata"></video>'
+        card.innerHTML = media + '<div class="video-card-body"><div class="video-card-title">' + (v.titolo || 'Esercizio') + '</div>' + (v.descrizione ? '<div class="video-card-desc">' + v.descrizione + '</div>' : '') + '<span class="video-card-tipo">' + (v.tipo === 'foto' ? '📷 Foto' : '🎥 Video') + '</span></div>'
+        section.appendChild(card)
+      })
+      document.getElementById('content-area').appendChild(section)
     }
 
     function showError(msg) {
