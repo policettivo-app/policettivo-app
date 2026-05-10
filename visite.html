@@ -140,6 +140,14 @@
     .btn-card-edit:hover { border-color: #FFD008; color: #000; }
     .btn-card-del { background: transparent; border: 1px solid #ddd; color: #bbb; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: all 0.15s; }
     .btn-card-del:hover { border-color: #e53935; color: #e53935; }
+    .btn-card-pdf { background: transparent; border: 1px solid #ddd; color: #888; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: all 0.15s; }
+    .btn-card-pdf:hover { border-color: #000; color: #000; }
+
+    /* ── Config cards NPL/GPL ── */
+    .config-card-nv { border: 2px solid #333; border-radius: 10px; padding: 14px; cursor: pointer; text-align: center; transition: all 0.2s; background: #000; color: #fff; flex: 1; }
+    .config-card-nv.selected { border-color: #FFD008; background: #111; }
+    .config-card-nv-name { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
+    .config-card-nv-desc { font-size: 10px; color: #aaa; }
 
     /* ── Scapolare obs ── */
     .obs-group-nv { display: flex; gap: 8px; }
@@ -313,9 +321,15 @@
       <div class="ai-loading-visita" id="ai-loading-visita">⏳ Analisi in corso...</div>
       <div class="ai-result-box" id="ai-result-box">
         <div class="ai-result-text" id="ai-result-text"></div>
-        <div class="ai-config-row">
-          <button class="btn-scegli-config btn-npl" onclick="setConfigVisita('NPL')">NPL — Anteriore</button>
-          <button class="btn-scegli-config btn-gpl" onclick="setConfigVisita('GPL')">GPL — Posteriore</button>
+        <div class="ai-config-row" style="display:flex;gap:10px;margin-top:12px">
+          <div class="config-card-nv" id="nv-cfg-npl" onclick="setConfigVisita('NPL')">
+            <div class="config-card-nv-name">NPL</div>
+            <div class="config-card-nv-desc">Nero Posteriore Laterale</div>
+          </div>
+          <div class="config-card-nv" id="nv-cfg-gpl" onclick="setConfigVisita('GPL')">
+            <div class="config-card-nv-name">GPL</div>
+            <div class="config-card-nv-desc">Giallo Posteriore Laterale</div>
+          </div>
         </div>
       </div>
       <!-- Relazione finale -->
@@ -493,6 +507,7 @@
             <button class="btn-vedi-dettaglio" onclick="event.stopPropagation();toggleCard(this.closest('.visit-header'))">Vedi dettaglio ▾</button>
           </div>
           <div class="visit-card-actions">
+            <button class="btn-card-pdf" onclick="event.stopPropagation();stampaPDFVisita('${v.id}')">📄 PDF</button>
             <button class="btn-card-edit" onclick="event.stopPropagation();modificaVisita('${v.id}')">✏️</button>
             <button class="btn-card-del" onclick="event.stopPropagation();eliminaVisita('${v.id}')">🗑</button>
           </div>
@@ -576,6 +591,7 @@
       document.getElementById('btn-ai-visita').classList.remove('visible')
       document.getElementById('ai-loading-visita').classList.remove('visible')
       document.getElementById('ai-result-box').classList.remove('visible')
+      updateNVConfigUI()
       document.getElementById('nvp-title').textContent = 'Nuova visita'
       document.getElementById('nvp').classList.add('open')
     }
@@ -705,7 +721,9 @@
 
       const content = [
         { type: 'text', text: 'Analizza le seguenti foto posturali (piano sagittale). Determina se il paziente ha una postura di tipo ANTERIORE (NPL) o POSTERIORE (GPL). Rispondi in max 3 frasi, spiega brevemente perché.' },
-        ...fotos.map(f => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: f.replace(/^data:image\/\w+;base64,/, '') } }))
+        ...fotos.map(f => f.startsWith('data:')
+          ? { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: f.replace(/^data:image\/\w+;base64,/, '') } }
+          : { type: 'image', source: { type: 'url', url: f } })
       ]
       const systemPrompt = 'Sei un fisioterapista esperto in posturologia. ANTERIORE = postura NPL (proiezione anteriore del baricentro). POSTERIORE = postura GPL (proiezione posteriore). Rispondi solo sulla base delle immagini.'
 
@@ -726,10 +744,20 @@
       }
     }
 
-    function setConfigVisita(cfg) {
+    async function setConfigVisita(cfg) {
       nvConfig = cfg
-      document.getElementById('ai-result-box').style.borderColor = cfg === 'NPL' ? '#9AFF00' : '#FFD008'
-      alert(`Configurazione ${cfg} salvata. Clicca "Salva" per completare la visita.`)
+      updateNVConfigUI()
+      if (_editingVisitId) {
+        const { error } = await _supabase.from('visite').update({ configurazione: cfg }).eq('id', _editingVisitId)
+        if (error) { console.error('Errore aggiornamento configurazione:', error); return }
+        const v = visite.find(x => x.id === _editingVisitId)
+        if (v) v.configurazione = cfg
+      }
+    }
+
+    function updateNVConfigUI() {
+      document.getElementById('nv-cfg-npl')?.classList.toggle('selected', nvConfig === 'NPL')
+      document.getElementById('nv-cfg-gpl')?.classList.toggle('selected', nvConfig === 'GPL')
     }
 
     // ── Save visita ───────────────────────────────────────
@@ -941,6 +969,7 @@
         if (obs.post) { nvObs.post = obs.post; highlightObs('post', obs.post) }
       } catch(e) {}
 
+      updateNVConfigUI()
       document.getElementById('nvp-title').textContent = 'Modifica visita'
       document.getElementById('nvp').classList.add('open')
     }
