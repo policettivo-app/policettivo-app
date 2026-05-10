@@ -525,13 +525,15 @@
     async function apriPannello(profId) {
       _panelProfId = profId
 
-      const { data: prof } = await _supabase
+      const { data: prof, error: profErr } = await _supabase
         .from('professionals')
-        .select('*, profiles(*)')
+        .select('id, user_id, email, qualifica, centro, citta, piano, note_admin, premium_scadenza, fonte, profiles(id, nome, cognome, telefono)')
         .eq('id', profId)
         .single()
+      console.log('[apriPannello] prof:', prof, 'error:', profErr)
       if (!prof) return
       _panelProfData = prof
+      console.log('[apriPannello] user_id:', prof.user_id, 'profiles.id:', prof.profiles?.id)
 
       const nome = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : '—'
       document.getElementById('panel-title').textContent = nome || '—'
@@ -628,28 +630,33 @@
       const profUpd = { qualifica, centro, citta, piano, note_admin }
       if (scadenza) profUpd.premium_scadenza = scadenza
 
-      const profileId = _panelProfData.profiles?.id
-      if (!profileId) { alert('Errore: profilo utente non trovato.'); return }
+      // user_id in professionals = id in profiles (FK su auth.users)
+      const userId = _panelProfData.user_id
+      console.log('[salvaModifiche] profId:', _panelProfId, 'user_id:', userId, 'profileId via join:', _panelProfData.profiles?.id)
+      if (!userId) { alert('Errore: user_id non trovato sul record professionals.'); return }
 
       const token = await getAdminToken()
       const btn = document.querySelector('[onclick="salvaModifichePannello()"]')
       if (btn) { btn.disabled = true; btn.textContent = 'Salvataggio...' }
 
-      // 1. Aggiorna professionals con la anon key (admin può farlo tramite RLS)
+      // 1. Aggiorna professionals (anon key, RLS consente all'admin)
       const { error: r1err } = await _supabase.from('professionals').update(profUpd).eq('id', _panelProfId)
+      console.log('[salvaModifiche] professionals update error:', r1err)
       if (r1err) {
         alert('Errore salvataggio professionals: ' + r1err.message)
         if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
         return
       }
 
-      // 2. Aggiorna profiles via API con service key (RLS impedisce update su profili altrui)
+      // 2. Aggiorna profiles via service key — WHERE profiles.id = professionals.user_id
+      console.log('[salvaModifiche] chiamata API admin-update-profile con userId:', userId)
       const r2 = await fetch('/api/admin-update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ profileId, nome, cognome, telefono })
+        body: JSON.stringify({ profileId: userId, nome, cognome, telefono })
       })
       const r2json = await r2.json()
+      console.log('[salvaModifiche] risposta API:', r2.status, r2json)
       if (!r2.ok) {
         alert('Errore salvataggio nome/cognome/telefono: ' + (r2json.error || r2.status))
         if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
@@ -670,8 +677,8 @@
       const ok2 = confirm('⚠️ CONFERMA FINALE\n\nStai per eliminare definitivamente ' + nome + ' e tutti i suoi dati. Operazione irreversibile.\n\nProcedere?')
       if (!ok2) return
 
-      const profileId = _panelProfData.profiles?.id || _panelProfData.user_id
-      if (!profileId) { alert('Errore: user_id non trovato.'); return }
+      const profileId = _panelProfData.user_id
+      if (!profileId) { alert('Errore: user_id non trovato sul record professionals.'); return }
 
       const token = await getAdminToken()
       const btn = document.getElementById('btn-elimina-pannello')
