@@ -7,133 +7,112 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; background: #000; color: #fff; font-family: 'Montserrat', sans-serif; min-height: 100dvh; padding-bottom: 24px; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; min-height: 100vh; }
 
     /* ── Navbar ── */
-    .navbar {
-      position: sticky; top: 0; background: #000; border-bottom: 1px solid #1a1a1a;
-      padding: 0 16px; height: 52px; display: flex; align-items: center; gap: 12px; z-index: 100;
-    }
-    .btn-back { background: none; border: none; color: #FFD008; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; flex-shrink: 0; }
-    .nav-title { flex: 1; color: #fff; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .btn-add { background: #FFD008; color: #000; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1; }
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+    .navbar-right { display: flex; align-items: center; gap: 10px; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-back:hover { border-color: #FFD008; color: #FFD008; }
+    .btn-add { background: #FFD008; color: #000; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
 
     /* ── Timeline ── */
-    .timeline { padding: 20px 16px; max-width: 600px; margin: 0 auto; }
+    .timeline { padding: 32px 24px; max-width: 900px; margin: 0 auto; }
     .timeline-empty { padding: 8px 0 24px; }
-    .empty-patient-name { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 16px; }
-    .empty-notes-card { background: #111; border: 1px solid #1e1e1e; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
-    .empty-notes-title { font-size: 11px; font-weight: 700; color: #FFD008; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
-    .empty-notes-text { font-size: 13px; color: #ccc; line-height: 1.6; white-space: pre-wrap; }
-    .btn-prima-visita { width: 100%; background: #111; border: 1.5px solid #FFD008; color: #fff; border-radius: 12px; padding: 16px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; text-align: center; display: block; }
-    .empty-cta-desc { font-size: 12px; color: #555; text-align: center; margin-top: 10px; line-height: 1.5; }
+    .empty-patient-name { font-size: 24px; font-weight: 700; color: #000; margin-bottom: 16px; }
+    .empty-notes-card { background: #fff; border: 1px solid #eee; border-radius: 16px; padding: 24px 28px; margin-bottom: 20px; }
+    .empty-notes-title { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 6px; display: inline-block; margin-bottom: 12px; }
+    .empty-notes-text { font-size: 13px; color: #444; line-height: 1.6; white-space: pre-wrap; }
+    .btn-prima-visita { width: 100%; background: #FFD008; border: none; color: #000; border-radius: 10px; padding: 16px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; text-align: center; display: block; }
+    .btn-prima-visita:hover { background: #e6bc00; }
+    .empty-cta-desc { font-size: 12px; color: #999; text-align: center; margin-top: 10px; line-height: 1.5; }
 
-    .visit-card { background: #111; border: 1px solid #1e1e1e; border-radius: 14px; margin-bottom: 14px; overflow: hidden; }
-    .visit-header { padding: 14px 16px; cursor: pointer; display: flex; align-items: flex-start; gap: 14px; }
+    .visit-card { background: #fff; border: 1px solid #eee; border-radius: 16px; margin-bottom: 16px; overflow: hidden; }
+    .visit-header { padding: 20px 24px; cursor: pointer; display: flex; align-items: flex-start; gap: 16px; }
     .visit-date-col { flex-shrink: 0; text-align: center; min-width: 52px; }
-    .visit-day { font-size: 30px; font-weight: 700; line-height: 1; }
-    .visit-month { font-size: 10px; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .visit-year { font-size: 10px; color: #555; font-weight: 600; }
-    .visit-divider { width: 1px; background: #2a2a2a; align-self: stretch; flex-shrink: 0; }
+    .visit-day { font-size: 30px; font-weight: 700; line-height: 1; color: #000; }
+    .visit-month { font-size: 10px; color: #999; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .visit-year { font-size: 10px; color: #bbb; font-weight: 600; }
+    .visit-divider { width: 1px; background: #eee; align-self: stretch; flex-shrink: 0; }
     .visit-main { flex: 1; min-width: 0; }
     .visit-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 7px; }
-    .badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.5px; }
+    .badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px; }
     .badge-prima { background: #FFD008; color: #000; }
-    .badge-controllo { background: #1e1e1e; color: #888; border: 1px solid #333; }
-    .badge-npl { background: #000; color: #9AFF00; border: 1px solid #9AFF00; }
-    .badge-gpl { background: #9AFF00; color: #000; }
-    .visit-note-preview { font-size: 12px; color: #999; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
+    .badge-controllo { background: #eee; color: #666; }
+    .badge-npl { background: #000; color: #FFD008; }
+    .badge-gpl { background: #FFD008; color: #000; }
+    .visit-note-preview { font-size: 12px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
     .visit-thumbs { display: flex; gap: 5px; flex-wrap: wrap; }
-    .visit-thumb { width: 60px; height: 76px; border-radius: 6px; object-fit: cover; border: 1px solid #2a2a2a; }
+    .visit-thumb { width: 60px; height: 76px; border-radius: 6px; object-fit: cover; border: 1px solid #eee; }
     .btn-vedi-dettaglio { background: #FFD008; color: #000; border: none; border-radius: 6px; padding: 6px 14px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; margin-top: 10px; }
-    .visit-toggle { flex-shrink: 0; font-size: 12px; color: #555; padding-top: 6px; transition: transform 0.2s; }
+    .visit-toggle { flex-shrink: 0; font-size: 12px; color: #bbb; padding-top: 6px; transition: transform 0.2s; }
     .visit-toggle.open { transform: rotate(180deg); }
 
-    .visit-detail { display: none; border-top: 1px solid #1a1a1a; padding: 16px; }
+    .visit-detail { display: none; border-top: 1px solid #f0f0f0; padding: 20px 24px; background: #fafafa; }
     .visit-detail.open { display: block; }
-    .detail-label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; margin-top: 14px; }
+    .detail-label { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; margin-top: 14px; }
     .detail-label:first-child { margin-top: 0; }
-    .detail-note { font-size: 13px; color: #ccc; line-height: 1.6; white-space: pre-wrap; }
+    .detail-note { font-size: 13px; color: #444; line-height: 1.6; white-space: pre-wrap; }
     .detail-foto-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-    .detail-foto-box { border-radius: 8px; overflow: hidden; }
-    .detail-foto-bar { background: #000; color: #888; font-size: 9px; font-weight: 700; padding: 3px 7px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .detail-foto-box { border-radius: 8px; overflow: hidden; border: 1px solid #eee; }
+    .detail-foto-bar { background: #f9f9f9; color: #999; font-size: 9px; font-weight: 700; padding: 4px 8px; text-transform: uppercase; letter-spacing: 0.5px; }
     .detail-foto-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
-    .detail-foto-note { font-size: 11px; color: #888; padding: 6px 8px; background: #000; line-height: 1.4; white-space: pre-wrap; }
+    .detail-foto-note { font-size: 11px; color: #666; padding: 6px 8px; background: #fff; line-height: 1.4; white-space: pre-wrap; }
 
     /* ── New Visit Panel ── */
-    .nvp {
-      position: fixed; inset: 0; background: #000; z-index: 500;
-      display: none; flex-direction: column; overflow: hidden;
-    }
+    .nvp { position: fixed; inset: 0; background: #f5f5f5; z-index: 500; display: none; flex-direction: column; overflow: hidden; }
     .nvp.open { display: flex; }
-    .nvp-header {
-      background: #000; border-bottom: 1px solid #1a1a1a;
-      padding: 0 16px; height: 52px; display: flex; align-items: center; gap: 12px;
-      flex-shrink: 0; position: sticky; top: 0; z-index: 10;
-    }
-    .btn-nvp-cancel { background: none; border: none; color: #888; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; }
-    .nvp-title { flex: 1; font-size: 14px; font-weight: 700; }
+    .nvp-header { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .btn-nvp-cancel { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-nvp-cancel:hover { border-color: #FFD008; color: #FFD008; }
+    .nvp-title { flex: 1; font-size: 14px; font-weight: 700; color: #fff; }
     .btn-nvp-save { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 8px 18px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .nvp-body { flex: 1; overflow-y: auto; padding: 20px 16px; max-width: 600px; margin: 0 auto; width: 100%; }
+    .nvp-body { flex: 1; overflow-y: auto; padding: 28px 24px; max-width: 900px; margin: 0 auto; width: 100%; }
 
     .form-group { margin-bottom: 20px; }
-    .form-label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; display: block; }
-    .form-input {
-      width: 100%; background: #111; border: 1.5px solid #222; color: #fff;
-      border-radius: 10px; padding: 12px 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; outline: none;
-    }
+    .form-label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+    .form-input { width: 100%; background: #fff; border: 1.5px solid #ddd; color: #000; border-radius: 8px; padding: 12px 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; outline: none; }
     .form-input:focus { border-color: #FFD008; }
     textarea.form-input { resize: none; height: 90px; }
-    input[type="date"].form-input::-webkit-calendar-picker-indicator { filter: invert(1) brightness(0.7); }
 
     .tipo-group { display: flex; gap: 8px; }
-    .tipo-btn {
-      flex: 1; padding: 10px 6px; border-radius: 8px; border: 1.5px solid #222;
-      background: #111; color: #888; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center;
-    }
-    .tipo-btn.active { border-color: #FFD008; color: #FFD008; background: #1a1500; }
+    .tipo-btn { flex: 1; padding: 10px 6px; border-radius: 8px; border: 1.5px solid #ddd; background: #fff; color: #666; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center; }
+    .tipo-btn.active { border-color: #FFD008; background: #fffdf0; color: #000; }
 
-    .foto-section-label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 24px; margin-bottom: 12px; }
-    .foto-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
-    .foto-note-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-    .foto-note-input { width: 100%; background: #111; border: 1.5px solid #222; color: #fff; border-radius: 8px; padding: 8px 10px; font-family: 'Montserrat', sans-serif; font-size: 11px; outline: none; resize: none; height: 52px; }
+    .foto-section-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 24px; margin-bottom: 12px; }
+    .foto-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+    .foto-note-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .foto-note-input { width: 100%; background: #fff; border: 1.5px solid #ddd; color: #000; border-radius: 8px; padding: 8px 10px; font-family: 'Montserrat', sans-serif; font-size: 11px; outline: none; resize: none; height: 52px; }
     .foto-note-input:focus { border-color: #FFD008; }
-    .foto-note-input::placeholder { color: #444; }
-    .foto-slot-v {
-      border: 2px dashed #222; border-radius: 12px; aspect-ratio: 3/4;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      cursor: pointer; position: relative; overflow: hidden; background: #111; transition: border-color 0.2s;
-    }
-    .foto-slot-v:hover { border-color: #FFD008; }
-    .foto-slot-v.has-photo { border-style: solid; border-color: #2a2a2a; padding: 0; }
+    .foto-note-input::placeholder { color: #bbb; }
+    .foto-slot-v { border: 2px dashed #ddd; border-radius: 12px; aspect-ratio: 3/4; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; background: #fafafa; transition: border-color 0.2s; }
+    .foto-slot-v:hover { border-color: #FFD008; background: #fffdf0; }
+    .foto-slot-v.has-photo { border-style: solid; border-color: #eee; padding: 0; background: #000; }
     .foto-slot-v img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .slot-label-v { font-size: 9px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; margin-bottom: 5px; }
+    .slot-label-v { font-size: 9px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; margin-bottom: 5px; }
     .slot-icon-v { font-size: 22px; margin-bottom: 8px; }
     .slot-btns-v { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 0 10px; }
-    .slot-btn-v { background: rgba(255,255,255,0.07); border: 1px solid #333; color: #ccc; border-radius: 6px; padding: 6px 4px; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; width: 100%; transition: background 0.15s, border-color 0.15s; }
-    .slot-btn-v:hover { background: rgba(255,208,8,0.12); border-color: #FFD008; color: #FFD008; }
-    .slot-overlay-v { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.75); display: flex; gap: 6px; justify-content: center; padding: 8px; }
+    .slot-btn-v { background: #fff; border: 1.5px solid #ddd; color: #555; border-radius: 6px; padding: 6px 4px; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; width: 100%; transition: background 0.15s, border-color 0.15s; }
+    .slot-btn-v:hover { background: #fffdf0; border-color: #FFD008; color: #000; }
+    .slot-overlay-v { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); display: flex; gap: 6px; justify-content: center; padding: 8px; }
 
     /* AI result */
-    .btn-ai-visita {
-      width: 100%; padding: 14px; background: #111; border: 1.5px solid #333; border-radius: 12px;
-      color: #fff; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700;
-      cursor: pointer; margin-top: 20px; display: none; text-align: center;
-    }
+    .btn-ai-visita { width: 100%; padding: 14px; background: #fff; border: 1.5px solid #ddd; border-radius: 12px; color: #000; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 20px; display: none; text-align: center; }
+    .btn-ai-visita:hover { border-color: #FFD008; }
     .btn-ai-visita.visible { display: block; }
-    .ai-loading-visita { text-align: center; padding: 16px; color: #aaa; font-size: 13px; display: none; }
+    .ai-loading-visita { text-align: center; padding: 16px; color: #666; font-size: 13px; display: none; }
     .ai-loading-visita.visible { display: block; }
-    .ai-result-box {
-      background: #111; border: 1.5px solid #FFD008; border-radius: 12px;
-      padding: 16px; margin-top: 12px; display: none;
-    }
+    .ai-result-box { background: #fff; border: 1.5px solid #FFD008; border-radius: 12px; padding: 16px; margin-top: 12px; display: none; }
     .ai-result-box.visible { display: block; }
-    .ai-result-text { font-size: 13px; color: #ddd; line-height: 1.6; margin-bottom: 14px; }
+    .ai-result-text { font-size: 13px; color: #333; line-height: 1.6; margin-bottom: 14px; }
     .ai-config-row { display: flex; gap: 8px; }
     .btn-scegli-config { flex: 1; padding: 10px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; border: none; }
-    .btn-npl { background: #000; color: #9AFF00; border: 1.5px solid #9AFF00 !important; border: none; }
-    .btn-gpl { background: #9AFF00; color: #000; }
+    .btn-npl { background: #000; color: #FFD008; }
+    .btn-gpl { background: #FFD008; color: #000; }
 
     /* ── Camera Modal ── */
     #cam-modal { display: none; position: fixed; inset: 0; z-index: 2000; background: #000; }
@@ -159,11 +138,16 @@
 <body>
 
   <!-- Navbar -->
-  <div class="navbar">
-    <button class="btn-back" id="btn-back">&#x2190; Torna</button>
-    <span class="nav-title" id="nav-title">Visite</span>
-    <button class="btn-add" onclick="apriNuovaVisita()" title="Aggiungi visita">+</button>
-  </div>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title" id="nav-title">Visite</span>
+    </div>
+    <div class="navbar-right">
+      <button class="btn-back" id="btn-back">&#x2190; Torna</button>
+      <button class="btn-add" onclick="apriNuovaVisita()" title="Aggiungi visita">+</button>
+    </div>
+  </nav>
 
   <!-- Timeline -->
   <div class="timeline" id="timeline">
