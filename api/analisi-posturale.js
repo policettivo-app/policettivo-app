@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { system, content } = req.body
+  const { system, content, max_tokens } = req.body
   if (!content) {
     return res.status(400).json({ error: 'Content mancante' })
   }
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 300,
+        max_tokens: max_tokens || 300,
         system: system || '',
         messages: [{ role: 'user', content: content }]
       })

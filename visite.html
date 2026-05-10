@@ -133,6 +133,36 @@
     #cam-gallery-btn { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 22px; padding: 10px 16px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
     #cam-shutter-btn { position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%); width: 76px; height: 76px; border-radius: 50%; background: #fff; border: 5px solid rgba(255,255,255,0.35); cursor: pointer; transition: transform 0.1s, opacity 0.1s; }
     #cam-shutter-btn:active { transform: translateX(-50%) scale(0.9); opacity: 0.75; }
+
+    /* ── Visit card actions ── */
+    .visit-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-card-edit { background: transparent; border: 1px solid #ddd; color: #888; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: all 0.15s; }
+    .btn-card-edit:hover { border-color: #FFD008; color: #000; }
+    .btn-card-del { background: transparent; border: 1px solid #ddd; color: #bbb; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: all 0.15s; }
+    .btn-card-del:hover { border-color: #e53935; color: #e53935; }
+
+    /* ── Scapolare obs ── */
+    .obs-group-nv { display: flex; gap: 8px; }
+    .obs-btn-nv { flex: 1; padding: 9px 6px; border-radius: 8px; border: 1.5px solid #ddd; background: #fff; color: #666; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.15s; }
+    .obs-btn-nv.active { border-color: #FFD008; background: #fffdf0; color: #000; }
+    .obs-badge { display: inline-block; background: #fffdf0; border: 1px solid #FFD008; border-radius: 6px; padding: 3px 10px; font-size: 11px; color: #000; font-weight: 700; }
+    .obs-label-sm { font-size: 11px; color: #999; margin-right: 4px; }
+
+    /* ── Relazione finale ── */
+    .btn-ai-relazione { width: 100%; padding: 12px; background: #FFD008; border: none; border-radius: 10px; color: #000; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+    .btn-ai-relazione:hover { background: #e6bc00; }
+    .btn-stampa-pdf { width: 100%; padding: 12px; background: #fff; border: 1.5px solid #ddd; border-radius: 10px; color: #000; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 10px; display: block; }
+    .btn-stampa-pdf:hover { border-color: #000; }
+
+    /* ── Premium Modal ── */
+    .premium-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 3000; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .premium-modal.open { display: flex; }
+    .premium-box { background: #fff; border-radius: 20px; padding: 32px 28px; max-width: 380px; width: 100%; text-align: center; }
+    .premium-icon { font-size: 40px; margin-bottom: 16px; }
+    .premium-title { font-size: 20px; font-weight: 700; color: #000; margin-bottom: 10px; }
+    .premium-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 24px; }
+    .btn-premium-cta { width: 100%; background: #FFD008; border: none; border-radius: 10px; padding: 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; color: #000; margin-bottom: 10px; }
+    .btn-premium-close { width: 100%; background: transparent; border: 1px solid #ddd; border-radius: 10px; padding: 12px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; color: #666; }
   </style>
 </head>
 <body>
@@ -205,6 +235,25 @@
         <textarea id="nv-note-sag-dx" class="foto-note-input" placeholder="Note su questa foto..."></textarea>
       </div>
 
+      <!-- Piano Scapolare obs -->
+      <div class="foto-section-label" style="margin-top:20px">Piano Scapolare — Osservazioni</div>
+      <div class="form-group">
+        <label class="form-label">Pre-trattamento</label>
+        <div class="obs-group-nv" id="obs-group-pre">
+          <button class="obs-btn-nv" onclick="selectNVObs('pre','In asse',this)">In asse</button>
+          <button class="obs-btn-nv" onclick="selectNVObs('pre','Anteriore',this)">Anteriore</button>
+          <button class="obs-btn-nv" onclick="selectNVObs('pre','Posteriore',this)">Posteriore</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Post-trattamento</label>
+        <div class="obs-group-nv" id="obs-group-post">
+          <button class="obs-btn-nv" onclick="selectNVObs('post','In asse',this)">In asse</button>
+          <button class="obs-btn-nv" onclick="selectNVObs('post','Anteriore',this)">Anteriore</button>
+          <button class="obs-btn-nv" onclick="selectNVObs('post','Posteriore',this)">Posteriore</button>
+        </div>
+      </div>
+
       <!-- Foto frontale -->
       <div class="foto-section-label">Piano Frontale e Posteriore <span style="color:#555;font-size:9px">(facoltativo)</span></div>
       <div class="foto-grid-2">
@@ -269,7 +318,26 @@
           <button class="btn-scegli-config btn-gpl" onclick="setConfigVisita('GPL')">GPL — Posteriore</button>
         </div>
       </div>
+      <!-- Relazione finale -->
+      <div class="form-group" style="margin-top:24px">
+        <label class="form-label">Relazione finale</label>
+        <textarea class="form-input" id="nv-relazione" placeholder="Relazione finale della visita..." style="height:120px"></textarea>
+        <button class="btn-ai-relazione" onclick="avviaAIRelazione()">🤖 Genera con AI (Premium)</button>
+        <div id="ai-relazione-loading" style="display:none;text-align:center;padding:10px;font-size:13px;color:#666">⏳ Generazione in corso...</div>
+      </div>
+
       <div style="height:40px"></div>
+    </div>
+  </div>
+
+  <!-- ── Premium Modal ── -->
+  <div class="premium-modal" id="premium-modal">
+    <div class="premium-box">
+      <div class="premium-icon">⭐</div>
+      <div class="premium-title">Funzione Premium</div>
+      <div class="premium-desc">Questa funzionalità è disponibile solo per gli abbonati Premium. Aggiorna il tuo piano per accedere a AI avanzata e stampa PDF professionale.</div>
+      <button class="btn-premium-cta" onclick="window.location.href='dashboard.html'">Scopri Premium</button>
+      <button class="btn-premium-close" onclick="chiudiModalePremium()">Non ora</button>
     </div>
   </div>
 
@@ -305,14 +373,16 @@
     const params    = new URLSearchParams(location.search)
     const patientId = params.get('id')
 
-    let patient      = null
-    let visite       = []
-    let nvTipo       = 'controllo'
-    let nvConfig     = null
-    let nvFotos      = {}
-    let _camStream   = null
-    let _camSlot     = null
-    let _orientHdlr  = null
+    let patient          = null
+    let visite           = []
+    let nvTipo           = 'controllo'
+    let nvConfig         = null
+    let nvFotos          = {}
+    let nvObs            = {}
+    let _editingVisitId  = null
+    let _camStream       = null
+    let _camSlot         = null
+    let _orientHdlr      = null
 
     // ── Init ──────────────────────────────────────────────
 
@@ -322,9 +392,13 @@
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
 
-      const { data: p } = await _supabase.from('patients').select('nome, cognome, problema_principale, note_cliniche').eq('id', patientId).single()
+      const [{ data: p }, { data: prof }] = await Promise.all([
+        _supabase.from('patients').select('nome, cognome, problema_principale, note_cliniche').eq('id', patientId).single(),
+        _supabase.from('professionals').select('subscription_status').eq('user_id', session.user.id).single()
+      ])
       if (!p) { alert('Paziente non trovato'); return }
       patient = p
+      window.isPremium = prof?.subscription_status === 'premium'
       document.getElementById('nav-title').textContent = p.nome + ' ' + p.cognome + ' — Visite'
       document.getElementById('btn-back').onclick = () => { window.location.href = 'paziente.html?id=' + patientId }
 
@@ -416,6 +490,10 @@
             <div class="visit-thumbs">${thumbsHtml}</div>
             <button class="btn-vedi-dettaglio" onclick="event.stopPropagation();toggleCard(this.closest('.visit-header'))">Vedi dettaglio ▾</button>
           </div>
+          <div class="visit-card-actions">
+            <button class="btn-card-edit" onclick="event.stopPropagation();modificaVisita('${v.id}')">✏️</button>
+            <button class="btn-card-del" onclick="event.stopPropagation();eliminaVisita('${v.id}')">🗑</button>
+          </div>
         </div>
         <div class="visit-detail">${buildDetail(v, fotos)}</div>
       `
@@ -445,7 +523,24 @@
         })
         html += '</div>'
       }
-      if (!v.note && !hasFotos) html = '<div style="color:#555;font-size:13px">Nessun dettaglio.</div>'
+      let obs = {}
+      try { obs = JSON.parse(v.obs_piano_scapolare || '{}') } catch(e) {}
+      const hasObs = obs.pre || obs.post
+      if (hasObs) {
+        html += '<div class="detail-label" style="margin-top:14px">Piano Scapolare</div>'
+        html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:4px">'
+        if (obs.pre)  html += `<div><span class="obs-label-sm">Pre</span><span class="obs-badge">${escHtml(obs.pre)}</span></div>`
+        if (obs.post) html += `<div><span class="obs-label-sm">Post</span><span class="obs-badge">${escHtml(obs.post)}</span></div>`
+        html += '</div>'
+      }
+      if (v.relazione_finale) {
+        html += `<div class="detail-label" style="margin-top:14px">Relazione finale</div><div class="detail-note">${escHtml(v.relazione_finale)}</div>`
+      }
+      html += `<button class="btn-stampa-pdf" onclick="stampaPDFVisita('${v.id}')">📄 Stampa PDF visita</button>`
+      if (!v.note && !hasFotos && !hasObs && !v.relazione_finale) {
+        return '<div style="color:#555;font-size:13px;margin-bottom:12px">Nessun dettaglio.</div>' +
+               `<button class="btn-stampa-pdf" onclick="stampaPDFVisita('${v.id}')">📄 Stampa PDF visita</button>`
+      }
       return html
     }
 
@@ -464,16 +559,22 @@
     // ── New Visit Panel ───────────────────────────────────
 
     function apriNuovaVisita() {
+      _editingVisitId = null
       nvTipo   = 'controllo'
       nvConfig = null
       nvFotos  = {}
+      nvObs    = {}
       document.getElementById('nv-data').value = new Date().toISOString().split('T')[0]
       document.getElementById('nv-note').value = ''
+      document.getElementById('nv-relazione').value = ''
+      document.getElementById('ai-relazione-loading').style.display = 'none'
       setTipo('controllo')
       resetAllSlots()
+      resetNVObs()
       document.getElementById('btn-ai-visita').classList.remove('visible')
       document.getElementById('ai-loading-visita').classList.remove('visible')
       document.getElementById('ai-result-box').classList.remove('visible')
+      document.getElementById('nvp-title').textContent = 'Nuova visita'
       document.getElementById('nvp').classList.add('open')
     }
 
@@ -647,16 +748,23 @@
       })
 
       const payload = {
-        patient_id:     patientId,
-        data_visita:    data,
-        tipo:           nvTipo,
-        note:           document.getElementById('nv-note').value.trim() || null,
-        configurazione: nvConfig,
-        foto_url:       Object.keys(fotoData).length ? JSON.stringify(fotoData) : null
+        patient_id:          patientId,
+        data_visita:         data,
+        tipo:                nvTipo,
+        note:                document.getElementById('nv-note').value.trim() || null,
+        configurazione:      nvConfig,
+        foto_url:            Object.keys(fotoData).length ? JSON.stringify(fotoData) : null,
+        obs_piano_scapolare: Object.keys(nvObs).length ? JSON.stringify(nvObs) : null,
+        relazione_finale:    document.getElementById('nv-relazione').value.trim() || null
       }
       console.log('Payload visita:', payload)
 
-      const { error } = await _supabase.from('visite').insert(payload)
+      let error
+      if (_editingVisitId) {
+        ;({ error } = await _supabase.from('visite').update(payload).eq('id', _editingVisitId))
+      } else {
+        ;({ error } = await _supabase.from('visite').insert(payload))
+      }
 
       if (error) {
         console.error('Errore Supabase:', error)
@@ -766,6 +874,223 @@
       const slot = _camSlot
       chiudiCam()
       document.getElementById('nv-input-' + slot)?.click()
+    }
+
+    // ── Edit / Delete visita ──────────────────────────────
+
+    async function eliminaVisita(id) {
+      if (!confirm('Eliminare questa visita? L\'operazione non è reversibile.')) return
+      const { error } = await _supabase.from('visite').delete().eq('id', id)
+      if (error) { alert('Errore eliminazione: ' + error.message); return }
+      await caricaVisite()
+    }
+
+    async function modificaVisita(id) {
+      const v = visite.find(x => x.id === id)
+      if (!v) return
+
+      _editingVisitId = id
+      nvTipo   = v.tipo || 'controllo'
+      nvConfig = v.configurazione || null
+      nvFotos  = {}
+      nvObs    = {}
+
+      document.getElementById('nv-data').value = v.data_visita
+      document.getElementById('nv-note').value = v.note || ''
+      document.getElementById('nv-relazione').value = v.relazione_finale || ''
+      document.getElementById('ai-relazione-loading').style.display = 'none'
+      setTipo(nvTipo)
+      resetAllSlots()
+      resetNVObs()
+      document.getElementById('btn-ai-visita').classList.remove('visible')
+      document.getElementById('ai-loading-visita').classList.remove('visible')
+      document.getElementById('ai-result-box').classList.remove('visible')
+
+      let fotos = {}
+      try { fotos = JSON.parse(v.foto_url || '{}') } catch(e) {}
+      Object.keys(fotos).forEach(slot => {
+        const entry = fotos[slot]
+        const url  = typeof entry === 'object' ? entry.url  : entry
+        const note = typeof entry === 'object' ? entry.note : ''
+        if (!url) return
+        nvFotos[slot] = url
+        const el = document.getElementById('nv-slot-' + slot)
+        if (el) {
+          el.classList.add('has-photo')
+          el.onclick = null
+          el.innerHTML = `
+            <img src="${url}" alt="${slot}" style="width:100%;height:100%;object-fit:cover;display:block">
+            <div class="slot-overlay-v">
+              <button style="background:rgba(0,0,0,0.8);border:1px solid #555;color:#fff;border-radius:5px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif" onclick="event.stopPropagation();apriCamSlot('${slot}')">📷</button>
+              <button style="background:rgba(0,0,0,0.8);border:1px solid #555;color:#fff;border-radius:5px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif" onclick="event.stopPropagation();apriGalleriaSlot('${slot}')">🖼</button>
+            </div>`
+        }
+        const noteEl = document.getElementById('nv-note-' + slot)
+        if (noteEl) noteEl.value = note
+      })
+
+      if (nvFotos['sag-sx'] || nvFotos['sag-dx']) {
+        document.getElementById('btn-ai-visita').classList.add('visible')
+      }
+
+      try {
+        const obs = JSON.parse(v.obs_piano_scapolare || '{}')
+        if (obs.pre)  { nvObs.pre  = obs.pre;  highlightObs('pre',  obs.pre)  }
+        if (obs.post) { nvObs.post = obs.post; highlightObs('post', obs.post) }
+      } catch(e) {}
+
+      document.getElementById('nvp-title').textContent = 'Modifica visita'
+      document.getElementById('nvp').classList.add('open')
+    }
+
+    // ── Scapolare obs ─────────────────────────────────────
+
+    function selectNVObs(gruppo, valore, btn) {
+      nvObs[gruppo] = valore
+      const group = document.getElementById('obs-group-' + gruppo)
+      if (group) group.querySelectorAll('.obs-btn-nv').forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+    }
+
+    function resetNVObs() {
+      nvObs = {}
+      ;['pre', 'post'].forEach(g => {
+        const group = document.getElementById('obs-group-' + g)
+        if (group) group.querySelectorAll('.obs-btn-nv').forEach(b => b.classList.remove('active'))
+      })
+    }
+
+    function highlightObs(gruppo, valore) {
+      const group = document.getElementById('obs-group-' + gruppo)
+      if (!group) return
+      group.querySelectorAll('.obs-btn-nv').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.trim() === valore)
+      })
+    }
+
+    // ── AI Relazione ──────────────────────────────────────
+
+    async function avviaAIRelazione() {
+      if (!window.isPremium) { mostraModalePremium(); return }
+
+      const loadingEl = document.getElementById('ai-relazione-loading')
+      const relEl     = document.getElementById('nv-relazione')
+
+      loadingEl.style.display = 'block'
+
+      const note      = document.getElementById('nv-note').value.trim()
+      const obsText   = [
+        nvObs.pre  ? `Piano scapolare pre-trattamento: ${nvObs.pre}`  : '',
+        nvObs.post ? `Piano scapolare post-trattamento: ${nvObs.post}` : ''
+      ].filter(Boolean).join(', ')
+      const configText = nvConfig ? `Configurazione: ${nvConfig}` : ''
+      const tipoText   = nvTipo === 'prima-visita' ? 'Prima visita' : 'Controllo'
+
+      const textPart = `Scrivi una relazione finale professionale per questa visita fisioterapica:\n- Tipo: ${tipoText}\n- Data: ${document.getElementById('nv-data').value}\n${configText ? '- ' + configText + '\n' : ''}${obsText ? '- ' + obsText + '\n' : ''}${note ? '- Note cliniche: ' + note : ''}\n\nSe presenti foto posturali, analizzale e includi osservazioni. Scrivi in italiano, tono professionale, massimo 5 frasi.`
+
+      const contentParts = [{ type: 'text', text: textPart }]
+
+      ;['sag-sx','sag-dx','frontale','posteriore'].forEach(slot => {
+        const url = nvFotos[slot]
+        if (url && url.startsWith('http')) {
+          contentParts.push({ type: 'image', source: { type: 'url', url } })
+        }
+      })
+
+      try {
+        const res = await fetch('/api/analisi-posturale', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system: 'Sei un fisioterapista esperto in posturologia. Scrivi relazioni cliniche professionali, concise e precise.',
+            content: contentParts,
+            max_tokens: 600
+          })
+        })
+        const data = await res.json()
+        if (data.testo) relEl.value = data.testo
+        else alert('Nessuna risposta dall\'AI.')
+      } catch(e) {
+        alert('Errore AI: ' + e.message)
+      } finally {
+        loadingEl.style.display = 'none'
+      }
+    }
+
+    // ── Stampa PDF ────────────────────────────────────────
+
+    function stampaPDFVisita(visitId) {
+      if (!window.isPremium) { mostraModalePremium(); return }
+      const v = visite.find(x => x.id === visitId)
+      if (!v) return
+
+      let fotos = {}; try { fotos = JSON.parse(v.foto_url || '{}') } catch(e) {}
+      let obs   = {}; try { obs   = JSON.parse(v.obs_piano_scapolare || '{}') } catch(e) {}
+
+      const d        = new Date(v.data_visita + 'T12:00:00')
+      const dateStr  = d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+      const patName  = patient ? escHtml(patient.nome + ' ' + patient.cognome) : ''
+
+      const fotoHtml = ['sag-sx','sag-dx','frontale','posteriore','podo-sotto','podo-dietro'].map(s => {
+        const entry = fotos[s]; if (!entry) return ''
+        const src      = typeof entry === 'object' ? entry.url  : entry
+        const fotoNote = typeof entry === 'object' ? entry.note : ''
+        return `<div style="break-inside:avoid;margin-bottom:12px">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#999;margin-bottom:4px">${SLOT_LABELS[s]}</div>
+          <img src="${src}" style="width:100%;max-height:220px;object-fit:cover;border-radius:6px;border:1px solid #eee">
+          ${fotoNote ? `<div style="font-size:11px;color:#666;margin-top:4px">${escHtml(fotoNote)}</div>` : ''}
+        </div>`
+      }).filter(Boolean).join('')
+
+      const obsHtml = (obs.pre || obs.post) ? `
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#999;letter-spacing:.8px;margin:16px 0 6px">Piano Scapolare</div>
+        ${obs.pre  ? `<p style="font-size:12px;margin:0 0 4px"><strong>Pre:</strong> ${escHtml(obs.pre)}</p>`  : ''}
+        ${obs.post ? `<p style="font-size:12px;margin:0 0 4px"><strong>Post:</strong> ${escHtml(obs.post)}</p>` : ''}` : ''
+
+      const configColor  = v.configurazione === 'NPL' ? '#000' : '#FFD008'
+      const configTColor = v.configurazione === 'NPL' ? '#FFD008' : '#000'
+
+      const html = `<!DOCTYPE html><html lang="it"><head>
+        <meta charset="UTF-8">
+        <title>Visita — ${patName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #000; padding: 32px 40px; max-width: 700px; margin: 0 auto; }
+          .label { font-size:9px;font-weight:700;text-transform:uppercase;color:#999;letter-spacing:.8px;margin:16px 0 4px; }
+          .note  { font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap; }
+          .foto-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px; }
+          .badge { display:inline-block;font-size:9px;font-weight:700;padding:2px 9px;border-radius:10px;margin-right:5px; }
+          .logo  { font-size:10px;font-weight:700;background:#FFD008;padding:2px 9px;border-radius:3px;display:inline-block;margin-bottom:16px;letter-spacing:1px; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head><body>
+        <div class="logo">POLICETTIVO®</div>
+        <h1 style="font-size:20px;font-weight:700;margin-bottom:4px">${patName}</h1>
+        <h2 style="font-size:13px;font-weight:600;color:#666;margin-bottom:16px">Visita del ${dateStr}</h2>
+        <div>
+          <span class="badge" style="background:${v.tipo==='prima-visita'?'#FFD008':'#eee'};color:${v.tipo==='prima-visita'?'#000':'#666'}">${v.tipo==='prima-visita'?'Prima visita':'Controllo'}</span>
+          ${v.configurazione ? `<span class="badge" style="background:${configColor};color:${configTColor}">${v.configurazione}</span>` : ''}
+        </div>
+        ${v.note ? `<div class="label">Note cliniche</div><div class="note">${escHtml(v.note)}</div>` : ''}
+        ${obsHtml}
+        ${fotoHtml ? `<div class="label">Foto</div><div class="foto-grid">${fotoHtml}</div>` : ''}
+        ${v.relazione_finale ? `<div class="label">Relazione finale</div><div class="note">${escHtml(v.relazione_finale)}</div>` : ''}
+        <div style="margin-top:40px;border-top:1px solid #eee;padding-top:12px;font-size:10px;color:#bbb;text-align:right">Generato con Policettivo® il ${new Date().toLocaleDateString('it-IT')}</div>
+      </body></html>`
+
+      const win = window.open('', '_blank')
+      win.document.write(html)
+      win.document.close()
+      win.focus()
+      setTimeout(() => win.print(), 500)
+    }
+
+    // ── Premium Modal ─────────────────────────────────────
+
+    function mostraModalePremium() {
+      document.getElementById('premium-modal').classList.add('open')
+    }
+    function chiudiModalePremium() {
+      document.getElementById('premium-modal').classList.remove('open')
     }
 
     init()
