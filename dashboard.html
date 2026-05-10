@@ -73,6 +73,25 @@
     .form-group input:focus, .form-group textarea:focus { border-color: #FFD008; }
     .form-group textarea { resize: vertical; min-height: 80px; }
     .modal-actions { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
+    .referto-box { background: #000; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+    .referto-box-title { color: #FFD008; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .referto-box-sub { color: #aaa; font-size: 11px; line-height: 1.5; margin-bottom: 14px; }
+    .referto-btns { display: flex; gap: 8px; }
+    .btn-referto { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 8px; padding: 10px 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color 0.15s; }
+    .btn-referto:hover { border-color: #FFD008; }
+    .referto-loading { display: none; text-align: center; padding: 14px; color: #aaa; font-size: 12px; }
+    .referto-preview { display: none; margin-top: 10px; border-radius: 8px; overflow: hidden; }
+    .referto-preview img { width: 100%; max-height: 110px; object-fit: cover; display: block; }
+    .referto-ok { display: none; background: #0a2a0a; border: 1px solid #2a6a2a; border-radius: 8px; padding: 10px 12px; margin-top: 10px; color: #7dda7d; font-size: 11px; font-weight: 700; }
+    /* Premium gate modal */
+    .pg-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9000; align-items: center; justify-content: center; padding: 24px; }
+    .pg-modal.open { display: flex; }
+    .pg-box { background: #fff; border-radius: 20px; padding: 32px 28px; max-width: 360px; width: 100%; text-align: center; }
+    .pg-icon { font-size: 38px; margin-bottom: 14px; }
+    .pg-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .pg-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 22px; }
+    .pg-cta { width: 100%; background: #FFD008; border: none; border-radius: 10px; padding: 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; color: #000; margin-bottom: 10px; }
+    .pg-close { width: 100%; background: transparent; border: 1px solid #ddd; border-radius: 10px; padding: 12px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; color: #666; }
     .btn-secondary { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
     .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .config-option { border: 2px solid #eee; border-radius: 8px; padding: 14px; cursor: pointer; text-align: center; }
@@ -153,6 +172,19 @@
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
       <h2>Nuovo paziente</h2>
+      <div class="referto-box" id="referto-scan-box">
+        <div class="referto-box-title">📄 <span>Scansiona referto o documento</span> <span style="background:#FFD008;color:#000;padding:2px 8px;border-radius:4px;font-size:10px;margin-left:4px">PREMIUM</span></div>
+        <div class="referto-box-sub">Fotografa o carica un documento medico: l'AI estrae automaticamente i dati del paziente.</div>
+        <div class="referto-btns">
+          <button class="btn-referto" onclick="apriCamReferto()">📷 Fotocamera</button>
+          <button class="btn-referto" onclick="apriGalleriaReferto()">🖼 Galleria</button>
+        </div>
+        <div class="referto-loading" id="referto-loading">⏳ Analisi documento in corso...</div>
+        <div class="referto-preview" id="referto-preview"><img id="referto-preview-img" style="width:100%;max-height:110px;object-fit:cover;display:block"></div>
+        <div class="referto-ok" id="referto-ok">✓ Dati estratti — verifica e modifica i campi se necessario</div>
+        <input type="file" id="referto-cam-input" accept="image/*" capture="environment" style="display:none" onchange="handleRefertoFile(this)">
+        <input type="file" id="referto-gal-input" accept="image/*" style="display:none" onchange="handleRefertoFile(this)">
+      </div>
       <div class="form-row">
         <div class="form-group"><label>Nome *</label><input type="text" id="p-nome" placeholder="Mario"></div>
         <div class="form-group"><label>Cognome *</label><input type="text" id="p-cognome" placeholder="Rossi"></div>
@@ -174,6 +206,16 @@
         <button class="btn-secondary" onclick="closeModal()">Annulla</button>
         <button class="btn-primary" onclick="savePatient()">Salva paziente</button>
       </div>
+    </div>
+  </div>
+
+  <div class="pg-modal" id="pg-modal">
+    <div class="pg-box">
+      <div class="pg-icon">⭐</div>
+      <div class="pg-title">Funzione Premium</div>
+      <div class="pg-desc">La scansione di referti e documenti medici è disponibile per gli utenti Premium. Attiva il piano Premium per sbloccare questa e molte altre funzioni.</div>
+      <button class="pg-cta" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
+      <button class="pg-close" onclick="chiudiModalePremiumDash()">Non ora</button>
     </div>
   </div>
 
@@ -441,6 +483,9 @@
       document.getElementById('opt-npl').className = 'config-option'
       document.getElementById('opt-gpl').className = 'config-option'
       ;['p-nome','p-cognome','p-email','p-telefono','p-problema','p-note'].forEach(id => document.getElementById(id).value = '')
+      document.getElementById('referto-loading').style.display = 'none'
+      document.getElementById('referto-preview').style.display = 'none'
+      document.getElementById('referto-ok').style.display = 'none'
     }
     function selectConfig(val) {
       selectedConfig = val
@@ -539,6 +584,66 @@
       const link = document.getElementById('wizard-link-text').textContent
       const msg = encodeURIComponent('Ciao ' + wizardPatientNome.split(' ')[0] + ', ecco il tuo link personale per il protocollo Policettivo:\n' + link + '\nAprilo dal tuo smartphone e segui le istruzioni.')
       window.open('https://wa.me/?text=' + msg, '_blank')
+    }
+
+    function mostraModalePremiumDash() { document.getElementById('pg-modal').classList.add('open') }
+    function chiudiModalePremiumDash() { document.getElementById('pg-modal').classList.remove('open') }
+    function apriCamReferto() {
+      if (!window.isPremium) { mostraModalePremiumDash(); return }
+      document.getElementById('referto-cam-input').click()
+    }
+    function apriGalleriaReferto() {
+      if (!window.isPremium) { mostraModalePremiumDash(); return }
+      document.getElementById('referto-gal-input').click()
+    }
+    function handleRefertoFile(input) {
+      const file = input.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = function(e) {
+        const dataUrl = e.target.result
+        const base64 = dataUrl.split(',')[1]
+        const mediaType = file.type || 'image/jpeg'
+        const prev = document.getElementById('referto-preview')
+        document.getElementById('referto-preview-img').src = dataUrl
+        prev.style.display = 'block'
+        analizzaReferto(base64, mediaType)
+      }
+      reader.readAsDataURL(file)
+      input.value = ''
+    }
+    async function analizzaReferto(base64, mediaType) {
+      const loading = document.getElementById('referto-loading')
+      const ok = document.getElementById('referto-ok')
+      loading.style.display = 'block'
+      ok.style.display = 'none'
+      try {
+        const res = await fetch('/api/analisi-referto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: { data: base64, type: mediaType } })
+        })
+        const json = await res.json()
+        if (json.dati) compileFormFromReferto(json.dati)
+        ok.style.display = 'block'
+      } catch(e) {
+        alert('Errore analisi referto: ' + e.message)
+      } finally {
+        loading.style.display = 'none'
+      }
+    }
+    function compileFormFromReferto(dati) {
+      if (dati.nome) document.getElementById('p-nome').value = dati.nome
+      if (dati.cognome) document.getElementById('p-cognome').value = dati.cognome
+      if (dati.diagnosi_principale) document.getElementById('p-problema').value = dati.diagnosi_principale
+      const extra = []
+      if (dati.data_nascita) extra.push('Nato/a il: ' + dati.data_nascita)
+      if (dati.codice_fiscale) extra.push('C.F.: ' + dati.codice_fiscale)
+      if (dati.patologie) extra.push('Patologie: ' + dati.patologie)
+      if (dati.farmaci) extra.push('Farmaci: ' + dati.farmaci)
+      if (dati.note_cliniche) extra.push('Note: ' + dati.note_cliniche)
+      if (dati.medico_curante) extra.push('Medico curante: ' + dati.medico_curante)
+      if (extra.length) document.getElementById('p-note').value = extra.join('\n')
     }
 
     init()

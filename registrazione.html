@@ -6,6 +6,7 @@
   <title>Policettivo® — Registrazione</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -20,8 +21,9 @@
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 11px; font-weight: 600; color: #000; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
-    .form-group input { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; }
-    .form-group input:focus { border-color: #FFD008; }
+    .form-group input, .form-group select { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; background: #fff; appearance: none; -webkit-appearance: none; }
+    .form-group input:focus, .form-group select:focus { border-color: #FFD008; }
+    .form-group select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
     .btn { width: 100%; padding: 16px; background: #FFD008; color: #000; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; }
     .btn:hover { background: #e6bc00; }
     .btn:disabled { background: #ccc; cursor: not-allowed; }
@@ -39,15 +41,8 @@
       <p>Completa la registrazione per accedere alla piattaforma</p>
     </div>
 
-    <div id="invalid-state" class="invalid-msg" style="display:none">
-      <h2>Link non valido</h2>
-      <p>Questo link di invito non è valido o è già stato utilizzato. Contatta Giuliano per ricevere un nuovo invito.</p>
-    </div>
-
     <div id="form-state">
-      <div class="invite-banner" id="invite-banner">
-        Sei stato invitato da <strong>Policettivo®</strong>. Completa la registrazione per accedere.
-      </div>
+      <div class="invite-banner" id="invite-banner" style="display:none"></div>
       <div class="error-msg" id="error-msg"></div>
       <div class="form-row">
         <div class="form-group"><label>Nome *</label><input type="text" id="reg-nome" placeholder="Mario"></div>
@@ -55,12 +50,25 @@
       </div>
       <div class="form-group"><label>Email *</label><input type="email" id="reg-email" placeholder="mario@email.it"></div>
       <div class="form-group"><label>Password *</label><input type="password" id="reg-password" placeholder="Minimo 8 caratteri"></div>
-      <div class="form-group"><label>Qualifica</label><input type="text" id="reg-qualifica" placeholder="es. Fisioterapista, Osteopata..."></div>
+      <div class="form-group"><label>Qualifica professionale</label><input type="text" id="reg-qualifica" placeholder="es. Fisioterapista, Osteopata..."></div>
       <div class="form-row">
         <div class="form-group"><label>Centro / Studio</label><input type="text" id="reg-centro" placeholder="Nome studio"></div>
         <div class="form-group"><label>Città</label><input type="text" id="reg-citta" placeholder="Milano"></div>
       </div>
-      <button class="btn" id="reg-btn" onclick="registrati()">Crea account e accedi</button>
+      <div class="form-group">
+        <label>Come hai conosciuto Policettivo?</label>
+        <select id="reg-fonte">
+          <option value="">— Seleziona —</option>
+          <option value="Corso di formazione">Corso di formazione</option>
+          <option value="Collega">Collega</option>
+          <option value="Social media">Social media</option>
+          <option value="Ricerca online">Ricerca online</option>
+          <option value="Altro">Altro</option>
+        </select>
+      </div>
+      <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" style="margin-bottom:12px"></div>
+      <button class="btn" id="reg-btn" onclick="registrati()">Crea account gratuitamente</button>
+      <p style="text-align:center;font-size:11px;color:#999;margin-top:14px">Hai già un account? <a href="login.html" style="color:#000;font-weight:700">Accedi →</a></p>
     </div>
 
     <div class="success-msg" id="success-msg">
@@ -81,36 +89,34 @@
     let inviteData = null
 
     async function init() {
-      if (!token) { showInvalid(); return }
+      if (!token) return
       const { data, error } = await _supabase.from('invites').select('*').eq('token', token).eq('usato', false).single()
-      if (error || !data) { showInvalid(); return }
+      if (error || !data) return
       inviteData = data
-      if (data.nome) {
-        document.getElementById('invite-banner').innerHTML = 'Benvenuto <strong>' + data.nome + '</strong>! Completa la registrazione per accedere a Policettivo®.'
-      }
-      if (data.email) {
-        document.getElementById('reg-email').value = data.email
-      }
-    }
-
-    function showInvalid() {
-      document.getElementById('form-state').style.display = 'none'
-      document.getElementById('invalid-state').style.display = 'block'
+      const banner = document.getElementById('invite-banner')
+      banner.innerHTML = data.nome
+        ? 'Benvenuto <strong>' + data.nome + '</strong>! Completa la registrazione per accedere a Policettivo®.'
+        : 'Sei stato invitato da <strong>Policettivo®</strong>. Completa la registrazione per accedere.'
+      banner.style.display = 'block'
+      if (data.email) document.getElementById('reg-email').value = data.email
     }
 
     async function registrati() {
-      const nome = document.getElementById('reg-nome').value.trim()
-      const cognome = document.getElementById('reg-cognome').value.trim()
-      const email = document.getElementById('reg-email').value.trim()
+      const nome     = document.getElementById('reg-nome').value.trim()
+      const cognome  = document.getElementById('reg-cognome').value.trim()
+      const email    = document.getElementById('reg-email').value.trim()
       const password = document.getElementById('reg-password').value
       const qualifica = document.getElementById('reg-qualifica').value.trim()
-      const centro = document.getElementById('reg-centro').value.trim()
-      const citta = document.getElementById('reg-citta').value.trim()
+      const centro   = document.getElementById('reg-centro').value.trim()
+      const citta    = document.getElementById('reg-citta').value.trim()
+      const fonte    = document.getElementById('reg-fonte').value
 
-      if (!nome || !cognome || !email || !password) { showError('Compila tutti i campi obbligatori.'); return }
+      const tsToken = document.querySelector('[name="cf-turnstile-response"]')?.value
+      if (!tsToken) { showError('Completa la verifica anti-bot prima di procedere.'); return }
+
+      if (!nome || !cognome || !email || !password) { showError('Compila tutti i campi obbligatori (nome, cognome, email, password).'); return }
       if (password.length < 8) { showError('La password deve essere di almeno 8 caratteri.'); return }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email)) { showError('Inserisci un indirizzo email valido (es. mario@gmail.com).'); return }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Inserisci un indirizzo email valido.'); return }
 
       const btn = document.getElementById('reg-btn')
       btn.disabled = true; btn.textContent = 'Registrazione in corso...'
@@ -120,17 +126,19 @@
         password,
         options: { emailRedirectTo: 'https://policettivo-app.vercel.app/login.html' }
       })
-      if (authError) { showError('Errore: ' + authError.message); btn.disabled = false; btn.textContent = 'Crea account e accedi'; return }
+      if (authError) { showError('Errore: ' + authError.message); btn.disabled = false; btn.textContent = 'Crea account gratuitamente'; return }
 
       const userId = authData.user.id
 
       const { error: profileError } = await _supabase.from('profiles').insert({ id: userId, role: 'professionista', nome, cognome })
-      if (profileError) { showError('Errore creazione profilo: ' + profileError.message); btn.disabled = false; btn.textContent = 'Crea account e accedi'; return }
+      if (profileError) { showError('Errore creazione profilo: ' + profileError.message); btn.disabled = false; btn.textContent = 'Crea account gratuitamente'; return }
 
-      const { error: profError } = await _supabase.from('professionals').insert({ user_id: userId, qualifica, centro, citta, attivo: true })
-      if (profError) { showError('Errore salvataggio dati: ' + profError.message); btn.disabled = false; btn.textContent = 'Crea account e accedi'; return }
+      const { error: profError } = await _supabase.from('professionals').insert({ user_id: userId, qualifica, centro, citta, attivo: true, fonte })
+      if (profError) { showError('Errore salvataggio dati: ' + profError.message); btn.disabled = false; btn.textContent = 'Crea account gratuitamente'; return }
 
-      await _supabase.from('invites').update({ usato: true, used_at: new Date().toISOString() }).eq('token', token)
+      if (token) {
+        await _supabase.from('invites').update({ usato: true, used_at: new Date().toISOString() }).eq('token', token)
+      }
 
       document.getElementById('success-email').textContent = email
       document.getElementById('form-state').style.display = 'none'
@@ -140,8 +148,8 @@
     function showError(msg) {
       const el = document.getElementById('error-msg')
       el.textContent = msg; el.style.display = 'block'
-      document.getElementById('reg-btn').disabled = false
-      document.getElementById('reg-btn').textContent = 'Crea account e accedi'
+      const btn = document.getElementById('reg-btn')
+      btn.disabled = false; btn.textContent = 'Crea account gratuitamente'
     }
 
     init()
