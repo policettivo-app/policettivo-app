@@ -421,7 +421,7 @@
           <td style="font-size:11px;color:#666">${email}</td>
           <td style="font-size:11px;color:#666">${telefono}</td>
           <td>${citta}</td>
-          <td>${isPremium ? '<span class="badge-premium">PREMIUM</span>' : '<span class="badge-free">FREE</span>'}</td>
+          <td><span id="badge-${prof.id}" class="${isPremium ? 'badge-premium' : 'badge-free'}">${isPremium ? 'PREMIUM' : 'FREE'}</span></td>
           <td style="font-size:12px;color:#888">${dataReg}</td>
           <td style="text-align:center;font-weight:700;color:#000">${numPazienti}</td>
           <td style="text-align:center;color:#555">${numSessioni}</td>
@@ -429,8 +429,8 @@
           <td style="font-size:12px;color:#888">${ultimaStr}</td>
           <td style="white-space:nowrap">
             ${!isPremium
-              ? `<button class="action-btn premium-on" onclick="attivaPremiump('${prof.id}')">⭐ Attiva Premium</button>`
-              : `<button class="action-btn premium-off" onclick="revocaPremium('${prof.id}')">🔴 Revoca Premium</button>`
+              ? `<button id="btn-piano-${prof.id}" class="action-btn premium-on" onclick="attivaPremiump('${prof.id}')">⭐ Attiva Premium</button>`
+              : `<button id="btn-piano-${prof.id}" class="action-btn premium-off" onclick="revocaPremium('${prof.id}')">🔴 Revoca Premium</button>`
             }
           </td>
         </tr>`
@@ -457,26 +457,33 @@
       </table>`
     }
 
-    async function attivaPremiump(id) {
+    async function attivaPremiump(profId) {
       if (!confirm('Attivare Piano Premium per questo professionista?')) return
       const dataScadenza = new Date()
       dataScadenza.setFullYear(dataScadenza.getFullYear() + 1)
       const { error } = await _supabase
         .from('professionals')
         .update({ piano: 'premium', premium_scadenza: dataScadenza.toISOString() })
-        .eq('id', id)
-      if (error) { alert('Errore: ' + error.message); return }
-      await loadStatsProfessionisti()
+        .eq('id', profId)
+      if (error) { alert(error.message); return }
+      // Aggiorna badge e pulsante nella riga senza ricaricare tutto
+      const badge = document.getElementById('badge-' + profId)
+      if (badge) { badge.className = 'badge-premium'; badge.textContent = 'PREMIUM' }
+      const btn = document.getElementById('btn-piano-' + profId)
+      if (btn) { btn.className = 'action-btn premium-off'; btn.textContent = '🔴 Revoca Premium'; btn.setAttribute('onclick', "revocaPremium('" + profId + "')") }
     }
 
-    async function revocaPremium(id) {
+    async function revocaPremium(profId) {
       if (!confirm('Revocare il Piano Premium? Il professionista tornerà al piano Free.')) return
       const { error } = await _supabase
         .from('professionals')
         .update({ piano: 'free', premium_scadenza: null })
-        .eq('id', id)
-      if (error) { alert('Errore: ' + error.message); return }
-      await loadStatsProfessionisti()
+        .eq('id', profId)
+      if (error) { alert(error.message); return }
+      const badge = document.getElementById('badge-' + profId)
+      if (badge) { badge.className = 'badge-free'; badge.textContent = 'FREE' }
+      const btn = document.getElementById('btn-piano-' + profId)
+      if (btn) { btn.className = 'action-btn premium-on'; btn.textContent = '⭐ Attiva Premium'; btn.setAttribute('onclick', "attivaPremiump('" + profId + "')") }
     }
 
     function esportaCSV() {
@@ -517,7 +524,7 @@
     }
 
     /* ── SIDE PANEL ── */
-    let _panelProfId   = null
+    let currentProfId  = null
     let _panelProfData = null
 
     async function getAdminToken() {
@@ -532,7 +539,7 @@
 
     async function apriPannello(profId) {
       console.log('[apriPannello] chiamata con profId:', profId)
-      _panelProfId = profId
+      currentProfId = profId
 
       const { data: prof, error: profErr } = await _supabase
         .from('professionals')
@@ -547,15 +554,15 @@
       const nome = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : '—'
       document.getElementById('panel-title').textContent = nome || '—'
 
-      document.getElementById('p-nome').value           = prof.profiles?.nome || ''
-      document.getElementById('p-cognome').value        = prof.profiles?.cognome || ''
+      document.getElementById('edit-nome').value           = prof.profiles?.nome || ''
+      document.getElementById('edit-cognome').value        = prof.profiles?.cognome || ''
       document.getElementById('p-email').value          = prof.email || ''
-      document.getElementById('p-qualifica').value      = prof.qualifica || ''
-      document.getElementById('p-centro').value         = prof.centro || ''
-      document.getElementById('p-citta').value          = prof.citta || ''
-      document.getElementById('p-telefono').value       = prof.profiles?.telefono || ''
+      document.getElementById('edit-qualifica').value      = prof.qualifica || ''
+      document.getElementById('edit-centro').value         = prof.centro || ''
+      document.getElementById('edit-citta').value          = prof.citta || ''
+      document.getElementById('edit-telefono').value       = prof.profiles?.telefono || ''
       document.getElementById('p-scadenza').value       = prof.premium_scadenza ? prof.premium_scadenza.split('T')[0] : ''
-      document.getElementById('note-admin-field').value = prof.note_admin || ''
+      document.getElementById('edit-note').value = prof.note_admin || ''
 
       const isPremium = (prof.piano || '').toLowerCase() === 'premium'
       const pianoLabel = document.getElementById('piano-label')
@@ -575,7 +582,7 @@
     function chiudiPannello() {
       document.getElementById('panel-overlay').classList.remove('open')
       document.getElementById('side-panel').classList.remove('open')
-      _panelProfId = null; _panelProfData = null
+      currentProfId = null; _panelProfData = null
     }
 
     async function caricaAttivita(profId) {
@@ -624,68 +631,55 @@
     }
 
     async function salvaModifichePannello() {
-      if (!_panelProfId) return
+      if (!currentProfId) { alert('Errore: nessun professionista selezionato.'); return }
 
-      const nome      = document.getElementById('p-nome').value.trim()
-      const cognome   = document.getElementById('p-cognome').value.trim()
-      const telefono  = document.getElementById('p-telefono').value.trim()
-      const qualifica = document.getElementById('p-qualifica').value.trim()
-      const centro    = document.getElementById('p-centro').value.trim()
-      const citta     = document.getElementById('p-citta').value.trim()
-      const noteAdmin = document.getElementById('note-admin-field').value
+      console.log('[salva] currentProfId:', currentProfId)
 
-      console.log('[salvaModifiche] inizio — profId:', _panelProfId)
-      console.log('[salvaModifiche] valori → nome:', nome, 'cognome:', cognome, 'telefono:', telefono)
-      console.log('[salvaModifiche] valori → qualifica:', qualifica, 'centro:', centro, 'citta:', citta)
+      // Step 1 — leggi user_id fresco dal DB
+      const { data: prof } = await _supabase
+        .from('professionals').select('user_id').eq('id', currentProfId).single()
 
-      const btn = document.querySelector('[onclick="salvaModifichePannello()"]')
-      if (btn) { btn.disabled = true; btn.textContent = 'Salvataggio...' }
+      console.log('[salva] prof:', prof)
+      if (!prof || !prof.user_id) { alert('Errore: user_id non trovato per questo professionista.'); return }
 
-      // Legge user_id fresco dal DB per essere sicuri
-      const { data: profData, error: fetchErr } = await _supabase
-        .from('professionals').select('user_id').eq('id', _panelProfId).single()
-      console.log('[salvaModifiche] profData:', profData, 'fetchErr:', fetchErr)
-
-      if (fetchErr || !profData?.user_id) {
-        alert('Errore: impossibile leggere user_id. ' + (fetchErr?.message || ''))
-        if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
-        return
-      }
-
-      console.log('[salvaModifiche] user_id trovato:', profData.user_id)
-
-      // 1. Aggiorna profiles (nome, cognome, telefono) WHERE id = user_id
-      const { error: profilesErr } = await _supabase
+      // Step 2 — aggiorna profiles (nome, cognome, telefono)
+      const r1 = await _supabase
         .from('profiles')
-        .update({ nome: nome, cognome: cognome, telefono: telefono })
-        .eq('id', profData.user_id)
-      console.log('[salvaModifiche] profiles error:', profilesErr)
-      if (profilesErr) {
-        alert('Errore salvataggio nome/cognome: ' + profilesErr.message)
-        if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
-        return
-      }
+        .update({
+          nome:     document.getElementById('edit-nome').value,
+          cognome:  document.getElementById('edit-cognome').value,
+          telefono: document.getElementById('edit-telefono').value
+        })
+        .eq('id', prof.user_id)
 
-      // 2. Aggiorna professionals (qualifica, centro, citta, note_admin)
-      const { error: profErr } = await _supabase
+      console.log('[salva] r1 profiles:', r1.error)
+
+      // Step 3 — aggiorna professionals (qualifica, centro, citta, note_admin)
+      const r2 = await _supabase
         .from('professionals')
-        .update({ qualifica: qualifica, centro: centro, citta: citta, note_admin: noteAdmin })
-        .eq('id', _panelProfId)
-      console.log('[salvaModifiche] professionals error:', profErr)
-      if (profErr) {
-        alert('Errore salvataggio dati professionista: ' + profErr.message)
-        if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
+        .update({
+          qualifica:  document.getElementById('edit-qualifica').value,
+          centro:     document.getElementById('edit-centro').value,
+          citta:      document.getElementById('edit-citta').value,
+          note_admin: document.getElementById('edit-note').value
+        })
+        .eq('id', currentProfId)
+
+      console.log('[salva] r2 professionals:', r2.error)
+
+      if (r1.error || r2.error) {
+        alert('Errori salvataggio:\nprofiles: ' + (r1.error?.message || 'ok') + '\nprofessionals: ' + (r2.error?.message || 'ok'))
         return
       }
 
-      if (btn) { btn.disabled = false; btn.textContent = '💾 Salva modifiche' }
-      document.getElementById('panel-title').textContent = (nome + ' ' + cognome).trim()
+      const nomeCompleto = document.getElementById('edit-nome').value + ' ' + document.getElementById('edit-cognome').value
+      document.getElementById('panel-title').textContent = nomeCompleto.trim()
       alert('Modifiche salvate ✓')
       loadStatsProfessionisti()
     }
 
     async function eliminaProfessionistaDalPannello() {
-      if (!_panelProfId || !_panelProfData) return
+      if (!currentProfId || !_panelProfData) return
       const nome = document.getElementById('panel-title').textContent
       const ok1 = confirm('Eliminare ' + nome + '?\n\nQuesta azione eliminerà tutti i dati del professionista: pazienti, sedute, protocolli, visite.')
       if (!ok1) return
@@ -702,7 +696,7 @@
       const res = await fetch('/api/admin-delete-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ profId: _panelProfId, userId: profileId })
+        body: JSON.stringify({ profId: currentProfId, userId: profileId })
       })
       const json = await res.json()
 
@@ -718,11 +712,11 @@
     }
 
     async function togglePianoPannello() {
-      if (!_panelProfId) return
+      if (!currentProfId) return
       const isPremium = (_panelProfData?.piano || '').toLowerCase() === 'premium'
       const newPiano  = isPremium ? 'free' : 'premium'
       if (!confirm(isPremium ? 'Revocare il Premium a questo professionista?' : 'Attivare il Premium per questo professionista?')) return
-      const { error } = await _supabase.from('professionals').update({ piano: newPiano }).eq('id', _panelProfId)
+      const { error } = await _supabase.from('professionals').update({ piano: newPiano }).eq('id', currentProfId)
       if (error) { alert('Errore: ' + error.message); return }
       _panelProfData.piano = newPiano
       const nowPrem = newPiano === 'premium'
@@ -735,9 +729,9 @@
     }
 
     async function salvaNote() {
-      if (!_panelProfId) return
-      const note = document.getElementById('note-admin-field').value
-      const { error } = await _supabase.from('professionals').update({ note_admin: note }).eq('id', _panelProfId)
+      if (!currentProfId) return
+      const note = document.getElementById('edit-note').value
+      const { error } = await _supabase.from('professionals').update({ note_admin: note }).eq('id', currentProfId)
       if (error) { alert('Errore: ' + error.message); return }
       alert('Nota salvata ✓')
     }
@@ -768,19 +762,19 @@
       <!-- TAB DATI -->
       <div class="panel-section active" id="tab-dati">
         <div class="p-row">
-          <div><label class="p-label">Nome</label><input class="p-input" id="p-nome" type="text" placeholder="Mario"></div>
-          <div><label class="p-label">Cognome</label><input class="p-input" id="p-cognome" type="text" placeholder="Rossi"></div>
+          <div><label class="p-label">Nome</label><input class="p-input" id="edit-nome" type="text" placeholder="Mario"></div>
+          <div><label class="p-label">Cognome</label><input class="p-input" id="edit-cognome" type="text" placeholder="Rossi"></div>
         </div>
         <label class="p-label">Email</label>
         <input class="p-input" id="p-email" type="email" placeholder="mario@email.it" readonly style="background:#f9f9f9;color:#999">
         <div class="p-row">
-          <div><label class="p-label">Qualifica</label><input class="p-input" id="p-qualifica" type="text" placeholder="Fisioterapista"></div>
-          <div><label class="p-label">Centro / Studio</label><input class="p-input" id="p-centro" type="text" placeholder="Studio X"></div>
+          <div><label class="p-label">Qualifica</label><input class="p-input" id="edit-qualifica" type="text" placeholder="Fisioterapista"></div>
+          <div><label class="p-label">Centro / Studio</label><input class="p-input" id="edit-centro" type="text" placeholder="Studio X"></div>
         </div>
         <label class="p-label">Città</label>
-        <input class="p-input" id="p-citta" type="text" placeholder="Milano">
+        <input class="p-input" id="edit-citta" type="text" placeholder="Milano">
         <label class="p-label">Telefono</label>
-        <input class="p-input" id="p-telefono" type="tel" placeholder="+39 333 1234567">
+        <input class="p-input" id="edit-telefono" type="tel" placeholder="+39 333 1234567">
 
         <div class="piano-toggle-row">
           <strong id="piano-label">Piano: FREE</strong>
@@ -803,7 +797,7 @@
       <!-- TAB NOTE -->
       <div class="panel-section" id="tab-note">
         <p style="font-size:12px;color:#999;margin-bottom:14px">Note private visibili solo all'admin. Non vengono mostrate al professionista.</p>
-        <textarea class="note-field" id="note-admin-field" placeholder="es. Contattato il 10/05, interessato ai cuscini GPL..."></textarea>
+        <textarea class="note-field" id="edit-note" placeholder="es. Contattato il 10/05, interessato ai cuscini GPL..."></textarea>
         <button class="btn-save" style="margin-top:12px" onclick="salvaNote()">💾 Salva nota</button>
       </div>
     </div>
