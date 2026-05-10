@@ -15,6 +15,8 @@
     .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
     .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
     .btn-back:hover { border-color: #FFD008; color: #FFD008; }
+    .btn-nav-icon { background: transparent; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color 0.15s, color 0.15s; flex-shrink: 0; }
+    .btn-nav-icon:hover { border-color: #FFD008; color: #FFD008; }
     .main { max-width: 900px; margin: 0 auto; padding: 36px 24px; }
     .patient-header { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
     .patient-name { font-size: 26px; font-weight: 700; color: #000; }
@@ -279,8 +281,26 @@
       <span class="navbar-logo">POLICETTIVO®</span>
       <span class="navbar-title">Scheda Paziente</span>
     </div>
-    <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn-nav-icon" onclick="window.location.href='dashboard.html'" title="Dashboard">🏠</button>
+      <button class="btn-nav-icon" onclick="apriRicercaPz()" title="Cerca paziente">🔍</button>
+    </div>
   </nav>
+
+  <!-- Modal ricerca rapida paziente -->
+  <div id="search-pz-overlay" onclick="chiudiRicercaPz()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:8000"></div>
+  <div id="search-pz-modal" style="display:none;position:fixed;top:72px;left:50%;transform:translateX(-50%);width:min(480px,calc(100vw - 24px));background:#fff;border-radius:16px;z-index:8001;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.25);font-family:'Montserrat',sans-serif">
+    <div style="background:#000;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <span style="color:#fff;font-size:13px;font-weight:700">🔍 Cerca paziente</span>
+      <button onclick="chiudiRicercaPz()" style="background:none;border:none;color:#888;font-size:18px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div style="padding:16px;max-height:60vh;overflow-y:auto">
+      <input id="search-pz-input" type="search" placeholder="Nome o cognome..." autocomplete="off"
+        style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:10px 14px;font-family:'Montserrat',sans-serif;font-size:14px;outline:none;color:#000;margin-bottom:12px;box-sizing:border-box">
+      <ul id="search-pz-results" style="list-style:none;margin:0;padding:0"></ul>
+      <div id="search-pz-empty" style="display:none;font-size:13px;color:#999;text-align:center;padding:12px 0">Nessun risultato</div>
+    </div>
+  </div>
 
   <div class="main">
     <div class="patient-header">
@@ -1462,6 +1482,60 @@
       win.document.close()
     }
 
+    // ── Ricerca rapida paziente ───────────────────────────
+
+    function apriRicercaPz() {
+      document.getElementById('search-pz-modal').style.display = 'block'
+      document.getElementById('search-pz-overlay').style.display = 'block'
+      setTimeout(() => document.getElementById('search-pz-input')?.focus(), 80)
+    }
+
+    function chiudiRicercaPz() {
+      document.getElementById('search-pz-modal').style.display = 'none'
+      document.getElementById('search-pz-overlay').style.display = 'none'
+    }
+
+    ;(function () {
+      let debTimer = null
+      const setupSearch = () => {
+        const input = document.getElementById('search-pz-input')
+        if (!input) return
+        input.addEventListener('input', () => {
+          clearTimeout(debTimer)
+          debTimer = setTimeout(() => runSearchPz(input.value.trim()), 280)
+        })
+        input.addEventListener('keydown', e => { if (e.key === 'Escape') chiudiRicercaPz() })
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupSearch)
+      else setupSearch()
+    })()
+
+    async function runSearchPz(q) {
+      const list  = document.getElementById('search-pz-results')
+      const empty = document.getElementById('search-pz-empty')
+      if (!list) return
+      list.innerHTML = ''
+      empty.style.display = 'none'
+      if (q.length < 2) return
+      const { data } = await _supabase
+        .from('patients')
+        .select('id, nome, cognome, problema_principale')
+        .or(`nome.ilike.%${q}%,cognome.ilike.%${q}%`)
+        .limit(10)
+      if (!data || !data.length) { empty.style.display = 'block'; return }
+      data.forEach(p => {
+        const li = document.createElement('li')
+        li.style.cssText = 'padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:#000;border:1px solid #f0f0f0;margin-bottom:6px;transition:background 0.1s,border-color 0.1s'
+        li.innerHTML = `<strong>${p.nome} ${p.cognome}</strong>${p.problema_principale ? '<br><span style="font-size:11px;color:#999">' + p.problema_principale + '</span>' : ''}`
+        li.onmouseover = () => { li.style.background = '#fffdf0'; li.style.borderColor = '#FFD008' }
+        li.onmouseout  = () => { li.style.background = '';        li.style.borderColor = '#f0f0f0' }
+        li.onclick = () => { window.location.href = 'paziente.html?id=' + p.id }
+        list.appendChild(li)
+      })
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') chiudiRicercaPz() })
+
     init()
   </script>
 
@@ -1503,8 +1577,5 @@
     <button id="camera-close-btn" onclick="chiudiCameraModal()">&#x2715;</button>
     <button id="camera-gallery-btn" onclick="apriGalleria()">&#x1F5BC; Galleria</button>
     <button id="camera-shutter-btn" onclick="scattaFoto()"></button>
-  </div>
-
-  <script src="console-nav.js"></script>
-</body>
+  </div></body>
 </html>
