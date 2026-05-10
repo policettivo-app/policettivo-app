@@ -109,8 +109,11 @@
     .foto-slot-v.has-photo { border-style: solid; border-color: #2a2a2a; padding: 0; }
     .foto-slot-v img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .slot-label-v { font-size: 9px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; margin-bottom: 5px; }
-    .slot-icon-v { font-size: 22px; margin-bottom: 3px; }
-    .slot-overlay-v { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.65); text-align: center; font-size: 10px; font-weight: 700; color: #fff; padding: 5px; cursor: pointer; }
+    .slot-icon-v { font-size: 22px; margin-bottom: 8px; }
+    .slot-btns-v { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 0 10px; }
+    .slot-btn-v { background: rgba(255,255,255,0.07); border: 1px solid #333; color: #ccc; border-radius: 6px; padding: 6px 4px; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; width: 100%; transition: background 0.15s, border-color 0.15s; }
+    .slot-btn-v:hover { background: rgba(255,208,8,0.12); border-color: #FFD008; color: #FFD008; }
+    .slot-overlay-v { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.75); display: flex; gap: 6px; justify-content: center; padding: 8px; }
 
     /* AI result */
     .btn-ai-visita {
@@ -196,13 +199,21 @@
       <!-- Foto sagittale -->
       <div class="foto-section-label">Piano Sagittale</div>
       <div class="foto-grid-2">
-        <div class="foto-slot-v" id="nv-slot-sag-sx" onclick="apriFotoSlot('sag-sx')">
+        <div class="foto-slot-v" id="nv-slot-sag-sx">
           <div class="slot-label-v">Sinistro</div>
           <div class="slot-icon-v">📷</div>
+          <div class="slot-btns-v">
+            <button class="slot-btn-v" onclick="apriCamSlot('sag-sx')">📷 Fotocamera</button>
+            <button class="slot-btn-v" onclick="apriGalleriaSlot('sag-sx')">🖼 Galleria</button>
+          </div>
         </div>
-        <div class="foto-slot-v" id="nv-slot-sag-dx" onclick="apriFotoSlot('sag-dx')">
+        <div class="foto-slot-v" id="nv-slot-sag-dx">
           <div class="slot-label-v">Destro</div>
           <div class="slot-icon-v">📷</div>
+          <div class="slot-btns-v">
+            <button class="slot-btn-v" onclick="apriCamSlot('sag-dx')">📷 Fotocamera</button>
+            <button class="slot-btn-v" onclick="apriGalleriaSlot('sag-dx')">🖼 Galleria</button>
+          </div>
         </div>
       </div>
       <div class="foto-note-grid">
@@ -213,13 +224,21 @@
       <!-- Foto frontale -->
       <div class="foto-section-label">Piano Frontale e Posteriore <span style="color:#555;font-size:9px">(facoltativo)</span></div>
       <div class="foto-grid-2">
-        <div class="foto-slot-v" id="nv-slot-frontale" onclick="apriFotoSlot('frontale')">
+        <div class="foto-slot-v" id="nv-slot-frontale">
           <div class="slot-label-v">Frontale</div>
           <div class="slot-icon-v">📷</div>
+          <div class="slot-btns-v">
+            <button class="slot-btn-v" onclick="apriCamSlot('frontale')">📷 Fotocamera</button>
+            <button class="slot-btn-v" onclick="apriGalleriaSlot('frontale')">🖼 Galleria</button>
+          </div>
         </div>
-        <div class="foto-slot-v" id="nv-slot-posteriore" onclick="apriFotoSlot('posteriore')">
+        <div class="foto-slot-v" id="nv-slot-posteriore">
           <div class="slot-label-v">Posteriore</div>
           <div class="slot-icon-v">📷</div>
+          <div class="slot-btns-v">
+            <button class="slot-btn-v" onclick="apriCamSlot('posteriore')">📷 Fotocamera</button>
+            <button class="slot-btn-v" onclick="apriGalleriaSlot('posteriore')">🖼 Galleria</button>
+          </div>
         </div>
       </div>
       <div class="foto-note-grid">
@@ -230,13 +249,21 @@
       <!-- Foto podoscopica -->
       <div class="foto-section-label">Podoscopica <span style="color:#555;font-size:9px">(facoltativo)</span></div>
       <div class="foto-grid-2">
-        <div class="foto-slot-v" id="nv-slot-podo-sotto" onclick="apriFotoSlot('podo-sotto')">
+        <div class="foto-slot-v" id="nv-slot-podo-sotto">
           <div class="slot-label-v">Piede da sotto</div>
           <div class="slot-icon-v">🦶</div>
+          <div class="slot-btns-v">
+            <button class="slot-btn-v" onclick="apriCamSlot('podo-sotto')">📷 Fotocamera</button>
+            <button class="slot-btn-v" onclick="apriGalleriaSlot('podo-sotto')">🖼 Galleria</button>
+          </div>
         </div>
-        <div class="foto-slot-v" id="nv-slot-podo-dietro" onclick="apriFotoSlot('podo-dietro')">
+        <div class="foto-slot-v" id="nv-slot-podo-dietro">
           <div class="slot-label-v">Piede da dietro</div>
           <div class="slot-icon-v">🦶</div>
+          <div class="slot-btns-v">
+            <button class="slot-btn-v" onclick="apriCamSlot('podo-dietro')">📷 Fotocamera</button>
+            <button class="slot-btn-v" onclick="apriGalleriaSlot('podo-dietro')">🖼 Galleria</button>
+          </div>
         </div>
       </div>
 
@@ -492,8 +519,15 @@
         const el = document.getElementById('nv-slot-' + s)
         if (!el) return
         el.classList.remove('has-photo')
-        el.innerHTML = `<div class="slot-label-v">${slotDefaultLabel(s)}</div><div class="slot-icon-v">${s.startsWith('podo') ? '🦶' : '📷'}</div>`
-        el.onclick = () => apriFotoSlot(s)
+        el.onclick = null
+        const icon = s.startsWith('podo') ? '🦶' : '📷'
+        el.innerHTML = `
+          <div class="slot-label-v">${slotDefaultLabel(s)}</div>
+          <div class="slot-icon-v">${icon}</div>
+          <div class="slot-btns-v">
+            <button class="slot-btn-v" onclick="apriCamSlot('${s}')">📷 Fotocamera</button>
+            <button class="slot-btn-v" onclick="apriGalleriaSlot('${s}')">🖼 Galleria</button>
+          </div>`
       });
       ['sag-sx','sag-dx','frontale','posteriore'].forEach(s => {
         const n = document.getElementById('nv-note-' + s)
@@ -508,20 +542,36 @@
 
     // ── Foto handling (new visit) ─────────────────────────
 
-    function apriFotoSlot(slot) {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        apriCam(slot)
-      } else {
-        document.getElementById('nv-input-' + slot)?.click()
-      }
+    function apriCamSlot(slot) {
+      apriCam(slot)
     }
 
-    function handleNVFoto(slot, input) {
+    function apriGalleriaSlot(slot) {
+      document.getElementById('nv-input-' + slot)?.click()
+    }
+
+    async function uploadToStorage(slot, blob) {
+      const path = `visits/${patientId}/${slot}-${Date.now()}.jpg`
+      const { error } = await _supabase.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+      if (error) throw error
+      const { data } = _supabase.storage.from('clinical-docs').getPublicUrl(path)
+      return data.publicUrl
+    }
+
+    async function handleNVFoto(slot, input) {
       const file = input.files[0]; if (!file) return
       const reader = new FileReader()
       reader.onload = e => {
-        resizeNV(e.target.result, 1200, 1600, dataUrl => {
-          setSlotPhoto(slot, dataUrl)
+        resizeNV(e.target.result, 1200, 1600, async dataUrl => {
+          try {
+            const res  = await fetch(dataUrl)
+            const blob = await res.blob()
+            const url  = await uploadToStorage(slot, blob)
+            setSlotPhoto(slot, url)
+          } catch(e) {
+            console.warn('Upload storage fallback:', e.message)
+            setSlotPhoto(slot, dataUrl)
+          }
         })
       }
       reader.readAsDataURL(file)
@@ -539,14 +589,18 @@
       img.src = src
     }
 
-    function setSlotPhoto(slot, dataUrl) {
-      nvFotos[slot] = dataUrl
+    function setSlotPhoto(slot, url) {
+      nvFotos[slot] = url
       const el = document.getElementById('nv-slot-' + slot)
       if (!el) return
       el.classList.add('has-photo')
-      el.innerHTML = `<img src="${dataUrl}" alt="${slot}"><div class="slot-overlay-v" onclick="event.stopPropagation();apriFotoSlot('${slot}')">Cambia</div>`
       el.onclick = null
-      // Show AI button if at least one sagittal photo loaded
+      el.innerHTML = `
+        <img src="${url}" alt="${slot}" style="width:100%;height:100%;object-fit:cover;display:block">
+        <div class="slot-overlay-v">
+          <button style="background:rgba(0,0,0,0.8);border:1px solid #555;color:#fff;border-radius:5px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif" onclick="event.stopPropagation();apriCamSlot('${slot}')">📷</button>
+          <button style="background:rgba(0,0,0,0.8);border:1px solid #555;color:#fff;border-radius:5px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif" onclick="event.stopPropagation();apriGalleriaSlot('${slot}')">🖼</button>
+        </div>`
       if (nvFotos['sag-sx'] || nvFotos['sag-dx']) {
         document.getElementById('btn-ai-visita').classList.add('visible')
       }
@@ -705,12 +759,21 @@
       const slot = _camSlot
       chiudiCam()
       const tmp = new Image()
-      tmp.onload = () => {
+      tmp.onload = async () => {
         let w = tmp.width, h = tmp.height
         if (w > 1200 || h > 1600) { const r = Math.min(1200/w, 1600/h); w = Math.round(w*r); h = Math.round(h*r) }
         const c = document.createElement('canvas'); c.width = w; c.height = h
         c.getContext('2d').drawImage(tmp, 0, 0, w, h)
-        setSlotPhoto(slot, c.toDataURL('image/jpeg', 0.82))
+        const dataUrl = c.toDataURL('image/jpeg', 0.82)
+        try {
+          const res  = await fetch(dataUrl)
+          const blob = await res.blob()
+          const url  = await uploadToStorage(slot, blob)
+          setSlotPhoto(slot, url)
+        } catch(e) {
+          console.warn('Upload storage fallback:', e.message)
+          setSlotPhoto(slot, dataUrl)
+        }
       }
       tmp.src = raw.toDataURL()
     }
