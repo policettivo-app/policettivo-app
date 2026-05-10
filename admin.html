@@ -407,7 +407,7 @@
       const rows = data.map(({ prof, numPazienti, numVisite, numSessioni, ultimaAttivita }) => {
         const nome      = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : '—'
         const email     = escHtml(prof.email || '—')
-        const telefono  = escHtml(prof.profiles?.telefono || '—')
+        const telefono  = escHtml(prof.telefono || '—')
         const citta     = escHtml(prof.citta || '—')
         const piano     = (prof.piano || 'free').toLowerCase()
         const isPremium = piano === 'premium'
@@ -481,7 +481,7 @@
         const vals = [
           nome,
           prof.email || '',
-          prof.profiles?.telefono || '',
+          prof.telefono || '',
           prof.qualifica || '',
           prof.centro || '',
           prof.citta || '',
@@ -537,7 +537,7 @@
       document.getElementById('p-qualifica').value      = prof.qualifica || ''
       document.getElementById('p-centro').value         = prof.centro || ''
       document.getElementById('p-citta').value          = prof.citta || ''
-      document.getElementById('p-telefono').value       = prof.profiles?.telefono || ''
+      document.getElementById('p-telefono').value       = prof.telefono || ''
       document.getElementById('p-scadenza').value       = prof.premium_scadenza ? prof.premium_scadenza.split('T')[0] : ''
       document.getElementById('note-admin-field').value = prof.note_admin || ''
 
@@ -609,23 +609,32 @@
 
     async function salvaModifichePannello() {
       if (!_panelProfId || !_panelProfData) return
-      const nome      = document.getElementById('p-nome').value.trim()
-      const cognome   = document.getElementById('p-cognome').value.trim()
-      const qualifica = document.getElementById('p-qualifica').value.trim()
-      const centro    = document.getElementById('p-centro').value.trim()
-      const citta     = document.getElementById('p-citta').value.trim()
-      const telefono  = document.getElementById('p-telefono').value.trim()
-      const scadenza  = document.getElementById('p-scadenza').value
 
-      const profUpd = { qualifica, centro, citta }
+      const nome       = document.getElementById('p-nome').value.trim()
+      const cognome    = document.getElementById('p-cognome').value.trim()
+      const qualifica  = document.getElementById('p-qualifica').value.trim()
+      const centro     = document.getElementById('p-centro').value.trim()
+      const citta      = document.getElementById('p-citta').value.trim()
+      const telefono   = document.getElementById('p-telefono').value.trim()
+      const scadenza   = document.getElementById('p-scadenza').value
+      const piano      = _panelProfData.piano || 'free'
+      const note_admin = document.getElementById('note-admin-field').value
+
+      const profUpd = { qualifica, centro, citta, telefono, piano, note_admin }
       if (scadenza) profUpd.premium_scadenza = scadenza
+
+      // user_id è sulla tabella professionals; profiles.id è lo stesso valore
+      const userId = _panelProfData.user_id || _panelProfData.profiles?.id
+      if (!userId) { alert('Errore: impossibile identificare l\'utente (user_id mancante).'); return }
 
       const [r1, r2] = await Promise.all([
         _supabase.from('professionals').update(profUpd).eq('id', _panelProfId),
-        _supabase.from('profiles').update({ nome, cognome, telefono }).eq('id', _panelProfData.user_id)
+        _supabase.from('profiles').update({ nome, cognome }).eq('id', userId)
       ])
 
-      if (r1.error || r2.error) { alert('Errore: ' + (r1.error?.message || r2.error?.message)); return }
+      if (r1.error) { alert('Errore aggiornamento professionals: ' + r1.error.message); return }
+      if (r2.error) { alert('Errore aggiornamento profiles: ' + r2.error.message); return }
+
       document.getElementById('panel-title').textContent = (nome + ' ' + cognome).trim()
       alert('Modifiche salvate ✓')
       loadStatsProfessionisti()
