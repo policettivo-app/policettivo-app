@@ -336,7 +336,7 @@
       <div class="premium-icon">⭐</div>
       <div class="premium-title">Funzione Premium</div>
       <div class="premium-desc">Questa funzionalità è disponibile solo per gli abbonati Premium. Aggiorna il tuo piano per accedere a AI avanzata e stampa PDF professionale.</div>
-      <button class="btn-premium-cta" onclick="window.location.href='dashboard.html'">Scopri Premium</button>
+      <button class="btn-premium-cta" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
       <button class="btn-premium-close" onclick="chiudiModalePremium()">Non ora</button>
     </div>
   </div>
@@ -391,6 +391,8 @@
 
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
+
+      if (session.user.email === 'appuntamentimft@gmail.com') window.isPremium = true
 
       const [{ data: p }, { data: prof }] = await Promise.all([
         _supabase.from('patients').select('nome, cognome, problema_principale, note_cliniche').eq('id', patientId).single(),
