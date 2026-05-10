@@ -151,6 +151,16 @@
     /* ── Camera Modal + Livella ── */
     #camera-modal { display: none; position: fixed; inset: 0; z-index: 2000; background: #000; }
     #camera-modal.open { display: block; }
+    .referto-scan-box { background: #000; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+    .referto-scan-title { color: #FFD008; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .referto-scan-sub { color: #aaa; font-size: 11px; line-height: 1.5; margin-bottom: 12px; }
+    .referto-scan-btns { display: flex; gap: 8px; }
+    .btn-scan { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 8px; padding: 10px 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color 0.15s; }
+    .btn-scan:hover { border-color: #FFD008; }
+    .referto-scan-loading { display: none; text-align: center; padding: 12px 0; color: #aaa; font-size: 12px; margin-top: 8px; }
+    .referto-scan-ok { display: none; background: #0a2a0a; border: 1px solid #2a6a2a; border-radius: 8px; padding: 8px 12px; margin-top: 8px; color: #7dda7d; font-size: 11px; font-weight: 700; }
+    .referto-extra { display: none; background: #111; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: 11px; color: #ccc; line-height: 1.8; }
+    .referto-extra-title { color: #FFD008; font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-bottom: 6px; }
     #camera-video { width: 100%; height: 100%; object-fit: cover; display: block; }
     #livella-wrap {
       position: absolute; inset: 0; pointer-events: none;
@@ -324,6 +334,25 @@
       </div>
       <div class="note-box" id="info-note" style="display:none"></div>
       <div class="edit-form" id="edit-form">
+        <div class="referto-scan-box">
+          <div class="referto-scan-title">
+            📄 <span>Scansiona referto o documento</span>
+            <span style="background:#FFD008;color:#000;padding:2px 7px;border-radius:4px;font-size:10px">PREMIUM</span>
+          </div>
+          <div class="referto-scan-sub">Fotografa un documento medico: l'AI compila automaticamente nome, diagnosi e dati clinici.</div>
+          <div class="referto-scan-btns">
+            <button class="btn-scan" onclick="apriCamRefertoP()">📷 Fotocamera</button>
+            <button class="btn-scan" onclick="apriGalleriaRefertoP()">🖼 Galleria</button>
+          </div>
+          <div class="referto-scan-loading" id="referto-scan-loading-p">⏳ Analisi documento in corso...</div>
+          <div class="referto-scan-ok" id="referto-scan-ok-p">✓ Dati estratti — verifica e completa i campi qui sotto</div>
+          <div class="referto-extra" id="referto-extra-p">
+            <div class="referto-extra-title">DATI AGGIUNTIVI DAL DOCUMENTO</div>
+            <div id="referto-extra-content-p"></div>
+          </div>
+          <input type="file" id="referto-cam-input-p" accept="image/*" capture="environment" style="display:none" onchange="handleRefertoFileP(this)">
+          <input type="file" id="referto-gal-input-p" accept="image/*" style="display:none" onchange="handleRefertoFileP(this)">
+        </div>
         <div class="edit-grid">
           <div class="edit-group"><label>Nome</label><input id="edit-nome" type="text"></div>
           <div class="edit-group"><label>Cognome</label><input id="edit-cognome" type="text"></div>
@@ -1535,6 +1564,63 @@
     }
 
     document.addEventListener('keydown', e => { if (e.key === 'Escape') chiudiRicercaPz() })
+
+    function apriCamRefertoP() {
+      if (!window.isPremium) { mostraModalePremium(); return }
+      document.getElementById('referto-cam-input-p').click()
+    }
+    function apriGalleriaRefertoP() {
+      if (!window.isPremium) { mostraModalePremium(); return }
+      document.getElementById('referto-gal-input-p').click()
+    }
+    function handleRefertoFileP(input) {
+      const file = input.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = function(e) {
+        analizzaRefertoP(e.target.result.split(',')[1], file.type || 'image/jpeg')
+      }
+      reader.readAsDataURL(file)
+      input.value = ''
+    }
+    async function analizzaRefertoP(base64, mediaType) {
+      const loading = document.getElementById('referto-scan-loading-p')
+      const ok      = document.getElementById('referto-scan-ok-p')
+      const extra   = document.getElementById('referto-extra-p')
+      loading.style.display = 'block'
+      ok.style.display = 'none'
+      extra.style.display = 'none'
+      try {
+        const res  = await fetch('/api/analisi-referto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: { data: base64, type: mediaType } })
+        })
+        const json = await res.json()
+        if (json.dati) compileEditFormFromReferto(json.dati)
+        ok.style.display = 'block'
+      } catch(e) {
+        alert('Errore analisi referto: ' + e.message)
+      } finally {
+        loading.style.display = 'none'
+      }
+    }
+    function compileEditFormFromReferto(dati) {
+      if (dati.nome)               document.getElementById('edit-nome').value    = dati.nome
+      if (dati.cognome)            document.getElementById('edit-cognome').value  = dati.cognome
+      if (dati.diagnosi_principale) document.getElementById('edit-problema').value = dati.diagnosi_principale
+      const extras = []
+      if (dati.data_nascita)   extras.push('<strong>Nato/a il:</strong> ' + dati.data_nascita)
+      if (dati.codice_fiscale) extras.push('<strong>C.F.:</strong> ' + dati.codice_fiscale)
+      if (dati.patologie)      extras.push('<strong>Patologie:</strong> ' + dati.patologie)
+      if (dati.farmaci)        extras.push('<strong>Farmaci:</strong> ' + dati.farmaci)
+      if (dati.note_cliniche)  extras.push('<strong>Note:</strong> ' + dati.note_cliniche)
+      if (dati.medico_curante) extras.push('<strong>Medico curante:</strong> ' + dati.medico_curante)
+      if (extras.length > 0) {
+        document.getElementById('referto-extra-content-p').innerHTML = extras.join('<br>')
+        document.getElementById('referto-extra-p').style.display = 'block'
+      }
+    }
 
     init()
   </script>
