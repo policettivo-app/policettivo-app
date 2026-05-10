@@ -398,7 +398,7 @@
       ])
       if (!p) { alert('Paziente non trovato'); return }
       patient = p
-      window.isPremium = prof?.subscription_status === 'premium'
+      window.isPremium = prof?.subscription_status === 'premium' || session.user.email === 'appuntamentimft@gmail.com'
       document.getElementById('nav-title').textContent = p.nome + ' ' + p.cognome + ' — Visite'
       document.getElementById('btn-back').onclick = () => { window.location.href = 'paziente.html?id=' + patientId }
 
