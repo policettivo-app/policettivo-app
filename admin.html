@@ -407,6 +407,7 @@
       const rows = data.map(({ prof, numPazienti, numVisite, numSessioni, ultimaAttivita }) => {
         const nome      = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : '—'
         const email     = escHtml(prof.email || '—')
+        const telefono  = escHtml(prof.profiles?.telefono || '—')
         const citta     = escHtml(prof.citta || '—')
         const piano     = (prof.piano || 'free').toLowerCase()
         const isPremium = piano === 'premium'
@@ -418,6 +419,7 @@
           <td style="text-align:center;font-size:16px">${dot}</td>
           <td><strong class="name-link" onclick="apriPannello('${prof.id}')">${escHtml(nome)}</strong></td>
           <td style="font-size:11px;color:#666">${email}</td>
+          <td style="font-size:11px;color:#666">${telefono}</td>
           <td>${citta}</td>
           <td>${isPremium ? '<span class="badge-premium">PREMIUM</span>' : '<span class="badge-free">FREE</span>'}</td>
           <td style="font-size:12px;color:#888">${dataReg}</td>
@@ -440,6 +442,7 @@
             <th style="text-align:center">Stato</th>
             <th>Nome</th>
             <th>Email</th>
+            <th>Telefono</th>
             <th>Città</th>
             <th>Piano</th>
             <th>Registrato</th>
@@ -470,7 +473,7 @@
 
     function esportaCSV() {
       if (!_statsCache || _statsCache.length === 0) { alert('Carica prima le statistiche.'); return }
-      const headers = ['Nome', 'Email', 'Qualifica', 'Centro', 'Città', 'Piano', 'Fonte', 'Data registrazione', 'Pazienti attivi', 'Sessioni totali', 'Visite totali', 'Ultima attività', 'Indicatore']
+      const headers = ['Nome', 'Email', 'Telefono', 'Qualifica', 'Centro', 'Città', 'Piano', 'Fonte', 'Data registrazione', 'Pazienti attivi', 'Sessioni totali', 'Visite totali', 'Ultima attività', 'Indicatore']
       const csvRows = _statsCache.map(({ prof, numPazienti, numVisite, numSessioni, ultimaAttivita }) => {
         const nome      = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : ''
         const days      = ultimaAttivita ? Math.floor((Date.now() - ultimaAttivita.getTime()) / (1000 * 60 * 60 * 24)) : 999
@@ -478,6 +481,7 @@
         const vals = [
           nome,
           prof.email || '',
+          prof.profiles?.telefono || '',
           prof.qualifica || '',
           prof.centro || '',
           prof.citta || '',
@@ -533,6 +537,7 @@
       document.getElementById('p-qualifica').value      = prof.qualifica || ''
       document.getElementById('p-centro').value         = prof.centro || ''
       document.getElementById('p-citta').value          = prof.citta || ''
+      document.getElementById('p-telefono').value       = prof.profiles?.telefono || ''
       document.getElementById('p-scadenza').value       = prof.premium_scadenza ? prof.premium_scadenza.split('T')[0] : ''
       document.getElementById('note-admin-field').value = prof.note_admin || ''
 
@@ -604,19 +609,20 @@
 
     async function salvaModifichePannello() {
       if (!_panelProfId || !_panelProfData) return
-      const nome     = document.getElementById('p-nome').value.trim()
-      const cognome  = document.getElementById('p-cognome').value.trim()
+      const nome      = document.getElementById('p-nome').value.trim()
+      const cognome   = document.getElementById('p-cognome').value.trim()
       const qualifica = document.getElementById('p-qualifica').value.trim()
-      const centro   = document.getElementById('p-centro').value.trim()
-      const citta    = document.getElementById('p-citta').value.trim()
-      const scadenza = document.getElementById('p-scadenza').value
+      const centro    = document.getElementById('p-centro').value.trim()
+      const citta     = document.getElementById('p-citta').value.trim()
+      const telefono  = document.getElementById('p-telefono').value.trim()
+      const scadenza  = document.getElementById('p-scadenza').value
 
       const profUpd = { qualifica, centro, citta }
       if (scadenza) profUpd.premium_scadenza = scadenza
 
       const [r1, r2] = await Promise.all([
         _supabase.from('professionals').update(profUpd).eq('id', _panelProfId),
-        _supabase.from('profiles').update({ nome, cognome }).eq('id', _panelProfData.user_id)
+        _supabase.from('profiles').update({ nome, cognome, telefono }).eq('id', _panelProfData.user_id)
       ])
 
       if (r1.error || r2.error) { alert('Errore: ' + (r1.error?.message || r2.error?.message)); return }
@@ -687,6 +693,8 @@
         </div>
         <label class="p-label">Città</label>
         <input class="p-input" id="p-citta" type="text" placeholder="Milano">
+        <label class="p-label">Telefono</label>
+        <input class="p-input" id="p-telefono" type="tel" placeholder="+39 333 1234567">
 
         <div class="piano-toggle-row">
           <strong id="piano-label">Piano: FREE</strong>
