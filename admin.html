@@ -58,6 +58,43 @@
     .action-btn.premium-off { border-color: #ffcdd2; color: #c62828; }
     .legend-row { display: flex; gap: 20px; flex-wrap: wrap; font-size: 11px; color: #666; margin-bottom: 14px; }
     .legend-row span { display: flex; align-items: center; gap: 4px; }
+    /* Side panel */
+    .panel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; }
+    .panel-overlay.open { display: block; }
+    .side-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 500px; max-width: 100vw; background: #fff; z-index: 1001; overflow-y: auto; transform: translateX(100%); transition: transform 0.3s ease; box-shadow: -4px 0 32px rgba(0,0,0,0.25); }
+    .side-panel.open { transform: translateX(0); }
+    .panel-header { background: #000; color: #fff; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .panel-header h2 { font-size: 15px; font-weight: 700; margin: 0; }
+    .panel-close { background: transparent; border: 1px solid #444; color: #fff; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    .panel-body { padding: 24px; }
+    .panel-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 24px; }
+    .panel-tab { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #999; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.15s; }
+    .panel-tab.active { color: #000; border-bottom-color: #FFD008; }
+    .panel-section { display: none; }
+    .panel-section.active { display: block; }
+    .p-label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
+    .p-input { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; margin-bottom: 14px; outline: none; color: #000; }
+    .p-input:focus { border-color: #FFD008; }
+    .p-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .btn-save { width: 100%; padding: 14px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+    .btn-save:hover { background: #e6bc00; }
+    .btn-view-as { width: 100%; padding: 12px; background: #000; color: #fff; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .btn-view-as:hover { background: #222; }
+    .piano-toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 14px; background: #f9f9f9; border-radius: 10px; border: 1px solid #eee; }
+    .piano-toggle-row strong { flex: 1; font-size: 13px; }
+    .btn-toggle-piano { padding: 8px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border: none; }
+    .act-count-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .act-count-box { background: #f5f5f5; border-radius: 10px; padding: 14px; text-align: center; }
+    .act-count-num { font-size: 26px; font-weight: 700; color: #000; }
+    .act-count-lbl { font-size: 11px; color: #999; margin-top: 2px; }
+    .act-section-title { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 18px 0 8px; }
+    .act-item { padding: 9px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+    .act-item:last-child { border-bottom: none; }
+    .act-item-date { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .note-field { width: 100%; padding: 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; resize: vertical; min-height: 150px; outline: none; color: #333; line-height: 1.6; }
+    .note-field:focus { border-color: #FFD008; }
+    .name-link { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+    .name-link:hover { color: #b8960a; }
   </style>
 </head>
 <body>
@@ -379,7 +416,7 @@
 
         return `<tr>
           <td style="text-align:center;font-size:16px">${dot}</td>
-          <td><strong>${escHtml(nome)}</strong></td>
+          <td><strong class="name-link" onclick="apriPannello('${prof.id}')">${escHtml(nome)}</strong></td>
           <td style="font-size:11px;color:#666">${email}</td>
           <td>${citta}</td>
           <td>${isPremium ? '<span class="badge-premium">PREMIUM</span>' : '<span class="badge-free">FREE</span>'}</td>
@@ -467,8 +504,216 @@
       URL.revokeObjectURL(url)
     }
 
+    /* ── SIDE PANEL ── */
+    let _panelProfId   = null
+    let _panelProfData = null
+
+    function switchTab(name) {
+      document.querySelectorAll('.panel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name))
+      document.querySelectorAll('.panel-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name))
+    }
+
+    async function apriPannello(profId) {
+      _panelProfId = profId
+
+      const { data: prof } = await _supabase
+        .from('professionals')
+        .select('*, profiles(*)')
+        .eq('id', profId)
+        .single()
+      if (!prof) return
+      _panelProfData = prof
+
+      const nome = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : '—'
+      document.getElementById('panel-title').textContent = nome || '—'
+
+      document.getElementById('p-nome').value           = prof.profiles?.nome || ''
+      document.getElementById('p-cognome').value        = prof.profiles?.cognome || ''
+      document.getElementById('p-email').value          = prof.email || ''
+      document.getElementById('p-qualifica').value      = prof.qualifica || ''
+      document.getElementById('p-centro').value         = prof.centro || ''
+      document.getElementById('p-citta').value          = prof.citta || ''
+      document.getElementById('p-scadenza').value       = prof.premium_scadenza ? prof.premium_scadenza.split('T')[0] : ''
+      document.getElementById('note-admin-field').value = prof.note_admin || ''
+
+      const isPremium = (prof.piano || '').toLowerCase() === 'premium'
+      const pianoLabel = document.getElementById('piano-label')
+      pianoLabel.textContent = 'Piano: ' + (isPremium ? 'PREMIUM ⭐' : 'FREE')
+      const btnP = document.getElementById('btn-toggle-piano')
+      btnP.textContent       = isPremium ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
+      btnP.style.background  = isPremium ? '#ffebee' : '#FFD008'
+      btnP.style.color       = isPremium ? '#c62828' : '#000'
+
+      switchTab('dati')
+      document.getElementById('panel-overlay').classList.add('open')
+      document.getElementById('side-panel').classList.add('open')
+
+      caricaAttivita(profId)
+    }
+
+    function chiudiPannello() {
+      document.getElementById('panel-overlay').classList.remove('open')
+      document.getElementById('side-panel').classList.remove('open')
+      _panelProfId = null; _panelProfData = null
+    }
+
+    async function caricaAttivita(profId) {
+      const actEl = document.getElementById('tab-attivita')
+      actEl.innerHTML = '<div class="empty-state">Caricamento...</div>'
+
+      const cached = _statsCache.find(s => s.prof.id === profId)
+
+      const { data: pats } = await _supabase
+        .from('patients').select('id,nome,cognome,created_at')
+        .eq('professional_id', profId)
+        .order('created_at', { ascending: false }).limit(10)
+
+      const patIds = (pats || []).map(p => p.id)
+      const patMap = {}
+      ;(pats || []).forEach(p => { patMap[p.id] = escHtml((p.nome || '') + ' ' + (p.cognome || '')) })
+
+      let sessioni = [], visite = []
+      if (patIds.length > 0) {
+        const [sR, vR] = await Promise.all([
+          _supabase.from('diary_entries').select('id,patient_id,created_at').in('patient_id', patIds).order('created_at', { ascending: false }).limit(10),
+          _supabase.from('visite').select('id,patient_id,created_at,tipo').in('patient_id', patIds).order('created_at', { ascending: false }).limit(5)
+        ])
+        sessioni = sR.data || []
+        visite   = vR.data || []
+      }
+
+      const totP = cached?.numPazienti ?? (pats?.length ?? 0)
+      const totS = cached?.numSessioni ?? 0
+      const totV = cached?.numVisite   ?? 0
+
+      const fmtDate = d => d ? new Date(d).toLocaleDateString('it-IT') : '—'
+
+      actEl.innerHTML = `
+        <div class="act-count-grid">
+          <div class="act-count-box"><div class="act-count-num">${totP}</div><div class="act-count-lbl">Pazienti</div></div>
+          <div class="act-count-box"><div class="act-count-num">${totS}</div><div class="act-count-lbl">Sessioni</div></div>
+          <div class="act-count-box"><div class="act-count-num">${totV}</div><div class="act-count-lbl">Visite</div></div>
+        </div>
+        <div class="act-section-title">👥 Ultimi pazienti aggiunti</div>
+        ${pats && pats.length ? pats.map(p => `<div class="act-item"><div>${patMap[p.id]}</div><div class="act-item-date">${fmtDate(p.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessun paziente.</div>'}
+        <div class="act-section-title">📋 Ultime sedute registrate</div>
+        ${sessioni.length ? sessioni.map(s => `<div class="act-item"><div>${patMap[s.patient_id] || '—'}</div><div class="act-item-date">${fmtDate(s.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessuna seduta.</div>'}
+        <div class="act-section-title">📅 Ultime visite di controllo</div>
+        ${visite.length ? visite.map(v => `<div class="act-item"><div>${patMap[v.patient_id] || '—'}${v.tipo ? ' — ' + escHtml(v.tipo) : ''}</div><div class="act-item-date">${fmtDate(v.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessuna visita.</div>'}`
+    }
+
+    async function salvaModifichePannello() {
+      if (!_panelProfId || !_panelProfData) return
+      const nome     = document.getElementById('p-nome').value.trim()
+      const cognome  = document.getElementById('p-cognome').value.trim()
+      const qualifica = document.getElementById('p-qualifica').value.trim()
+      const centro   = document.getElementById('p-centro').value.trim()
+      const citta    = document.getElementById('p-citta').value.trim()
+      const scadenza = document.getElementById('p-scadenza').value
+
+      const profUpd = { qualifica, centro, citta }
+      if (scadenza) profUpd.premium_scadenza = scadenza
+
+      const [r1, r2] = await Promise.all([
+        _supabase.from('professionals').update(profUpd).eq('id', _panelProfId),
+        _supabase.from('profiles').update({ nome, cognome }).eq('id', _panelProfData.user_id)
+      ])
+
+      if (r1.error || r2.error) { alert('Errore: ' + (r1.error?.message || r2.error?.message)); return }
+      document.getElementById('panel-title').textContent = (nome + ' ' + cognome).trim()
+      alert('Modifiche salvate ✓')
+      loadStatsProfessionisti()
+    }
+
+    async function togglePianoPannello() {
+      if (!_panelProfId) return
+      const isPremium = (_panelProfData?.piano || '').toLowerCase() === 'premium'
+      const newPiano  = isPremium ? 'free' : 'premium'
+      if (!confirm(isPremium ? 'Revocare il Premium a questo professionista?' : 'Attivare il Premium per questo professionista?')) return
+      const { error } = await _supabase.from('professionals').update({ piano: newPiano }).eq('id', _panelProfId)
+      if (error) { alert('Errore: ' + error.message); return }
+      _panelProfData.piano = newPiano
+      const nowPrem = newPiano === 'premium'
+      document.getElementById('piano-label').textContent = 'Piano: ' + (nowPrem ? 'PREMIUM ⭐' : 'FREE')
+      const btnP = document.getElementById('btn-toggle-piano')
+      btnP.textContent      = nowPrem ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
+      btnP.style.background = nowPrem ? '#ffebee' : '#FFD008'
+      btnP.style.color      = nowPrem ? '#c62828' : '#000'
+      loadStatsProfessionisti()
+    }
+
+    async function salvaNote() {
+      if (!_panelProfId) return
+      const note = document.getElementById('note-admin-field').value
+      const { error } = await _supabase.from('professionals').update({ note_admin: note }).eq('id', _panelProfId)
+      if (error) { alert('Errore: ' + error.message); return }
+      alert('Nota salvata ✓')
+    }
+
+    function visualizzaComeProfessionista() {
+      if (!_panelProfData) return
+      sessionStorage.setItem('admin_preview_user_id', _panelProfData.user_id)
+      window.open('dashboard.html?admin_preview=1', '_blank')
+    }
+
     init()
   </script>
+
+  <!-- SIDE PANEL HTML -->
+  <div class="panel-overlay" id="panel-overlay" onclick="chiudiPannello()"></div>
+  <div class="side-panel" id="side-panel">
+    <div class="panel-header">
+      <h2 id="panel-title">—</h2>
+      <button class="panel-close" onclick="chiudiPannello()">✕</button>
+    </div>
+    <div class="panel-body">
+      <div class="panel-tabs">
+        <div class="panel-tab active" data-tab="dati" onclick="switchTab('dati')">Dati</div>
+        <div class="panel-tab" data-tab="attivita" onclick="switchTab('attivita')">Attività</div>
+        <div class="panel-tab" data-tab="note" onclick="switchTab('note')">Note admin</div>
+      </div>
+
+      <!-- TAB DATI -->
+      <div class="panel-section active" id="tab-dati">
+        <div class="p-row">
+          <div><label class="p-label">Nome</label><input class="p-input" id="p-nome" type="text" placeholder="Mario"></div>
+          <div><label class="p-label">Cognome</label><input class="p-input" id="p-cognome" type="text" placeholder="Rossi"></div>
+        </div>
+        <label class="p-label">Email</label>
+        <input class="p-input" id="p-email" type="email" placeholder="mario@email.it" readonly style="background:#f9f9f9;color:#999">
+        <div class="p-row">
+          <div><label class="p-label">Qualifica</label><input class="p-input" id="p-qualifica" type="text" placeholder="Fisioterapista"></div>
+          <div><label class="p-label">Centro / Studio</label><input class="p-input" id="p-centro" type="text" placeholder="Studio X"></div>
+        </div>
+        <label class="p-label">Città</label>
+        <input class="p-input" id="p-citta" type="text" placeholder="Milano">
+
+        <div class="piano-toggle-row">
+          <strong id="piano-label">Piano: FREE</strong>
+          <button class="btn-toggle-piano" id="btn-toggle-piano" onclick="togglePianoPannello()">—</button>
+        </div>
+
+        <label class="p-label">Scadenza Premium</label>
+        <input class="p-input" id="p-scadenza" type="date">
+
+        <button class="btn-save" onclick="salvaModifichePannello()">💾 Salva modifiche</button>
+        <button class="btn-view-as" onclick="visualizzaComeProfessionista()">👁 Visualizza come questo professionista</button>
+      </div>
+
+      <!-- TAB ATTIVITÀ -->
+      <div class="panel-section" id="tab-attivita">
+        <div class="empty-state">Caricamento...</div>
+      </div>
+
+      <!-- TAB NOTE -->
+      <div class="panel-section" id="tab-note">
+        <p style="font-size:12px;color:#999;margin-bottom:14px">Note private visibili solo all'admin. Non vengono mostrate al professionista.</p>
+        <textarea class="note-field" id="note-admin-field" placeholder="es. Contattato il 10/05, interessato ai cuscini GPL..."></textarea>
+        <button class="btn-save" style="margin-top:12px" onclick="salvaNote()">💾 Salva nota</button>
+      </div>
+    </div>
+  </div>
+
   <script src="console-nav.js"></script>
 </body>
 </html>

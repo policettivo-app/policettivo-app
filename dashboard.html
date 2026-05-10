@@ -351,13 +351,26 @@
     async function init() {
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
+
+      const isAdminPreview = new URLSearchParams(window.location.search).get('admin_preview') === '1'
+        && session.user.email === 'appuntamentimft@gmail.com'
+      const previewUserId = isAdminPreview ? sessionStorage.getItem('admin_preview_user_id') : null
+      const effectiveUserId = previewUserId || session.user.id
+
+      if (isAdminPreview && previewUserId) {
+        const bar = document.createElement('div')
+        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c62828;color:#fff;text-align:center;padding:8px;font-size:12px;font-weight:700;z-index:9999;letter-spacing:0.5px'
+        bar.textContent = '👁 MODALITÀ ANTEPRIMA ADMIN — visualizzazione in sola lettura'
+        document.body.prepend(bar)
+      }
+
       document.getElementById('user-email').textContent = session.user.email
       document.getElementById('welcome-msg').textContent = 'Bentornato, ' + session.user.email.split('@')[0]
       if (session.user.email !== 'appuntamentimft@gmail.com') {
         const btnAdmin = document.querySelector('.btn-admin')
         if (btnAdmin) btnAdmin.style.display = 'none'
       }
-      const { data: prof } = await _supabase.from('professionals').select('id,piano').eq('user_id', session.user.id).single()
+      const { data: prof } = await _supabase.from('professionals').select('id,piano').eq('user_id', effectiveUserId).single()
       if (prof) {
         currentProfessionalId = prof.id
         // Controlla scadenza subscription
