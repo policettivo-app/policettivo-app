@@ -338,7 +338,7 @@
       <div class="form-group" style="margin-top:24px">
         <label class="form-label">Relazione finale</label>
         <textarea class="form-input" id="nv-relazione" placeholder="Relazione finale della visita..." style="height:120px"></textarea>
-        <button class="btn-ai-relazione" onclick="avviaAIRelazione()">🤖 Genera con AI (Premium)</button>
+        <button class="btn-ai-relazione" onclick="avviaAIRelazione()">🤖 Genera con AI</button>
         <div id="ai-relazione-loading" style="display:none;text-align:center;padding:10px;font-size:13px;color:#666">⏳ Generazione in corso...</div>
       </div>
 
@@ -408,15 +408,12 @@
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
 
-      if (session.user.email === 'appuntamentimft@gmail.com') window.isPremium = true
-
-      const [{ data: p }, { data: prof }] = await Promise.all([
+      const [{ data: p }] = await Promise.all([
         _supabase.from('patients').select('nome, cognome, problema_principale, note_cliniche').eq('id', patientId).single(),
-        _supabase.from('professionals').select('subscription_status').eq('user_id', session.user.id).single()
+        window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
       ])
       if (!p) { alert('Paziente non trovato'); return }
       patient = p
-      window.isPremium = prof?.subscription_status === 'premium' || session.user.email === 'appuntamentimft@gmail.com'
       document.getElementById('nav-title').textContent = p.nome + ' ' + p.cognome + ' — Visite'
       document.getElementById('btn-back').onclick = () => { window.location.href = 'paziente.html?id=' + patientId }
 
