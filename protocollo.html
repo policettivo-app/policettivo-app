@@ -114,7 +114,6 @@
     <div class="greeting">
       <h1 id="greeting-title">Ciao</h1>
       <p id="greeting-sub">Il tuo programma di oggi</p>
-      <div id="cuscino-cfg-badge" style="display:none;margin-top:4px;margin-bottom:4px"></div>
     </div>
     <div id="content-area">
       <div class="no-protocol"><h2>Caricamento...</h2></div>
@@ -198,17 +197,6 @@
       patient = p
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
-      const cfg = patient.configurazione_default
-      if (cfg === 'NPL' || cfg === 'GPL') {
-        const isNPL = cfg === 'NPL'
-        const desc = isNPL ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'
-        const badge = document.getElementById('cuscino-cfg-badge')
-        badge.innerHTML =
-          `<span style="display:inline-block;background:${isNPL ? '#000' : '#9AFF00'};color:${isNPL ? '#9AFF00' : '#000'};` +
-          `font-size:13px;font-weight:700;padding:8px 16px;border-radius:8px;letter-spacing:1px;` +
-          `border:${isNPL ? '1.5px solid #333' : 'none'}">🛏 Configurazione: ${cfg} — ${desc}</span>`
-        badge.style.display = 'block'
-      }
       document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token }
       const btnRapida = document.getElementById('btn-rapida'); if(btnRapida) btnRapida.style.display = 'block'
 
@@ -234,7 +222,7 @@
       renderProtocol()
       loadSmile()
       caricaUltimaSeduta()
-      loadPatientVideos(patient.id)
+      loadPatientVideos()
     }
 
     async function caricaUltimaSeduta() {
@@ -327,8 +315,7 @@
         exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' +
           exercises.map(function(e, i) {
             const ex = e.exercise
-            const ecfg = e.configurazione || cfg
-            return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div><span class="exercise-config cfg-' + ecfg.toLowerCase() + '">' + ecfg + '</span></div>'
+            return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div></div>'
           }).join('') + '</div>'
       }
       document.getElementById('content-area').innerHTML =
@@ -396,11 +383,11 @@
       window.open('https://wa.me/?text=' + encodeURIComponent(msg))
     }
 
-    async function loadPatientVideos(patientId) {
+    async function loadPatientVideos() {
       const { data: videos } = await _supabase
         .from('exercise_videos')
         .select('*')
-        .eq('patient_id', patientId)
+        .eq('protocol_id', protocol.id)
         .order('created_at', { ascending: false })
       if (!videos || videos.length === 0) return
       const section = document.createElement('div')

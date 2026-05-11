@@ -117,7 +117,17 @@
       <div class="exercise-grid" id="exercise-grid">
         <div style="color:#999;font-size:13px">Caricamento esercizi...</div>
       </div>
-      <button onclick="window.location.href='video-esercizio.html?id='+patientId" style="width:100%;margin-top:16px;padding:16px;background:#000;border:2px solid #FFD008;color:#FFD008;border-radius:12px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.3px">🎥 Aggiungi esercizio personalizzato</button>
+
+      <!-- Contenuti personalizzati -->
+      <div id="custom-videos-section" style="display:none;margin-top:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#666;margin-bottom:10px;padding-top:14px;border-top:1px solid #eee">Contenuti personalizzati</div>
+        <p style="font-size:12px;color:#888;margin-bottom:12px">Seleziona i contenuti da includere nel protocollo. Appariranno dopo gli esercizi standard.</p>
+        <div id="custom-videos-grid"></div>
+      </div>
+
+      <button onclick="window.location.href='video-esercizio.html?id='+patientId" style="width:100%;margin-top:16px;padding:14px 16px;background:#111;border:1.5px solid #FFD008;color:#FFD008;border-radius:12px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:0.3px;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>🎥</span><span>Registra nuovo contenuto personalizzato</span>
+      </button>
     </div>
     <div class="selected-summary" id="selected-summary"></div>
     <button class="btn-salva" id="btn-salva" onclick="salvaProtocollo()">&#10003; Assegna protocollo</button>
@@ -136,7 +146,17 @@
     let selectedExercises = []
     let exerciseCfg = {}
     let allExercises = []
+    let customVideos = []
+    let selectedCustomVideos = []
     let isEditMode = !!editProtocolId
+
+    function escHtml(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    }
+
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted) caricaCustomVideos()
+    })
 
     function showToast(msg, type = 'error') {
       const container = document.getElementById('toast-container')
@@ -177,6 +197,39 @@
       }
 
       renderExercises()
+      await caricaCustomVideos()
+    }
+
+    async function caricaCustomVideos() {
+      const { data } = await _supabase.from('exercise_videos').select('*').eq('patient_id', patientId).order('created_at', { ascending: false })
+      customVideos = data || []
+      renderCustomVideos()
+    }
+
+    function renderCustomVideos() {
+      const section = document.getElementById('custom-videos-section')
+      const grid = document.getElementById('custom-videos-grid')
+      if (!customVideos.length) { section.style.display = 'none'; return }
+      section.style.display = 'block'
+      grid.innerHTML = customVideos.map(function(v) {
+        const isSel = selectedCustomVideos.includes(v.id)
+        const tipo = v.tipo === 'video' ? '📹' : '📷'
+        return '<div class="exercise-item ' + (isSel ? 'selected' : '') + '" onclick="toggleCustomVideo(\'' + v.id + '\')">' +
+          '<div class="exercise-num" style="font-size:16px">' + (isSel ? '✓' : tipo) + '</div>' +
+          '<div class="exercise-info">' +
+            '<div class="exercise-name">' + escHtml(v.titolo || 'Contenuto senza titolo') + '</div>' +
+            '<div class="exercise-meta">' + (v.tipo === 'video' ? 'Video' : 'Foto') + ' personalizzato · ' + new Date(v.created_at).toLocaleDateString('it-IT') + '</div>' +
+          '</div>' +
+          '<div style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;background:' + (isSel ? '#FFD008' : '#eee') + ';color:' + (isSel ? '#000' : '#999') + ';white-space:nowrap">CUSTOM</div>' +
+        '</div>'
+      }).join('')
+    }
+
+    function toggleCustomVideo(id) {
+      const idx = selectedCustomVideos.indexOf(id)
+      if (idx >= 0) { selectedCustomVideos.splice(idx, 1) } else { selectedCustomVideos.push(id) }
+      renderCustomVideos()
+      updateSummary()
     }
 
     async function impostaNomeAutomatico() {
@@ -212,6 +265,9 @@
         selectedExercises = ppe.map(e => ({ id: e.exercise_id, source: 'policettivo' }))
         ppe.forEach(e => { exerciseCfg[e.exercise_id] = e.configurazione || prot.configurazione_generale || 'NPL' })
       }
+
+      const { data: assignedVids } = await _supabase.from('exercise_videos').select('id').eq('protocol_id', editProtocolId)
+      selectedCustomVideos = (assignedVids || []).map(function(v) { return v.id })
     }
 
     function setConfig(cfg) {
@@ -265,17 +321,21 @@
 
     function updateSummary() {
       const el = document.getElementById('selected-summary')
-      if (!selectedExercises.length) { el.classList.remove('show'); return }
+      const total = selectedExercises.length + selectedCustomVideos.length
+      if (!total) { el.classList.remove('show'); return }
       el.classList.add('show')
+      const parts = []
+      if (selectedExercises.length) parts.push(selectedExercises.length + ' esercizi standard')
+      if (selectedCustomVideos.length) parts.push(selectedCustomVideos.length + ' contenuto' + (selectedCustomVideos.length > 1 ? 'i' : '') + ' personalizzato')
       el.innerHTML = '<div class="summary-title">Riepilogo protocollo</div>' +
-        '<div class="summary-list">' + selectedExercises.length + ' esercizi selezionati</div>'
+        '<div class="summary-list">' + parts.join(' + ') + '</div>'
     }
 
     async function salvaProtocollo() {
       const nome = document.getElementById('proto-nome').value.trim()
       if (!nome) { showToast('Inserisci un nome per il protocollo'); return }
       if (!selectedConfig) { showToast('Seleziona la configurazione NPL o GPL'); return }
-      if (!selectedExercises.length) { showToast('Seleziona almeno un esercizio'); return }
+      if (!selectedExercises.length && !selectedCustomVideos.length) { showToast('Seleziona almeno un esercizio o contenuto personalizzato'); return }
       const btn = document.getElementById('btn-salva')
       btn.disabled = true; btn.textContent = 'Salvataggio...'
 
@@ -294,6 +354,11 @@
           return { patient_protocol_id: editProtocolId, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default || 90, ripetizioni: ex?.ripetizioni || 1 }
         })
         await _supabase.from('patient_protocol_exercises').insert(exRows)
+        // Sync contenuti personalizzati: reset poi assegna selezionati
+        await _supabase.from('exercise_videos').update({ protocol_id: null }).eq('protocol_id', editProtocolId)
+        if (selectedCustomVideos.length > 0) {
+          await _supabase.from('exercise_videos').update({ protocol_id: editProtocolId }).in('id', selectedCustomVideos)
+        }
       } else {
         await _supabase.from('patient_protocols').update({ stato: 'sospeso' }).eq('patient_id', patientId).eq('stato', 'attivo')
         const { data: proto, error } = await _supabase.from('patient_protocols').insert({
@@ -309,7 +374,11 @@
           const ex = allExercises.find(e => e.id === sel.id)
           return { patient_protocol_id: proto.id, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default || 90, ripetizioni: ex?.ripetizioni || 1 }
         })
-        await _supabase.from('patient_protocol_exercises').insert(exRows)
+        if (exRows.length > 0) await _supabase.from('patient_protocol_exercises').insert(exRows)
+        // Assegna contenuti personalizzati al nuovo protocollo
+        if (selectedCustomVideos.length > 0) {
+          await _supabase.from('exercise_videos').update({ protocol_id: proto.id }).in('id', selectedCustomVideos)
+        }
       }
 
       document.getElementById('success-banner').classList.add('show')
