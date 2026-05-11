@@ -186,7 +186,6 @@
 
     async function init() {
       if (!token) { showError('Link non valido.'); return }
-      console.log('[init] token:', token)
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
       const isStandalone = window.navigator.standalone === true
       if (isIOS && !isStandalone && !localStorage.getItem('ios_banner_dismissed')) {
@@ -194,8 +193,7 @@
       }
 
       // 1. Trova il paziente tramite access_token
-      const { data: p, error: patErr } = await _supabase.from('patients').select('*').eq('access_token', token).single()
-      console.log('[init] paziente:', p, 'errore:', patErr)
+      const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
       if (!p) { showError('Paziente non trovato.'); return }
       patient = p
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome
@@ -214,27 +212,25 @@
       document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token }
       const btnRapida = document.getElementById('btn-rapida'); if(btnRapida) btnRapida.style.display = 'block'
 
-      // 2. Carica tutti i protocolli del paziente (filtro stato rimosso temporaneamente per debug)
-      console.log('[init] query patient_protocols: patient_id =', patient.id)
-      const { data: prots, error: protsErr } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).order('created_at', { ascending: false })
-      console.log('[init] protocolli (tutti, no filtro stato):', prots, 'errore:', protsErr)
-      if (prots && prots.length > 0) console.log('[init] valori stato trovati:', prots.map(function(p) { return p.stato }))
-      if (!prots || prots.length === 0) { showNoProtocol(); return }
-      protocol = prots[0]
-      console.log('[init] protocollo selezionato id:', protocol.id, 'nome:', protocol.nome_personalizzato)
+      // 2. Carica il protocollo attivo del paziente; fallback al più recente se nessuno è marcato attivo
+      const { data: protsAttivi } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
+      if (protsAttivi && protsAttivi.length > 0) {
+        protocol = protsAttivi[0]
+      } else {
+        const { data: protsAll } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).order('created_at', { ascending: false }).limit(1)
+        if (!protsAll || protsAll.length === 0) { showNoProtocol(); return }
+        protocol = protsAll[0]
+      }
 
       // 3. Carica gli esercizi del protocollo
-      const { data: ppe, error: ppeErr } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
-      console.log('[init] patient_protocol_exercises:', ppe, 'errore:', ppeErr)
+      const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
       if (ppe && ppe.length > 0) {
         const exIds = ppe.map(function(e) { return e.exercise_id })
-        const { data: exData, error: exErr } = await _supabase.from('exercises').select('*').in('id', exIds)
-        console.log('[init] exercises:', exData, 'errore:', exErr)
+        const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
         const exMap = {}
         if (exData) exData.forEach(function(e) { exMap[e.id] = e })
         exercises = ppe.map(function(e) { return Object.assign({}, e, { exercise: exMap[e.exercise_id] || null }) })
       }
-      console.log('[init] esercizi finali:', exercises.length)
       renderProtocol()
       loadSmile()
       caricaUltimaSeduta()

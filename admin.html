@@ -296,7 +296,7 @@
       } else {
         await _supabase.from('professionals').delete().eq('id', id)
       }
-      alert(nome + ' eliminato con successo.')
+      alert('Professionista eliminato con successo.')
       loadAll()
     }
 
@@ -630,32 +630,32 @@
         ${visite.length ? visite.map(v => `<div class="act-item"><div>${patMap[v.patient_id] || '—'}${v.tipo ? ' — ' + escHtml(v.tipo) : ''}</div><div class="act-item-date">${fmtDate(v.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessuna visita.</div>'}`
     }
 
-    async function salvaModifichePannello() {
+    async function salvaProfessionista() {
       if (!currentProfId) { alert('Errore: nessun professionista selezionato.'); return }
-
-      console.log('[salva] currentProfId:', currentProfId)
 
       // Step 1 — leggi user_id fresco dal DB
       const { data: prof } = await _supabase
         .from('professionals').select('user_id').eq('id', currentProfId).single()
 
-      console.log('[salva] prof:', prof)
       if (!prof || !prof.user_id) { alert('Errore: user_id non trovato per questo professionista.'); return }
 
-      // Step 2 — aggiorna profiles (nome, cognome, telefono)
-      const r1 = await _supabase
-        .from('profiles')
-        .update({
-          nome:     document.getElementById('edit-nome').value,
-          cognome:  document.getElementById('edit-cognome').value,
-          telefono: document.getElementById('edit-telefono').value
+      // Step 2 — aggiorna profiles via API con service key (bypassa RLS)
+      const adminToken = await getAdminToken()
+      const r1 = await fetch('/api/admin-update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+        body: JSON.stringify({
+          profileId: prof.user_id,
+          nome:      document.getElementById('edit-nome').value,
+          cognome:   document.getElementById('edit-cognome').value,
+          telefono:  document.getElementById('edit-telefono').value
         })
-        .eq('id', prof.user_id)
-
-      console.log('[salva] r1 profiles:', r1.error)
+      })
+      const j1 = await r1.json()
+      if (!r1.ok) { alert('Errore salvataggio profilo: ' + (j1.error || r1.status)); return }
 
       // Step 3 — aggiorna professionals (qualifica, centro, citta, note_admin)
-      const r2 = await _supabase
+      const { error: r2err } = await _supabase
         .from('professionals')
         .update({
           qualifica:  document.getElementById('edit-qualifica').value,
@@ -665,12 +665,7 @@
         })
         .eq('id', currentProfId)
 
-      console.log('[salva] r2 professionals:', r2.error)
-
-      if (r1.error || r2.error) {
-        alert('Errori salvataggio:\nprofiles: ' + (r1.error?.message || 'ok') + '\nprofessionals: ' + (r2.error?.message || 'ok'))
-        return
-      }
+      if (r2err) { alert('Errore salvataggio professionista: ' + r2err.message); return }
 
       const nomeCompleto = document.getElementById('edit-nome').value + ' ' + document.getElementById('edit-cognome').value
       document.getElementById('panel-title').textContent = nomeCompleto.trim()
@@ -711,21 +706,47 @@
       loadAll()
     }
 
-    async function togglePianoPannello() {
-      if (!currentProfId) return
+    async function attivaPremiuPannello() {
+      if (!currentProfId) { alert('Errore: nessun professionista selezionato.'); return }
+
       const isPremium = (_panelProfData?.piano || '').toLowerCase() === 'premium'
       const newPiano  = isPremium ? 'free' : 'premium'
-      if (!confirm(isPremium ? 'Revocare il Premium a questo professionista?' : 'Attivare il Premium per questo professionista?')) return
-      const { error } = await _supabase.from('professionals').update({ piano: newPiano }).eq('id', currentProfId)
-      if (error) { alert('Errore: ' + error.message); return }
-      _panelProfData.piano = newPiano
+      if (!confirm(isPremium ? 'Revocare il Premium?' : 'Attivare il Premium?')) return
+
+      let premiumScadenza = null
+      if (newPiano === 'premium') {
+        const scad = new Date(); scad.setFullYear(scad.getFullYear() + 1)
+        premiumScadenza = scad.toISOString()
+      }
+
+      const adminToken = await getAdminToken()
+      const res = await fetch('/api/admin-update-piano', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+        body: JSON.stringify({ profId: currentProfId, piano: newPiano, premiumScadenza })
+      })
+      const json = await res.json()
+      if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
+
+      if (_panelProfData) _panelProfData.piano = newPiano
       const nowPrem = newPiano === 'premium'
+
+      // Aggiorna UI pannello
       document.getElementById('piano-label').textContent = 'Piano: ' + (nowPrem ? 'PREMIUM ⭐' : 'FREE')
       const btnP = document.getElementById('btn-toggle-piano')
-      btnP.textContent      = nowPrem ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
-      btnP.style.background = nowPrem ? '#ffebee' : '#FFD008'
-      btnP.style.color      = nowPrem ? '#c62828' : '#000'
-      loadStatsProfessionisti()
+      btnP.textContent      = nowPrem ? '🔴 Revoca Premium' : '⭐ Attiva Premium'
+      btnP.style.background = nowPrem ? '#c62828' : '#FFD008'
+      btnP.style.color      = nowPrem ? '#fff' : '#000'
+
+      // Aggiorna badge e pulsante nella riga della tabella principale
+      const badge = document.getElementById('badge-' + currentProfId)
+      if (badge) { badge.className = nowPrem ? 'badge-premium' : 'badge-free'; badge.textContent = nowPrem ? 'PREMIUM' : 'FREE' }
+      const btnTab = document.getElementById('btn-piano-' + currentProfId)
+      if (btnTab) {
+        btnTab.className   = nowPrem ? 'action-btn premium-off' : 'action-btn premium-on'
+        btnTab.textContent = nowPrem ? '🔴 Revoca Premium' : '⭐ Attiva Premium'
+        btnTab.setAttribute('onclick', nowPrem ? "revocaPremium('" + currentProfId + "')" : "attivaPremiump('" + currentProfId + "')")
+      }
     }
 
     async function salvaNote() {
@@ -778,13 +799,13 @@
 
         <div class="piano-toggle-row">
           <strong id="piano-label">Piano: FREE</strong>
-          <button class="btn-toggle-piano" id="btn-toggle-piano" onclick="togglePianoPannello()">—</button>
+          <button class="btn-toggle-piano" id="btn-toggle-piano" onclick="attivaPremiuPannello()">—</button>
         </div>
 
         <label class="p-label">Scadenza Premium</label>
         <input class="p-input" id="p-scadenza" type="date">
 
-        <button class="btn-save" onclick="salvaModifichePannello()">💾 Salva modifiche</button>
+        <button class="btn-save" onclick="salvaProfessionista()">💾 Salva modifiche</button>
         <button class="btn-view-as" onclick="visualizzaComeProfessionista()">👁 Visualizza come questo professionista</button>
         <button id="btn-elimina-pannello" onclick="eliminaProfessionistaDalPannello()" style="width:100%;margin-top:8px;padding:12px;background:transparent;border:1.5px solid #ffcdd2;color:#c62828;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Elimina professionista</button>
       </div>
