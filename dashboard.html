@@ -6,6 +6,7 @@
   <title>Policettivo® — Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="utils-premium.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
@@ -370,25 +371,9 @@
         const btnAdmin = document.querySelector('.btn-admin')
         if (btnAdmin) btnAdmin.style.display = 'none'
       }
-      const { data: prof } = await _supabase.from('professionals').select('id,piano').eq('user_id', effectiveUserId).single()
-      if (prof) {
-        currentProfessionalId = prof.id
-        // Controlla scadenza subscription
-        if (prof.piano === 'premium') {
-          const { data: sub } = await _supabase.from('subscriptions')
-            .select('data_scadenza')
-            .eq('professional_id', prof.id)
-            .eq('stato', 'attivo')
-            .order('data_scadenza', { ascending: false })
-            .limit(1)
-            .single()
-          if (sub && new Date(sub.data_scadenza) < new Date()) {
-            await _supabase.from('professionals').update({ piano: 'free' }).eq('id', prof.id)
-            await _supabase.from('subscriptions').update({ stato: 'scaduto' }).eq('professional_id', prof.id).eq('stato', 'attivo')
-            prof.piano = 'free'
-          }
-        }
-        window.isPremium = (prof.piano === 'premium') || (session.user.email === 'appuntamentimft@gmail.com')
+      const { profId: _profId } = await window.policettivoCheckPremium(_supabase, effectiveUserId, session.user.email)
+      currentProfessionalId = _profId
+      if (currentProfessionalId) {
         const banner = document.getElementById('premium-banner')
         if (banner && !window.isPremium) banner.classList.add('visible')
         const badge = document.getElementById('piano-badge')

@@ -461,12 +461,14 @@
       if (!confirm('Attivare Piano Premium per questo professionista?')) return
       const dataScadenza = new Date()
       dataScadenza.setFullYear(dataScadenza.getFullYear() + 1)
-      const { error } = await _supabase
-        .from('professionals')
-        .update({ piano: 'premium', premium_scadenza: dataScadenza.toISOString() })
-        .eq('id', profId)
-      if (error) { alert(error.message); return }
-      // Aggiorna badge e pulsante nella riga senza ricaricare tutto
+      const adminToken = await getAdminToken()
+      const res = await fetch('/api/admin-update-piano', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+        body: JSON.stringify({ profId, piano: 'premium', premiumScadenza: dataScadenza.toISOString() })
+      })
+      const json = await res.json()
+      if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
       const badge = document.getElementById('badge-' + profId)
       if (badge) { badge.className = 'badge-premium'; badge.textContent = 'PREMIUM' }
       const btn = document.getElementById('btn-piano-' + profId)
@@ -475,11 +477,14 @@
 
     async function revocaPremium(profId) {
       if (!confirm('Revocare il Piano Premium? Il professionista tornerà al piano Free.')) return
-      const { error } = await _supabase
-        .from('professionals')
-        .update({ piano: 'free', premium_scadenza: null })
-        .eq('id', profId)
-      if (error) { alert(error.message); return }
+      const adminToken = await getAdminToken()
+      const res = await fetch('/api/admin-update-piano', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+        body: JSON.stringify({ profId, piano: 'free', premiumScadenza: null })
+      })
+      const json = await res.json()
+      if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
       const badge = document.getElementById('badge-' + profId)
       if (badge) { badge.className = 'badge-free'; badge.textContent = 'FREE' }
       const btn = document.getElementById('btn-piano-' + profId)

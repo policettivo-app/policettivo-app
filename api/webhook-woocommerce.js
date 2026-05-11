@@ -40,7 +40,7 @@ module.exports = async function handler(req, res) {
 
   await supabase
     .from('professionals')
-    .update({ piano: 'premium' })
+    .update({ piano: 'premium', premium_scadenza: dataScadenza.toISOString() })
     .eq('id', profData.id)
 
   await supabase.from('subscriptions').insert({

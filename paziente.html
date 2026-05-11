@@ -6,6 +6,7 @@
   <title>Policettivo® — Scheda Paziente</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="utils-premium.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
@@ -686,21 +687,7 @@
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
 
-      if (session.user.email === 'appuntamentimft@gmail.com') {
-        window.isPremium = true
-      } else {
-        const { data: prof } = await _supabase.from('professionals').select('id, piano').eq('user_id', session.user.id).single()
-        if (prof) {
-          let piano = prof.piano
-          if (piano === 'premium') {
-            const { data: sub } = await _supabase.from('subscriptions').select('data_scadenza').eq('professional_id', prof.id).eq('stato', 'attivo').order('data_scadenza', { ascending: false }).limit(1).single()
-            if (sub && new Date(sub.data_scadenza) < new Date()) piano = 'free'
-          }
-          window.isPremium = (piano === 'premium')
-        } else {
-          window.isPremium = false
-        }
-      }
+      await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
 
       const { data, error } = await _supabase.from('patients').select('*').eq('id', patientId).single()
       if (error || !data) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }
