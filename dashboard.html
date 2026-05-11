@@ -175,7 +175,7 @@
     <div class="modal">
       <h2>Nuovo paziente</h2>
       <div class="referto-box" id="referto-scan-box">
-        <div class="referto-box-title">📄 <span>Scansiona referto o documento</span> <span style="background:#FFD008;color:#000;padding:2px 8px;border-radius:4px;font-size:10px;margin-left:4px">PREMIUM</span></div>
+        <div class="referto-box-title">📄 <span>Scansiona referto o documento</span> <span style="background:#333;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;margin-left:4px">FREE · 5 analisi</span></div>
         <div class="referto-box-sub">Fotografa o carica un documento medico: l'AI estrae automaticamente i dati del paziente.</div>
         <div class="referto-btns">
           <button class="btn-referto" onclick="apriCamReferto()">📷 Fotocamera</button>
@@ -589,11 +589,9 @@
     function mostraModalePremiumDash() { document.getElementById('pg-modal').classList.add('open') }
     function chiudiModalePremiumDash() { document.getElementById('pg-modal').classList.remove('open') }
     function apriCamReferto() {
-      if (!window.isPremium) { mostraModalePremiumDash(); return }
       document.getElementById('referto-cam-input').click()
     }
     function apriGalleriaReferto() {
-      if (!window.isPremium) { mostraModalePremiumDash(); return }
       document.getElementById('referto-gal-input').click()
     }
     function handleRefertoFile(input) {

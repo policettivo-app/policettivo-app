@@ -1264,7 +1264,6 @@
     }
 
     function apriModaleAIP() {
-      if (!window.isPremium) { mostraModalePremium(); return }
       document.getElementById('aip-step-scelta').style.display = 'block'
       document.getElementById('aip-step-loading').style.display = 'none'
       document.getElementById('aip-step-risultato').style.display = 'none'
@@ -1424,7 +1423,6 @@
     }
 
     async function avviaAnalisiAI() {
-      if (!window.isPremium) { mostraModalePremium(); return }
       if (documentiCaricati.length === 0) { alert('Nessun documento da analizzare.'); return }
       const loading = document.getElementById('ai-loading')
       const reportBox = document.getElementById('ai-report-box')
@@ -1440,12 +1438,15 @@
       const note = patient.note_cliniche || 'nessuna'
       const prompt = 'Sei un assistente per fisioterapisti. Analizza brevemente i documenti del paziente ' + nomePaz + ' (problema: ' + problema + '). Documenti: ' + elencoDoc + '. Rispondi in max 300 parole con: RED FLAG (elenco puntato), CONDIZIONI DA RISPETTARE (elenco puntato), ORDINE DI INTERVENTO (3 fasi max). Niente intro, niente conclusioni, solo i punti essenziali.'
       try {
-        const response = await fetch('https://kazlnoikvwdqwvxtigej.supabase.co/functions/v1/ai-analisi', {
+        const { data: { session: _aiSDoc } } = await _supabase.auth.getSession()
+        const response = await fetch('/api/ai-analisi', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_aiSDoc?.access_token || '') },
           body: JSON.stringify({ prompt: prompt })
         })
+        if (response.status === 403) { loading.style.display = 'none'; if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert('Limite AI raggiunto.'); return }
         const data = await response.json()
+        if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
         const testo = data.testo || data.error || 'Errore nella risposta AI.'
         loading.style.display = 'none'
         const testoFormattato = testo
@@ -1560,11 +1561,9 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape') chiudiRicercaPz() })
 
     function apriCamRefertoP() {
-      if (!window.isPremium) { mostraModalePremium(); return }
       document.getElementById('referto-cam-input-p').click()
     }
     function apriGalleriaRefertoP() {
-      if (!window.isPremium) { mostraModalePremium(); return }
       document.getElementById('referto-gal-input-p').click()
     }
     function handleRefertoFileP(input) {
