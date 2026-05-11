@@ -148,6 +148,7 @@
     let selectedConfig = null
     let selectedExercises = []
     let exerciseCfg = {}
+    let exerciseDurata = {}
     let allExercises = []
     let customVideos = []
     let selectedCustomVideos = []
@@ -278,8 +279,11 @@
         .order('ordine', { ascending: true })
 
       if (ppe) {
-        selectedExercises = ppe.map(e => ({ id: e.exercise_id, source: 'policettivo' }))
-        ppe.forEach(e => { exerciseCfg[e.exercise_id] = e.configurazione || prot.configurazione_generale || 'NPL' })
+        selectedExercises = ppe.map(function(e) { return { id: e.exercise_id, source: 'policettivo' } })
+        ppe.forEach(function(e) {
+          exerciseCfg[e.exercise_id] = e.configurazione || prot.configurazione_generale || 'NPL'
+          exerciseDurata[e.exercise_id] = e.durata || 60
+        })
       }
 
       const { data: assignedVids } = await _supabase.from('exercise_videos').select('id').eq('protocol_id', editProtocolId)
@@ -299,32 +303,56 @@
     function renderExercises() {
       const grid = document.getElementById('exercise-grid')
       if (!allExercises.length) { grid.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio disponibile</div>'; return }
-      grid.innerHTML = allExercises.map(ex => {
-        const isSelected = selectedExercises.some(s => s.id === ex.id)
-        const selIdx = selectedExercises.findIndex(s => s.id === ex.id)
+      const presets = [{s:30,l:'30s'},{s:60,l:'1m'},{s:120,l:'2m'},{s:180,l:'3m'},{s:300,l:'5m'},{s:600,l:'10m'}]
+      grid.innerHTML = allExercises.map(function(ex) {
+        const isSelected = selectedExercises.some(function(s) { return s.id === ex.id })
+        const selIdx = selectedExercises.findIndex(function(s) { return s.id === ex.id })
         const cfg = exerciseCfg[ex.id] || selectedConfig || 'NPL'
-        return '<div class="exercise-item ' + (isSelected ? 'selected' : '') + '" onclick="toggleExercise(\'' + ex.id + '\')">' +
-          '<div class="exercise-num">' + (isSelected ? (selIdx + 1) : '') + '</div>' +
-          '<div class="exercise-info">' +
-            '<div class="exercise-name">' + ex.nome + '</div>' +
-            '<div class="exercise-meta">' + (ex.durata_default || 90) + ' sec &middot; ' + (ex.livello || 'base') + '</div>' +
+        const durata = exerciseDurata[ex.id] || ex.durata_default || 60
+        const durLabel = durata < 60 ? durata + 's' : (durata % 60 === 0 ? (durata / 60) + ' min' : durata + 's')
+        if (!isSelected) {
+          return '<div class="exercise-item" onclick="toggleExercise(\'' + ex.id + '\')">' +
+            '<div class="exercise-num"></div>' +
+            '<div class="exercise-info">' +
+              '<div class="exercise-name">' + ex.nome + '</div>' +
+              '<div class="exercise-meta">' + (ex.durata_default || 60) + 's &middot; ' + (ex.livello || 'base') + '</div>' +
+            '</div>' +
+          '</div>'
+        }
+        const presetsHtml = presets.map(function(p) {
+          const isActive = durata === p.s
+          return '<button onclick="setDurata(\'' + ex.id + '\',' + p.s + ')" style="padding:5px 10px;border-radius:6px;border:none;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;background:' + (isActive ? '#FFD008' : '#333') + ';color:' + (isActive ? '#000' : '#aaa') + '">' + p.l + '</button>'
+        }).join('')
+        return '<div class="exercise-item selected" onclick="toggleExercise(\'' + ex.id + '\')" style="flex-direction:column;align-items:stretch">' +
+          '<div style="display:flex;align-items:center;gap:12px">' +
+            '<div class="exercise-num">' + (selIdx + 1) + '</div>' +
+            '<div class="exercise-info">' +
+              '<div class="exercise-name">' + ex.nome + '</div>' +
+              '<div class="exercise-meta">' + durLabel + ' &middot; ' + (ex.livello || 'base') + '</div>' +
+            '</div>' +
+            '<div class="exercise-cfg" onclick="event.stopPropagation()"><div class="cfg-toggle">' +
+              '<button class="cfg-btn ' + (cfg === 'NPL' ? 'active-npl' : '') + '" onclick="setCfg(\'' + ex.id + '\',\'NPL\')">NPL</button>' +
+              '<button class="cfg-btn ' + (cfg === 'GPL' ? 'active-gpl' : '') + '" onclick="setCfg(\'' + ex.id + '\',\'GPL\')">GPL</button>' +
+            '</div></div>' +
           '</div>' +
-          (isSelected ? '<div class="exercise-cfg" onclick="event.stopPropagation()"><div class="cfg-toggle">' +
-            '<button class="cfg-btn ' + (cfg === 'NPL' ? 'active-npl' : '') + '" onclick="setCfg(\'' + ex.id + '\',\'NPL\')">NPL</button>' +
-            '<button class="cfg-btn ' + (cfg === 'GPL' ? 'active-gpl' : '') + '" onclick="setCfg(\'' + ex.id + '\',\'GPL\')">GPL</button>' +
-          '</div></div>' : '') +
+          '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">' +
+            presetsHtml +
+          '</div>' +
         '</div>'
       }).join('')
     }
 
     function toggleExercise(id) {
-      const idx = selectedExercises.findIndex(s => s.id === id)
+      const idx = selectedExercises.findIndex(function(s) { return s.id === id })
       if (idx >= 0) {
         selectedExercises.splice(idx, 1)
         delete exerciseCfg[id]
+        delete exerciseDurata[id]
       } else {
         selectedExercises.push({ id, source: 'policettivo' })
         exerciseCfg[id] = selectedConfig || 'NPL'
+        const ex = allExercises.find(function(e) { return e.id === id })
+        exerciseDurata[id] = ex ? (ex.durata_default || 60) : 60
       }
       renderExercises()
       updateSummary()
@@ -332,6 +360,11 @@
 
     function setCfg(id, cfg) {
       exerciseCfg[id] = cfg
+      renderExercises()
+    }
+
+    function setDurata(id, seconds) {
+      exerciseDurata[id] = seconds
       renderExercises()
     }
 
@@ -367,7 +400,7 @@
         await _supabase.from('patient_protocol_exercises').delete().eq('patient_protocol_id', editProtocolId)
         const exRows = selectedExercises.map((sel, i) => {
           const ex = allExercises.find(e => e.id === sel.id)
-          return { patient_protocol_id: editProtocolId, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default || 90, ripetizioni: ex?.ripetizioni || 1 }
+          return { patient_protocol_id: editProtocolId, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: exerciseDurata[sel.id] || ex?.durata_default || 60, ripetizioni: ex?.ripetizioni || 1 }
         })
         await _supabase.from('patient_protocol_exercises').insert(exRows)
         // Sync contenuti personalizzati: reset poi assegna selezionati
@@ -388,7 +421,7 @@
         if (error) { showToast('Errore: ' + error.message); btn.disabled = false; btn.textContent = '✓ Assegna protocollo'; return }
         const exRows = selectedExercises.map((sel, i) => {
           const ex = allExercises.find(e => e.id === sel.id)
-          return { patient_protocol_id: proto.id, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: ex?.durata_default || 90, ripetizioni: ex?.ripetizioni || 1 }
+          return { patient_protocol_id: proto.id, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: exerciseDurata[sel.id] || ex?.durata_default || 60, ripetizioni: ex?.ripetizioni || 1 }
         })
         if (exRows.length > 0) await _supabase.from('patient_protocol_exercises').insert(exRows)
         // Assegna contenuti personalizzati al nuovo protocollo
