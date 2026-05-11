@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="utils-premium.js"></script>
+  <script src="utils-ai.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
@@ -960,15 +961,18 @@
           'Poi suggerisci NPL (scapolare anteriore) o GPL (scapolare posteriore) o NEUTRO. ' +
           'Rispondi SOLO con JSON valido: {"rilevamento":"piano scapolare anteriore"|"piano scapolare posteriore"|"allineamento neutro","suggerimento":"NPL"|"GPL"|"NEUTRO"}'
         })
+        const { data: { session: _aiS1 } } = await _supabase.auth.getSession()
         const resp = await fetch('/api/analisi-posturale', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_aiS1?.access_token || '') },
           body: JSON.stringify({
             system: 'Sei un assistente AI per fisioterapisti. Analizza la postura scapolare e rispondi SOLO con JSON valido, nessun testo extra.',
             content: content
           })
         })
+        if (resp.status === 403) { const e403 = await resp.json(); hintEl.style.display = 'none'; if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const data = await resp.json()
+        if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
         let result
         try { result = JSON.parse(data.testo || '{}') } catch(e) { result = {} }
         const rilevamento = result.rilevamento || 'allineamento neutro'
@@ -1343,12 +1347,15 @@
         `{"suggerimento":"NPL"|"GPL"|"NEUTRO","confidenza":"alta"|"media"|"bassa","motivazione":"1-2 frasi","osservazioni_chiave":["..."]}`
 
       try {
+        const { data: { session: _aiS2 } } = await _supabase.auth.getSession()
         const resp = await fetch('/api/analisi-posturale', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_aiS2?.access_token || '') },
           body: JSON.stringify({ system: systemPrompt, content: content })
         })
+        if (resp.status === 403) { const e403 = await resp.json(); document.getElementById('aip-step-loading').style.display = 'none'; document.getElementById('aip-step-scelta').style.display = 'block'; if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const data = await resp.json()
+        if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
         let result
         try { result = JSON.parse(data.testo || '{}') }
         catch(e) { result = { suggerimento: 'NEUTRO', confidenza: 'bassa', motivazione: 'Errore nel parsing della risposta AI.', osservazioni_chiave: [] } }
@@ -1578,12 +1585,15 @@
       ok.style.display = 'none'
       extra.style.display = 'none'
       try {
+        const { data: { session: _aiS3 } } = await _supabase.auth.getSession()
         const res  = await fetch('/api/analisi-referto', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_aiS3?.access_token || '') },
           body: JSON.stringify({ image: { data: base64, type: mediaType } })
         })
+        if (res.status === 403) { const e403 = await res.json(); if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const json = await res.json()
+        if (json.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
         if (json.dati) compileEditFormFromReferto(json.dati)
         ok.style.display = 'block'
       } catch(e) {

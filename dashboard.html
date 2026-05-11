@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="utils-premium.js"></script>
+  <script src="utils-ai.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
@@ -232,7 +233,7 @@
       <div class="wizard-step active" id="wstep-0">
         <div class="wizard-badge">POLICETTIVO</div>
         <div class="wizard-title">Benvenuto nell'app! 👋</div>
-        <div class="wizard-sub">Sei nel posto giusto.<br><br>Ti guidiamo in un <strong>tour rapido</strong> per scoprire tutte le funzioni: la scheda clinica, le foto posturali, il protocollo esercizi e molto altro.<br><br>Nessuna paura: tutto quello che crei ora si puo modificare o cancellare liberamente.</div>
+        <div class="wizard-sub">Sei nel posto giusto.<br><br>Con Policettivo gestisci la <strong>visita posturale</strong>, scatti foto, l'<strong>AI analizza la postura</strong> e suggerisce NPL o GPL, crei il <strong>protocollo esercizi</strong> e condividi il link direttamente al paziente.<br><br>Il piano Free include <strong>5 analisi AI gratuite</strong>. Con Premium le analisi AI sono illimitate.</div>
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
           <button class="btn-primary" onclick="goWizardStep(1)">Inizia il tour</button>
@@ -263,14 +264,15 @@
       </div>
       <div class="wizard-step" id="wstep-2">
         <div class="wizard-badge">STEP 2 DI 4</div>
-        <div class="wizard-title">Esplora la scheda clinica 📋</div>
-        <div class="wizard-sub">Il paziente di prova e stato creato. Ora esplora la scheda clinica per capire come funziona la visita posturale.</div>
+        <div class="wizard-title">Visita posturale e AI 📋</div>
+        <div class="wizard-sub">Il paziente di prova è stato creato. Ora esplora la scheda clinica: è qui che avviene la valutazione posturale.</div>
         <div style="background:#fffdf0;border:1.5px solid #FFD008;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-bottom:16px;line-height:1.7;">
           Nella scheda trovi:<br>
           <strong>Foto posturali</strong> — sagittale, frontale, posteriore, podoscopio<br>
-          <strong>Piano scapolare</strong> e <strong>osservazioni podoscopiche</strong><br>
-          <strong>Configurazione NPL o GPL</strong> dei cuscini<br><br>
-          Prova a scattare foto fittizie e a compilare i campi. Puoi modificare tutto in qualsiasi momento.
+          <strong>AI posturale</strong> — analizza le foto e suggerisce <strong>NPL</strong> (cuscino bianco) o <strong>GPL</strong> (cuscino verde lime)<br>
+          <strong>Piano scapolare</strong> e <strong>osservazioni podoscopiche</strong><br><br>
+          Piano Free: <strong>5 analisi AI incluse</strong>. Piano Premium: analisi illimitate.<br>
+          Prova a scattare foto fittizie per vedere l'AI in azione.
         </div>
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
@@ -283,14 +285,14 @@
       </div>
       <div class="wizard-step" id="wstep-3">
         <div class="wizard-badge">STEP 3 DI 4</div>
-        <div class="wizard-title">Gestisci il protocollo 💪</div>
-        <div class="wizard-sub">Il paziente di prova ha gia la Tecnica dei 3 Respiri assegnata. Puoi aggiungere altri esercizi o modificare l'ordine.</div>
+        <div class="wizard-title">Crea il protocollo esercizi 💪</div>
+        <div class="wizard-sub">Dopo la visita posturale, costruisci il protocollo su misura per il paziente.</div>
         <div style="background:#fffdf0;border:1.5px solid #FFD008;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-bottom:16px;line-height:1.7;">
-          Nella pagina del protocollo puoi:<br>
-          <strong>Aggiungere esercizi</strong> dal catalogo disponibile<br>
-          <strong>Definire l'ordine</strong> di esecuzione<br>
-          <strong>Personalizzare</strong> il percorso per ogni paziente<br><br>
-          Ogni paziente ha il suo protocollo su misura.
+          Nel protocollo puoi:<br>
+          <strong>Scegliere esercizi</strong> dal catalogo (es. Tecnica dei 3 Respiri, Schema Barchetta)<br>
+          <strong>Definire i tempi</strong> — 30s, 1m, 2m, 3m, 5m o 10m per ogni esercizio<br>
+          <strong>Aggiungere video personalizzati</strong> dimostrativi (solo Premium)<br><br>
+          Il paziente troverà il protocollo nel suo link personale e lo eseguirà guidato da un timer.
         </div>
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
@@ -616,12 +618,15 @@
       loading.style.display = 'block'
       ok.style.display = 'none'
       try {
+        const { data: { session: _s } } = await _supabase.auth.getSession()
         const res = await fetch('/api/analisi-referto', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_s?.access_token || '') },
           body: JSON.stringify({ image: { data: base64, type: mediaType } })
         })
+        if (res.status === 403) { const e403 = await res.json(); if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const json = await res.json()
+        if (json.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
         if (json.dati) compileFormFromReferto(json.dati)
         ok.style.display = 'block'
       } catch(e) {

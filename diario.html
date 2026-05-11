@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="utils-premium.js"></script>
+<script src="utils-ai.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; min-height: 100vh; }
@@ -283,12 +284,16 @@ async function precompilaAI() {
   }
   var prompt = 'Fisioterapista. Paziente: ' + nomePaz + '. Problema: ' + problema + '. Protocollo: ' + nomeProt + ' esercizi: ' + esercizi + '. Storico: ' + storico + '. Rispondi SOLO JSON: {"protocollo_seduta":"...","protocollo_prossima":"...","tecniche":"...","risposta_paziente":"...","note_cliniche":"..."}';
   try {
+    var sess = await _sb.auth.getSession();
+    var tok = sess.data.session?.access_token || '';
     var r = await fetch('/api/ai-analisi', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + tok},
       body: JSON.stringify({prompt: prompt})
     });
+    if (r.status === 403) { var e403 = await r.json(); if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); btn.disabled = false; loading.classList.remove('visible'); return; }
     var data = await r.json();
+    if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses);
     var testo = data.testo || '';
     var match = testo.match(/\{[\s\S]*\}/);
     if (match) {
