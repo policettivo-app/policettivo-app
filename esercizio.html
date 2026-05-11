@@ -90,7 +90,7 @@
     <div class="video-box normal" id="video-box">
       <div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>
     </div>
-    <div class="timer-section">
+    <div class="timer-section" id="timer-section">
       <div class="timer-ring">
         <svg width="140" height="140" viewBox="0 0 140 140">
           <circle class="timer-ring-bg" cx="70" cy="70" r="58"/>
@@ -106,7 +106,7 @@
     </div>
     <div class="actions">
       <button class="btn-complete" onclick="completeExercise()">✓ Esercizio completato</button>
-      <button class="btn-pain" onclick="painAlert()">⚠ Ho dolore — interrompi</button>
+      <button class="btn-pain" id="btn-pain" onclick="painAlert()">⚠ Ho dolore — interrompi</button>
       <button class="btn-prev" id="btn-prev" onclick="prevExercise()" style="display:none">← Esercizio precedente</button>
     </div>
   </div>
@@ -138,7 +138,7 @@
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     let idx = parseInt(params.get('idx') || '0')
-    let patient = null, protocol = null, exercises = []
+    let patient = null, protocol = null, exercises = [], items = []
     let totalSeconds = 90, remaining = 90, timerInterval = null, isRunning = false
 
     const frasi = [
@@ -184,13 +184,19 @@
       protocol = prots[0]
       const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
       if (ppe && ppe.length > 0) {
-        const exIds = ppe.map(e => e.exercise_id)
+        const exIds = ppe.map(function(e) { return e.exercise_id })
         const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
         const exMap = {}
-        if (exData) exData.forEach(e => exMap[e.id] = e)
-        exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
+        if (exData) exData.forEach(function(e) { exMap[e.id] = e })
+        exercises = ppe.map(function(e) { return Object.assign({}, e, { exercise: exMap[e.exercise_id] || null, item_type: 'standard' }) })
       }
-      if (idx >= exercises.length) { finishSession(); return }
+      const { data: cvData } = await _supabase.from('exercise_videos').select('*').eq('protocol_id', protocol.id).order('created_at', { ascending: true })
+      const customItems = (cvData || []).map(function(v) {
+        return { item_type: 'custom_video', id: v.id, titolo: v.titolo, url: v.url, tipo: v.tipo, descrizione: v.descrizione }
+      })
+      items = exercises.concat(customItems)
+      if (items.length === 0) { finishSession(); return }
+      if (idx >= items.length) { finishSession(); return }
       loadExercise()
     }
 
@@ -204,43 +210,67 @@
     }
 
     function loadExercise() {
-      const currentEx = exercises[idx]
-      const ex = currentEx.exercise
-      const cfg = currentEx.configurazione || protocol.configurazione_generale || patient.configurazione_default || 'NPL'
-      const total = exercises.length
-      document.getElementById('ex-counter').textContent = `Esercizio ${idx+1} di ${total}`
-      document.getElementById('nav-progress').textContent = `${idx+1} / ${total}`
-      document.getElementById('ex-name').textContent = ex ? ex.nome : 'Esercizio'
-      document.getElementById('ex-desc').textContent = ex ? ex.descrizione_paziente : ''
+      const item = items[idx]
+      const total = items.length
+      document.getElementById('ex-counter').textContent = 'Esercizio ' + (idx+1) + ' di ' + total
+      document.getElementById('nav-progress').textContent = (idx+1) + ' / ' + total
       document.getElementById('progress-fill').style.width = ((idx / total) * 100) + '%'
-      document.getElementById('hint-3r').style.display = (ex && ex.slug === '0-3r') ? 'block' : 'none'
-      if (cfg) {
-        document.getElementById('ex-config').innerHTML = `<span class="config-pill pill-${cfg.toLowerCase()}">${cfg} — ${cfg === 'NPL' ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'}</span>`
+      document.getElementById('btn-prev').style.display = idx > 0 ? 'block' : 'none'
+      if (item.item_type === 'custom_video') {
+        loadCustomVideoItem(item)
+      } else {
+        loadStandardExercise(item)
       }
+    }
+
+    function loadStandardExercise(item) {
+      const ex = item.exercise
+      const cfg = item.configurazione || protocol.configurazione_generale || patient.configurazione_default || 'NPL'
+      document.getElementById('ex-name').textContent = ex ? ex.nome : 'Esercizio'
+      document.getElementById('ex-desc').textContent = ex ? (ex.descrizione_paziente || '') : ''
+      document.getElementById('hint-3r').style.display = (ex && ex.slug === '0-3r') ? 'block' : 'none'
+      document.getElementById('ex-config').innerHTML = cfg ? '<span class="config-pill pill-' + cfg.toLowerCase() + '">' + cfg + ' — ' + (cfg === 'NPL' ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale') + '</span>' : ''
+      document.getElementById('timer-section').style.display = 'block'
+      document.getElementById('btn-pain').style.display = 'block'
       const videoBox = document.getElementById('video-box')
       if (ex && ex.video_url) {
         if (ex.video_url.includes('youtube.com/results')) {
           videoBox.className = 'video-box normal'
-          videoBox.innerHTML = `<div class="video-placeholder"><div style="font-size:40px">▶</div><p style="margin-bottom:12px;color:#aaa">Clicca per vedere il video</p><a href="${ex.video_url}" target="_blank" style="background:#FF0000;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block">▶ Guarda su YouTube</a></div>`
+          videoBox.innerHTML = '<div class="video-placeholder"><div style="font-size:40px">▶</div><p style="margin-bottom:12px;color:#aaa">Clicca per vedere il video</p><a href="' + ex.video_url + '" target="_blank" style="background:#FF0000;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block">▶ Guarda su YouTube</a></div>'
         } else {
-        const { id, isShorts } = extractVideoId(ex.video_url)
-        if (id) {
-          videoBox.className = 'video-box ' + (isShorts ? 'shorts' : 'normal')
-          videoBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?playsinline=1&rel=0" allowfullscreen allow="autoplay"></iframe>`
-        } else {
-          videoBox.className = 'video-box normal'
-          videoBox.innerHTML = `<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>`
-        }
+          const { id, isShorts } = extractVideoId(ex.video_url)
+          if (id) {
+            videoBox.className = 'video-box ' + (isShorts ? 'shorts' : 'normal')
+            videoBox.innerHTML = '<iframe src="https://www.youtube.com/embed/' + id + '?playsinline=1&rel=0" allowfullscreen allow="autoplay"></iframe>'
+          } else {
+            videoBox.className = 'video-box normal'
+            videoBox.innerHTML = '<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>'
+          }
         }
       } else {
         videoBox.className = 'video-box normal'
-        videoBox.innerHTML = `<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>`
+        videoBox.innerHTML = '<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>'
       }
-      totalSeconds = currentEx.durata || (ex ? ex.durata_default : 90) || 90
+      totalSeconds = item.durata || (ex ? ex.durata_default : 90) || 90
       remaining = totalSeconds
       updateTimerDisplay()
       updateRing()
-      document.getElementById('btn-prev').style.display = idx > 0 ? 'block' : 'none'
+    }
+
+    function loadCustomVideoItem(item) {
+      document.getElementById('ex-name').textContent = item.titolo || 'Contenuto personalizzato'
+      document.getElementById('ex-desc').textContent = item.descrizione || ''
+      document.getElementById('hint-3r').style.display = 'none'
+      document.getElementById('ex-config').innerHTML = ''
+      document.getElementById('timer-section').style.display = 'none'
+      document.getElementById('btn-pain').style.display = 'none'
+      const videoBox = document.getElementById('video-box')
+      videoBox.className = 'video-box normal'
+      if (item.tipo === 'foto') {
+        videoBox.innerHTML = '<img src="' + item.url + '" loading="lazy" style="width:100%;max-height:360px;object-fit:contain;background:#000;display:block">'
+      } else {
+        videoBox.innerHTML = '<video src="' + item.url + '" controls playsinline preload="metadata" style="width:100%;max-height:360px;background:#000;display:block"></video>'
+      }
     }
 
     function updateTimerDisplay() {
@@ -285,7 +315,7 @@
     function completeExercise() { clearInterval(timerInterval); isRunning = false; showCompleted() }
 
     async function showCompleted() {
-      const isLast = idx >= exercises.length - 1
+      const isLast = idx >= items.length - 1
       document.getElementById('completed-icon').textContent = isLast ? '🏆' : '✅'
       document.getElementById('completed-title').textContent = isLast ? 'Sessione completata!' : 'Esercizio completato!'
       document.getElementById('btn-next').style.display = isLast ? 'none' : 'block'
@@ -308,7 +338,11 @@
         document.getElementById('motivational-msg').innerHTML = frase
         await salvaDiarioAutomatico(streak)
       } else {
-        document.getElementById('completed-sub').textContent = `Prossimo: ${exercises[idx+1] ? exercises[idx+1].exercise.nome : ''}`
+        const nextItem = items[idx+1]
+        const nextName = nextItem.item_type === 'custom_video'
+          ? (nextItem.titolo || 'Contenuto personalizzato')
+          : (nextItem.exercise ? nextItem.exercise.nome : '')
+        document.getElementById('completed-sub').textContent = 'Prossimo: ' + nextName
         document.getElementById('streak-section').style.display = 'none'
       }
       document.getElementById('completed-overlay').classList.add('show')
@@ -380,7 +414,7 @@
           patient_protocol_id: protocol.id,
           data: new Date().toISOString().split('T')[0],
           dolore: 7, rigidita: 0, equilibrio: 5, energia: 5,
-          note: 'Sessione interrotta per dolore durante ' + (exercises[idx].exercise ? exercises[idx].exercise.nome : 'esercizio'),
+          note: 'Sessione interrotta per dolore durante ' + (items[idx].item_type === 'standard' && items[idx].exercise ? items[idx].exercise.nome : (items[idx].titolo || 'esercizio')),
           completato: false
         })
         finishSession()
