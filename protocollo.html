@@ -214,9 +214,11 @@
       document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token }
       const btnRapida = document.getElementById('btn-rapida'); if(btnRapida) btnRapida.style.display = 'block'
 
-      // 2. Carica i protocolli attivi del paziente
-      const { data: prots, error: protsErr } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
-      console.log('[init] protocolli:', prots, 'errore:', protsErr)
+      // 2. Carica tutti i protocolli del paziente (filtro stato rimosso temporaneamente per debug)
+      console.log('[init] query patient_protocols: patient_id =', patient.id)
+      const { data: prots, error: protsErr } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).order('created_at', { ascending: false })
+      console.log('[init] protocolli (tutti, no filtro stato):', prots, 'errore:', protsErr)
+      if (prots && prots.length > 0) console.log('[init] valori stato trovati:', prots.map(function(p) { return p.stato }))
       if (!prots || prots.length === 0) { showNoProtocol(); return }
       protocol = prots[0]
       console.log('[init] protocollo selezionato id:', protocol.id, 'nome:', protocol.nome_personalizzato)
