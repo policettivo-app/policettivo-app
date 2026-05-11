@@ -314,7 +314,9 @@
         })
         const customItems = protocolCustomVideos.map(function(v, i) {
           const num = exercises.length + i + 1
-          const typeLabel = v.tipo === 'foto' ? '📷 Foto personalizzata' : '📹 Video personalizzato'
+          const dur = v.durata || 60
+          const durLabel = dur < 60 ? dur + 's' : (dur % 60 === 0 ? (dur / 60) + ' min' : dur + 's')
+          const typeLabel = (v.tipo === 'foto' ? '📷 Foto' : '📹 Video') + ' · ' + durLabel
           const media = v.tipo === 'foto'
             ? '<img src="' + v.url + '" loading="lazy" style="width:100%;max-height:200px;border-radius:8px;margin-top:10px;display:block;object-fit:cover">'
             : '<video src="' + v.url + '" controls playsinline preload="metadata" style="width:100%;max-height:200px;border-radius:8px;margin-top:10px;background:#000;display:block"></video>'

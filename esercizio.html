@@ -192,7 +192,7 @@
       }
       const { data: cvData } = await _supabase.from('exercise_videos').select('*').eq('protocol_id', protocol.id).order('created_at', { ascending: true })
       const customItems = (cvData || []).map(function(v) {
-        return { item_type: 'custom_video', id: v.id, titolo: v.titolo, url: v.url, tipo: v.tipo, descrizione: v.descrizione }
+        return { item_type: 'custom_video', id: v.id, titolo: v.titolo, url: v.url, tipo: v.tipo, descrizione: v.descrizione, durata: v.durata || 60 }
       })
       items = exercises.concat(customItems)
       if (items.length === 0) { finishSession(); return }
@@ -262,7 +262,7 @@
       document.getElementById('ex-desc').textContent = item.descrizione || ''
       document.getElementById('hint-3r').style.display = 'none'
       document.getElementById('ex-config').innerHTML = ''
-      document.getElementById('timer-section').style.display = 'none'
+      document.getElementById('timer-section').style.display = 'block'
       document.getElementById('btn-pain').style.display = 'none'
       const videoBox = document.getElementById('video-box')
       videoBox.className = 'video-box normal'
@@ -271,6 +271,10 @@
       } else {
         videoBox.innerHTML = '<video src="' + item.url + '" controls playsinline preload="metadata" style="width:100%;max-height:360px;background:#000;display:block"></video>'
       }
+      totalSeconds = item.durata || 60
+      remaining = totalSeconds
+      updateTimerDisplay()
+      updateRing()
     }
 
     function updateTimerDisplay() {

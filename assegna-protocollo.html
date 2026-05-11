@@ -152,6 +152,7 @@
     let allExercises = []
     let customVideos = []
     let selectedCustomVideos = []
+    let customVideoDurata = {}
     let isEditMode = !!editProtocolId
 
     function escHtml(s) {
@@ -221,22 +222,43 @@
         grid.innerHTML = '<div style="color:#bbb;font-size:12px;text-align:center;padding:16px 0">Nessun contenuto registrato. Clicca "Registra nuovo contenuto personalizzato" per aggiungere video o foto.</div>'
         return
       }
+      const presets = [{s:30,l:'30s'},{s:60,l:'1m'},{s:120,l:'2m'},{s:180,l:'3m'},{s:300,l:'5m'},{s:600,l:'10m'}]
       grid.innerHTML = customVideos.map(function(v) {
         const isSel = selectedCustomVideos.includes(v.id)
-        const selIdx = selectedCustomVideos.indexOf(v.id)
+        const durata = customVideoDurata[v.id] || 60
+        const durLabel = durata < 60 ? durata + 's' : (durata % 60 === 0 ? (durata / 60) + ' min' : durata + 's')
         const preview = v.tipo === 'video'
           ? '<video src="' + escHtml(v.url) + '" preload="none" muted playsinline style="width:100%;max-height:110px;object-fit:cover;border-radius:8px;background:#111;display:block;margin-top:10px"></video>'
           : '<img src="' + escHtml(v.url) + '" loading="lazy" style="width:100%;max-height:110px;object-fit:cover;border-radius:8px;display:block;margin-top:10px">'
-        return '<div onclick="toggleCustomVideo(\'' + v.id + '\')" style="border:2px solid ' + (isSel ? '#FFD008' : '#eee') + ';border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;background:' + (isSel ? '#fffde7' : '#fff') + ';transition:border-color 0.15s,background 0.15s">' +
+        const metaLine = (v.tipo === 'video' ? '📹 Video' : '📷 Foto') + ' · ' + (isSel ? durLabel + ' · ' : '') + new Date(v.created_at).toLocaleDateString('it-IT')
+        if (!isSel) {
+          return '<div onclick="toggleCustomVideo(\'' + v.id + '\')" style="border:2px solid #eee;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;background:#fff;transition:border-color 0.15s">' +
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
+              '<div style="flex:1;min-width:0">' +
+                '<div style="font-size:14px;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(v.titolo || 'Contenuto senza titolo') + '</div>' +
+                '<div style="font-size:11px;color:#999;margin-top:2px">' + metaLine + '</div>' +
+              '</div>' +
+              '<div style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:2px solid #ddd;background:#fff;color:#000;white-space:nowrap">+ Aggiungi</div>' +
+            '</div>' +
+            preview +
+          '</div>'
+        }
+        const presetsHtml = presets.map(function(p) {
+          const isActive = durata === p.s
+          return '<button onclick="setCustomVideoDurata(\'' + v.id + '\',' + p.s + ')" style="padding:5px 10px;border-radius:6px;border:none;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;background:' + (isActive ? '#FFD008' : '#e0e0e0') + ';color:' + (isActive ? '#000' : '#555') + '">' + p.l + '</button>'
+        }).join('')
+        return '<div style="border:2px solid #FFD008;border-radius:12px;padding:14px;margin-bottom:10px;background:#fffde7">' +
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
             '<div style="flex:1;min-width:0">' +
               '<div style="font-size:14px;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(v.titolo || 'Contenuto senza titolo') + '</div>' +
-              '<div style="font-size:11px;color:#999;margin-top:2px">' + (v.tipo === 'video' ? '📹 Video' : '📷 Foto') + ' · ' + new Date(v.created_at).toLocaleDateString('it-IT') + '</div>' +
+              '<div style="font-size:11px;color:#999;margin-top:2px">' + metaLine + '</div>' +
             '</div>' +
-            '<div style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:2px solid ' + (isSel ? '#FFD008' : '#ddd') + ';background:' + (isSel ? '#FFD008' : '#fff') + ';color:#000;white-space:nowrap">' +
-              (isSel ? '✓ Nel protocollo' : '+ Aggiungi') +
+            '<div style="display:flex;gap:6px;flex-shrink:0;align-items:center">' +
+              '<div style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;background:#FFD008;color:#000;white-space:nowrap">✓ Nel protocollo</div>' +
+              '<button onclick="toggleCustomVideo(\'' + v.id + '\')" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid #ddd;background:#fff;color:#c62828;cursor:pointer;font-family:Montserrat,sans-serif;white-space:nowrap">× Rimuovi</button>' +
             '</div>' +
           '</div>' +
+          '<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">' + presetsHtml + '</div>' +
           preview +
         '</div>'
       }).join('')
@@ -244,9 +266,20 @@
 
     function toggleCustomVideo(id) {
       const idx = selectedCustomVideos.indexOf(id)
-      if (idx >= 0) { selectedCustomVideos.splice(idx, 1) } else { selectedCustomVideos.push(id) }
+      if (idx >= 0) {
+        selectedCustomVideos.splice(idx, 1)
+        delete customVideoDurata[id]
+      } else {
+        selectedCustomVideos.push(id)
+        customVideoDurata[id] = 60
+      }
       renderCustomVideos()
       updateSummary()
+    }
+
+    function setCustomVideoDurata(id, seconds) {
+      customVideoDurata[id] = seconds
+      renderCustomVideos()
     }
 
     async function impostaNomeAutomatico() {
@@ -286,8 +319,9 @@
         })
       }
 
-      const { data: assignedVids } = await _supabase.from('exercise_videos').select('id').eq('protocol_id', editProtocolId)
+      const { data: assignedVids } = await _supabase.from('exercise_videos').select('id, durata').eq('protocol_id', editProtocolId)
       selectedCustomVideos = (assignedVids || []).map(function(v) { return v.id })
+      ;(assignedVids || []).forEach(function(v) { customVideoDurata[v.id] = v.durata || 60 })
     }
 
     function setConfig(cfg) {
@@ -403,10 +437,11 @@
           return { patient_protocol_id: editProtocolId, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: exerciseDurata[sel.id] || ex?.durata_default || 60, ripetizioni: ex?.ripetizioni || 1 }
         })
         await _supabase.from('patient_protocol_exercises').insert(exRows)
-        // Sync contenuti personalizzati: reset poi assegna selezionati
+        // Sync contenuti personalizzati: reset poi assegna selezionati con durata
         await _supabase.from('exercise_videos').update({ protocol_id: null }).eq('protocol_id', editProtocolId)
-        if (selectedCustomVideos.length > 0) {
-          await _supabase.from('exercise_videos').update({ protocol_id: editProtocolId }).in('id', selectedCustomVideos)
+        for (let i = 0; i < selectedCustomVideos.length; i++) {
+          const vid = selectedCustomVideos[i]
+          await _supabase.from('exercise_videos').update({ protocol_id: editProtocolId, durata: customVideoDurata[vid] || 60 }).eq('id', vid)
         }
       } else {
         await _supabase.from('patient_protocols').update({ stato: 'sospeso' }).eq('patient_id', patientId).eq('stato', 'attivo')
@@ -424,9 +459,10 @@
           return { patient_protocol_id: proto.id, exercise_id: sel.id, ordine: i + 1, configurazione: exerciseCfg[sel.id] || selectedConfig, durata: exerciseDurata[sel.id] || ex?.durata_default || 60, ripetizioni: ex?.ripetizioni || 1 }
         })
         if (exRows.length > 0) await _supabase.from('patient_protocol_exercises').insert(exRows)
-        // Assegna contenuti personalizzati al nuovo protocollo
-        if (selectedCustomVideos.length > 0) {
-          await _supabase.from('exercise_videos').update({ protocol_id: proto.id }).in('id', selectedCustomVideos)
+        // Assegna contenuti personalizzati al nuovo protocollo con durata
+        for (let i = 0; i < selectedCustomVideos.length; i++) {
+          const vid = selectedCustomVideos[i]
+          await _supabase.from('exercise_videos').update({ protocol_id: proto.id, durata: customVideoDurata[vid] || 60 }).eq('id', vid)
         }
       }
 
