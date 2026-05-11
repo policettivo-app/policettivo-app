@@ -119,10 +119,13 @@
       </div>
 
       <!-- Contenuti personalizzati -->
-      <div id="custom-videos-section" style="display:none;margin-top:20px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#666;margin-bottom:10px;padding-top:14px;border-top:1px solid #eee">Contenuti personalizzati</div>
-        <p style="font-size:12px;color:#888;margin-bottom:12px">Seleziona i contenuti da includere nel protocollo. Appariranno dopo gli esercizi standard.</p>
-        <div id="custom-videos-grid"></div>
+      <div id="custom-videos-section" style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#666">Contenuti personalizzati</div>
+          <button onclick="caricaCustomVideos()" style="background:transparent;border:1px solid #ddd;color:#666;padding:4px 10px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:11px;cursor:pointer">↻ Aggiorna</button>
+        </div>
+        <p style="font-size:12px;color:#888;margin-bottom:12px">Seleziona i contenuti da aggiungere al protocollo. Appariranno in sequenza dopo gli esercizi standard.</p>
+        <div id="custom-videos-grid"><div style="color:#bbb;font-size:12px;text-align:center;padding:12px">Caricamento...</div></div>
       </div>
 
       <button onclick="window.location.href='video-esercizio.html?id='+patientId" style="width:100%;margin-top:16px;padding:14px 16px;background:#111;border:1.5px solid #FFD008;color:#FFD008;border-radius:12px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:0.3px;display:flex;align-items:center;justify-content:center;gap:8px">
@@ -154,9 +157,9 @@
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
     }
 
-    window.addEventListener('pageshow', function(e) {
-      if (e.persisted) caricaCustomVideos()
-    })
+    // Ricarica video personalizzati in tutti i casi di ritorno alla pagina
+    window.addEventListener('pageshow', function() { caricaCustomVideos() })
+    document.addEventListener('visibilitychange', function() { if (!document.hidden) caricaCustomVideos() })
 
     function showToast(msg, type = 'error') {
       const container = document.getElementById('toast-container')
@@ -201,26 +204,39 @@
     }
 
     async function caricaCustomVideos() {
-      const { data } = await _supabase.from('exercise_videos').select('*').eq('patient_id', patientId).order('created_at', { ascending: false })
+      const { data, error } = await _supabase.from('exercise_videos').select('*').eq('patient_id', patientId).order('created_at', { ascending: false })
+      if (error) {
+        console.error('[caricaCustomVideos] errore RLS o query:', error)
+        document.getElementById('custom-videos-grid').innerHTML = '<div style="color:#e53935;font-size:12px;padding:10px">Errore caricamento: ' + escHtml(error.message) + '</div>'
+        return
+      }
       customVideos = data || []
       renderCustomVideos()
     }
 
     function renderCustomVideos() {
-      const section = document.getElementById('custom-videos-section')
       const grid = document.getElementById('custom-videos-grid')
-      if (!customVideos.length) { section.style.display = 'none'; return }
-      section.style.display = 'block'
+      if (!customVideos.length) {
+        grid.innerHTML = '<div style="color:#bbb;font-size:12px;text-align:center;padding:16px 0">Nessun contenuto registrato. Clicca "Registra nuovo contenuto personalizzato" per aggiungere video o foto.</div>'
+        return
+      }
       grid.innerHTML = customVideos.map(function(v) {
         const isSel = selectedCustomVideos.includes(v.id)
-        const tipo = v.tipo === 'video' ? '📹' : '📷'
-        return '<div class="exercise-item ' + (isSel ? 'selected' : '') + '" onclick="toggleCustomVideo(\'' + v.id + '\')">' +
-          '<div class="exercise-num" style="font-size:16px">' + (isSel ? '✓' : tipo) + '</div>' +
-          '<div class="exercise-info">' +
-            '<div class="exercise-name">' + escHtml(v.titolo || 'Contenuto senza titolo') + '</div>' +
-            '<div class="exercise-meta">' + (v.tipo === 'video' ? 'Video' : 'Foto') + ' personalizzato · ' + new Date(v.created_at).toLocaleDateString('it-IT') + '</div>' +
+        const selIdx = selectedCustomVideos.indexOf(v.id)
+        const preview = v.tipo === 'video'
+          ? '<video src="' + escHtml(v.url) + '" preload="none" muted playsinline style="width:100%;max-height:110px;object-fit:cover;border-radius:8px;background:#111;display:block;margin-top:10px"></video>'
+          : '<img src="' + escHtml(v.url) + '" loading="lazy" style="width:100%;max-height:110px;object-fit:cover;border-radius:8px;display:block;margin-top:10px">'
+        return '<div onclick="toggleCustomVideo(\'' + v.id + '\')" style="border:2px solid ' + (isSel ? '#FFD008' : '#eee') + ';border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;background:' + (isSel ? '#fffde7' : '#fff') + ';transition:border-color 0.15s,background 0.15s">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-size:14px;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(v.titolo || 'Contenuto senza titolo') + '</div>' +
+              '<div style="font-size:11px;color:#999;margin-top:2px">' + (v.tipo === 'video' ? '📹 Video' : '📷 Foto') + ' · ' + new Date(v.created_at).toLocaleDateString('it-IT') + '</div>' +
+            '</div>' +
+            '<div style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:2px solid ' + (isSel ? '#FFD008' : '#ddd') + ';background:' + (isSel ? '#FFD008' : '#fff') + ';color:#000;white-space:nowrap">' +
+              (isSel ? '✓ Nel protocollo' : '+ Aggiungi') +
+            '</div>' +
           '</div>' +
-          '<div style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;background:' + (isSel ? '#FFD008' : '#eee') + ';color:' + (isSel ? '#000' : '#999') + ';white-space:nowrap">CUSTOM</div>' +
+          preview +
         '</div>'
       }).join('')
     }

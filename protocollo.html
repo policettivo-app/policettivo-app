@@ -78,14 +78,6 @@
     .feedback-success { background: #1a3a1a; border: 1px solid #2e7d32; color: #81c784; border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-top: 12px; display: none; text-align: center; }
     .feedback-success.visible { display: block; }
     .star-label { text-align: center; font-size: 13px; color: #888; margin-bottom: 12px; min-height: 20px; }
-    .video-section { margin-top: 24px; margin-bottom: 24px; }
-    .video-section-title { font-size: 13px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-    .video-card { background: #111; border: 1px solid #222; border-radius: 14px; overflow: hidden; margin-bottom: 14px; }
-    .video-card video, .video-card img { width: 100%; display: block; max-height: 240px; object-fit: cover; background: #000; }
-    .video-card-body { padding: 12px 14px; }
-    .video-card-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-    .video-card-desc { font-size: 12px; color: #888; line-height: 1.5; }
-    .video-card-tipo { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #1a1a1a; color: #FFD008; border: 1px solid #FFD008; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -144,7 +136,7 @@
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
-    let patient = null, protocol = null, exercises = []
+    let patient = null, protocol = null, exercises = [], protocolCustomVideos = []
     let deferredPrompt = null
     let stelleSelezionate = 0
     let ultimaSedutaId = null
@@ -219,10 +211,13 @@
         if (exData) exData.forEach(function(e) { exMap[e.id] = e })
         exercises = ppe.map(function(e) { return Object.assign({}, e, { exercise: exMap[e.exercise_id] || null }) })
       }
+      // 4. Carica video custom del protocollo
+      const { data: cvData } = await _supabase.from('exercise_videos').select('*').eq('protocol_id', protocol.id).order('created_at', { ascending: true })
+      protocolCustomVideos = cvData || []
+
       renderProtocol()
       loadSmile()
       caricaUltimaSeduta()
-      loadPatientVideos()
     }
 
     async function caricaUltimaSeduta() {
@@ -310,16 +305,25 @@
       const giorno = Math.max(1, Math.floor((oggi - inizio) / (1000*60*60*24)) + 1)
       const cfg = protocol.configurazione_generale || patient.configurazione_default || 'NPL'
       const cfgClass = cfg === 'NPL' ? 'config-npl' : 'config-gpl'
+      const totalItems = exercises.length + protocolCustomVideos.length
       let exHtml = ''
-      if (exercises.length > 0) {
-        exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' +
-          exercises.map(function(e, i) {
-            const ex = e.exercise
-            return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div></div>'
-          }).join('') + '</div>'
+      if (exercises.length > 0 || protocolCustomVideos.length > 0) {
+        const standardItems = exercises.map(function(e, i) {
+          const ex = e.exercise
+          return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div></div>'
+        })
+        const customItems = protocolCustomVideos.map(function(v, i) {
+          const num = exercises.length + i + 1
+          const typeLabel = v.tipo === 'foto' ? '📷 Foto personalizzata' : '📹 Video personalizzato'
+          const media = v.tipo === 'foto'
+            ? '<img src="' + v.url + '" loading="lazy" style="width:100%;max-height:200px;border-radius:8px;margin-top:10px;display:block;object-fit:cover">'
+            : '<video src="' + v.url + '" controls playsinline preload="metadata" style="width:100%;max-height:200px;border-radius:8px;margin-top:10px;background:#000;display:block"></video>'
+          return '<div class="exercise-item" style="flex-direction:column;align-items:flex-start"><div style="display:flex;align-items:center;gap:14px;width:100%"><div class="exercise-num">' + num + '</div><div class="exercise-info"><div class="exercise-name">' + (v.titolo || 'Contenuto personalizzato') + '</div><div class="exercise-meta">' + typeLabel + '</div></div></div>' + media + '</div>'
+        })
+        exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' + standardItems.concat(customItems).join('') + '</div>'
       }
       document.getElementById('content-area').innerHTML =
-        '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + exercises.length + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">Inizia gli esercizi</button><button id="btn-rapida" onclick="modalitaRapida()" style="width:100%;padding:14px;background:#1a1a1a;border:1.5px solid #FFD008;color:#FFD008;border-radius:12px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px">&#9889; Modalita Rapida</button></div>' +
+        '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + totalItems + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">Inizia gli esercizi</button><button id="btn-rapida" onclick="modalitaRapida()" style="width:100%;padding:14px;background:#1a1a1a;border:1.5px solid #FFD008;color:#FFD008;border-radius:12px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px">&#9889; Modalita Rapida</button></div>' +
         exHtml +
         '<div class="diary-card"><div class="diary-title">Come stai oggi?</div>' +
         '<div class="slider-group"><div class="slider-label"><span class="slider-name">Dolore</span><span class="slider-value" id="val-dolore">0</span></div><input type="range" id="sl-dolore" min="0" max="10" value="0" oninput="updateSlider(\'dolore\',this.value)"><div id="bar-dolore" style="height:4px;border-radius:2px;margin-top:4px;background:#4CAF50;width:0%;transition:all 0.3s"></div></div>' +
@@ -381,28 +385,6 @@
     function contattaProfessionista() {
       const msg = 'Ciao, sono ' + patient.nome + ' ' + patient.cognome + '. Ti scrivo dall app Policettivo.'
       window.open('https://wa.me/?text=' + encodeURIComponent(msg))
-    }
-
-    async function loadPatientVideos() {
-      const { data: videos } = await _supabase
-        .from('exercise_videos')
-        .select('*')
-        .eq('protocol_id', protocol.id)
-        .order('created_at', { ascending: false })
-      if (!videos || videos.length === 0) return
-      const section = document.createElement('div')
-      section.className = 'video-section'
-      section.innerHTML = '<div class="video-section-title">🎥 Video esercizi</div>'
-      videos.forEach(function(v) {
-        const card = document.createElement('div')
-        card.className = 'video-card'
-        const media = v.tipo === 'foto'
-          ? '<img src="' + v.url + '" alt="' + (v.titolo || 'Foto') + '" loading="lazy">'
-          : '<video src="' + v.url + '" controls playsinline preload="metadata"></video>'
-        card.innerHTML = media + '<div class="video-card-body"><div class="video-card-title">' + (v.titolo || 'Esercizio') + '</div>' + (v.descrizione ? '<div class="video-card-desc">' + v.descrizione + '</div>' : '') + '<span class="video-card-tipo">' + (v.tipo === 'foto' ? '📷 Foto' : '🎥 Video') + '</span></div>'
-        section.appendChild(card)
-      })
-      document.getElementById('content-area').appendChild(section)
     }
 
     function showError(msg) {
