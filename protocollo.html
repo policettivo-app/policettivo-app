@@ -135,27 +135,40 @@
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    // Cookie helpers — i cookie sono condivisi tra Safari e PWA standalone su iOS
+    function _setCookie(name, value, days) {
+      const exp = new Date(Date.now() + days * 864e5).toUTCString()
+      document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + exp + '; path=/; SameSite=Lax'
+    }
+    function _getCookie(name) {
+      const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))
+      return m ? decodeURIComponent(m[1]) : null
+    }
+
     const params = new URLSearchParams(window.location.search)
     let token = params.get('token')
 
     if (token) {
-      // Link aperto con token — salva URL completo per recupero PWA
-      try {
-        localStorage.setItem('patient_token', token)
-        localStorage.setItem('patient_url', window.location.href)
-      } catch(e) {}
+      // Link aperto con token: salva su cookie (sopravvive al passaggio Safari→PWA su iOS)
+      _setCookie('patient_token', token, 365)
+      _setCookie('patient_url', window.location.href, 365)
+      try { localStorage.setItem('patient_token', token); localStorage.setItem('patient_url', window.location.href) } catch(e) {}
     } else {
       // Nessun token nell'URL — PWA aperta da Home Screen
-      const savedUrl = localStorage.getItem('patient_url')
-      if (savedUrl) {
-        // Redirect duro all'URL originale completo (include il token)
-        window.location.replace(savedUrl)
-        // Imposta il token come fallback mentre il redirect è in corso
-        token = localStorage.getItem('patient_token') || null
+      // Cookie: condivisi tra Safari e PWA → soluzione definitiva su iOS
+      const cookieUrl = _getCookie('patient_url')
+      if (cookieUrl) {
+        window.location.replace(cookieUrl)
+        token = _getCookie('patient_token') || null
       } else {
-        // Compatibilità con versione precedente
-        const savedToken = localStorage.getItem('patient_token') || localStorage.getItem('policettivo_patient_token')
-        if (savedToken) token = savedToken
+        // Fallback localStorage (stesso browser context) + compat versioni precedenti
+        const lsUrl = localStorage.getItem('patient_url')
+        if (lsUrl) {
+          window.location.replace(lsUrl)
+          token = localStorage.getItem('patient_token') || null
+        } else {
+          token = localStorage.getItem('patient_token') || localStorage.getItem('policettivo_patient_token') || null
+        }
       }
     }
     let patient = null, protocol = null, exercises = [], protocolCustomVideos = []

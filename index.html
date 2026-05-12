@@ -14,17 +14,28 @@
   <div class="dot"></div>
   <script>
     (function () {
-      var savedUrl = localStorage.getItem('patient_url')
-      if (savedUrl) {
-        window.location.replace(savedUrl)
-        return
+      function getCookie(name) {
+        var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))
+        return m ? decodeURIComponent(m[1]) : null
       }
-      var t = localStorage.getItem('patient_token') || localStorage.getItem('policettivo_patient_token')
-      if (t) {
-        window.location.replace('/protocollo.html?token=' + encodeURIComponent(t))
-      } else {
-        window.location.replace('/login.html')
-      }
+
+      // 1. Cookie patient_url — condiviso tra Safari e PWA su iOS (soluzione definitiva)
+      var savedUrl = getCookie('patient_url')
+      if (savedUrl) { window.location.replace(savedUrl); return }
+
+      // 2. Cookie patient_token — fallback se il cookie dell'URL non c'è
+      var t = getCookie('patient_token')
+      if (t) { window.location.replace('/protocollo.html?token=' + encodeURIComponent(t)); return }
+
+      // 3. localStorage — stesso browser context (non iOS Safari→PWA) o compat precedente
+      savedUrl = localStorage.getItem('patient_url')
+      if (savedUrl) { window.location.replace(savedUrl); return }
+
+      t = localStorage.getItem('patient_token') || localStorage.getItem('policettivo_patient_token')
+      if (t) { window.location.replace('/protocollo.html?token=' + encodeURIComponent(t)); return }
+
+      // 4. Nessun token trovato — vai al login professionista
+      window.location.replace('/login.html')
     })()
   </script>
 </body>
