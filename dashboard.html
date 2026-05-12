@@ -126,6 +126,21 @@
     .premium-banner-text { color: #fff; font-size: 13px; font-weight: 500; }
     .premium-banner-btn { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
     .premium-banner-btn:hover { background: #e6bb00; }
+    .recent-cards-container { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+    .recent-card { background: #fff; border-radius: 10px; border: 1.5px solid #eee; padding: 14px 16px; cursor: pointer; min-width: 150px; max-width: 190px; flex-shrink: 0; transition: border-color 0.15s, box-shadow 0.15s; }
+    .recent-card:hover { border-color: #FFD008; box-shadow: 0 2px 8px rgba(255,208,8,0.18); }
+    .recent-card-emoji { font-size: 22px; margin-bottom: 6px; }
+    .recent-card-name { font-weight: 700; font-size: 13px; color: #000; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-card-prob { font-size: 11px; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sort-select { padding: 8px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; color: #333; background: #fff; cursor: pointer; outline: none; }
+    .sort-select:focus { border-color: #FFD008; }
+    .pagination { padding: 16px 24px; display: flex; justify-content: center; gap: 6px; align-items: center; border-top: 1px solid #f0f0f0; flex-wrap: wrap; }
+    .pagination-btn { background: #fff; border: 1.5px solid #ddd; color: #333; padding: 7px 13px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; transition: border-color 0.15s; }
+    .pagination-btn:hover:not(:disabled) { border-color: #FFD008; }
+    .pagination-btn.active { background: #FFD008; border-color: #FFD008; color: #000; font-weight: 700; }
+    .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .list-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .list-header-row .section-title { margin-bottom: 0; }
   </style>
 </head>
 <body>
@@ -157,7 +172,18 @@
       <div class="stat-card"><div class="stat-label">Protocolli assegnati</div><div class="stat-value" id="stat-protocolli">—</div></div>
       <div class="stat-card"><div class="stat-label">Sessioni oggi</div><div class="stat-value yellow" id="stat-sessioni">—</div></div>
     </div>
-    <div class="section-title">I tuoi pazienti</div>
+    <div id="recent-section" style="display:none;margin-bottom:24px">
+      <div class="section-title" style="margin-bottom:12px">Recenti</div>
+      <div id="recent-cards" class="recent-cards-container"></div>
+    </div>
+    <div class="list-header-row">
+      <div class="section-title">I tuoi pazienti</div>
+      <select class="sort-select" id="sort-select" onchange="changeSortAndRender()">
+        <option value="recent">Ultima apertura</option>
+        <option value="activity">Ultima attività</option>
+        <option value="alpha">Alfabetico</option>
+      </select>
+    </div>
     <div class="search-bar">
       <input class="search-input" type="text" id="search-input" placeholder="🔍  Cerca per nome, cognome o problema..." oninput="filterPatients(this.value)">
       <span class="search-count" id="search-count"></span>
@@ -168,6 +194,7 @@
       </div>
       <div id="loading-msg" style="text-align:center;padding:40px;font-size:18px;font-weight:700;color:#e53935;animation:blink 1.2s ease-in-out infinite;letter-spacing:0.5px">⏳ Caricamento pazienti in corso, un momento...</div>
       <div id="patients-list" style="display:none"><div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div></div>
+      <div id="pagination" class="pagination"></div>
     </div>
   </div>
 
@@ -347,6 +374,10 @@
     let currentProfessionalId = null
     let selectedConfig = null
     let allPatients = []
+    let allDiaryMap = {}
+    let currentSort = localStorage.getItem('policettivo_sort') || 'recent'
+    let currentPage = 1
+    const PAGE_SIZE = 10
 
     // Ping Supabase subito per svegliare il database
     _supabase.from('professionals').select('id').limit(1).then(() => {})
@@ -391,6 +422,60 @@
       }
     }
 
+    function trackRecentPatient(id) {
+      const recents = JSON.parse(localStorage.getItem('policettivo_recent_patients') || '{}')
+      recents[id] = Date.now()
+      const trimmed = Object.fromEntries(Object.entries(recents).sort((a,b) => b[1]-a[1]).slice(0,30))
+      localStorage.setItem('policettivo_recent_patients', JSON.stringify(trimmed))
+    }
+
+    function getRecentTimestamp(id) {
+      return JSON.parse(localStorage.getItem('policettivo_recent_patients') || '{}')[id] || 0
+    }
+
+    function sortPatients(list) {
+      if (currentSort === 'alpha') {
+        return [...list].sort((a,b) => (a.cognome+a.nome).localeCompare(b.cognome+b.nome, 'it'))
+      }
+      if (currentSort === 'activity') {
+        return [...list].sort((a,b) => {
+          const da = allDiaryMap[a.id]?.[0]?.data || ''
+          const db = allDiaryMap[b.id]?.[0]?.data || ''
+          if (!da && !db) return (a.cognome+a.nome).localeCompare(b.cognome+b.nome, 'it')
+          if (!da) return 1; if (!db) return -1
+          return db.localeCompare(da)
+        })
+      }
+      return [...list].sort((a,b) => {
+        const ta = getRecentTimestamp(a.id), tb = getRecentTimestamp(b.id)
+        if (!ta && !tb) return (a.cognome+a.nome).localeCompare(b.cognome+b.nome, 'it')
+        if (!ta) return 1; if (!tb) return -1
+        return tb - ta
+      })
+    }
+
+    function renderRecentSection(patients) {
+      const recents = JSON.parse(localStorage.getItem('policettivo_recent_patients') || '{}')
+      const cutoff = Date.now() - 7*24*60*60*1000
+      const recentList = patients
+        .filter(p => recents[p.id] && recents[p.id] > cutoff)
+        .sort((a,b) => (recents[b.id]||0) - (recents[a.id]||0))
+        .slice(0, 5)
+      const section = document.getElementById('recent-section')
+      if (recentList.length === 0) { section.style.display = 'none'; return }
+      section.style.display = 'block'
+      document.getElementById('recent-cards').innerHTML = recentList.map(p => {
+        const smile = getSmileData(allDiaryMap[p.id])
+        const name = (p.nome + ' ' + p.cognome).replace(/</g,'&lt;')
+        const prob = (p.problema_principale || '—').replace(/</g,'&lt;')
+        return '<div class="recent-card" onclick="goToPatient(\'' + p.id + '\')">' +
+          '<div class="recent-card-emoji">' + smile.emoji + '</div>' +
+          '<div class="recent-card-name">' + name + '</div>' +
+          '<div class="recent-card-prob">' + prob + '</div>' +
+          '</div>'
+      }).join('')
+    }
+
     async function loadPatients() {
       const [patientsRes, diariesRes] = await Promise.all([
         _supabase.from('patients').select('id,nome,cognome,email,problema_principale,configurazione_default,stato,access_token').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('cognome', { ascending: true }),
@@ -398,14 +483,18 @@
       ])
       allPatients = patientsRes.data || []
       document.getElementById('stat-pazienti').textContent = allPatients.length
-      const diaryMap = {}
+      allDiaryMap = {}
       if (diariesRes.data) {
         diariesRes.data.forEach(d => {
-          if (!diaryMap[d.patient_id]) diaryMap[d.patient_id] = []
-          diaryMap[d.patient_id].push(d)
+          if (!allDiaryMap[d.patient_id]) allDiaryMap[d.patient_id] = []
+          allDiaryMap[d.patient_id].push(d)
         })
       }
-      renderPatients(allPatients, '', diaryMap)
+      const sortSel = document.getElementById('sort-select')
+      if (sortSel) sortSel.value = currentSort
+      currentPage = 1
+      renderRecentSection(allPatients)
+      renderPatients(sortPatients(allPatients), '', allDiaryMap)
     }
 
     function getSmileData(entries) {
@@ -430,29 +519,71 @@
       return { emoji: '😐', giorni: 0, color: '#ddd', pct: 0, label: '—' }
     }
 
+    function buildPatientRow(p, query) {
+      const nome = highlight(p.nome + ' ' + p.cognome, query)
+      const prob = highlight(p.problema_principale || '—', query)
+      const smile = getSmileData(allDiaryMap[p.id])
+      return '<div class="patient-row" onclick="goToPatient(\'' + p.id + '\')">' +
+        '<div><div class="patient-name">' + nome + '</div><div class="patient-email">' + (p.email || '') + '</div></div>' +
+        '<div class="patient-problem">' + prob + '</div>' +
+        '<div>' + (p.configurazione_default ? '<span class="badge badge-' + p.configurazione_default.toLowerCase() + '">' + p.configurazione_default + '</span>' : '—') + '</div>' +
+        '<div><span class="badge badge-attivo">' + p.stato + '</span></div>' +
+        '<div class="smile-cell"><div class="smile-row"><span class="smile-emoji">' + smile.emoji + '</span><span class="smile-days">' + smile.label + '</span></div><div class="smile-bar-bg"><div class="smile-bar-fill" style="width:' + smile.pct + '%;background:' + smile.color + '"></div></div></div>' +
+        '<div><button class="btn-del" onclick="event.stopPropagation();eliminaPaziente(\'' + p.id + '\',\'' + p.nome + ' ' + p.cognome + '\')">🗑</button></div>' +
+        '</div>'
+    }
+
+    function renderPagination(totalPages) {
+      const el = document.getElementById('pagination')
+      if (totalPages <= 1) { el.innerHTML = ''; return }
+      let pages = [...new Set([1, totalPages, currentPage, currentPage-1, currentPage+1].filter(n => n >= 1 && n <= totalPages))].sort((a,b)=>a-b)
+      let html = '<button class="pagination-btn" onclick="goToPage(' + (currentPage-1) + ')" ' + (currentPage===1?'disabled':'') + '>← Prec</button>'
+      let prev = 0
+      pages.forEach(p => {
+        if (p - prev > 1) html += '<span style="padding:0 4px;color:#bbb">…</span>'
+        html += '<button class="pagination-btn ' + (p===currentPage?'active':'') + '" onclick="goToPage(' + p + ')">' + p + '</button>'
+        prev = p
+      })
+      html += '<button class="pagination-btn" onclick="goToPage(' + (currentPage+1) + ')" ' + (currentPage===totalPages?'disabled':'') + '>Succ →</button>'
+      el.innerHTML = html
+    }
+
+    function goToPage(page) {
+      currentPage = page
+      renderPatients(sortPatients(allPatients), '', allDiaryMap)
+      const tableEl = document.querySelector('.patients-table')
+      if (tableEl) tableEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    function changeSortAndRender() {
+      currentSort = document.getElementById('sort-select').value
+      localStorage.setItem('policettivo_sort', currentSort)
+      currentPage = 1
+      renderPatients(sortPatients(allPatients), '', allDiaryMap)
+    }
+
     function renderPatients(list, query, diaryMap) {
       const el = document.getElementById('patients-list')
       const count = document.getElementById('search-count')
+      const lm = document.getElementById('loading-msg'); if(lm) lm.style.display = 'none'
+      el.style.display = 'block'
       if (!list || list.length === 0) {
         el.innerHTML = query ? '<div class="empty-state"><p>Nessun paziente trovato per "' + query + '"</p></div>' : '<div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>'
-        count.textContent = ''; return
+        count.textContent = ''
+        document.getElementById('pagination').innerHTML = ''
+        return
       }
-      const lm2 = document.getElementById('loading-msg'); if(lm2) lm2.style.display = 'none'
-      const pl2 = document.getElementById('patients-list'); if(pl2) pl2.style.display = 'block'
       count.textContent = list.length + ' pazient' + (list.length === 1 ? 'e' : 'i')
-      el.innerHTML = list.map(p => {
-        const nome = highlight(p.nome + ' ' + p.cognome, query)
-        const prob = highlight(p.problema_principale || '—', query)
-        const smile = getSmileData(diaryMap ? diaryMap[p.id] : null)
-        return '<div class="patient-row" onclick="goToPatient(\'' + p.id + '\')">' +
-          '<div><div class="patient-name">' + nome + '</div><div class="patient-email">' + (p.email || '') + '</div></div>' +
-          '<div class="patient-problem">' + prob + '</div>' +
-          '<div>' + (p.configurazione_default ? '<span class="badge badge-' + p.configurazione_default.toLowerCase() + '">' + p.configurazione_default + '</span>' : '—') + '</div>' +
-          '<div><span class="badge badge-attivo">' + p.stato + '</span></div>' +
-          '<div class="smile-cell"><div class="smile-row"><span class="smile-emoji">' + smile.emoji + '</span><span class="smile-days">' + smile.label + '</span></div><div class="smile-bar-bg"><div class="smile-bar-fill" style="width:' + smile.pct + '%;background:' + smile.color + '"></div></div></div>' +
-          '<div><button class="btn-del" onclick="event.stopPropagation();eliminaPaziente(\'' + p.id + '\',\'' + p.nome + ' ' + p.cognome + '\')">🗑</button></div>' +
-          '</div>'
-      }).join('')
+      if (query) {
+        el.innerHTML = list.map(p => buildPatientRow(p, query)).join('')
+        document.getElementById('pagination').innerHTML = ''
+        return
+      }
+      const totalPages = Math.ceil(list.length / PAGE_SIZE)
+      if (currentPage > totalPages) currentPage = 1
+      const start = (currentPage - 1) * PAGE_SIZE
+      el.innerHTML = list.slice(start, start + PAGE_SIZE).map(p => buildPatientRow(p, '')).join('')
+      renderPagination(totalPages)
     }
 
     function highlight(text, query) {
@@ -463,9 +594,16 @@
 
     function filterPatients(query) {
       const q = query.toLowerCase().trim()
-      if (!q) { loadPatients(); return }
+      const recentSection = document.getElementById('recent-section')
+      if (!q) {
+        if (recentSection) recentSection.style.display = ''
+        currentPage = 1
+        renderPatients(sortPatients(allPatients), '', allDiaryMap)
+        return
+      }
+      if (recentSection) recentSection.style.display = 'none'
       const filtered = allPatients.filter(p => (p.nome + ' ' + p.cognome).toLowerCase().includes(q) || (p.problema_principale || '').toLowerCase().includes(q))
-      renderPatients(filtered, q, null)
+      renderPatients(filtered, q, allDiaryMap)
     }
 
     async function loadStats() {
@@ -513,7 +651,7 @@
       const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).single()
       if (nuovo) { window.location.href = 'paziente.html?id=' + nuovo.id } else { closeModal(); loadPatients(); loadStats() }
     }
-    function goToPatient(id) { window.location.href = 'paziente.html?id=' + id }
+    function goToPatient(id) { trackRecentPatient(id); window.location.href = 'paziente.html?id=' + id }
     async function eliminaPaziente(id, nome) {
       if (!confirm('Eliminare ' + nome + '? Operazione irreversibile.')) return
       await _supabase.from('diary_entries').delete().eq('patient_id', id)
