@@ -137,14 +137,25 @@
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     const params = new URLSearchParams(window.location.search)
     let token = params.get('token')
-    // PWA token persistence: save when present, recover when missing
+
     if (token) {
-      localStorage.setItem('policettivo_patient_token', token)
+      // Link aperto con token — salva URL completo per recupero PWA
+      try {
+        localStorage.setItem('patient_token', token)
+        localStorage.setItem('patient_url', window.location.href)
+      } catch(e) {}
     } else {
-      const _saved = localStorage.getItem('policettivo_patient_token')
-      if (_saved) {
-        token = _saved
-        try { history.replaceState(null, '', 'protocollo.html?token=' + encodeURIComponent(token)) } catch(e) {}
+      // Nessun token nell'URL — PWA aperta da Home Screen
+      const savedUrl = localStorage.getItem('patient_url')
+      if (savedUrl) {
+        // Redirect duro all'URL originale completo (include il token)
+        window.location.replace(savedUrl)
+        // Imposta il token come fallback mentre il redirect è in corso
+        token = localStorage.getItem('patient_token') || null
+      } else {
+        // Compatibilità con versione precedente
+        const savedToken = localStorage.getItem('patient_token') || localStorage.getItem('policettivo_patient_token')
+        if (savedToken) token = savedToken
       }
     }
     let patient = null, protocol = null, exercises = [], protocolCustomVideos = []

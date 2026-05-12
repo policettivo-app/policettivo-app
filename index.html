@@ -14,7 +14,12 @@
   <div class="dot"></div>
   <script>
     (function () {
-      var t = localStorage.getItem('policettivo_patient_token')
+      var savedUrl = localStorage.getItem('patient_url')
+      if (savedUrl) {
+        window.location.replace(savedUrl)
+        return
+      }
+      var t = localStorage.getItem('patient_token') || localStorage.getItem('policettivo_patient_token')
       if (t) {
         window.location.replace('/protocollo.html?token=' + encodeURIComponent(t))
       } else {
