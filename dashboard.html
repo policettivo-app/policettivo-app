@@ -425,6 +425,14 @@
             aiBadge.textContent = _rem + ' analisi AI disponibili'
             aiBadge.style.display = 'inline-block'
           }
+          if (_aiUses >= 5) {
+            const badge = document.getElementById('piano-badge')
+            if (badge) {
+              badge.textContent = 'Piano Free • AI terminate'
+              badge.style.background = '#c62828'
+              badge.style.color = '#fff'
+            }
+          }
         }
         await Promise.all([loadPatients(), loadStats()])
         if (shouldShowWizard() && allPatients.length === 0) openWizard()

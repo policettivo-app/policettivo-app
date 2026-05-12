@@ -59,10 +59,13 @@
     const el = document.querySelector('.premium-banner-text')
     const wrap = document.querySelector('.premium-banner')
     if (!el || !wrap) return
+    if (remaining === 0) {
+      // AI esaurita: nasconde il top banner, il navbar badge gestisce l'indicazione
+      wrap.classList.remove('visible')
+      return
+    }
     if (used === 0) {
       el.textContent = '⭐ Stai usando Policettivo Free — Hai ancora 5 analisi AI gratuite per provare il sistema Policettivo®'
-    } else if (remaining === 0) {
-      el.textContent = '⭐ Hai esaurito le analisi AI gratuite — Passa a Premium per utilizzo illimitato'
     } else {
       el.textContent = '⭐ Hai usato ' + used + '/5 analisi AI gratuite — Continua a testare il sistema Policettivo®'
     }
