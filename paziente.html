@@ -349,7 +349,7 @@
         <div class="referto-scan-box">
           <div class="referto-scan-title">
             📄 <span>Scansiona referto o documento</span>
-            <span style="background:#FFD008;color:#000;padding:2px 7px;border-radius:4px;font-size:10px">PREMIUM</span>
+            <span id="referto-ai-badge-p" style="display:none;background:#333;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px"></span>
           </div>
           <div class="referto-scan-sub">Fotografa un documento medico: l'AI compila automaticamente nome, diagnosi e dati clinici.</div>
           <div class="referto-scan-btns">
@@ -701,7 +701,13 @@
       const { profId: _profIdP } = await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
       if (!window.isPremium && _profIdP) {
         const { data: _profP } = await _supabase.from('professionals').select('ai_uses').eq('id', _profIdP).single()
-        if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_profP?.ai_uses || 0)
+        const _aiUsesP = _profP?.ai_uses || 0
+        if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_aiUsesP)
+        const _aiBadgeP = document.getElementById('referto-ai-badge-p')
+        if (_aiBadgeP) {
+          _aiBadgeP.textContent = Math.max(0, 5 - _aiUsesP) + ' analisi AI disponibili'
+          _aiBadgeP.style.display = 'inline-block'
+        }
       }
 
       const { data, error } = await _supabase.from('patients').select('*').eq('id', patientId).single()
@@ -1606,7 +1612,11 @@
         })
         if (res.status === 403) { const e403 = await res.json(); if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const json = await res.json()
-        if (json.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
+        if (json.ai_uses !== undefined) {
+          if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
+          const _ab = document.getElementById('referto-ai-badge-p')
+          if (_ab) { _ab.textContent = Math.max(0, 5 - json.ai_uses) + ' analisi AI disponibili' }
+        }
         if (json.dati) compileEditFormFromReferto(json.dati)
         ok.style.display = 'block'
       } catch(e) {
