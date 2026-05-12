@@ -11,6 +11,11 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .premium-banner { display: none; background: #111; border-bottom: 2.5px solid #FFD008; padding: 12px 32px; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .premium-banner.visible { display: flex; }
+    .premium-banner-text { color: #fff; font-size: 13px; font-weight: 500; }
+    .premium-banner-btn { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
+    .premium-banner-btn:hover { background: #e6bb00; }
     .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
     .navbar-brand { display: flex; align-items: center; gap: 12px; }
     .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
@@ -298,6 +303,11 @@
       <button class="btn-nav-icon" onclick="apriRicercaPz()" title="Cerca paziente">🔍</button>
     </div>
   </nav>
+
+  <div class="premium-banner" id="premium-banner">
+    <span class="premium-banner-text">⭐ Stai usando Policettivo Free — Hai ancora 5 analisi AI gratuite per provare il sistema Policettivo®</span>
+    <button class="premium-banner-btn" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
+  </div>
 
   <!-- Modal ricerca rapida paziente -->
   <div id="search-pz-overlay" onclick="chiudiRicercaPz()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:8000"></div>
@@ -688,7 +698,11 @@
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
 
-      await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
+      const { profId: _profIdP } = await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
+      if (!window.isPremium && _profIdP) {
+        const { data: _profP } = await _supabase.from('professionals').select('ai_uses').eq('id', _profIdP).single()
+        if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_profP?.ai_uses || 0)
+      }
 
       const { data, error } = await _supabase.from('patients').select('*').eq('id', patientId).single()
       if (error || !data) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }

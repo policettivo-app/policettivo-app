@@ -143,7 +143,7 @@
   </nav>
 
   <div class="premium-banner" id="premium-banner">
-    <span class="premium-banner-text">⭐ Stai usando Policettivo Free — Sblocca AI posturale, PDF professionale e molto altro.</span>
+    <span class="premium-banner-text">⭐ Stai usando Policettivo Free — Hai ancora 5 analisi AI gratuite per provare il sistema Policettivo®</span>
     <button class="premium-banner-btn" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
   </div>
 
@@ -376,8 +376,10 @@
       const { profId: _profId } = await window.policettivoCheckPremium(_supabase, effectiveUserId, session.user.email)
       currentProfessionalId = _profId
       if (currentProfessionalId) {
-        const banner = document.getElementById('premium-banner')
-        if (banner && !window.isPremium) banner.classList.add('visible')
+        if (!window.isPremium) {
+          const { data: _prof } = await _supabase.from('professionals').select('ai_uses').eq('id', currentProfessionalId).single()
+          if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_prof?.ai_uses || 0)
+        }
         const badge = document.getElementById('piano-badge')
         if (badge) {
           badge.textContent = window.isPremium ? '⭐ PREMIUM' : 'FREE'

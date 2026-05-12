@@ -52,8 +52,26 @@
     injectBanner()
   }
 
+  window.policettivoUpdateFreeBanner = function (aiUses) {
+    if (window.isPremium) return
+    const used = aiUses || 0
+    const remaining = Math.max(0, LIMIT - used)
+    const el = document.querySelector('.premium-banner-text')
+    const wrap = document.querySelector('.premium-banner')
+    if (!el || !wrap) return
+    if (used === 0) {
+      el.textContent = '⭐ Stai usando Policettivo Free — Hai ancora 5 analisi AI gratuite per provare il sistema Policettivo®'
+    } else if (remaining === 0) {
+      el.textContent = '⭐ Hai esaurito le analisi AI gratuite — Passa a Premium per utilizzo illimitato'
+    } else {
+      el.textContent = '⭐ Hai usato ' + used + '/5 analisi AI gratuite — Continua a testare il sistema Policettivo®'
+    }
+    wrap.classList.add('visible')
+  }
+
   window.policettivoShowAIBanner = function (aiUses) {
     if (window.isPremium) return
+    window.policettivoUpdateFreeBanner(aiUses)
     ensureDOM()
     const remaining = Math.max(0, LIMIT - (aiUses || 0))
     const banner = document.getElementById('ai-uses-banner')
