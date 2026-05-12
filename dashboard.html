@@ -202,7 +202,7 @@
     <div class="modal">
       <h2>Nuovo paziente</h2>
       <div class="referto-box" id="referto-scan-box">
-        <div class="referto-box-title">📄 <span>Scansiona referto o documento</span> <span style="background:#333;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;margin-left:4px">FREE · 5 analisi</span></div>
+        <div class="referto-box-title">📄 <span>Scansiona referto o documento</span> <span id="referto-ai-badge" style="display:none;background:#333;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;margin-left:4px"></span></div>
         <div class="referto-box-sub">Fotografa o carica un documento medico: l'AI estrae automaticamente i dati del paziente.</div>
         <div class="referto-btns">
           <button class="btn-referto" onclick="apriCamReferto()">📷 Fotocamera</button>
@@ -406,16 +406,25 @@
       }
       const { profId: _profId } = await window.policettivoCheckPremium(_supabase, effectiveUserId, session.user.email)
       currentProfessionalId = _profId
+
+      const badge = document.getElementById('piano-badge')
+      if (badge) {
+        badge.textContent = window.isPremium ? '⭐ PREMIUM' : 'Piano Free'
+        badge.style.background = window.isPremium ? '#FFD008' : '#333'
+        badge.style.color = window.isPremium ? '#000' : '#fff'
+      }
+
       if (currentProfessionalId) {
         if (!window.isPremium) {
           const { data: _prof } = await _supabase.from('professionals').select('ai_uses').eq('id', currentProfessionalId).single()
-          if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_prof?.ai_uses || 0)
-        }
-        const badge = document.getElementById('piano-badge')
-        if (badge) {
-          badge.textContent = window.isPremium ? '⭐ PREMIUM' : 'FREE'
-          badge.style.background = window.isPremium ? '#FFD008' : '#333'
-          badge.style.color = window.isPremium ? '#000' : '#fff'
+          const _aiUses = _prof?.ai_uses || 0
+          if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_aiUses)
+          const aiBadge = document.getElementById('referto-ai-badge')
+          if (aiBadge) {
+            const _rem = Math.max(0, 5 - _aiUses)
+            aiBadge.textContent = _rem + ' analisi AI disponibili'
+            aiBadge.style.display = 'inline-block'
+          }
         }
         await Promise.all([loadPatients(), loadStats()])
         if (shouldShowWizard() && allPatients.length === 0) openWizard()
@@ -764,7 +773,11 @@
         })
         if (res.status === 403) { const e403 = await res.json(); if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const json = await res.json()
-        if (json.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
+        if (json.ai_uses !== undefined) {
+          if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
+          const _ab = document.getElementById('referto-ai-badge')
+          if (_ab) { const _r = Math.max(0, 5 - json.ai_uses); _ab.textContent = _r + ' analisi AI disponibili' }
+        }
         if (json.dati) compileFormFromReferto(json.dati)
         ok.style.display = 'block'
       } catch(e) {
