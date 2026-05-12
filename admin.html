@@ -95,6 +95,25 @@
     .note-field:focus { border-color: #FFD008; }
     .name-link { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
     .name-link:hover { color: #b8960a; }
+    .badge-bloccato { display: inline-block; background: #c62828; color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    .search-bar-admin { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+    .search-input-admin { flex: 1; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; }
+    .search-input-admin:focus { border-color: #FFD008; }
+    .admin-pagination { display: flex; gap: 6px; padding: 14px 0 0; justify-content: center; flex-wrap: wrap; }
+    .admin-pagination-btn { background: #fff; border: 1.5px solid #ddd; color: #333; padding: 6px 12px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; transition: border-color 0.15s; }
+    .admin-pagination-btn:hover:not(:disabled) { border-color: #FFD008; }
+    .admin-pagination-btn.active { background: #FFD008; border-color: #FFD008; color: #000; font-weight: 700; }
+    .admin-pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .fav-btn { background: transparent; border: none; font-size: 16px; cursor: pointer; padding: 0 2px; color: #ccc; transition: color 0.15s; line-height: 1; }
+    .fav-btn.active { color: #FFD008; }
+    .fav-btn:hover { color: #FFD008; }
+    .btn-panel-action { padding: 9px 12px; background: #f5f5f5; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; color: #333; text-align: center; transition: border-color 0.15s, background 0.15s; }
+    .btn-panel-action:hover { border-color: #FFD008; background: #fffdf0; }
+    .btn-panel-action.wa { background: #e8f5e9; border-color: #c8e6c9; color: #1b5e20; }
+    .btn-panel-action.wa:hover { background: #c8e6c9; }
+    .btn-panel-action.reset { background: #fff8e1; border-color: #ffe082; color: #7c5f00; }
+    .btn-panel-action.reset:hover { background: #fff0a0; }
+    .panel-actions-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f0; }
   </style>
 </head>
 <body>
@@ -103,6 +122,7 @@
       <span class="navbar-logo">POLICETTIVO®</span>
       <span class="navbar-title">Pannello Admin</span>
       <span class="navbar-badge">MASTER</span>
+      <span style="background:#FFD008;color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:1px">⭐ PREMIUM</span>
     </div>
     <button class="btn-logout" onclick="doLogout()">Esci</button>
   </nav>
@@ -148,24 +168,34 @@
     <div class="section">
       <div class="section-header">
         <div class="section-title">Professionisti registrati</div>
+        <span id="prof-count" style="font-size:12px;color:#999"></span>
+      </div>
+      <div class="search-bar-admin">
+        <input class="search-input-admin" type="text" id="admin-search" placeholder="🔍  Cerca per nome, email, città, centro/studio..." oninput="filterAdmin(this.value)">
       </div>
       <div id="prof-list"><div class="empty-state">Nessun professionista registrato.</div></div>
+      <div id="prof-pagination" class="admin-pagination"></div>
     </div>
 
     <div class="section">
       <div class="section-header">
         <div class="section-title">📊 Statistiche professionisti</div>
-        <button class="btn-csv" onclick="esportaCSV()">📥 Esporta CSV</button>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="stats-count" style="font-size:12px;color:#999"></span>
+          <button class="btn-csv" onclick="esportaCSV()">📥 Esporta CSV</button>
+        </div>
       </div>
       <div class="legend-row">
         <span>🟢 Attivo (ultimi 7 gg)</span>
         <span>🟡 Dormiente (8–30 gg)</span>
         <span>🔴 Inattivo (oltre 30 gg)</span>
         <span>⚫ Nessuna attività</span>
+        <span>★ Preferito</span>
       </div>
       <div class="stats-section">
         <div id="stats-prof-list"><div class="empty-state">Caricamento statistiche...</div></div>
       </div>
+      <div id="stats-pagination" class="admin-pagination"></div>
     </div>
   </div>
 
@@ -175,6 +205,13 @@
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
     let lastInviteLink = ''
+    let allProfessionisti = []
+    let currentSearchQuery = ''
+    let currentProfPage = 1
+    let currentStatsPage = 1
+    const ADMIN_PAGE_SIZE = 10
+    let savedScrollY = 0
+    let adminFavorites = new Set(JSON.parse(localStorage.getItem('policettivo_admin_favorites') || '[]'))
 
     async function init() {
       const { data: { session } } = await _supabase.auth.getSession()
@@ -198,9 +235,194 @@
       document.getElementById('stat-inviti').textContent = inviti ? inviti.length : 0
       document.getElementById('stat-sessioni').textContent = sessioni ? sessioni.length : 0
 
+      allProfessionisti = profs || []
       renderInviti(inviti || [])
-      renderProfessionisti(profs || [])
+      renderProfessionistiFiltered()
       loadStatsProfessionisti()
+    }
+
+    // ── Badge unificato FREE / PREMIUM / BLOCCATO ──
+    function getBadgeHtml(prof) {
+      if (!prof.attivo) return '<span class="badge-bloccato">BLOCCATO</span>'
+      const piano = (prof.piano || 'free').toLowerCase()
+      if (piano === 'premium') return '<span class="badge-premium">PREMIUM ⭐</span>'
+      const uses = prof.ai_uses || 0
+      const rem = Math.max(0, 5 - uses)
+      return '<span class="badge-free">Free · ' + uses + '/5 AI</span>'
+    }
+
+    // ── Ordinamento: preferiti > ultima attività > pazienti > registrazione ──
+    function sortProfessionisti(list) {
+      return [...list].sort((a, b) => {
+        const fa = adminFavorites.has(a.id) ? 1 : 0
+        const fb = adminFavorites.has(b.id) ? 1 : 0
+        if (fa !== fb) return fb - fa
+        const sa = _statsCache.find(s => s.prof.id === a.id)
+        const sb = _statsCache.find(s => s.prof.id === b.id)
+        const da = sa?.ultimaAttivita?.getTime() || 0
+        const db = sb?.ultimaAttivita?.getTime() || 0
+        if (da !== db) return db - da
+        const pa = sa?.numPazienti || 0
+        const pb = sb?.numPazienti || 0
+        if (pa !== pb) return pb - pa
+        const ra = a.created_at ? new Date(a.created_at).getTime() : 0
+        const rb = b.created_at ? new Date(b.created_at).getTime() : 0
+        return rb - ra
+      })
+    }
+
+    function applySearchFilter(list, query) {
+      if (!query) return list
+      const q = query.toLowerCase()
+      return list.filter(prof => {
+        const nome = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).toLowerCase() : ''
+        return nome.includes(q) ||
+          (prof.email || '').toLowerCase().includes(q) ||
+          (prof.citta || '').toLowerCase().includes(q) ||
+          (prof.centro || '').toLowerCase().includes(q)
+      })
+    }
+
+    function filterAdmin(query) {
+      currentSearchQuery = query
+      currentProfPage = 1
+      currentStatsPage = 1
+      renderProfessionistiFiltered()
+      renderStatsFiltered()
+    }
+
+    function renderAdminPagination(elId, page, totalPages, sectionKey) {
+      const el = document.getElementById(elId)
+      if (!el) return
+      if (totalPages <= 1) { el.innerHTML = ''; return }
+      let pages = [...new Set([1, totalPages, page, page-1, page+1].filter(n => n >= 1 && n <= totalPages))].sort((a,b) => a-b)
+      let html = '<button class="admin-pagination-btn" onclick="goAdminPage(\'' + sectionKey + '\',' + (page-1) + ')" ' + (page===1?'disabled':'') + '>← Prec</button>'
+      let prev = 0
+      pages.forEach(p => {
+        if (p - prev > 1) html += '<span style="padding:0 4px;color:#bbb">…</span>'
+        html += '<button class="admin-pagination-btn ' + (p===page?'active':'') + '" onclick="goAdminPage(\'' + sectionKey + '\',' + p + ')">' + p + '</button>'
+        prev = p
+      })
+      html += '<button class="admin-pagination-btn" onclick="goAdminPage(\'' + sectionKey + '\',' + (page+1) + ')" ' + (page===totalPages?'disabled':'') + '>Succ →</button>'
+      el.innerHTML = html
+    }
+
+    function goAdminPage(section, page) {
+      if (section === 'prof') { currentProfPage = page; renderProfessionistiFiltered() }
+      else { currentStatsPage = page; renderStatsFiltered() }
+    }
+
+    function toggleFavorite(id) {
+      if (adminFavorites.has(id)) adminFavorites.delete(id)
+      else adminFavorites.add(id)
+      localStorage.setItem('policettivo_admin_favorites', JSON.stringify([...adminFavorites]))
+      renderProfessionistiFiltered()
+      renderStatsFiltered()
+    }
+
+    function renderProfessionistiFiltered() {
+      const el = document.getElementById('prof-list')
+      const filtered = applySearchFilter(sortProfessionisti(allProfessionisti), currentSearchQuery)
+      const totalPages = Math.max(1, Math.ceil(filtered.length / ADMIN_PAGE_SIZE))
+      if (currentProfPage > totalPages) currentProfPage = 1
+      const pageData = filtered.slice((currentProfPage-1)*ADMIN_PAGE_SIZE, currentProfPage*ADMIN_PAGE_SIZE)
+      const countEl = document.getElementById('prof-count')
+      if (countEl) countEl.textContent = filtered.length + ' professionisti'
+      if (filtered.length === 0) {
+        el.innerHTML = '<div class="empty-state">Nessun professionista' + (currentSearchQuery ? ' trovato.' : ' ancora.') + '</div>'
+        document.getElementById('prof-pagination').innerHTML = ''
+        return
+      }
+      el.innerHTML = '<table class="table"><thead><tr><th></th><th>Nome</th><th>Email</th><th>Centro</th><th>Città</th><th>Piano</th><th>Stato</th><th>Azioni</th></tr></thead><tbody>' +
+        pageData.map(p => {
+          const nome = p.profiles ? escHtml(((p.profiles.nome || '') + ' ' + (p.profiles.cognome || '')).trim()) : '—'
+          const isFav = adminFavorites.has(p.id)
+          const stato = p.attivo ? 'attivo' : 'bloccato'
+          return '<tr>' +
+            '<td><button class="fav-btn ' + (isFav?'active':'') + '" onclick="toggleFavorite(\'' + p.id + '\')" title="' + (isFav?'Rimuovi dai preferiti':'Aggiungi ai preferiti') + '">' + (isFav?'★':'☆') + '</button></td>' +
+            '<td><strong class="name-link" onclick="apriPannello(\'' + p.id + '\')">' + nome + '</strong></td>' +
+            '<td style="font-size:12px;color:#666">' + escHtml(p.email || '—') + '</td>' +
+            '<td>' + escHtml(p.centro || '—') + '</td>' +
+            '<td>' + escHtml(p.citta || '—') + '</td>' +
+            '<td>' + getBadgeHtml(p) + '</td>' +
+            '<td><span class="status-badge status-' + stato + '">' + stato + '</span></td>' +
+            '<td>' +
+            (p.attivo ? '<button class="action-btn warning" onclick="bloccaProfessionista(\'' + p.id + '\')">Blocca</button>' : '<button class="action-btn success" onclick="sbloccaProfessionista(\'' + p.id + '\')">Sblocca</button>') +
+            '<button class="action-btn danger" onclick="eliminaProfessionista(\'' + p.id + '\')">Elimina</button>' +
+            '</td></tr>'
+        }).join('') +
+        '</tbody></table>'
+      renderAdminPagination('prof-pagination', currentProfPage, totalPages, 'prof')
+    }
+
+    function renderStatsFiltered() {
+      const el = document.getElementById('stats-prof-list')
+      if (!_statsCache || _statsCache.length === 0) return
+      const filteredStats = _statsCache.filter(({ prof }) => {
+        if (!currentSearchQuery) return true
+        const q = currentSearchQuery.toLowerCase()
+        const nome = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).toLowerCase() : ''
+        return nome.includes(q) || (prof.email || '').toLowerCase().includes(q) ||
+          (prof.citta || '').toLowerCase().includes(q) || (prof.centro || '').toLowerCase().includes(q)
+      })
+      filteredStats.sort((a, b) => {
+        const fa = adminFavorites.has(a.prof.id) ? 1 : 0
+        const fb = adminFavorites.has(b.prof.id) ? 1 : 0
+        if (fa !== fb) return fb - fa
+        const da = a.ultimaAttivita?.getTime() || 0
+        const db = b.ultimaAttivita?.getTime() || 0
+        if (da !== db) return db - da
+        if (a.numPazienti !== b.numPazienti) return b.numPazienti - a.numPazienti
+        const ra = a.prof.created_at ? new Date(a.prof.created_at).getTime() : 0
+        const rb = b.prof.created_at ? new Date(b.prof.created_at).getTime() : 0
+        return rb - ra
+      })
+      const countEl = document.getElementById('stats-count')
+      if (countEl) countEl.textContent = filteredStats.length + ' risultati'
+      const totalPages = Math.max(1, Math.ceil(filteredStats.length / ADMIN_PAGE_SIZE))
+      if (currentStatsPage > totalPages) currentStatsPage = 1
+      const pageData = filteredStats.slice((currentStatsPage-1)*ADMIN_PAGE_SIZE, currentStatsPage*ADMIN_PAGE_SIZE)
+      if (pageData.length === 0) {
+        el.innerHTML = '<div class="empty-state">Nessun dato' + (currentSearchQuery ? ' trovato.' : '.') + '</div>'
+        document.getElementById('stats-pagination').innerHTML = ''
+        return
+      }
+      const rows = pageData.map(({ prof, numPazienti, numVisite, numSessioni, ultimaAttivita }) => {
+        const nome = prof.profiles ? escHtml(((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim()) : '—'
+        const email = escHtml(prof.email || '—')
+        const telefono = escHtml(prof.profiles?.telefono || '—')
+        const citta = escHtml(prof.citta || '—')
+        const dataReg = prof.created_at ? new Date(prof.created_at).toLocaleDateString('it-IT') : '—'
+        const dot = getActivityDot(ultimaAttivita)
+        const ultimaStr = ultimaAttivita ? ultimaAttivita.toLocaleDateString('it-IT') : '—'
+        const isFav = adminFavorites.has(prof.id)
+        const isPremium = (prof.piano || '').toLowerCase() === 'premium'
+        const aiUsesStr = isPremium ? '<span style="color:#aaa;font-size:11px">—</span>' : '<span style="font-size:11px;font-weight:700;color:' + ((prof.ai_uses||0) >= 5 ? '#c62828' : '#555') + '">' + (prof.ai_uses||0) + '/5</span>'
+        return '<tr>' +
+          '<td><button class="fav-btn ' + (isFav?'active':'') + '" onclick="toggleFavorite(\'' + prof.id + '\')">' + (isFav?'★':'☆') + '</button></td>' +
+          '<td style="text-align:center;font-size:16px">' + dot + '</td>' +
+          '<td><strong class="name-link" onclick="apriPannello(\'' + prof.id + '\')">' + nome + '</strong></td>' +
+          '<td style="font-size:11px;color:#666">' + email + '</td>' +
+          '<td style="font-size:11px;color:#666">' + telefono + '</td>' +
+          '<td>' + citta + '</td>' +
+          '<td>' + getBadgeHtml(prof) + '</td>' +
+          '<td style="text-align:center">' + aiUsesStr + '</td>' +
+          '<td style="font-size:12px;color:#888">' + dataReg + '</td>' +
+          '<td style="text-align:center;font-weight:700;color:#000">' + numPazienti + '</td>' +
+          '<td style="text-align:center;color:#555">' + numSessioni + '</td>' +
+          '<td style="text-align:center;color:#555">' + numVisite + '</td>' +
+          '<td style="font-size:12px;color:#888">' + ultimaStr + '</td>' +
+          '<td style="white-space:nowrap">' +
+          (!isPremium
+            ? '<button id="btn-piano-' + prof.id + '" class="action-btn premium-on" onclick="attivaPremiump(\'' + prof.id + '\')">⭐ Attiva Premium</button>'
+            : '<button id="btn-piano-' + prof.id + '" class="action-btn premium-off" onclick="revocaPremium(\'' + prof.id + '\')">🔴 Revoca Premium</button>'
+          ) + '</td></tr>'
+      }).join('')
+      el.innerHTML = '<table class="table" style="min-width:1000px"><thead><tr>' +
+        '<th></th><th style="text-align:center">Att.</th><th>Nome</th><th>Email</th><th>Tel.</th><th>Città</th><th>Piano</th><th style="text-align:center">AI</th><th>Registrato</th>' +
+        '<th style="text-align:center">Paz.</th><th style="text-align:center">Sess.</th><th style="text-align:center">Vis.</th><th>Ultima att.</th><th>Azioni</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>'
+      renderAdminPagination('stats-pagination', currentStatsPage, totalPages, 'stats')
     }
 
     function renderInviti(inviti) {
@@ -215,21 +437,6 @@
         '</tbody></table>'
     }
 
-    function renderProfessionisti(profs) {
-      const el = document.getElementById('prof-list')
-      if (profs.length === 0) { el.innerHTML = '<div class="empty-state">Nessun professionista ancora.</div>'; return }
-      el.innerHTML = '<table class="table"><thead><tr><th>Nome</th><th>Email</th><th>Centro</th><th>Città</th><th>Stato</th><th>Azioni</th></tr></thead><tbody>' +
-        profs.map(p => {
-          const nome = (p.profiles ? p.profiles.nome + ' ' + p.profiles.cognome : '—')
-          const stato = p.attivo ? 'attivo' : 'bloccato'
-          return '<tr><td><strong>' + nome + '</strong></td><td>' + (p.email || '—') + '</td><td>' + (p.centro || '—') + '</td><td>' + (p.citta || '—') + '</td><td><span class="status-badge status-' + stato + '">' + stato + '</span></td><td>' +
-            (p.attivo
-              ? '<button class="action-btn warning" onclick="bloccaProfessionista(\'' + p.id + '\')">Blocca</button>'
-              : '<button class="action-btn success" onclick="sbloccaProfessionista(\'' + p.id + '\')">Sblocca</button>') +
-            '<button class="action-btn danger" onclick="eliminaProfessionista(\'' + p.id + '\')">Elimina</button></td></tr>'
-        }).join('') +
-        '</tbody></table>'
-    }
 
     async function generaInvito() {
       const nome = document.getElementById('invite-nome').value.trim()
@@ -264,12 +471,20 @@
     async function bloccaProfessionista(id) {
       if (!confirm('Bloccare questo professionista? Non potrà più accedere.')) return
       await _supabase.from('professionals').update({ attivo: false }).eq('id', id)
-      loadAll()
+      const p = allProfessionisti.find(x => x.id === id)
+      if (p) p.attivo = false
+      const sc = _statsCache.find(s => s.prof.id === id)
+      if (sc) sc.prof.attivo = false
+      renderProfessionistiFiltered(); renderStatsFiltered()
     }
 
     async function sbloccaProfessionista(id) {
       await _supabase.from('professionals').update({ attivo: true }).eq('id', id)
-      loadAll()
+      const p = allProfessionisti.find(x => x.id === id)
+      if (p) p.attivo = true
+      const sc = _statsCache.find(s => s.prof.id === id)
+      if (sc) sc.prof.attivo = true
+      renderProfessionistiFiltered(); renderStatsFiltered()
     }
 
     async function eliminaProfessionista(id) {
@@ -296,8 +511,11 @@
       } else {
         await _supabase.from('professionals').delete().eq('id', id)
       }
+      allProfessionisti = allProfessionisti.filter(p => p.id !== id)
+      _statsCache = _statsCache.filter(s => s.prof.id !== id)
+      document.getElementById('stat-prof').textContent = allProfessionisti.length
       alert('Professionista eliminato con successo.')
-      loadAll()
+      renderProfessionistiFiltered(); renderStatsFiltered()
     }
 
     async function doLogout() {
@@ -394,73 +612,20 @@
         return { prof, numPazienti: pats.length, numVisite, numSessioni, ultimaAttivita }
       })
 
-      renderStatsProfessionisti(_statsCache)
+      renderProfessionistiFiltered()
+      renderStatsFiltered()
     }
 
-    function renderStatsProfessionisti(data) {
-      const el = document.getElementById('stats-prof-list')
-      if (!data || data.length === 0) {
-        el.innerHTML = '<div class="empty-state">Nessun dato.</div>'
-        return
-      }
-
-      const rows = data.map(({ prof, numPazienti, numVisite, numSessioni, ultimaAttivita }) => {
-        const nome      = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : '—'
-        const email     = escHtml(prof.email || '—')
-        const telefono  = escHtml(prof.profiles?.telefono || '—')
-        const citta     = escHtml(prof.citta || '—')
-        const piano     = (prof.piano || 'free').toLowerCase()
-        const isPremium = piano === 'premium'
-        const dataReg   = prof.created_at ? new Date(prof.created_at).toLocaleDateString('it-IT') : '—'
-        const dot       = getActivityDot(ultimaAttivita)
-        const ultimaStr = ultimaAttivita ? ultimaAttivita.toLocaleDateString('it-IT') : '—'
-
-        return `<tr>
-          <td style="text-align:center;font-size:16px">${dot}</td>
-          <td><strong class="name-link" onclick="apriPannello('${prof.id}')">${escHtml(nome)}</strong></td>
-          <td style="font-size:11px;color:#666">${email}</td>
-          <td style="font-size:11px;color:#666">${telefono}</td>
-          <td>${citta}</td>
-          <td><span id="badge-${prof.id}" class="${isPremium ? 'badge-premium' : 'badge-free'}">${isPremium ? 'PREMIUM' : 'FREE'}</span></td>
-          <td style="font-size:12px;color:#888">${dataReg}</td>
-          <td style="text-align:center;font-weight:700;color:#000">${numPazienti}</td>
-          <td style="text-align:center;color:#555">${numSessioni}</td>
-          <td style="text-align:center;color:#555">${numVisite}</td>
-          <td style="font-size:12px;color:#888">${ultimaStr}</td>
-          <td style="white-space:nowrap">
-            ${!isPremium
-              ? `<button id="btn-piano-${prof.id}" class="action-btn premium-on" onclick="attivaPremiump('${prof.id}')">⭐ Attiva Premium</button>`
-              : `<button id="btn-piano-${prof.id}" class="action-btn premium-off" onclick="revocaPremium('${prof.id}')">🔴 Revoca Premium</button>`
-            }
-          </td>
-        </tr>`
-      }).join('')
-
-      el.innerHTML = `<table class="table" style="min-width:900px">
-        <thead>
-          <tr>
-            <th style="text-align:center">Stato</th>
-            <th>Nome</th>
-            <th>Email</th>
-            <th>Telefono</th>
-            <th>Città</th>
-            <th>Piano</th>
-            <th>Registrato</th>
-            <th style="text-align:center">Pazienti</th>
-            <th style="text-align:center">Sessioni</th>
-            <th style="text-align:center">Visite</th>
-            <th>Ultima attività</th>
-            <th>Azioni</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>`
+    function _updatePianoCaches(profId, piano) {
+      const p = allProfessionisti.find(x => x.id === profId)
+      if (p) p.piano = piano
+      const sc = _statsCache.find(s => s.prof.id === profId)
+      if (sc) sc.prof.piano = piano
     }
 
     async function attivaPremiump(profId) {
       if (!confirm('Attivare Piano Premium per questo professionista?')) return
-      const dataScadenza = new Date()
-      dataScadenza.setFullYear(dataScadenza.getFullYear() + 1)
+      const dataScadenza = new Date(); dataScadenza.setFullYear(dataScadenza.getFullYear() + 1)
       const adminToken = await getAdminToken()
       const res = await fetch('/api/admin-update-piano', {
         method: 'POST',
@@ -469,10 +634,8 @@
       })
       const json = await res.json()
       if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
-      const badge = document.getElementById('badge-' + profId)
-      if (badge) { badge.className = 'badge-premium'; badge.textContent = 'PREMIUM' }
-      const btn = document.getElementById('btn-piano-' + profId)
-      if (btn) { btn.className = 'action-btn premium-off'; btn.textContent = '🔴 Revoca Premium'; btn.setAttribute('onclick', "revocaPremium('" + profId + "')") }
+      _updatePianoCaches(profId, 'premium')
+      renderProfessionistiFiltered(); renderStatsFiltered()
     }
 
     async function revocaPremium(profId) {
@@ -485,10 +648,8 @@
       })
       const json = await res.json()
       if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
-      const badge = document.getElementById('badge-' + profId)
-      if (badge) { badge.className = 'badge-free'; badge.textContent = 'FREE' }
-      const btn = document.getElementById('btn-piano-' + profId)
-      if (btn) { btn.className = 'action-btn premium-on'; btn.textContent = '⭐ Attiva Premium'; btn.setAttribute('onclick', "attivaPremiump('" + profId + "')") }
+      _updatePianoCaches(profId, 'free')
+      renderProfessionistiFiltered(); renderStatsFiltered()
     }
 
     function esportaCSV() {
@@ -543,7 +704,7 @@
     }
 
     async function apriPannello(profId) {
-      console.log('[apriPannello] chiamata con profId:', profId)
+      savedScrollY = window.scrollY
       currentProfId = profId
 
       const { data: prof, error: profErr } = await _supabase
@@ -551,10 +712,8 @@
         .select('*, profiles(id, nome, cognome, telefono)')
         .eq('id', profId)
         .single()
-      console.log('[apriPannello] risultato:', prof, 'errore:', profErr)
-      if (!prof) { console.error('[apriPannello] prof null, errore:', profErr); return }
+      if (!prof) { console.error('[apriPannello] prof null:', profErr); return }
       _panelProfData = prof
-      console.log('[apriPannello] user_id:', prof.user_id, 'profiles:', prof.profiles)
 
       const nome = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : '—'
       document.getElementById('panel-title').textContent = nome || '—'
@@ -571,7 +730,18 @@
 
       const isPremium = (prof.piano || '').toLowerCase() === 'premium'
       const pianoLabel = document.getElementById('piano-label')
-      pianoLabel.textContent = 'Piano: ' + (isPremium ? 'PREMIUM ⭐' : 'FREE')
+      pianoLabel.textContent = 'Piano: ' + (isPremium ? 'PREMIUM ⭐' : 'Free')
+      const aiUsesLbl = document.getElementById('ai-uses-label')
+      if (aiUsesLbl) {
+        if (isPremium) {
+          aiUsesLbl.textContent = 'Analisi AI illimitate'
+        } else {
+          const uses = prof.ai_uses || 0
+          const rem = Math.max(0, 5 - uses)
+          aiUsesLbl.textContent = 'Analisi AI: ' + uses + '/5 usate · ' + rem + ' disponibili'
+          aiUsesLbl.style.color = uses >= 5 ? '#c62828' : '#888'
+        }
+      }
       const btnP = document.getElementById('btn-toggle-piano')
       btnP.textContent       = isPremium ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
       btnP.style.background  = isPremium ? '#ffebee' : '#FFD008'
@@ -588,6 +758,34 @@
       document.getElementById('panel-overlay').classList.remove('open')
       document.getElementById('side-panel').classList.remove('open')
       currentProfId = null; _panelProfData = null
+      setTimeout(() => window.scrollTo({ top: savedScrollY, behavior: 'instant' }), 30)
+    }
+
+    // ── Nuove azioni pannello laterale ──
+    function copiaLinkAccesso() {
+      const link = 'https://policettivo-app.vercel.app/login.html'
+      navigator.clipboard.writeText(link).then(() => {
+        const btn = document.querySelector('[onclick="copiaLinkAccesso()"]')
+        if (btn) { const orig = btn.textContent; btn.textContent = '✓ Copiato!'; setTimeout(() => btn.textContent = orig, 2000) }
+      })
+    }
+
+    function inviaLinkAccesso() {
+      const nome = _panelProfData?.profiles?.nome || 'professionista'
+      const link = 'https://policettivo-app.vercel.app/login.html'
+      const msg = 'Ciao ' + nome + '! Ecco il link per accedere alla piattaforma Policettivo®:\n' + link + '\n\nAccedi con la tua email e password.'
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank')
+    }
+
+    async function resetAccessoProf() {
+      const email = _panelProfData?.email
+      if (!email) { alert('Email non disponibile per questo professionista.'); return }
+      if (!confirm('Inviare email di reset password a:\n' + email + '\n\nIl professionista riceverà un link per impostare una nuova password.')) return
+      const { error } = await _supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://policettivo-app.vercel.app/dashboard.html'
+      })
+      if (error) { alert('Errore: ' + error.message); return }
+      alert('Email di reset password inviata a ' + email + ' ✓')
     }
 
     async function caricaAttivita(profId) {
@@ -706,9 +904,13 @@
         return
       }
 
+      const deletedId = currentProfId
       chiudiPannello()
+      allProfessionisti = allProfessionisti.filter(p => p.id !== deletedId)
+      _statsCache = _statsCache.filter(s => s.prof.id !== deletedId)
+      document.getElementById('stat-prof').textContent = allProfessionisti.length
       alert(nome + ' eliminato con successo.')
-      loadAll()
+      renderProfessionistiFiltered(); renderStatsFiltered()
     }
 
     async function attivaPremiuPannello() {
@@ -734,24 +936,20 @@
       if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
 
       if (_panelProfData) _panelProfData.piano = newPiano
+      _updatePianoCaches(currentProfId, newPiano)
       const nowPrem = newPiano === 'premium'
 
       // Aggiorna UI pannello
-      document.getElementById('piano-label').textContent = 'Piano: ' + (nowPrem ? 'PREMIUM ⭐' : 'FREE')
+      document.getElementById('piano-label').textContent = 'Piano: ' + (nowPrem ? 'PREMIUM ⭐' : 'Free')
+      const aiUsesLblT = document.getElementById('ai-uses-label')
+      if (aiUsesLblT) aiUsesLblT.textContent = nowPrem ? 'Analisi AI illimitate' : 'Analisi AI: ' + (_panelProfData?.ai_uses || 0) + '/5 usate'
       const btnP = document.getElementById('btn-toggle-piano')
-      btnP.textContent      = nowPrem ? '🔴 Revoca Premium' : '⭐ Attiva Premium'
-      btnP.style.background = nowPrem ? '#c62828' : '#FFD008'
-      btnP.style.color      = nowPrem ? '#fff' : '#000'
+      btnP.textContent      = nowPrem ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
+      btnP.style.background = nowPrem ? '#ffebee' : '#FFD008'
+      btnP.style.color      = nowPrem ? '#c62828' : '#000'
 
-      // Aggiorna badge e pulsante nella riga della tabella principale
-      const badge = document.getElementById('badge-' + currentProfId)
-      if (badge) { badge.className = nowPrem ? 'badge-premium' : 'badge-free'; badge.textContent = nowPrem ? 'PREMIUM' : 'FREE' }
-      const btnTab = document.getElementById('btn-piano-' + currentProfId)
-      if (btnTab) {
-        btnTab.className   = nowPrem ? 'action-btn premium-off' : 'action-btn premium-on'
-        btnTab.textContent = nowPrem ? '🔴 Revoca Premium' : '⭐ Attiva Premium'
-        btnTab.setAttribute('onclick', nowPrem ? "revocaPremium('" + currentProfId + "')" : "attivaPremiump('" + currentProfId + "')")
-      }
+      // Aggiorna tabelle principali senza resettare pagina/ricerca
+      renderProfessionistiFiltered(); renderStatsFiltered()
     }
 
     async function salvaNote() {
@@ -787,6 +985,11 @@
 
       <!-- TAB DATI -->
       <div class="panel-section active" id="tab-dati">
+        <div class="panel-actions-bar">
+          <button class="btn-panel-action" onclick="copiaLinkAccesso()">📋 Copia link accesso</button>
+          <button class="btn-panel-action wa" onclick="inviaLinkAccesso()">📲 Invia WhatsApp</button>
+          <button class="btn-panel-action reset" style="grid-column:1/-1" onclick="resetAccessoProf()">🔑 Invia reset password via email</button>
+        </div>
         <div class="p-row">
           <div><label class="p-label">Nome</label><input class="p-input" id="edit-nome" type="text" placeholder="Mario"></div>
           <div><label class="p-label">Cognome</label><input class="p-input" id="edit-cognome" type="text" placeholder="Rossi"></div>
@@ -803,7 +1006,10 @@
         <input class="p-input" id="edit-telefono" type="tel" placeholder="+39 333 1234567">
 
         <div class="piano-toggle-row">
-          <strong id="piano-label">Piano: FREE</strong>
+          <div>
+            <strong id="piano-label">Piano: Free</strong>
+            <div id="ai-uses-label" style="font-size:11px;color:#888;margin-top:2px"></div>
+          </div>
           <button class="btn-toggle-piano" id="btn-toggle-piano" onclick="attivaPremiuPannello()">—</button>
         </div>
 
