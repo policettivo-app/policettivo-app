@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo®</title>
+  <style>
+    body { margin: 0; background: #000; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Montserrat', sans-serif; color: #fff; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #FFD008; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+  </style>
+</head>
+<body>
+  <div class="dot"></div>
+  <script>
+    (function () {
+      var t = localStorage.getItem('policettivo_patient_token')
+      if (t) {
+        window.location.replace('/protocollo.html?token=' + encodeURIComponent(t))
+      } else {
+        window.location.replace('/login.html')
+      }
+    })()
+  </script>
+</body>
+</html>

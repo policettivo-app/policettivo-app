@@ -136,7 +136,17 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     const params = new URLSearchParams(window.location.search)
-    const token = params.get('token')
+    let token = params.get('token')
+    // PWA token persistence: save when present, recover when missing
+    if (token) {
+      localStorage.setItem('policettivo_patient_token', token)
+    } else {
+      const _saved = localStorage.getItem('policettivo_patient_token')
+      if (_saved) {
+        token = _saved
+        try { history.replaceState(null, '', 'protocollo.html?token=' + encodeURIComponent(token)) } catch(e) {}
+      }
+    }
     let patient = null, protocol = null, exercises = [], protocolCustomVideos = []
     let deferredPrompt = null
     let stelleSelezionate = 0
@@ -177,7 +187,7 @@
     }
 
     async function init() {
-      if (!token) { showError('Link non valido.'); return }
+      if (!token) { showNoToken(); return }
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
       const isStandalone = window.navigator.standalone === true
       if (isIOS && !isStandalone && !localStorage.getItem('ios_banner_dismissed')) {
@@ -392,6 +402,19 @@
 
     function showError(msg) {
       document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>' + msg + '</h2></div>'
+    }
+
+    function showNoToken() {
+      document.getElementById('greeting-title').textContent = ''
+      document.getElementById('greeting-sub').textContent = ''
+      document.getElementById('content-area').innerHTML =
+        '<div style="text-align:center;padding:60px 20px">' +
+        '<div style="font-size:52px;margin-bottom:20px">🔗</div>' +
+        '<h2 style="color:#FFD008;font-size:18px;font-weight:700;margin-bottom:14px">Link non configurato</h2>' +
+        '<p style="color:#888;font-size:14px;line-height:1.7;max-width:300px;margin:0 auto">Apri il link personale ricevuto dal tuo professionista per accedere al protocollo.<br><br>' +
+        'Il link arriva via WhatsApp o email e ha questa forma:<br>' +
+        '<span style="color:#555;font-size:12px;word-break:break-all">policettivo-app.vercel.app/protocollo.html?token=...</span></p>' +
+        '</div>'
     }
 
     function showNoProtocol() {
