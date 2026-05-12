@@ -541,10 +541,17 @@
       const el = document.getElementById('stats-prof-list')
       el.innerHTML = '<div class="empty-state">Caricamento...</div>'
 
-      const { data: profs } = await _supabase
-        .from('professionals')
-        .select('*, profiles(*)')
-        .order('created_at', { ascending: false })
+      const [profsRes, emailsRes] = await Promise.all([
+        _supabase.from('professionals').select('*, profiles(*)').order('created_at', { ascending: false }),
+        getAdminToken().then(tok => fetch('/api/admin-list-user-emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }
+        }).then(r => r.json()).catch(() => ({ emails: {} })))
+      ])
+
+      const profs = profsRes.data
+      const emailMap = emailsRes.emails || {}
+      if (profs) profs.forEach(p => { if (!p.email) p.email = emailMap[p.user_id] || '' })
 
       if (!profs || profs.length === 0) {
         el.innerHTML = '<div class="empty-state">Nessun professionista.</div>'
@@ -720,7 +727,9 @@
 
       document.getElementById('edit-nome').value           = prof.profiles?.nome || ''
       document.getElementById('edit-cognome').value        = prof.profiles?.cognome || ''
-      document.getElementById('p-email').value          = prof.email || ''
+      const _cachedEmail = (_statsCache.find(s => s.prof.id === profId)?.prof?.email) || prof.email || ''
+      document.getElementById('p-email').value = _cachedEmail
+      _panelProfData.email = _cachedEmail
       document.getElementById('edit-qualifica').value      = prof.qualifica || ''
       document.getElementById('edit-centro').value         = prof.centro || ''
       document.getElementById('edit-citta').value          = prof.citta || ''
