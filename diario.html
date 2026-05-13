@@ -63,6 +63,15 @@ input.fi { min-height: unset; resize: none; }
 .btn-save { background: #FFD008; color: #000; border: none; border-radius: 10px; padding: 14px 24px; font-family: Montserrat,sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; margin-top: 8px; }
 .cal-box { background: #f9f9f9; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; border: 1.5px solid #eee; }
 .cal-check { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.btn-det-act { background: transparent; border: 1px solid #555; color: #ccc; padding: 6px 11px; border-radius: 6px; font-family: Montserrat,sans-serif; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.btn-det-act:hover { border-color: #FFD008; color: #FFD008; }
+.btn-det-del { border-color: #c62828 !important; color: #ef9a9a !important; }
+.btn-det-del:hover { border-color: #ef9a9a !important; }
+.det-edit-ta { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: Montserrat,sans-serif; font-size: 14px; resize: vertical; outline: none; min-height: 60px; line-height: 1.6; }
+.det-edit-ta:focus { border-color: #FFD008; }
+.btn-det-save { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-family: Montserrat,sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; flex: 2; }
+.btn-pdf-all { background: transparent; border: 2px solid #000; color: #000; border-radius: 12px; padding: 11px 24px; font-family: Montserrat,sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; margin-bottom: 16px; }
+.btn-pdf-all:hover { background: #f5f5f5; }
 </style>
 </head>
 <body>
@@ -73,6 +82,7 @@ input.fi { min-height: unset; resize: none; }
 </div>
 <div class="container">
   <button class="btn-new" onclick="apriNuovaSeduta()">+ Nuova seduta</button>
+  <button id="btn-pdf-completo" class="btn-pdf-all" onclick="diarioPDFCompleto()">📚 PDF completo percorso</button>
   <div id="lista-sedute"></div>
 </div>
 
@@ -122,8 +132,10 @@ input.fi { min-height: unset; resize: none; }
         <div class="det-date" id="det-date">-</div>
         <div class="det-vas" id="det-vas"></div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="eliminaSeduta()" style="background:transparent;border:1px solid #c62828;color:#ef9a9a;padding:6px 12px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">Elimina</button>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn-det-act" onclick="diarioModifica()">✏️ Modifica</button>
+        <button class="btn-det-act" onclick="diarioPDFSeduta()">📄 PDF</button>
+        <button class="btn-det-act btn-det-del" onclick="eliminaSeduta()">🗑 Elimina</button>
         <button class="bcd" onclick="chiudiDettaglio()">X</button>
       </div>
     </div>
@@ -140,6 +152,7 @@ var patient = null;
 var protAtt = null;
 var calON = false;
 var sedutaId = null;
+var detSeduta = null;
 
 function torna() {
   window.location.href = 'paziente.html?id=' + pid;
@@ -229,6 +242,7 @@ function apriDet(el) {
   var raw = decodeURIComponent(el.getAttribute('data-session'));
   var s = JSON.parse(raw);
   sedutaId = s.id;
+  detSeduta = s;
   var d = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
   document.getElementById('det-date').textContent = d;
   document.getElementById('det-vas').innerHTML =
@@ -350,6 +364,148 @@ async function salvaSeduta() {
 }
 
 init();
+
+// ── DIARIO EXTENSIONS (namespace: diario*) ───────────────────────────────────
+
+function diarioEscHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function diarioRenderBody(s) {
+  var body = '';
+  if (s.protocollo_seduta)  body += '<div class="det-sec"><div class="det-lbl">Protocollo eseguito</div><div class="det-val">' + diarioEscHtml(s.protocollo_seduta) + '</div></div>';
+  if (s.protocollo_prossima) body += '<div class="det-sec"><div class="det-lbl">Prossima seduta</div><div class="det-val">' + diarioEscHtml(s.protocollo_prossima) + '</div></div>';
+  if (s.tecniche)            body += '<div class="det-sec"><div class="det-lbl">Tecniche</div><div class="det-val">' + diarioEscHtml(s.tecniche) + '</div></div>';
+  if (s.risposta_paziente)   body += '<div class="det-sec"><div class="det-lbl">Risposta paziente</div><div class="det-val">' + diarioEscHtml(s.risposta_paziente) + '</div></div>';
+  if (s.note_cliniche)       body += '<div class="det-sec"><div class="det-lbl">Note cliniche</div><div class="det-val">' + diarioEscHtml(s.note_cliniche) + '</div></div>';
+  if (s.feedback_paziente)   body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + diarioEscHtml(s.feedback_paziente) + '</div></div>';
+  if (!body) body = '<div style="text-align:center;padding:32px;color:#999">Nessun dettaglio.</div>';
+  document.getElementById('det-body').innerHTML = body;
+}
+
+function diarioModifica() {
+  if (!detSeduta) return;
+  var html = '';
+  html += '<div class="det-sec"><div class="det-lbl">Protocollo eseguito</div><textarea class="det-edit-ta" id="det-edit-ps" rows="3"></textarea></div>';
+  html += '<div class="det-sec"><div class="det-lbl">Prossima seduta</div><textarea class="det-edit-ta" id="det-edit-pp" rows="2"></textarea></div>';
+  html += '<div class="det-sec" style="border-bottom:none"><div class="det-lbl">Note cliniche</div><textarea class="det-edit-ta" id="det-edit-nc" rows="3"></textarea></div>';
+  html += '<div style="display:flex;gap:8px;margin-top:16px">';
+  html += '<button onclick="diarioCancellaModifica()" style="flex:1;background:transparent;border:1.5px solid #ddd;border-radius:8px;padding:10px;font-family:Montserrat,sans-serif;font-size:13px;cursor:pointer;color:#666">Annulla</button>';
+  html += '<button onclick="diarioSalvaModifica()" class="btn-det-save">Salva modifiche</button>';
+  html += '</div>';
+  document.getElementById('det-body').innerHTML = html;
+  document.getElementById('det-edit-ps').value = detSeduta.protocollo_seduta || '';
+  document.getElementById('det-edit-pp').value = detSeduta.protocollo_prossima || '';
+  document.getElementById('det-edit-nc').value = detSeduta.note_cliniche || '';
+  document.getElementById('det-edit-ps').focus();
+}
+
+function diarioCancellaModifica() {
+  if (!detSeduta) return;
+  diarioRenderBody(detSeduta);
+}
+
+async function diarioSalvaModifica() {
+  if (!sedutaId) return;
+  var ps = document.getElementById('det-edit-ps').value.trim();
+  var pp = document.getElementById('det-edit-pp').value.trim();
+  var nc = document.getElementById('det-edit-nc').value.trim();
+  var saveBtn = document.querySelector('#det-body .btn-det-save');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Salvataggio...'; }
+  var res = await _sb.from('therapy_sessions').update({
+    protocollo_seduta:  ps || null,
+    protocollo_prossima: pp || null,
+    note_cliniche:      nc || null
+  }).eq('id', sedutaId);
+  if (res.error) {
+    alert('Errore salvataggio: ' + res.error.message);
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salva modifiche'; }
+    return;
+  }
+  detSeduta.protocollo_seduta  = ps || null;
+  detSeduta.protocollo_prossima = pp || null;
+  detSeduta.note_cliniche      = nc || null;
+  diarioRenderBody(detSeduta);
+  caricaSedute();
+}
+
+function diarioPDFSeduta() {
+  if (!detSeduta) return;
+  var s = detSeduta;
+  var nomePaz = patient ? patient.nome + ' ' + patient.cognome : 'Paziente';
+  var d = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  var win = window.open('', '_blank');
+  var h = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Seduta — ' + nomePaz + '</title>';
+  h += '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">';
+  h += '<style>body{font-family:Montserrat,sans-serif;max-width:700px;margin:0 auto;padding:40px 32px;color:#000;font-size:14px}';
+  h += '.logo{background:#FFD008;color:#000;font-weight:700;font-size:11px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px}';
+  h += 'h1{font-size:20px;font-weight:700;margin-bottom:4px}.sub{font-size:13px;color:#666;margin-bottom:24px}';
+  h += '.vas{display:flex;gap:16px;margin-bottom:20px}.vb{background:#f5f5f5;border-radius:8px;padding:12px 20px;text-align:center}';
+  h += '.vn{font-size:28px;font-weight:900}.vis{color:#c62828}.vie{color:#2e7d32}';
+  h += '.sec{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee}.sec:last-child{border-bottom:none}';
+  h += '.lbl{font-size:10px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}';
+  h += '.val{line-height:1.7;white-space:pre-wrap}';
+  h += '.foot{margin-top:32px;font-size:11px;color:#bbb;border-top:1px solid #eee;padding-top:16px}';
+  h += '@media print{button{display:none}}</style></head><body>';
+  h += '<div class="logo">POLICETTIVO</div><h1>' + nomePaz + '</h1><div class="sub">Seduta del ' + d + '</div>';
+  h += '<div class="vas"><div class="vb"><div class="lbl">VAS Inizio</div><div class="vn vis">' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</div></div>';
+  h += '<div class="vb"><div class="lbl">VAS Fine</div><div class="vn vie">' + (s.vas_fine != null ? s.vas_fine : '-') + '</div></div></div>';
+  [['Protocollo eseguito',s.protocollo_seduta],['Prossima seduta',s.protocollo_prossima],
+   ['Tecniche utilizzate',s.tecniche],['Risposta paziente',s.risposta_paziente],
+   ['Note cliniche',s.note_cliniche],['Feedback paziente',s.feedback_paziente]].forEach(function(f) {
+    if (f[1]) h += '<div class="sec"><div class="lbl">' + f[0] + '</div><div class="val">' + diarioEscHtml(f[1]) + '</div></div>';
+  });
+  h += '<div class="foot">Generato con Policettivo® — ' + new Date().toLocaleDateString('it-IT') + '</div>';
+  h += '<button onclick="window.print()" style="margin-top:20px;background:#FFD008;border:none;border-radius:8px;padding:12px 24px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;cursor:pointer">Stampa / Salva PDF</button>';
+  h += '</body></html>';
+  win.document.write(h); win.document.close();
+}
+
+async function diarioPDFCompleto() {
+  var btn = document.getElementById('btn-pdf-completo');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparazione...'; }
+  var res = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: true });
+  if (btn) { btn.disabled = false; btn.textContent = '📚 PDF completo percorso'; }
+  var sessioni = res.data || [];
+  if (!sessioni.length) { alert('Nessuna seduta registrata.'); return; }
+  var nomePaz = patient ? patient.nome + ' ' + patient.cognome : 'Paziente';
+  var win = window.open('', '_blank');
+  var h = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Percorso — ' + nomePaz + '</title>';
+  h += '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">';
+  h += '<style>body{font-family:Montserrat,sans-serif;max-width:700px;margin:0 auto;padding:40px 32px;color:#000;font-size:13px}';
+  h += '.logo{background:#FFD008;color:#000;font-weight:700;font-size:11px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:12px}';
+  h += 'h1{font-size:22px;font-weight:900;margin-bottom:4px}.intro{font-size:13px;color:#666;margin-bottom:32px;border-bottom:2px solid #FFD008;padding-bottom:16px}';
+  h += '.seduta{background:#f9f9f9;border-radius:12px;padding:20px 24px;margin-bottom:24px;border:1px solid #eee;page-break-inside:avoid}';
+  h += '.sdata{font-size:15px;font-weight:700;margin-bottom:8px}';
+  h += '.vas{display:flex;gap:10px;margin-bottom:12px}';
+  h += '.vb{background:#fff;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:700;border:1px solid #eee}';
+  h += '.vis{color:#c62828}.vie{color:#2e7d32}';
+  h += '.sec{margin-bottom:10px}.lbl{font-size:10px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px}';
+  h += '.val{line-height:1.6;white-space:pre-wrap;font-size:13px}';
+  h += '.foot{margin-top:32px;font-size:11px;color:#bbb;text-align:center;border-top:1px solid #eee;padding-top:16px}';
+  h += '@media print{button{display:none}.seduta{break-inside:avoid}}</style></head><body>';
+  h += '<div class="logo">POLICETTIVO</div><h1>' + nomePaz + '</h1>';
+  var prob = patient && patient.problema_principale ? ' — ' + diarioEscHtml(patient.problema_principale) : '';
+  h += '<div class="intro">Percorso riabilitativo completo' + prob + '<br>' + sessioni.length + ' sedut' + (sessioni.length === 1 ? 'a' : 'e') + ' registrat' + (sessioni.length === 1 ? 'a' : 'e') + '</div>';
+  sessioni.forEach(function(s, idx) {
+    var d = new Date(s.data_seduta).toLocaleDateString('it-IT', {weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+    h += '<div class="seduta"><div class="sdata">Seduta ' + (idx + 1) + ' — ' + d + '</div>';
+    h += '<div class="vas"><div class="vb vis">VAS inizio: ' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</div>';
+    h += '<div class="vb vie">VAS fine: ' + (s.vas_fine != null ? s.vas_fine : '-') + '</div></div>';
+    [['Protocollo eseguito',s.protocollo_seduta],['Prossima seduta',s.protocollo_prossima],
+     ['Tecniche utilizzate',s.tecniche],['Risposta paziente',s.risposta_paziente],
+     ['Note cliniche',s.note_cliniche],['Feedback paziente',s.feedback_paziente]].forEach(function(f) {
+      if (f[1]) h += '<div class="sec"><div class="lbl">' + f[0] + '</div><div class="val">' + diarioEscHtml(f[1]) + '</div></div>';
+    });
+    h += '</div>';
+  });
+  h += '<div class="foot">Generato con Policettivo® — ' + new Date().toLocaleDateString('it-IT') + '</div>';
+  h += '<button onclick="window.print()" style="margin-top:20px;background:#FFD008;border:none;border-radius:8px;padding:12px 24px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;cursor:pointer">Stampa / Salva PDF</button>';
+  h += '</body></html>';
+  win.document.write(h); win.document.close();
+}
+
+// ── END DIARIO EXTENSIONS ────────────────────────────────────────────────────
 </script>
   <script src="console-nav.js"></script>
 </body>
