@@ -236,6 +236,25 @@
       color: rgba(255,255,255,0.55); font-size: 10px; font-family: monospace;
       pointer-events: none;
     }
+    /* --- Clinical Notes tabs (clinicalNotes*) --- */
+    .cn-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+    .cn-tab { background: transparent; border: none; padding: 10px 18px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; color: #999; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; }
+    .cn-tab.active { color: #000; border-bottom-color: #FFD008; }
+    .cn-tab:hover:not(.active) { color: #555; }
+    .cn-note-list { display: flex; flex-direction: column; gap: 10px; }
+    .cn-note-card { background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
+    .cn-note-card:hover { border-color: #FFD008; }
+    .cn-note-card-title { font-weight: 700; font-size: 13px; color: #000; margin-bottom: 4px; }
+    .cn-note-card-preview { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
+    .cn-note-card-meta { font-size: 11px; color: #bbb; }
+    .cn-empty { text-align: center; padding: 32px 16px; color: #bbb; font-size: 13px; }
+    .cn-status { font-size: 11px; color: #999; height: 16px; display: inline-block; }
+    .cn-status.saved { color: #4CAF50; }
+    .cn-status.saving { color: #aaa; }
+    .cn-input { width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; }
+    .cn-input:focus { border-color: #FFD008; }
+    .cn-textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; resize: vertical; min-height: 180px; line-height: 1.7; }
+    .cn-textarea:focus { border-color: #FFD008; }
   </style>
 </head>
 <body>
@@ -551,53 +570,88 @@
         <button class="btn-edit" onclick="toggleCartella()" id="btn-cartella">&#9660; Mostra</button>
       </div>
       <div id="cartella-container" style="display:none">
-        <div class="upload-form" id="upload-form">
-          <div style="margin-bottom:12px">
-            <div class="osservazione-label" style="margin-bottom:8px">Tipo documento:</div>
-            <div class="doc-tipo-selector">
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'lastra')">🩻 Lastra</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'referto')">📄 Referto</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'visita')">👨‍⚕️ Visita</button>
-              <button class="doc-tipo-btn" onclick="selectTipo(this,'esame')">🧪 Esame</button>
-              <button class="doc-tipo-btn selected" onclick="selectTipo(this,'altro')">📎 Altro</button>
+        <!-- Tab nav -->
+        <div class="cn-tabs">
+          <button class="cn-tab active" id="cn-btn-docs" onclick="clinicalNotesSwitchTab('docs')">Documenti</button>
+          <button class="cn-tab" id="cn-btn-relazione" onclick="clinicalNotesSwitchTab('relazione')">Relazione clinica</button>
+        </div>
+
+        <!-- TAB: Documenti (contenuto originale invariato) -->
+        <div id="cn-tab-docs">
+          <div class="upload-form" id="upload-form">
+            <div style="margin-bottom:12px">
+              <div class="osservazione-label" style="margin-bottom:8px">Tipo documento:</div>
+              <div class="doc-tipo-selector">
+                <button class="doc-tipo-btn" onclick="selectTipo(this,'lastra')">🩻 Lastra</button>
+                <button class="doc-tipo-btn" onclick="selectTipo(this,'referto')">📄 Referto</button>
+                <button class="doc-tipo-btn" onclick="selectTipo(this,'visita')">👨‍⚕️ Visita</button>
+                <button class="doc-tipo-btn" onclick="selectTipo(this,'esame')">🧪 Esame</button>
+                <button class="doc-tipo-btn selected" onclick="selectTipo(this,'altro')">📎 Altro</button>
+              </div>
+            </div>
+            <div class="edit-group" style="margin-bottom:12px">
+              <label>Descrizione <span style="font-weight:400;color:#bbb">(opzionale)</span></label>
+              <input type="text" id="doc-descrizione" placeholder="Es. RMN lombare gennaio 2025">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div class="doc-upload-area" onclick="document.getElementById('doc-file-input').click()" style="margin-bottom:0">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text" style="font-weight:600">Scegli file</div>
+                <div class="upload-hint">JPG, PNG o PDF</div>
+              </div>
+              <div class="doc-upload-area" onclick="document.getElementById('doc-camera-input').click()" style="margin-bottom:0;border-color:#FFD008;background:#fffdf0">
+                <div class="upload-icon">📷</div>
+                <div class="upload-text" style="font-weight:600">Scatta foto</div>
+                <div class="upload-hint">Usa la fotocamera</div>
+              </div>
+            </div>
+            <input type="file" id="doc-file-input" accept="image/*,.pdf" style="display:none" onchange="handleDocFile(this)">
+            <input type="file" id="doc-camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleDocFile(this)">
+            <div id="doc-file-preview" style="font-size:12px;color:#666;margin-bottom:10px;display:none"></div>
+            <div id="upload-progress" style="font-size:12px;color:#999;margin-top:4px;display:none">⏳ Caricamento in corso...</div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn-cancel" onclick="chiudiUploadForm()">Annulla</button>
             </div>
           </div>
-          <div class="edit-group" style="margin-bottom:12px">
-            <label>Descrizione <span style="font-weight:400;color:#bbb">(opzionale)</span></label>
-            <input type="text" id="doc-descrizione" placeholder="Es. RMN lombare gennaio 2025">
+          <div class="actions-row" style="margin-bottom:16px">
+            <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
+            <button class="btn-secondary" id="btn-stampa-cartella" onclick="stampaCartella()" style="display:none">🖨 Stampa / PDF</button>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div class="doc-upload-area" onclick="document.getElementById('doc-file-input').click()" style="margin-bottom:0">
-              <div class="upload-icon">📁</div>
-              <div class="upload-text" style="font-weight:600">Scegli file</div>
-              <div class="upload-hint">JPG, PNG o PDF</div>
+          <div class="doc-list" id="doc-list">
+            <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
+          </div>
+          <div class="ai-loading" id="ai-loading">Analisi AI in corso... attendere</div>
+          <div class="ai-report-box" id="ai-report-box">
+            <div class="ai-report-title">Analisi AI - <span id="ai-report-date"></span></div>
+            <div class="ai-report-content" id="ai-report-content"></div>
+          </div>
+        </div>
+
+        <!-- TAB: Relazione clinica -->
+        <div id="cn-tab-relazione" style="display:none">
+          <!-- Lista note -->
+          <div id="cn-list-view">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <span style="font-size:13px;font-weight:600;color:#555">Cronologia note — più recenti prima</span>
+              <button class="btn-primary" style="font-size:12px;padding:8px 16px" onclick="clinicalNotesNewForm()">+ Nuova nota</button>
             </div>
-            <div class="doc-upload-area" onclick="document.getElementById('doc-camera-input').click()" style="margin-bottom:0;border-color:#FFD008;background:#fffdf0">
-              <div class="upload-icon">📷</div>
-              <div class="upload-text" style="font-weight:600">Scatta foto</div>
-              <div class="upload-hint">Usa la fotocamera</div>
+            <div id="cn-note-list" class="cn-note-list">
+              <div class="cn-empty">Nessuna nota clinica ancora.</div>
             </div>
           </div>
-          <input type="file" id="doc-file-input" accept="image/*,.pdf" style="display:none" onchange="handleDocFile(this)">
-          <input type="file" id="doc-camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleDocFile(this)">
-          <div id="doc-file-preview" style="font-size:12px;color:#666;margin-bottom:10px;display:none"></div>
-          <div id="upload-progress" style="font-size:12px;color:#999;margin-top:4px;display:none">⏳ Caricamento in corso...</div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn-cancel" onclick="chiudiUploadForm()">Annulla</button>
+          <!-- Editor nota -->
+          <div id="cn-editor" style="display:none;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:13px;font-weight:700;color:#000" id="cn-editor-label">Nuova nota</span>
+              <button onclick="clinicalNotesCancel()" style="background:transparent;border:none;color:#999;font-size:13px;cursor:pointer;font-family:Montserrat,sans-serif;padding:0">✕ Annulla</button>
+            </div>
+            <input type="text" id="cn-title" class="cn-input" placeholder="Titolo nota (opzionale)" oninput="clinicalNotesScheduleAutosave()">
+            <textarea id="cn-content" class="cn-textarea" placeholder="Scrivi la nota clinica..." oninput="clinicalNotesScheduleAutosave()"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span id="cn-status" class="cn-status"></span>
+              <button class="btn-primary" style="font-size:13px;padding:10px 20px" onclick="clinicalNotesSave()">Salva nota</button>
+            </div>
           </div>
-        </div>
-        <div class="actions-row" style="margin-bottom:16px">
-          <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
-          <button class="btn-secondary" id="btn-ai-analisi" onclick="avviaAnalisiAI()" style="display:none">🤖 Analisi AI</button>
-          <button class="btn-secondary" id="btn-stampa-cartella" onclick="stampaCartella()" style="display:none">🖨 Stampa / PDF</button>
-        </div>
-        <div class="doc-list" id="doc-list">
-          <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
-        </div>
-        <div class="ai-loading" id="ai-loading">Analisi AI in corso... attendere</div>
-        <div class="ai-report-box" id="ai-report-box">
-          <div class="ai-report-title">Analisi AI - <span id="ai-report-date"></span></div>
-          <div class="ai-report-content" id="ai-report-content"></div>
         </div>
       </div>
     </div>
@@ -1232,14 +1286,11 @@
         .order('created_at', { ascending: false })
       documentiCaricati = docs || []
       const lista = document.getElementById('doc-list')
-      const btnAI = document.getElementById('btn-ai-analisi')
       if (!docs || docs.length === 0) {
         lista.innerHTML = '<p style="font-size:13px;color:#888">Nessun documento caricato.</p>'
-        btnAI.style.display = 'none'
         document.getElementById('btn-stampa-cartella').style.display = 'none'
         return
       }
-      btnAI.style.display = 'inline-block'
       document.getElementById('btn-stampa-cartella').style.display = 'inline-block'
       const tipoIcon = { lastra: '🩻', referto: '📄', visita: '👨', esame: '🧪', altro: '📎' }
       const tipoLabel = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita spec.', esame: 'Esame lab.', altro: 'Altro' }
@@ -1642,7 +1693,180 @@
       }
     }
 
+    // ── CLINICAL NOTES (namespace: clinicalNotes*) ────────────────────────────
+    const clinicalNotesState = { profId: null, editingId: null, timer: null, loaded: false }
+
+    async function clinicalNotesGetProfId() {
+      if (clinicalNotesState.profId) return clinicalNotesState.profId
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) return null
+      const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).maybeSingle()
+      clinicalNotesState.profId = prof?.id || null
+      return clinicalNotesState.profId
+    }
+
+    function clinicalNotesSwitchTab(tab) {
+      const docTab = document.getElementById('cn-tab-docs')
+      const relTab = document.getElementById('cn-tab-relazione')
+      const btnDocs = document.getElementById('cn-btn-docs')
+      const btnRel = document.getElementById('cn-btn-relazione')
+      if (tab === 'docs') {
+        docTab.style.display = 'block'
+        relTab.style.display = 'none'
+        btnDocs.classList.add('active')
+        btnRel.classList.remove('active')
+      } else {
+        docTab.style.display = 'none'
+        relTab.style.display = 'block'
+        btnDocs.classList.remove('active')
+        btnRel.classList.add('active')
+        if (!clinicalNotesState.loaded) clinicalNotesInit()
+      }
+    }
+
+    async function clinicalNotesInit() {
+      clinicalNotesState.loaded = true
+      const list = document.getElementById('cn-note-list')
+      list.innerHTML = '<div class="cn-empty" style="color:#bbb">Caricamento...</div>'
+      const profId = await clinicalNotesGetProfId()
+      if (!profId) {
+        console.error('[clinicalNotes] profId non disponibile')
+        list.innerHTML = '<div class="cn-empty">Errore: profilo non trovato.</div>'
+        return
+      }
+      const { data: notes, error } = await _supabase
+        .from('clinical_notes')
+        .select('id, title, content, updated_at')
+        .eq('patient_id', patientId)
+        .eq('professional_id', profId)
+        .order('updated_at', { ascending: false })
+      if (error) {
+        console.error('[clinicalNotes] errore caricamento:', error)
+        list.innerHTML = '<div class="cn-empty">Errore nel caricamento.</div>'
+        clinicalNotesState.loaded = false
+        return
+      }
+      clinicalNotesRender(notes || [])
+    }
+
+    function clinicalNotesEscHtml(s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    }
+
+    function clinicalNotesRender(notes) {
+      const list = document.getElementById('cn-note-list')
+      if (!notes.length) {
+        list.innerHTML = '<div class="cn-empty">Nessuna nota clinica ancora.</div>'
+        return
+      }
+      list.innerHTML = notes.map(function(n) {
+        const title = n.title || 'Senza titolo'
+        const preview = (n.content || '').replace(/\n/g, ' ').substring(0, 90)
+        const d = new Date(n.updated_at)
+        const date = d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }) +
+          ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+        const dataAttr = 'data-id="' + n.id + '" data-title="' + clinicalNotesEscHtml(n.title || '') + '" data-content="' + clinicalNotesEscHtml(n.content || '') + '"'
+        return '<div class="cn-note-card" ' + dataAttr + ' onclick="clinicalNotesEditFormFromEl(this)">' +
+          '<div class="cn-note-card-title">' + clinicalNotesEscHtml(title) + '</div>' +
+          '<div class="cn-note-card-preview">' + clinicalNotesEscHtml(preview) + '</div>' +
+          '<div class="cn-note-card-meta">Modificato: ' + date + '</div>' +
+          '</div>'
+      }).join('')
+    }
+
+    function clinicalNotesEditFormFromEl(el) {
+      clinicalNotesEditForm({
+        id: el.getAttribute('data-id'),
+        title: el.getAttribute('data-title'),
+        content: el.getAttribute('data-content')
+      })
+    }
+
+    function clinicalNotesNewForm() {
+      clinicalNotesState.editingId = null
+      document.getElementById('cn-title').value = ''
+      document.getElementById('cn-content').value = ''
+      document.getElementById('cn-status').textContent = ''
+      document.getElementById('cn-status').className = 'cn-status'
+      document.getElementById('cn-editor-label').textContent = 'Nuova nota'
+      document.getElementById('cn-list-view').style.display = 'none'
+      document.getElementById('cn-editor').style.display = 'flex'
+      document.getElementById('cn-content').focus()
+    }
+
+    function clinicalNotesEditForm(note) {
+      clinicalNotesState.editingId = note.id
+      document.getElementById('cn-title').value = note.title || ''
+      document.getElementById('cn-content').value = note.content || ''
+      document.getElementById('cn-status').textContent = ''
+      document.getElementById('cn-status').className = 'cn-status'
+      document.getElementById('cn-editor-label').textContent = 'Modifica nota'
+      document.getElementById('cn-list-view').style.display = 'none'
+      document.getElementById('cn-editor').style.display = 'flex'
+      document.getElementById('cn-content').focus()
+    }
+
+    function clinicalNotesCancel() {
+      if (clinicalNotesState.timer) { clearTimeout(clinicalNotesState.timer); clinicalNotesState.timer = null }
+      clinicalNotesState.editingId = null
+      document.getElementById('cn-editor').style.display = 'none'
+      document.getElementById('cn-list-view').style.display = 'block'
+    }
+
+    function clinicalNotesScheduleAutosave() {
+      const statusEl = document.getElementById('cn-status')
+      statusEl.textContent = 'Modificato...'
+      statusEl.className = 'cn-status saving'
+      if (clinicalNotesState.timer) clearTimeout(clinicalNotesState.timer)
+      clinicalNotesState.timer = setTimeout(clinicalNotesSave, 3000)
+    }
+
+    async function clinicalNotesSave() {
+      if (clinicalNotesState.timer) { clearTimeout(clinicalNotesState.timer); clinicalNotesState.timer = null }
+      const title = document.getElementById('cn-title').value.trim()
+      const content = document.getElementById('cn-content').value.trim()
+      if (!content && !title) return
+      const statusEl = document.getElementById('cn-status')
+      statusEl.textContent = 'Salvataggio...'
+      statusEl.className = 'cn-status saving'
+      const profId = await clinicalNotesGetProfId()
+      if (!profId) {
+        console.error('[clinicalNotes] profId non disponibile per salvataggio')
+        statusEl.textContent = 'Errore: profilo non trovato.'
+        return
+      }
+      let error, newId = clinicalNotesState.editingId
+      if (clinicalNotesState.editingId) {
+        const res = await _supabase.from('clinical_notes')
+          .update({ title: title || null, content, updated_at: new Date().toISOString() })
+          .eq('id', clinicalNotesState.editingId)
+        error = res.error
+      } else {
+        const res = await _supabase.from('clinical_notes')
+          .insert({ patient_id: patientId, professional_id: profId, title: title || null, content })
+          .select('id')
+          .single()
+        error = res.error
+        if (!error && res.data) { newId = res.data.id; clinicalNotesState.editingId = newId }
+      }
+      if (error) {
+        console.error('[clinicalNotes] errore salvataggio:', error)
+        statusEl.textContent = 'Errore nel salvataggio.'
+        return
+      }
+      statusEl.textContent = 'Salvato ✓'
+      statusEl.className = 'cn-status saved'
+      clinicalNotesState.loaded = false
+      setTimeout(function() { if (statusEl.textContent === 'Salvato ✓') statusEl.textContent = '' }, 3000)
+    }
+    // ── END CLINICAL NOTES ────────────────────────────────────────────────────
+
     init()
+
+    // Apri cartella automaticamente se arrivati da visite.html con ?openCartella=1
+    if (new URLSearchParams(window.location.search).get('openCartella') === '1') {
+      setTimeout(function() { toggleCartella(true) }, 500)
+    }
   </script>
 
   <!-- BARRA AZIONI RAPIDE FISSA -->
