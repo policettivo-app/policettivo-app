@@ -179,9 +179,9 @@
       document.getElementById('btn-back').href = 'paziente.html?id=' + patientId
       const { data: { user } } = await _supabase.auth.getUser()
       if (!user) { window.location.href = 'login.html'; return }
-      const { data: prof } = await _supabase.from('professionals').select('*').eq('user_id', user.id).single()
+      const { data: prof } = await _supabase.from('professionals').select('*').eq('user_id', user.id).maybeSingle()
       professional = prof
-      const { data: pat } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      const { data: pat } = await _supabase.from('patients').select('*').eq('id', patientId).maybeSingle()
       patient = pat
       if (patient) {
         document.getElementById('patient-name').textContent = 'Paziente: ' + patient.nome + ' ' + patient.cognome
@@ -296,7 +296,7 @@
         .from('patient_protocols')
         .select('*')
         .eq('id', editProtocolId)
-        .single()
+        .maybeSingle()
       if (!prot) { showToast('Protocollo non trovato'); return }
 
       document.getElementById('proto-nome').value = prot.nome_personalizzato || ''

@@ -117,20 +117,12 @@ function updateSlider(id, val) {
 
 async function init() {
   if (!token) { torna(); return }
-  const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
-  if (!p) { torna(); return }
-  patient = p
-  const { data: prots } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
-  if (!prots || prots.length === 0) { torna(); return }
-  protocol = prots[0]
-  const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
-  if (ppe && ppe.length > 0) {
-    const exIds = ppe.map(e => e.exercise_id)
-    const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
-    const exMap = {}
-    if (exData) exData.forEach(e => exMap[e.id] = e)
-    exercises = ppe.map(e => ({ ...e, exercise: exMap[e.exercise_id] || null }))
-  }
+  const { data: pd, error: pdErr } = await _supabase.rpc('get_protocol_data', { p_token: token })
+  if (pdErr || !pd || !pd.patient) { torna(); return }
+  patient = pd.patient
+  if (!pd.protocol || pd.protocol.stato !== 'attivo') { torna(); return }
+  protocol = pd.protocol
+  exercises = (pd.exercises || []).map(e => ({ ...e.ppe, exercise: e.exercise || null }))
   renderExercises()
 }
 
@@ -197,27 +189,21 @@ async function completaSeduta() {
   const energia = parseInt(document.getElementById('sl-energia').value)
   const note = document.getElementById('note').value.trim()
   const today = new Date().toISOString().split('T')[0]
-  await _supabase.from('diary_entries').insert({
-    patient_id: patient.id,
-    patient_protocol_id: protocol.id,
-    data: today,
+  await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
+    patient_protocol_id: protocol.id, data: today,
     dolore, rigidita: 0, equilibrio: 5, energia,
-    note: note || 'Seduta rapida completata',
-    completato: true
-  })
+    note: note || 'Seduta rapida completata', completato: true
+  }})
   mostraCompletato()
 }
 
 async function saltaECompleta() {
   const today = new Date().toISOString().split('T')[0]
-  await _supabase.from('diary_entries').insert({
-    patient_id: patient.id,
-    patient_protocol_id: protocol.id,
-    data: today,
+  await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
+    patient_protocol_id: protocol.id, data: today,
     dolore: 0, rigidita: 0, equilibrio: 5, energia: 5,
-    note: 'Seduta rapida completata',
-    completato: true
-  })
+    note: 'Seduta rapida completata', completato: true
+  }})
   mostraCompletato()
 }
 

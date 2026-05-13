@@ -18,7 +18,7 @@ export async function checkAIAccess(req) {
     .from('professionals')
     .select('id, piano, premium_scadenza, ai_uses')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (profErr || !prof) return { error: 'Profilo non trovato', status: 403 }
 
@@ -55,7 +55,7 @@ export async function checkAIAccess(req) {
 
   if (!updated?.length) {
     // Another concurrent request already incremented — recheck
-    const { data: fresh } = await svc.from('professionals').select('ai_uses').eq('id', prof.id).single()
+    const { data: fresh } = await svc.from('professionals').select('ai_uses').eq('id', prof.id).maybeSingle()
     if ((fresh?.ai_uses || 0) >= FREE_LIMIT) {
       return {
         error: 'Hai esaurito le 5 analisi AI gratuite. Passa a Premium per analisi illimitate.',

@@ -176,22 +176,13 @@
 
     async function init() {
       if (!token) { window.location.href = 'protocollo.html'; return }
-      const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
-      if (!p) { window.location.href = 'protocollo.html?token=' + token; return }
-      patient = p
-      const { data: prots } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
-      if (!prots || prots.length === 0) { window.location.href = 'protocollo.html?token=' + token; return }
-      protocol = prots[0]
-      const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
-      if (ppe && ppe.length > 0) {
-        const exIds = ppe.map(function(e) { return e.exercise_id })
-        const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
-        const exMap = {}
-        if (exData) exData.forEach(function(e) { exMap[e.id] = e })
-        exercises = ppe.map(function(e) { return Object.assign({}, e, { exercise: exMap[e.exercise_id] || null, item_type: 'standard' }) })
-      }
-      const { data: cvData } = await _supabase.from('exercise_videos').select('*').eq('protocol_id', protocol.id).order('created_at', { ascending: true })
-      const customItems = (cvData || []).map(function(v) {
+      const { data: pd, error: pdErr } = await _supabase.rpc('get_protocol_data', { p_token: token })
+      if (pdErr || !pd || !pd.patient) { window.location.href = 'protocollo.html?token=' + token; return }
+      patient = pd.patient
+      if (!pd.protocol || pd.protocol.stato !== 'attivo') { window.location.href = 'protocollo.html?token=' + token; return }
+      protocol = pd.protocol
+      exercises = (pd.exercises || []).map(function(item) { return Object.assign({}, item.ppe, { exercise: item.exercise || null, item_type: 'standard' }) })
+      const customItems = (pd.custom_videos || []).map(function(v) {
         return { item_type: 'custom_video', id: v.id, titolo: v.titolo, url: v.url, tipo: v.tipo, descrizione: v.descrizione, durata: v.durata || 60 }
       })
       items = exercises.concat(customItems)
@@ -353,13 +344,8 @@
     }
 
     async function calcolaStreak() {
-      const { data } = await _supabase
-        .from('diary_entries')
-        .select('data')
-        .eq('patient_id', patient.id)
-        .eq('completato', true)
-        .order('data', { ascending: false })
-        .limit(30)
+      const { data: allEntries } = await _supabase.rpc('get_diary_entries', { p_token: token, p_limit: 30 })
+      const data = (allEntries || []).filter(function(e) { return e.completato })
       if (!data || data.length === 0) return 1
       let streak = 1
       const today = new Date()
@@ -377,14 +363,11 @@
     async function salvaDiarioAutomatico(streak) {
       const today = new Date().toISOString().split('T')[0]
       const nota = `Sessione completata automaticamente. ${streak > 1 ? streak + ' giorni consecutivi! 🔥' : 'Prima sessione completata! 🌟'}`
-      await _supabase.from('diary_entries').insert({
-        patient_id: patient.id,
-        patient_protocol_id: protocol.id,
-        data: today,
+      await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
+        patient_protocol_id: protocol.id, data: today,
         dolore: 0, rigidita: 0, equilibrio: 5, energia: 5,
-        note: nota,
-        completato: true
-      })
+        note: nota, completato: true
+      }})
     }
 
     function nextExercise() {
@@ -413,14 +396,13 @@
     function painAlert() {
       clearInterval(timerInterval)
       if (confirm('Vuoi interrompere per dolore? Verrà registrata una nota sul tuo diario.')) {
-        _supabase.from('diary_entries').insert({
-          patient_id: patient.id,
+        _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
           patient_protocol_id: protocol.id,
           data: new Date().toISOString().split('T')[0],
           dolore: 7, rigidita: 0, equilibrio: 5, energia: 5,
           note: 'Sessione interrotta per dolore durante ' + (items[idx].item_type === 'standard' && items[idx].exercise ? items[idx].exercise.nome : (items[idx].titolo || 'esercizio')),
           completato: false
-        })
+        }})
         finishSession()
       }
     }

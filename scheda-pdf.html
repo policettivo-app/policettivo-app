@@ -190,7 +190,7 @@
 
     async function init() {
       if (!patientId) { alert('ID paziente mancante'); return }
-      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).maybeSingle()
       if (!p) { alert('Paziente non trovato'); return }
 
       document.getElementById('pdf-nome').textContent = p.nome + ' ' + p.cognome

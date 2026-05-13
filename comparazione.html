@@ -91,7 +91,7 @@
 
     async function init() {
       if (!patientId) return
-      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).maybeSingle()
       if (!p) return
       patient = p
       document.getElementById('pt-nome').textContent = p.nome + ' ' + p.cognome

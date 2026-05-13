@@ -412,6 +412,12 @@
       const emailForPremiumCheck = isAdminPreview ? null : session.user.email
       const { profId: _profId } = await window.policettivoCheckPremium(_supabase, effectiveUserId, emailForPremiumCheck)
       currentProfessionalId = _profId
+      if (!currentProfessionalId) {
+        console.error('[dashboard] currentProfessionalId è null — nessun record professionals trovato per userId:', effectiveUserId)
+        const lm = document.getElementById('loading-msg')
+        if (lm) { lm.style.animation = 'none'; lm.style.color = '#e53935'; lm.textContent = '⚠️ Profilo professionista non trovato. Contatta il supporto.' }
+        return
+      }
 
       const badge = document.getElementById('piano-badge')
       if (badge) {
@@ -422,7 +428,8 @@
 
       if (currentProfessionalId) {
         if (!window.isPremium) {
-          const { data: _prof } = await _supabase.from('professionals').select('ai_uses').eq('id', currentProfessionalId).single()
+          const { data: _prof, error: _profErr } = await _supabase.from('professionals').select('ai_uses').eq('id', currentProfessionalId).maybeSingle()
+          if (_profErr) console.error('[dashboard] errore query ai_uses:', _profErr)
           const _aiUses = _prof?.ai_uses || 0
           if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_aiUses)
           const aiBadge = document.getElementById('referto-ai-badge')
@@ -671,7 +678,7 @@
         configurazione_default: selectedConfig, stato: 'attivo'
       })
       if (error) { alert('Errore: ' + error.message); return }
-      const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).single()
+      const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).maybeSingle()
       if (nuovo) { window.location.href = 'paziente.html?id=' + nuovo.id } else { closeModal(); loadPatients(); loadStats() }
     }
     function goToPatient(id) { trackRecentPatient(id); window.location.href = 'paziente.html?id=' + id }

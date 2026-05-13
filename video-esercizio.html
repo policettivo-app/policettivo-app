@@ -208,7 +208,7 @@
 
       await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
 
-      const { data: patient } = await _supabase.from('patients').select('nome,cognome').eq('id', patientId).single()
+      const { data: patient } = await _supabase.from('patients').select('nome,cognome').eq('id', patientId).maybeSingle()
       if (patient) {
         document.getElementById('patient-bar').innerHTML = '👤 <strong>' + patient.nome + ' ' + patient.cognome + '</strong>'
       }

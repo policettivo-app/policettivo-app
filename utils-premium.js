@@ -1,11 +1,12 @@
 const _ADMIN_EMAIL = 'appuntamentimft@gmail.com'
 
 window.policettivoCheckPremium = async function (supabase, userId, userEmail) {
-  const { data: prof } = await supabase
+  const { data: prof, error: profErr } = await supabase
     .from('professionals')
     .select('id, piano, premium_scadenza')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
+  if (profErr) console.error('[policettivoCheckPremium] errore query professionals:', profErr)
 
   if (userEmail === _ADMIN_EMAIL) {
     window.isPremium = true

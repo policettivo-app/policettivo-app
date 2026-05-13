@@ -267,7 +267,7 @@
       .from('professionals')
       .select('id')
       .eq('user_id', _session.user.id)
-      .single()
+      .maybeSingle()
     if (!prof) return
 
     const { data: seduta } = await client
@@ -276,7 +276,7 @@
       .eq('professional_id', prof.id)
       .order('data_seduta', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (seduta) {
       window.location.href = 'diario.html?pid=' + seduta.patient_id

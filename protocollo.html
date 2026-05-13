@@ -218,37 +218,24 @@
         document.getElementById('ios-banner').style.display = 'block'
       }
 
-      // 1. Trova il paziente tramite access_token
-      const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
-      if (!p) { showError('Paziente non trovato.'); return }
-      patient = p
+      // 1. Carica paziente + protocollo + esercizi + video in una sola chiamata RPC
+      const { data: pd, error: pdErr } = await _supabase.rpc('get_protocol_data', { p_token: token })
+      if (pdErr || !pd || !pd.patient) { showError('Paziente non trovato.'); return }
+      patient = pd.patient
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
       document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token }
       const btnRapida = document.getElementById('btn-rapida'); if(btnRapida) btnRapida.style.display = 'block'
 
-      // 2. Carica il protocollo attivo del paziente; fallback al più recente se nessuno è marcato attivo
-      const { data: protsAttivi } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).eq('stato', 'attivo').order('created_at', { ascending: false })
-      if (protsAttivi && protsAttivi.length > 0) {
-        protocol = protsAttivi[0]
-      } else {
-        const { data: protsAll } = await _supabase.from('patient_protocols').select('*').eq('patient_id', patient.id).order('created_at', { ascending: false }).limit(1)
-        if (!protsAll || protsAll.length === 0) { showNoProtocol(); return }
-        protocol = protsAll[0]
-      }
+      // 2. Protocollo (attivo o più recente come fallback)
+      if (!pd.protocol) { showNoProtocol(); return }
+      protocol = pd.protocol
 
-      // 3. Carica gli esercizi del protocollo
-      const { data: ppe } = await _supabase.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', protocol.id).order('ordine', { ascending: true })
-      if (ppe && ppe.length > 0) {
-        const exIds = ppe.map(function(e) { return e.exercise_id })
-        const { data: exData } = await _supabase.from('exercises').select('*').in('id', exIds)
-        const exMap = {}
-        if (exData) exData.forEach(function(e) { exMap[e.id] = e })
-        exercises = ppe.map(function(e) { return Object.assign({}, e, { exercise: exMap[e.exercise_id] || null }) })
-      }
-      // 4. Carica video custom del protocollo
-      const { data: cvData } = await _supabase.from('exercise_videos').select('*').eq('protocol_id', protocol.id).order('created_at', { ascending: true })
-      protocolCustomVideos = cvData || []
+      // 3. Esercizi del protocollo
+      exercises = (pd.exercises || []).map(function(item) { return Object.assign({}, item.ppe, { exercise: item.exercise || null }) })
+
+      // 4. Video custom del protocollo
+      protocolCustomVideos = pd.custom_videos || []
 
       renderProtocol()
       loadSmile()
@@ -257,13 +244,9 @@
 
     async function caricaUltimaSeduta() {
       const oggi = new Date().toISOString().split('T')[0]
-      const { data: sedute } = await _supabase
-        .from('therapy_sessions')
-        .select('*')
-        .eq('patient_id', patient.id)
-        .gte('data_seduta', oggi + 'T00:00:00')
-        .order('data_seduta', { ascending: false })
-        .limit(1)
+      const { data: sedute } = await _supabase.rpc('get_patient_sessions', {
+        p_token: token, p_from_date: oggi + 'T00:00:00', p_limit: 1
+      })
 
       if (sedute && sedute.length > 0) {
         ultimaSedutaId = sedute[0].id
@@ -272,12 +255,9 @@
           document.getElementById('feedback-card').style.display = 'block'
         }
       } else {
-        const { data: ultimeSedute } = await _supabase
-          .from('therapy_sessions')
-          .select('*')
-          .eq('patient_id', patient.id)
-          .order('data_seduta', { ascending: false })
-          .limit(1)
+        const { data: ultimeSedute } = await _supabase.rpc('get_patient_sessions', {
+          p_token: token, p_limit: 1
+        })
         if (ultimeSedute && ultimeSedute.length > 0 && !ultimeSedute[0].feedback_paziente) {
           ultimaSedutaId = ultimeSedute[0].id
           document.getElementById('feedback-card').style.display = 'block'
@@ -291,14 +271,9 @@
       const feedbackTesto = stelleSelezionate + ' stelle' + (nota ? ' — ' + nota : '')
 
       if (ultimaSedutaId) {
-        await _supabase.from('therapy_sessions').update({ feedback_paziente: feedbackTesto }).eq('id', ultimaSedutaId)
+        await _supabase.rpc('update_session_feedback', { p_token: token, p_session_id: ultimaSedutaId, p_feedback: feedbackTesto })
       } else {
-        const { data: { session } } = await _supabase.auth.getSession()
-        await _supabase.from('therapy_sessions').insert({
-          patient_id: patient.id,
-          data_seduta: new Date().toISOString(),
-          feedback_paziente: feedbackTesto
-        })
+        await _supabase.rpc('save_therapy_session', { p_token: token, p_data: { data_seduta: new Date().toISOString(), feedback_paziente: feedbackTesto } })
       }
 
       document.getElementById('feedback-success').classList.add('visible')
@@ -309,7 +284,7 @@
 
     async function loadSmile() {
       try {
-        const { data: entries } = await _supabase.from('diary_entries').select('data,completato').eq('patient_id', patient.id).order('data', { ascending: false }).limit(30)
+        const { data: entries } = await _supabase.rpc('get_diary_entries', { p_token: token, p_limit: 30 })
         const completate = (entries || []).filter(function(e) { return e.completato })
         const oggi = new Date(); oggi.setHours(0,0,0,0)
         let streak = 0
@@ -405,15 +380,15 @@
 
     async function salvaDiario() {
       const today = new Date().toISOString().split('T')[0]
-      const { error } = await _supabase.from('diary_entries').insert({
-        patient_id: patient.id, patient_protocol_id: protocol.id, data: today,
+      const { error } = await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
+        patient_protocol_id: protocol.id, data: today,
         dolore: parseInt(document.getElementById('sl-dolore').value),
         rigidita: parseInt(document.getElementById('sl-rigidita').value),
         equilibrio: parseInt(document.getElementById('sl-equilibrio').value),
         energia: parseInt(document.getElementById('sl-energia').value),
         note: document.getElementById('diary-note').value.trim() || null,
         completato: true
-      })
+      }})
       if (error) { alert('Errore: ' + error.message); return }
       document.getElementById('diary-success').classList.add('visible')
       loadSmile()

@@ -96,7 +96,7 @@
 
     async function init() {
       if (!token) return
-      const { data, error } = await _supabase.from('invites').select('*').eq('token', token).eq('usato', false).single()
+      const { data, error } = await _supabase.from('invites').select('*').eq('token', token).eq('usato', false).maybeSingle()
       if (error || !data) return
       inviteData = data
       const banner = document.getElementById('invite-banner')

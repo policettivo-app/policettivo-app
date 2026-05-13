@@ -96,10 +96,11 @@
 
     async function init() {
       if (!token) return
-      const { data: p } = await _supabase.from('patients').select('*').eq('access_token', token).single()
+      const { data: pArr } = await _supabase.rpc('get_patient_by_token', { p_token: token })
+      const p = Array.isArray(pArr) ? pArr[0] : pArr
       if (!p) return
 
-      const { data: entries } = await _supabase.from('diary_entries').select('*').eq('patient_id', p.id).order('data', { ascending: false }).limit(60)
+      const { data: entries } = await _supabase.rpc('get_diary_entries', { p_token: token, p_limit: 60 })
       const all = entries || []
 
       renderHero(all)

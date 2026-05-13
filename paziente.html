@@ -700,7 +700,7 @@
 
       const { profId: _profIdP } = await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
       if (!window.isPremium && _profIdP) {
-        const { data: _profP } = await _supabase.from('professionals').select('ai_uses').eq('id', _profIdP).single()
+        const { data: _profP } = await _supabase.from('professionals').select('ai_uses').eq('id', _profIdP).maybeSingle()
         const _aiUsesP = _profP?.ai_uses || 0
         if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_aiUsesP)
         const _aiBadgeP = document.getElementById('referto-ai-badge-p')
@@ -710,7 +710,7 @@
         }
       }
 
-      const { data, error } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      const { data, error } = await _supabase.from('patients').select('*').eq('id', patientId).maybeSingle()
       if (error || !data) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }
       patient = data
       renderPatient()
@@ -1205,7 +1205,7 @@
       const { data: urlData } = _supabase.storage.from('clinical-docs').getPublicUrl(fileName)
       const fileUrl = urlData.publicUrl
       const { data: { session } } = await _supabase.auth.getSession()
-      const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).single()
+      const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).maybeSingle()
       const { error: dbError } = await _supabase.from('clinical_documents').insert({
         patient_id: patientId,
         professional_id: prof ? prof.id : null,

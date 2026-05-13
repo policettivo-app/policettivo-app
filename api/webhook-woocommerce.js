@@ -31,7 +31,7 @@ module.exports = async function handler(req, res) {
     .from('professionals')
     .select('id')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!profData) return res.status(200).json({ ok: true, msg: 'Professional not found' })
 

@@ -495,7 +495,7 @@
 
     async function eliminaProfessionista(id) {
       if (!confirm('Eliminare definitivamente questo professionista e tutti i suoi dati? Operazione irreversibile.')) return
-      const { data: prof } = await _supabase.from('professionals').select('user_id').eq('id', id).single()
+      const { data: prof } = await _supabase.from('professionals').select('user_id').eq('id', id).maybeSingle()
       if (prof && prof.user_id) {
         const { data: pats } = await _supabase.from('patients').select('id').eq('professional_id', id)
         if (pats && pats.length > 0) {
@@ -724,7 +724,7 @@
         .from('professionals')
         .select('*, profiles(id, nome, cognome, telefono)')
         .eq('id', profId)
-        .single()
+        .maybeSingle()
       if (!prof) { console.error('[apriPannello] prof null:', profErr); return }
       _panelProfData = prof
 
@@ -853,7 +853,7 @@
 
       // Step 1 — leggi user_id fresco dal DB
       const { data: prof } = await _supabase
-        .from('professionals').select('user_id').eq('id', currentProfId).single()
+        .from('professionals').select('user_id').eq('id', currentProfId).maybeSingle()
 
       if (!prof || !prof.user_id) { alert('Errore: user_id non trovato per questo professionista.'); return }
 

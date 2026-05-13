@@ -192,7 +192,7 @@ async function init() {
   if (!pid) { window.location.href = 'dashboard.html'; return; }
   var sess = await _sb.auth.getSession();
   if (!sess.data.session) { window.location.href = 'login.html'; return; }
-  var res = await _sb.from('patients').select('*').eq('id', pid).single();
+  var res = await _sb.from('patients').select('*').eq('id', pid).maybeSingle();
   if (!res.data) { window.location.href = 'dashboard.html'; return; }
   patient = res.data;
   document.getElementById('pname').textContent = patient.nome + ' ' + patient.cognome;
@@ -321,7 +321,7 @@ async function salvaSeduta() {
   var risp = document.getElementById('f-risp').value.trim();
   var note = document.getElementById('f-note').value.trim();
   var sess = await _sb.auth.getSession();
-  var profRes = await _sb.from('professionals').select('id').eq('user_id', sess.data.session.user.id).single();
+  var profRes = await _sb.from('professionals').select('id').eq('user_id', sess.data.session.user.id).maybeSingle();
   var profId = profRes.data ? profRes.data.id : null;
   var ins = await _sb.from('therapy_sessions').insert({
     patient_id: pid,

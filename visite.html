@@ -409,7 +409,7 @@
       if (!session) { window.location.href = 'login.html'; return }
 
       const [{ data: p }] = await Promise.all([
-        _supabase.from('patients').select('nome, cognome, problema_principale, note_cliniche').eq('id', patientId).single(),
+        _supabase.from('patients').select('nome, cognome, problema_principale, note_cliniche').eq('id', patientId).maybeSingle(),
         window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
       ])
       if (!p) { alert('Paziente non trovato'); return }

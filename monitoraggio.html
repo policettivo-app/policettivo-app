@@ -114,7 +114,7 @@
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
 
-      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).single()
+      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).maybeSingle()
       if (!p) { window.location.href = 'dashboard.html'; return }
       patient = p
 
@@ -136,7 +136,7 @@
         .select('*')
         .eq('patient_id', patientId)
         .eq('stato', 'attivo')
-        .single()
+        .maybeSingle()
 
       renderStats(entries || [], proto)
       renderChart(entries || [])
