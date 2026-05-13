@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <style>body{visibility:hidden}</style>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Admin</title>
@@ -217,10 +218,10 @@
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
       if (session.user.email !== ADMIN_EMAIL) {
-        alert('Accesso non autorizzato.')
         window.location.href = 'dashboard.html'
         return
       }
+      document.body.style.visibility = 'visible'
       loadAll()
     }
 

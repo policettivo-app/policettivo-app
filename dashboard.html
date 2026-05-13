@@ -150,7 +150,7 @@
       <span class="navbar-title">Area Professionista</span>
     </div>
     <div class="navbar-right"><span id="piano-badge" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:1px">FREE</span>
-      <button class="btn-admin" onclick="window.location.href='admin.html'">⚙️ Admin</button>
+      <button id="btn-admin-link" class="btn-admin" onclick="window.location.href='admin.html'">⚙️ Admin</button>
       <button class="btn-admin" onclick="openGuida()" style="background:#222;color:#FFD008;border:1px solid #FFD008">? Guida</button>
       <span class="navbar-user" id="user-email"></span>
       <button class="btn-logout" onclick="doLogout()">Esci</button>
@@ -401,7 +401,7 @@
       document.getElementById('user-email').textContent = session.user.email
       document.getElementById('welcome-msg').textContent = 'Bentornato, ' + session.user.email.split('@')[0]
       if (session.user.email !== 'appuntamentimft@gmail.com') {
-        const btnAdmin = document.querySelector('.btn-admin')
+        const btnAdmin = document.getElementById('btn-admin-link')
         if (btnAdmin) btnAdmin.style.display = 'none'
       }
       const { profId: _profId } = await window.policettivoCheckPremium(_supabase, effectiveUserId, session.user.email)
