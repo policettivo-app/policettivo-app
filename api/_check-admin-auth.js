@@ -1,6 +1,11 @@
 const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
 
 export async function checkAdminAuth(req, res) {
+  // Reject requests explicitly flagged as coming from a preview session
+  if (req.headers['x-preview-mode'] === '1') {
+    res.status(403).json({ error: 'Non autorizzato: modalità anteprima' }); return null
+  }
+
   const { createClient } = await import('@supabase/supabase-js')
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
   if (!token) { res.status(401).json({ error: 'Token mancante' }); return null }

@@ -393,18 +393,24 @@
 
       if (isAdminPreview && previewUserId) {
         const bar = document.createElement('div')
-        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c62828;color:#fff;text-align:center;padding:8px;font-size:12px;font-weight:700;z-index:9999;letter-spacing:0.5px'
-        bar.textContent = '👁 MODALITÀ ANTEPRIMA ADMIN — visualizzazione in sola lettura'
+        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c62828;color:#fff;text-align:center;padding:8px 16px;font-size:12px;font-weight:700;z-index:9999;letter-spacing:0.5px;display:flex;align-items:center;justify-content:center;gap:16px'
+        bar.innerHTML = '<span>👁 MODALITÀ ANTEPRIMA ADMIN — visualizzazione in sola lettura</span><button onclick="sessionStorage.removeItem(\'admin_preview_user_id\');window.location.href=\'admin.html\'" style="background:#fff;color:#c62828;border:none;padding:3px 12px;border-radius:4px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer">✕ Esci</button>'
         document.body.prepend(bar)
+      }
+
+      // In preview mode hide admin button regardless of session email
+      if (session.user.email !== 'appuntamentimft@gmail.com' || isAdminPreview) {
+        const btnAdmin = document.getElementById('btn-admin-link')
+        if (btnAdmin) btnAdmin.style.display = 'none'
       }
 
       document.getElementById('user-email').textContent = session.user.email
       document.getElementById('welcome-msg').textContent = 'Bentornato, ' + session.user.email.split('@')[0]
-      if (session.user.email !== 'appuntamentimft@gmail.com') {
-        const btnAdmin = document.getElementById('btn-admin-link')
-        if (btnAdmin) btnAdmin.style.display = 'none'
-      }
-      const { profId: _profId } = await window.policettivoCheckPremium(_supabase, effectiveUserId, session.user.email)
+
+      // In preview mode pass null email so admin bypass in policettivoCheckPremium doesn't fire;
+      // the previewed professional's real plan is fetched from DB instead.
+      const emailForPremiumCheck = isAdminPreview ? null : session.user.email
+      const { profId: _profId } = await window.policettivoCheckPremium(_supabase, effectiveUserId, emailForPremiumCheck)
       currentProfessionalId = _profId
 
       const badge = document.getElementById('piano-badge')

@@ -215,6 +215,11 @@
     let adminFavorites = new Set(JSON.parse(localStorage.getItem('policettivo_admin_favorites') || '[]'))
 
     async function init() {
+      // Preview mode uses the same tab sessionStorage — block re-entry into admin
+      if (sessionStorage.getItem('admin_preview_user_id')) {
+        window.location.replace('dashboard.html?admin_preview=1')
+        return
+      }
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
       if (session.user.email !== ADMIN_EMAIL) {
