@@ -312,12 +312,14 @@ async function precompilaAI() {
     var testo = data.testo || '';
     var match = testo.match(/\{[\s\S]*\}/);
     if (match) {
-      var p = JSON.parse(match[0]);
-      if (p.protocollo_seduta) document.getElementById('f-ps').value = p.protocollo_seduta;
-      if (p.protocollo_prossima) document.getElementById('f-pp').value = p.protocollo_prossima;
-      if (p.tecniche) document.getElementById('f-tec').value = p.tecniche;
-      if (p.risposta_paziente) document.getElementById('f-risp').value = p.risposta_paziente;
-      if (p.note_cliniche) document.getElementById('f-note').value = p.note_cliniche;
+      try {
+        var p = JSON.parse(match[0]);
+        if (p.protocollo_seduta) document.getElementById('f-ps').value = p.protocollo_seduta;
+        if (p.protocollo_prossima) document.getElementById('f-pp').value = p.protocollo_prossima;
+        if (p.tecniche) document.getElementById('f-tec').value = p.tecniche;
+        if (p.risposta_paziente) document.getElementById('f-risp').value = p.risposta_paziente;
+        if (p.note_cliniche) document.getElementById('f-note').value = p.note_cliniche;
+      } catch(_parseErr) { /* AI ha restituito JSON non valido — i campi rimangono vuoti */ }
     }
   } catch(e) {
     alert('Errore AI: ' + e.message);

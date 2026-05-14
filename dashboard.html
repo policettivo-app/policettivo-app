@@ -598,7 +598,7 @@
       const lm = document.getElementById('loading-msg'); if(lm) lm.style.display = 'none'
       el.style.display = 'block'
       if (!list || list.length === 0) {
-        el.innerHTML = query ? '<div class="empty-state"><p>Nessun paziente trovato per "' + query + '"</p></div>' : '<div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>'
+        el.innerHTML = query ? '<div class="empty-state"><p>Nessun paziente trovato per "' + query.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '"</p></div>' : '<div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div>'
         count.textContent = ''
         document.getElementById('pagination').innerHTML = ''
         return
@@ -617,9 +617,10 @@
     }
 
     function highlight(text, query) {
-      if (!query || !text) return text
+      const safe = String(text == null ? '' : text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+      if (!query) return safe
       const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi')
-      return text.replace(re, '<mark class="highlight">$1</mark>')
+      return safe.replace(re, '<mark class="highlight">$1</mark>')
     }
 
     function filterPatients(query) {

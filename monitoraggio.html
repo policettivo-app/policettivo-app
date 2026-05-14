@@ -101,6 +101,7 @@
   </div>
 
   <script>
+    function _esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
@@ -123,7 +124,7 @@
       document.getElementById('ph-nome').textContent = p.nome + ' ' + p.cognome
       document.getElementById('ph-sub').textContent = p.problema_principale || ''
       if (p.configurazione_default) {
-        document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + p.configurazione_default.toLowerCase() + '">' + p.configurazione_default + '</span>'
+        document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + _esc(p.configurazione_default.toLowerCase()) + '">' + _esc(p.configurazione_default) + '</span>'
       }
 
       const { data: entries } = await _supabase
@@ -271,7 +272,7 @@
       el.innerHTML = '<table class="diary-table"><thead><tr><th>Data</th><th>Dolore</th><th>Rigidità</th><th>Equilibrio</th><th>Energia</th><th>Note</th><th>Completato</th></tr></thead><tbody>' +
         entries.map(e => {
           const data = new Date(e.data).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })
-          return '<tr><td><strong>' + data + '</strong></td><td>' + (e.dolore ?? '—') + '/10</td><td>' + (e.rigidita ?? '—') + '/10</td><td>' + (e.equilibrio ?? '—') + '/10</td><td>' + (e.energia ?? '—') + '/10</td><td style="max-width:200px;font-size:12px;color:#888">' + (e.note || '—') + '</td><td class="' + (e.completato ? 'completato-si' : 'completato-no') + '">' + (e.completato ? '✓ Sì' : '✗ No') + '</td></tr>'
+          return '<tr><td><strong>' + data + '</strong></td><td>' + (e.dolore ?? '—') + '/10</td><td>' + (e.rigidita ?? '—') + '/10</td><td>' + (e.equilibrio ?? '—') + '/10</td><td>' + (e.energia ?? '—') + '/10</td><td style="max-width:200px;font-size:12px;color:#888">' + _esc(e.note || '—') + '</td><td class="' + (e.completato ? 'completato-si' : 'completato-no') + '">' + (e.completato ? '✓ Sì' : '✗ No') + '</td></tr>'
         }).join('') +
         '</tbody></table>'
     }

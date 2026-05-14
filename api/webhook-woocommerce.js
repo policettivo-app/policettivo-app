@@ -1,10 +1,23 @@
 const { createClient } = require('@supabase/supabase-js')
+const crypto = require('crypto')
 
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  // Verify WooCommerce HMAC-SHA256 signature when secret is configured.
+  // Set WC_WEBHOOK_SECRET in Vercel env vars to match the WooCommerce webhook secret.
+  const wcSecret = process.env.WC_WEBHOOK_SECRET
+  if (wcSecret) {
+    const sig = req.headers['x-wc-webhook-signature']
+    if (!sig) return res.status(401).json({ error: 'Missing signature' })
+    const expected = crypto.createHmac('sha256', wcSecret).update(JSON.stringify(req.body)).digest('base64')
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+      return res.status(401).json({ error: 'Invalid signature' })
+    }
+  }
 
   const order = req.body
   if (!order || order.status !== 'completed') return res.status(200).json({ ok: true, msg: 'Not completed' })

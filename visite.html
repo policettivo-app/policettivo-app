@@ -752,7 +752,7 @@
       nvConfig = cfg
       updateNVConfigUI()
       if (_editingVisitId) {
-        const { error } = await _supabase.from('visite').update({ configurazione: cfg }).eq('id', _editingVisitId)
+        const { error } = await _supabase.from('visite').update({ configurazione: cfg }).eq('id', _editingVisitId).eq('patient_id', patientId)
         if (error) { console.error('Errore aggiornamento configurazione:', error); return }
         const v = visite.find(x => x.id === _editingVisitId)
         if (v) v.configurazione = cfg
@@ -795,7 +795,7 @@
 
       let error
       if (_editingVisitId) {
-        ;({ error } = await _supabase.from('visite').update(payload).eq('id', _editingVisitId))
+        ;({ error } = await _supabase.from('visite').update(payload).eq('id', _editingVisitId).eq('patient_id', patientId))
       } else {
         ;({ error } = await _supabase.from('visite').insert(payload))
       }
@@ -914,7 +914,7 @@
 
     async function eliminaVisita(id) {
       if (!confirm('Eliminare questa visita? L\'operazione non è reversibile.')) return
-      const { error } = await _supabase.from('visite').delete().eq('id', id)
+      const { error } = await _supabase.from('visite').delete().eq('id', id).eq('patient_id', patientId)
       if (error) { alert('Errore eliminazione: ' + error.message); return }
       await caricaVisite()
     }
