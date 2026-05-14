@@ -271,6 +271,17 @@
     .cn-tab { background: transparent; border: none; padding: 10px 18px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; color: #999; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; }
     .cn-tab.active { color: #000; border-bottom-color: #FFD008; }
     .cn-tab:hover:not(.active) { color: #555; }
+    .csai-panel { padding: 4px 0; }
+    .csai-intro { font-size: 13px; color: #555; margin-bottom: 16px; line-height: 1.6; }
+    .csai-btn { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 12px 24px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .csai-btn:hover { background: #e6bc00; }
+    .csai-btn:disabled { background: #ddd; color: #999; cursor: not-allowed; }
+    .csai-loading { font-size: 13px; color: #999; margin-top: 14px; display: none; }
+    .csai-result { background: #f9f9f9; border: 1px solid #eee; border-radius: 10px; padding: 16px; margin-top: 16px; font-size: 13px; color: #222; line-height: 1.7; white-space: pre-wrap; display: none; }
+    .csai-actions { display: flex; gap: 10px; margin-top: 10px; }
+    .csai-copy-btn { background: transparent; border: 1.5px solid #ddd; border-radius: 7px; padding: 7px 16px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; color: #555; cursor: pointer; }
+    .csai-copy-btn:hover { border-color: #bbb; color: #000; }
+    .csai-footer { font-size: 11px; color: #bbb; margin-top: 14px; font-style: italic; }
     .cn-note-list { display: flex; flex-direction: column; gap: 10px; }
     .cn-note-card { background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
     .cn-note-card:hover { border-color: #FFD008; }
@@ -611,6 +622,7 @@
         <div class="cn-tabs">
           <button class="cn-tab active" id="cn-btn-docs" onclick="clinicalNotesSwitchTab('docs')">Documenti</button>
           <button class="cn-tab" id="cn-btn-relazione" onclick="clinicalNotesSwitchTab('relazione')">Relazione clinica</button>
+          <button class="cn-tab" id="cn-btn-sintesi" onclick="clinicalNotesSwitchTab('sintesi')">🧠 Sintesi AI</button>
         </div>
 
         <!-- TAB: Documenti (contenuto originale invariato) -->
@@ -661,6 +673,20 @@
           <div class="ai-report-box" id="ai-report-box">
             <div class="ai-report-title">Analisi AI - <span id="ai-report-date"></span></div>
             <div class="ai-report-content" id="ai-report-content"></div>
+          </div>
+        </div>
+
+        <!-- TAB: Sintesi AI -->
+        <div id="cn-tab-sintesi" style="display:none">
+          <div class="csai-panel">
+            <p class="csai-intro">Genera una sintesi clinica del paziente basata sulle ultime visite, sedute e note in cartella. La sintesi viene generata al momento e non viene salvata.</p>
+            <button class="csai-btn" id="csai-avvia-btn" onclick="csAIAvvia()">🧠 Genera sintesi clinica</button>
+            <div class="csai-loading" id="csai-loading">⏳ Analisi in corso...</div>
+            <div class="csai-result" id="csai-result"></div>
+            <div class="csai-actions" id="csai-actions" style="display:none">
+              <button class="csai-copy-btn" onclick="csAICopy()">📋 Copia testo</button>
+            </div>
+            <div class="csai-footer">Strumento assistivo AI. Non sostituisce il ragionamento clinico del professionista.</div>
           </div>
         </div>
 
@@ -1769,20 +1795,111 @@
     function clinicalNotesSwitchTab(tab) {
       const docTab = document.getElementById('cn-tab-docs')
       const relTab = document.getElementById('cn-tab-relazione')
+      const sinTab = document.getElementById('cn-tab-sintesi')
       const btnDocs = document.getElementById('cn-btn-docs')
       const btnRel = document.getElementById('cn-btn-relazione')
+      const btnSin = document.getElementById('cn-btn-sintesi')
+      docTab.style.display = 'none'
+      relTab.style.display = 'none'
+      sinTab.style.display = 'none'
+      btnDocs.classList.remove('active')
+      btnRel.classList.remove('active')
+      btnSin.classList.remove('active')
       if (tab === 'docs') {
         docTab.style.display = 'block'
-        relTab.style.display = 'none'
         btnDocs.classList.add('active')
-        btnRel.classList.remove('active')
+      } else if (tab === 'sintesi') {
+        sinTab.style.display = 'block'
+        btnSin.classList.add('active')
       } else {
-        docTab.style.display = 'none'
         relTab.style.display = 'block'
-        btnDocs.classList.remove('active')
         btnRel.classList.add('active')
         if (!clinicalNotesState.loaded) clinicalNotesInit()
       }
+    }
+
+    async function csAIAvvia() {
+      const btn = document.getElementById('csai-avvia-btn')
+      const loading = document.getElementById('csai-loading')
+      const result = document.getElementById('csai-result')
+      const actions = document.getElementById('csai-actions')
+      btn.disabled = true
+      loading.style.display = 'block'
+      result.style.display = 'none'
+      actions.style.display = 'none'
+
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { loading.style.display = 'none'; btn.disabled = false; return }
+
+      const pid = patient?.id
+      const nome = (patient?.nome || '') + ' ' + (patient?.cognome || '')
+      const eta = patient?.data_nascita ? new Date().getFullYear() - new Date(patient.data_nascita).getFullYear() + ' anni' : 'n.d.'
+      const diagnosi = patient?.diagnosi || 'n.d.'
+
+      const [visitRes, seduteRes, noteRes] = await Promise.all([
+        _supabase.from('visite').select('data_visita,motivo,diagnosi,trattamento,note').eq('patient_id', pid).order('data_visita', { ascending: false }).limit(5),
+        _supabase.from('therapy_sessions').select('data_seduta,tecniche,intensita,note,protocollo_prossima').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(5),
+        _supabase.from('clinical_notes').select('created_at,title,content').eq('patient_id', pid).order('created_at', { ascending: false }).limit(3)
+      ])
+
+      let promptParts = [`Paziente: ${nome.trim()}, ${eta}, diagnosi principale: ${diagnosi}.`]
+
+      if (visitRes.data?.length) {
+        promptParts.push('\nULTIME VISITE:')
+        visitRes.data.forEach(v => {
+          promptParts.push(`- ${v.data_visita}: motivo=${v.motivo||'—'}, diagnosi=${v.diagnosi||'—'}, trattamento=${v.trattamento||'—'}, note=${v.note||'—'}`)
+        })
+      }
+      if (seduteRes.data?.length) {
+        promptParts.push('\nULTIME SEDUTE TERAPEUTICHE:')
+        seduteRes.data.forEach(s => {
+          promptParts.push(`- ${s.data_seduta}: tecniche=${s.tecniche||'—'}, intensità=${s.intensita||'—'}, note=${s.note||'—'}, prossima=${s.protocollo_prossima||'—'}`)
+        })
+      }
+      if (noteRes.data?.length) {
+        promptParts.push('\nNOTE CLINICHE:')
+        noteRes.data.forEach(n => {
+          promptParts.push(`- ${n.created_at?.slice(0,10)}: ${n.title||'senza titolo'} — ${n.content||'—'}`)
+        })
+      }
+
+      promptParts.push('\nRichiesta: scrivi una sintesi clinica strutturata del paziente (max 400 parole). Includi: quadro clinico attuale, evoluzione del percorso terapeutico, risposta ai trattamenti, eventuali elementi di attenzione. Usa un linguaggio professionale adatto a un fisioterapista o osteopata. Non fare diagnosi. Non inventare dati non presenti.')
+
+      const prompt = promptParts.join('\n')
+
+      try {
+        const resp = await fetch('/api/ai-analisi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+          body: JSON.stringify({ prompt })
+        })
+        if (resp.status === 403) {
+          result.textContent = '⚠️ Hai esaurito le analisi AI disponibili. Passa al piano Premium per continuare.'
+          result.style.display = 'block'
+          loading.style.display = 'none'
+          btn.disabled = false
+          return
+        }
+        const json = await resp.json()
+        result.textContent = json.testo || 'Nessuna risposta ricevuta.'
+        result.style.display = 'block'
+        actions.style.display = 'flex'
+      } catch (e) {
+        result.textContent = '❌ Errore nella generazione. Riprova.'
+        result.style.display = 'block'
+      }
+      loading.style.display = 'none'
+      btn.disabled = false
+    }
+
+    function csAICopy() {
+      const text = document.getElementById('csai-result').textContent
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.csai-copy-btn')
+        const orig = btn.textContent
+        btn.textContent = '✓ Copiato'
+        setTimeout(() => { btn.textContent = orig }, 1500)
+      })
     }
 
     async function clinicalNotesInit() {
