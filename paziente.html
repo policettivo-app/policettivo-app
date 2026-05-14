@@ -58,6 +58,17 @@
     .appt-btn-cancel { background:transparent;border:1.5px solid #ddd;color:#666;padding:9px 20px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;cursor:pointer }
     .appt-btn-save { background:#FFD008;border:none;color:#000;padding:9px 22px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer }
     .appt-btn-save:hover { background:#f5c800 }
+    /* ── TIMELINE CLINICA ── */
+    .tl-list { display:flex;flex-direction:column;gap:10px;margin-top:4px }
+    .tl-item { display:flex;gap:14px;padding:13px 15px;background:#fafafa;border-radius:10px;border-left:3px solid #FFD008 }
+    .tl-icon { font-size:20px;flex-shrink:0;line-height:1.3 }
+    .tl-body { flex:1;min-width:0 }
+    .tl-meta { display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap }
+    .tl-date { font-size:11px;color:#999;font-weight:600 }
+    .tl-badge { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;background:#eee;color:#666;padding:2px 7px;border-radius:4px }
+    .tl-title { font-size:13px;font-weight:700;color:#000;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+    .tl-preview { font-size:12px;color:#777;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+    .tl-empty { color:#bbb;font-size:13px;text-align:center;padding:24px 0 }
     .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
     .info-item label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
     .info-item span { font-size: 14px; color: #000; font-weight: 500; }
@@ -680,6 +691,17 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- TIMELINE CLINICA -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">🕒 Timeline Clinica <span class="section-optional">visite • sedute • note</span></div>
+        <button class="btn-edit" onclick="timelineToggle()" id="btn-timeline">▼ Mostra</button>
+      </div>
+      <div id="timeline-container" style="display:none">
+        <div class="tl-list" id="tl-list"></div>
       </div>
     </div>
 
@@ -2007,6 +2029,114 @@
       }
     }
     // ── END APPUNTAMENTI ──────────────────────────────────────────────────────
+
+    // ── TIMELINE CLINICA ──────────────────────────────────────────────────────
+    const timelineState = { loaded: false }
+
+    function timelineToggle() {
+      const container = document.getElementById('timeline-container')
+      const btn = document.getElementById('btn-timeline')
+      const visible = container.style.display !== 'none'
+      container.style.display = visible ? 'none' : 'block'
+      btn.textContent = visible ? '▼ Mostra' : '▲ Nascondi'
+      if (!visible && !timelineState.loaded) timelineLoad()
+    }
+
+    async function timelineLoad() {
+      const list = document.getElementById('tl-list')
+      list.innerHTML = '<div class="tl-empty">Caricamento...</div>'
+
+      const profId = await clinicalNotesGetProfId()
+
+      const [visitesRes, seduteRes, noteRes] = await Promise.all([
+        _supabase.from('visite')
+          .select('id, data_visita, configurazione, note')
+          .eq('patient_id', patientId)
+          .order('data_visita', { ascending: false })
+          .limit(50),
+        _supabase.from('therapy_sessions')
+          .select('id, data_seduta, vas_inizio, vas_fine, protocollo_seduta, note_cliniche')
+          .eq('patient_id', patientId)
+          .order('data_seduta', { ascending: false })
+          .limit(50),
+        profId
+          ? _supabase.from('clinical_notes')
+              .select('id, title, content, updated_at')
+              .eq('patient_id', patientId)
+              .eq('professional_id', profId)
+              .order('updated_at', { ascending: false })
+              .limit(50)
+          : Promise.resolve({ data: [] })
+      ])
+
+      const items = []
+
+      for (const v of (visitesRes.data || [])) {
+        items.push({
+          type: 'visita',
+          date: new Date(v.data_visita + 'T12:00:00'),
+          icon: '🩺', badge: 'Visita',
+          title: 'Visita posturale' + (v.configurazione ? ' · ' + v.configurazione : ''),
+          preview: v.note || '',
+          borderColor: '#1565c0'
+        })
+      }
+
+      for (const s of (seduteRes.data || [])) {
+        const vas = (s.vas_inizio != null || s.vas_fine != null)
+          ? ' · VAS ' + (s.vas_inizio ?? '–') + '→' + (s.vas_fine ?? '–') : ''
+        items.push({
+          type: 'seduta',
+          date: new Date(s.data_seduta),
+          icon: '💪', badge: 'Seduta',
+          title: 'Seduta fisioterapica' + vas,
+          preview: s.protocollo_seduta || s.note_cliniche || '',
+          borderColor: '#2e7d32'
+        })
+      }
+
+      for (const n of (noteRes.data || [])) {
+        items.push({
+          type: 'nota',
+          date: new Date(n.updated_at),
+          icon: '📝', badge: 'Nota',
+          title: n.title || 'Nota clinica',
+          preview: n.content || '',
+          borderColor: '#e65100'
+        })
+      }
+
+      items.sort(function(a, b) { return b.date - a.date })
+      timelineState.loaded = true
+      timelineRender(items)
+    }
+
+    function timelineRender(items) {
+      function tlEsc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+      function tlTrunc(s, n) { return s.length > n ? s.slice(0, n) + '…' : s }
+      function tlDate(d) { return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }) }
+
+      const list = document.getElementById('tl-list')
+      if (!items.length) {
+        list.innerHTML = '<div class="tl-empty">Nessun evento clinico registrato.</div>'
+        return
+      }
+      list.innerHTML = items.map(function(item) {
+        const preview = tlTrunc(item.preview, 130)
+        return '<div class="tl-item" style="border-left-color:' + item.borderColor + '">' +
+          '<div class="tl-icon">' + item.icon + '</div>' +
+          '<div class="tl-body">' +
+            '<div class="tl-meta">' +
+              '<span class="tl-date">' + tlDate(item.date) + '</span>' +
+              '<span class="tl-badge">' + tlEsc(item.badge) + '</span>' +
+            '</div>' +
+            '<div class="tl-title">' + tlEsc(item.title) + '</div>' +
+            (preview ? '<div class="tl-preview">' + tlEsc(preview) + '</div>' : '') +
+          '</div>' +
+        '</div>'
+      }).join('')
+    }
+    // ── END TIMELINE CLINICA ──────────────────────────────────────────────────
 
     init()
 
