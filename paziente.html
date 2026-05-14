@@ -1869,10 +1869,9 @@
         statusEl.textContent = 'Errore nel salvataggio.'
         return
       }
-      statusEl.textContent = 'Salvato ✓'
-      statusEl.className = 'cn-status saved'
       clinicalNotesState.loaded = false
-      setTimeout(function() { if (statusEl.textContent === 'Salvato ✓') statusEl.textContent = '' }, 3000)
+      clinicalNotesCancel()
+      await clinicalNotesInit()
     }
     // ── END CLINICAL NOTES ────────────────────────────────────────────────────
 
