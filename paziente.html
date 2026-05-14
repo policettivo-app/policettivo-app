@@ -1838,27 +1838,33 @@
       statusEl.textContent = 'Salvataggio...'
       statusEl.className = 'cn-status saving'
       const profId = await clinicalNotesGetProfId()
+      console.log('[clinicalNotes] save — patientId:', patientId, '| profId:', profId, '| editingId:', clinicalNotesState.editingId)
       if (!profId) {
-        console.error('[clinicalNotes] profId non disponibile per salvataggio')
+        console.error('[clinicalNotes] profId null/undefined — professional non trovato per questo utente')
         statusEl.textContent = 'Errore: profilo non trovato.'
         return
       }
       let error, newId = clinicalNotesState.editingId
       if (clinicalNotesState.editingId) {
+        const updatePayload = { title: title || null, content, updated_at: new Date().toISOString() }
+        console.log('[clinicalNotes] UPDATE payload:', updatePayload, '| eq id:', clinicalNotesState.editingId)
         const res = await _supabase.from('clinical_notes')
-          .update({ title: title || null, content, updated_at: new Date().toISOString() })
+          .update(updatePayload)
           .eq('id', clinicalNotesState.editingId)
         error = res.error
+        if (error) console.error('[clinicalNotes] UPDATE errore completo:', JSON.stringify(error), '| status:', error.status, '| code:', error.code, '| message:', error.message, '| details:', error.details, '| hint:', error.hint)
       } else {
+        const insertPayload = { patient_id: patientId, professional_id: profId, title: title || null, content }
+        console.log('[clinicalNotes] INSERT payload:', insertPayload)
         const res = await _supabase.from('clinical_notes')
-          .insert({ patient_id: patientId, professional_id: profId, title: title || null, content })
+          .insert(insertPayload)
           .select('id')
           .single()
         error = res.error
+        if (error) console.error('[clinicalNotes] INSERT errore completo:', JSON.stringify(error), '| status:', error.status, '| code:', error.code, '| message:', error.message, '| details:', error.details, '| hint:', error.hint)
         if (!error && res.data) { newId = res.data.id; clinicalNotesState.editingId = newId }
       }
       if (error) {
-        console.error('[clinicalNotes] errore salvataggio:', error)
         statusEl.textContent = 'Errore nel salvataggio.'
         return
       }
