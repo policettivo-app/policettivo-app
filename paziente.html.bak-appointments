@@ -42,22 +42,6 @@
     .qa-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
     .btn-qa { background: transparent; border: 1.5px solid #ddd; color: #666; padding: 5px 11px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: border-color 0.15s, color 0.15s; }
     .btn-qa:hover { border-color: #FFD008; color: #000; }
-    /* ── MODALE APPUNTAMENTO ── */
-    #appt-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;overflow-y:auto;padding:24px 16px }
-    #appt-box { background:#fff;max-width:480px;margin:0 auto;border-radius:16px;padding:28px 24px;position:relative }
-    .appt-title { font-size:17px;font-weight:700;font-family:Montserrat,sans-serif;margin-bottom:20px }
-    .appt-field { margin-bottom:14px }
-    .appt-field label { display:block;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px }
-    .appt-field input, .appt-field select, .appt-field textarea { width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;color:#000;outline:none;transition:border-color 0.15s }
-    .appt-field input:focus, .appt-field select:focus, .appt-field textarea:focus { border-color:#FFD008 }
-    .appt-field textarea { resize:vertical;min-height:80px }
-    .appt-row { display:grid;grid-template-columns:1fr 1fr;gap:12px }
-    .appt-check { display:flex;align-items:center;gap:8px;font-size:13px;font-family:Montserrat,sans-serif;font-weight:600;cursor:pointer;margin:16px 0 }
-    .appt-check input[type=checkbox] { width:18px;height:18px;accent-color:#FFD008;cursor:pointer }
-    .appt-actions { display:flex;gap:10px;justify-content:flex-end;margin-top:20px }
-    .appt-btn-cancel { background:transparent;border:1.5px solid #ddd;color:#666;padding:9px 20px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;cursor:pointer }
-    .appt-btn-save { background:#FFD008;border:none;color:#000;padding:9px 22px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer }
-    .appt-btn-save:hover { background:#f5c800 }
     .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
     .info-item label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
     .info-item span { font-size: 14px; color: #000; font-weight: 500; }
@@ -379,7 +363,6 @@
           <button class="btn-qa" onclick="toggleCartella(true)">📁 Cartella</button>
           <button class="btn-qa" onclick="stampaCartella()">📄 PDF</button>
           <button class="btn-qa" onclick="document.getElementById('section-monitoraggio').scrollIntoView({behavior:'smooth',block:'start'})">📊 Monitoraggio</button>
-          <button class="btn-qa" onclick="apptOpen()">📅 Appuntamento</button>
           <button class="btn-edit" onclick="toggleModifica()">✏️ Modifica</button>
         </div>
       </div>
@@ -562,7 +545,6 @@
       <div class="actions-row">
         <button class="btn-primary" onclick="window.location.href='monitoraggio.html?id=' + patientId">📊 Vedi monitoraggio</button>
         <button class="btn-primary" onclick="window.location.href='diario.html?pid=' + patientId">📋 Diario Sedute</button>
-        <button class="btn-primary" onclick="apptOpen()">📅 Appuntamento</button>
       </div>
     </div>
 
@@ -1893,69 +1875,6 @@
     }
     // ── END CLINICAL NOTES ────────────────────────────────────────────────────
 
-    // ── APPUNTAMENTI (FASE 1 — Google Calendar precompilato) ─────────────────
-    function apptDefaultDate() {
-      const d = new Date()
-      d.setDate(d.getDate() + 1)
-      return d.toISOString().slice(0, 10)
-    }
-
-    function apptOpen() {
-      const nome = patient ? (patient.nome + ' ' + patient.cognome) : ''
-      const telefono = patient?.telefono || ''
-      const problema = patient?.problema_principale || ''
-      const protEl = document.querySelector('#protocollo-info span[style*="font-weight:700"]')
-      const protocollo = protEl ? protEl.textContent.trim() : ''
-
-      document.getElementById('appt-titolo').value = 'Seduta fisioterapica' + (nome ? ' – ' + nome : '')
-      document.getElementById('appt-data').value = apptDefaultDate()
-      document.getElementById('appt-ora').value = '09:00'
-      document.getElementById('appt-durata').value = '30'
-
-      const righeNote = []
-      if (nome) righeNote.push('Paziente: ' + nome)
-      if (telefono) righeNote.push('Telefono: ' + telefono)
-      if (problema) righeNote.push('Problema: ' + problema)
-      if (protocollo) righeNote.push('Protocollo: ' + protocollo)
-      document.getElementById('appt-note').value = righeNote.join('\n')
-
-      document.getElementById('appt-gcal').checked = true
-      document.getElementById('appt-overlay').style.display = 'block'
-    }
-
-    function apptClose() {
-      document.getElementById('appt-overlay').style.display = 'none'
-    }
-
-    function apptBuildGCalLink(title, dateStr, startTime, durationMin, notes) {
-      const [y, m, d] = dateStr.split('-').map(Number)
-      const [hh, mm] = startTime.split(':').map(Number)
-      const start = new Date(y, m - 1, d, hh, mm)
-      const end = new Date(start.getTime() + durationMin * 60000)
-      const pad = n => String(n).padStart(2, '0')
-      const fmt = dt => dt.getFullYear() + pad(dt.getMonth()+1) + pad(dt.getDate()) + 'T' + pad(dt.getHours()) + pad(dt.getMinutes()) + '00'
-      return 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
-        '&text=' + encodeURIComponent(title) +
-        '&dates=' + fmt(start) + '/' + fmt(end) +
-        '&details=' + encodeURIComponent(notes)
-    }
-
-    function apptSave() {
-      const title = document.getElementById('appt-titolo').value.trim()
-      const dateStr = document.getElementById('appt-data').value
-      const startTime = document.getElementById('appt-ora').value
-      const duration = parseInt(document.getElementById('appt-durata').value, 10)
-      const notes = document.getElementById('appt-note').value.trim()
-      const openGCal = document.getElementById('appt-gcal').checked
-
-      if (!title || !dateStr || !startTime) { alert('Compila titolo, data e ora.'); return }
-
-      const link = apptBuildGCalLink(title, dateStr, startTime, duration, notes)
-      apptClose()
-      if (openGCal) window.open(link, '_blank')
-    }
-    // ── END APPUNTAMENTI ──────────────────────────────────────────────────────
-
     init()
 
     // Apri cartella automaticamente se arrivati da visite.html con ?openCartella=1
@@ -2002,50 +1921,5 @@
     <button id="camera-close-btn" onclick="chiudiCameraModal()">&#x2715;</button>
     <button id="camera-gallery-btn" onclick="apriGalleria()">&#x1F5BC; Galleria</button>
     <button id="camera-shutter-btn" onclick="scattaFoto()"></button>
-  </div>
-
-  <!-- ── MODALE NUOVO APPUNTAMENTO ── -->
-  <div id="appt-overlay" onclick="if(event.target===this)apptClose()">
-    <div id="appt-box">
-      <div class="appt-title">📅 Nuovo appuntamento</div>
-      <div class="appt-field">
-        <label>Titolo</label>
-        <input type="text" id="appt-titolo" placeholder="Seduta fisioterapica – Nome Cognome">
-      </div>
-      <div class="appt-row">
-        <div class="appt-field">
-          <label>Data</label>
-          <input type="date" id="appt-data">
-        </div>
-        <div class="appt-field">
-          <label>Ora inizio</label>
-          <input type="time" id="appt-ora" value="09:00">
-        </div>
-      </div>
-      <div class="appt-field">
-        <label>Durata</label>
-        <select id="appt-durata">
-          <option value="15">15 minuti</option>
-          <option value="30" selected>30 minuti</option>
-          <option value="45">45 minuti</option>
-          <option value="60">60 minuti</option>
-          <option value="90">90 minuti</option>
-        </select>
-      </div>
-      <div class="appt-field">
-        <label>Note</label>
-        <textarea id="appt-note" rows="4"></textarea>
-      </div>
-      <label class="appt-check">
-        <input type="checkbox" id="appt-gcal" checked>
-        Apri in Google Calendar dopo il salvataggio
-      </label>
-      <div class="appt-actions">
-        <button class="appt-btn-cancel" onclick="apptClose()">Annulla</button>
-        <button class="appt-btn-save" onclick="apptSave()">📅 Aggiungi al Calendar</button>
-      </div>
-    </div>
-  </div>
-
-</body>
+  </div></body>
 </html>
