@@ -72,6 +72,8 @@ input.fi { min-height: unset; resize: none; }
 .btn-det-save { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-family: Montserrat,sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; flex: 2; }
 .btn-pdf-all { background: transparent; border: 2px solid #000; color: #000; border-radius: 12px; padding: 11px 24px; font-family: Montserrat,sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; margin-bottom: 16px; }
 .btn-pdf-all:hover { background: #f5f5f5; }
+.tpl-select { width:100%; padding:8px 12px; border:1.5px solid #ddd; border-radius:8px; font-family:Montserrat,sans-serif; font-size:13px; color:#555; background:#fafafa; cursor:pointer; margin-bottom:8px; }
+.tpl-select:focus { outline:none; border-color:#FFD008; }
 </style>
 </head>
 <body>
@@ -83,6 +85,7 @@ input.fi { min-height: unset; resize: none; }
 </div>
 <div class="container">
   <button class="btn-new" onclick="apriNuovaSeduta()">+ Nuova seduta</button>
+  <button class="btn-pdf-all" onclick="diarioDuplica()">📋 Duplica ultima seduta</button>
   <button id="btn-pdf-completo" class="btn-pdf-all" onclick="diarioPDFCompleto()">📚 PDF completo percorso</button>
   <div id="lista-sedute"></div>
 </div>
@@ -109,7 +112,11 @@ input.fi { min-height: unset; resize: none; }
         <input type="range" class="vas-sl" id="vas-fine" min="0" max="10" value="3" oninput="updateVas('fine',this.value)">
       </div>
     </div>
-    <div class="fg"><label class="fl">Protocollo eseguito</label><textarea class="fi" id="f-ps" rows="3" placeholder="Es. Tecnica dei 3 respiri, schema-1..."></textarea></div>
+    <div class="fg">
+      <label class="fl">Protocollo eseguito</label>
+      <select class="tpl-select" onchange="diarioTemplate('f-ps',this)"><option value="">⚡ Template rapido...</option></select>
+      <textarea class="fi" id="f-ps" rows="3" placeholder="Es. Tecnica dei 3 respiri, schema-1..."></textarea>
+    </div>
     <div class="fg"><label class="fl">Protocollo prossima seduta</label><textarea class="fi" id="f-pp" rows="2" placeholder="Es. Aggiungere schema-3..."></textarea></div>
     <div class="fg"><label class="fl">Data prossima seduta (opzionale)</label><input type="date" class="fi" id="f-dp" min="2024-01-01" max="2099-12-31"></div>
     <div class="cal-box" onclick="toggleCalendar()">
@@ -194,6 +201,49 @@ function apriNuovaSeduta() {
   document.getElementById('modal-seduta').classList.add('open');
 }
 
+// ── TEMPLATE RAPIDI ──────────────────────────────────────────────────────────
+var DIARIO_TEMPLATES = [
+  { label: 'Cervicalgia',          testo: 'Mobilizzazioni cervicali C1-C7. Stretching scaleni e trapezio superiore. Terapia manuale faccette articolari. Esercizi di stabilizzazione cervicale.' },
+  { label: 'Lombalgia',            testo: 'Mobilizzazioni lombari L4-S1. Rinforzo core: isometrici addominali e glutei. Stretching piriforme e flessori anca. Educazione posturale.' },
+  { label: 'Spalla',               testo: 'Mobilizzazione gleno-omerale. Rinforzo cuffia dei rotatori (sopraspinato, infraspinato). Stretching catena posteriore. Progressione CCC e CCA.' },
+  { label: 'Ginocchio',            testo: 'Rinforzo quadricipite e ischio-crurali. Propriocezione su pedana instabile. Mobilizzazione rotulea. Esercizi in catena cinematica chiusa.' },
+  { label: 'Terapia manuale',      testo: 'Mobilizzazione articolare grado III-IV (Maitland). Tecniche miofasciali. Soft tissue mobilization.' },
+  { label: 'Mobilità',             testo: 'Stretching attivo e passivo mirato. Mobilizzazioni accessorie. Incremento progressivo range of motion.' },
+  { label: 'Rinforzo',             testo: 'Esercizi di rinforzo muscolare progressivo. Lavoro eccentrico e concentrico. Progressione carico adeguata alla fase.' },
+  { label: 'Stabilizzazione',      testo: 'Attivazione muscoli profondi (multifido, trasverso). Progressione da supino a ortostatismo. Esercizi su superfici instabili.' },
+  { label: 'Progressione',         testo: 'Aggiunta esercizi funzionali, incremento carichi, riduzione supervisione. Valutazione obiettivi raggiunti.' },
+  { label: 'Educazione paziente',  testo: 'Spiegazione meccanismo di guarigione. Gestione autonoma del dolore. Indicazioni posturali quotidiane. Esercizi domiciliari consegnati.' }
+];
+
+function diarioTemplate(targetId, sel) {
+  var val = sel.value;
+  if (!val) return;
+  var tpl = DIARIO_TEMPLATES.find(function(t){ return t.label === val; });
+  if (tpl) {
+    var ta = document.getElementById(targetId);
+    ta.value = ta.value ? ta.value + '\n\n' + tpl.testo : tpl.testo;
+  }
+  sel.value = '';
+}
+
+// ── DUPLICA ULTIMA SEDUTA ─────────────────────────────────────────────────────
+async function diarioDuplica() {
+  var res = await _sb.from('therapy_sessions')
+    .select('protocollo_prossima, tecniche')
+    .eq('patient_id', pid)
+    .order('data_seduta', { ascending: false })
+    .limit(1);
+  if (!res.data || res.data.length === 0) {
+    alert('Nessuna seduta precedente da duplicare.');
+    return;
+  }
+  var ultima = res.data[0];
+  apriNuovaSeduta();
+  if (ultima.protocollo_prossima) document.getElementById('f-ps').value = ultima.protocollo_prossima;
+  if (ultima.tecniche)           document.getElementById('f-tec').value = ultima.tecniche;
+}
+// ── END DUPLICA / TEMPLATE ───────────────────────────────────────────────────
+
 function chiudiModal() {
   document.getElementById('modal-seduta').classList.remove('open');
 }
@@ -213,6 +263,9 @@ async function init() {
   document.getElementById('pname').textContent = patient.nome + ' ' + patient.cognome;
   var pr = await _sb.from('patient_protocols').select('*, patient_protocol_exercises(*, exercises(nome))').eq('patient_id', pid).eq('stato', 'attivo').order('created_at', { ascending: false }).limit(1);
   if (pr.data && pr.data.length > 0) protAtt = pr.data[0];
+  // Popola select template
+  var sel = document.querySelector('.tpl-select');
+  if (sel) DIARIO_TEMPLATES.forEach(function(t){ var o=document.createElement('option'); o.value=t.label; o.textContent=t.label; sel.appendChild(o); });
   caricaSedute();
 }
 

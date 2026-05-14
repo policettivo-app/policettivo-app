@@ -173,6 +173,8 @@
     .premium-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 24px; }
     .btn-premium-cta { width: 100%; background: #FFD008; border: none; border-radius: 10px; padding: 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; color: #000; margin-bottom: 10px; }
     .btn-premium-close { width: 100%; background: transparent; border: 1px solid #ddd; border-radius: 10px; padding: 12px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; color: #666; }
+    .tpl-select { width:100%; padding:8px 12px; border:1.5px solid #ddd; border-radius:8px; font-family:'Montserrat',sans-serif; font-size:13px; color:#555; background:#fafafa; cursor:pointer; margin-bottom:6px; }
+    .tpl-select:focus { outline:none; border-color:#FFD008; }
   </style>
 </head>
 <body>
@@ -219,6 +221,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Note</label>
+        <select class="tpl-select" id="visite-tpl-select" onchange="visitaTemplate('nv-note',this)"><option value="">⚡ Template rapido...</option></select>
         <textarea class="form-input" id="nv-note" placeholder="Osservazioni, sintomi, progressi..."></textarea>
       </div>
 
@@ -402,6 +405,32 @@
     let _camSlot         = null
     let _orientHdlr      = null
 
+    // ── TEMPLATE RAPIDI ───────────────────────────────────
+    const VISITE_TEMPLATES = [
+      { label: 'Cervicalgia',          testo: 'Mobilizzazioni cervicali C1-C7. Stretching scaleni e trapezio superiore. Terapia manuale faccette articolari. Esercizi di stabilizzazione cervicale.' },
+      { label: 'Lombalgia',            testo: 'Mobilizzazioni lombari L4-S1. Rinforzo core: isometrici addominali e glutei. Stretching piriforme e flessori anca. Educazione posturale.' },
+      { label: 'Spalla',               testo: 'Mobilizzazione gleno-omerale. Rinforzo cuffia dei rotatori (sopraspinato, infraspinato). Stretching catena posteriore. Progressione CCC e CCA.' },
+      { label: 'Ginocchio',            testo: 'Rinforzo quadricipite e ischio-crurali. Propriocezione su pedana instabile. Mobilizzazione rotulea. Esercizi in catena cinematica chiusa.' },
+      { label: 'Terapia manuale',      testo: 'Mobilizzazione articolare grado III-IV (Maitland). Tecniche miofasciali. Soft tissue mobilization.' },
+      { label: 'Mobilità',             testo: 'Stretching attivo e passivo mirato. Mobilizzazioni accessorie. Incremento progressivo range of motion.' },
+      { label: 'Rinforzo',             testo: 'Esercizi di rinforzo muscolare progressivo. Lavoro eccentrico e concentrico. Progressione carico adeguata alla fase.' },
+      { label: 'Stabilizzazione',      testo: 'Attivazione muscoli profondi (multifido, trasverso). Progressione da supino a ortostatismo. Esercizi su superfici instabili.' },
+      { label: 'Progressione',         testo: 'Aggiunta esercizi funzionali, incremento carichi, riduzione supervisione. Valutazione obiettivi raggiunti.' },
+      { label: 'Educazione paziente',  testo: 'Spiegazione meccanismo di guarigione. Gestione autonoma del dolore. Indicazioni posturali quotidiane. Esercizi domiciliari consegnati.' }
+    ]
+
+    function visitaTemplate(targetId, sel) {
+      const val = sel.value
+      if (!val) return
+      const tpl = VISITE_TEMPLATES.find(t => t.label === val)
+      if (tpl) {
+        const ta = document.getElementById(targetId)
+        ta.value = ta.value ? ta.value + '\n\n' + tpl.testo : tpl.testo
+      }
+      sel.value = ''
+    }
+    // ── END TEMPLATE RAPIDI ───────────────────────────────
+
     // ── Init ──────────────────────────────────────────────
 
     async function init() {
@@ -418,6 +447,10 @@
       patient = p
       document.getElementById('nav-title').textContent = p.nome + ' ' + p.cognome + ' — Visite'
       document.getElementById('btn-back').onclick = () => { window.location.href = 'paziente.html?id=' + patientId }
+
+      // Popola select template
+      const tplSel = document.getElementById('visite-tpl-select')
+      if (tplSel) VISITE_TEMPLATES.forEach(t => { const o = document.createElement('option'); o.value = t.label; o.textContent = t.label; tplSel.appendChild(o) })
 
       await caricaVisite()
     }
