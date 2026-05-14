@@ -1837,8 +1837,9 @@
       const statusEl = document.getElementById('cn-status')
       statusEl.textContent = 'Salvataggio...'
       statusEl.className = 'cn-status saving'
+      const { data: { session: _cnSession } } = await _supabase.auth.getSession()
       const profId = await clinicalNotesGetProfId()
-      console.log('[clinicalNotes] save — patientId:', patientId, '| profId:', profId, '| editingId:', clinicalNotesState.editingId)
+      console.log('[clinicalNotes] save — patientId:', patientId, '| profId:', profId, '| editingId:', clinicalNotesState.editingId, '| user.id:', _cnSession?.user?.id)
       if (!profId) {
         console.error('[clinicalNotes] profId null/undefined — professional non trovato per questo utente')
         statusEl.textContent = 'Errore: profilo non trovato.'
@@ -1859,7 +1860,7 @@
         const res = await _supabase.from('clinical_notes')
           .insert(insertPayload)
           .select('id')
-          .single()
+          .maybeSingle()
         error = res.error
         if (error) console.error('[clinicalNotes] INSERT errore completo:', JSON.stringify(error), '| status:', error.status, '| code:', error.code, '| message:', error.message, '| details:', error.details, '| hint:', error.hint)
         if (!error && res.data) { newId = res.data.id; clinicalNotesState.editingId = newId }
