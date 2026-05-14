@@ -853,16 +853,28 @@
         const digits = updates.telefono.replace(/[^0-9]/g, '')
         if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return }
       }
+      const btn = document.querySelector('.btn-save')
+      btn.disabled = true
+      btn.textContent = 'Salvataggio...'
       const { error } = await _supabase.from('patients').update(updates).eq('id', patientId)
-      if (error) { alert('Errore: ' + error.message); return }
+      if (error) {
+        btn.disabled = false
+        btn.textContent = '✓ Salva'
+        alert('Errore: ' + error.message)
+        return
+      }
       Object.assign(patient, updates)
       document.getElementById('ph-nome').textContent = updates.nome + ' ' + updates.cognome
       document.getElementById('ph-sub').textContent = updates.problema_principale || ''
       document.getElementById('info-email').textContent = updates.email || '—'
       document.getElementById('info-tel').textContent = updates.telefono || '—'
       document.getElementById('info-problema').textContent = updates.problema_principale || '—'
-      document.getElementById('edit-form').style.display = 'none'
-      alert('Dati aggiornati!')
+      btn.textContent = '✓ Salvato'
+      setTimeout(function() {
+        document.getElementById('edit-form').style.display = 'none'
+        btn.disabled = false
+        btn.textContent = '✓ Salva'
+      }, 1500)
     }
 
     async function cancellaPaziente() {
@@ -1920,6 +1932,7 @@
       document.getElementById('appt-note').value = righeNote.join('\n')
 
       document.getElementById('appt-gcal').checked = true
+      document.getElementById('appt-msg').style.display = 'none'
       document.getElementById('appt-overlay').style.display = 'block'
     }
 
@@ -1951,8 +1964,15 @@
       if (!title || !dateStr || !startTime) { alert('Compila titolo, data e ora.'); return }
 
       const link = apptBuildGCalLink(title, dateStr, startTime, duration, notes)
-      apptClose()
-      if (openGCal) window.open(link, '_blank')
+      if (openGCal) {
+        apptClose()
+        window.open(link, '_blank')
+      } else {
+        const msg = document.getElementById('appt-msg')
+        msg.textContent = '📅 Appuntamento pronto. Attiva "Apri in Google Calendar" per aprirlo automaticamente.'
+        msg.style.display = 'block'
+        setTimeout(function() { apptClose() }, 2500)
+      }
     }
     // ── END APPUNTAMENTI ──────────────────────────────────────────────────────
 
@@ -2043,6 +2063,7 @@
         <input type="checkbox" id="appt-gcal" checked>
         Apri in Google Calendar dopo il salvataggio
       </label>
+      <div id="appt-msg" style="display:none;background:#fffde7;border:1px solid #FFD008;border-radius:8px;padding:10px 14px;font-size:13px;font-family:Montserrat,sans-serif;color:#555;margin-top:12px"></div>
       <div class="appt-actions">
         <button class="appt-btn-cancel" onclick="apptClose()">Annulla</button>
         <button class="appt-btn-save" onclick="apptSave()">📅 Aggiungi al Calendar</button>
