@@ -10,35 +10,126 @@
   <script src="utils-ai.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
-    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
-    .navbar-brand { display: flex; align-items: center; gap: 12px; }
-    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
-    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
-    .navbar-right { display: flex; align-items: center; gap: 12px; }
-    .navbar-user { color: #999; font-size: 13px; }
-    .btn-admin { background: #FFD008; color: #000; border: none; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
-    .btn-logout { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
-    .btn-logout:hover { border-color: #FFD008; color: #FFD008; }
-    .main { max-width: 1100px; margin: 0 auto; padding: 36px 24px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-    .page-header h1 { font-size: 24px; font-weight: 700; color: #000; }
-    .page-header p { font-size: 13px; color: #666; margin-top: 4px; }
-    .btn-primary { background: #FFD008; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .btn-primary:hover { background: #e6bc00; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
-    .stat-card { background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #eee; }
-    .stat-label { font-size: 11px; font-weight: 600; color: #999; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
-    .stat-value { font-size: 32px; font-weight: 700; color: #000; }
-    .stat-value.yellow { color: #FFD008; }
-    .search-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
-    .search-input { flex: 1; padding: 12px 16px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; background: #fff; }
-    .search-input:focus { border-color: #FFD008; }
-    .search-count { font-size: 12px; color: #999; white-space: nowrap; }
-    .section-title { font-size: 16px; font-weight: 700; color: #000; margin-bottom: 16px; }
-    .patients-table { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; }
-    .table-header { display: grid; grid-template-columns: 2.5fr 1.5fr 1fr 1fr 120px 40px; padding: 12px 24px; background: #f9f9f9; border-bottom: 1px solid #eee; font-size: 11px; font-weight: 600; color: #999; letter-spacing: 1px; text-transform: uppercase; }
-    .patient-row { display: grid; grid-template-columns: 2.5fr 1.5fr 1fr 1fr 120px 40px; padding: 14px 24px; border-bottom: 1px solid #f0f0f0; align-items: center; cursor: pointer; transition: background 0.15s; }
+    :root {
+      --yellow: #FFD008;
+      --black: #000;
+      --bg: #f5f5f7;
+      --card: #fff;
+      --text: #1d1d1f;
+      --text-2: #6e6e73;
+      --border: #e5e5ea;
+      --radius: 14px;
+      --shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+    body { font-family: 'Montserrat', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
+
+    /* ── Navbar ─────────────────────────────────────────── */
+    .d-navbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(0,0,0,0.97);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      height: 56px; padding: 0 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .d-nav-left { display: flex; align-items: center; gap: 10px; }
+    .d-logo { background: var(--yellow); color: #000; font-weight: 700; font-size: 10px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .d-nav-right { display: flex; align-items: center; gap: 10px; }
+    .d-bell {
+      background: #1a1a1a; border: none; color: #888; width: 34px; height: 34px;
+      border-radius: 50%; font-size: 15px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .d-bell:hover { color: #fff; }
+    .d-avatar-wrap { position: relative; }
+    .d-avatar {
+      width: 34px; height: 34px; border-radius: 50%; background: var(--yellow);
+      color: #000; font-weight: 700; font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none; transition: opacity 0.15s;
+    }
+    .d-avatar:hover { opacity: 0.85; }
+    .d-avatar-menu {
+      display: none; position: absolute; top: 42px; right: 0;
+      background: #111; border: 1px solid #2a2a2a; border-radius: 12px;
+      padding: 6px; min-width: 210px; z-index: 200;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .d-avatar-menu.open { display: block; }
+    .d-av-email { font-size: 11px; color: #555; padding: 6px 10px 8px; word-break: break-all; }
+    .d-av-sep { height: 1px; background: #222; margin: 4px 0; }
+    .d-av-btn {
+      display: block; width: 100%; background: transparent; border: none;
+      color: #ccc; font-family: 'Montserrat',sans-serif; font-size: 13px;
+      text-align: left; padding: 8px 10px; border-radius: 8px; cursor: pointer;
+    }
+    .d-av-btn:hover { background: #1e1e1e; color: #fff; }
+
+    /* ── Premium banner ─────────────────────────────────── */
+    .premium-banner { display: none; background: #111; border-bottom: 2.5px solid var(--yellow); padding: 10px 20px; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .premium-banner.visible { display: flex; }
+    .premium-banner-text { color: #fff; font-size: 12px; font-weight: 500; }
+    .premium-banner-btn { background: var(--yellow); color: #000; border: none; border-radius: 8px; padding: 7px 16px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
+    .premium-banner-btn:hover { background: #e6bb00; }
+
+    /* ── Main layout ────────────────────────────────────── */
+    .d-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 80px; }
+    @media (min-width: 640px) { .d-main { padding: 32px 24px 80px; } }
+
+    /* ── Hero ───────────────────────────────────────────── */
+    .d-hero { margin-bottom: 24px; }
+    .d-hero-eyebrow { font-size: 11px; font-weight: 600; color: var(--text-2); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+    .d-hero-title { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.2; }
+    @media (min-width: 640px) { .d-hero-title { font-size: 34px; } }
+
+    /* ── Stats ──────────────────────────────────────────── */
+    .d-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
+    @media (min-width: 640px) { .d-stats { grid-template-columns: repeat(4, 1fr); gap: 14px; } }
+    .d-stat-card { background: var(--card); border-radius: var(--radius); padding: 18px 16px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .d-stat-icon { font-size: 24px; margin-bottom: 10px; }
+    .d-stat-num { font-size: 30px; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 5px; }
+    .d-stat-num.accent { color: var(--yellow); }
+    .d-stat-lbl { font-size: 11px; font-weight: 600; color: var(--text-2); letter-spacing: 0.3px; }
+
+    /* ── Section titles ─────────────────────────────────── */
+    .d-section-lbl { font-size: 12px; font-weight: 700; color: var(--text-2); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 12px; }
+    .d-section-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .d-section-row .d-section-lbl { margin-bottom: 0; }
+
+    /* ── Quick actions ──────────────────────────────────── */
+    .d-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 28px; }
+    @media (min-width: 640px) { .d-quick { grid-template-columns: repeat(6, 1fr); } }
+    .d-qa-btn {
+      background: var(--card); border: 1.5px solid var(--border); border-radius: 12px;
+      padding: 14px 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 5px;
+      cursor: pointer; font-family: 'Montserrat',sans-serif; font-size: 10px; font-weight: 700;
+      color: var(--text); transition: all 0.15s; box-shadow: var(--shadow);
+      letter-spacing: 0.2px; text-align: center; line-height: 1.3;
+    }
+    .d-qa-btn:hover { border-color: var(--yellow); background: #fffdf0; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(255,208,8,0.18); }
+    .d-qa-icon { font-size: 22px; line-height: 1; }
+
+    /* ── Recent cards ───────────────────────────────────── */
+    .recent-cards-container { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; margin-bottom: 4px; scrollbar-width: none; }
+    .recent-cards-container::-webkit-scrollbar { display: none; }
+    .recent-card { background: var(--card); border-radius: 12px; border: 1.5px solid var(--border); padding: 14px; cursor: pointer; min-width: 140px; max-width: 175px; flex-shrink: 0; transition: all 0.15s; box-shadow: var(--shadow); }
+    .recent-card:hover { border-color: var(--yellow); box-shadow: 0 4px 16px rgba(255,208,8,0.2); }
+    .recent-card-emoji { font-size: 20px; margin-bottom: 6px; }
+    .recent-card-name { font-weight: 700; font-size: 12px; color: var(--text); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-card-prob { font-size: 11px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Sort + Search ──────────────────────────────────── */
+    .sort-select { padding: 7px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-family: 'Montserrat',sans-serif; font-size: 12px; color: var(--text); background: var(--card); cursor: pointer; outline: none; }
+    .sort-select:focus { border-color: var(--yellow); }
+    .search-bar { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
+    .search-input { flex: 1; padding: 11px 16px; border: 1.5px solid var(--border); border-radius: 10px; font-family: 'Montserrat',sans-serif; font-size: 13px; color: var(--text); outline: none; background: var(--card); box-shadow: var(--shadow); }
+    .search-input:focus { border-color: var(--yellow); }
+    .search-count { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+
+    /* ── Patients table ─────────────────────────────────── */
+    .patients-table { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow); margin-bottom: 24px; }
+    .table-header { display: grid; grid-template-columns: 2.5fr 1.5fr 1fr 1fr 120px 40px; padding: 10px 20px; background: #fafafa; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; color: var(--text-2); letter-spacing: 0.8px; text-transform: uppercase; }
+    .patient-row { display: grid; grid-template-columns: 2.5fr 1.5fr 1fr 1fr 120px 40px; padding: 13px 20px; border-bottom: 1px solid #f5f5f7; align-items: center; cursor: pointer; transition: background 0.1s; }
     @media (max-width: 600px) {
       .table-header { grid-template-columns: 1fr 80px 40px; }
       .table-header span:nth-child(2), .table-header span:nth-child(3), .table-header span:nth-child(4) { display: none; }
@@ -47,9 +138,9 @@
     }
     .patient-row:last-child { border-bottom: none; }
     .patient-row:hover { background: #fffdf0; }
-    .patient-name { font-weight: 600; font-size: 14px; color: #000; }
-    .patient-email { font-size: 12px; color: #666; margin-top: 2px; }
-    .patient-problem { font-size: 12px; color: #888; }
+    .patient-name { font-weight: 600; font-size: 13px; color: var(--text); }
+    .patient-email { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+    .patient-problem { font-size: 12px; color: var(--text-2); }
     .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
     .badge-npl { background: #000; color: #FFD008; }
     .badge-gpl { background: #FFD008; color: #000; }
@@ -57,13 +148,22 @@
     .highlight { background: #FFD008; border-radius: 2px; padding: 0 1px; }
     .smile-cell { display: flex; flex-direction: column; gap: 4px; }
     .smile-row { display: flex; align-items: center; gap: 6px; }
-    .smile-emoji { font-size: 18px; }
-    .smile-days { font-size: 11px; color: #666; font-weight: 600; white-space: nowrap; }
-    .smile-bar-bg { height: 4px; background: #eee; border-radius: 2px; width: 100%; }
-    .smile-bar-fill { height: 4px; border-radius: 2px; transition: width 0.3s; }
-    .empty-state { text-align: center; padding: 60px 24px; color: #999; }
+    .smile-emoji { font-size: 17px; }
+    .smile-days { font-size: 10px; color: var(--text-2); font-weight: 600; white-space: nowrap; }
+    .smile-bar-bg { height: 3px; background: #eee; border-radius: 2px; width: 100%; }
+    .smile-bar-fill { height: 3px; border-radius: 2px; transition: width 0.3s; }
+    .empty-state { text-align: center; padding: 56px 24px; color: var(--text-2); }
     .empty-state p { font-size: 14px; }
     .btn-del { background: transparent; border: 1px solid #ffcdd2; color: #ef5350; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+
+    /* ── Pagination ─────────────────────────────────────── */
+    .pagination { padding: 14px 20px; display: flex; justify-content: center; gap: 6px; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .pagination-btn { background: var(--card); border: 1.5px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 8px; font-family: 'Montserrat',sans-serif; font-size: 12px; cursor: pointer; transition: border-color 0.15s; }
+    .pagination-btn:hover:not(:disabled) { border-color: var(--yellow); }
+    .pagination-btn.active { background: var(--yellow); border-color: var(--yellow); color: #000; font-weight: 700; }
+    .pagination-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Modals (kept from original) ────────────────────── */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.open { display: flex; }
     .modal { background: #fff; border-radius: 16px; padding: 36px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
@@ -71,20 +171,30 @@
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 11px; font-weight: 600; color: #000; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
-    .form-group input, .form-group textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; }
-    .form-group input:focus, .form-group textarea:focus { border-color: #FFD008; }
+    .form-group input, .form-group textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat',sans-serif; font-size: 14px; color: #000; outline: none; }
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--yellow); }
     .form-group textarea { resize: vertical; min-height: 80px; }
     .modal-actions { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
+    .btn-primary { background: var(--yellow); color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-primary:hover { background: #e6bc00; }
+    .btn-secondary { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .config-option { border: 2px solid #eee; border-radius: 8px; padding: 14px; cursor: pointer; text-align: center; }
+    .config-option.selected-npl { border-color: #000; background: #000; color: var(--yellow); }
+    .config-option.selected-gpl { border-color: var(--yellow); background: var(--yellow); color: #000; }
+    .config-option .config-name { font-weight: 700; font-size: 16px; }
+    .config-option .config-desc { font-size: 10px; margin-top: 2px; opacity: 0.7; }
     .referto-box { background: #000; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
-    .referto-box-title { color: #FFD008; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .referto-box-title { color: var(--yellow); font-size: 12px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
     .referto-box-sub { color: #aaa; font-size: 11px; line-height: 1.5; margin-bottom: 14px; }
     .referto-btns { display: flex; gap: 8px; }
-    .btn-referto { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 8px; padding: 10px 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color 0.15s; }
-    .btn-referto:hover { border-color: #FFD008; }
+    .btn-referto { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 8px; padding: 10px 6px; font-family: 'Montserrat',sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color 0.15s; }
+    .btn-referto:hover { border-color: var(--yellow); }
     .referto-loading { display: none; text-align: center; padding: 14px; color: #aaa; font-size: 12px; }
     .referto-preview { display: none; margin-top: 10px; border-radius: 8px; overflow: hidden; }
     .referto-preview img { width: 100%; max-height: 110px; object-fit: cover; display: block; }
     .referto-ok { display: none; background: #0a2a0a; border: 1px solid #2a6a2a; border-radius: 8px; padding: 10px 12px; margin-top: 10px; color: #7dda7d; font-size: 11px; font-weight: 700; }
+
     /* Premium gate modal */
     .pg-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9000; align-items: center; justify-content: center; padding: 24px; }
     .pg-modal.open { display: flex; }
@@ -92,92 +202,131 @@
     .pg-icon { font-size: 38px; margin-bottom: 14px; }
     .pg-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
     .pg-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 22px; }
-    .pg-cta { width: 100%; background: #FFD008; border: none; border-radius: 10px; padding: 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; color: #000; margin-bottom: 10px; }
-    .pg-close { width: 100%; background: transparent; border: 1px solid #ddd; border-radius: 10px; padding: 12px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; color: #666; }
-    .btn-secondary { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .config-option { border: 2px solid #eee; border-radius: 8px; padding: 14px; cursor: pointer; text-align: center; }
-    .config-option.selected-npl { border-color: #000; background: #000; color: #FFD008; }
-    .config-option.selected-gpl { border-color: #FFD008; background: #FFD008; color: #000; }
-    .config-option .config-name { font-weight: 700; font-size: 16px; }
-    .config-option .config-desc { font-size: 10px; margin-top: 2px; opacity: 0.7; }
+    .pg-cta { width: 100%; background: var(--yellow); border: none; border-radius: 10px; padding: 14px; font-family: 'Montserrat',sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; color: #000; margin-bottom: 10px; }
+    .pg-close { width: 100%; background: transparent; border: 1px solid #ddd; border-radius: 10px; padding: 12px; font-family: 'Montserrat',sans-serif; font-size: 13px; cursor: pointer; color: #666; }
+
+    /* Wizard */
     .wizard-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
     .wizard-overlay.open { display: flex; }
     .wizard-box { background: #fff; border-radius: 20px; padding: 40px 36px; width: 100%; max-width: 520px; }
     .wizard-step { display: none; }
     .wizard-step.active { display: block; }
-    .wizard-badge { background: #FFD008; color: #000; font-size: 10px; font-weight: 700; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
+    .wizard-badge { background: var(--yellow); color: #000; font-size: 10px; font-weight: 700; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
     .wizard-title { font-size: 22px; font-weight: 700; color: #000; margin-bottom: 8px; line-height: 1.3; }
     .wizard-sub { font-size: 13px; color: #666; margin-bottom: 28px; line-height: 1.6; }
     .wizard-steps-indicator { display: flex; gap: 6px; margin-bottom: 32px; }
     .wizard-dot { width: 8px; height: 8px; border-radius: 50%; background: #eee; transition: background 0.3s; }
-    .wizard-dot.active { background: #FFD008; }
+    .wizard-dot.active { background: var(--yellow); }
     .wizard-dot.done { background: #000; }
     .wizard-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; }
-    .btn-skip { background: transparent; border: none; color: #bbb; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; padding: 0; }
+    .btn-skip { background: transparent; border: none; color: #bbb; font-family: 'Montserrat',sans-serif; font-size: 12px; cursor: pointer; padding: 0; }
     .btn-skip:hover { color: #999; }
     .wizard-link-box { background: #f5f5f5; border-radius: 10px; padding: 14px 16px; font-size: 12px; color: #333; word-break: break-all; margin-bottom: 16px; border: 1.5px dashed #ddd; }
     .wizard-link-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-    .btn-copy { background: #000; color: #FFD008; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
-    .btn-wa { background: #25D366; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
-    .wizard-info-box { background: #fffdf0; border: 1.5px solid #FFD008; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #555; margin-bottom: 16px; line-height: 1.6; }
-    .premium-banner { display: none; background: #111; border-bottom: 2.5px solid #FFD008; padding: 12px 32px; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-    .premium-banner.visible { display: flex; }
-    .premium-banner-text { color: #fff; font-size: 13px; font-weight: 500; }
-    .premium-banner-btn { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
-    .premium-banner-btn:hover { background: #e6bb00; }
-    .recent-cards-container { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
-    .recent-card { background: #fff; border-radius: 10px; border: 1.5px solid #eee; padding: 14px 16px; cursor: pointer; min-width: 150px; max-width: 190px; flex-shrink: 0; transition: border-color 0.15s, box-shadow 0.15s; }
-    .recent-card:hover { border-color: #FFD008; box-shadow: 0 2px 8px rgba(255,208,8,0.18); }
-    .recent-card-emoji { font-size: 22px; margin-bottom: 6px; }
-    .recent-card-name { font-weight: 700; font-size: 13px; color: #000; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .recent-card-prob { font-size: 11px; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sort-select { padding: 8px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; color: #333; background: #fff; cursor: pointer; outline: none; }
-    .sort-select:focus { border-color: #FFD008; }
-    .pagination { padding: 16px 24px; display: flex; justify-content: center; gap: 6px; align-items: center; border-top: 1px solid #f0f0f0; flex-wrap: wrap; }
-    .pagination-btn { background: #fff; border: 1.5px solid #ddd; color: #333; padding: 7px 13px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; transition: border-color 0.15s; }
-    .pagination-btn:hover:not(:disabled) { border-color: #FFD008; }
-    .pagination-btn.active { background: #FFD008; border-color: #FFD008; color: #000; font-weight: 700; }
-    .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .list-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .list-header-row .section-title { margin-bottom: 0; }
+    .btn-copy { background: #000; color: var(--yellow); border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat',sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .btn-wa { background: #25D366; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-family: 'Montserrat',sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .wizard-info-box { background: #fffdf0; border: 1.5px solid var(--yellow); border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #555; margin-bottom: 16px; line-height: 1.6; }
+    .btn-admin { background: var(--yellow); color: #000; border: none; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat',sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .btn-logout { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat',sans-serif; font-size: 12px; cursor: pointer; }
+
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
   </style>
 </head>
 <body>
-  <nav class="navbar">
-    <div class="navbar-brand">
-      <span class="navbar-logo">POLICETTIVO®</span>
-      <span class="navbar-title">Area Professionista</span>
+
+  <!-- ── Navbar ──────────────────────────────────────────── -->
+  <nav class="d-navbar">
+    <div class="d-nav-left">
+      <span class="d-logo">POLICETTIVO®</span>
+      <span id="piano-badge" style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:4px;letter-spacing:1px;background:#333;color:#fff">FREE</span>
     </div>
-    <div class="navbar-right"><span id="piano-badge" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:1px">FREE</span>
-      <button id="btn-admin-link" class="btn-admin" onclick="window.location.href='admin.html'">⚙️ Admin</button>
-      <button class="btn-admin" onclick="openGuida()" style="background:#222;color:#FFD008;border:1px solid #FFD008">? Guida</button>
-      <span class="navbar-user" id="user-email"></span>
-      <button class="btn-logout" onclick="doLogout()">Esci</button>
+    <div class="d-nav-right">
+      <button class="d-bell" title="Notifiche" aria-label="Notifiche">🔔</button>
+      <div class="d-avatar-wrap" onclick="toggleAvatarMenu(event)">
+        <div class="d-avatar" id="d-avatar-initials">P</div>
+        <div class="d-avatar-menu" id="d-avatar-menu">
+          <div class="d-av-email" id="user-email">—</div>
+          <div class="d-av-sep"></div>
+          <button id="btn-admin-link" class="d-av-btn" onclick="window.location.href='admin.html'">⚙️ Admin</button>
+          <button class="d-av-btn" onclick="openGuida()">❓ Guida</button>
+          <div class="d-av-sep"></div>
+          <button class="d-av-btn" onclick="doLogout()" style="color:#ef5350">Esci →</button>
+        </div>
+      </div>
     </div>
   </nav>
 
+  <!-- ── Premium banner ──────────────────────────────────── -->
   <div class="premium-banner" id="premium-banner">
-    <span class="premium-banner-text">⭐ Stai usando Policettivo Free — Hai ancora 5 analisi AI gratuite per provare il sistema Policettivo®</span>
+    <span class="premium-banner-text">⭐ Piano Free — 5 analisi AI gratuite per provare Policettivo®</span>
     <button class="premium-banner-btn" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
   </div>
 
-  <div class="main">
-    <div class="page-header">
-      <div><h1>Dashboard</h1><p id="welcome-msg">Bentornato</p></div>
-      <button class="btn-primary" onclick="openModal()">+ Nuovo paziente</button>
+  <!-- ── Main ────────────────────────────────────────────── -->
+  <main class="d-main">
+
+    <!-- Hero -->
+    <div class="d-hero">
+      <div class="d-hero-eyebrow" id="d-hero-date"></div>
+      <h1 class="d-hero-title" id="welcome-msg">Bentornato</h1>
     </div>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Pazienti attivi</div><div class="stat-value" id="stat-pazienti">—</div></div>
-      <div class="stat-card"><div class="stat-label">Protocolli assegnati</div><div class="stat-value" id="stat-protocolli">—</div></div>
-      <div class="stat-card"><div class="stat-label">Sessioni oggi</div><div class="stat-value yellow" id="stat-sessioni">—</div></div>
+
+    <!-- Stats 4 card -->
+    <div class="d-stats">
+      <div class="d-stat-card">
+        <div class="d-stat-icon">👥</div>
+        <div class="d-stat-num" id="stat-pazienti">—</div>
+        <div class="d-stat-lbl">Pazienti attivi</div>
+      </div>
+      <div class="d-stat-card">
+        <div class="d-stat-icon">📋</div>
+        <div class="d-stat-num" id="stat-protocolli">—</div>
+        <div class="d-stat-lbl">Protocolli attivi</div>
+      </div>
+      <div class="d-stat-card">
+        <div class="d-stat-icon">⚡</div>
+        <div class="d-stat-num accent" id="stat-sessioni">—</div>
+        <div class="d-stat-lbl">Sessioni oggi</div>
+      </div>
+      <div class="d-stat-card">
+        <div class="d-stat-icon">🤖</div>
+        <div class="d-stat-num" id="stat-ai">—</div>
+        <div class="d-stat-lbl">Analisi AI</div>
+      </div>
     </div>
-    <div id="recent-section" style="display:none;margin-bottom:24px">
-      <div class="section-title" style="margin-bottom:12px">Recenti</div>
+
+    <!-- Quick actions -->
+    <div class="d-section-lbl">Azioni rapide</div>
+    <div class="d-quick">
+      <button class="d-qa-btn" onclick="openModal()">
+        <span class="d-qa-icon">👤</span>Nuovo paziente
+      </button>
+      <button class="d-qa-btn" onclick="window.location.href='visite.html'">
+        <span class="d-qa-icon">🏥</span>Nuova visita
+      </button>
+      <button class="d-qa-btn" onclick="window.location.href='visite.html'">
+        <span class="d-qa-icon">💪</span>Nuova seduta
+      </button>
+      <button class="d-qa-btn" onclick="qaProtocollo()">
+        <span class="d-qa-icon">📋</span>Protocollo
+      </button>
+      <button class="d-qa-btn" onclick="qaPDF()">
+        <span class="d-qa-icon">🖨</span>Genera PDF
+      </button>
+      <button class="d-qa-btn" onclick="qaSintesiAI()">
+        <span class="d-qa-icon">🧠</span>Sintesi AI
+      </button>
+    </div>
+
+    <!-- Recent patients -->
+    <div id="recent-section" style="display:none">
+      <div class="d-section-lbl">Recenti</div>
       <div id="recent-cards" class="recent-cards-container"></div>
     </div>
-    <div class="list-header-row">
-      <div class="section-title">I tuoi pazienti</div>
+
+    <!-- Patients list -->
+    <div class="d-section-row" style="margin-top:8px">
+      <span class="d-section-lbl">I tuoi pazienti</span>
       <select class="sort-select" id="sort-select" onchange="changeSortAndRender()">
         <option value="recent">Ultima apertura</option>
         <option value="activity">Ultima attività</option>
@@ -192,12 +341,14 @@
       <div class="table-header">
         <span>Paziente</span><span>Problema</span><span>Config.</span><span>Stato</span><span>Aderenza</span><span></span>
       </div>
-      <div id="loading-msg" style="text-align:center;padding:40px;font-size:18px;font-weight:700;color:#e53935;animation:blink 1.2s ease-in-out infinite;letter-spacing:0.5px">⏳ Caricamento pazienti in corso, un momento...</div>
+      <div id="loading-msg" style="text-align:center;padding:40px;font-size:16px;font-weight:700;color:#e53935;animation:blink 1.2s ease-in-out infinite;letter-spacing:0.5px">⏳ Caricamento pazienti in corso...</div>
       <div id="patients-list" style="display:none"><div class="empty-state"><p>Nessun paziente ancora. Aggiungine uno!</p></div></div>
       <div id="pagination" class="pagination"></div>
     </div>
-  </div>
 
+  </main>
+
+  <!-- ── Modal: nuovo paziente ───────────────────────────── -->
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
       <h2>Nuovo paziente</h2>
@@ -238,6 +389,7 @@
     </div>
   </div>
 
+  <!-- ── Premium gate modal ──────────────────────────────── -->
   <div class="pg-modal" id="pg-modal">
     <div class="pg-box">
       <div class="pg-icon">⭐</div>
@@ -248,6 +400,7 @@
     </div>
   </div>
 
+  <!-- ── Onboarding wizard ────────────────────────────────── -->
   <div class="wizard-overlay" id="wizard-overlay">
     <div class="wizard-box">
       <div class="wizard-steps-indicator">
@@ -279,7 +432,7 @@
           <div class="form-group"><label>Problema</label><input type="text" id="w-problema" placeholder="es. Lombalgia" value="Lombalgia"></div>
         </div>
         <div style="background:#fffdf0;border:1.5px solid #FFD008;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-bottom:4px;line-height:1.6;">
-          Apri la scheda del paziente e <strong>scatta anche foto fittizie</strong> per capire come funziona la visita posturale. Puoi modificare o cancellare tutto in qualsiasi momento: serve solo per esplorare l'app.
+          Apri la scheda del paziente e <strong>scatta anche foto fittizie</strong> per capire come funziona la visita posturale. Puoi modificare o cancellare tutto in qualsiasi momento.
         </div>
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
@@ -296,10 +449,8 @@
         <div style="background:#fffdf0;border:1.5px solid #FFD008;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-bottom:16px;line-height:1.7;">
           Nella scheda trovi:<br>
           <strong>Foto posturali</strong> — sagittale, frontale, posteriore, podoscopio<br>
-          <strong>AI posturale</strong> — analizza le foto e suggerisce <strong>NPL</strong> (cuscino bianco) o <strong>GPL</strong> (cuscino verde lime)<br>
-          <strong>Piano scapolare</strong> e <strong>osservazioni podoscopiche</strong><br><br>
-          Piano Free: <strong>5 analisi AI incluse</strong>. Piano Premium: analisi illimitate.<br>
-          Prova a scattare foto fittizie per vedere l'AI in azione.
+          <strong>AI posturale</strong> — analizza le foto e suggerisce <strong>NPL</strong> o <strong>GPL</strong><br>
+          Piano Free: <strong>5 analisi AI incluse</strong>. Piano Premium: analisi illimitate.
         </div>
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
@@ -316,10 +467,9 @@
         <div class="wizard-sub">Dopo la visita posturale, costruisci il protocollo su misura per il paziente.</div>
         <div style="background:#fffdf0;border:1.5px solid #FFD008;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-bottom:16px;line-height:1.7;">
           Nel protocollo puoi:<br>
-          <strong>Scegliere esercizi</strong> dal catalogo (es. Tecnica dei 3 Respiri, Schema Barchetta)<br>
-          <strong>Definire i tempi</strong> — 30s, 1m, 2m, 3m, 5m o 10m per ogni esercizio<br>
-          <strong>Aggiungere video personalizzati</strong> dimostrativi (solo Premium)<br><br>
-          Il paziente troverà il protocollo nel suo link personale e lo eseguirà guidato da un timer.
+          <strong>Scegliere esercizi</strong> dal catalogo<br>
+          <strong>Definire i tempi</strong> — 30s, 1m, 2m, 3m, 5m o 10m<br>
+          <strong>Aggiungere video personalizzati</strong> (solo Premium)
         </div>
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
@@ -343,17 +493,14 @@
           <div style="padding:10px 14px;border-top:1px solid #eee;color:#333;line-height:1.5;">Vede tutti i suoi pazienti</div>
           <div style="padding:10px 14px;border-top:1px solid #eee;border-left:1px solid #eee;color:#333;line-height:1.5;">Vede solo se stesso</div>
         </div>
-        <div class="wizard-info-box">Il paziente ha gia la <strong>Tecnica dei 3 Respiri</strong> assegnata e puo iniziare subito. Dalla scheda paziente potrai aggiungere altri esercizi.</div>
+        <div class="wizard-info-box">Il paziente ha già la <strong>Tecnica dei 3 Respiri</strong> assegnata e può iniziare subito.</div>
         <div class="wizard-link-box" id="wizard-link-text">—</div>
         <div class="wizard-link-actions">
           <button class="btn-copy" onclick="wizardCopyLink()">Copia link</button>
           <button class="btn-wa" onclick="wizardSendWA()">Invia via WhatsApp</button>
         </div>
         <div style="background:#fffdf0;border:1.5px solid #FFD008;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-top:16px;line-height:1.6;">
-          Questo e un link di prova. Quando sei pronto per il primo paziente vero, crea una nuova scheda dalla dashboard e completa la visita posturale. Il paziente trovera il suo protocollo personale con esercizi, timer e <strong>premi per ogni sessione completata</strong> — questo lo motiva a fare gli esercizi ogni giorno.
-        </div>
-        <div style="background:#f5f5f5;border:1.5px solid #ddd;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-top:12px;line-height:1.6;">
-          Non preoccuparti se non hai capito tutto subito — e normale! La <strong>Guida</strong> e sempre disponibile nell'app in alto a destra con il pulsante <strong>? Guida</strong>. Troverai spiegazioni e video per ogni funzione, quando ne hai bisogno.
+          Questo è un link di prova. Quando sei pronto per il primo paziente vero, crea una nuova scheda dalla dashboard e completa la visita posturale.
         </div>
         <div class="wizard-actions" style="margin-top:24px">
           <div style="display:flex;gap:10px;">
@@ -405,7 +552,17 @@
       }
 
       document.getElementById('user-email').textContent = session.user.email
-      document.getElementById('welcome-msg').textContent = 'Bentornato, ' + session.user.email.split('@')[0]
+      const _username = session.user.email.split('@')[0]
+      document.getElementById('welcome-msg').textContent = 'Bentornato, ' + _username
+      const _avEl = document.getElementById('d-avatar-initials')
+      if (_avEl) _avEl.textContent = _username.charAt(0).toUpperCase()
+
+      // Set hero date
+      const _dateEl = document.getElementById('d-hero-date')
+      if (_dateEl) {
+        const _d = new Date()
+        _dateEl.textContent = _d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
+      }
 
       // In preview mode pass null email so admin bypass in policettivoCheckPremium doesn't fire;
       // the previewed professional's real plan is fetched from DB instead.
@@ -425,6 +582,10 @@
         badge.style.background = window.isPremium ? '#FFD008' : '#333'
         badge.style.color = window.isPremium ? '#000' : '#fff'
       }
+      if (window.isPremium) {
+        const _sai = document.getElementById('stat-ai')
+        if (_sai) { _sai.textContent = '∞'; _sai.classList.add('accent') }
+      }
 
       if (currentProfessionalId) {
         if (!window.isPremium) {
@@ -438,6 +599,8 @@
             aiBadge.textContent = _rem + ' analisi AI disponibili'
             aiBadge.style.display = 'inline-block'
           }
+          const _statAi = document.getElementById('stat-ai')
+          if (_statAi) _statAi.textContent = Math.max(0, 5 - _aiUses) + '/5'
           if (_aiUses >= 5) {
             const badge = document.getElementById('piano-badge')
             if (badge) {
@@ -759,12 +922,8 @@
 
     function mostraModalePremiumDash() { document.getElementById('pg-modal').classList.add('open') }
     function chiudiModalePremiumDash() { document.getElementById('pg-modal').classList.remove('open') }
-    function apriCamReferto() {
-      document.getElementById('referto-cam-input').click()
-    }
-    function apriGalleriaReferto() {
-      document.getElementById('referto-gal-input').click()
-    }
+    function apriCamReferto() { document.getElementById('referto-cam-input').click() }
+    function apriGalleriaReferto() { document.getElementById('referto-gal-input').click() }
     function handleRefertoFile(input) {
       const file = input.files[0]
       if (!file) return
@@ -822,9 +981,37 @@
       if (extra.length) document.getElementById('p-note').value = extra.join('\n')
     }
 
+    // ── New UI helpers ──────────────────────────────────────
+    function toggleAvatarMenu(e) {
+      e.stopPropagation()
+      document.getElementById('d-avatar-menu').classList.toggle('open')
+    }
+    document.addEventListener('click', function() {
+      document.getElementById('d-avatar-menu').classList.remove('open')
+    })
+    function qaProtocollo() {
+      const tbl = document.querySelector('.patients-table')
+      if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const si = document.getElementById('search-input')
+      if (si) setTimeout(() => { si.focus(); si.placeholder = '🔍 Cerca il paziente per cui creare il protocollo…' }, 400)
+    }
+    function qaPDF() {
+      const tbl = document.querySelector('.patients-table')
+      if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const si = document.getElementById('search-input')
+      if (si) setTimeout(() => si.focus(), 400)
+    }
+    function qaSintesiAI() {
+      const tbl = document.querySelector('.patients-table')
+      if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const si = document.getElementById('search-input')
+      if (si) setTimeout(() => si.focus(), 400)
+    }
+
     init()
   </script>
 
+  <!-- ── Guida overlay ────────────────────────────────────── -->
   <div class="modal-overlay" id="guida-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
     <div style="background:#111;border:1px solid #333;border-radius:16px;padding:32px 28px;width:100%;max-width:640px;margin:auto;position:relative">
       <button onclick="closeGuida()" style="position:absolute;top:16px;right:16px;background:transparent;border:1px solid #444;color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:Montserrat,sans-serif;font-size:13px">X Chiudi</button>
