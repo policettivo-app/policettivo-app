@@ -317,6 +317,31 @@
     .csai-action-btn.primary { background: #FFD008; border-color: #FFD008; color: #000; }
     .csai-action-btn.primary:hover { background: #e6bc00; border-color: #e6bc00; }
     .csai-footer { font-size: 11px; color: #bbb; margin-top: 14px; font-style: italic; }
+    .csai-save-btn { background: #000; color: #FFD008; border: 2px solid #FFD008; border-radius: 7px; padding: 7px 14px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .csai-save-btn:hover { background: #1a1a1a; }
+    .csai-save-btn:disabled { background: #555; color: #999; border-color: #555; cursor: not-allowed; }
+    .csai-save-status { font-size: 11px; margin-top: 8px; min-height: 16px; }
+    .csai-save-status.ok { color: #4CAF50; }
+    .csai-save-status.err { color: #e53935; }
+    .csai-saved-section { margin-top: 28px; border-top: 2px solid #f0f0f0; padding-top: 20px; }
+    .csai-saved-title { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 12px; }
+    .csai-saved-card { background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; cursor: pointer; margin-bottom: 8px; transition: border-color 0.15s; }
+    .csai-saved-card:hover { border-color: #FFD008; }
+    .csai-saved-card-date { font-size: 11px; color: #aaa; margin-bottom: 4px; }
+    .csai-saved-card-preview { font-size: 12px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .csai-saved-empty { color: #bbb; font-size: 13px; text-align: center; padding: 20px 0; }
+    /* PDF Composizione Modal */
+    .pdf-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1100; }
+    .pdf-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: #fff; border-radius: 16px; padding: 28px 28px 24px; width: min(480px, 92vw); z-index: 1101; box-shadow: 0 16px 48px rgba(0,0,0,0.2); }
+    .pdf-modal-title { font-size: 16px; font-weight: 700; color: #000; margin-bottom: 4px; }
+    .pdf-modal-sub { font-size: 12px; color: #888; margin-bottom: 20px; }
+    .pdf-check-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+    .pdf-check-row:last-of-type { border-bottom: none; }
+    .pdf-check-row input[type=checkbox] { width: 18px; height: 18px; accent-color: #FFD008; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
+    .pdf-check-label { font-size: 13px; font-weight: 600; color: #222; }
+    .pdf-check-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .pdf-modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+    .cn-note-badge-ai { display: inline-block; background: #000; color: #FFD008; font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 7px; margin-left: 8px; letter-spacing: 0.5px; }
     .cn-note-list { display: flex; flex-direction: column; gap: 10px; }
     .cn-note-card { background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
     .cn-note-card:hover { border-color: #FFD008; }
@@ -455,7 +480,7 @@
         <div class="section-title">Dati anagrafici</div>
         <div class="qa-group">
           <button class="btn-qa" onclick="toggleCartella(true)">📁 Cartella</button>
-          <button class="btn-qa" onclick="stampaCartella()">📄 PDF</button>
+          <button class="btn-qa" onclick="apriComposizionePDF()">📄 PDF</button>
           <button class="btn-qa" onclick="document.getElementById('section-monitoraggio').scrollIntoView({behavior:'smooth',block:'start'})">📊 Monitoraggio</button>
           <button class="btn-qa" onclick="apptOpen()">📅 Appuntamento</button>
           <button class="btn-edit" onclick="toggleModifica()">✏️ Modifica</button>
@@ -720,7 +745,7 @@
           </div>
           <div class="actions-row" style="margin-bottom:16px">
             <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
-            <button class="btn-secondary" id="btn-stampa-cartella" onclick="stampaCartella()" style="display:none">🖨 Stampa / PDF</button>
+            <button class="btn-secondary" id="btn-stampa-cartella" onclick="apriComposizionePDF()" style="display:none">🖨 Stampa / PDF</button>
           </div>
           <div class="doc-list" id="doc-list">
             <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
@@ -772,13 +797,20 @@
               <label class="csai-note-label">Note professionista</label>
               <textarea class="csai-note-prof" id="csai-note-prof" placeholder="Aggiungi una nota professionale da includere nella stampa..."></textarea>
               <div class="csai-actions">
-                <button class="csai-action-btn primary" onclick="csAIPrint()">🖨 Stampa / PDF</button>
+                <button class="csai-save-btn" id="csai-save-btn" onclick="csAISave()">💾 Salva in cartella</button>
+                <button class="csai-action-btn primary" onclick="csAIPrint()">🖨 Stampa</button>
                 <button class="csai-action-btn" id="csai-edit-btn" onclick="csAIToggleEdit()">✏️ Modifica</button>
-                <button class="csai-action-btn" onclick="csAICopy()">📋 Copia testo</button>
+                <button class="csai-action-btn" onclick="csAICopy()">📋 Copia</button>
                 <button class="csai-action-btn" onclick="csAIReset()">↩ Rigenera</button>
               </div>
+              <div class="csai-save-status" id="csai-save-status"></div>
             </div>
             <div class="csai-footer">Strumento assistivo AI. Non sostituisce il ragionamento clinico del professionista.</div>
+          </div>
+          <!-- Storico sintesi salvate -->
+          <div class="csai-saved-section" id="csai-saved-section">
+            <span class="csai-saved-title">Sintesi salvate in cartella</span>
+            <div id="csai-saved-list"><div class="csai-saved-empty">Nessuna sintesi salvata.</div></div>
           </div>
         </div>
 
@@ -2007,6 +2039,7 @@
       } else if (tab === 'sintesi') {
         sinTab.style.display = 'block'
         btnSin.classList.add('active')
+        if (!_csaiSavedLoaded) csAILoadSaved()
       } else {
         relTab.style.display = 'block'
         btnRel.classList.add('active')
@@ -2186,6 +2219,239 @@ Campi:
       document.getElementById('csai-edit-btn').textContent = '✏️ Modifica'
     }
 
+    // ── Sintesi AI — Salvataggio persistente ─────────────────────────────────
+
+    var _csaiSavedLoaded = false
+    var _cnNoteDataMap = {}
+
+    function csAIOpenFromRelazione(id) {
+      clinicalNotesSwitchTab('sintesi')
+      if (_csaiSavedLoaded) {
+        csAIOpenSaved(id)
+      } else {
+        _csaiPendingOpen = id
+      }
+    }
+
+    var _csaiPendingOpen = null
+
+    async function csAISave() {
+      const btn = document.getElementById('csai-save-btn')
+      const statusEl = document.getElementById('csai-save-status')
+      const ids = ['csai-s1','csai-s2','csai-s3','csai-s4','csai-s5','csai-s6','csai-s7']
+      const keys = ['problema_principale','elementi_documentali','osservazioni_cliniche','protocollo_attivo','criticita','evoluzione_clinica','nota_finale']
+      const sections = {}
+      keys.forEach(function(k, i) { const el = document.getElementById(ids[i]); sections[k] = el ? el.textContent.trim() : '' })
+      sections.note_professionista = document.getElementById('csai-note-prof')?.value || ''
+      if (!sections.problema_principale && !sections.nota_finale) return
+      btn.disabled = true
+      statusEl.textContent = 'Salvataggio...'
+      statusEl.className = 'csai-save-status'
+      const profId = await clinicalNotesGetProfId()
+      if (!profId) {
+        statusEl.textContent = 'Errore: profilo non trovato.'
+        statusEl.className = 'csai-save-status err'
+        btn.disabled = false
+        return
+      }
+      const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+      const { error } = await _supabase.from('clinical_notes').insert({
+        patient_id: patientId,
+        professional_id: profId,
+        title: '🧠 Sintesi AI — ' + oggi,
+        content: '[SINTESI_AI_V1]\n' + JSON.stringify(sections)
+      })
+      if (error) {
+        statusEl.textContent = 'Errore nel salvataggio.'
+        statusEl.className = 'csai-save-status err'
+        btn.disabled = false
+        return
+      }
+      statusEl.textContent = '✓ Sintesi salvata in cartella'
+      statusEl.className = 'csai-save-status ok'
+      btn.disabled = false
+      _csaiSavedLoaded = false
+      csAILoadSaved()
+      if (clinicalNotesState.loaded) { clinicalNotesState.loaded = false; clinicalNotesInit() }
+      setTimeout(function() { statusEl.textContent = ''; statusEl.className = 'csai-save-status' }, 3500)
+    }
+
+    async function csAILoadSaved() {
+      const list = document.getElementById('csai-saved-list')
+      if (!list) return
+      const profId = await clinicalNotesGetProfId()
+      if (!profId) return
+      const { data, error } = await _supabase
+        .from('clinical_notes')
+        .select('id, title, content, updated_at')
+        .eq('patient_id', patientId)
+        .eq('professional_id', profId)
+        .like('content', '[SINTESI_AI_V1]%')
+        .order('updated_at', { ascending: false })
+      if (error) return
+      _csaiSavedLoaded = true
+      csAIRenderSaved(data || [])
+    }
+
+    function csAIRenderSaved(notes) {
+      const list = document.getElementById('csai-saved-list')
+      if (!notes.length) { list.innerHTML = '<div class="csai-saved-empty">Nessuna sintesi salvata.</div>'; return }
+      const esc = function(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+      list.innerHTML = notes.map(function(n) {
+        _cnNoteDataMap[n.id] = n.content
+        var preview = ''
+        try { var obj = JSON.parse(n.content.replace('[SINTESI_AI_V1]\n','')); preview = (obj.problema_principale || obj.nota_finale || '').substring(0, 90) } catch(e) {}
+        var d = new Date(n.updated_at)
+        var date = d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+        return '<div class="csai-saved-card" onclick="csAIOpenSaved(\'' + n.id + '\')" data-id="' + n.id + '">' +
+          '<div class="csai-saved-card-date">📅 ' + date + '</div>' +
+          '<div class="csai-saved-card-preview">' + esc(preview) + '</div>' +
+          '</div>'
+      }).join('')
+      if (_csaiPendingOpen) {
+        var pid = _csaiPendingOpen
+        _csaiPendingOpen = null
+        csAIOpenSaved(pid)
+      }
+    }
+
+    function csAIOpenSaved(id) {
+      var rawContent = _cnNoteDataMap[id]
+      if (!rawContent) {
+        var card = document.querySelector('.csai-saved-card[data-id="' + id + '"]')
+        if (!card) return
+        rawContent = card.getAttribute('data-content')
+      }
+      var sections = {}
+      try { sections = JSON.parse(rawContent.replace('[SINTESI_AI_V1]\n','')) } catch(e) { return }
+      var keys = ['problema_principale','elementi_documentali','osservazioni_cliniche','protocollo_attivo','criticita','evoluzione_clinica','nota_finale']
+      var eIds = ['csai-s1','csai-s2','csai-s3','csai-s4','csai-s5','csai-s6','csai-s7']
+      keys.forEach(function(k, i) { var el = document.getElementById(eIds[i]); if (el) { el.textContent = sections[k] || '—'; el.contentEditable = 'false' } })
+      var noteProf = document.getElementById('csai-note-prof')
+      if (noteProf) noteProf.value = sections.note_professionista || ''
+      document.getElementById('csai-intro-state').style.display = 'none'
+      document.getElementById('csai-report').style.display = 'block'
+      document.getElementById('csai-loading').style.display = 'none'
+      document.getElementById('csai-edit-btn').textContent = '✏️ Modifica'
+      document.getElementById('csai-report').scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    // ── PDF Composizione ──────────────────────────────────────────────────────
+
+    function apriComposizionePDF() {
+      document.getElementById('pdf-overlay').style.display = 'block'
+      document.getElementById('pdf-modal').style.display = 'block'
+    }
+
+    function chiudiComposizionePDF() {
+      document.getElementById('pdf-overlay').style.display = 'none'
+      document.getElementById('pdf-modal').style.display = 'none'
+    }
+
+    async function generaPDFComposto() {
+      chiudiComposizionePDF()
+      var chkAnagrafica = document.getElementById('pdf-chk-anagrafica').checked
+      var chkNote      = document.getElementById('pdf-chk-note').checked
+      var chkDocs      = document.getElementById('pdf-chk-docs').checked
+      var chkRelazioni = document.getElementById('pdf-chk-relazioni').checked
+      var chkSintesi   = document.getElementById('pdf-chk-sintesi').checked
+      var chkPostura   = document.getElementById('pdf-chk-postura').checked
+      var nomePaz = ((patient?.nome||'') + ' ' + (patient?.cognome||'')).trim()
+      var oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+      var esc = function(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+      var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cartella Clinica — ' + nomePaz + '</title>'
+      html += '<style>body{font-family:"Helvetica Neue",Arial,sans-serif;max-width:800px;margin:40px auto;padding:0 32px;color:#111;font-size:13px;line-height:1.7}'
+      html += 'h1{font-size:22px;font-weight:700;margin-bottom:4px}.logo{background:#FFD008;color:#000;font-weight:700;font-size:10px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px}'
+      html += '.meta{color:#888;font-size:12px;margin-bottom:28px}.sec-hdr{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;border-bottom:2px solid #FFD008;padding-bottom:6px;margin:28px 0 14px}'
+      html += '.note-box{background:#f9f9f9;border-radius:8px;padding:14px;font-size:13px;color:#444;white-space:pre-wrap;margin-bottom:16px}'
+      html += '.doc-card{margin-bottom:14px;padding:14px;border:1px solid #ddd;border-radius:8px}.doc-lbl{font-size:11px;color:#999;text-transform:uppercase;margin-bottom:4px}.doc-title{font-size:14px;font-weight:700;margin-bottom:8px}'
+      html += '.cn-card{background:#f9f9f9;border-radius:8px;padding:14px;margin-bottom:12px}.cn-title{font-weight:700;font-size:13px;margin-bottom:4px}.cn-date{font-size:11px;color:#aaa;margin-bottom:8px}.cn-body{font-size:13px;color:#444;white-space:pre-wrap}'
+      html += '.ai-card{background:#fffdf0;border:1.5px solid #FFD008;border-radius:8px;padding:14px;margin-bottom:12px}.ai-hdr{margin-bottom:10px}.ai-badge{background:#000;color:#FFD008;font-size:10px;font-weight:700;border-radius:4px;padding:2px 8px;margin-right:8px}'
+      html += '.ai-sec{margin-bottom:10px}.ai-lbl{font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:3px}.ai-txt{font-size:13px;color:#333}'
+      html += '.obs-row{display:flex;gap:8px;margin-bottom:6px}.obs-key{font-weight:600;min-width:160px;font-size:12px}.obs-val{font-size:12px;color:#444}'
+      html += '.footer{margin-top:40px;font-size:10px;color:#bbb;border-top:1px solid #eee;padding-top:12px}@media print{body{margin:20px}button{display:none}}</style></head><body>'
+      html += '<div class="logo">POLICETTIVO</div>'
+
+      if (chkAnagrafica) {
+        html += '<h1>' + esc(nomePaz) + '</h1><div class="meta">' + esc(patient?.problema_principale || '') + '</div>'
+        var details = ''
+        if (patient?.data_nascita) details += '<strong>Nato/a il:</strong> ' + new Date(patient.data_nascita).toLocaleDateString('it-IT') + '<br>'
+        if (patient?.telefono) details += '<strong>Tel:</strong> ' + esc(patient.telefono) + '<br>'
+        if (patient?.email) details += '<strong>Email:</strong> ' + esc(patient.email) + '<br>'
+        if (details) html += '<div class="note-box" style="background:#fff;border:1px solid #eee">' + details + '</div>'
+      }
+
+      if (chkNote && patient?.note_cliniche) {
+        html += '<div class="sec-hdr">Note cliniche</div><div class="note-box">' + esc(patient.note_cliniche) + '</div>'
+      }
+
+      if (chkPostura) {
+        var obsMap = { 'scapolare-prima': 'Scapolare anteriore', 'scapolare-dopo': 'Scapolare posteriore', 'piede-morfologia': 'Morfologia piede', 'piede-asse': 'Asse piede', 'rotazione-sup': 'Rotazione superiore', 'inclinazione-capo': 'Inclinazione capo' }
+        var obsLines = Object.entries(obsSelections || {}).filter(function(e) { return e[1] })
+        if (obsLines.length) {
+          html += '<div class="sec-hdr">Osservazioni posturali</div>'
+          obsLines.forEach(function(e) { html += '<div class="obs-row"><div class="obs-key">' + esc(obsMap[e[0]]||e[0]) + '</div><div class="obs-val">' + esc(e[1]) + '</div></div>' })
+        }
+      }
+
+      if (chkDocs && documentiCaricati?.length) {
+        var tipoL = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita', esame: 'Esame', altro: 'Documento' }
+        html += '<div class="sec-hdr">Documenti (' + documentiCaricati.length + ')</div>'
+        documentiCaricati.forEach(function(doc) {
+          var data = new Date(doc.created_at).toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+          html += '<div class="doc-card"><div class="doc-lbl">' + (tipoL[doc.tipo]||doc.tipo||'') + ' — ' + data + '</div>'
+          html += '<div class="doc-title">' + esc(doc.descrizione||'') + '</div>'
+          if (doc.file_type?.startsWith('image/')) html += '<img src="' + doc.file_url + '" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:6px">'
+          else html += '<a href="' + doc.file_url + '" target="_blank" style="font-size:12px;color:#1565c0">Apri documento</a>'
+          html += '</div>'
+        })
+      }
+
+      if (chkRelazioni || chkSintesi) {
+        var profId2 = await clinicalNotesGetProfId()
+        if (profId2) {
+          var { data: allNotes2 } = await _supabase.from('clinical_notes')
+            .select('id, title, content, updated_at')
+            .eq('patient_id', patientId).eq('professional_id', profId2)
+            .order('updated_at', { ascending: false })
+          var regNotes = (allNotes2||[]).filter(function(n){ return !n.content?.startsWith('[SINTESI_AI_V1]') })
+          var aiNotes  = (allNotes2||[]).filter(function(n){ return  n.content?.startsWith('[SINTESI_AI_V1]') })
+          if (chkRelazioni && regNotes.length) {
+            html += '<div class="sec-hdr">Relazioni cliniche (' + regNotes.length + ')</div>'
+            regNotes.forEach(function(n) {
+              var d = new Date(n.updated_at).toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+              html += '<div class="cn-card"><div class="cn-title">' + esc(n.title||'Senza titolo') + '</div>'
+              html += '<div class="cn-date">' + d + '</div>'
+              html += '<div class="cn-body">' + esc(n.content||'') + '</div></div>'
+            })
+          }
+          if (chkSintesi && aiNotes.length) {
+            var labelsAI = ['Problema principale','Elementi documentali','Osservazioni cliniche','Protocollo attivo','Criticit\xe0','Evoluzione clinica','Nota finale']
+            var keysAI = ['problema_principale','elementi_documentali','osservazioni_cliniche','protocollo_attivo','criticita','evoluzione_clinica','nota_finale']
+            html += '<div class="sec-hdr">Sintesi AI (' + aiNotes.length + ')</div>'
+            aiNotes.forEach(function(n) {
+              var d = new Date(n.updated_at).toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+              var sec = {}; try { sec = JSON.parse(n.content.replace('[SINTESI_AI_V1]\n','')) } catch(e) {}
+              html += '<div class="ai-card"><div class="ai-hdr"><span class="ai-badge">🧠 AI</span><strong>' + esc(n.title||'') + '</strong> <span style="font-size:11px;color:#aaa">' + d + '</span></div>'
+              keysAI.forEach(function(k,i) { if(sec[k]) html += '<div class="ai-sec"><div class="ai-lbl">' + labelsAI[i] + '</div><div class="ai-txt">' + esc(sec[k]) + '</div></div>' })
+              if (sec.note_professionista) html += '<div class="ai-sec" style="border-top:1px solid #FFD008;margin-top:8px;padding-top:8px"><div class="ai-lbl">Note professionista</div><div class="ai-txt">' + esc(sec.note_professionista) + '</div></div>'
+              html += '</div>'
+            })
+          }
+        }
+      }
+
+      html += '<div class="footer">Generato il ' + oggi + ' — Policettivo\xae. Strumento di gestione clinica digitale.</div>'
+      html += '<br><button onclick="window.print()" style="background:#FFD008;border:none;padding:12px 24px;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;cursor:pointer">🖨 Stampa / Salva PDF</button>'
+      html += '</body></html>'
+      var w = window.open('', '_blank')
+      w.document.write(html)
+      w.document.close()
+      w.focus()
+      setTimeout(function() { w.print() }, 400)
+    }
+
     async function clinicalNotesInit() {
       clinicalNotesState.loaded = true
       const list = document.getElementById('cn-note-list')
@@ -2227,14 +2493,23 @@ Campi:
         return
       }
       list.innerHTML = notes.map(function(n) {
+        const isAI = (n.content || '').startsWith('[SINTESI_AI_V1]')
         const title = n.title || 'Senza titolo'
-        const preview = (n.content || '').replace(/\n/g, ' ').substring(0, 90)
+        const rawPreview = isAI
+          ? (function() { try { return JSON.parse(n.content.replace('[SINTESI_AI_V1]\n','')).problema_principale || '' } catch(e) { return '' } })()
+          : n.content || ''
+        const preview = rawPreview.replace(/\n/g, ' ').substring(0, 90)
         const d = new Date(n.updated_at)
         const date = d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }) +
           ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+        if (isAI) _cnNoteDataMap[n.id] = n.content
         const dataAttr = 'data-id="' + n.id + '" data-title="' + clinicalNotesEscHtml(n.title || '') + '" data-content="' + clinicalNotesEscHtml(n.content || '') + '"'
-        return '<div class="cn-note-card" ' + dataAttr + ' onclick="clinicalNotesEditFormFromEl(this)">' +
-          '<div class="cn-note-card-title">' + clinicalNotesEscHtml(title) + '</div>' +
+        const badgeAI = isAI ? '<span class="cn-note-badge-ai">AI</span>' : ''
+        const clickHandler = isAI
+          ? 'onclick="csAIOpenFromRelazione(\'' + n.id + '\')"'
+          : 'onclick="clinicalNotesEditFormFromEl(this)"'
+        return '<div class="cn-note-card" ' + dataAttr + ' ' + clickHandler + '>' +
+          '<div class="cn-note-card-title">' + clinicalNotesEscHtml(title) + badgeAI + '</div>' +
           '<div class="cn-note-card-preview">' + clinicalNotesEscHtml(preview) + '</div>' +
           '<div class="cn-note-card-meta">Modificato: ' + date + '</div>' +
           '</div>'
@@ -2672,6 +2947,41 @@ Campi:
         <button class="appt-btn-cancel" onclick="apptClose()">Annulla</button>
         <button class="appt-btn-save" onclick="apptSave()">📅 Aggiungi al Calendar</button>
       </div>
+    </div>
+  </div>
+
+  <!-- PDF Composizione Modal -->
+  <div class="pdf-overlay" id="pdf-overlay" onclick="chiudiComposizionePDF()"></div>
+  <div class="pdf-modal" id="pdf-modal">
+    <div class="pdf-modal-title">📄 Composizione PDF Clinico</div>
+    <div class="pdf-modal-sub">Seleziona le sezioni da includere nel documento</div>
+    <label class="pdf-check-row">
+      <input type="checkbox" id="pdf-chk-anagrafica" checked>
+      <div><div class="pdf-check-label">Dati anagrafici</div><div class="pdf-check-sub">Nome, problema principale, recapiti</div></div>
+    </label>
+    <label class="pdf-check-row">
+      <input type="checkbox" id="pdf-chk-note" checked>
+      <div><div class="pdf-check-label">Note cliniche in cartella</div><div class="pdf-check-sub">Note libere inserite nella scheda paziente</div></div>
+    </label>
+    <label class="pdf-check-row">
+      <input type="checkbox" id="pdf-chk-docs" checked>
+      <div><div class="pdf-check-label">Documenti caricati</div><div class="pdf-check-sub">Referti, lastre, esami allegati</div></div>
+    </label>
+    <label class="pdf-check-row">
+      <input type="checkbox" id="pdf-chk-relazioni" checked>
+      <div><div class="pdf-check-label">Relazioni cliniche</div><div class="pdf-check-sub">Note cliniche salvate in cartella dal professionista</div></div>
+    </label>
+    <label class="pdf-check-row">
+      <input type="checkbox" id="pdf-chk-sintesi" checked>
+      <div><div class="pdf-check-label">Sintesi AI salvate</div><div class="pdf-check-sub">Sintesi generate dall'Assistente Clinico AI e salvate</div></div>
+    </label>
+    <label class="pdf-check-row">
+      <input type="checkbox" id="pdf-chk-postura">
+      <div><div class="pdf-check-label">Osservazioni posturali</div><div class="pdf-check-sub">Valutazioni posturali registrate in sessione</div></div>
+    </label>
+    <div class="pdf-modal-actions">
+      <button class="csai-action-btn" onclick="chiudiComposizionePDF()">Annulla</button>
+      <button class="csai-action-btn primary" onclick="generaPDFComposto()">📄 Genera PDF</button>
     </div>
   </div>
 
