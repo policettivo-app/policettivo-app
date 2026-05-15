@@ -231,6 +231,33 @@
     .btn-logout { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat',sans-serif; font-size: 12px; cursor: pointer; }
 
     @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ── Patient Picker Modal ── */
+    .pp-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9100; }
+    .pp-overlay.open { display:block; }
+    .pp-modal { display:none;position:fixed;left:50%;transform:translateX(-50%);
+      bottom:62px;width:min(480px,calc(100vw - 24px));background:#fff;border-radius:16px;
+      box-shadow:0 8px 40px rgba(0,0,0,0.3);z-index:9101;overflow:hidden;
+      font-family:'Montserrat',sans-serif; }
+    .pp-modal.open { display:block; }
+    .pp-head { background:#000;padding:14px 18px;display:flex;align-items:center;justify-content:space-between; }
+    .pp-title { color:#fff;font-size:13px;font-weight:700; }
+    .pp-close { background:none;border:none;color:#666;font-size:18px;cursor:pointer;padding:0;line-height:1; }
+    .pp-close:hover { color:#fff; }
+    .pp-body { padding:14px;max-height:58vh;overflow-y:auto; }
+    .pp-search { width:100%;border:1.5px solid #ddd;border-radius:8px;padding:10px 14px;
+      font-family:'Montserrat',sans-serif;font-size:14px;outline:none;color:#000;
+      margin-bottom:10px;box-sizing:border-box; }
+    .pp-search:focus { border-color:#FFD008; }
+    .pp-section-lbl { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+      color:#aaa;margin:4px 0 8px; }
+    .pp-item { padding:10px 12px;border-radius:8px;cursor:pointer;border:1px solid #f0f0f0;
+      margin-bottom:6px;transition:background 0.1s; }
+    .pp-item:hover { background:#fffdf0;border-color:#FFD008; }
+    .pp-item:active { background:#fff8d0; }
+    .pp-item-main { font-size:13px;font-weight:600;color:#000;display:flex;align-items:center;gap:8px; }
+    .pp-item-sub { font-size:11px;color:#999;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .pp-empty { font-size:13px;color:#bbb;text-align:center;padding:20px 0; }
   </style>
 </head>
 <body>
@@ -302,19 +329,19 @@
       <button class="d-qa-btn" onclick="openModal()">
         <span class="d-qa-icon">👤</span>Nuovo paziente
       </button>
-      <button class="d-qa-btn" onclick="window.location.href='visite.html'">
+      <button class="d-qa-btn" onclick="openPatientPicker('visita')">
         <span class="d-qa-icon">🏥</span>Nuova visita
       </button>
-      <button class="d-qa-btn" onclick="window.location.href='visite.html'">
+      <button class="d-qa-btn" onclick="openPatientPicker('seduta')">
         <span class="d-qa-icon">💪</span>Nuova seduta
       </button>
-      <button class="d-qa-btn" onclick="qaProtocollo()">
+      <button class="d-qa-btn" onclick="openPatientPicker('protocollo')">
         <span class="d-qa-icon">📋</span>Protocollo
       </button>
-      <button class="d-qa-btn" onclick="qaPDF()">
+      <button class="d-qa-btn" onclick="openPatientPicker('pdf')">
         <span class="d-qa-icon">🖨</span>Genera PDF
       </button>
-      <button class="d-qa-btn" onclick="qaSintesiAI()">
+      <button class="d-qa-btn" onclick="openPatientPicker('sintesi-ai')">
         <span class="d-qa-icon">🧠</span>Sintesi AI
       </button>
     </div>
@@ -990,27 +1017,112 @@
     document.addEventListener('click', function() {
       document.getElementById('d-avatar-menu').classList.remove('open')
     })
-    function qaProtocollo() {
-      const tbl = document.querySelector('.patients-table')
-      if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      const si = document.getElementById('search-input')
-      if (si) setTimeout(() => { si.focus(); si.placeholder = '🔍 Cerca il paziente per cui creare il protocollo…' }, 400)
+    // ── Patient Picker ───────────────────────────────────────
+    let _pickerAction = null
+
+    function openPatientPicker(action) {
+      _pickerAction = action
+      const titles = {
+        visita:       '🏥 Nuova visita',
+        seduta:       '💪 Nuova seduta',
+        protocollo:   '📋 Protocollo',
+        pdf:          '🖨 Genera PDF',
+        'sintesi-ai': '🧠 Sintesi AI'
+      }
+      document.getElementById('pp-title').textContent = (titles[action] || 'Seleziona paziente') + ' — scegli paziente'
+      document.getElementById('pp-search').value = ''
+      _pickerRender('')
+      document.getElementById('pp-overlay').classList.add('open')
+      document.getElementById('pp-modal').classList.add('open')
+      setTimeout(() => document.getElementById('pp-search').focus(), 120)
     }
-    function qaPDF() {
-      const tbl = document.querySelector('.patients-table')
-      if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      const si = document.getElementById('search-input')
-      if (si) setTimeout(() => si.focus(), 400)
+
+    function closePicker() {
+      document.getElementById('pp-overlay').classList.remove('open')
+      document.getElementById('pp-modal').classList.remove('open')
+      _pickerAction = null
     }
-    function qaSintesiAI() {
-      const tbl = document.querySelector('.patients-table')
-      if (tbl) tbl.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      const si = document.getElementById('search-input')
-      if (si) setTimeout(() => si.focus(), 400)
+
+    function _pickerSelectPatient(id) {
+      closePicker()
+      switch (_pickerAction) {
+        case 'visita':      window.location.href = 'visite.html?id=' + id; break
+        case 'seduta':      window.location.href = 'diario.html?pid=' + id; break
+        case 'protocollo':  window.location.href = 'paziente.html?id=' + id; break
+        case 'pdf':         window.location.href = 'paziente.html?id=' + id + '&openCartella=1'; break
+        case 'sintesi-ai':  window.location.href = 'paziente.html?id=' + id; break
+        default:            window.location.href = 'paziente.html?id=' + id
+      }
     }
+
+    function _pickerGetRecents() {
+      try {
+        const stored = JSON.parse(localStorage.getItem('policettivo_recent_patients') || '{}')
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
+        return Object.entries(stored)
+          .filter(([, ts]) => ts > cutoff)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 5)
+          .map(([id]) => (allPatients || []).find(p => p.id === id))
+          .filter(Boolean)
+      } catch { return [] }
+    }
+
+    function _pickerItem(p) {
+      const cfg = p.configurazione_default
+      const badge = cfg
+        ? `<span class="${cfg === 'NPL' ? 'badge-npl' : 'badge-gpl'}" style="font-size:10px;padding:2px 7px">${cfg}</span>`
+        : ''
+      const sub = p.problema_principale
+        ? `<div class="pp-item-sub">${p.problema_principale}</div>` : ''
+      return `<div class="pp-item" onclick="_pickerSelectPatient('${p.id}')">
+        <div class="pp-item-main">${p.nome} ${p.cognome}${badge ? ' ' + badge : ''}</div>${sub}
+      </div>`
+    }
+
+    function _pickerRender(query) {
+      const list = document.getElementById('pp-list')
+      const recentHdr = document.getElementById('pp-recent-hdr')
+      if (query.length >= 2) {
+        recentHdr.style.display = 'none'
+        const q = query.toLowerCase()
+        const matches = (allPatients || [])
+          .filter(p =>
+            (p.nome + ' ' + p.cognome).toLowerCase().includes(q) ||
+            (p.problema_principale || '').toLowerCase().includes(q)
+          ).slice(0, 8)
+        list.innerHTML = matches.length
+          ? matches.map(_pickerItem).join('')
+          : '<div class="pp-empty">Nessun risultato</div>'
+      } else {
+        const recents = _pickerGetRecents()
+        recentHdr.style.display = recents.length ? 'block' : 'none'
+        list.innerHTML = recents.length
+          ? recents.map(_pickerItem).join('')
+          : '<div class="pp-empty">Nessun paziente recente</div>'
+      }
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePicker() })
 
     init()
   </script>
+
+  <!-- ── Patient Picker Modal ─────────────────────────────── -->
+  <div id="pp-overlay" class="pp-overlay" onclick="closePicker()"></div>
+  <div id="pp-modal" class="pp-modal">
+    <div class="pp-head">
+      <span id="pp-title" class="pp-title">Seleziona paziente</span>
+      <button class="pp-close" onclick="closePicker()">✕</button>
+    </div>
+    <div class="pp-body">
+      <input id="pp-search" class="pp-search" type="search" placeholder="Cerca per nome o problema..." autocomplete="off"
+        oninput="_pickerRender(this.value.trim())"
+        onkeydown="if(event.key==='Escape')closePicker()">
+      <div id="pp-recent-hdr" class="pp-section-lbl" style="display:none">Recenti</div>
+      <div id="pp-list"></div>
+    </div>
+  </div>
 
   <!-- ── Guida overlay ────────────────────────────────────── -->
   <div class="modal-overlay" id="guida-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
