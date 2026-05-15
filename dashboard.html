@@ -93,8 +93,16 @@
     }
     .d-cta-visita:hover { background: #e6bc00; transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,208,8,0.45); }
     .d-cta-visita:active { transform: translateY(0); }
-    .btn-add-pz { background: transparent; border: 1.5px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 14px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color 0.15s; white-space: nowrap; }
-    .btn-add-pz:hover { border-color: var(--yellow); background: #fffdf0; }
+    .d-cta-paziente {
+      background: #fff; color: #000; border: 2px solid #000; border-radius: 10px;
+      padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-size: 14px;
+      font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: background 0.15s, transform 0.1s; letter-spacing: 0.3px;
+    }
+    .d-cta-paziente:hover { background: #f5f5f5; transform: translateY(-1px); }
+    .d-cta-paziente:active { transform: translateY(0); }
+    .d-cta-group { display: flex; gap: 10px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+    .btn-add-pz { display: none; }
 
     /* ── Stats ──────────────────────────────────────────── */
     .d-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
@@ -313,7 +321,10 @@
           <div class="d-hero-eyebrow" id="d-hero-date"></div>
           <h1 class="d-hero-title" id="welcome-msg">Bentornato</h1>
         </div>
-        <button class="d-cta-visita" onclick="openPatientPicker('visita')">➕ Nuova visita</button>
+        <div class="d-cta-group">
+          <button class="d-cta-paziente" onclick="openModal()">👤 Nuovo paziente</button>
+          <button class="d-cta-visita"   onclick="openPatientPicker('visita')">➕ Nuova visita</button>
+        </div>
       </div>
     </div>
 
@@ -351,7 +362,6 @@
     <div class="d-section-row" style="margin-top:8px">
       <span class="d-section-lbl">I tuoi pazienti</span>
       <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn-add-pz" onclick="openModal()">+ Nuovo paziente</button>
         <select class="sort-select" id="sort-select" onchange="changeSortAndRender()">
           <option value="recent">Ultima apertura</option>
           <option value="activity">Ultima attività</option>
