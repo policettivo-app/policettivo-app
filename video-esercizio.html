@@ -352,6 +352,7 @@
     /* ── SALVA ── */
     async function salvaVideo() {
       if (!pendingFile) return
+      if (!window.isPremium) { mostraModalePremium(); return }
       const btn = document.getElementById('btn-salva')
       btn.disabled = true; btn.textContent = '⏳ Caricamento...'
       const ext  = pendingFile.name.split('.').pop()

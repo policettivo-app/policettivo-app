@@ -75,7 +75,7 @@
           <option value="Altro">Altro</option>
         </select>
       </div>
-      <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" style="margin-bottom:12px"></div>
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAADPvHLRLCZjGjm7O" style="margin-bottom:12px"></div>
       <div style="margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
         <input type="checkbox" id="reg-privacy" style="margin-top:2px;flex-shrink:0;width:18px;height:18px;cursor:pointer">
         <label for="reg-privacy" style="font-size:12px;font-weight:500;color:#333;line-height:1.6;cursor:pointer;margin:0">
@@ -139,7 +139,20 @@
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Inserisci un indirizzo email valido.'); return }
 
       const btn = document.getElementById('reg-btn')
-      btn.disabled = true; btn.textContent = 'Registrazione in corso...'
+      btn.disabled = true; btn.textContent = 'Verifica sicurezza...'
+
+      const tsResp = await fetch('/api/verify-turnstile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: tsToken })
+      })
+      if (!tsResp.ok) {
+        const tsData = await tsResp.json().catch(() => ({}))
+        showError(tsData.error || 'Verifica anti-bot fallita. Ricarica la pagina e riprova.')
+        return
+      }
+
+      btn.textContent = 'Registrazione in corso...'
 
       const { data: authData, error: authError } = await _supabase.auth.signUp({
         email,

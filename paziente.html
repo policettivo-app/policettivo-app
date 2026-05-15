@@ -781,6 +781,7 @@
     const params = new URLSearchParams(window.location.search)
     const patientId = params.get('id')
     let patient = null, selectedConfig = null, obsSelections = {}, noteSaveTimer = null
+    let _pazAiUses = 0
 
     async function caricaProtocollo() {
       const { data: prots } = await _supabase
@@ -830,11 +831,11 @@
       const { profId: _profIdP } = await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
       if (!window.isPremium && _profIdP) {
         const { data: _profP } = await _supabase.from('professionals').select('ai_uses').eq('id', _profIdP).maybeSingle()
-        const _aiUsesP = _profP?.ai_uses || 0
-        if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_aiUsesP)
+        _pazAiUses = _profP?.ai_uses || 0
+        if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_pazAiUses)
         const _aiBadgeP = document.getElementById('referto-ai-badge-p')
         if (_aiBadgeP) {
-          _aiBadgeP.textContent = Math.max(0, 5 - _aiUsesP) + ' analisi AI disponibili'
+          _aiBadgeP.textContent = Math.max(0, 5 - _pazAiUses) + ' analisi AI disponibili'
           _aiBadgeP.style.display = 'inline-block'
         }
       }
@@ -1451,6 +1452,7 @@
     }
 
     async function avviaAnalisiPosturale(base) {
+      if (!window.isPremium && _pazAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
       const scapPrima = obsSelections['scapolare-prima'] || ''
       const scapDopo  = obsSelections['scapolare-dopo']  || ''
 
@@ -1512,7 +1514,7 @@
         })
         if (resp.status === 403) { const e403 = await resp.json(); document.getElementById('aip-step-loading').style.display = 'none'; document.getElementById('aip-step-scelta').style.display = 'block'; if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const data = await resp.json()
-        if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
+        if (data.ai_uses !== undefined) { _pazAiUses = data.ai_uses; if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses) }
         let result
         try { result = JSON.parse(data.testo || '{}') }
         catch(e) { result = { suggerimento: 'NEUTRO', confidenza: 'bassa', motivazione: 'Errore nel parsing della risposta AI.', osservazioni_chiave: [] } }
@@ -1581,6 +1583,7 @@
     }
 
     async function avviaAnalisiAI() {
+      if (!window.isPremium && _pazAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
       if (documentiCaricati.length === 0) { alert('Nessun documento da analizzare.'); return }
       const loading = document.getElementById('ai-loading')
       const reportBox = document.getElementById('ai-report-box')
@@ -1604,7 +1607,7 @@
         })
         if (response.status === 403) { loading.style.display = 'none'; if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert('Limite AI raggiunto.'); return }
         const data = await response.json()
-        if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
+        if (data.ai_uses !== undefined) { _pazAiUses = data.ai_uses; if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses) }
         const testo = data.testo || data.error || 'Errore nella risposta AI.'
         loading.style.display = 'none'
         const testoFormattato = testo
@@ -1819,6 +1822,7 @@
     }
 
     async function csAIAvvia() {
+      if (!window.isPremium && _pazAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
       const btn = document.getElementById('csai-avvia-btn')
       const loading = document.getElementById('csai-loading')
       const result = document.getElementById('csai-result')
@@ -1881,6 +1885,7 @@
           return
         }
         const json = await resp.json()
+        if (json.ai_uses !== undefined) _pazAiUses = json.ai_uses
         result.textContent = json.testo || 'Nessuna risposta ricevuta.'
         result.style.display = 'block'
         actions.style.display = 'flex'

@@ -404,6 +404,7 @@
     let _camStream       = null
     let _camSlot         = null
     let _orientHdlr      = null
+    let _visitAiUses     = 0
 
     // ── TEMPLATE RAPIDI ───────────────────────────────────
     const VISITE_TEMPLATES = [
@@ -439,11 +440,15 @@
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
 
-      const [{ data: p }] = await Promise.all([
+      const [{ data: p }, { profId: _vProfId }] = await Promise.all([
         _supabase.from('patients').select('nome, cognome, problema_principale, note_cliniche').eq('id', patientId).maybeSingle(),
         window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
       ])
       if (!p) { alert('Paziente non trovato'); return }
+      if (!window.isPremium && _vProfId) {
+        const { data: _vProf } = await _supabase.from('professionals').select('ai_uses').eq('id', _vProfId).maybeSingle()
+        _visitAiUses = _vProf?.ai_uses || 0
+      }
       patient = p
       document.getElementById('nav-title').textContent = p.nome + ' ' + p.cognome + ' — Visite'
       document.getElementById('btn-back').onclick = () => { window.location.href = 'paziente.html?id=' + patientId }
@@ -748,6 +753,7 @@
     async function avviaAIVisita() {
       const fotos = [nvFotos['sag-sx'], nvFotos['sag-dx']].filter(Boolean)
       if (!fotos.length) { alert('Carica almeno una foto sagittale'); return }
+      if (!window.isPremium && _visitAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
 
       document.getElementById('btn-ai-visita').classList.remove('visible')
       document.getElementById('ai-loading-visita').classList.add('visible')
@@ -770,7 +776,7 @@
         })
         if (res.status === 403) { const e403 = await res.json(); document.getElementById('ai-loading-visita').classList.remove('visible'); document.getElementById('btn-ai-visita').classList.add('visible'); if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const data = await res.json()
-        if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
+        if (data.ai_uses !== undefined) { _visitAiUses = data.ai_uses; if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses) }
         document.getElementById('ai-loading-visita').classList.remove('visible')
         document.getElementById('ai-result-text').textContent = data.testo || 'Nessuna risposta.'
         document.getElementById('ai-result-box').classList.add('visible')
