@@ -420,9 +420,15 @@ async function salvaSeduta() {
 }
 
 var _initP = init();
-if (new URLSearchParams(location.search).get('new') === '1') {
+var _dlD = new URLSearchParams(location.search)
+console.log('[diario] params:', location.search, '| pid:', _dlD.get('pid'), '| new:', _dlD.get('new'))
+if (_dlD.get('new') === '1') {
+  console.log('[diario] deep-link new=1, waiting for init...')
   _initP
-    .then(apriNuovaSeduta)
+    .then(function() {
+      console.log('[diario] init resolved — apriNuovaSeduta exists:', typeof apriNuovaSeduta)
+      apriNuovaSeduta()
+    })
     .catch(function(e) { console.warn('[deep-link] diario error', e); });
 }
 

@@ -1045,14 +1045,17 @@
 
     function _pickerSelectPatient(id) {
       closePicker()
+      var url
       switch (_pickerAction) {
-        case 'visita':      window.location.href = 'visite.html?id=' + id + '&new=1'; break
-        case 'seduta':      window.location.href = 'diario.html?pid=' + id + '&new=1'; break
-        case 'protocollo':  window.location.href = 'assegna-protocollo.html?id=' + id; break
-        case 'pdf':         window.location.href = 'scheda-pdf.html?id=' + id; break
-        case 'sintesi-ai':  window.location.href = 'paziente.html?id=' + id + '&action=sintesi-ai'; break
-        default:            window.location.href = 'paziente.html?id=' + id
+        case 'visita':      url = 'visite.html?id=' + id + '&new=1'; break
+        case 'seduta':      url = 'diario.html?pid=' + id + '&new=1'; break
+        case 'protocollo':  url = 'assegna-protocollo.html?id=' + id; break
+        case 'pdf':         url = 'scheda-pdf.html?id=' + id; break
+        case 'sintesi-ai':  url = 'paziente.html?id=' + id + '&action=sintesi-ai'; break
+        default:            url = 'paziente.html?id=' + id
       }
+      console.log('[QA redirect]', _pickerAction, id, url)
+      window.location.href = url
     }
 
     function _pickerGetRecents() {

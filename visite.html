@@ -1172,9 +1172,15 @@
     }
 
     var _initP = init()
-    if (new URLSearchParams(location.search).get('new') === '1') {
+    var _dlV = new URLSearchParams(location.search)
+    console.log('[visite] params:', location.search, '| id:', _dlV.get('id'), '| new:', _dlV.get('new'))
+    if (_dlV.get('new') === '1') {
+      console.log('[visite] deep-link new=1, waiting for init...')
       _initP
-        .then(apriNuovaVisita)
+        .then(function() {
+          console.log('[visite] init resolved — apriNuovaVisita exists:', typeof apriNuovaVisita)
+          apriNuovaVisita()
+        })
         .catch(function(e) { console.warn('[deep-link] visite error', e) })
     }
   </script>

@@ -2559,6 +2559,7 @@ Campi:
 
     var _pazInitP = init()
     var _dl = new URLSearchParams(window.location.search)
+    console.log('[paziente] params:', window.location.search, '| id:', _dl.get('id'), '| action:', _dl.get('action'), '| openCartella:', _dl.get('openCartella'))
 
     if (_dl.get('openCartella') === '1') {
       _pazInitP
@@ -2573,12 +2574,15 @@ Campi:
     }
 
     if (_dl.get('action') === 'sintesi-ai') {
+      console.log('[paziente] deep-link action=sintesi-ai, waiting for init...')
       _pazInitP
         .then(function() {
+          console.log('[paziente] init resolved — toggleCartella exists:', typeof toggleCartella)
           toggleCartella(true)
           return waitForElement('#csai-avvia-btn')
         })
         .then(function() {
+          console.log('[paziente] #csai-avvia-btn found — clinicalNotesSwitchTab exists:', typeof clinicalNotesSwitchTab)
           clinicalNotesSwitchTab('sintesi')
           var section = document.querySelector('.section:has(#cartella-container)')
           if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' })
