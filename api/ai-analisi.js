@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     return res.status(access.status || 403).json({ error: access.error, limitReached: access.limitReached || false })
   }
 
-  const { prompt } = req.body
+  const { prompt, max_tokens } = req.body
   if (!prompt) return res.status(400).json({ error: 'Prompt mancante' })
 
   try {
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: max_tokens || 1000,
         messages: [{ role: 'user', content: prompt }]
       })
     })

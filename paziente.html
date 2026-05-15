@@ -283,10 +283,19 @@
     .csai-btn:hover { background: #e6bc00; }
     .csai-btn:disabled { background: #ddd; color: #999; cursor: not-allowed; }
     .csai-loading { font-size: 13px; color: #999; margin-top: 14px; display: none; }
-    .csai-result { background: #f9f9f9; border: 1px solid #eee; border-radius: 10px; padding: 16px; margin-top: 16px; font-size: 13px; color: #222; line-height: 1.7; white-space: pre-wrap; display: none; }
-    .csai-actions { display: flex; gap: 10px; margin-top: 10px; }
-    .csai-copy-btn { background: transparent; border: 1.5px solid #ddd; border-radius: 7px; padding: 7px 16px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; color: #555; cursor: pointer; }
-    .csai-copy-btn:hover { border-color: #bbb; color: #000; }
+    .csai-report { display: none; }
+    .csai-section { margin-bottom: 18px; }
+    .csai-section-label { font-size: 11px; font-weight: 700; color: #888; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+    .csai-section-text { font-size: 13px; color: #222; line-height: 1.7; background: #f9f9f9; border: 1.5px solid #eee; border-radius: 8px; padding: 12px 14px; min-height: 44px; }
+    .csai-section-text[contenteditable="true"] { border-color: #FFD008; outline: none; }
+    .csai-note-label { font-size: 11px; font-weight: 700; color: #888; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; margin-top: 20px; display: block; border-top: 2px solid #FFD008; padding-top: 16px; }
+    .csai-note-prof { width: 100%; box-sizing: border-box; border: 1.5px solid #ddd; border-radius: 8px; padding: 12px 14px; font-family: 'Montserrat', sans-serif; font-size: 13px; color: #222; min-height: 80px; resize: vertical; outline: none; }
+    .csai-note-prof:focus { border-color: #FFD008; }
+    .csai-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+    .csai-action-btn { background: transparent; border: 1.5px solid #ddd; border-radius: 7px; padding: 7px 14px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; color: #555; cursor: pointer; }
+    .csai-action-btn:hover { border-color: #bbb; color: #000; }
+    .csai-action-btn.primary { background: #FFD008; border-color: #FFD008; color: #000; }
+    .csai-action-btn.primary:hover { background: #e6bc00; border-color: #e6bc00; }
     .csai-footer { font-size: 11px; color: #bbb; margin-top: 14px; font-style: italic; }
     .cn-note-list { display: flex; flex-direction: column; gap: 10px; }
     .cn-note-card { background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
@@ -686,12 +695,48 @@
         <!-- TAB: Sintesi AI -->
         <div id="cn-tab-sintesi" style="display:none">
           <div class="csai-panel">
-            <p class="csai-intro">Genera una sintesi clinica del paziente basata sulle ultime visite, sedute e note in cartella. La sintesi viene generata al momento e non viene salvata.</p>
-            <button class="csai-btn" id="csai-avvia-btn" onclick="csAIAvvia()">🧠 Genera sintesi clinica</button>
-            <div class="csai-loading" id="csai-loading">⏳ Analisi in corso...</div>
-            <div class="csai-result" id="csai-result"></div>
-            <div class="csai-actions" id="csai-actions" style="display:none">
-              <button class="csai-copy-btn" onclick="csAICopy()">📋 Copia testo</button>
+            <div id="csai-intro-state">
+              <p class="csai-intro">L'Assistente Clinico AI analizza documenti, osservazioni posturali, protocollo attivo, visite e sedute per generare una sintesi strutturata. Il testo è modificabile e stampabile in PDF.</p>
+              <button class="csai-btn" id="csai-avvia-btn" onclick="csAIAvvia()">🧠 Genera Assistente Clinico AI</button>
+              <div class="csai-loading" id="csai-loading">⏳ Analisi in corso...</div>
+            </div>
+            <div class="csai-report" id="csai-report">
+              <div class="csai-section">
+                <div class="csai-section-label">Problema principale</div>
+                <div class="csai-section-text" id="csai-s1" contenteditable="false"></div>
+              </div>
+              <div class="csai-section">
+                <div class="csai-section-label">Elementi documentali rilevanti</div>
+                <div class="csai-section-text" id="csai-s2" contenteditable="false"></div>
+              </div>
+              <div class="csai-section">
+                <div class="csai-section-label">Osservazioni cliniche</div>
+                <div class="csai-section-text" id="csai-s3" contenteditable="false"></div>
+              </div>
+              <div class="csai-section">
+                <div class="csai-section-label">Protocollo attivo</div>
+                <div class="csai-section-text" id="csai-s4" contenteditable="false"></div>
+              </div>
+              <div class="csai-section">
+                <div class="csai-section-label">Criticità / Attenzioni</div>
+                <div class="csai-section-text" id="csai-s5" contenteditable="false"></div>
+              </div>
+              <div class="csai-section">
+                <div class="csai-section-label">Evoluzione clinica</div>
+                <div class="csai-section-text" id="csai-s6" contenteditable="false"></div>
+              </div>
+              <div class="csai-section">
+                <div class="csai-section-label">Nota AI finale</div>
+                <div class="csai-section-text" id="csai-s7" contenteditable="false"></div>
+              </div>
+              <label class="csai-note-label">Note professionista</label>
+              <textarea class="csai-note-prof" id="csai-note-prof" placeholder="Aggiungi una nota professionale da includere nella stampa..."></textarea>
+              <div class="csai-actions">
+                <button class="csai-action-btn primary" onclick="csAIPrint()">🖨 Stampa / PDF</button>
+                <button class="csai-action-btn" id="csai-edit-btn" onclick="csAIToggleEdit()">✏️ Modifica</button>
+                <button class="csai-action-btn" onclick="csAICopy()">📋 Copia testo</button>
+                <button class="csai-action-btn" onclick="csAIReset()">↩ Rigenera</button>
+              </div>
             </div>
             <div class="csai-footer">Strumento assistivo AI. Non sostituisce il ragionamento clinico del professionista.</div>
           </div>
@@ -1892,86 +1937,172 @@
       if (!window.isPremium && _pazAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
       const btn = document.getElementById('csai-avvia-btn')
       const loading = document.getElementById('csai-loading')
-      const result = document.getElementById('csai-result')
-      const actions = document.getElementById('csai-actions')
+      const introState = document.getElementById('csai-intro-state')
+      const report = document.getElementById('csai-report')
       btn.disabled = true
       loading.style.display = 'block'
-      result.style.display = 'none'
-      actions.style.display = 'none'
+      report.style.display = 'none'
 
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { loading.style.display = 'none'; btn.disabled = false; return }
 
       const pid = patient?.id
-      const nome = (patient?.nome || '') + ' ' + (patient?.cognome || '')
+      const nome = ((patient?.nome || '') + ' ' + (patient?.cognome || '')).trim()
       const eta = patient?.data_nascita ? new Date().getFullYear() - new Date(patient.data_nascita).getFullYear() + ' anni' : 'n.d.'
-      const diagnosi = patient?.diagnosi || 'n.d.'
+      const diagnosi = patient?.problema_principale || patient?.diagnosi || 'n.d.'
+      const noteClinica = patient?.note_cliniche || ''
 
-      const [visitRes, seduteRes, noteRes] = await Promise.all([
-        _supabase.from('visite').select('data_visita,motivo,diagnosi,trattamento,note').eq('patient_id', pid).order('data_visita', { ascending: false }).limit(5),
-        _supabase.from('therapy_sessions').select('data_seduta,tecniche,intensita,note,protocollo_prossima').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(5),
-        _supabase.from('clinical_notes').select('created_at,title,content').eq('patient_id', pid).order('created_at', { ascending: false }).limit(3)
+      const [visitRes, seduteRes, noteRes, protocolloRes] = await Promise.all([
+        _supabase.from('visite').select('data_visita,motivo,diagnosi,trattamento,note,vas_score').eq('patient_id', pid).order('data_visita', { ascending: false }).limit(8),
+        _supabase.from('therapy_sessions').select('data_seduta,tecniche,intensita,note,protocollo_prossima,vas_pre,vas_post').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(8),
+        _supabase.from('clinical_notes').select('created_at,title,content').eq('patient_id', pid).order('created_at', { ascending: false }).limit(5),
+        _supabase.from('patient_protocols').select('nome,descrizione,obiettivi,created_at').eq('patient_id', pid).order('created_at', { ascending: false }).limit(1)
       ])
 
-      let promptParts = [`Paziente: ${nome.trim()}, ${eta}, diagnosi principale: ${diagnosi}.`]
+      const docsSection = documentiCaricati?.length
+        ? documentiCaricati.map(d => `- ${d.tipo || 'documento'}: ${d.descrizione || 'senza descrizione'} (${d.created_at?.slice(0,10) || ''})`).join('\n')
+        : 'Nessun documento caricato.'
 
-      if (visitRes.data?.length) {
-        promptParts.push('\nULTIME VISITE:')
-        visitRes.data.forEach(v => {
-          promptParts.push(`- ${v.data_visita}: motivo=${v.motivo||'—'}, diagnosi=${v.diagnosi||'—'}, trattamento=${v.trattamento||'—'}, note=${v.note||'—'}`)
-        })
-      }
-      if (seduteRes.data?.length) {
-        promptParts.push('\nULTIME SEDUTE TERAPEUTICHE:')
-        seduteRes.data.forEach(s => {
-          promptParts.push(`- ${s.data_seduta}: tecniche=${s.tecniche||'—'}, intensità=${s.intensita||'—'}, note=${s.note||'—'}, prossima=${s.protocollo_prossima||'—'}`)
-        })
-      }
-      if (noteRes.data?.length) {
-        promptParts.push('\nNOTE CLINICHE:')
-        noteRes.data.forEach(n => {
-          promptParts.push(`- ${n.created_at?.slice(0,10)}: ${n.title||'senza titolo'} — ${n.content||'—'}`)
-        })
-      }
+      const obsMap = { 'scapolare-prima': 'Scapolare anteriore', 'scapolare-dopo': 'Scapolare posteriore', 'piede-morfologia': 'Morfologia piede', 'piede-asse': 'Asse piede', 'rotazione-sup': 'Rotazione superiore', 'inclinazione-capo': 'Inclinazione capo' }
+      const obsLines = Object.entries(obsSelections || {}).filter(([,v]) => v).map(([k,v]) => `- ${obsMap[k]||k}: ${v}`)
+      const obsSection = obsLines.length ? obsLines.join('\n') : 'Nessuna osservazione posturale.'
 
-      promptParts.push('\nRichiesta: scrivi una sintesi clinica strutturata del paziente (max 400 parole). Includi: quadro clinico attuale, evoluzione del percorso terapeutico, risposta ai trattamenti, eventuali elementi di attenzione. Usa un linguaggio professionale adatto a un fisioterapista o osteopata. Non fare diagnosi. Non inventare dati non presenti.')
+      const proto = protocolloRes.data?.[0]
+      const protoSection = proto ? `${proto.nome || 'protocollo'}: ${proto.descrizione || ''} | Obiettivi: ${proto.obiettivi || 'n.d.'}` : 'Nessun protocollo attivo.'
 
-      const prompt = promptParts.join('\n')
+      const visitLines = visitRes.data?.map(v => `- ${v.data_visita}: motivo=${v.motivo||'—'}, diagnosi=${v.diagnosi||'—'}, trattamento=${v.trattamento||'—'}, VAS=${v.vas_score??'n.d.'}, note=${v.note||'—'}`) || []
+      const seduteLines = seduteRes.data?.map(s => `- ${s.data_seduta}: tecniche=${s.tecniche||'—'}, VAS prima=${s.vas_pre??'n.d.'} → dopo=${s.vas_post??'n.d.'}, note=${s.note||'—'}`) || []
+      const noteLines = noteRes.data?.map(n => `- ${n.created_at?.slice(0,10)}: [${n.title||'senza titolo'}] ${n.content||'—'}`) || []
+
+      const schemaJSON = `{"problema_principale":"...","elementi_documentali":"...","osservazioni_cliniche":"...","protocollo_attivo":"...","criticita":"...","evoluzione_clinica":"...","nota_finale":"..."}`
+
+      const prompt = `Sei un assistente clinico AI per fisioterapisti e osteopati. Analizza i dati clinici e produci una sintesi strutturata IN ITALIANO.
+
+PAZIENTE: ${nome}, ${eta}
+PROBLEMA PRINCIPALE: ${diagnosi}
+NOTE CLINICHE IN CARTELLA: ${noteClinica || 'nessuna'}
+
+DOCUMENTI ALLEGATI:
+${docsSection}
+
+OSSERVAZIONI POSTURALI:
+${obsSection}
+
+PROTOCOLLO ATTIVO:
+${protoSection}
+
+ULTIME VISITE (max 8):
+${visitLines.length ? visitLines.join('\n') : 'Nessuna visita registrata.'}
+
+ULTIME SEDUTE TERAPEUTICHE (max 8):
+${seduteLines.length ? seduteLines.join('\n') : 'Nessuna seduta registrata.'}
+
+NOTE CLINICHE:
+${noteLines.length ? noteLines.join('\n') : 'Nessuna nota.'}
+
+Rispondi SOLO con un oggetto JSON valido con questa struttura (ogni campo max 80 parole, linguaggio professionale, niente diagnosi mediche, non inventare dati):
+${schemaJSON}
+
+Campi:
+- problema_principale: quadro clinico principale, sintomi dominanti
+- elementi_documentali: elementi rilevanti da documenti allegati; se nessuno scrivi "Nessun documento caricato."
+- osservazioni_cliniche: analisi posturale registrata; se nessuna scrivi "Nessuna osservazione registrata."
+- protocollo_attivo: descrizione del protocollo terapeutico attivo e obiettivi
+- criticita: segnali di attenzione, plateau, peggioramenti; se tutto ok scrivi "Nessuna criticità rilevata."
+- evoluzione_clinica: trend del VAS, risposta ai trattamenti, progressi nel tempo
+- nota_finale: impressione globale sul percorso, max 2 righe`
 
       try {
         const resp = await fetch('/api/ai-analisi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-          body: JSON.stringify({ prompt })
+          body: JSON.stringify({ prompt, max_tokens: 1500 })
         })
         if (resp.status === 403) {
-          result.textContent = '⚠️ Hai esaurito le analisi AI disponibili. Passa al piano Premium per continuare.'
-          result.style.display = 'block'
           loading.style.display = 'none'
           btn.disabled = false
+          if (window.policettivoHandleAI403) window.policettivoHandleAI403()
           return
         }
         const json = await resp.json()
         if (json.ai_uses !== undefined) _pazAiUses = json.ai_uses
-        result.textContent = json.testo || 'Nessuna risposta ricevuta.'
-        result.style.display = 'block'
-        actions.style.display = 'flex'
+
+        let sections = {}
+        try {
+          const match = (json.testo || '').match(/\{[\s\S]*\}/)
+          if (match) sections = JSON.parse(match[0])
+        } catch(e) {}
+
+        const keys = ['problema_principale','elementi_documentali','osservazioni_cliniche','protocollo_attivo','criticita','evoluzione_clinica','nota_finale']
+        keys.forEach((key, i) => {
+          const el = document.getElementById('csai-s' + (i+1))
+          if (el) el.textContent = sections[key] || (json.testo ? json.testo : '—')
+        })
+
+        introState.style.display = 'none'
+        report.style.display = 'block'
       } catch (e) {
-        result.textContent = '❌ Errore nella generazione. Riprova.'
-        result.style.display = 'block'
+        const el = document.getElementById('csai-s1')
+        if (el) el.textContent = '❌ Errore nella generazione. Riprova.'
+        introState.style.display = 'none'
+        report.style.display = 'block'
       }
       loading.style.display = 'none'
       btn.disabled = false
     }
 
+    function csAIToggleEdit() {
+      const ids = ['csai-s1','csai-s2','csai-s3','csai-s4','csai-s5','csai-s6','csai-s7']
+      const btn = document.getElementById('csai-edit-btn')
+      const isEditing = document.getElementById('csai-s1').contentEditable === 'true'
+      ids.forEach(id => { const el = document.getElementById(id); if (el) el.contentEditable = isEditing ? 'false' : 'true' })
+      btn.textContent = isEditing ? '✏️ Modifica' : '✓ Fine modifica'
+    }
+
     function csAICopy() {
-      const text = document.getElementById('csai-result').textContent
-      navigator.clipboard.writeText(text).then(() => {
-        const btn = document.querySelector('.csai-copy-btn')
-        const orig = btn.textContent
-        btn.textContent = '✓ Copiato'
-        setTimeout(() => { btn.textContent = orig }, 1500)
+      const ids = ['csai-s1','csai-s2','csai-s3','csai-s4','csai-s5','csai-s6','csai-s7']
+      const labels = ['Problema principale','Elementi documentali rilevanti','Osservazioni cliniche','Protocollo attivo','Criticità / Attenzioni','Evoluzione clinica','Nota AI finale']
+      let text = 'ASSISTENTE CLINICO AI — ' + ((patient?.nome||'') + ' ' + (patient?.cognome||'')).trim() + '\n' + new Date().toLocaleDateString('it-IT') + '\n\n'
+      ids.forEach((id, i) => { const el = document.getElementById(id); if (el) text += labels[i].toUpperCase() + '\n' + el.textContent + '\n\n' })
+      const noteProf = document.getElementById('csai-note-prof')?.value
+      if (noteProf) text += 'NOTE PROFESSIONISTA\n' + noteProf
+      navigator.clipboard.writeText(text.trim()).then(() => {
+        const btns = document.querySelectorAll('.csai-actions .csai-action-btn')
+        const copyBtn = btns[2]
+        if (copyBtn) { const orig = copyBtn.textContent; copyBtn.textContent = '✓ Copiato'; setTimeout(() => { copyBtn.textContent = orig }, 1500) }
       })
+    }
+
+    function csAIPrint() {
+      const ids = ['csai-s1','csai-s2','csai-s3','csai-s4','csai-s5','csai-s6','csai-s7']
+      const labels = ['Problema principale','Elementi documentali rilevanti','Osservazioni cliniche','Protocollo attivo','Criticità / Attenzioni','Evoluzione clinica','Nota AI finale']
+      const noteProf = document.getElementById('csai-note-prof')?.value || ''
+      const nomePaz = ((patient?.nome||'') + ' ' + (patient?.cognome||'')).trim()
+      const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+      let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Assistente Clinico AI — ${nomePaz}</title><style>body{font-family:'Helvetica Neue',Arial,sans-serif;max-width:700px;margin:40px auto;padding:0 24px;color:#111;font-size:13px;line-height:1.7}h1{font-size:18px;font-weight:700;margin-bottom:4px}.meta{color:#888;font-size:12px;margin-bottom:32px}.section{margin-bottom:22px}.section-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:6px}.section-text{background:#f7f7f7;border-radius:6px;padding:12px}.note-prof{border-top:2px solid #FFD008;margin-top:32px;padding-top:16px}.footer{margin-top:40px;font-size:10px;color:#bbb;border-top:1px solid #eee;padding-top:12px}@media print{body{margin:20px}}</style></head><body><h1>Assistente Clinico AI</h1><div class="meta">${nomePaz} — generato il ${oggi}</div>`
+      ids.forEach((id, i) => {
+        const el = document.getElementById(id)
+        html += `<div class="section"><div class="section-label">${labels[i]}</div><div class="section-text">${el?.textContent || '—'}</div></div>`
+      })
+      if (noteProf) html += `<div class="note-prof"><div class="section-label">Note professionista</div><div class="section-text">${noteProf.replace(/\n/g,'<br>')}</div></div>`
+      html += `<div class="footer">Generato con Policettivo® Assistente Clinico AI. Strumento assistivo — non sostituisce il ragionamento clinico del professionista.</div></body></html>`
+      const w = window.open('', '_blank')
+      w.document.write(html)
+      w.document.close()
+      w.focus()
+      setTimeout(() => w.print(), 400)
+    }
+
+    function csAIReset() {
+      const introState = document.getElementById('csai-intro-state')
+      const report = document.getElementById('csai-report')
+      introState.style.display = 'block'
+      report.style.display = 'none'
+      document.getElementById('csai-avvia-btn').disabled = false
+      document.getElementById('csai-loading').style.display = 'none'
+      document.getElementById('csai-note-prof').value = ''
+      ;['csai-s1','csai-s2','csai-s3','csai-s4','csai-s5','csai-s6','csai-s7'].forEach(id => { const el = document.getElementById(id); if (el) { el.contentEditable = 'false'; el.textContent = '' } })
+      document.getElementById('csai-edit-btn').textContent = '✏️ Modifica'
     }
 
     async function clinicalNotesInit() {
