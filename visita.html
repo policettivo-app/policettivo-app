@@ -1,0 +1,2962 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Visita Clinica</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="policettivo-globals.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="utils-premium.js"></script>
+  <script src="utils-ai.js"></script>
+  <style>
+    /* ====== RESET & BASE ====== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+
+    /* ====== STICKY TOP (header + tabs stick together) ====== */
+    #sticky-top {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+
+    /* ====== HEADER ====== */
+    #visita-header {
+      background: rgba(0,0,0,0.97);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid #222;
+      padding: 10px 16px 8px;
+    }
+    .hdr-row1 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .btn-back-visita {
+      background: transparent;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-back-visita:hover { border-color: #FFD008; color: #FFD008; }
+    .patient-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: #FFD008; color: #000;
+      font-weight: 700; font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .patient-info { flex: 1; min-width: 0; }
+    .patient-info-name {
+      color: #fff; font-size: 13px; font-weight: 700;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .patient-info-sub { color: #888; font-size: 11px; }
+    .badge-diagnosi-hdr {
+      background: #222; color: #aaa;
+      font-size: 10px; font-weight: 600;
+      padding: 3px 8px; border-radius: 4px;
+      max-width: 110px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-chiudi-hdr {
+      background: #b71c1c; border: none; color: #fff;
+      padding: 7px 12px; border-radius: 7px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-chiudi-hdr:disabled { background: #444; color: #777; cursor: not-allowed; }
+    .hdr-row2 {
+      display: flex; align-items: center; gap: 10px;
+    }
+    #f-data-visita {
+      background: #1a1a1a; border: 1px solid #333;
+      color: #fff; padding: 5px 10px;
+      border-radius: 6px; font-family: 'Montserrat', sans-serif;
+      font-size: 12px; outline: none; cursor: pointer;
+      flex-shrink: 0;
+    }
+    #f-data-visita:focus { border-color: #FFD008; }
+
+    /* ====== AUTOSAVE INDICATOR ====== */
+    #save-indicator { display: flex; align-items: center; gap: 5px; margin-left: auto; }
+    .save-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #444; flex-shrink: 0; transition: background 0.25s;
+    }
+    .save-dot.saving { background: #ff9800; }
+    .save-dot.saved  { background: #4caf50; }
+    .save-dot.error  { background: #f44336; }
+    #save-label {
+      color: #777; font-size: 10px; font-weight: 600;
+      white-space: nowrap; transition: color 0.25s;
+    }
+
+    /* ====== TAB BAR ====== */
+    #tab-bar {
+      background: #fff;
+      border-bottom: 1px solid #e8e8e8;
+      display: flex;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    #tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 11px 14px;
+      border: none; border-bottom: 3px solid transparent;
+      background: transparent;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 600; color: #999;
+      cursor: pointer; white-space: nowrap;
+      min-height: 44px; flex-shrink: 0;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn:hover { color: #444; }
+    .tab-btn.active { border-bottom-color: #FFD008; color: #000; font-weight: 700; }
+    .tab-num {
+      width: 17px; height: 17px; border-radius: 50%;
+      background: #eee; color: #999;
+      font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background 0.15s, color 0.15s;
+    }
+    .tab-btn.active .tab-num { background: #000; color: #FFD008; }
+    .tab-state { font-size: 11px; margin-left: 1px; color: #ccc; }
+
+    /* ====== CHIUSA BANNER ====== */
+    #chiusa-banner {
+      display: none;
+      background: #1b5e20;
+      border-bottom: 2px solid #388e3c;
+      padding: 9px 16px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    #chiusa-banner.visible { display: flex; }
+    #chiusa-text { color: #a5d6a7; font-size: 12px; font-weight: 600; }
+    .btn-riapri {
+      background: transparent; border: 1px solid #4caf50;
+      color: #a5d6a7; padding: 4px 12px; border-radius: 6px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .btn-riapri:hover { background: rgba(76,175,80,0.15); }
+
+    /* ====== MAIN CONTENT ====== */
+    .visita-main { max-width: 700px; margin: 0 auto; padding: 20px 16px 120px; }
+    .step-content { display: none; }
+    .step-content.active { display: block; }
+
+    /* ====== FIELD GROUPS ====== */
+    .field-group {
+      background: #fff; border-radius: 12px;
+      padding: 18px 16px; border: 1px solid #eee;
+      margin-bottom: 14px;
+    }
+    .field-label {
+      font-size: 10px; font-weight: 700; color: #999;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      display: block; margin-bottom: 8px;
+    }
+    .field-note { font-size: 11px; color: #bbb; margin-top: 6px; }
+    textarea.fi {
+      width: 100%; padding: 11px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 16px; /* 16px = no zoom on iOS */
+      color: #000; outline: none; resize: vertical;
+      transition: border-color 0.15s; background: #fff;
+      line-height: 1.5;
+    }
+    textarea.fi:focus { border-color: #000; }
+    textarea.fi:disabled { background: #f7f7f7; color: #aaa; resize: none; cursor: default; }
+
+    /* ====== CHIPS ====== */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+    .chip {
+      display: inline-flex; align-items: center;
+      padding: 6px 13px; border-radius: 20px;
+      border: 1.5px solid #e0e0e0; background: #f5f5f5;
+      color: #555; font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; user-select: none; -webkit-user-select: none;
+    }
+    .chip:hover { border-color: #aaa; color: #000; }
+    .chip.active { background: #000; border-color: #000; color: #FFD008; }
+    .chip.disabled { pointer-events: none; opacity: 0.45; }
+
+    /* ====== STEP FOOTER NAV ====== */
+    .step-footer {
+      display: flex; gap: 12px;
+      margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+    .btn-nav {
+      flex: 1; padding: 13px;
+      border-radius: 9px; font-family: 'Montserrat', sans-serif;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-nav-prev {
+      background: transparent; border: 1.5px solid #ddd; color: #666;
+    }
+    .btn-nav-prev:hover:not(:disabled) { border-color: #888; color: #000; }
+    .btn-nav-next { background: #000; border: none; color: #FFD008; }
+    .btn-nav-next:hover:not(:disabled) { background: #1a1a1a; }
+    .btn-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ====== PLACEHOLDER STEPS ====== */
+    .placeholder-card {
+      background: #fff; border-radius: 14px;
+      padding: 56px 24px; text-align: center; border: 1px solid #eee;
+    }
+    .placeholder-emoji { font-size: 44px; margin-bottom: 14px; display: block; }
+    .placeholder-title { font-size: 17px; font-weight: 700; color: #000; margin-bottom: 8px; }
+    .placeholder-sub { font-size: 13px; color: #555; margin-bottom: 10px; line-height: 1.5; }
+    .placeholder-hint { font-size: 11px; color: #bbb; }
+
+    /* ====== STEP 5 FINAL BUTTONS ====== */
+    .btn-salva-bozza {
+      flex: 1; padding: 15px; border-radius: 9px;
+      background: #FFD008; border: none; color: #000;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-salva-bozza:hover { background: #e6bc00; }
+    .btn-chiudi-finale {
+      flex: 1; padding: 15px; border-radius: 9px;
+      background: #c62828; border: none; color: #fff;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-chiudi-finale:hover:not(:disabled) { background: #b71c1c; }
+    .btn-chiudi-finale:disabled { background: #e57373; cursor: not-allowed; opacity: 0.5; }
+
+    /* ====== MODAL ====== */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 5000;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 14px;
+      padding: 28px 22px; max-width: 380px; width: 100%; text-align: center;
+    }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+    .modal-body { font-size: 13px; color: #555; line-height: 1.6; margin-bottom: 22px; }
+    .modal-actions { display: flex; gap: 10px; }
+    .btn-modal-cancel {
+      flex: 1; padding: 11px; border: 1.5px solid #ddd; border-radius: 8px;
+      background: transparent; color: #555;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-modal-confirm {
+      flex: 1; padding: 11px; border: none; border-radius: 8px;
+      background: #c62828; color: #fff;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-modal-confirm:hover { background: #b71c1c; }
+
+    /* ====== TOAST ====== */
+    #toast {
+      position: fixed; bottom: 76px; left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: #111; color: #fff;
+      padding: 10px 20px; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      opacity: 0; transition: opacity 0.25s, transform 0.25s;
+      z-index: 9999; pointer-events: none; white-space: nowrap;
+      max-width: calc(100vw - 32px); text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ====== DATETIME INPUT (Step 5 prossima visita) ====== */
+    .dt-input {
+      width: 100%; padding: 11px 13px;
+      border: 1.5px solid #e0e0e0; border-radius: 8px;
+      font-family: 'Montserrat', sans-serif; font-size: 14px;
+      color: #000; outline: none; background: #fff;
+    }
+    .dt-input:focus { border-color: #000; }
+    .dt-input:disabled { background: #f7f7f7; color: #aaa; cursor: default; }
+
+    /* ====== STEP 2: VAS ====== */
+    .vas-block { margin-bottom: 4px; }
+    .vas-label { font-size: 14px; font-weight: 700; color: #000; margin-bottom: 8px; display: block; }
+    .vas-row { display: flex; align-items: center; gap: 12px; }
+    .vas-slider { flex: 1; height: 6px; accent-color: #000; cursor: pointer; min-width: 0; }
+    .vas-slider:disabled { opacity: 0.4; cursor: default; }
+    .vas-number { font-size: 26px; font-weight: 700; color: #000; min-width: 54px; text-align: right; white-space: nowrap; flex-shrink: 0; }
+    .vas-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-top: 6px; }
+    .vas-badge-lieve    { background: #dcfce7; color: #166534; }
+    .vas-badge-moderato { background: #ffedd5; color: #9a3412; }
+    .vas-badge-severo   { background: #fee2e2; color: #991b1b; }
+    .vas-badge-null     { background: #f5f5f5; color: #999; }
+
+    /* ====== STEP 2: ACCORDION ====== */
+    .accord-block { border-bottom: 1px solid #f0f0f0; }
+    .accord-block:last-child { border-bottom: none; }
+    .accord-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; cursor: pointer;
+      user-select: none; -webkit-user-select: none;
+    }
+    .accord-head:hover { background: #fafafa; }
+    .accord-title { font-size: 13px; font-weight: 700; color: #000; }
+    .accord-count { font-size: 11px; color: #999; font-weight: 600; margin-right: 8px; }
+    .accord-arrow { font-size: 12px; color: #bbb; transition: transform 0.2s; display: inline-block; }
+    .accord-arrow.open { transform: rotate(90deg); }
+    .accord-body { display: none; border-top: 1px solid #f8f8f8; }
+    .accord-body.open { display: block; }
+    .test-row { padding: 4px 16px; }
+    .test-row-main { display: flex; align-items: center; gap: 6px; min-height: 44px; }
+    .test-name { flex: 1; font-size: 13px; color: #000; font-weight: 500; }
+    .test-btn {
+      width: 34px; height: 34px; border-radius: 7px; border: 1.5px solid;
+      background: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s; flex-shrink: 0;
+    }
+    .test-btn-pos { border-color: #dc2626; color: #dc2626; }
+    .test-btn-pos.active { background: #dc2626; color: #fff; }
+    .test-btn-neg { border-color: #22c55e; color: #22c55e; }
+    .test-btn-neg.active { background: #22c55e; color: #fff; }
+    .test-btn-na  { border-color: #9ca3af; color: #9ca3af; }
+    .test-btn-na.active { background: #374151; color: #fff; border-color: #374151; }
+    .test-note-btn {
+      width: 34px; height: 34px; border: none; background: none;
+      font-size: 16px; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; opacity: 0.35;
+    }
+    .test-note-btn.has-note { opacity: 1; }
+    .test-note-wrap { display: none; padding: 0 0 8px 0; }
+    .test-note-wrap.open { display: block; }
+    .test-note-input {
+      width: 100%; padding: 8px 11px; border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; color: #000; outline: none;
+    }
+    .test-note-input:focus { border-color: #FFD008; }
+    .btn-add-custom {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 16px; background: none; border: none;
+      color: #999; font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 600; cursor: pointer; width: 100%;
+    }
+    .btn-add-custom:hover { color: #000; }
+    .custom-test-add-form { padding: 4px 16px 12px; display: none; }
+    .custom-test-add-form.open { display: flex; gap: 8px; }
+    .custom-test-input {
+      flex: 1; padding: 9px 11px; border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; color: #000; outline: none;
+    }
+    .custom-test-input:focus { border-color: #FFD008; }
+    .btn-custom-confirm {
+      padding: 9px 14px; background: #000; color: #FFD008; border: none;
+      border-radius: 7px; font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+
+    /* ====== STEP 2: ROM ====== */
+    .rom-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+    }
+    .btn-add-rom {
+      background: #000; color: #FFD008; border: none; border-radius: 7px;
+      padding: 7px 13px; font-family: 'Montserrat', sans-serif;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+    }
+    .rom-row {
+      background: #f8f8f8; border-radius: 10px; border: 1px solid #eee;
+      padding: 12px 14px; margin-bottom: 8px;
+    }
+    .rom-row-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .rom-name { font-size: 13px; font-weight: 600; color: #000; flex: 1; min-width: 100px; }
+    .rom-chip {
+      padding: 5px 11px; border-radius: 14px; border: 1.5px solid;
+      background: #fff; font-family: 'Montserrat', sans-serif;
+      font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+    }
+    .rom-chip-completo { border-color: #22c55e; color: #22c55e; }
+    .rom-chip-completo.active { background: #22c55e; color: #fff; }
+    .rom-chip-limitato { border-color: #f97316; color: #f97316; }
+    .rom-chip-limitato.active { background: #f97316; color: #fff; }
+    .rom-chip-severo { border-color: #dc2626; color: #dc2626; }
+    .rom-chip-severo.active { background: #dc2626; color: #fff; }
+    .rom-row-bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .rom-gradi-input {
+      width: 70px; padding: 7px 8px; border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000;
+      outline: none; text-align: center;
+    }
+    .rom-gradi-input:focus { border-color: #000; }
+    .rom-gradi-input:disabled { background: #f5f5f5; color: #aaa; cursor: default; }
+    .rom-gradi-label { font-size: 11px; color: #999; font-weight: 600; flex: 1; }
+    .rom-note-btn {
+      width: 32px; height: 32px; border: none; background: none;
+      font-size: 15px; cursor: pointer; opacity: 0.35;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .rom-note-btn.has-note { opacity: 1; }
+    .btn-remove-rom {
+      width: 28px; height: 28px; border: none; background: none;
+      color: #dc2626; font-size: 16px; cursor: pointer; flex-shrink: 0; opacity: 0.5;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-remove-rom:hover { opacity: 1; }
+    .rom-note-wrap { display: none; margin-top: 6px; }
+    .rom-note-wrap.open { display: block; }
+    .rom-note-input {
+      width: 100%; padding: 8px 11px; border: 1.5px solid #e0e0e0; border-radius: 7px;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; color: #000; outline: none;
+    }
+    .rom-note-input:focus { border-color: #FFD008; }
+
+    /* ====== STEP 2: NOTE MRC ====== */
+    .mrc-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .mrc-chip {
+      padding: 5px 10px; border-radius: 14px; border: 1.5px solid #000;
+      background: #fff; color: #000; font-family: 'Montserrat', sans-serif;
+      font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.1s;
+    }
+    .mrc-chip:hover { background: #f0f0f0; }
+
+    /* ====== STEP 2 CHIUSA STATE ====== */
+    .step2-chiusa .test-btn,
+    .step2-chiusa .rom-chip,
+    .step2-chiusa .mrc-chip,
+    .step2-chiusa .btn-add-rom,
+    .step2-chiusa .btn-add-custom,
+    .step2-chiusa .btn-remove-rom,
+    .step2-chiusa .test-note-btn,
+    .step2-chiusa .rom-note-btn,
+    .step2-chiusa .btn-custom-confirm {
+      pointer-events: none; opacity: 0.4;
+    }
+
+    /* ====== ROM ADD MODAL ====== */
+    .modal-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+    .modal-input {
+      width: 100%; padding: 10px 13px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none;
+      margin-bottom: 14px; box-sizing: border-box;
+    }
+    .modal-input:focus { border-color: #000; }
+
+    /* ====== STEP 3: FOTO GRID ====== */
+    #s3-foto-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; padding: 0 16px 16px; }
+    .s3-slot {
+      aspect-ratio: 3/4; border-radius: 10px; border: 1.5px dashed #ddd;
+      background: #fafafa; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; cursor: pointer;
+      overflow: hidden; position: relative; transition: border-color 0.15s;
+      min-height: 90px; -webkit-tap-highlight-color: transparent;
+    }
+    .s3-slot:hover { border-color: #aaa; }
+    .s3-slot.has-photo { border: none; background: #000; }
+    .s3-slot-icon { font-size: 20px; margin-bottom: 3px; }
+    .s3-slot-lbl { font-size: 9px; font-weight: 700; color: #bbb; text-align: center; padding: 0 4px; letter-spacing: 0.3px; }
+    .s3-slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .s3-slot-overlay { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: flex-end; padding: 5px; }
+    .s3-slot-type { position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.7); color: #FFD008; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 3px; letter-spacing: 0.3px; }
+    .s3-slot-del { width: 26px; height: 26px; border-radius: 50%; background: rgba(220,38,38,0.9); border: none; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; display: none; align-items: center; justify-content: center; }
+    .s3-slot.has-photo:hover .s3-slot-del { display: flex; }
+    .s3-slot-up { display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.85); align-items: center; justify-content: center; }
+    .s3-slot.uploading .s3-slot-up { display: flex; }
+    .s3-slot-spinner { width: 20px; height: 20px; border: 2.5px solid #ddd; border-top-color: #000; border-radius: 50%; animation: s3spin 0.7s linear infinite; }
+    @keyframes s3spin { to { transform: rotate(360deg); } }
+
+    /* ====== STEP 3: LIGHTBOX ====== */
+    #s3-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9100; align-items: center; justify-content: center; }
+    #s3-lightbox.open { display: flex; }
+    #s3-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    #s3-lightbox-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.15); border: none; color: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    #s3-lightbox-close:hover { background: rgba(255,255,255,0.3); }
+
+    /* ====== STEP 3: AI ====== */
+    .s3-ai-btn { width: 100%; padding: 15px; border-radius: 10px; background: #000; border: none; color: #FFD008; font-family: 'Montserrat',sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+    .s3-ai-btn:hover:not(:disabled) { background: #1a1a1a; }
+    .s3-ai-btn:disabled { background: #e0e0e0; color: #aaa; cursor: not-allowed; }
+    .s3-ai-spinner { display: none; text-align: center; padding: 20px; color: #888; font-size: 13px; }
+    .s3-ai-card { display: none; margin-top: 14px; border: 1.5px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
+    .s3-ai-card-head { background: #000; padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .s3-ai-sug-badge { padding: 5px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; font-family: 'Montserrat',sans-serif; }
+    .badge-npl-ai { background: #000; color: #FFD008; border: 1.5px solid #FFD008; }
+    .badge-gpl-ai { background: #FFD008; color: #000; border: 1.5px solid #000; }
+    .badge-misto-ai { background: #555; color: #fff; border: 1.5px solid #888; }
+    .badge-neutro-ai { background: #eee; color: #555; border: 1.5px solid #ccc; }
+    .s3-ai-conf-label { font-size: 11px; color: #888; font-weight: 600; }
+    .s3-ai-card-body { padding: 14px 16px; }
+    .s3-ai-val { font-size: 13px; color: #333; line-height: 1.65; margin-bottom: 10px; white-space: pre-line; }
+    .s3-ai-bullets { list-style: none; margin: 0 0 14px; padding: 0; }
+    .s3-ai-bullets li { font-size: 12px; color: #555; padding: 3px 0 3px 16px; position: relative; }
+    .s3-ai-bullets li::before { content: '•'; position: absolute; left: 0; color: #FFD008; font-weight: 700; font-size: 14px; line-height: 1; top: 3px; }
+    .s3-ai-actions { display: flex; gap: 10px; }
+    .btn-s3-conferma { flex: 1; padding: 11px; border: none; border-radius: 8px; background: #4caf50; color: #fff; font-family: 'Montserrat',sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+    .btn-s3-conferma:hover { background: #388e3c; }
+    .btn-s3-conferma.confirmed { background: #1b5e20; }
+    .btn-s3-rigenera { padding: 11px 16px; border: 1.5px solid #ddd; border-radius: 8px; background: transparent; color: #666; font-family: 'Montserrat',sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .btn-s3-rigenera:hover { border-color: #999; color: #000; }
+
+    /* ====== STEP 3: CONFRONTO ====== */
+    .s3-prev-head { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; user-select: none; -webkit-user-select: none; }
+    .s3-prev-title { font-size: 13px; font-weight: 700; color: #444; flex: 1; }
+    .s3-prev-arrow { font-size: 12px; color: #bbb; transition: transform 0.2s; display: inline-block; }
+    .s3-prev-arrow.open { transform: rotate(90deg); }
+    .s3-prev-body { display: none; margin-top: 12px; }
+    .s3-prev-body.open { display: block; }
+    .s3-prev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .s3-prev-col-title { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; text-align: center; }
+    .s3-prev-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 8px; background: #eee; }
+    .s3-prev-label { font-size: 10px; color: #aaa; text-align: center; margin-top: 4px; }
+
+    /* ====== STEP 3 CHIUSA ====== */
+    .step3-chiusa .s3-slot { pointer-events: none; }
+    .step3-chiusa .s3-ai-btn,
+    .step3-chiusa .btn-s3-conferma,
+    .step3-chiusa .btn-s3-rigenera { pointer-events: none; opacity: 0.4; }
+
+    /* ====== STEP 4: VAS SEDUTA ====== */
+    .s4-delta {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 13px; border-radius: 12px;
+      font-size: 12px; font-weight: 700; margin-top: 10px;
+    }
+    .s4-delta-pos  { background: #dcfce7; color: #166534; }
+    .s4-delta-neg  { background: #fee2e2; color: #991b1b; }
+    .s4-delta-zero { background: #f5f5f5; color: #888; }
+
+    /* ====== STEP 4: DURATA ====== */
+    .s4-tempo-chip {
+      padding: 6px 13px; border-radius: 14px; border: 1.5px solid #ddd;
+      background: #fff; color: #666; font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .s4-tempo-chip:hover { border-color: #aaa; color: #000; }
+    .s4-tempo-chip.active { background: #000; color: #FFD008; border-color: #000; }
+    .s4-tempo-input {
+      width: 80px; padding: 8px 10px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      font-family: 'Montserrat', sans-serif; font-size: 15px; color: #000;
+      outline: none; text-align: center; -moz-appearance: textfield;
+    }
+    .s4-tempo-input::-webkit-inner-spin-button,
+    .s4-tempo-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .s4-tempo-input:focus { border-color: #000; }
+    .s4-tempo-input:disabled { background: #f5f5f5; color: #aaa; cursor: default; }
+
+    /* ====== STEP 4: RISPOSTA ====== */
+    .s4-risposta-chip-ottima   { border-color: #22c55e !important; color: #22c55e !important; }
+    .s4-risposta-chip-ottima.active  { background: #22c55e !important; color: #fff !important; }
+    .s4-risposta-chip-buona    { border-color: #84cc16 !important; color: #65a30d !important; }
+    .s4-risposta-chip-buona.active   { background: #84cc16 !important; color: #fff !important; }
+    .s4-risposta-chip-discreta { border-color: #f97316 !important; color: #f97316 !important; }
+    .s4-risposta-chip-discreta.active { background: #f97316 !important; color: #fff !important; }
+    .s4-risposta-chip-scarsa   { border-color: #dc2626 !important; color: #dc2626 !important; }
+    .s4-risposta-chip-scarsa.active  { background: #dc2626 !important; color: #fff !important; }
+    .s4-risposta-chip-pegg     { border-color: #7c3aed !important; color: #7c3aed !important; }
+    .s4-risposta-chip-pegg.active    { background: #7c3aed !important; color: #fff !important; }
+
+    /* ====== STEP 4 CHIUSA ====== */
+    .step4-chiusa .s4-tempo-chip { pointer-events: none; opacity: 0.4; }
+
+    /* ====== STEP 5: VAS DELTA ====== */
+    .s5-vas-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 12px; border-radius: 10px;
+      font-size: 11px; font-weight: 700; margin-bottom: 4px; max-width: 100%;
+    }
+    .s5-vas-pill-pos  { background: #dcfce7; color: #166534; }
+    .s5-vas-pill-neg  { background: #fee2e2; color: #991b1b; }
+    .s5-vas-pill-neut { background: #fff7cc; color: #b45309; }
+    .s5-vas-pill-gray { background: #f5f5f5; color: #aaa; }
+    .s5-prev-row { font-size: 11px; color: #999; margin-top: 5px; }
+
+    /* ====== STEP 5: AI RELAZIONE ====== */
+    .s5-ai-btn {
+      width: 100%; padding: 16px; border-radius: 12px;
+      background: #000; border: none; color: #FFD008;
+      font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .s5-ai-btn:hover:not(:disabled) { background: #1a1a1a; }
+    .s5-ai-btn:disabled { background: #e0e0e0; color: #aaa; cursor: not-allowed; }
+    .s5-ai-spinner { text-align: center; padding: 18px; font-size: 13px; color: #888; display: none; }
+    .s5-ai-result  { display: none; margin-top: 14px; }
+    .s5-ai-textarea {
+      width: 100%; min-height: 160px; padding: 14px; box-sizing: border-box;
+      border: 1.5px solid #e0e0e0; border-radius: 10px;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; color: #333;
+      line-height: 1.65; outline: none; resize: vertical;
+    }
+    .s5-ai-textarea:focus { border-color: #FFD008; }
+    .s5-ai-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .btn-s5-salva {
+      flex: 1; min-width: 80px; padding: 10px 12px; border: none; border-radius: 8px;
+      background: #4caf50; color: #fff; font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .btn-s5-salva:hover { background: #388e3c; }
+    .btn-s5-rigenera, .btn-s5-copia {
+      padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px;
+      background: transparent; color: #666; font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .btn-s5-rigenera:hover, .btn-s5-copia:hover { border-color: #999; color: #000; }
+
+    /* ====== STEP 5 CHIUSA ====== */
+    .step5-chiusa .s5-ai-btn,
+    .step5-chiusa .btn-s5-salva,
+    .step5-chiusa .btn-s5-rigenera { pointer-events: none; opacity: 0.4; }
+    .step5-chiusa .s5-ai-textarea  { background: #f7f7f7; color: #888; }
+
+    @media (max-width: 460px) {
+      .badge-diagnosi-hdr { display: none; }
+      .hdr-row1 { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ====== STICKY TOP ====== -->
+<div id="sticky-top">
+
+  <header id="visita-header">
+    <div class="hdr-row1">
+      <button class="btn-back-visita" id="btn-back" onclick="backToPaziente()">← Indietro</button>
+      <div class="patient-avatar" id="patient-avatar">?</div>
+      <div class="patient-info">
+        <div class="patient-info-name" id="patient-name">Caricamento…</div>
+        <div class="patient-info-sub" id="patient-sub"></div>
+      </div>
+      <div class="badge-diagnosi-hdr" id="badge-diagnosi" style="display:none"></div>
+      <button class="btn-chiudi-hdr" id="btn-chiudi-hdr" onclick="apriModalChiudi()" disabled>🔒 Chiudi</button>
+    </div>
+    <div class="hdr-row2">
+      <input type="datetime-local" id="f-data-visita" onchange="scheduleSave()">
+      <div id="save-indicator">
+        <div class="save-dot" id="save-dot"></div>
+        <span id="save-label">—</span>
+      </div>
+    </div>
+  </header>
+
+  <nav id="tab-bar">
+    <button class="tab-btn active" id="tab-btn-1" onclick="goToStep(1)">
+      <span class="tab-num">1</span>
+      Anamnesi
+      <span class="tab-state" id="tab-state-1">○</span>
+    </button>
+    <button class="tab-btn" id="tab-btn-2" onclick="goToStep(2)">
+      <span class="tab-num">2</span>
+      Valutazione
+      <span class="tab-state" id="tab-state-2">○</span>
+    </button>
+    <button class="tab-btn" id="tab-btn-3" onclick="goToStep(3)">
+      <span class="tab-num">3</span>
+      Postura
+      <span class="tab-state" id="tab-state-3">○</span>
+    </button>
+    <button class="tab-btn" id="tab-btn-4" onclick="goToStep(4)">
+      <span class="tab-num">4</span>
+      Trattamento
+      <span class="tab-state" id="tab-state-4">○</span>
+    </button>
+    <button class="tab-btn" id="tab-btn-5" onclick="goToStep(5)">
+      <span class="tab-num">5</span>
+      Rivalutazione
+      <span class="tab-state" id="tab-state-5">○</span>
+    </button>
+  </nav>
+
+</div><!-- /sticky-top -->
+
+<!-- ====== CHIUSA BANNER (non sticky, scorre con contenuto) ====== -->
+<div id="chiusa-banner">
+  <span id="chiusa-text">✅ Visita chiusa</span>
+  <button class="btn-riapri" id="btn-riapri" style="display:none" onclick="riapriBozza()">Riapri bozza</button>
+</div>
+
+<!-- ====== CONTENT ====== -->
+<main class="visita-main">
+
+  <!-- ====== STEP 1: ANAMNESI ====== -->
+  <div id="step-1" class="step-content active">
+
+    <div class="field-group">
+      <label class="field-label">Motivo della visita *</label>
+      <div class="chip-row" id="chips-motivo-quick">
+        <span class="chip" onclick="appendChip('f-motivo','Dolore lombare')">Dolore lombare</span>
+        <span class="chip" onclick="appendChip('f-motivo','Cervicalgia')">Cervicalgia</span>
+        <span class="chip" onclick="appendChip('f-motivo','Dolore spalla')">Dolore spalla</span>
+        <span class="chip" onclick="appendChip('f-motivo','Post-trauma')">Post-trauma</span>
+        <span class="chip" onclick="appendChip('f-motivo','Controllo')">Controllo</span>
+        <span class="chip" onclick="appendChip('f-motivo','Mantenimento')">Mantenimento</span>
+      </div>
+      <textarea class="fi" id="f-motivo" rows="3"
+        placeholder="Descrivi il motivo principale della visita…"
+        oninput="scheduleSave(); updateChiudiBtn()"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Storia clinica recente</label>
+      <textarea class="fi" id="f-storia" rows="4"
+        placeholder="Sintomi attuali, trattamenti precedenti, esami diagnostici…"
+        oninput="scheduleSave()"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Durata dei sintomi</label>
+      <div class="chip-row" id="chips-durata">
+        <span class="chip" data-val="meno_1_sett" onclick="selectExclusive(this,'durata_sintomi')">&lt;1 settimana</span>
+        <span class="chip" data-val="1_4_sett"    onclick="selectExclusive(this,'durata_sintomi')">1–4 settimane</span>
+        <span class="chip" data-val="1_3_mesi"    onclick="selectExclusive(this,'durata_sintomi')">1–3 mesi</span>
+        <span class="chip" data-val="piu_3_mesi"  onclick="selectExclusive(this,'durata_sintomi')">&gt;3 mesi</span>
+        <span class="chip" data-val="cronico"     onclick="selectExclusive(this,'durata_sintomi')">Cronico</span>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Insorgenza</label>
+      <div class="chip-row" id="chips-insorgenza">
+        <span class="chip" data-val="improvvisa"  onclick="selectExclusive(this,'insorgenza')">Improvvisa</span>
+        <span class="chip" data-val="graduale"    onclick="selectExclusive(this,'insorgenza')">Graduale</span>
+        <span class="chip" data-val="post_trauma" onclick="selectExclusive(this,'insorgenza')">Post-trauma</span>
+        <span class="chip" data-val="sconosciuta" onclick="selectExclusive(this,'insorgenza')">Sconosciuta</span>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Obiettivi del paziente</label>
+      <textarea class="fi" id="f-obiettivi" rows="3"
+        placeholder="Es: riduzione del dolore, miglioramento funzionale, ritorno alle attività…"
+        oninput="scheduleSave()"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Diagnosi funzionale</label>
+      <textarea class="fi" id="f-diagnosi" rows="3"
+        placeholder="Diagnosi fisioterapica (non medica)…"
+        oninput="scheduleSave()"></textarea>
+      <div class="field-note">💡 Questo campo verrà duplicato nella prossima visita</div>
+    </div>
+
+    <div class="step-footer">
+      <button class="btn-nav btn-nav-prev" disabled>← Precedente</button>
+      <button class="btn-nav btn-nav-next" onclick="goToStep(2)">Successivo →</button>
+    </div>
+  </div><!-- /step-1 -->
+
+  <!-- ====== STEP 2: VALUTAZIONE FT ====== -->
+  <div id="step-2" class="step-content">
+
+    <!-- BLOCCO A: VAS -->
+    <div class="field-group">
+      <label class="field-label">VAS — Scala del dolore (0–10)</label>
+
+      <div class="vas-block">
+        <span class="vas-label">Dolore a RIPOSO</span>
+        <div class="vas-row">
+          <input type="range" class="vas-slider" id="vas-riposo" min="0" max="10" step="1" value="5"
+                 oninput="onVasInput('riposo', this.value)">
+          <span class="vas-number" id="vas-riposo-num">—</span>
+        </div>
+        <span class="vas-badge vas-badge-null" id="vas-riposo-badge">Non valutato</span>
+      </div>
+
+      <div class="vas-block" style="margin-top:18px">
+        <span class="vas-label">Dolore in MOVIMENTO</span>
+        <div class="vas-row">
+          <input type="range" class="vas-slider" id="vas-movimento" min="0" max="10" step="1" value="5"
+                 oninput="onVasInput('movimento', this.value)">
+          <span class="vas-number" id="vas-movimento-num">—</span>
+        </div>
+        <span class="vas-badge vas-badge-null" id="vas-movimento-badge">Non valutato</span>
+      </div>
+
+      <div class="vas-block" style="margin-top:18px">
+        <span class="vas-label">PICCO peggiore (ultima settimana)</span>
+        <div class="vas-row">
+          <input type="range" class="vas-slider" id="vas-picco" min="0" max="10" step="1" value="5"
+                 oninput="onVasInput('picco', this.value)">
+          <span class="vas-number" id="vas-picco-num">—</span>
+        </div>
+        <span class="vas-badge vas-badge-null" id="vas-picco-badge">Non valutato</span>
+      </div>
+    </div>
+
+    <!-- BLOCCO B: TEST ORTOPEDICI -->
+    <div class="field-group" style="padding:0; overflow:hidden">
+      <div style="padding:18px 16px 10px">
+        <label class="field-label" style="margin-bottom:0">Test ortopedici</label>
+      </div>
+      <div id="test-accordion-container"></div>
+    </div>
+
+    <!-- BLOCCO C: ROM -->
+    <div class="field-group">
+      <div class="rom-header">
+        <label class="field-label" style="margin-bottom:0">ROM — Range of Motion</label>
+        <button class="btn-add-rom" onclick="openAddRomModal()">+ Aggiungi</button>
+      </div>
+      <div id="rom-container">
+        <div id="rom-empty" style="font-size:12px;color:#bbb;text-align:center;padding:16px 0;line-height:1.6">
+          Nessun movimento aggiunto.<br>
+          Compila il Motivo della visita nello Step 1 per suggerimenti automatici.
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOCCO D: NOTE VALUTAZIONE -->
+    <div class="field-group">
+      <label class="field-label">Note di valutazione</label>
+      <textarea class="fi" id="f-note-valutazione" rows="5"
+        placeholder="Forza muscolare (MRC 0-5), palpazione, segni neurologici, osservazioni..."
+        oninput="scheduleSave()"></textarea>
+      <div class="mrc-chip-row">
+        <button class="mrc-chip" onclick="appendMrc('MRC 5 (normale)')">MRC 5</button>
+        <button class="mrc-chip" onclick="appendMrc('MRC 4 (contro resistenza)')">MRC 4</button>
+        <button class="mrc-chip" onclick="appendMrc('MRC 3 (contro gravità)')">MRC 3</button>
+        <button class="mrc-chip" onclick="appendMrc('MRC 2 (eliminata gravità)')">MRC 2</button>
+        <button class="mrc-chip" onclick="appendMrc('MRC 1 (contrazione visibile)')">MRC 1</button>
+        <button class="mrc-chip" onclick="appendMrc('MRC 0 (assente)')">MRC 0</button>
+      </div>
+    </div>
+
+    <div class="step-footer">
+      <button class="btn-nav btn-nav-prev" onclick="goToStep(1)">← Precedente</button>
+      <button class="btn-nav btn-nav-next" onclick="goToStep(3)">Successivo →</button>
+    </div>
+  </div><!-- /step-2 -->
+
+  <!-- ====== STEP 3: POSTURA (placeholder) ====== -->
+  <!-- ====== STEP 3: VALUTAZIONE POSTURALE ====== -->
+  <div id="step-3" class="step-content">
+
+    <!-- A) GALLERIA FOTO -->
+    <div class="field-group" style="padding:0;overflow:hidden">
+      <div style="padding:18px 16px 10px;display:flex;align-items:center;justify-content:space-between">
+        <label class="field-label" style="margin-bottom:0">Foto posturali</label>
+        <span id="s3-foto-count" style="font-size:11px;color:#999;font-weight:600;font-family:'Montserrat',sans-serif">0 / 6</span>
+      </div>
+      <div id="s3-foto-grid"></div>
+    </div>
+
+    <!-- B) NOTE POSTURALI -->
+    <div class="field-group">
+      <label class="field-label">Note posturali</label>
+      <div class="chip-row">
+        <span class="chip" onclick="appendChip('f-note-posturali','Spalla destra alta')">Spalla dx alta</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Spalla sinistra alta')">Spalla sx alta</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Antepulsione capo')">Antepulsione capo</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Bacino retroverso')">Bacino retroverso</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Bacino anteverso')">Bacino anteverso</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Iperlordosi lombare')">Iperlordosi</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Cifosi dorsale')">Cifosi dorsale</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Ginocchia vare')">Vare</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Ginocchia valghe')">Valghe</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Piede piatto')">Piede piatto</span>
+        <span class="chip" onclick="appendChip('f-note-posturali','Piede cavo')">Piede cavo</span>
+      </div>
+      <textarea class="fi" id="f-note-posturali" rows="4"
+        placeholder="Osservazioni: asimmetrie, atteggiamenti, baricentro, piede..."
+        oninput="scheduleSave()"></textarea>
+    </div>
+
+    <!-- C) AI ANALISI POSTURALE -->
+    <div class="field-group">
+      <button class="s3-ai-btn" id="btn-ai-posturale" onclick="avviaAnalisiPosturaleVisita()" disabled>
+        🤖 Analizza con AI ⭐
+      </button>
+      <div id="s3-ai-tooltip" style="font-size:11px;color:#bbb;text-align:center;margin-top:8px">
+        Carica almeno una foto per abilitare l'analisi
+      </div>
+      <div class="s3-ai-spinner" id="s3-ai-spinner">⏳ Analizzando le foto con AI...</div>
+      <div class="s3-ai-card" id="s3-ai-card">
+        <div class="s3-ai-card-head">
+          <div>
+            <div style="color:#aaa;font-size:9px;font-weight:700;letter-spacing:0.8px;margin-bottom:6px;text-transform:uppercase">Suggerimento AI</div>
+            <span class="s3-ai-sug-badge" id="s3-ai-sug-badge">—</span>
+          </div>
+          <span class="s3-ai-conf-label" id="s3-ai-conf-label"></span>
+        </div>
+        <div class="s3-ai-card-body">
+          <div class="s3-ai-val" id="s3-ai-val"></div>
+          <ul class="s3-ai-bullets" id="s3-ai-bullets"></ul>
+          <div class="s3-ai-actions">
+            <button class="btn-s3-conferma" id="btn-s3-conferma" onclick="confermaSuggerimentoAI()">✅ Conferma suggerimento</button>
+            <button class="btn-s3-rigenera" onclick="rigeneraAnalisiAI()">🔄 Rigenera</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- D) CONFRONTO VISITA PRECEDENTE -->
+    <div class="field-group">
+      <div class="s3-prev-head" onclick="toggleConfrontoPrev()">
+        <span class="s3-prev-title">▸ Confronta con visita precedente</span>
+        <span class="s3-prev-arrow" id="s3-prev-arrow">▸</span>
+      </div>
+      <div class="s3-prev-body" id="s3-prev-body">
+        <div id="s3-prev-content" style="font-size:12px;color:#bbb;padding:8px 0">
+          Clicca per caricare le foto della visita precedente.
+        </div>
+      </div>
+    </div>
+
+    <div class="step-footer">
+      <button class="btn-nav btn-nav-prev" onclick="goToStep(2)">← Precedente</button>
+      <button class="btn-nav btn-nav-next" onclick="goToStep(4)">Successivo →</button>
+    </div>
+  </div><!-- /step-3 -->
+
+  <!-- ====== STEP 4: TRATTAMENTO ====== -->
+  <div id="step-4" class="step-content">
+
+    <!-- BLOCCO A: VAS SEDUTA -->
+    <div class="field-group">
+      <label class="field-label">VAS seduta — Risposta al trattamento</label>
+      <div style="font-size:11px;color:#999;margin-bottom:16px;line-height:1.5">
+        Registra il dolore percepito dal paziente prima e dopo la seduta terapeutica (diverso dal VAS di valutazione).
+      </div>
+
+      <div class="vas-block">
+        <span class="vas-label">VAS INIZIO seduta</span>
+        <div class="vas-row">
+          <input type="range" class="vas-slider" id="vas-inizio" min="0" max="10" step="1" value="5"
+                 oninput="onVas4Input('inizio', this.value)">
+          <span class="vas-number" id="vas-inizio-num">—</span>
+        </div>
+        <span class="vas-badge vas-badge-null" id="vas-inizio-badge">Non valutato</span>
+      </div>
+
+      <div class="vas-block" style="margin-top:18px">
+        <span class="vas-label">VAS FINE seduta</span>
+        <div class="vas-row">
+          <input type="range" class="vas-slider" id="vas-fine" min="0" max="10" step="1" value="5"
+                 oninput="onVas4Input('fine', this.value)">
+          <span class="vas-number" id="vas-fine-num">—</span>
+        </div>
+        <span class="vas-badge vas-badge-null" id="vas-fine-badge">Non valutato</span>
+      </div>
+
+      <div id="s4-delta-wrap" style="margin-top:12px;display:none">
+        <span class="s4-delta s4-delta-zero" id="s4-delta-badge">—</span>
+      </div>
+    </div>
+
+    <!-- BLOCCO B: TECNICHE -->
+    <div class="field-group">
+      <label class="field-label">Tecniche utilizzate</label>
+      <div class="chip-row" style="margin-bottom:10px">
+        <span class="chip" onclick="appendChip('f-tecniche','Terapia manuale')">Terapia manuale</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Massoterapia')">Massoterapia</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Esercizio terapeutico')">Esercizio ter.</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Rieducazione posturale')">Rieducaz. posturale</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Kinesiotaping')">Kinesiotaping</span>
+        <span class="chip" onclick="appendChip('f-tecniche','TENS / Elettrostimolazione')">TENS / EMS</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Ultrasuoni')">Ultrasuoni</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Laser terapia')">Laser</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Dry needling')">Dry needling</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Tecar terapia')">Tecar</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Mobilizzazione articolare')">Mobilizzazione artic.</span>
+        <span class="chip" onclick="appendChip('f-tecniche','Stretching')">Stretching</span>
+      </div>
+      <textarea class="fi" id="f-tecniche" rows="3"
+        placeholder="Descrivi le tecniche applicate durante la seduta…"
+        oninput="scheduleSave()"></textarea>
+    </div>
+
+    <!-- BLOCCO C: DURATA -->
+    <div class="field-group">
+      <label class="field-label">Durata del trattamento</label>
+      <div class="chip-row" style="margin-bottom:12px">
+        <button class="s4-tempo-chip" data-min="15" onclick="setTempoTrattamento(this,15)">15 min</button>
+        <button class="s4-tempo-chip" data-min="30" onclick="setTempoTrattamento(this,30)">30 min</button>
+        <button class="s4-tempo-chip" data-min="45" onclick="setTempoTrattamento(this,45)">45 min</button>
+        <button class="s4-tempo-chip" data-min="60" onclick="setTempoTrattamento(this,60)">60 min</button>
+        <button class="s4-tempo-chip" data-min="90" onclick="setTempoTrattamento(this,90)">90 min</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="number" class="s4-tempo-input" id="f-tempo-trattamento"
+               min="1" max="300" placeholder="—" oninput="onTempoInput(this.value)">
+        <span style="font-size:13px;color:#888;font-weight:600">minuti</span>
+      </div>
+    </div>
+
+    <!-- BLOCCO D: RISPOSTA DEL PAZIENTE -->
+    <div class="field-group">
+      <label class="field-label">Risposta del paziente</label>
+      <div class="chip-row" id="chips-risposta" style="margin-bottom:10px">
+        <span class="chip s4-risposta-chip-ottima"   data-val="Ottima"                  onclick="setRispostaPaziente(this,'Ottima')">Ottima</span>
+        <span class="chip s4-risposta-chip-buona"    data-val="Buona"                   onclick="setRispostaPaziente(this,'Buona')">Buona</span>
+        <span class="chip s4-risposta-chip-discreta" data-val="Discreta"                onclick="setRispostaPaziente(this,'Discreta')">Discreta</span>
+        <span class="chip s4-risposta-chip-scarsa"   data-val="Scarsa"                  onclick="setRispostaPaziente(this,'Scarsa')">Scarsa</span>
+        <span class="chip s4-risposta-chip-pegg"     data-val="Peggioramento temporaneo" onclick="setRispostaPaziente(this,'Peggioramento temporaneo')">Peggioramento temp.</span>
+      </div>
+      <textarea class="fi" id="f-risposta-paziente" rows="3"
+        placeholder="Note sulla risposta clinica osservata…"
+        oninput="scheduleSave()"></textarea>
+    </div>
+
+    <div class="step-footer">
+      <button class="btn-nav btn-nav-prev" onclick="goToStep(3)">← Precedente</button>
+      <button class="btn-nav btn-nav-next" onclick="goToStep(5)">Successivo →</button>
+    </div>
+  </div><!-- /step-4 -->
+
+  <!-- ====== STEP 5: RIVALUTAZIONE ====== -->
+  <div id="step-5" class="step-content">
+
+    <!-- BLOCCO A: MIGLIORAMENTI -->
+    <div class="field-group">
+      <label class="field-label">Miglioramenti rilevati</label>
+      <div id="s5-vas-delta" style="margin-bottom:12px"></div>
+      <div class="chip-row" style="margin-bottom:10px">
+        <span class="chip" onclick="appendChip('f-miglioramenti','Riduzione dolore')">Riduzione dolore</span>
+        <span class="chip" onclick="appendChip('f-miglioramenti','Miglior ROM')">Miglior ROM</span>
+        <span class="chip" onclick="appendChip('f-miglioramenti','Miglior postura')">Miglior postura</span>
+        <span class="chip" onclick="appendChip('f-miglioramenti','Maggior consapevolezza')">Maggior consapevolezza</span>
+        <span class="chip" onclick="appendChip('f-miglioramenti','Nessun cambiamento')">Nessun cambiamento</span>
+        <span class="chip" onclick="appendChip('f-miglioramenti','Aumento dolore')">Aumento dolore</span>
+      </div>
+      <textarea class="fi" id="f-miglioramenti" rows="3"
+        placeholder="Miglioramenti rispetto all'inizio della visita…"
+        oninput="scheduleSave()"></textarea>
+    </div>
+
+    <!-- BLOCCO B: NOTE FINALI -->
+    <div class="field-group">
+      <label class="field-label">Note finali / Piano di lavoro</label>
+      <div class="chip-row" style="margin-bottom:10px">
+        <span class="chip" onclick="appendChip('f-note-finali','Continuare il protocollo')">Continuare protocollo</span>
+        <span class="chip" onclick="appendChip('f-note-finali','Aggiungere esercizi domiciliari')">+ Esercizi domiciliari</span>
+        <span class="chip" onclick="appendChip('f-note-finali','Rivalutazione a breve')">Rivalutazione a breve</span>
+        <span class="chip" onclick="appendChip('f-note-finali','Consulto specialistico consigliato')">Consulto specialistico</span>
+        <span class="chip" onclick="appendChip('f-note-finali','Sospendere temporaneamente')">Sospendere temp.</span>
+        <span class="chip" onclick="appendChip('f-note-finali','Dimissione programmata')">Dimissione programmata</span>
+      </div>
+      <textarea class="fi" id="f-note-finali" rows="4"
+        placeholder="Note di chiusura visita, piano di lavoro per le prossime sedute…"
+        oninput="scheduleSave()"></textarea>
+    </div>
+
+    <!-- BLOCCO C: PROSSIMA VISITA -->
+    <div class="field-group">
+      <label class="field-label">Prossima visita programmata</label>
+      <div class="chip-row" style="margin-bottom:10px">
+        <span class="chip" onclick="setProssimaVisita(7)">Tra 1 settimana</span>
+        <span class="chip" onclick="setProssimaVisita(14)">Tra 2 settimane</span>
+        <span class="chip" onclick="setProssimaVisita(30)">Tra 1 mese</span>
+        <span class="chip" onclick="setProssimaVisita(90)">Tra 3 mesi</span>
+        <span class="chip" onclick="setProssimaVisita(180)">Tra 6 mesi</span>
+      </div>
+      <input type="datetime-local" id="f-prossima-visita" class="dt-input" onchange="scheduleSave()">
+    </div>
+
+    <!-- BLOCCO D: INDICAZIONI -->
+    <div class="field-group">
+      <label class="field-label">Indicazioni al paziente</label>
+      <div class="chip-row" style="margin-bottom:10px">
+        <span class="chip" onclick="appendChip('f-indicazioni','Riposo attivo')">Riposo attivo</span>
+        <span class="chip" onclick="appendChip('f-indicazioni','Evitare carichi pesanti')">Evitare carichi pesanti</span>
+        <span class="chip" onclick="appendChip('f-indicazioni','Postura ergonomica al lavoro')">Postura ergonomica</span>
+        <span class="chip" onclick="appendChip('f-indicazioni','Stretching quotidiano')">Stretching quotidiano</span>
+        <span class="chip" onclick="appendChip('f-indicazioni','Applicare ghiaccio se dolore')">Ghiaccio se dolore</span>
+        <span class="chip" onclick="appendChip('f-indicazioni','Esercizi domiciliari come da scheda')">Esercizi domiciliari</span>
+        <span class="chip" onclick="appendChip('f-indicazioni','Idratazione adeguata')">Idratazione adeguata</span>
+        <span class="chip" onclick="appendChip('f-indicazioni','Camminata 30 min/die')">Camminata 30 min/die</span>
+      </div>
+      <textarea class="fi" id="f-indicazioni" rows="4"
+        placeholder="Es: esercizi domiciliari, postura nel sonno, attività da evitare…"
+        oninput="scheduleSave()"></textarea>
+    </div>
+
+    <!-- BLOCCO E: AI RELAZIONE -->
+    <div class="field-group">
+      <label class="field-label">Relazione AI della visita</label>
+      <div style="font-size:11px;color:#999;margin-bottom:14px;line-height:1.5">
+        Genera una relazione clinica strutturata dell'intera visita. Editabile prima della chiusura.
+      </div>
+      <button class="s5-ai-btn" id="s5-ai-btn" onclick="generaRelazioneAI()">🤖 Genera Relazione AI ⭐</button>
+      <div class="s5-ai-spinner" id="s5-ai-spinner">⏳ Generazione relazione in corso…</div>
+      <div class="s5-ai-result" id="s5-ai-result">
+        <textarea class="s5-ai-textarea" id="f-relazione-ai"
+          placeholder="La relazione AI apparirà qui…"
+          oninput="scheduleRelazioneAISave()"></textarea>
+        <div class="s5-ai-actions">
+          <button class="btn-s5-salva"    onclick="salvaRelazioneAI()">💾 Salva</button>
+          <button class="btn-s5-rigenera" onclick="rigeneraRelazioneAI()">🔄 Rigenera</button>
+          <button class="btn-s5-copia"    onclick="copiaRelazioneAI()">📋 Copia</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOCCO F: BOTTONI FINALI -->
+    <div class="step-footer" style="flex-direction:column; gap:10px;">
+      <button class="btn-nav btn-nav-prev" onclick="goToStep(4)" style="width:100%">← Precedente</button>
+      <div style="display:flex; gap:12px; width:100%;">
+        <button class="btn-salva-bozza" onclick="salvaBozza()">💾 Salva bozza</button>
+        <button class="btn-chiudi-finale" id="btn-chiudi-finale" onclick="apriModalChiudi()" disabled>🔒 Chiudi e genera PDF</button>
+      </div>
+    </div>
+
+  </div><!-- /step-5 -->
+
+</main>
+
+<!-- ====== LIGHTBOX FOTO ====== -->
+<div id="s3-lightbox" onclick="closeLightbox()">
+  <button id="s3-lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="s3-lightbox-img" src="" alt="">
+</div>
+
+<!-- ====== MODAL AGGIUNGI ROM ====== -->
+<div class="modal-overlay" id="modal-add-rom">
+  <div class="modal-box" style="text-align:left">
+    <div class="modal-title">+ Aggiungi movimento</div>
+    <div style="margin-bottom:4px">
+      <label class="modal-label">Nome movimento</label>
+      <input type="text" class="modal-input" id="add-rom-nome" placeholder="Es: Flessione cervicale"
+             onkeydown="if(event.key==='Enter') confirmAddRom()">
+      <label class="modal-label">Valore normale in gradi (opzionale)</label>
+      <input type="number" class="modal-input" id="add-rom-norm" placeholder="Es: 45" min="0" max="360"
+             onkeydown="if(event.key==='Enter') confirmAddRom()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeAddRomModal()">Annulla</button>
+      <button class="btn-modal-confirm" style="background:#000" onclick="confirmAddRom()">Aggiungi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== MODAL CONFERMA CHIUSURA ====== -->
+<div class="modal-overlay" id="modal-chiudi">
+  <div class="modal-box">
+    <div class="modal-title">🔒 Chiudi visita?</div>
+    <div class="modal-body">Stai per chiudere la visita. Verrà generato un PDF e non potrai più modificare i campi (salvo riapertura entro 48h).<br><br>Vuoi procedere?</div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="chiudiModal()">Annulla</button>
+      <button class="btn-modal-confirm" onclick="confermaChiusura()">Chiudi e genera PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== TOAST ====== -->
+<div id="toast"></div>
+
+<script src="console-nav.js"></script>
+
+<script>
+  // ====== CONFIG ======
+  const SUPABASE_URL  = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  const ADMIN_EMAIL   = 'appuntamentimft@gmail.com'
+  const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+  // ====== STATE ======
+  let visitId        = null
+  let patientId      = null
+  let professionalId = null
+  let userEmail      = null
+  let visitData      = {}
+  let chipState      = { durata_sintomi: null, insorgenza: null }
+  let vasState       = { riposo: null, movimento: null, picco: null }
+  let vas4State      = { inizio: null, fine: null }
+  let testOrtopedici = {}
+  let romData        = {}
+  let step3Photos    = {}   // slotKey → { id, url, storage_path, b64 } | null
+  let visitAiUses    = 0
+  let s3AiResult     = null
+  let s3SugConfermato = false
+  let s3ConfrontoLoaded = false
+  let patientData    = null
+  let prevVisitVas   = null
+  let s5RelazioneAI  = null
+  let s5RelTimer     = null
+
+  const S3_SLOTS = [
+    { key: 'sagittale_dx',    label: 'Sagittale dx',    tipo: 'sagittale',       ordine: 0 },
+    { key: 'sagittale_sx',    label: 'Sagittale sx',    tipo: 'sagittale',       ordine: 1 },
+    { key: 'frontale',        label: 'Frontale',        tipo: 'frontale',        ordine: 2 },
+    { key: 'posteriore',      label: 'Posteriore',      tipo: 'posteriore',      ordine: 3 },
+    { key: 'podoscopio',      label: 'Podoscopio',      tipo: 'podoscopio',      ordine: 4 },
+    { key: 'piano_scapolare', label: 'Piano scapolare', tipo: 'piano_scapolare', ordine: 5 }
+  ]
+  const S3_BUCKET   = 'clinical-docs'
+  let saveTimer      = null
+  let isSaving       = false
+  let currentStep    = 1
+  let isChiusa       = false
+
+  const TESTS_BY_ZONE = {
+    cervicale: { label: 'Cervicale', tests: ['Spurling','Distrazione','Compressione','Lhermitte','Test arteria vertebrale'] },
+    spalla:    { label: 'Spalla',    tests: ['Neer','Hawkins-Kennedy','Jobe (empty can)','Drop arm','Speed','Apprehension'] },
+    lombare:   { label: 'Lombare',   tests: ['Lasègue','Lasègue inverso','Slump','Bragard','FABER / Patrick','Thomas'] },
+    anca:      { label: 'Anca',      tests: ['FABER','FADIR','Trendelenburg','Thomas'] },
+    ginocchio: { label: 'Ginocchio', tests: ['McMurray','Lachman','Cassetto anteriore','Cassetto posteriore','Valgo/Varo stress','Apley'] },
+    altro:     { label: 'Altro / Polso / Mano', tests: ['Phalen','Tinel','Finkelstein','Test compressione SI'] }
+  }
+
+  const ROM_NORMAL = {
+    cervicale: { 'Flessione cervicale':45,'Estensione cervicale':45,'Rotazione dx':80,'Rotazione sx':80,'Inclinazione laterale dx':45,'Inclinazione laterale sx':45 },
+    lombare:   { 'Flessione lombare':90,'Estensione lombare':30,'Rotazione dx':30,'Rotazione sx':30,'Inclinazione laterale dx':25,'Inclinazione laterale sx':25 },
+    spalla:    { 'Flessione spalla':180,'Estensione spalla':60,'Abduzione spalla':180,'Adduzione spalla':30,'Rotazione esterna':90,'Rotazione interna':70 },
+    ginocchio: { 'Flessione ginocchio':135,'Estensione ginocchio':0,'Rotazione interna tibiale':10,'Rotazione esterna tibiale':30 }
+  }
+
+  function normalizzaChiave(nome) {
+    return nome.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+  }
+
+  // URL params
+  const _p    = new URLSearchParams(window.location.search)
+  const urlId  = _p.get('id')
+  const urlPid = _p.get('pid')
+  const urlDup = _p.get('dup')
+
+  // ====== INIT ======
+  async function initVisita() {
+    // 1. Auth
+    const { data: { session } } = await _sb.auth.getSession()
+    if (!session) { window.location.href = 'login.html'; return }
+    userEmail = session.user.email
+
+    // 2. Professional ID
+    const { data: prof } = await _sb
+      .from('professionals')
+      .select('id, ai_uses')
+      .eq('user_id', session.user.id)
+      .maybeSingle()
+    if (!prof) { showToast('Profilo non trovato'); return }
+    professionalId = prof.id
+    visitAiUses = prof.ai_uses || 0
+
+    // 3. Routing
+    if (urlId) {
+      visitId = urlId
+      await loadVisit()
+      return
+    }
+
+    if (urlPid) {
+      patientId = urlPid
+      let newId = null
+
+      // Try duplication via RPC
+      if (urlDup === '1') {
+        const { data: dupId } = await _sb.rpc('duplica_visita_precedente', {
+          p_patient_id: patientId,
+          p_professional_id: professionalId
+        })
+        if (dupId) newId = dupId
+      }
+
+      // Create fresh bozza if no duplication result
+      if (!newId) {
+        const { data: nv, error: nvErr } = await _sb
+          .from('visits')
+          .insert({ patient_id: patientId, professional_id: professionalId, stato: 'bozza' })
+          .select('id')
+          .maybeSingle()
+        if (nvErr || !nv) { showToast('Errore creazione visita: ' + (nvErr?.message || '')); return }
+        newId = nv.id
+      }
+
+      // Redirect to stable ?id= URL (prevents re-create on page refresh)
+      window.location.replace('visita.html?id=' + newId)
+      return
+    }
+
+    showToast('URL non valido: manca ?id= o ?pid=')
+  }
+
+  // ====== LOAD VISIT ======
+  async function loadVisit() {
+    const { data: v, error } = await _sb
+      .from('visits')
+      .select('*')
+      .eq('id', visitId)
+      .maybeSingle()
+
+    if (error || !v) { showToast('Visita non trovata'); return }
+    visitData = v
+    patientId = v.patient_id
+    isChiusa  = v.stato === 'chiusa'
+
+    // Patient info
+    const { data: pat } = await _sb
+      .from('patients')
+      .select('nome, cognome, data_nascita')
+      .eq('id', patientId)
+      .maybeSingle()
+    if (pat) renderPatientHeader(pat)
+
+    // Badge diagnosi precedente
+    const { data: prev } = await _sb
+      .from('visits')
+      .select('diagnosi_funzionale')
+      .eq('patient_id', patientId)
+      .eq('stato', 'chiusa')
+      .neq('id', visitId)
+      .order('data_visita', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (prev?.diagnosi_funzionale) {
+      const el = document.getElementById('badge-diagnosi')
+      const txt = prev.diagnosi_funzionale
+      el.textContent = txt.length > 28 ? txt.substring(0, 28) + '…' : txt
+      el.style.display = 'inline-block'
+    }
+
+    // Populate form
+    populateForm(v)
+    loadVisitPhotos()
+    loadPreviousVasForCompare()
+
+    if (isChiusa) applyChiusaState(v)
+
+    updateChiudiBtn()
+    updateTabStates()
+    setIndicator('idle')
+  }
+
+  // ====== RENDER PATIENT HEADER ======
+  function renderPatientHeader(pat) {
+    patientData = pat
+    const nome    = (pat.nome || '').trim()
+    const cognome = (pat.cognome || '').trim()
+    document.getElementById('patient-name').textContent = [nome, cognome].filter(Boolean).join(' ') || 'Paziente'
+    document.getElementById('patient-avatar').textContent =
+      ((nome[0] || '') + (cognome[0] || '')).toUpperCase() || '?'
+    if (pat.data_nascita) {
+      const age = Math.floor((Date.now() - new Date(pat.data_nascita)) / (365.25 * 24 * 3600 * 1000))
+      document.getElementById('patient-sub').textContent = age + ' anni'
+    }
+  }
+
+  // ====== POPULATE FORM ======
+  function populateForm(v) {
+    // Header datetime
+    if (v.data_visita) {
+      document.getElementById('f-data-visita').value = toDatetimeLocal(new Date(v.data_visita))
+    } else {
+      document.getElementById('f-data-visita').value = toDatetimeLocal(new Date())
+    }
+
+    // Step 1 text fields
+    fSet('f-motivo',    v.motivo_visita)
+    fSet('f-storia',    v.storia_clinica)
+    fSet('f-obiettivi', v.obiettivi_paziente)
+    fSet('f-diagnosi',  v.diagnosi_funzionale)
+
+    // Step 1 exclusive chips
+    if (v.durata_sintomi) { chipState.durata_sintomi = v.durata_sintomi; restoreExclusive('chips-durata', v.durata_sintomi) }
+    if (v.insorgenza)     { chipState.insorgenza     = v.insorgenza;     restoreExclusive('chips-insorgenza', v.insorgenza) }
+
+    // Step 2
+    populateVas(v)
+    if (v.test_ortopedici) populateTestOrtopedici(v.test_ortopedici)
+    if (v.test_rom) populateRom(v.test_rom)
+    else initRomSuggestions()
+    fSet('f-note-valutazione', v.note_valutazione)
+
+    // Step 3
+    fSet('f-note-posturali', v.note_posturali)
+    if (v.ai_analisi_posturale && v.ai_suggerimento_config) {
+
+      s3AiResult = { valutazione_ai: v.ai_analisi_posturale, suggerimento: v.ai_suggerimento_config, confidenza: null, osservazioni_chiave: [] }
+      s3SugConfermato = true
+      mostraRisultatoS3(s3AiResult, true)
+    }
+
+    // Step 4
+    if (v.vas_inizio !== null && v.vas_inizio !== undefined) {
+      vas4State.inizio = v.vas_inizio
+      const el = document.getElementById('vas-inizio')
+      if (el) el.value = v.vas_inizio
+      updateVas4Display('inizio')
+    }
+    if (v.vas_fine !== null && v.vas_fine !== undefined) {
+      vas4State.fine = v.vas_fine
+      const el = document.getElementById('vas-fine')
+      if (el) el.value = v.vas_fine
+      updateVas4Display('fine')
+    }
+    updateVas4Delta()
+    fSet('f-tecniche', v.tecniche_trattamento)
+    if (v.tempo_trattamento_minuti) {
+      document.getElementById('f-tempo-trattamento').value = v.tempo_trattamento_minuti
+      document.querySelectorAll('.s4-tempo-chip').forEach(c => {
+        c.classList.toggle('active', parseInt(c.dataset.min) === v.tempo_trattamento_minuti)
+      })
+    }
+    fSet('f-risposta-paziente', v.risposta_paziente)
+    if (v.risposta_paziente) {
+      document.querySelectorAll('#chips-risposta .chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.val === v.risposta_paziente)
+      })
+    }
+
+    // Step 5
+    fSet('f-miglioramenti', v.miglioramenti)
+    fSet('f-note-finali',   v.note_finali)
+    fSet('f-indicazioni',   v.indicazioni_paziente)
+    if (v.prossima_visita_at) {
+      document.getElementById('f-prossima-visita').value = toDatetimeLocal(new Date(v.prossima_visita_at))
+    }
+    // Step 5 AI relazione
+    if (v.relazione_ai) {
+      fSet('f-relazione-ai', v.relazione_ai)
+      s5RelazioneAI = v.relazione_ai
+      document.getElementById('s5-ai-result').style.display = 'block'
+    }
+    updateVas5Delta()
+  }
+
+  function fSet(id, val) {
+    if (val != null) document.getElementById(id).value = val
+  }
+
+  function toDatetimeLocal(d) {
+    const p = n => String(n).padStart(2, '0')
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) +
+           'T' + p(d.getHours()) + ':' + p(d.getMinutes())
+  }
+
+  // ====== AUTOSAVE ======
+  function scheduleSave() {
+    if (isChiusa) return
+    clearTimeout(saveTimer)
+    setIndicator('saving')
+    saveTimer = setTimeout(actualSave, 2000)
+  }
+
+  async function actualSave() {
+    if (isChiusa || !visitId || isSaving) return
+    isSaving = true
+
+    const payload = collectFormData()
+    console.log('[visita] PATCH payload:', payload)
+    const { error } = await _sb.from('visits').update(payload).eq('id', visitId)
+    isSaving = false
+
+    if (error) {
+      console.error('[visita] PATCH error:', error)
+      setIndicator('error', error.message)
+    } else {
+      const t = new Date()
+      setIndicator('saved', t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0'))
+      updateTabStates()
+      updateChiudiBtn()
+    }
+  }
+
+  function collectFormData() {
+    const dvRaw = document.getElementById('f-data-visita').value
+    const pvRaw = document.getElementById('f-prossima-visita').value
+    return {
+      data_visita:          dvRaw ? new Date(dvRaw).toISOString() : undefined,
+      // Step 1
+      motivo_visita:        document.getElementById('f-motivo').value.trim()    || null,
+      storia_clinica:       document.getElementById('f-storia').value.trim()    || null,
+      durata_sintomi:       chipState.durata_sintomi || null,
+      insorgenza:           chipState.insorgenza     || null,
+      obiettivi_paziente:   document.getElementById('f-obiettivi').value.trim() || null,
+      diagnosi_funzionale:  document.getElementById('f-diagnosi').value.trim()  || null,
+      // Step 2
+      vas_riposo:            vasState.riposo,
+      vas_movimento:         vasState.movimento,
+      vas_picco_settimanale: vasState.picco,
+      test_ortopedici:       buildTestOrtopediciJson(),
+      test_rom:              buildRomJson(),
+      note_valutazione:      document.getElementById('f-note-valutazione')?.value.trim() || null,
+      // Step 3
+      note_posturali:        document.getElementById('f-note-posturali')?.value.trim() || null,
+      // Step 4
+      vas_inizio:               vas4State.inizio,
+      vas_fine:                 vas4State.fine,
+      tecniche_trattamento:     document.getElementById('f-tecniche')?.value.trim()           || null,
+      tempo_trattamento_minuti: (() => { const n = parseInt(document.getElementById('f-tempo-trattamento')?.value); return isNaN(n) ? null : n })(),
+      risposta_paziente:        document.getElementById('f-risposta-paziente')?.value.trim()  || null,
+      // Step 5
+      miglioramenti:        document.getElementById('f-miglioramenti').value.trim()  || null,
+      note_finali:          document.getElementById('f-note-finali').value.trim()    || null,
+      prossima_visita_at:   pvRaw ? new Date(pvRaw).toISOString() : null,
+      indicazioni_paziente: document.getElementById('f-indicazioni').value.trim()    || null,
+      relazione_ai:         document.getElementById('f-relazione-ai')?.value.trim()  || null
+    }
+  }
+
+  // ====== SAVE INDICATOR ======
+  function setIndicator(state, extra) {
+    const dot = document.getElementById('save-dot')
+    const lbl = document.getElementById('save-label')
+    dot.className = 'save-dot'
+    if (state === 'saving') {
+      dot.classList.add('saving'); lbl.textContent = 'Salvando…'; lbl.style.color = '#ff9800'
+    } else if (state === 'saved') {
+      dot.classList.add('saved'); lbl.textContent = 'Salvato ' + (extra || ''); lbl.style.color = '#4caf50'
+    } else if (state === 'error') {
+      dot.classList.add('error'); lbl.textContent = 'Errore'; lbl.title = extra || ''; lbl.style.color = '#f44336'
+    } else {
+      lbl.textContent = '—'; lbl.style.color = '#777'
+    }
+  }
+
+  // ====== TAB NAVIGATION ======
+  async function goToStep(n) {
+    if (n === currentStep) return
+    clearTimeout(saveTimer)
+    if (!isChiusa) await actualSave()
+
+    document.getElementById('step-' + currentStep).classList.remove('active')
+    document.getElementById('tab-btn-' + currentStep).classList.remove('active')
+    currentStep = n
+    document.getElementById('step-' + n).classList.add('active')
+    document.getElementById('tab-btn-' + n).classList.add('active')
+    document.getElementById('tab-btn-' + n).scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // ====== TAB STATE INDICATORS ======
+  function updateTabStates() {
+    const motivo  = document.getElementById('f-motivo').value.trim()
+    const storia  = document.getElementById('f-storia').value.trim()
+    const diagn   = document.getElementById('f-diagnosi').value.trim()
+
+    const s1any  = motivo || storia || chipState.durata_sintomi || chipState.insorgenza
+    const s1full = motivo && diagn
+    setTabState(1, s1full ? 'full' : s1any ? 'partial' : 'empty')
+
+    setTabState(5, computeStep5Status())
+
+    setTabState(2, computeStep2Status())
+    setTabState(3, computeStep3Status())
+    setTabState(4, computeStep4Status())
+  }
+
+  function setTabState(step, state) {
+    const el = document.getElementById('tab-state-' + step)
+    if (!el) return
+    if (state === 'full')    { el.textContent = '✓'; el.style.color = '#4caf50' }
+    else if (state === 'partial') { el.textContent = '●'; el.style.color = '#ff9800' }
+    else                    { el.textContent = '○'; el.style.color = '#ccc' }
+  }
+
+  // ====== CHIP HELPERS ======
+  function appendChip(fieldId, text) {
+    if (isChiusa) return
+    const el = document.getElementById(fieldId)
+    el.value = el.value.trim() ? el.value.trim() + ', ' + text : text
+    scheduleSave()
+  }
+
+  function selectExclusive(chip, field) {
+    if (isChiusa) return
+    const row = chip.closest('.chip-row')
+    row.querySelectorAll('.chip').forEach(c => c.classList.remove('active'))
+    chip.classList.add('active')
+    chipState[field] = chip.dataset.val
+    scheduleSave()
+  }
+
+  function restoreExclusive(containerId, val) {
+    const row = document.getElementById(containerId)
+    if (!row) return
+    row.querySelectorAll('.chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.val === val)
+    })
+  }
+
+  function setProssimaVisita(days) {
+    if (isChiusa) return
+    const d = new Date()
+    d.setDate(d.getDate() + days)
+    d.setHours(10, 0, 0, 0)
+    document.getElementById('f-prossima-visita').value = toDatetimeLocal(d)
+    scheduleSave()
+  }
+
+  // ====== CHIUDI VISITA ======
+  function updateChiudiBtn() {
+    const has = document.getElementById('f-motivo').value.trim().length > 0
+    document.getElementById('btn-chiudi-hdr').disabled    = !has || isChiusa
+    const fb = document.getElementById('btn-chiudi-finale')
+    if (fb) fb.disabled = !has || isChiusa
+  }
+
+  function apriModalChiudi() {
+    if (isChiusa) return
+    document.getElementById('modal-chiudi').classList.add('open')
+  }
+
+  function chiudiModal() {
+    document.getElementById('modal-chiudi').classList.remove('open')
+  }
+
+  async function confermaChiusura() {
+    chiudiModal()
+    clearTimeout(saveTimer)
+    await actualSave()
+
+    const { error } = await _sb.from('visits')
+      .update({ stato: 'chiusa', chiusa_at: new Date().toISOString() })
+      .eq('id', visitId)
+
+    if (error) { showToast('Errore chiusura: ' + error.message); return }
+
+    visitData.stato = 'chiusa'
+    visitData.chiusa_at = new Date().toISOString()
+    isChiusa = true
+    applyChiusaState(visitData)
+    showToast('✅ Visita chiusa — generazione PDF…')
+    setTimeout(() => generaPDF(), 400)
+  }
+
+  function applyChiusaState(v) {
+    // Disable inputs
+    document.querySelectorAll('textarea.fi, input.dt-input, #f-data-visita, .vas-slider, .rom-gradi-input, .test-note-input, .rom-note-input, .custom-test-input, .s4-tempo-input, .s5-ai-textarea').forEach(el => {
+      el.disabled = true
+    })
+    // Disable chips + step 2/3/4/5 interactive elements
+    document.querySelectorAll('.chip').forEach(c => c.classList.add('disabled'))
+    document.getElementById('step-2')?.classList.add('step2-chiusa')
+    document.getElementById('step-3')?.classList.add('step3-chiusa')
+    document.getElementById('step-4')?.classList.add('step4-chiusa')
+    document.getElementById('step-5')?.classList.add('step5-chiusa')
+
+    // Hide chiudi buttons
+    document.getElementById('btn-chiudi-hdr').style.display = 'none'
+    const fb = document.getElementById('btn-chiudi-finale')
+    if (fb) fb.style.display = 'none'
+
+    // Show banner
+    const banner = document.getElementById('chiusa-banner')
+    banner.classList.add('visible')
+    if (v.chiusa_at) {
+      const dt = new Date(v.chiusa_at)
+      document.getElementById('chiusa-text').textContent =
+        '✅ Visita chiusa il ' +
+        dt.toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' }) +
+        ' alle ' + dt.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' })
+    }
+
+    // "Riapri bozza" entro 48h o se admin
+    if (v.chiusa_at) {
+      const orePassate = (Date.now() - new Date(v.chiusa_at)) / 3600000
+      if (orePassate < 48 || userEmail === ADMIN_EMAIL) {
+        document.getElementById('btn-riapri').style.display = 'inline-block'
+      }
+    }
+
+    setIndicator('idle')
+  }
+
+  async function riapriBozza() {
+    const { error } = await _sb.from('visits')
+      .update({ stato: 'bozza', chiusa_at: null })
+      .eq('id', visitId)
+    if (error) { showToast('Errore: ' + error.message); return }
+    window.location.reload()
+  }
+
+  // ====== SALVA BOZZA (Step 5 esplicito) ======
+  async function salvaBozza() {
+    clearTimeout(saveTimer)
+    await actualSave()
+    showToast('💾 Bozza salvata')
+  }
+
+  // ====== BACK ======
+  function backToPaziente() {
+    window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
+  }
+
+  // ====== TOAST ======
+  function showToast(msg, ms = 2500) {
+    const t = document.getElementById('toast')
+    t.textContent = msg
+    t.classList.add('show')
+    setTimeout(() => t.classList.remove('show'), ms)
+  }
+
+  // ====== STEP 2: VAS ======
+  function onVasInput(campo, val) {
+    if (isChiusa) return
+    vasState[campo] = parseInt(val, 10)
+    updateVasDisplay(campo)
+    scheduleSave()
+  }
+
+  function updateVasDisplay(campo) {
+    const val = vasState[campo]
+    const numEl   = document.getElementById('vas-' + campo + '-num')
+    const badgeEl = document.getElementById('vas-' + campo + '-badge')
+    if (!numEl || !badgeEl) return
+    if (val === null) {
+      numEl.textContent = '—'
+      badgeEl.textContent = 'Non valutato'; badgeEl.className = 'vas-badge vas-badge-null'
+      return
+    }
+    numEl.textContent = val + '/10'
+    if (val <= 3)      { badgeEl.textContent = 'Lieve';    badgeEl.className = 'vas-badge vas-badge-lieve' }
+    else if (val <= 6) { badgeEl.textContent = 'Moderato'; badgeEl.className = 'vas-badge vas-badge-moderato' }
+    else               { badgeEl.textContent = 'Severo';   badgeEl.className = 'vas-badge vas-badge-severo' }
+  }
+
+  function populateVas(v) {
+    const map = [['riposo', v.vas_riposo, 'vas-riposo'], ['movimento', v.vas_movimento, 'vas-movimento'], ['picco', v.vas_picco_settimanale, 'vas-picco']]
+    map.forEach(([campo, val, id]) => {
+      if (val !== null && val !== undefined) {
+        vasState[campo] = val
+        const el = document.getElementById(id)
+        if (el) el.value = val
+        updateVasDisplay(campo)
+      }
+    })
+  }
+
+  // ====== STEP 2: BUILD JSON HELPERS ======
+  function buildTestOrtopediciJson() {
+    const result = {}
+    Object.entries(testOrtopedici).forEach(([k, v]) => {
+      if (k === '_custom') return
+      if (v.esito && v.esito !== 'non_eseguito') result[k] = { esito: v.esito, nota: v.nota || '' }
+    })
+    if (testOrtopedici._custom?.length) {
+      const customs = testOrtopedici._custom.filter(c => c.nome)
+      if (customs.length) result._custom = customs
+    }
+    return result  // {} se vuoto — NOT NULL constraint richiede oggetto, non null
+  }
+
+  function buildRomJson() {
+    const result = {}
+    Object.entries(romData).forEach(([k, v]) => {
+      if (v.stato) result[k] = { stato: v.stato, gradi: v.gradi !== null ? v.gradi : null, nota: v.nota || '' }
+    })
+    return result  // {} se vuoto — NOT NULL constraint richiede oggetto, non null
+  }
+
+  // ====== STEP 2: TEST ORTOPEDICI ======
+  function initTestAccordion() {
+    const container = document.getElementById('test-accordion-container')
+    if (!container) return
+    container.innerHTML = ''
+    Object.entries(TESTS_BY_ZONE).forEach(([zoneKey, zone]) => {
+      const block = document.createElement('div')
+      block.className = 'accord-block'
+      block.dataset.zone = zoneKey
+
+      const head = document.createElement('div')
+      head.className = 'accord-head'
+      head.innerHTML = `<span class="accord-title">${zone.label}</span><div style="display:flex;align-items:center"><span class="accord-count" id="accord-count-${zoneKey}">0 / ${zone.tests.length} valutati</span><span class="accord-arrow" id="accord-arrow-${zoneKey}">▸</span></div>`
+      head.onclick = () => toggleAccordion(zoneKey)
+
+      const body = document.createElement('div')
+      body.className = 'accord-body'
+      body.id = `accord-body-${zoneKey}`
+
+      zone.tests.forEach(name => body.appendChild(createTestRow(name, null)))
+
+      if (zoneKey === 'altro') {
+        const addBtn = document.createElement('button')
+        addBtn.className = 'btn-add-custom'
+        addBtn.textContent = '+ Aggiungi test personalizzato'
+        addBtn.onclick = toggleCustomTestForm
+        body.appendChild(addBtn)
+
+        const form = document.createElement('div')
+        form.className = 'custom-test-add-form'
+        form.id = 'custom-test-form'
+        form.innerHTML = `<input type="text" class="custom-test-input" id="custom-test-name" placeholder="Nome test"><button class="btn-custom-confirm" onclick="addCustomTest()">Aggiungi</button>`
+        body.appendChild(form)
+      }
+
+      block.appendChild(head)
+      block.appendChild(body)
+      container.appendChild(block)
+    })
+  }
+
+  function createTestRow(testName, data) {
+    const key = normalizzaChiave(testName)
+    const esito = data?.esito || 'non_eseguito'
+    const nota  = data?.nota  || ''
+    const row = document.createElement('div')
+    row.className = 'test-row'; row.dataset.key = key
+    const main = document.createElement('div')
+    main.className = 'test-row-main'
+    const nameSpan = document.createElement('span')
+    nameSpan.className = 'test-name'; nameSpan.textContent = testName
+    const pos = makeTestBtn('+', 'test-btn-pos', esito === 'positivo', () => setTestEsito(pos, key, 'positivo'))
+    const neg = makeTestBtn('−', 'test-btn-neg', esito === 'negativo', () => setTestEsito(neg, key, 'negativo'))
+    const na  = makeTestBtn('○', 'test-btn-na',  esito === 'non_eseguito', () => setTestEsito(na, key, 'non_eseguito'))
+    const noteBtn = document.createElement('button')
+    noteBtn.className = 'test-note-btn' + (nota ? ' has-note' : '')
+    noteBtn.textContent = '📝'; noteBtn.onclick = () => toggleTestNote(key)
+    main.append(nameSpan, pos, neg, na, noteBtn)
+    const noteWrap = document.createElement('div')
+    noteWrap.className = 'test-note-wrap' + (nota ? ' open' : ''); noteWrap.id = `test-note-wrap-${key}`
+    const noteInput = document.createElement('input')
+    noteInput.type = 'text'; noteInput.className = 'test-note-input'; noteInput.id = `test-note-${key}`
+    noteInput.value = nota; noteInput.placeholder = 'Es: positivo a 45°'
+    noteInput.oninput = () => setTestNota(key, noteInput.value)
+    noteWrap.appendChild(noteInput)
+    row.appendChild(main); row.appendChild(noteWrap)
+    return row
+  }
+
+  function makeTestBtn(label, cls, active, handler) {
+    const b = document.createElement('button')
+    b.className = 'test-btn ' + cls + (active ? ' active' : '')
+    b.textContent = label; b.onclick = handler; return b
+  }
+
+  function toggleAccordion(zoneKey) {
+    document.getElementById(`accord-body-${zoneKey}`)?.classList.toggle('open')
+    document.getElementById(`accord-arrow-${zoneKey}`)?.classList.toggle('open')
+  }
+
+  function setTestEsito(btn, key, esito) {
+    if (isChiusa) return
+    const row = btn.closest('.test-row')
+    row.querySelectorAll('.test-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    if (esito === 'non_eseguito') {
+      delete testOrtopedici[key]
+    } else {
+      if (!testOrtopedici[key]) testOrtopedici[key] = { esito, nota: '' }
+      else testOrtopedici[key].esito = esito
+    }
+    updateAccordionCount(btn.closest('[data-zone]')?.dataset?.zone)
+    scheduleSave()
+  }
+
+  function setTestNota(key, val) {
+    if (isChiusa) return
+    if (!testOrtopedici[key]) testOrtopedici[key] = { esito: 'non_eseguito', nota: '' }
+    testOrtopedici[key].nota = val
+    document.querySelector(`[data-key="${key}"] .test-note-btn`)?.classList.toggle('has-note', val.trim().length > 0)
+    scheduleSave()
+  }
+
+  function toggleTestNote(key) {
+    if (isChiusa) return
+    const wrap = document.getElementById(`test-note-wrap-${key}`)
+    if (!wrap) return
+    if (wrap.classList.toggle('open')) setTimeout(() => document.getElementById(`test-note-${key}`)?.focus(), 50)
+  }
+
+  function updateAccordionCount(zoneKey) {
+    if (!zoneKey) return
+    const zone = TESTS_BY_ZONE[zoneKey]; if (!zone) return
+    const evaluated = zone.tests.filter(t => {
+      const e = testOrtopedici[normalizzaChiave(t)]?.esito
+      return e === 'positivo' || e === 'negativo'
+    }).length
+    const customEval = zoneKey === 'altro' ? (testOrtopedici._custom || []).filter(c => c.esito !== 'non_eseguito').length : 0
+    const totalCustom = zoneKey === 'altro' ? (testOrtopedici._custom?.length || 0) : 0
+    const el = document.getElementById(`accord-count-${zoneKey}`)
+    if (el) el.textContent = (evaluated + customEval) + ' / ' + (zone.tests.length + totalCustom) + ' valutati'
+  }
+
+  function toggleCustomTestForm() {
+    document.getElementById('custom-test-form')?.classList.toggle('open')
+  }
+
+  function addCustomTest() {
+    if (isChiusa) return
+    const nameInput = document.getElementById('custom-test-name')
+    const name = nameInput?.value.trim(); if (!name) return
+    if (!testOrtopedici._custom) testOrtopedici._custom = []
+    const idx = testOrtopedici._custom.length
+    testOrtopedici._custom.push({ nome: name, esito: 'non_eseguito', nota: '' })
+    const body = document.getElementById('accord-body-altro')
+    const addBtn = body?.querySelector('.btn-add-custom')
+    if (body && addBtn) body.insertBefore(createCustomTestRow(testOrtopedici._custom[idx], idx), addBtn)
+    nameInput.value = ''
+    document.getElementById('custom-test-form')?.classList.remove('open')
+    updateAccordionCount('altro')
+    scheduleSave()
+  }
+
+  function createCustomTestRow(data, idx) {
+    const esito = data.esito || 'non_eseguito'; const nota = data.nota || ''
+    const row = document.createElement('div')
+    row.className = 'test-row'; row.dataset.customIdx = idx
+    const main = document.createElement('div'); main.className = 'test-row-main'
+    const nameSpan = document.createElement('span')
+    nameSpan.className = 'test-name'; nameSpan.style.fontStyle = 'italic'; nameSpan.textContent = data.nome
+    const pos = makeTestBtn('+', 'test-btn-pos', esito === 'positivo', () => setCustomTestEsito(pos, idx, 'positivo'))
+    const neg = makeTestBtn('−', 'test-btn-neg', esito === 'negativo', () => setCustomTestEsito(neg, idx, 'negativo'))
+    const na  = makeTestBtn('○', 'test-btn-na',  esito === 'non_eseguito', () => setCustomTestEsito(na, idx, 'non_eseguito'))
+    const noteBtn = document.createElement('button')
+    noteBtn.className = 'test-note-btn' + (nota ? ' has-note' : ''); noteBtn.textContent = '📝'
+    noteBtn.onclick = () => toggleCustomTestNote(idx)
+    main.append(nameSpan, pos, neg, na, noteBtn)
+    const noteWrap = document.createElement('div')
+    noteWrap.className = 'test-note-wrap' + (nota ? ' open' : ''); noteWrap.id = `custom-note-wrap-${idx}`
+    const noteInput = document.createElement('input')
+    noteInput.type = 'text'; noteInput.className = 'test-note-input'; noteInput.id = `custom-note-${idx}`
+    noteInput.value = nota; noteInput.placeholder = 'Es: positivo a 45°'
+    noteInput.oninput = () => setCustomTestNota(idx, noteInput.value)
+    noteWrap.appendChild(noteInput)
+    row.appendChild(main); row.appendChild(noteWrap); return row
+  }
+
+  function setCustomTestEsito(btn, idx, esito) {
+    if (isChiusa) return
+    btn.closest('.test-row').querySelectorAll('.test-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    if (testOrtopedici._custom?.[idx]) testOrtopedici._custom[idx].esito = esito
+    updateAccordionCount('altro'); scheduleSave()
+  }
+
+  function setCustomTestNota(idx, val) {
+    if (isChiusa) return
+    if (testOrtopedici._custom?.[idx]) testOrtopedici._custom[idx].nota = val
+    document.querySelector(`[data-custom-idx="${idx}"] .test-note-btn`)?.classList.toggle('has-note', val.trim().length > 0)
+    scheduleSave()
+  }
+
+  function toggleCustomTestNote(idx) {
+    if (isChiusa) return
+    const wrap = document.getElementById(`custom-note-wrap-${idx}`)
+    if (wrap && wrap.classList.toggle('open')) setTimeout(() => document.getElementById(`custom-note-${idx}`)?.focus(), 50)
+  }
+
+  function populateTestOrtopedici(data) {
+    if (!data) return
+    testOrtopedici = JSON.parse(JSON.stringify(data))
+    Object.entries(TESTS_BY_ZONE).forEach(([zoneKey, zone]) => {
+      let hasAny = false
+      zone.tests.forEach(testName => {
+        const key = normalizzaChiave(testName)
+        const entry = testOrtopedici[key]; if (!entry) return
+        const row = document.querySelector(`[data-key="${key}"]`); if (!row) return
+        row.querySelectorAll('.test-btn').forEach(b => b.classList.remove('active'))
+        const esito = entry.esito || 'non_eseguito'
+        if (esito === 'positivo')     row.querySelector('.test-btn-pos')?.classList.add('active')
+        else if (esito === 'negativo') row.querySelector('.test-btn-neg')?.classList.add('active')
+        else                           row.querySelector('.test-btn-na')?.classList.add('active')
+        if (entry.nota) {
+          const ni = document.getElementById(`test-note-${key}`); if (ni) ni.value = entry.nota
+          document.getElementById(`test-note-wrap-${key}`)?.classList.add('open')
+          row.querySelector('.test-note-btn')?.classList.add('has-note')
+        }
+        if (esito === 'positivo' || esito === 'negativo') hasAny = true
+      })
+      if (hasAny) updateAccordionCount(zoneKey)
+    })
+    if (testOrtopedici._custom?.length) {
+      const body = document.getElementById('accord-body-altro')
+      const addBtn = body?.querySelector('.btn-add-custom')
+      testOrtopedici._custom.forEach((c, idx) => {
+        if (body && addBtn) body.insertBefore(createCustomTestRow(c, idx), addBtn)
+      })
+      updateAccordionCount('altro')
+    }
+  }
+
+  // ====== STEP 2: ROM ======
+  function initRomSuggestions() {
+    const motivo = document.getElementById('f-motivo')?.value?.toLowerCase() || ''
+    if (!motivo) return
+    let zone = null
+    if (/cervic/.test(motivo))   zone = 'cervicale'
+    else if (/lombar/.test(motivo)) zone = 'lombare'
+    else if (/spalla/.test(motivo)) zone = 'spalla'
+    else if (/ginocch/.test(motivo)) zone = 'ginocchio'
+    if (!zone) return
+    Object.entries(ROM_NORMAL[zone]).forEach(([nome, norm]) => addRomRow(nome, norm, null))
+  }
+
+  function addRomRow(nome, normalVal, data) {
+    const key = normalizzaChiave(nome)
+    document.getElementById('rom-empty').style.display = 'none'
+    if (document.getElementById(`rom-row-${key}`)) return
+    const stato = data?.stato || null
+    const gradi = data?.gradi !== undefined && data.gradi !== null ? data.gradi : ''
+    const nota  = data?.nota  || ''
+    const normLabel = normalVal !== undefined && normalVal !== '' ? normalVal + '°' : '—'
+    const row = document.createElement('div')
+    row.className = 'rom-row'; row.id = `rom-row-${key}`; row.dataset.key = key; row.dataset.normal = (normalVal !== undefined ? normalVal : '')
+    row.innerHTML = `
+      <div class="rom-row-top">
+        <span class="rom-name">${escH(nome)}</span>
+        <button class="rom-chip rom-chip-completo${stato==='completo'?' active':''}" onclick="setRomStato('${key}','completo',this)">Completo</button>
+        <button class="rom-chip rom-chip-limitato${stato==='limitato'?' active':''}" onclick="setRomStato('${key}','limitato',this)">Limitato</button>
+        <button class="rom-chip rom-chip-severo${stato==='severo'?' active':''}"   onclick="setRomStato('${key}','severo',this)">Severo</button>
+      </div>
+      <div class="rom-row-bottom">
+        <input type="number" class="rom-gradi-input" id="rom-gradi-${key}" value="${gradi}" min="0" max="360" placeholder="°" oninput="setRomGradi('${key}',this.value)">
+        <span class="rom-gradi-label">° (normale: ${normLabel})</span>
+        <button class="rom-note-btn${nota?' has-note':''}" onclick="toggleRomNote('${key}')">📝</button>
+        <button class="btn-remove-rom" onclick="removeRomRow('${key}')">✕</button>
+      </div>
+      <div class="rom-note-wrap${nota?' open':''}" id="rom-note-wrap-${key}">
+        <input type="text" class="rom-note-input" id="rom-note-${key}" value="${escH(nota)}" placeholder="Es: blocco a 60°" oninput="setRomNota('${key}',this.value)">
+      </div>`
+    document.getElementById('rom-container').appendChild(row)
+    if (!romData[key]) romData[key] = { stato: null, gradi: null, nota: '' }
+    if (data) romData[key] = { stato: data.stato || null, gradi: data.gradi !== undefined ? data.gradi : null, nota: data.nota || '' }
+  }
+
+  function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+  function setRomStato(key, stato, btn) {
+    if (isChiusa) return
+    const row = document.getElementById(`rom-row-${key}`); if (!row) return
+    row.querySelectorAll('.rom-chip').forEach(c => c.classList.remove('active'))
+    btn.classList.add('active')
+    if (!romData[key]) romData[key] = {}
+    romData[key].stato = stato
+    if (stato === 'completo') {
+      const norm = row.dataset.normal
+      if (norm !== '') {
+        const inp = document.getElementById(`rom-gradi-${key}`)
+        if (inp) inp.value = norm
+        romData[key].gradi = parseInt(norm, 10)
+      }
+    } else {
+      setTimeout(() => document.getElementById(`rom-gradi-${key}`)?.focus(), 50)
+    }
+    scheduleSave()
+  }
+
+  function setRomGradi(key, val) {
+    if (isChiusa) return
+    if (!romData[key]) romData[key] = {}
+    romData[key].gradi = val !== '' ? parseInt(val, 10) : null
+    scheduleSave()
+  }
+
+  function setRomNota(key, val) {
+    if (isChiusa) return
+    if (!romData[key]) romData[key] = {}
+    romData[key].nota = val
+    document.querySelector(`#rom-row-${key} .rom-note-btn`)?.classList.toggle('has-note', val.trim().length > 0)
+    scheduleSave()
+  }
+
+  function toggleRomNote(key) {
+    if (isChiusa) return
+    const wrap = document.getElementById(`rom-note-wrap-${key}`)
+    if (wrap && wrap.classList.toggle('open')) setTimeout(() => document.getElementById(`rom-note-${key}`)?.focus(), 50)
+  }
+
+  function removeRomRow(key) {
+    if (isChiusa) return
+    document.getElementById(`rom-row-${key}`)?.remove()
+    delete romData[key]
+    if (!document.querySelector('.rom-row')) document.getElementById('rom-empty').style.display = 'block'
+    scheduleSave()
+  }
+
+  function openAddRomModal() {
+    document.getElementById('add-rom-nome').value = ''
+    document.getElementById('add-rom-norm').value = ''
+    document.getElementById('modal-add-rom').classList.add('open')
+    setTimeout(() => document.getElementById('add-rom-nome')?.focus(), 100)
+  }
+
+  function closeAddRomModal() { document.getElementById('modal-add-rom').classList.remove('open') }
+
+  function confirmAddRom() {
+    const nome = document.getElementById('add-rom-nome').value.trim(); if (!nome) return
+    const normStr = document.getElementById('add-rom-norm').value.trim()
+    const norm = normStr !== '' ? parseInt(normStr, 10) : undefined
+    addRomRow(nome, norm, null)
+    closeAddRomModal()
+  }
+
+  function populateRom(data) {
+    if (!data || Object.keys(data).length === 0) return
+    const keyToName = {}; const keyToNorm = {}
+    Object.values(ROM_NORMAL).forEach(zone => {
+      Object.entries(zone).forEach(([nome, norm]) => {
+        const k = normalizzaChiave(nome); keyToName[k] = nome; keyToNorm[k] = norm
+      })
+    })
+    Object.entries(data).forEach(([key, val]) => {
+      const nome = keyToName[key] || key.replace(/_/g, ' ')
+      addRomRow(nome, keyToNorm[key], val)
+    })
+  }
+
+  // ====== STEP 2: MRC ======
+  function appendMrc(text) {
+    if (isChiusa) return
+    const el = document.getElementById('f-note-valutazione'); if (!el) return
+    el.value = el.value.trim() ? el.value.trim() + '. ' + text : text
+    scheduleSave()
+  }
+
+  // ====== STEP 2: STATUS ======
+  function computeStep2Status() {
+    const vasCount  = [vasState.riposo, vasState.movimento, vasState.picco].filter(v => v !== null).length
+    const testCount = Object.keys(testOrtopedici).filter(k => k !== '_custom' && (testOrtopedici[k].esito === 'positivo' || testOrtopedici[k].esito === 'negativo')).length
+                    + (testOrtopedici._custom || []).filter(c => c.esito !== 'non_eseguito').length
+    const romCount  = Object.values(romData).filter(v => v.stato).length
+    const noteVal   = document.getElementById('f-note-valutazione')?.value.trim() || ''
+    const any  = vasCount > 0 || testCount > 0 || romCount > 0 || noteVal.length > 0
+    const full = vasCount === 3 && testCount >= 3 && romCount >= 1 && noteVal.length > 0
+    return full ? 'full' : any ? 'partial' : 'empty'
+  }
+
+  // ====== STEP 3: FOTO GRID ======
+  function initStep3FotoGrid() {
+    const grid = document.getElementById('s3-foto-grid')
+    if (!grid) return
+    grid.innerHTML = ''
+    S3_SLOTS.forEach(slot => {
+      step3Photos[slot.key] = null
+      const div = document.createElement('div')
+      div.className = 's3-slot'
+      div.id = `s3-slot-${slot.key}`
+      div.innerHTML = `
+        <span class="s3-slot-icon">📸</span>
+        <span class="s3-slot-lbl">${slot.label}</span>
+        <div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>
+        <input type="file" id="s3-inp-${slot.key}" accept="image/*" capture="environment" style="display:none" onchange="handleFotoUpload('${slot.key}',this)">
+      `
+      div.onclick = () => {
+        if (isChiusa) return
+        if (!step3Photos[slot.key]) document.getElementById(`s3-inp-${slot.key}`)?.click()
+      }
+      grid.appendChild(div)
+    })
+    s3InitHidden()
+  }
+
+  function s3InitHidden() { /* piano scapolare slot hidden until others loaded — left visible for now */ }
+
+  function renderPhotoSlot(slotKey) {
+    const photo = step3Photos[slotKey]
+    const slot  = S3_SLOTS.find(s => s.key === slotKey)
+    const el    = document.getElementById(`s3-slot-${slotKey}`)
+    if (!el || !slot) return
+    if (!photo) {
+      el.className = 's3-slot'
+      el.innerHTML = `
+        <span class="s3-slot-icon">📸</span>
+        <span class="s3-slot-lbl">${slot.label}</span>
+        <div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>
+        <input type="file" id="s3-inp-${slotKey}" accept="image/*" capture="environment" style="display:none" onchange="handleFotoUpload('${slotKey}',this)">
+      `
+      el.onclick = () => { if (!isChiusa) document.getElementById(`s3-inp-${slotKey}`)?.click() }
+    } else {
+      el.className = 's3-slot has-photo'
+      el.onclick = (e) => { if (!e.target.closest('.s3-slot-del')) openLightbox(photo.url) }
+      el.innerHTML = `
+        <img src="${escH(photo.url)}" alt="${slot.label}">
+        <span class="s3-slot-type">${slot.label}</span>
+        <div class="s3-slot-overlay">
+          <button class="s3-slot-del" onclick="event.stopPropagation();removeVisitPhoto('${slotKey}')" title="Rimuovi">✕</button>
+        </div>
+        <div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>
+      `
+    }
+    updateFotoCount()
+    updateAIButtonState()
+  }
+
+  function updateFotoCount() {
+    const n = Object.values(step3Photos).filter(Boolean).length
+    const el = document.getElementById('s3-foto-count')
+    if (el) el.textContent = n + ' / ' + S3_SLOTS.length
+  }
+
+  function updateAIButtonState() {
+    const hasFoto = Object.values(step3Photos).some(Boolean)
+    const btn  = document.getElementById('btn-ai-posturale')
+    const tip  = document.getElementById('s3-ai-tooltip')
+    if (btn) btn.disabled = !hasFoto || isChiusa
+    if (tip) tip.style.display = hasFoto ? 'none' : 'block'
+  }
+
+  async function loadVisitPhotos() {
+    if (!visitId) return
+    const { data } = await _sb.from('visit_photos').select('*').eq('visit_id', visitId).order('ordine')
+    if (!data?.length) return
+    data.forEach(p => {
+      const slot = S3_SLOTS.find(s => s.tipo === p.tipo && s.ordine === p.ordine)
+      if (!slot) return
+      step3Photos[slot.key] = { id: p.id, url: p.url_pubblico || '', storage_path: p.storage_path, b64: null }
+      renderPhotoSlot(slot.key)
+    })
+  }
+
+  async function handleFotoUpload(slotKey, input) {
+    const file = input.files[0]; if (!file) return
+    input.value = ''
+    const el = document.getElementById(`s3-slot-${slotKey}`)
+    if (el) el.classList.add('uploading')
+    try {
+      const { blob, dataUrl } = await compressImage(file)
+      await uploadVisitPhoto(slotKey, blob, dataUrl)
+    } catch(e) {
+      showToast('Errore upload: ' + e.message)
+    }
+    if (el) el.classList.remove('uploading')
+  }
+
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onerror = () => reject(new Error('Lettura file fallita'))
+      reader.onload = e => {
+        const img = new Image()
+        img.onerror = () => reject(new Error('Immagine non valida'))
+        img.onload = () => {
+          let w = img.width, h = img.height
+          const MAX = 1600
+          if (w > MAX || h > MAX) { const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r) }
+          const canvas = document.createElement('canvas')
+          canvas.width = w; canvas.height = h
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.80)
+          canvas.toBlob(blob => resolve({ blob, dataUrl }), 'image/jpeg', 0.80)
+        }
+        img.src = e.target.result
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function uploadVisitPhoto(slotKey, blob, dataUrl) {
+    const slot = S3_SLOTS.find(s => s.key === slotKey); if (!slot) return
+    const ts   = Date.now()
+    const path = `visits/${visitId}/${slotKey}_${ts}.jpg`
+
+    // Rimuovi foto precedente se esiste
+    if (step3Photos[slotKey]?.storage_path) {
+      await _sb.storage.from(S3_BUCKET).remove([step3Photos[slotKey].storage_path]).catch(() => {})
+      if (step3Photos[slotKey]?.id) {
+        await _sb.from('visit_photos').delete().eq('id', step3Photos[slotKey].id)
+      }
+    }
+
+    const { error: upErr } = await _sb.storage.from(S3_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+    if (upErr) throw new Error(upErr.message)
+
+    const { data: urlData } = _sb.storage.from(S3_BUCKET).getPublicUrl(path)
+    const pubUrl = urlData?.publicUrl || ''
+
+    const { data: rec, error: insErr } = await _sb.from('visit_photos').insert({
+      visit_id:     visitId,
+      tipo:         slot.tipo,
+      storage_path: path,
+      url_pubblico: pubUrl,
+      ordine:       slot.ordine
+    }).select('id').maybeSingle()
+    if (insErr) throw new Error(insErr.message)
+
+    step3Photos[slotKey] = { id: rec?.id, url: pubUrl, storage_path: path, b64: dataUrl.split(',')[1] }
+    renderPhotoSlot(slotKey)
+    updateTabStates()
+  }
+
+  async function removeVisitPhoto(slotKey) {
+    if (isChiusa) return
+    const photo = step3Photos[slotKey]; if (!photo) return
+    if (photo.storage_path) {
+      await _sb.storage.from(S3_BUCKET).remove([photo.storage_path]).catch(() => {})
+    }
+    if (photo.id) {
+      await _sb.from('visit_photos').delete().eq('id', photo.id)
+    }
+    step3Photos[slotKey] = null
+    renderPhotoSlot(slotKey)
+    updateTabStates()
+  }
+
+  function openLightbox(url) {
+    const lb = document.getElementById('s3-lightbox')
+    const img = document.getElementById('s3-lightbox-img')
+    if (!lb || !img) return
+    img.src = url
+    lb.classList.add('open')
+  }
+  function closeLightbox() {
+    document.getElementById('s3-lightbox')?.classList.remove('open')
+    const img = document.getElementById('s3-lightbox-img'); if (img) img.src = ''
+  }
+
+  // ====== STEP 3: AI POSTURALE ======
+  async function avviaAnalisiPosturaleVisita() {
+    if (isChiusa) return
+    if (!window.isPremium && visitAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
+
+    const hasFoto = Object.values(step3Photos).some(Boolean)
+    if (!hasFoto) { showToast('Carica almeno una foto'); return }
+
+    document.getElementById('s3-ai-spinner').style.display = 'block'
+    document.getElementById('s3-ai-card').style.display    = 'none'
+    document.getElementById('btn-ai-posturale').disabled   = true
+
+    try {
+      const content = []
+      const note = document.getElementById('f-note-posturali')?.value.trim() || ''
+
+      for (const slot of S3_SLOTS) {
+        const ph = step3Photos[slot.key]; if (!ph) continue
+        let b64 = ph.b64
+        if (!b64) {
+          const res = await imgUrlToBase64(ph.url)
+          if (res) { b64 = res.data; ph.b64 = b64 }
+        }
+        if (b64) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } })
+      }
+
+      const nFoto = content.length
+      content.push({ type: 'text', text:
+        `Analisi posturale globale — ${nFoto} foto allegate (${S3_SLOTS.filter(s => step3Photos[s.key]).map(s => s.label).join(', ')}).\n\n` +
+        (note ? `NOTE DEL PROFESSIONISTA:\n${note}\n\n` : '') +
+        `Analizza le foto e valuta: asimmetrie posturali, posizione baricentro, atteggiamento globale.\n` +
+        `Determina se l'atteggiamento prevalente è ANTERIORE (→ NPL) o POSTERIORE (→ GPL).\n` +
+        `Rispondi SOLO con JSON valido senza markdown.`
+      })
+
+      const systemPrompt =
+        `Sei un assistente AI di supporto decisionale per fisioterapisti Policettivo®.\n\n` +
+        `REGOLE NPL/GPL:\n` +
+        `- Baricentro ANTERIORE, spalle protratte, testa avanzata → NPL\n` +
+        `- Baricentro POSTERIORE, iperlordosi, piede supinato → GPL\n` +
+        `- Non determinabile chiaramente → "misto"\n\n` +
+        `valutazione_ai: MAX 4 bullet brevi. Solo osservazioni chiave, niente frasi lunghe.\n` +
+        `osservazioni_chiave: array di max 4 stringhe brevi.\n\n` +
+        `Rispondi SOLO con JSON valido:\n` +
+        `{"suggerimento":"NPL","confidenza":"alta","valutazione_ai":"• obs1\\n• obs2","osservazioni_chiave":["obs1","obs2"],"motivazione":"breve"}`
+
+      const { data: { session: _s3Sess } } = await _sb.auth.getSession()
+      const resp = await fetch('/api/analisi-posturale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_s3Sess?.access_token || '') },
+        body: JSON.stringify({ system: systemPrompt, content, max_tokens: 600 })
+      })
+
+      if (resp.status === 403) {
+        const e403 = await resp.json()
+        if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.')
+        return
+      }
+
+      const data = await resp.json()
+      if (data.ai_uses !== undefined) {
+        visitAiUses = data.ai_uses
+        if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
+      }
+
+      let result
+      try { result = JSON.parse(data.testo || '{}') }
+      catch(e) { result = { suggerimento: 'misto', confidenza: 'bassa', valutazione_ai: 'Errore nel parsing della risposta AI.', osservazioni_chiave: [] } }
+
+      s3AiResult = result
+      s3SugConfermato = false
+      mostraRisultatoS3(result, false)
+
+    } catch(e) {
+      showToast('Errore AI: ' + e.message)
+    } finally {
+      document.getElementById('s3-ai-spinner').style.display = 'none'
+      document.getElementById('btn-ai-posturale').disabled = !Object.values(step3Photos).some(Boolean) || isChiusa
+    }
+  }
+
+  async function imgUrlToBase64(url) {
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      return new Promise(resolve => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const res = reader.result
+          const mediaType = res.substring(5, res.indexOf(';'))
+          const data = res.substring(res.indexOf(',') + 1)
+          resolve({ data, mediaType })
+        }
+        reader.readAsDataURL(blob)
+      })
+    } catch(e) { return null }
+  }
+
+  function mostraRisultatoS3(result, alreadyConfirmed) {
+    const sug  = (result.suggerimento || 'misto').toUpperCase()
+    const conf = result.confidenza || ''
+    const card = document.getElementById('s3-ai-card')
+    if (!card) return
+
+    const badgeEl = document.getElementById('s3-ai-sug-badge')
+    const confEl  = document.getElementById('s3-ai-conf-label')
+    const valEl   = document.getElementById('s3-ai-val')
+    const bullEl  = document.getElementById('s3-ai-bullets')
+    const confBtn = document.getElementById('btn-s3-conferma')
+
+    const badgeClass = sug === 'NPL' ? 'badge-npl-ai' : sug === 'GPL' ? 'badge-gpl-ai' : sug === 'MISTO' ? 'badge-misto-ai' : 'badge-neutro-ai'
+    if (badgeEl) { badgeEl.textContent = sug; badgeEl.className = 's3-ai-sug-badge ' + badgeClass }
+    if (confEl)  { confEl.textContent = conf ? 'Confidenza: ' + conf : ''; }
+    if (valEl)   { valEl.textContent  = result.valutazione_ai || '' }
+    if (bullEl)  {
+      bullEl.innerHTML = ''
+      ;(result.osservazioni_chiave || []).forEach(obs => {
+        const li = document.createElement('li'); li.textContent = obs; bullEl.appendChild(li)
+      })
+    }
+    if (confBtn) {
+      confBtn.classList.toggle('confirmed', alreadyConfirmed)
+      confBtn.textContent = alreadyConfirmed ? '✅ Confermato' : '✅ Conferma suggerimento'
+    }
+
+    card.style.display = 'block'
+    updateTabStates()
+  }
+
+  async function confermaSuggerimentoAI() {
+    if (isChiusa || !s3AiResult || !visitId) return
+    const sug = s3AiResult.suggerimento || 'misto'
+    const { error } = await _sb.from('visits').update({
+      ai_analisi_posturale:  s3AiResult.valutazione_ai || '',
+      ai_suggerimento_config: sug
+    }).eq('id', visitId)
+    if (error) { showToast('Errore salvataggio: ' + error.message); return }
+    s3SugConfermato = true
+    const btn = document.getElementById('btn-s3-conferma')
+    if (btn) { btn.classList.add('confirmed'); btn.textContent = '✅ Confermato' }
+    showToast('✅ Suggerimento ' + sug.toUpperCase() + ' confermato')
+    updateTabStates()
+  }
+
+  function rigeneraAnalisiAI() { avviaAnalisiPosturaleVisita() }
+
+  // ====== STEP 3: CONFRONTO PRECEDENTE ======
+  async function toggleConfrontoPrev() {
+    const body  = document.getElementById('s3-prev-body')
+    const arrow = document.getElementById('s3-prev-arrow')
+    const title = document.querySelector('.s3-prev-title')
+    if (!body) return
+    const isOpen = body.classList.toggle('open')
+    if (arrow) arrow.classList.toggle('open', isOpen)
+    if (title) title.textContent = (isOpen ? '▾' : '▸') + ' Confronta con visita precedente'
+    if (isOpen && !s3ConfrontoLoaded) { s3ConfrontoLoaded = true; await loadPreviousVisitPhotos() }
+  }
+
+  async function loadPreviousVisitPhotos() {
+    const el = document.getElementById('s3-prev-content'); if (!el || !patientId || !visitId) return
+    el.textContent = 'Caricamento...'
+    const { data: prevVisit } = await _sb.from('visits')
+      .select('id, data_visita')
+      .eq('patient_id', patientId)
+      .eq('stato', 'chiusa')
+      .neq('id', visitId)
+      .order('data_visita', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (!prevVisit) { el.textContent = 'Nessuna visita precedente trovata.'; return }
+    const { data: prevPhotos } = await _sb.from('visit_photos')
+      .select('tipo, ordine, url_pubblico')
+      .eq('visit_id', prevVisit.id)
+    if (!prevPhotos?.length) { el.textContent = 'Nessuna foto nella visita precedente.'; return }
+    const dtLabel = new Date(prevVisit.data_visita).toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+    let html = `<p style="font-size:11px;color:#999;margin-bottom:12px">Visita del ${dtLabel}</p><div class="s3-prev-grid">`
+    S3_SLOTS.forEach(slot => {
+      const curr = step3Photos[slot.key]
+      const prev = prevPhotos.find(p => p.tipo === slot.tipo && p.ordine === slot.ordine)
+      if (!curr && !prev) return
+      html += `<div style="margin-bottom:14px">`
+      html += `<div class="s3-prev-col-title">${slot.label}</div>`
+      html += `<div class="s3-prev-grid">`
+      html += `<div><div class="s3-prev-col-title" style="color:#4caf50">Attuale</div>${curr ? `<img class="s3-prev-img" src="${escH(curr.url)}" onclick="openLightbox('${escH(curr.url)}')">` : '<div class="s3-prev-img" style="display:flex;align-items:center;justify-content:center;font-size:11px;color:#bbb">Nessuna</div>'}</div>`
+      html += `<div><div class="s3-prev-col-title" style="color:#ff9800">Precedente</div>${prev ? `<img class="s3-prev-img" src="${escH(prev.url_pubblico)}" onclick="openLightbox('${escH(prev.url_pubblico)}')">` : '<div class="s3-prev-img" style="display:flex;align-items:center;justify-content:center;font-size:11px;color:#bbb">Nessuna</div>'}</div>`
+      html += `</div></div>`
+    })
+    html += '</div>'
+    el.innerHTML = html
+  }
+
+  // ====== STEP 3: STATUS ======
+  function computeStep3Status() {
+    const fotoCount = Object.values(step3Photos).filter(Boolean).length
+    const noteVal   = document.getElementById('f-note-posturali')?.value.trim() || ''
+    const any  = fotoCount > 0 || noteVal.length > 0 || s3AiResult !== null
+    const full = fotoCount >= 2 && s3AiResult !== null && s3SugConfermato
+    return full ? 'full' : any ? 'partial' : 'empty'
+  }
+
+  // ====== STEP 4: VAS SEDUTA ======
+  function onVas4Input(campo, val) {
+    if (isChiusa) return
+    vas4State[campo] = parseInt(val, 10)
+    updateVas4Display(campo)
+    updateVas4Delta()
+    scheduleSave()
+  }
+
+  function updateVas4Display(campo) {
+    const val     = vas4State[campo]
+    const numEl   = document.getElementById('vas-' + campo + '-num')
+    const badgeEl = document.getElementById('vas-' + campo + '-badge')
+    if (!numEl || !badgeEl) return
+    if (val === null) {
+      numEl.textContent = '—'
+      badgeEl.textContent = 'Non valutato'; badgeEl.className = 'vas-badge vas-badge-null'
+      return
+    }
+    numEl.textContent = val + '/10'
+    if (val <= 3)      { badgeEl.textContent = 'Lieve';    badgeEl.className = 'vas-badge vas-badge-lieve' }
+    else if (val <= 6) { badgeEl.textContent = 'Moderato'; badgeEl.className = 'vas-badge vas-badge-moderato' }
+    else               { badgeEl.textContent = 'Severo';   badgeEl.className = 'vas-badge vas-badge-severo' }
+  }
+
+  function updateVas4Delta() {
+    const wrap  = document.getElementById('s4-delta-wrap')
+    const badge = document.getElementById('s4-delta-badge')
+    if (!wrap || !badge) return
+    if (vas4State.inizio === null || vas4State.fine === null) { wrap.style.display = 'none'; return }
+    const delta = vas4State.fine - vas4State.inizio
+    wrap.style.display = 'block'
+    if (delta < 0) {
+      badge.className = 's4-delta s4-delta-pos'
+      badge.textContent = '↓ ' + Math.abs(delta) + ' punti — miglioramento'
+    } else if (delta > 0) {
+      badge.className = 's4-delta s4-delta-neg'
+      badge.textContent = '↑ ' + delta + ' punti — peggioramento'
+    } else {
+      badge.className = 's4-delta s4-delta-zero'
+      badge.textContent = '→ Nessuna variazione'
+    }
+  }
+
+  // ====== STEP 4: DURATA ======
+  function setTempoTrattamento(chip, min) {
+    if (isChiusa) return
+    document.querySelectorAll('.s4-tempo-chip').forEach(c => c.classList.remove('active'))
+    chip.classList.add('active')
+    document.getElementById('f-tempo-trattamento').value = min
+    scheduleSave()
+  }
+
+  function onTempoInput(val) {
+    if (isChiusa) return
+    const num = parseInt(val, 10)
+    document.querySelectorAll('.s4-tempo-chip').forEach(c => {
+      c.classList.toggle('active', parseInt(c.dataset.min) === num)
+    })
+    scheduleSave()
+  }
+
+  // ====== STEP 4: RISPOSTA ======
+  function setRispostaPaziente(chip, val) {
+    if (isChiusa) return
+    document.querySelectorAll('#chips-risposta .chip').forEach(c => c.classList.remove('active'))
+    chip.classList.add('active')
+    document.getElementById('f-risposta-paziente').value = val
+    scheduleSave()
+  }
+
+  // ====== STEP 4: TAB STATUS ======
+  // ====== STEP 5: VAS DELTA ======
+  function updateVas5Delta() {
+    const el = document.getElementById('s5-vas-delta')
+    if (!el) return
+    let html = ''
+
+    if (vas4State.inizio !== null && vas4State.fine !== null) {
+      const delta = vas4State.fine - vas4State.inizio
+      let cls, label
+      if (delta <= -2)     { cls = 's5-vas-pill-pos';  label = `↓ Variazione VAS seduta: ${vas4State.inizio}/10 → ${vas4State.fine}/10 (${delta})` }
+      else if (delta >= 2) { cls = 's5-vas-pill-neg';  label = `↑ Variazione VAS seduta: ${vas4State.inizio}/10 → ${vas4State.fine}/10 (+${delta})` }
+      else                 { cls = 's5-vas-pill-neut'; label = `→ Variazione VAS seduta: ${vas4State.inizio}/10 → ${vas4State.fine}/10 (${delta >= 0 ? '+' : ''}${delta})` }
+      html += `<div class="s5-vas-pill ${cls}">📊 ${label}</div>`
+    } else {
+      html += `<div class="s5-vas-pill s5-vas-pill-gray">📊 VAS seduta: completa Step 4 per vedere la variazione</div>`
+    }
+
+    if (prevVisitVas && prevVisitVas.vas_riposo !== null && prevVisitVas.vas_riposo !== undefined && vasState.riposo !== null) {
+      const delta = vasState.riposo - prevVisitVas.vas_riposo
+      const sign  = delta >= 0 ? '+' : ''
+      html += `<div class="s5-prev-row">📈 vs ultima visita — VAS riposo: ${prevVisitVas.vas_riposo}/10 → ${vasState.riposo}/10 (${sign}${delta})</div>`
+    }
+
+    el.innerHTML = html
+  }
+
+  async function loadPreviousVasForCompare() {
+    const { data } = await _sb
+      .from('visits')
+      .select('vas_riposo, vas_movimento, vas_picco_settimanale')
+      .eq('patient_id', patientId)
+      .eq('stato', 'chiusa')
+      .neq('id', visitId)
+      .order('data_visita', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    prevVisitVas = data
+    updateVas5Delta()
+  }
+
+  // ====== STEP 5: AI RELAZIONE ======
+  async function generaRelazioneAI() {
+    if (!window.isPremium && visitAiUses >= 5) {
+      if (window.policettivoHandleAI403) window.policettivoHandleAI403()
+      return
+    }
+    const btn     = document.getElementById('s5-ai-btn')
+    const spinner = document.getElementById('s5-ai-spinner')
+    const result  = document.getElementById('s5-ai-result')
+    btn.disabled = true
+    spinner.style.display = 'block'
+    result.style.display  = 'none'
+
+    const nomePaz = document.getElementById('patient-name')?.textContent || 'n.d.'
+    const etaPaz  = document.getElementById('patient-sub')?.textContent  || ''
+
+    const tPos = Object.entries(testOrtopedici)
+      .filter(([k,v]) => k !== '_custom' && v.esito === 'positivo')
+      .map(([k,v]) => k + (v.nota ? ` (${v.nota})` : ''))
+    const tNeg = Object.entries(testOrtopedici)
+      .filter(([k,v]) => k !== '_custom' && v.esito === 'negativo')
+      .map(([k]) => k)
+    const romLim = Object.entries(romData)
+      .filter(([,v]) => v.stato === 'limitato' || v.stato === 'severo')
+      .map(([k,v]) => `${k}: ${v.gradi !== null ? v.gradi + '°' : 'n.d.'} (${v.stato})`)
+
+    const contestoVisita = {
+      paziente: `${nomePaz}${etaPaz ? ', ' + etaPaz : ''}`,
+      data_visita: document.getElementById('f-data-visita')?.value || '',
+      step1: {
+        motivo:              document.getElementById('f-motivo')?.value.trim()    || '',
+        storia:              document.getElementById('f-storia')?.value.trim()    || '',
+        durata_sintomi:      chipState.durata_sintomi || '',
+        insorgenza:          chipState.insorgenza     || '',
+        obiettivi:           document.getElementById('f-obiettivi')?.value.trim() || '',
+        diagnosi_funzionale: document.getElementById('f-diagnosi')?.value.trim()  || ''
+      },
+      step2: {
+        vas_riposo:    vasState.riposo    !== null ? `${vasState.riposo}/10`    : 'non rilevato',
+        vas_movimento: vasState.movimento !== null ? `${vasState.movimento}/10` : 'non rilevato',
+        vas_picco:     vasState.picco     !== null ? `${vasState.picco}/10`     : 'non rilevato',
+        test_positivi: tPos.length ? tPos.join(', ') : 'nessuno',
+        test_negativi: tNeg.length ? tNeg.join(', ') : 'nessuno',
+        rom_limitati:  romLim.length ? romLim.join(', ') : 'nessuno',
+        note:          document.getElementById('f-note-valutazione')?.value.trim() || ''
+      },
+      step3: {
+        note_posturali:    document.getElementById('f-note-posturali')?.value.trim() || '',
+        analisi_ai:        visitData.ai_analisi_posturale  || '',
+        configurazione:    visitData.ai_suggerimento_config || ''
+      },
+      step4: {
+        tecniche:         document.getElementById('f-tecniche')?.value.trim()          || '',
+        durata_minuti:    document.getElementById('f-tempo-trattamento')?.value         || '',
+        vas_inizio:       vas4State.inizio !== null ? `${vas4State.inizio}/10` : 'non rilevato',
+        vas_fine:         vas4State.fine   !== null ? `${vas4State.fine}/10`   : 'non rilevato',
+        risposta_paziente: document.getElementById('f-risposta-paziente')?.value.trim() || ''
+      },
+      step5: {
+        miglioramenti: document.getElementById('f-miglioramenti')?.value.trim() || '',
+        note_finali:   document.getElementById('f-note-finali')?.value.trim()   || '',
+        indicazioni:   document.getElementById('f-indicazioni')?.value.trim()   || ''
+      }
+    }
+
+    const prompt = `Sei un assistente clinico esperto in fisioterapia posturale. Genera una relazione clinica strutturata in italiano della visita appena conclusa.
+
+DATI VISITA:
+${JSON.stringify(contestoVisita, null, 2)}
+
+ISTRUZIONI:
+- Tono professionale, terza persona ("il paziente")
+- Struttura: 1) Anamnesi sintetica  2) Quadro clinico osservato  3) Trattamento eseguito  4) Risposta al trattamento  5) Raccomandazioni
+- Massimo 400 parole
+- NO markdown bold/heading, solo testo discorsivo separato in paragrafi
+- Se mancano dati per una sezione, ometti la sezione`
+
+    try {
+      const { data: { session } } = await _sb.auth.getSession()
+      const resp = await fetch('/api/ai-analisi', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify({ prompt, max_tokens: 700 })
+      })
+      const json = await resp.json()
+
+      if (!resp.ok) {
+        if (resp.status === 403) { if (window.policettivoHandleAI403) window.policettivoHandleAI403() }
+        else showToast('Errore generazione AI: ' + (json.error || resp.status))
+        btn.disabled = false; spinner.style.display = 'none'; return
+      }
+
+      const testo = json.testo || ''
+      if (json.ai_uses !== undefined) visitAiUses = json.ai_uses
+
+      await _sb.from('visits').update({ relazione_ai: testo }).eq('id', visitId)
+      visitData.relazione_ai = testo
+      s5RelazioneAI = testo
+
+      document.getElementById('f-relazione-ai').value = testo
+      result.style.display  = 'block'
+      spinner.style.display = 'none'
+      btn.disabled = false
+      updateTabStates()
+    } catch (e) {
+      showToast('Errore generazione AI: ' + e.message)
+      btn.disabled = false; spinner.style.display = 'none'
+    }
+  }
+
+  function rigeneraRelazioneAI() {
+    document.getElementById('s5-ai-result').style.display = 'none'
+    generaRelazioneAI()
+  }
+
+  async function salvaRelazioneAI() {
+    const testo = document.getElementById('f-relazione-ai')?.value.trim() || null
+    const { error } = await _sb.from('visits').update({ relazione_ai: testo }).eq('id', visitId)
+    if (error) { showToast('Errore salvataggio: ' + error.message); return }
+    visitData.relazione_ai = testo
+    showToast('💾 Relazione salvata')
+  }
+
+  function scheduleRelazioneAISave() {
+    if (isChiusa) return
+    clearTimeout(s5RelTimer)
+    s5RelTimer = setTimeout(salvaRelazioneAI, 2000)
+  }
+
+  async function copiaRelazioneAI() {
+    const testo = document.getElementById('f-relazione-ai')?.value || ''
+    try {
+      await navigator.clipboard.writeText(testo)
+      showToast('📋 Copiato negli appunti')
+    } catch { showToast('Copia non disponibile in questo browser') }
+  }
+
+  // ====== STEP 5: TAB STATUS ======
+  function computeStep5Status() {
+    const miglio = document.getElementById('f-miglioramenti')?.value.trim() || ''
+    const noteF  = document.getElementById('f-note-finali')?.value.trim()   || ''
+    const pvAt   = document.getElementById('f-prossima-visita')?.value      || ''
+    const any    = miglio || noteF || pvAt
+    const full   = miglio && noteF && pvAt
+    return full ? 'full' : any ? 'partial' : 'empty'
+  }
+
+  // ====== PDF GENERAZIONE ======
+  function generaPDF() {
+    try {
+      const { jsPDF } = window.jspdf
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+
+      const PAGE_W  = 210
+      const PAGE_H  = 297
+      const MARGIN  = 16
+      const COL_W   = PAGE_W - MARGIN * 2
+      let y         = 0
+      let pageNum   = 1
+
+      const nomePaz     = document.getElementById('patient-name')?.textContent || 'Paziente'
+      const etaPaz      = document.getElementById('patient-sub')?.textContent  || ''
+      const idShort     = (visitId || '').slice(-4).toUpperCase() || '????'
+      const dataStr     = visitData.data_visita
+        ? new Date(visitData.data_visita).toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+        : new Date().toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+      const oggi = new Date().toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
+
+      function footer() {
+        doc.setFontSize(7.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(160, 160, 160)
+        doc.text(oggi, MARGIN, PAGE_H - 7)
+        doc.text(`Policettivo® — Visita ID: ${idShort}`, PAGE_W / 2, PAGE_H - 7, { align: 'center' })
+        doc.text(String(pageNum), PAGE_W - MARGIN, PAGE_H - 7, { align: 'right' })
+        doc.setDrawColor(220, 220, 220)
+        doc.line(MARGIN, PAGE_H - 10, PAGE_W - MARGIN, PAGE_H - 10)
+      }
+
+      function checkY(need) {
+        if (y + need > PAGE_H - 14) {
+          footer(); doc.addPage(); pageNum++; y = MARGIN
+        }
+      }
+
+      function section(title) {
+        checkY(12)
+        doc.setFillColor(0, 0, 0)
+        doc.roundedRect(MARGIN, y, COL_W, 7.5, 1, 1, 'F')
+        doc.setFontSize(8.5)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(255, 208, 8)
+        doc.text(title, MARGIN + 4, y + 5.2)
+        doc.setTextColor(30, 30, 30)
+        y += 11
+      }
+
+      function field(label, value) {
+        if (value === null || value === undefined || String(value).trim() === '') return
+        const str   = String(value).trim()
+        const lH    = 4.5
+        doc.setFontSize(8)
+        checkY(lH * 2)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(100, 100, 100)
+        doc.text(label + ':', MARGIN + 2, y)
+        y += lH
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(20, 20, 20)
+        const lines = doc.splitTextToSize(str, COL_W - 4)
+        lines.forEach(line => { checkY(lH); doc.text(line, MARGIN + 4, y); y += lH })
+        y += 1.5
+      }
+
+      function freeText(text) {
+        if (!text) return
+        const lH = 4.8
+        doc.setFontSize(8.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(30, 30, 30)
+        const lines = doc.splitTextToSize(String(text).trim(), COL_W - 4)
+        lines.forEach(line => { checkY(lH); doc.text(line, MARGIN + 2, y); y += lH })
+        y += 2
+      }
+
+      // ── INTESTAZIONE ──
+      doc.setFillColor(0, 0, 0)
+      doc.rect(0, 0, PAGE_W, 28, 'F')
+      doc.setFillColor(255, 208, 8)
+      doc.rect(0, 28, PAGE_W, 1.5, 'F')
+      doc.setFontSize(20)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 208, 8)
+      doc.text('Policettivo®', MARGIN, 12)
+      doc.setFontSize(9.5)
+      doc.setTextColor(200, 200, 200)
+      doc.text('Relazione Visita Clinica', MARGIN, 20)
+      doc.setFontSize(9)
+      doc.setTextColor(255, 208, 8)
+      doc.text(dataStr, PAGE_W - MARGIN, 12, { align: 'right' })
+      doc.setFontSize(8)
+      doc.setTextColor(180, 180, 180)
+      doc.text(`${nomePaz}${etaPaz ? '  —  ' + etaPaz : ''}`, PAGE_W - MARGIN, 20, { align: 'right' })
+
+      y = 34
+
+      // ── STEP 1 ──
+      section('ANAMNESI')
+      field('Motivo della visita',  visitData.motivo_visita)
+      field('Storia clinica',       visitData.storia_clinica)
+      if (visitData.durata_sintomi) field('Durata sintomi', visitData.durata_sintomi.replace(/_/g,' '))
+      if (visitData.insorgenza)     field('Insorgenza',     visitData.insorgenza.replace(/_/g,' '))
+      field('Obiettivi paziente',   visitData.obiettivi_paziente)
+      field('Diagnosi funzionale',  visitData.diagnosi_funzionale)
+      y += 2
+
+      // ── STEP 2 ──
+      section('VALUTAZIONE FISIOTERAPICA')
+      if (visitData.vas_riposo    != null) field('VAS riposo',    `${visitData.vas_riposo}/10`)
+      if (visitData.vas_movimento != null) field('VAS movimento', `${visitData.vas_movimento}/10`)
+      if (visitData.vas_picco_settimanale != null) field('VAS picco sett.', `${visitData.vas_picco_settimanale}/10`)
+      const to   = visitData.test_ortopedici || {}
+      const tPos = Object.entries(to).filter(([k,v]) => k !== '_custom' && v?.esito === 'positivo').map(([k,v]) => k + (v.nota ? ` (${v.nota})` : ''))
+      const tNeg = Object.entries(to).filter(([k,v]) => k !== '_custom' && v?.esito === 'negativo').map(([k]) => k)
+      if (tPos.length) field('Test positivi', tPos.join(', '))
+      if (tNeg.length) field('Test negativi', tNeg.join(', '))
+      const romL = Object.entries(visitData.test_rom || {}).filter(([,v]) => v?.stato === 'limitato' || v?.stato === 'severo').map(([k,v]) => `${k} ${v.gradi != null ? v.gradi+'°' : ''} (${v.stato})`)
+      if (romL.length) field('ROM limitati', romL.join(', '))
+      field('Note valutazione', visitData.note_valutazione)
+      y += 2
+
+      // ── STEP 3 ──
+      if (visitData.note_posturali || visitData.ai_analisi_posturale) {
+        section('VALUTAZIONE POSTURALE')
+        field('Note posturali',  visitData.note_posturali)
+        field('Analisi AI',      visitData.ai_analisi_posturale)
+        if (visitData.ai_suggerimento_config) field('Configurazione consigliata', visitData.ai_suggerimento_config.toUpperCase())
+        y += 2
+      }
+
+      // ── STEP 4 ──
+      if (visitData.tecniche_trattamento || visitData.vas_inizio != null) {
+        section('TRATTAMENTO')
+        field('Tecniche',         visitData.tecniche_trattamento)
+        if (visitData.tempo_trattamento_minuti) field('Durata', `${visitData.tempo_trattamento_minuti} minuti`)
+        if (visitData.vas_inizio != null && visitData.vas_fine != null) {
+          const d = visitData.vas_fine - visitData.vas_inizio
+          field('VAS seduta', `${visitData.vas_inizio}/10 → ${visitData.vas_fine}/10 (${d >= 0 ? '+' : ''}${d})`)
+        }
+        field('Risposta paziente', visitData.risposta_paziente)
+        y += 2
+      }
+
+      // ── STEP 5 ──
+      section('RIVALUTAZIONE E PIANO')
+      field('Miglioramenti',       visitData.miglioramenti)
+      field('Note finali',         visitData.note_finali)
+      if (visitData.prossima_visita_at) {
+        const pv = new Date(visitData.prossima_visita_at)
+        field('Prossima visita', pv.toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' }) + ' ore ' + pv.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' }))
+      }
+      field('Indicazioni paziente', visitData.indicazioni_paziente)
+      y += 2
+
+      // ── RELAZIONE AI ──
+      const relAI = (document.getElementById('f-relazione-ai')?.value || visitData.relazione_ai || '').trim()
+      if (relAI) {
+        section('RELAZIONE AI')
+        freeText(relAI)
+      }
+
+      footer()
+
+      // Download
+      const cog      = (patientData?.cognome || 'paziente').toLowerCase().replace(/[^a-z0-9]/g, '')
+      const dataFile = visitData.data_visita ? new Date(visitData.data_visita).toISOString().slice(0,10) : new Date().toISOString().slice(0,10)
+      doc.save(`visita_${cog}_${dataFile}_${idShort.toLowerCase()}.pdf`)
+
+    } catch (e) {
+      console.error('[PDF]', e)
+      showToast('Errore generazione PDF: ' + e.message)
+    }
+  }
+
+  function computeStep4Status() {
+    const tecn  = document.getElementById('f-tecniche')?.value.trim() || ''
+    const risp  = document.getElementById('f-risposta-paziente')?.value.trim() || ''
+    const tempo = document.getElementById('f-tempo-trattamento')?.value || ''
+    const any   = vas4State.inizio !== null || vas4State.fine !== null || tecn || risp || tempo
+    const full  = vas4State.inizio !== null && vas4State.fine !== null && tecn.length > 0
+    return full ? 'full' : any ? 'partial' : 'empty'
+  }
+
+  // ====== START ======
+  initStep3FotoGrid()
+  initTestAccordion()
+  initVisita()
+</script>
+</body>
+</html>
