@@ -1171,8 +1171,16 @@
       document.getElementById('premium-modal').classList.remove('open')
     }
 
-    init()
-    if (new URLSearchParams(location.search).get('new') === '1') setTimeout(apriNuovaVisita, 600)
+    var _initP = init()
+    if (new URLSearchParams(location.search).get('new') === '1') {
+      console.log('[deep-link] visite: waiting for init…')
+      _initP
+        .then(function() {
+          console.log('[deep-link] visite: init ready → apriNuovaVisita')
+          apriNuovaVisita()
+        })
+        .catch(function(e) { console.warn('[deep-link] visite: init error', e) })
+    }
   </script>
   <script src="console-nav.js"></script>
 </body>

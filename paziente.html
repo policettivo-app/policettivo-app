@@ -2539,31 +2539,68 @@ Campi:
     }
     // ── END TIMELINE CLINICA ──────────────────────────────────────────────────
 
-    init()
+    // ── Deep-link utility ────────────────────────────────────────────────────
+    function waitForElement(sel, ms) {
+      ms = ms || 3000
+      return new Promise(function(resolve, reject) {
+        var el = document.querySelector(sel)
+        if (el) { resolve(el); return }
+        var timer = setTimeout(function() {
+          obs.disconnect()
+          reject(new Error('[waitForElement] timeout: ' + sel))
+        }, ms)
+        var obs = new MutationObserver(function() {
+          var found = document.querySelector(sel)
+          if (found) { clearTimeout(timer); obs.disconnect(); resolve(found) }
+        })
+        obs.observe(document.body, { childList: true, subtree: true })
+      })
+    }
 
-    // Apri cartella automaticamente se arrivati da visite.html con ?openCartella=1
-    if (new URLSearchParams(window.location.search).get('openCartella') === '1') {
-      setTimeout(function() { toggleCartella(true) }, 500)
+    var _pazInitP = init()
+    var _dl = new URLSearchParams(window.location.search)
+
+    if (_dl.get('openCartella') === '1') {
+      console.log('[deep-link] paziente: openCartella – waiting for init…')
+      _pazInitP
+        .then(function() {
+          console.log('[deep-link] paziente: init ready → toggleCartella')
+          toggleCartella(true)
+        })
+        .catch(function(e) { console.warn('[deep-link] paziente: openCartella error', e) })
     }
-    if (new URLSearchParams(window.location.search).get('openAppointment') === '1') {
-      setTimeout(function() { apptOpen() }, 500)
+
+    if (_dl.get('openAppointment') === '1') {
+      console.log('[deep-link] paziente: openAppointment – waiting for init…')
+      _pazInitP
+        .then(function() {
+          console.log('[deep-link] paziente: init ready → apptOpen')
+          apptOpen()
+        })
+        .catch(function(e) { console.warn('[deep-link] paziente: openAppointment error', e) })
     }
-    // Deep-link: ?section=ai[&autostart=1]
-    if (new URLSearchParams(window.location.search).get('section') === 'ai') {
-      const _autostart = new URLSearchParams(window.location.search).get('autostart') === '1'
-      setTimeout(function() {
-        toggleCartella(true)
-        setTimeout(function() {
+
+    if (_dl.get('section') === 'ai') {
+      var _autostart = _dl.get('autostart') === '1'
+      console.log('[deep-link] paziente: section=ai autostart=' + _autostart + ' – waiting for init…')
+      _pazInitP
+        .then(function() {
+          console.log('[deep-link] paziente: init ready → toggleCartella')
+          toggleCartella(true)
+          return waitForElement('#csai-avvia-btn')
+        })
+        .then(function(btn) {
+          console.log('[deep-link] paziente: #csai-avvia-btn found → switchTab sintesi')
           clinicalNotesSwitchTab('sintesi')
-          const section = document.querySelector('.section:has(#cartella-container)')
-          if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          if (_autostart) setTimeout(function() {
-            const btn = document.getElementById('csai-avvia-btn')
-            const report = document.getElementById('csai-report')
-            if (btn && !btn.disabled && report && report.style.display === 'none') csAIAvvia()
-          }, 500)
-        }, 300)
-      }, 600)
+          var report = document.getElementById('csai-report')
+          if (_autostart && !btn.disabled && report && report.style.display === 'none') {
+            console.log('[deep-link] paziente: autostart → csAIAvvia()')
+            csAIAvvia()
+          } else if (_autostart) {
+            console.log('[deep-link] paziente: autostart skipped (btn disabled or report visible)')
+          }
+        })
+        .catch(function(e) { console.warn('[deep-link] paziente: section=ai error', e.message || e) })
     }
   </script>
 
