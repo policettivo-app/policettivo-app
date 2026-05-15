@@ -79,9 +79,22 @@
 
     /* ── Hero ───────────────────────────────────────────── */
     .d-hero { margin-bottom: 24px; }
+    .d-hero-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .d-hero-text { flex: 1; min-width: 0; }
     .d-hero-eyebrow { font-size: 11px; font-weight: 600; color: var(--text-2); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
-    .d-hero-title { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.2; }
-    @media (min-width: 640px) { .d-hero-title { font-size: 34px; } }
+    .d-hero-title { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1.2; }
+    @media (min-width: 640px) { .d-hero-title { font-size: 32px; } }
+    .d-cta-visita {
+      background: var(--yellow); color: #000; border: none; border-radius: 10px;
+      padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-size: 14px;
+      font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      box-shadow: 0 4px 18px rgba(255,208,8,0.35); transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+      letter-spacing: 0.3px;
+    }
+    .d-cta-visita:hover { background: #e6bc00; transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,208,8,0.45); }
+    .d-cta-visita:active { transform: translateY(0); }
+    .btn-add-pz { background: transparent; border: 1.5px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 14px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color 0.15s; white-space: nowrap; }
+    .btn-add-pz:hover { border-color: var(--yellow); background: #fffdf0; }
 
     /* ── Stats ──────────────────────────────────────────── */
     .d-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
@@ -295,8 +308,13 @@
 
     <!-- Hero -->
     <div class="d-hero">
-      <div class="d-hero-eyebrow" id="d-hero-date"></div>
-      <h1 class="d-hero-title" id="welcome-msg">Bentornato</h1>
+      <div class="d-hero-row">
+        <div class="d-hero-text">
+          <div class="d-hero-eyebrow" id="d-hero-date"></div>
+          <h1 class="d-hero-title" id="welcome-msg">Bentornato</h1>
+        </div>
+        <button class="d-cta-visita" onclick="openPatientPicker('visita')">➕ Nuova visita</button>
+      </div>
     </div>
 
     <!-- Stats 4 card -->
@@ -323,29 +341,6 @@
       </div>
     </div>
 
-    <!-- Quick actions -->
-    <div class="d-section-lbl">Azioni rapide</div>
-    <div class="d-quick">
-      <button class="d-qa-btn" onclick="openModal()">
-        <span class="d-qa-icon">👤</span>Nuovo paziente
-      </button>
-      <button class="d-qa-btn" onclick="openPatientPicker('visita')" style="display:none">
-        <span class="d-qa-icon">🏥</span>Nuova visita
-      </button>
-      <button class="d-qa-btn" onclick="openPatientPicker('seduta')" style="display:none">
-        <span class="d-qa-icon">💪</span>Nuova seduta
-      </button>
-      <button class="d-qa-btn" onclick="openPatientPicker('protocollo')" style="display:none">
-        <span class="d-qa-icon">📋</span>Protocollo
-      </button>
-      <button class="d-qa-btn" onclick="openPatientPicker('pdf')" style="display:none">
-        <span class="d-qa-icon">🖨</span>Genera PDF
-      </button>
-      <button class="d-qa-btn" onclick="openPatientPicker('sintesi-ai')" style="display:none">
-        <span class="d-qa-icon">🧠</span>Sintesi AI
-      </button>
-    </div>
-
     <!-- Recent patients -->
     <div id="recent-section" style="display:none">
       <div class="d-section-lbl">Recenti</div>
@@ -355,11 +350,14 @@
     <!-- Patients list -->
     <div class="d-section-row" style="margin-top:8px">
       <span class="d-section-lbl">I tuoi pazienti</span>
-      <select class="sort-select" id="sort-select" onchange="changeSortAndRender()">
-        <option value="recent">Ultima apertura</option>
-        <option value="activity">Ultima attività</option>
-        <option value="alpha">Alfabetico</option>
-      </select>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn-add-pz" onclick="openModal()">+ Nuovo paziente</button>
+        <select class="sort-select" id="sort-select" onchange="changeSortAndRender()">
+          <option value="recent">Ultima apertura</option>
+          <option value="activity">Ultima attività</option>
+          <option value="alpha">Alfabetico</option>
+        </select>
+      </div>
     </div>
     <div class="search-bar">
       <input class="search-input" type="text" id="search-input" placeholder="🔍  Cerca per nome, cognome o problema..." oninput="filterPatients(this.value)">
