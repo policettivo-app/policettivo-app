@@ -1046,11 +1046,11 @@
     function _pickerSelectPatient(id) {
       closePicker()
       switch (_pickerAction) {
-        case 'visita':      window.location.href = 'visite.html?id=' + id; break
-        case 'seduta':      window.location.href = 'diario.html?pid=' + id; break
-        case 'protocollo':  window.location.href = 'paziente.html?id=' + id; break
+        case 'visita':      window.location.href = 'visite.html?id=' + id + '&new=1'; break
+        case 'seduta':      window.location.href = 'diario.html?pid=' + id + '&new=1'; break
+        case 'protocollo':  window.location.href = 'assegna-protocollo.html?id=' + id; break
         case 'pdf':         window.location.href = 'paziente.html?id=' + id + '&openCartella=1'; break
-        case 'sintesi-ai':  window.location.href = 'paziente.html?id=' + id; break
+        case 'sintesi-ai':  window.location.href = 'paziente.html?id=' + id + '&section=ai&autostart=1'; break
         default:            window.location.href = 'paziente.html?id=' + id
       }
     }

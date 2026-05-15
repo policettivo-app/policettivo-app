@@ -2548,6 +2548,23 @@ Campi:
     if (new URLSearchParams(window.location.search).get('openAppointment') === '1') {
       setTimeout(function() { apptOpen() }, 500)
     }
+    // Deep-link: ?section=ai[&autostart=1]
+    if (new URLSearchParams(window.location.search).get('section') === 'ai') {
+      const _autostart = new URLSearchParams(window.location.search).get('autostart') === '1'
+      setTimeout(function() {
+        toggleCartella(true)
+        setTimeout(function() {
+          clinicalNotesSwitchTab('sintesi')
+          const section = document.querySelector('.section:has(#cartella-container)')
+          if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          if (_autostart) setTimeout(function() {
+            const btn = document.getElementById('csai-avvia-btn')
+            const report = document.getElementById('csai-report')
+            if (btn && !btn.disabled && report && report.style.display === 'none') csAIAvvia()
+          }, 500)
+        }, 300)
+      }, 600)
+    }
   </script>
 
   <!-- BARRA AZIONI RAPIDE FISSA -->
