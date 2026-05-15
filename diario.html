@@ -421,13 +421,9 @@ async function salvaSeduta() {
 
 var _initP = init();
 if (new URLSearchParams(location.search).get('new') === '1') {
-  console.log('[deep-link] diario: waiting for init…');
   _initP
-    .then(function() {
-      console.log('[deep-link] diario: init ready → apriNuovaSeduta');
-      apriNuovaSeduta();
-    })
-    .catch(function(e) { console.warn('[deep-link] diario: init error', e); });
+    .then(apriNuovaSeduta)
+    .catch(function(e) { console.warn('[deep-link] diario error', e); });
 }
 
 // ── DIARIO EXTENSIONS (namespace: diario*) ───────────────────────────────────
