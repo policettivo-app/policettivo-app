@@ -181,6 +181,12 @@
     .aip-btn-npl { background: #111; color: #fff; border: 2px solid #555; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
     .aip-btn-gpl { background: #C6F135; color: #000; border: none; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
     .aip-disclaimer { font-size: 11px; color: #555; font-style: italic; margin-bottom: 20px; }
+    .aip-confronto { text-align:left; margin-bottom:12px; font-size:12px; line-height:1.6; }
+    .aip-confronto-row { display:flex; gap:6px; margin-bottom:3px; }
+    .aip-confronto-row strong { color:#ddd; min-width:100px; flex-shrink:0; }
+    .aip-concordanza-ok { display:inline-flex; align-items:center; gap:5px; background:#0e2b0e; color:#66bb6a; border:1px solid #2e6b2e; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; margin-bottom:10px; }
+    .aip-discordanza { background:#2b1800; border:1px solid #bf6a00; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:#ffaa44; line-height:1.6; text-align:left; }
+    .aip-discordanza strong { color:#ffbb66; display:block; margin-bottom:4px; }
     .aip-close { background: #222; color: #fff; border: none; border-radius: 8px; padding: 10px 28px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
     .aip-last-box { margin-top: 16px; background: #f9f9f9; border-radius: 10px; padding: 14px 16px; display: none; }
     .aip-last-box.visible { display: block; }
@@ -340,6 +346,7 @@
         <div class="aip-risultato">
           <div id="aip-badge"></div>
           <svg id="aip-svg" width="160" height="80" viewBox="0 0 160 80" style="margin:0 auto 14px;display:block"></svg>
+          <div id="aip-confronto"></div>
           <div class="aip-motivazione" id="aip-motivazione"></div>
           <ul class="aip-obs-box" id="aip-obs-box"></ul>
           <div class="aip-override">
@@ -1485,32 +1492,77 @@
           if (img) content.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })
         }
       }
-      content.push({ type: 'text', text:
-        `Osservazioni posturali — base: ${base === 'scapolare' ? 'piano scapolare (pre-3R)' : 'piede'}.\n` +
-        `Piano scapolare (osservazione professionista): ${scapPrima || 'non rilevato'}\n` +
-        `Morfologia piede: ${piede || 'non rilevata'}\n` +
-        `Asse calcaneare: ${calcagno || 'non rilevato'}\n` +
-        `Rotazione superiore: ${rotSup || 'non rilevata'}\n` +
-        `Inclinazione capo: ${incCapo || 'non rilevata'}\n\n` +
-        `Le foto allegate sono SOLO quelle pre-tecnica (postura naturale del paziente).\n` +
-        `Applica la logica NPL/GPL e rispondi SOLO con JSON valido senza markdown.`
-      })
+      if (base === 'scapolare') {
+        content.push({ type: 'text', text:
+          `Analisi posturale — Piano Scapolare (foto sagittali pre-tecnica 3R)\n\n` +
+          `VALUTAZIONE INSERITA DAL PROFESSIONISTA:\n` +
+          `- Piano scapolare: ${scapPrima || 'non indicato'}\n` +
+          (scapDopo ? `- Piano scapolare post-tecnica: ${scapDopo}\n` : '') +
+          `- Morfologia piede: ${piede || 'non rilevata'}\n` +
+          `- Asse calcaneare: ${calcagno || 'non rilevato'}\n` +
+          `- Rotazione superiore: ${rotSup || 'non rilevata'}\n` +
+          `- Inclinazione capo: ${incCapo || 'non rilevata'}\n\n` +
+          `Le immagini allegate sono le foto sagittali PRE-TECNICA (postura naturale del paziente).\n` +
+          `Valuta le immagini AUTONOMAMENTE, poi confronta con la valutazione del professionista.\n` +
+          `Rispondi SOLO con JSON valido senza markdown.`
+        })
+      } else {
+        content.push({ type: 'text', text:
+          `Analisi posturale — Piede (foto podoscopiche)\n\n` +
+          `VALUTAZIONE INSERITA DAL PROFESSIONISTA:\n` +
+          `- Morfologia piede: ${piede || 'non indicata'}\n` +
+          `- Asse calcaneare: ${calcagno || 'non indicato'}\n` +
+          `- Piano scapolare: ${scapPrima || 'non rilevato'}\n` +
+          `- Rotazione superiore: ${rotSup || 'non rilevata'}\n` +
+          `- Inclinazione capo: ${incCapo || 'non rilevata'}\n\n` +
+          `Le immagini allegate sono le foto podoscopiche (vista plantare e posteriore).\n` +
+          `Valuta le immagini AUTONOMAMENTE, poi confronta con la valutazione del professionista.\n` +
+          `Rispondi SOLO con JSON valido senza markdown.`
+        })
+      }
 
-      const systemPrompt =
-        `Sei un assistente AI per fisioterapisti specializzato in posturologia e colorazione dei cuscini NPL/GPL.\n\n` +
-        `Logica di scelta:\n` +
-        `- NPL (cuscino nero, tonico): piano scapolare ANTERIORE, piede CAVO, calcagno VARO\n` +
-        `- GPL (cuscino verde lime, decompressivo): piano scapolare POSTERIORE, piede PIATTO, calcagno VALGO\n` +
-        `- NEUTRO: piano scapolare in asse/normali o osservazioni contraddittorie — lascia decidere al professionista\n\n` +
-        `Rispondi ESCLUSIVAMENTE con questo JSON (nessun testo extra):\n` +
-        `{"suggerimento":"NPL"|"GPL"|"NEUTRO","confidenza":"alta"|"media"|"bassa","motivazione":"1-2 frasi","osservazioni_chiave":["..."]}`
+      const _jsonSchema =
+        `{"valutazione_ai":"descrizione di cosa vedi nelle immagini","valutazione_professionista":"riassunto della valutazione inserita dal professionista","concordanza":true,"suggerimento":"NPL","confidenza":"alta","motivazione":"spiegazione clinica 1-2 frasi","osservazioni_chiave":["..."],"discordanza_msg":null}`
+
+      const systemPrompt = base === 'scapolare'
+        ? `Sei un assistente AI di supporto decisionale per fisioterapisti specializzati nella somministrazione dei Cuscini Elicoidali Policettivo®.\n\n` +
+          `OBIETTIVO: Analizzare le foto sagittali in modo autonomo e confrontare con la valutazione del professionista.\n\n` +
+          `FASE 1 — VALUTAZIONE VISIVA AUTONOMA:\n` +
+          `Osserva le foto sagittali allegate. Determina ESCLUSIVAMENTE dalla visione delle immagini se il piano scapolare appare:\n` +
+          `- ANTERIORE (scapole proiettate anteriormente rispetto all'asse corporeo)\n` +
+          `- POSTERIORE (scapole proiettate posteriormente)\n` +
+          `- IN ASSE / NEUTRO (allineamento neutro)\n` +
+          `Descrivi sinteticamente cosa vedi (1 frase) nel campo valutazione_ai.\n\n` +
+          `FASE 2 — CONFRONTO:\n` +
+          `Confronta la tua valutazione visiva con quella del professionista. Se discordano, imposta concordanza:false e compila discordanza_msg con: "Dalle immagini sembra emergere [X], mentre il professionista ha indicato [Y]. Si consiglia rivalutazione prima di confermare la configurazione."\n\n` +
+          `REGOLE CLINICHE NPL/GPL (piano scapolare):\n` +
+          `- ANTERIORE → NPL (cuscino nero, tonico)\n` +
+          `- POSTERIORE → GPL (cuscino verde lime, decompressivo)\n` +
+          `- IN ASSE / NEUTRO → NEUTRO — entrambe le configurazioni sono possibili; la scelta dipende dallo scopo clinico\n\n` +
+          `La decisione finale è sempre del professionista.\n\n` +
+          `Rispondi ESCLUSIVAMENTE con JSON valido (nessun testo extra, nessun markdown):\n` + _jsonSchema
+        : `Sei un assistente AI di supporto decisionale per fisioterapisti specializzati nella somministrazione dei Cuscini Elicoidali Policettivo®.\n\n` +
+          `OBIETTIVO: Analizzare le foto podoscopiche in modo autonomo e confrontare con la valutazione del professionista.\n\n` +
+          `FASE 1 — VALUTAZIONE VISIVA AUTONOMA:\n` +
+          `Osserva le foto podoscopiche allegate (plantare e posteriore). Determina ESCLUSIVAMENTE dalla visione delle immagini:\n` +
+          `- Morfologia del piede: PIATTO/PRONATO, CAVO/SUPINATO, o NEUTRO\n` +
+          `- Asse calcaneare: VALGO, VARO, o IN ASSE\n` +
+          `Descrivi sinteticamente cosa vedi (1 frase) nel campo valutazione_ai.\n\n` +
+          `FASE 2 — CONFRONTO:\n` +
+          `Confronta la tua valutazione visiva con quella del professionista. Se discordano, imposta concordanza:false e compila discordanza_msg con: "Dalle immagini sembra emergere [X], mentre il professionista ha indicato [Y]. Si consiglia rivalutazione prima di confermare la configurazione."\n\n` +
+          `REGOLE CLINICHE NPL/GPL (piede):\n` +
+          `- Piede CAVO/SUPINATO o calcagno VARO → NPL (cuscino nero, tonico)\n` +
+          `- Piede PIATTO/PRONATO o calcagno VALGO → GPL (cuscino verde lime, decompressivo)\n` +
+          `- NEUTRO o osservazioni contraddittorie → NEUTRO — la scelta dipende dallo scopo clinico\n\n` +
+          `La decisione finale è sempre del professionista.\n\n` +
+          `Rispondi ESCLUSIVAMENTE con JSON valido (nessun testo extra, nessun markdown):\n` + _jsonSchema
 
       try {
         const { data: { session: _aiS2 } } = await _supabase.auth.getSession()
         const resp = await fetch('/api/analisi-posturale', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_aiS2?.access_token || '') },
-          body: JSON.stringify({ system: systemPrompt, content: content })
+          body: JSON.stringify({ system: systemPrompt, content: content, max_tokens: 600 })
         })
         if (resp.status === 403) { const e403 = await resp.json(); document.getElementById('aip-step-loading').style.display = 'none'; document.getElementById('aip-step-scelta').style.display = 'block'; if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const data = await resp.json()
@@ -1544,6 +1596,21 @@
       if (sug === 'NPL')      { badgeEl.innerHTML = '<div class="aip-badge-npl">⬛ NPL</div>'; svgEl.innerHTML = svgNPL }
       else if (sug === 'GPL') { badgeEl.innerHTML = '<div class="aip-badge-gpl">🟢 GPL</div>'; svgEl.innerHTML = svgGPL }
       else                    { badgeEl.innerHTML = '<div class="aip-badge-neutro">⚪ NEUTRO</div>'; svgEl.innerHTML = svgNEU }
+
+      const confrontoEl = document.getElementById('aip-confronto')
+      if (confrontoEl) {
+        let ch = ''
+        if (result.valutazione_ai || result.valutazione_professionista) {
+          ch += '<div class="aip-confronto">'
+          if (result.valutazione_ai) ch += '<div class="aip-confronto-row"><strong>AI (immagini):</strong><span style="color:#ccc">' + result.valutazione_ai + '</span></div>'
+          if (result.valutazione_professionista) ch += '<div class="aip-confronto-row"><strong>Professionista:</strong><span style="color:#ccc">' + result.valutazione_professionista + '</span></div>'
+          ch += '</div>'
+          if (result.concordanza === true) ch += '<div class="aip-concordanza-ok">✅ Valutazioni concordanti</div>'
+        }
+        if (result.discordanza_msg) ch += '<div class="aip-discordanza"><strong>⚠️ Possibile discordanza</strong>' + result.discordanza_msg + '</div>'
+        confrontoEl.innerHTML = ch
+      }
+
       document.getElementById('aip-motivazione').textContent = result.motivazione || ''
       document.getElementById('aip-obs-box').innerHTML = (result.osservazioni_chiave || []).map(o => `<li>${o}</li>`).join('')
       document.getElementById('aip-step-risultato').style.display = 'block'
