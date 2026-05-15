@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Scheda Paziente</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="utils-premium.js"></script>
   <script src="utils-ai.js"></script>
@@ -29,8 +30,8 @@
     .patient-name { font-size: 26px; font-weight: 700; color: #000; }
     .patient-sub { font-size: 13px; color: #666; margin-top: 4px; }
     .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-    .badge-npl { background: #000; color: #FFD008; }
-    .badge-gpl { background: #FFD008; color: #000; }
+    .badge-npl { background: #000; color: #FFD008; border: 1px solid #FFD008; }
+    .badge-gpl { background: #FFD008; color: #000; border: 1px solid #000; }
     .badge-none { background: #eee; color: #888; }
     .section { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; }
     .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
@@ -107,7 +108,8 @@
     .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
     .config-option { border: 2px solid #333; border-radius: 10px; padding: 16px; cursor: pointer; text-align: center; transition: all 0.2s; background: #000; color: #fff; }
     .config-option:hover { border-color: #555; }
-    .config-option.selected { border-color: #FFD008; background: #111; }
+    .config-option.selected-npl { border-color: #FFD008; background: #000; color: #FFD008; }
+    .config-option.selected-gpl { border-color: #000; background: #FFD008; color: #000; }
     .config-name { font-weight: 700; font-size: 20px; }
     .config-desc { font-size: 11px; margin-top: 4px; opacity: 0.7; }
     .btn-primary { background: #FFD008; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
@@ -181,12 +183,12 @@
     .aip-obs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
     .aip-obs-cell { background: #1a1a1a; border-radius: 8px; padding: 9px 12px; }
     .aip-obs-cell-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #555; margin-bottom: 4px; }
-    .aip-obs-cell-val { font-size: 12px; font-weight: 700; color: #ddd; line-height: 1.4; }
+    .aip-obs-cell-val { font-size: 12px; font-weight: 700; color: #ddd; line-height: 1.4; white-space: pre-line; }
     /* Suggestion row */
     .aip-sug-row { background: #1a1a1a; border-radius: 8px; padding: 9px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
     .aip-sug-lbl { font-size: 11px; color: #555; font-weight: 600; flex-shrink: 0; }
     .aip-sug-val-npl { font-size: 14px; font-weight: 700; color: #FFD008; }
-    .aip-sug-val-gpl { font-size: 14px; font-weight: 700; color: #C6F135; }
+    .aip-sug-val-gpl { font-size: 13px; font-weight: 700; background: #FFD008; color: #000; padding: 2px 8px; border-radius: 4px; }
     .aip-sug-val-neu { font-size: 14px; font-weight: 700; color: #90caf9; }
     /* Discordance note */
     .aip-disc-note { background: #2b1800; border: 1px solid #bf6a00; border-radius: 8px; padding: 9px 12px; margin-bottom: 10px; font-size: 12px; color: #ffaa44; line-height: 1.5; }
@@ -201,8 +203,8 @@
     .aip-disclaimer { font-size: 10px; color: #333; font-style: italic; margin-top: 10px; }
     /* Sticky footer */
     .aip-sticky-btns { padding: 10px 20px 14px; border-top: 1px solid #1e1e1e; display: grid; gap: 7px; flex-shrink: 0; }
-    .aip-btn-confirm-npl { font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; border: none; border-radius: 8px; padding: 12px; cursor: pointer; background: #FFD008; color: #000; }
-    .aip-btn-confirm-gpl { font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; border: none; border-radius: 8px; padding: 12px; cursor: pointer; background: #C6F135; color: #000; }
+    .aip-btn-confirm-npl { font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; border: 2px solid #FFD008; border-radius: 8px; padding: 12px; cursor: pointer; background: #000; color: #FFD008; }
+    .aip-btn-confirm-gpl { font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; border: 2px solid #000; border-radius: 8px; padding: 12px; cursor: pointer; background: #FFD008; color: #000; }
     .aip-btn-alt-choice { font-family: 'Montserrat',sans-serif; font-size: 12px; font-weight: 600; background: transparent; border: 1.5px solid #2a2a2a; border-radius: 8px; padding: 10px; color: #666; cursor: pointer; }
     .aip-btn-alt-choice:hover { border-color: #444; color: #aaa; }
     .aip-cancel-sm { background: transparent; color: #383838; border: none; font-family: 'Montserrat',sans-serif; font-size: 11px; cursor: pointer; padding: 4px; text-align: center; }
@@ -1276,8 +1278,8 @@
     }
 
     function updateConfigUI() {
-      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig === 'NPL' ? ' selected' : '')
-      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig === 'GPL' ? ' selected' : '')
+      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig === 'NPL' ? ' selected-npl' : '')
+      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig === 'GPL' ? ' selected-gpl' : '')
     }
 
     async function selectConfig(val) {
@@ -1607,40 +1609,27 @@
       }
 
       const _jsonSchema =
-        `{"valutazione_ai":"descrizione di cosa vedi nelle immagini","valutazione_professionista":"riassunto della valutazione inserita dal professionista","concordanza":true,"suggerimento":"NPL","confidenza":"alta","motivazione":"spiegazione clinica 1-2 frasi","osservazioni_chiave":["..."],"discordanza_msg":null}`
+        `{"valutazione_ai":"• osservazione 1\n• osservazione 2","valutazione_professionista":"• sintesi principale","concordanza":true,"suggerimento":"NPL","confidenza":"alta","motivazione":"2-4 parole","osservazioni_chiave":["bullet breve"],"discordanza_msg":null}`
 
       const systemPrompt = base === 'scapolare'
-        ? `Sei un assistente AI di supporto decisionale per fisioterapisti specializzati nella somministrazione dei Cuscini Elicoidali Policettivo®.\n\n` +
-          `OBIETTIVO: Analizzare le foto sagittali in modo autonomo e confrontare con la valutazione del professionista.\n\n` +
-          `FASE 1 — VALUTAZIONE VISIVA AUTONOMA:\n` +
-          `Osserva le foto sagittali allegate. Determina ESCLUSIVAMENTE dalla visione delle immagini se il piano scapolare appare:\n` +
-          `- ANTERIORE (scapole proiettate anteriormente rispetto all'asse corporeo)\n` +
-          `- POSTERIORE (scapole proiettate posteriormente)\n` +
-          `- IN ASSE / NEUTRO (allineamento neutro)\n` +
-          `Descrivi sinteticamente cosa vedi (1 frase) nel campo valutazione_ai.\n\n` +
-          `FASE 2 — CONFRONTO:\n` +
-          `Confronta la tua valutazione visiva con quella del professionista. Se discordano, imposta concordanza:false e compila discordanza_msg con: "Dalle immagini sembra emergere [X], mentre il professionista ha indicato [Y]. Si consiglia rivalutazione prima di confermare la configurazione."\n\n` +
-          `REGOLE CLINICHE NPL/GPL (piano scapolare):\n` +
-          `- ANTERIORE → NPL (cuscino nero, tonico)\n` +
-          `- POSTERIORE → GPL (cuscino verde lime, decompressivo)\n` +
-          `- IN ASSE / NEUTRO → NEUTRO — entrambe le configurazioni sono possibili; la scelta dipende dallo scopo clinico\n\n` +
-          `La decisione finale è sempre del professionista.\n\n` +
-          `Rispondi ESCLUSIVAMENTE con JSON valido (nessun testo extra, nessun markdown):\n` + _jsonSchema
-        : `Sei un assistente AI di supporto decisionale per fisioterapisti specializzati nella somministrazione dei Cuscini Elicoidali Policettivo®.\n\n` +
-          `OBIETTIVO: Analizzare le foto podoscopiche in modo autonomo e confrontare con la valutazione del professionista.\n\n` +
-          `FASE 1 — VALUTAZIONE VISIVA AUTONOMA:\n` +
-          `Osserva le foto podoscopiche allegate (plantare e posteriore). Determina ESCLUSIVAMENTE dalla visione delle immagini:\n` +
-          `- Morfologia del piede: PIATTO/PRONATO, CAVO/SUPINATO, o NEUTRO\n` +
-          `- Asse calcaneare: VALGO, VARO, o IN ASSE\n` +
-          `Descrivi sinteticamente cosa vedi (1 frase) nel campo valutazione_ai.\n\n` +
-          `FASE 2 — CONFRONTO:\n` +
-          `Confronta la tua valutazione visiva con quella del professionista. Se discordano, imposta concordanza:false e compila discordanza_msg con: "Dalle immagini sembra emergere [X], mentre il professionista ha indicato [Y]. Si consiglia rivalutazione prima di confermare la configurazione."\n\n` +
-          `REGOLE CLINICHE NPL/GPL (piede):\n` +
-          `- Piede CAVO/SUPINATO o calcagno VARO → NPL (cuscino nero, tonico)\n` +
-          `- Piede PIATTO/PRONATO o calcagno VALGO → GPL (cuscino verde lime, decompressivo)\n` +
-          `- NEUTRO o osservazioni contraddittorie → NEUTRO — la scelta dipende dallo scopo clinico\n\n` +
-          `La decisione finale è sempre del professionista.\n\n` +
-          `Rispondi ESCLUSIVAMENTE con JSON valido (nessun testo extra, nessun markdown):\n` + _jsonSchema
+        ? `Sei un assistente AI di supporto decisionale per fisioterapisti Policettivo®.\n\n` +
+          `VALUTAZIONE VISIVA (foto sagittali):\n` +
+          `Determina se il piano scapolare è ANTERIORE, POSTERIORE o NEUTRO.\n` +
+          `valutazione_ai: MAX 3 bullet brevi (es: "• antepulsione scapolare\n• cifosi aumentata\n• testa avanzata"). Solo osservazioni chiave, niente frasi.\n` +
+          `valutazione_professionista: 1-2 bullet riassuntivi della valutazione inserita.\n\n` +
+          `CONFRONTO: Se AI e professionista discordano → concordanza:false, discordanza_msg: "AI: [X] / Prof: [Y]. Rivalutare."\n\n` +
+          `REGOLE NPL/GPL:\n` +
+          `ANTERIORE → NPL | POSTERIORE → GPL | NEUTRO → NEUTRO\n\n` +
+          `Rispondi SOLO con JSON valido:\n` + _jsonSchema
+        : `Sei un assistente AI di supporto decisionale per fisioterapisti Policettivo®.\n\n` +
+          `VALUTAZIONE VISIVA (foto podoscopiche plantare/posteriore):\n` +
+          `Determina morfologia piede (PIATTO/CAVO/NEUTRO) e asse calcaneare (VALGO/VARO/IN ASSE).\n` +
+          `valutazione_ai: MAX 3 bullet brevi (es: "• piede piatto\n• valgo calcagno"). Solo osservazioni chiave, niente frasi.\n` +
+          `valutazione_professionista: 1-2 bullet riassuntivi della valutazione inserita.\n\n` +
+          `CONFRONTO: Se AI e professionista discordano → concordanza:false, discordanza_msg: "AI: [X] / Prof: [Y]. Rivalutare."\n\n` +
+          `REGOLE NPL/GPL:\n` +
+          `CAVO/SUPINATO o VARO → NPL | PIATTO/PRONATO o VALGO → GPL | NEUTRO → NEUTRO\n\n` +
+          `Rispondi SOLO con JSON valido:\n` + _jsonSchema
 
       try {
         const { data: { session: _aiS2 } } = await _supabase.auth.getSession()
@@ -1757,7 +1746,8 @@
 
       const isNPL = scelta === 'NPL'
       document.getElementById('aip-last-content').innerHTML =
-        `<span style="background:${isNPL ? '#111' : '#C6F135'};color:${isNPL ? '#fff' : '#000'};` +
+        `<span style="background:${isNPL ? '#000' : '#FFD008'};color:${isNPL ? '#FFD008' : '#000'};` +
+        `border:1.5px solid ${isNPL ? '#FFD008' : '#000'};` +
         `padding:5px 18px;border-radius:6px;font-weight:700;font-size:15px;letter-spacing:2px">${scelta}</span>` +
         `<span style="font-size:12px;color:#888;margin-left:10px">${nota ? 'Nota: ' + nota : 'Scelta confermata dal professionista'}</span>`
       document.getElementById('aip-last-box').classList.add('visible')
@@ -1767,9 +1757,9 @@
       if (!tipo) return
       const isNPL = tipo === 'NPL'
       document.getElementById('cuscino-badge').innerHTML =
-        `<span style="display:inline-block;background:${isNPL ? '#000' : '#9AFF00'};color:${isNPL ? '#9AFF00' : '#000'};` +
+        `<span style="display:inline-block;background:${isNPL ? '#000' : '#FFD008'};color:${isNPL ? '#FFD008' : '#000'};` +
         `font-size:28px;font-weight:700;letter-spacing:4px;padding:12px 32px;border-radius:10px;` +
-        `border:${isNPL ? '2px solid #333' : 'none'}">${tipo}</span>`
+        `border:2px solid ${isNPL ? '#FFD008' : '#000'}">${tipo}</span>`
       document.getElementById('cuscino-label').textContent =
         isNPL ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'
       document.getElementById('cuscino-visual').style.display = 'block'

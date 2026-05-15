@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Visite — Policettivo</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="utils-premium.js"></script>
   <script src="utils-ai.js"></script>
@@ -45,8 +46,8 @@
     .badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px; }
     .badge-prima { background: #FFD008; color: #000; }
     .badge-controllo { background: #eee; color: #666; }
-    .badge-npl { background: #000; color: #FFD008; }
-    .badge-gpl { background: #FFD008; color: #000; }
+    .badge-npl { background: #000; color: #FFD008; border: 1.5px solid #FFD008; }
+    .badge-gpl { background: #FFD008; color: #000; border: 1.5px solid #000; }
     .visit-note-preview { font-size: 12px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
     .visit-thumbs { display: flex; gap: 5px; flex-wrap: wrap; }
     .visit-thumb { width: 60px; height: 76px; border-radius: 6px; object-fit: cover; border: 1px solid #eee; }
@@ -113,8 +114,8 @@
     .ai-result-text { font-size: 13px; color: #333; line-height: 1.6; margin-bottom: 14px; }
     .ai-config-row { display: flex; gap: 8px; }
     .btn-scegli-config { flex: 1; padding: 10px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; border: none; }
-    .btn-npl { background: #000; color: #FFD008; }
-    .btn-gpl { background: #FFD008; color: #000; }
+    .btn-npl { background: #000; color: #FFD008; border: 2px solid #FFD008; }
+    .btn-gpl { background: #FFD008; color: #000; border: 2px solid #000; }
 
     /* ── Camera Modal ── */
     #cam-modal { display: none; position: fixed; inset: 0; z-index: 2000; background: #000; }
@@ -147,7 +148,8 @@
 
     /* ── Config cards NPL/GPL ── */
     .config-card-nv { border: 2px solid #333; border-radius: 10px; padding: 14px; cursor: pointer; text-align: center; transition: all 0.2s; background: #000; color: #fff; flex: 1; }
-    .config-card-nv.selected { border-color: #FFD008; background: #111; }
+    .config-card-nv.selected-npl { border-color: #FFD008; background: #000; color: #FFD008; }
+    .config-card-nv.selected-gpl { border-color: #000; background: #FFD008; color: #000; }
     .config-card-nv-name { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
     .config-card-nv-desc { font-size: 10px; color: #aaa; }
 
@@ -799,8 +801,10 @@
     }
 
     function updateNVConfigUI() {
-      document.getElementById('nv-cfg-npl')?.classList.toggle('selected', nvConfig === 'NPL')
-      document.getElementById('nv-cfg-gpl')?.classList.toggle('selected', nvConfig === 'GPL')
+      const nplEl = document.getElementById('nv-cfg-npl')
+      const gplEl = document.getElementById('nv-cfg-gpl')
+      if (nplEl) { nplEl.classList.remove('selected-npl','selected-gpl'); if (nvConfig === 'NPL') nplEl.classList.add('selected-npl') }
+      if (gplEl) { gplEl.classList.remove('selected-npl','selected-gpl'); if (nvConfig === 'GPL') gplEl.classList.add('selected-gpl') }
     }
 
     // ── Save visita ───────────────────────────────────────
