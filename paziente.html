@@ -155,39 +155,57 @@
     .premium-modal .btn-scopri:hover { background: #e6bb00; }
     .premium-modal .btn-annulla { background: transparent; color: #aaa; border: 1px solid #333; border-radius: 8px; padding: 11px 28px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; width: 100%; }
     .premium-modal .btn-annulla:hover { border-color: #666; color: #fff; }
-    .aip-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9998; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .aip-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 9998; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    @media (min-width: 600px) { .aip-overlay { align-items: center; } }
     .aip-overlay.visible { opacity: 1; pointer-events: all; }
-    .aip-modal { background: #111; color: #fff; border-radius: 16px; padding: 32px 28px; max-width: 440px; width: 92%; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
-    .aip-modal h2 { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
-    .aip-sub { font-size: 13px; color: #aaa; margin: 0 0 24px; }
-    .aip-base-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-    .aip-base-btn { background: #1a1a1a; border: 2px solid #333; border-radius: 12px; padding: 22px 12px; color: #fff; font-family: 'Montserrat',sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; line-height: 1.5; }
+    .aip-modal { background: #111; color: #fff; border-radius: 16px 16px 0 0; max-width: 480px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 -4px 40px rgba(0,0,0,0.6); }
+    @media (min-width: 600px) { .aip-modal { border-radius: 16px; width: 92%; } }
+    .aip-step-inner { overflow-y: auto; padding: 22px 20px 16px; flex: 1; }
+    .aip-modal h2 { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+    .aip-sub { font-size: 12px; color: #666; margin: 0 0 18px; }
+    .aip-base-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .aip-base-btn { background: #1a1a1a; border: 2px solid #333; border-radius: 10px; padding: 18px 10px; color: #fff; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; line-height: 1.5; }
     .aip-base-btn:hover { border-color: #FFD008; color: #FFD008; }
-    .aip-cancel { background: transparent; color: #888; border: 1px solid #333; border-radius: 8px; padding: 10px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; }
-    .aip-cancel:hover { color: #fff; border-color: #666; }
-    .aip-spinner { width: 36px; height: 36px; border: 3px solid #333; border-top-color: #FFD008; border-radius: 50%; animation: aip-spin 0.8s linear infinite; margin: 0 auto 14px; }
+    .aip-cancel { background: transparent; color: #555; border: 1px solid #2a2a2a; border-radius: 8px; padding: 9px; font-family: 'Montserrat',sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; width: 100%; }
+    .aip-cancel:hover { color: #fff; border-color: #555; }
+    .aip-spinner { width: 30px; height: 30px; border: 3px solid #333; border-top-color: #FFD008; border-radius: 50%; animation: aip-spin 0.8s linear infinite; margin: 0 auto 12px; }
     @keyframes aip-spin { to { transform: rotate(360deg); } }
-    .aip-loading { text-align: center; padding: 36px 0; }
-    .aip-loading-text { color: #aaa; font-size: 14px; }
-    .aip-risultato { text-align: center; }
-    .aip-badge-npl { display: inline-block; background: #111; border: 2px solid #555; color: #fff; padding: 10px 36px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 14px; }
-    .aip-badge-gpl { display: inline-block; background: #C6F135; color: #000; padding: 10px 36px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 14px; }
-    .aip-badge-neutro { display: inline-block; background: #444; color: #fff; padding: 10px 36px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 14px; }
-    .aip-motivazione { font-size: 13px; color: #ccc; margin-bottom: 16px; line-height: 1.6; }
-    .aip-obs-box { background: #1a1a1a; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; text-align: left; list-style: none; }
-    .aip-obs-box li { font-size: 12px; color: #aaa; margin-bottom: 3px; padding-left: 12px; position: relative; }
-    .aip-obs-box li::before { content: '•'; position: absolute; left: 0; color: #666; }
-    .aip-override { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
-    .aip-btn-npl { background: #111; color: #fff; border: 2px solid #555; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .aip-btn-gpl { background: #C6F135; color: #000; border: none; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .aip-disclaimer { font-size: 11px; color: #555; font-style: italic; margin-bottom: 20px; }
-    .aip-confronto { text-align:left; margin-bottom:12px; font-size:12px; line-height:1.6; }
-    .aip-confronto-row { display:flex; gap:6px; margin-bottom:3px; }
-    .aip-confronto-row strong { color:#ddd; min-width:100px; flex-shrink:0; }
-    .aip-concordanza-ok { display:inline-flex; align-items:center; gap:5px; background:#0e2b0e; color:#66bb6a; border:1px solid #2e6b2e; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; margin-bottom:10px; }
-    .aip-discordanza { background:#2b1800; border:1px solid #bf6a00; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:#ffaa44; line-height:1.6; text-align:left; }
-    .aip-discordanza strong { color:#ffbb66; display:block; margin-bottom:4px; }
-    .aip-close { background: #222; color: #fff; border: none; border-radius: 8px; padding: 10px 28px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .aip-loading { text-align: center; padding: 40px 0; }
+    .aip-loading-text { color: #666; font-size: 13px; }
+    /* Status header */
+    .aip-status-hdr { border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; font-size: 13px; font-weight: 700; }
+    .aip-status-ok { background: #0e2b0e; color: #66bb6a; border: 1px solid #2e6b2e; }
+    .aip-status-warn { background: #2b1800; color: #ffaa44; border: 1px solid #bf6a00; }
+    .aip-status-neutro { background: #1a1a2e; color: #90caf9; border: 1px solid #1565c0; }
+    /* Observation grid */
+    .aip-obs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .aip-obs-cell { background: #1a1a1a; border-radius: 8px; padding: 9px 12px; }
+    .aip-obs-cell-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #555; margin-bottom: 4px; }
+    .aip-obs-cell-val { font-size: 12px; font-weight: 700; color: #ddd; line-height: 1.4; }
+    /* Suggestion row */
+    .aip-sug-row { background: #1a1a1a; border-radius: 8px; padding: 9px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .aip-sug-lbl { font-size: 11px; color: #555; font-weight: 600; flex-shrink: 0; }
+    .aip-sug-val-npl { font-size: 14px; font-weight: 700; color: #FFD008; }
+    .aip-sug-val-gpl { font-size: 14px; font-weight: 700; color: #C6F135; }
+    .aip-sug-val-neu { font-size: 14px; font-weight: 700; color: #90caf9; }
+    /* Discordance note */
+    .aip-disc-note { background: #2b1800; border: 1px solid #bf6a00; border-radius: 8px; padding: 9px 12px; margin-bottom: 10px; font-size: 12px; color: #ffaa44; line-height: 1.5; }
+    /* Bullets */
+    .aip-bullets { margin: 0 0 12px; padding: 0; list-style: none; }
+    .aip-bullets li { font-size: 12px; color: #999; padding: 2px 0 2px 14px; position: relative; }
+    .aip-bullets li::before { content: '•'; position: absolute; left: 0; color: #444; }
+    /* Nota prof */
+    .aip-nota-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #444; margin-bottom: 5px; display: block; }
+    .aip-nota-ta { width: 100%; box-sizing: border-box; background: #1a1a1a; border: 1.5px solid #2a2a2a; border-radius: 8px; color: #bbb; font-family: 'Montserrat',sans-serif; font-size: 12px; padding: 9px 11px; min-height: 54px; resize: none; outline: none; }
+    .aip-nota-ta:focus { border-color: #444; }
+    .aip-disclaimer { font-size: 10px; color: #333; font-style: italic; margin-top: 10px; }
+    /* Sticky footer */
+    .aip-sticky-btns { padding: 10px 20px 14px; border-top: 1px solid #1e1e1e; display: grid; gap: 7px; flex-shrink: 0; }
+    .aip-btn-confirm-npl { font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; border: none; border-radius: 8px; padding: 12px; cursor: pointer; background: #FFD008; color: #000; }
+    .aip-btn-confirm-gpl { font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; border: none; border-radius: 8px; padding: 12px; cursor: pointer; background: #C6F135; color: #000; }
+    .aip-btn-alt-choice { font-family: 'Montserrat',sans-serif; font-size: 12px; font-weight: 600; background: transparent; border: 1.5px solid #2a2a2a; border-radius: 8px; padding: 10px; color: #666; cursor: pointer; }
+    .aip-btn-alt-choice:hover { border-color: #444; color: #aaa; }
+    .aip-cancel-sm { background: transparent; color: #383838; border: none; font-family: 'Montserrat',sans-serif; font-size: 11px; cursor: pointer; padding: 4px; text-align: center; }
     .aip-last-box { margin-top: 16px; background: #f9f9f9; border-radius: 10px; padding: 14px 16px; display: none; }
     .aip-last-box.visible { display: block; }
 
@@ -327,43 +345,63 @@
   <div class="aip-overlay" id="aip-overlay">
     <div class="aip-modal">
       <div id="aip-step-scelta">
-        <h2>🤖 Analisi AI Posturale</h2>
-        <p class="aip-sub">Su cosa vuoi basare la scelta della colorazione?</p>
-        <div class="aip-base-btns">
-          <button class="aip-base-btn" onclick="avviaAnalisiPosturale('scapolare')">🦴 Piano<br>Scapolare</button>
-          <button class="aip-base-btn" onclick="avviaAnalisiPosturale('piede')">🦶 Piede</button>
+        <div class="aip-step-inner">
+          <h2>Analisi AI Posturale</h2>
+          <p class="aip-sub">Base di analisi</p>
+          <div class="aip-base-btns">
+            <button class="aip-base-btn" onclick="avviaAnalisiPosturale('scapolare')">🦴 Piano<br>Scapolare</button>
+            <button class="aip-base-btn" onclick="avviaAnalisiPosturale('piede')">🦶 Piede</button>
+          </div>
+          <button class="aip-cancel" onclick="chiudiAIPModal()">Annulla</button>
         </div>
-        <button class="aip-cancel" onclick="chiudiAIPModal()">Annulla</button>
       </div>
       <div id="aip-step-obs" style="display:none">
-        <h2>🔍 Osservazione scapolare</h2>
-        <p class="aip-sub">Qual è la tua osservazione del piano scapolare?</p>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-          <button class="aip-base-btn" style="padding:16px" onclick="confermaOsservazioneAIP('Piano scapolare anteriore (prima)')">Anteriore</button>
-          <button class="aip-base-btn" style="padding:16px" onclick="confermaOsservazioneAIP('Piano scapolare in asse (prima)')">In asse</button>
-          <button class="aip-base-btn" style="padding:16px" onclick="confermaOsservazioneAIP('Piano scapolare posteriore (prima)')">Posteriore</button>
+        <div class="aip-step-inner">
+          <h2>Osservazione scapolare</h2>
+          <p class="aip-sub">La tua valutazione del piano scapolare</p>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+            <button class="aip-base-btn" onclick="confermaOsservazioneAIP('Piano scapolare anteriore (prima)')">Anteriore</button>
+            <button class="aip-base-btn" onclick="confermaOsservazioneAIP('Piano scapolare in asse (prima)')">In asse</button>
+            <button class="aip-base-btn" onclick="confermaOsservazioneAIP('Piano scapolare posteriore (prima)')">Posteriore</button>
+          </div>
+          <button class="aip-cancel" onclick="chiudiAIPModal()">Annulla</button>
         </div>
-        <button class="aip-cancel" onclick="chiudiAIPModal()">Annulla</button>
       </div>
       <div id="aip-step-loading" style="display:none">
-        <div class="aip-loading">
-          <div class="aip-spinner"></div>
-          <div class="aip-loading-text">L'AI sta analizzando le foto...</div>
+        <div class="aip-step-inner">
+          <div class="aip-loading">
+            <div class="aip-spinner"></div>
+            <div class="aip-loading-text">Analisi AI in corso...</div>
+          </div>
         </div>
       </div>
       <div id="aip-step-risultato" style="display:none">
-        <div class="aip-risultato">
-          <div id="aip-badge"></div>
-          <svg id="aip-svg" width="160" height="80" viewBox="0 0 160 80" style="margin:0 auto 14px;display:block"></svg>
-          <div id="aip-confronto"></div>
-          <div class="aip-motivazione" id="aip-motivazione"></div>
-          <ul class="aip-obs-box" id="aip-obs-box"></ul>
-          <div class="aip-override">
-            <button class="aip-btn-npl" onclick="impostaColorazione('NPL')">Scegli NPL</button>
-            <button class="aip-btn-gpl" onclick="impostaColorazione('GPL')">Scegli GPL</button>
+        <div class="aip-step-inner" id="aip-risultato-scroll">
+          <div id="aip-status-hdr" class="aip-status-hdr"></div>
+          <div class="aip-obs-grid">
+            <div class="aip-obs-cell">
+              <div class="aip-obs-cell-lbl">AI (foto)</div>
+              <div class="aip-obs-cell-val" id="aip-ai-val">—</div>
+            </div>
+            <div class="aip-obs-cell">
+              <div class="aip-obs-cell-lbl">Professionista</div>
+              <div class="aip-obs-cell-val" id="aip-prof-val">—</div>
+            </div>
           </div>
-          <div class="aip-disclaimer">⚠️ Suggerimento AI — la valutazione finale è sempre del professionista</div>
-          <button class="aip-close" onclick="chiudiAIPModal()">Chiudi</button>
+          <div class="aip-sug-row">
+            <span class="aip-sug-lbl">→ Suggerimento AI:</span>
+            <span id="aip-sug-val">—</span>
+          </div>
+          <div id="aip-disc-note" class="aip-disc-note" style="display:none"></div>
+          <ul class="aip-bullets" id="aip-bullets"></ul>
+          <label class="aip-nota-lbl">Motivazione professionista (opzionale)</label>
+          <textarea class="aip-nota-ta" id="aip-nota-prof" placeholder="es. paziente riferisce dolore alla spalla dx..." rows="2"></textarea>
+          <div class="aip-disclaimer">Supporto decisionale AI — la scelta finale è sempre del professionista</div>
+        </div>
+        <div class="aip-sticky-btns">
+          <button id="aip-btn-primary" onclick="impostaColorazioneAI('primary')"></button>
+          <button id="aip-btn-alt" class="aip-btn-alt-choice" onclick="impostaColorazioneAI('alt')"></button>
+          <button class="aip-cancel-sm" onclick="chiudiAIPModal()">Annulla</button>
         </div>
       </div>
     </div>
@@ -834,6 +872,7 @@
     const patientId = params.get('id')
     let patient = null, selectedConfig = null, obsSelections = {}, noteSaveTimer = null
     let _pazAiUses = 0
+    let _aipResult = null
 
     async function caricaProtocollo() {
       const { data: prots } = await _supabase
@@ -1475,9 +1514,10 @@
     }
 
     function apriModaleAIP() {
+      ;['aip-step-scelta','aip-step-obs','aip-step-loading','aip-step-risultato'].forEach(id => {
+        document.getElementById(id).style.display = 'none'
+      })
       document.getElementById('aip-step-scelta').style.display = 'block'
-      document.getElementById('aip-step-loading').style.display = 'none'
-      document.getElementById('aip-step-risultato').style.display = 'none'
       document.getElementById('aip-overlay').classList.add('visible')
     }
 
@@ -1624,41 +1664,103 @@
     }
 
     function mostraRisultatoAIP(result) {
+      _aipResult = result
       document.getElementById('aip-step-loading').style.display = 'none'
-      const sug = result.suggerimento || 'NEUTRO'
-      const badgeEl = document.getElementById('aip-badge')
-      const svgEl   = document.getElementById('aip-svg')
-      const svgNPL = `<rect x="10" y="22" width="140" height="36" rx="18" fill="#111" stroke="#555" stroke-width="1.5"/>
-        <ellipse cx="28" cy="40" rx="9" ry="13" fill="#1d1d1d"/>
-        <ellipse cx="132" cy="40" rx="9" ry="13" fill="#1d1d1d"/>
-        <text x="80" y="45" text-anchor="middle" fill="#fff" font-size="13" font-family="Montserrat,sans-serif" font-weight="700" letter-spacing="2">NPL</text>`
-      const svgGPL = `<rect x="10" y="22" width="140" height="36" rx="18" fill="#C6F135" stroke="#9ec01a" stroke-width="1.5"/>
-        <ellipse cx="28" cy="40" rx="9" ry="13" fill="#b5de2e"/>
-        <ellipse cx="132" cy="40" rx="9" ry="13" fill="#b5de2e"/>
-        <text x="80" y="45" text-anchor="middle" fill="#000" font-size="13" font-family="Montserrat,sans-serif" font-weight="700" letter-spacing="2">GPL</text>`
-      const svgNEU = `<rect x="10" y="22" width="140" height="36" rx="18" fill="#444" stroke="#666" stroke-width="1.5"/>
-        <text x="80" y="45" text-anchor="middle" fill="#fff" font-size="11" font-family="Montserrat,sans-serif" font-weight="700">NPL / GPL</text>`
-      if (sug === 'NPL')      { badgeEl.innerHTML = '<div class="aip-badge-npl">⬛ NPL</div>'; svgEl.innerHTML = svgNPL }
-      else if (sug === 'GPL') { badgeEl.innerHTML = '<div class="aip-badge-gpl">🟢 GPL</div>'; svgEl.innerHTML = svgGPL }
-      else                    { badgeEl.innerHTML = '<div class="aip-badge-neutro">⚪ NEUTRO</div>'; svgEl.innerHTML = svgNEU }
 
-      const confrontoEl = document.getElementById('aip-confronto')
-      if (confrontoEl) {
-        let ch = ''
-        if (result.valutazione_ai || result.valutazione_professionista) {
-          ch += '<div class="aip-confronto">'
-          if (result.valutazione_ai) ch += '<div class="aip-confronto-row"><strong>AI (immagini):</strong><span style="color:#ccc">' + result.valutazione_ai + '</span></div>'
-          if (result.valutazione_professionista) ch += '<div class="aip-confronto-row"><strong>Professionista:</strong><span style="color:#ccc">' + result.valutazione_professionista + '</span></div>'
-          ch += '</div>'
-          if (result.concordanza === true) ch += '<div class="aip-concordanza-ok">✅ Valutazioni concordanti</div>'
-        }
-        if (result.discordanza_msg) ch += '<div class="aip-discordanza"><strong>⚠️ Possibile discordanza</strong>' + result.discordanza_msg + '</div>'
-        confrontoEl.innerHTML = ch
+      const sug = result.suggerimento || 'NEUTRO'
+      const concordanza = result.concordanza !== false
+
+      // Status header
+      const hdr = document.getElementById('aip-status-hdr')
+      if (sug === 'NEUTRO') {
+        hdr.className = 'aip-status-hdr aip-status-neutro'
+        hdr.textContent = '⚪ Nessun suggerimento netto — valuta il caso'
+      } else if (concordanza) {
+        hdr.className = 'aip-status-hdr aip-status-ok'
+        hdr.textContent = '✅ Valutazioni concordanti'
+      } else {
+        hdr.className = 'aip-status-hdr aip-status-warn'
+        hdr.textContent = '⚠️ Possibile discordanza'
       }
 
-      document.getElementById('aip-motivazione').textContent = result.motivazione || ''
-      document.getElementById('aip-obs-box').innerHTML = (result.osservazioni_chiave || []).map(o => `<li>${o}</li>`).join('')
-      document.getElementById('aip-step-risultato').style.display = 'block'
+      // Observation cells
+      document.getElementById('aip-ai-val').textContent = result.valutazione_ai || '—'
+      document.getElementById('aip-prof-val').textContent = result.valutazione_professionista || '—'
+
+      // Suggestion value
+      const sugEl = document.getElementById('aip-sug-val')
+      sugEl.textContent = sug
+      sugEl.className = sug === 'NPL' ? 'aip-sug-val-npl' : sug === 'GPL' ? 'aip-sug-val-gpl' : 'aip-sug-val-neu'
+
+      // Discordance note
+      const discEl = document.getElementById('aip-disc-note')
+      if (result.discordanza_msg && !concordanza) {
+        discEl.textContent = result.discordanza_msg
+        discEl.style.display = 'block'
+      } else {
+        discEl.style.display = 'none'
+      }
+
+      // Bullets (max 3)
+      document.getElementById('aip-bullets').innerHTML = (result.osservazioni_chiave || []).slice(0, 3).map(o => `<li>${o}</li>`).join('')
+
+      // Reset nota
+      document.getElementById('aip-nota-prof').value = ''
+
+      // Configure decision buttons
+      const primaryBtn = document.getElementById('aip-btn-primary')
+      const altBtn = document.getElementById('aip-btn-alt')
+      if (sug === 'NPL') {
+        primaryBtn.className = 'aip-btn-confirm-npl'
+        primaryBtn.textContent = '✔ Conferma NPL'
+        altBtn.textContent = '↻ Scegli GPL'
+      } else if (sug === 'GPL') {
+        primaryBtn.className = 'aip-btn-confirm-gpl'
+        primaryBtn.textContent = '✔ Conferma GPL'
+        altBtn.textContent = '↻ Scegli NPL'
+      } else {
+        primaryBtn.className = 'aip-btn-confirm-npl'
+        primaryBtn.textContent = '⬛ Scegli NPL'
+        altBtn.textContent = '🟢 Scegli GPL'
+      }
+
+      const el = document.getElementById('aip-step-risultato')
+      el.style.cssText = 'display:flex;flex-direction:column;min-height:0;flex:1;overflow:hidden'
+    }
+
+    async function impostaColorazioneAI(tipo) {
+      const sug = _aipResult?.suggerimento || 'NEUTRO'
+      let scelta
+      if (sug === 'NPL')       scelta = tipo === 'primary' ? 'NPL' : 'GPL'
+      else if (sug === 'GPL')  scelta = tipo === 'primary' ? 'GPL' : 'NPL'
+      else                     scelta = tipo === 'primary' ? 'NPL' : 'GPL'
+
+      const nota = document.getElementById('aip-nota-prof')?.value?.trim() || null
+
+      selectConfig(scelta)
+
+      try {
+        await _supabase.from('patients').update({
+          ai_posturale_last: {
+            valutazione_ai: _aipResult?.valutazione_ai,
+            valutazione_professionista: _aipResult?.valutazione_professionista,
+            suggerimento_ai: sug,
+            scelta_finale: scelta,
+            discordanza: _aipResult?.concordanza === false,
+            nota_professionista: nota,
+            data: new Date().toISOString()
+          }
+        }).eq('id', patientId)
+      } catch(e) {}
+
+      chiudiAIPModal()
+
+      const isNPL = scelta === 'NPL'
+      document.getElementById('aip-last-content').innerHTML =
+        `<span style="background:${isNPL ? '#111' : '#C6F135'};color:${isNPL ? '#fff' : '#000'};` +
+        `padding:5px 18px;border-radius:6px;font-weight:700;font-size:15px;letter-spacing:2px">${scelta}</span>` +
+        `<span style="font-size:12px;color:#888;margin-left:10px">${nota ? 'Nota: ' + nota : 'Scelta confermata dal professionista'}</span>`
+      document.getElementById('aip-last-box').classList.add('visible')
     }
 
     function renderCuscino(tipo) {
@@ -1671,17 +1773,6 @@
       document.getElementById('cuscino-label').textContent =
         isNPL ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'
       document.getElementById('cuscino-visual').style.display = 'block'
-    }
-
-    function impostaColorazione(tipo) {
-      chiudiAIPModal()
-      selectConfig(tipo)
-      const isNPL = tipo === 'NPL'
-      document.getElementById('aip-last-content').innerHTML =
-        `<span style="background:${isNPL ? '#111' : '#C6F135'};color:${isNPL ? '#fff' : '#000'};` +
-        `padding:5px 18px;border-radius:6px;font-weight:700;font-size:15px;letter-spacing:2px">${tipo}</span>` +
-        `<span style="font-size:12px;color:#888;margin-left:10px">Scelta confermata dal professionista</span>`
-      document.getElementById('aip-last-box').classList.add('visible')
     }
 
     function apriComparazione() {
