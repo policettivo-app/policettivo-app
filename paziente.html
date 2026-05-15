@@ -343,6 +343,30 @@
     .pdf-modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
     .cn-note-badge-ai { display: inline-block; background: #000; color: #FFD008; font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 7px; margin-left: 8px; letter-spacing: 0.5px; }
     .cn-note-list { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── Hub CTAs ─────────────────────────────────────────── */
+    .hub-section { margin-bottom: 28px; }
+    .hub-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #aaa; margin-bottom: 12px; }
+    .hub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .hub-grid { grid-template-columns: 1fr; } }
+    .hub-card {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+      border-radius: 14px; padding: 20px 18px; cursor: pointer;
+      border: none; font-family: 'Montserrat', sans-serif;
+      text-align: left; transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .hub-card:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(0,0,0,0.14); }
+    .hub-card:active { transform: translateY(0); }
+    .hub-card.hub-posturale { background: #FFD008; color: #000; }
+    .hub-card.hub-fisio { background: #000; color: #fff; }
+    .hub-card.hub-cartella { background: #1d1d1f; color: #fff; grid-column: 1 / -1; flex-direction: row; align-items: center; padding: 14px 18px; }
+    .hub-card.hub-cartella .hub-card-desc { margin-left: auto; font-size: 11px; opacity: 0.5; }
+    .hub-card-icon { font-size: 28px; line-height: 1; }
+    .hub-card.hub-cartella .hub-card-icon { font-size: 20px; }
+    .hub-card-title { font-size: 15px; font-weight: 700; line-height: 1.2; }
+    .hub-card.hub-cartella .hub-card-title { font-size: 13px; }
+    .hub-card-desc { font-size: 11px; opacity: 0.65; line-height: 1.4; }
     .cn-note-card { background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
     .cn-note-card:hover { border-color: #FFD008; }
     .cn-note-card-title { font-weight: 700; font-size: 13px; color: #000; margin-bottom: 4px; }
@@ -472,6 +496,28 @@
         <div class="patient-sub" id="ph-sub"></div>
       </div>
       <div id="ph-config"></div>
+    </div>
+
+    <!-- HUB: percorso clinico -->
+    <div class="hub-section">
+      <div class="hub-label">Percorso clinico</div>
+      <div class="hub-grid">
+        <button class="hub-card hub-posturale" onclick="window.location.href='valutazione-posturale.html?id='+patientId">
+          <span class="hub-card-icon">📸</span>
+          <span class="hub-card-title">Valutazione Posturale</span>
+          <span class="hub-card-desc">Foto · AI posturale · NPL/GPL · protocollo</span>
+        </button>
+        <button class="hub-card hub-fisio" onclick="window.location.href='visite.html?id='+patientId">
+          <span class="hub-card-icon">🩺</span>
+          <span class="hub-card-title">Valutazione Fisioterapica</span>
+          <span class="hub-card-desc">Anamnesi · VAS · test clinici · diagnosi</span>
+        </button>
+        <button class="hub-card hub-cartella" onclick="window.location.href='cartella.html?id='+patientId">
+          <span class="hub-card-icon">📁</span>
+          <span class="hub-card-title">Cartella Clinica</span>
+          <span class="hub-card-desc">Documenti · Note · Sintesi AI · PDF →</span>
+        </button>
+      </div>
     </div>
 
     <!-- DATI ANAGRAFICI -->

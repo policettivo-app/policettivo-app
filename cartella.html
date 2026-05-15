@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cartella Clinica — Policettivo®</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="policettivo-globals.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="utils-premium.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f7; min-height: 100vh; color: #1d1d1f; }
+
+    /* Navbar */
+    .cl-nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(0,0,0,0.97); backdrop-filter: blur(20px);
+      height: 52px; padding: 0 16px;
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .cl-nav-back {
+      background: #1a1a1a; border: none; color: #ccc;
+      border-radius: 8px; padding: 6px 12px;
+      font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .cl-nav-back:hover { background: #2a2a2a; color: #fff; }
+    .cl-nav-title { color: #fff; font-size: 13px; font-weight: 700; flex: 1; }
+    .cl-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 9px; letter-spacing: 2px; padding: 3px 8px; border-radius: 3px; }
+
+    /* Patient bar */
+    .cl-patient-bar {
+      background: #fff; border-bottom: 1px solid #e5e5ea;
+      padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+    }
+    .cl-patient-avatar {
+      width: 42px; height: 42px; border-radius: 50%; background: #FFD008;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 16px; color: #000; flex-shrink: 0;
+    }
+    .cl-patient-name { font-size: 15px; font-weight: 700; color: #000; }
+    .cl-patient-sub { font-size: 12px; color: #888; margin-top: 2px; }
+
+    /* Migration banner */
+    .cl-migration-banner {
+      background: #fffdf0; border-bottom: 2px solid #FFD008;
+      padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+      font-size: 12px; color: #555;
+    }
+    .cl-migration-banner strong { color: #000; }
+    .cl-migration-link {
+      margin-left: auto; background: #000; color: #FFD008; border: none;
+      border-radius: 6px; padding: 6px 12px; font-family: 'Montserrat', sans-serif;
+      font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .cl-migration-link:hover { background: #1a1a1a; }
+
+    /* Main */
+    .cl-main { max-width: 720px; margin: 0 auto; padding: 20px 16px 80px; }
+
+    /* Section cards */
+    .cl-card {
+      background: #fff; border-radius: 14px; border: 1.5px solid #e5e5ea;
+      padding: 20px; margin-bottom: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .cl-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .cl-card-icon { font-size: 24px; line-height: 1; }
+    .cl-card-title { font-size: 14px; font-weight: 700; color: #000; }
+    .cl-card-sub { font-size: 12px; color: #888; margin-top: 2px; }
+    .cl-card-status {
+      margin-left: auto; font-size: 10px; font-weight: 700;
+      letter-spacing: 0.5px; padding: 3px 9px; border-radius: 20px;
+    }
+    .cl-status-ready { background: #e8f5e9; color: #2e7d32; }
+    .cl-status-migrating { background: #fff8e1; color: #f57f17; }
+    .cl-card-cta {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
+      padding-top: 12px; border-top: 1px solid #f0f0f0;
+    }
+    .cl-btn-primary {
+      background: #FFD008; color: #000; border: none; border-radius: 8px;
+      padding: 10px 18px; font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .cl-btn-primary:hover { background: #e6bc00; }
+    .cl-btn-secondary {
+      background: transparent; border: 1.5px solid #ddd; color: #555;
+      border-radius: 8px; padding: 10px 18px;
+      font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .cl-btn-secondary:hover { border-color: #FFD008; color: #000; }
+
+    /* Stat bar */
+    .cl-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .cl-stat { background: #fff; border-radius: 12px; border: 1px solid #e5e5ea; padding: 14px; text-align: center; box-shadow: 0 1px 6px rgba(0,0,0,0.04); }
+    .cl-stat-num { font-size: 26px; font-weight: 700; color: #000; line-height: 1; }
+    .cl-stat-lbl { font-size: 10px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; }
+
+    .cl-loading { text-align: center; padding: 60px 20px; color: #aaa; font-size: 14px; }
+    .cl-error { text-align: center; padding: 40px 20px; }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="cl-nav">
+    <button class="cl-nav-back" onclick="tornaAlPaziente()">← Scheda paziente</button>
+    <span class="cl-nav-title">📁 Cartella Clinica</span>
+    <span class="cl-logo">POLICETTIVO®</span>
+  </nav>
+
+  <!-- Patient bar -->
+  <div class="cl-patient-bar" id="cl-patient-bar" style="display:none">
+    <div class="cl-patient-avatar" id="cl-avatar">?</div>
+    <div>
+      <div class="cl-patient-name" id="cl-nome">—</div>
+      <div class="cl-patient-sub" id="cl-sub">—</div>
+    </div>
+  </div>
+
+  <!-- Migration banner -->
+  <div class="cl-migration-banner">
+    <span>🚧 <strong>Migrazione in corso.</strong> Le funzioni complete sono nella scheda paziente.</span>
+    <button class="cl-migration-link" onclick="tornaAlPaziente()">Apri scheda paziente →</button>
+  </div>
+
+  <!-- Main -->
+  <main class="cl-main" id="cl-main" style="display:none">
+
+    <!-- Quick stats -->
+    <div class="cl-stats">
+      <div class="cl-stat">
+        <div class="cl-stat-num" id="cl-stat-docs">—</div>
+        <div class="cl-stat-lbl">Documenti</div>
+      </div>
+      <div class="cl-stat">
+        <div class="cl-stat-num" id="cl-stat-note">—</div>
+        <div class="cl-stat-lbl">Note cliniche</div>
+      </div>
+      <div class="cl-stat">
+        <div class="cl-stat-num" id="cl-stat-sintesi">—</div>
+        <div class="cl-stat-lbl">Sintesi AI</div>
+      </div>
+    </div>
+
+    <!-- Documenti -->
+    <div class="cl-card">
+      <div class="cl-card-header">
+        <span class="cl-card-icon">📄</span>
+        <div>
+          <div class="cl-card-title">Documenti e referti</div>
+          <div class="cl-card-sub">Lastre · Referti · Esami · Upload PDF e immagini</div>
+        </div>
+        <span class="cl-card-status cl-status-migrating">In migrazione</span>
+      </div>
+      <p style="font-size:12px;color:#666;line-height:1.6">
+        Carica e visualizza i documenti medici del paziente: referti, lastre, esami diagnostici.
+        Supporta immagini e PDF con anteprima integrata.
+      </p>
+      <div class="cl-card-cta">
+        <button class="cl-btn-primary" onclick="apriCartella('docs')">📄 Apri Documenti →</button>
+      </div>
+    </div>
+
+    <!-- Relazioni cliniche -->
+    <div class="cl-card">
+      <div class="cl-card-header">
+        <span class="cl-card-icon">📝</span>
+        <div>
+          <div class="cl-card-title">Relazioni cliniche</div>
+          <div class="cl-card-sub">Note cliniche · Autosalvataggio · Cronologia</div>
+        </div>
+        <span class="cl-card-status cl-status-migrating">In migrazione</span>
+      </div>
+      <p style="font-size:12px;color:#666;line-height:1.6">
+        Scrivi e gestisci note cliniche strutturate. Cronologia completa con autosalvataggio.
+        Template rapidi per i pattern di trattamento più frequenti.
+      </p>
+      <div class="cl-card-cta">
+        <button class="cl-btn-primary" onclick="apriCartella('relazione')">📝 Apri Note cliniche →</button>
+      </div>
+    </div>
+
+    <!-- Sintesi AI -->
+    <div class="cl-card">
+      <div class="cl-card-header">
+        <span class="cl-card-icon">🧠</span>
+        <div>
+          <div class="cl-card-title">Sintesi AI clinica</div>
+          <div class="cl-card-sub">Assistente Clinico AI · Salvataggio · PDF</div>
+        </div>
+        <span class="cl-card-status cl-status-migrating">In migrazione</span>
+      </div>
+      <p style="font-size:12px;color:#666;line-height:1.6">
+        Genera, salva ed esporta sintesi cliniche strutturate con l'Assistente AI.
+        Le sintesi salvate compaiono cronologicamente nella cartella.
+      </p>
+      <div class="cl-card-cta">
+        <button class="cl-btn-primary" onclick="apriCartella('sintesi')">🧠 Apri Sintesi AI →</button>
+      </div>
+    </div>
+
+    <!-- Stampa PDF -->
+    <div class="cl-card">
+      <div class="cl-card-header">
+        <span class="cl-card-icon">🖨</span>
+        <div>
+          <div class="cl-card-title">Stampa / PDF clinico</div>
+          <div class="cl-card-sub">Composizione selettiva delle sezioni da includere</div>
+        </div>
+        <span class="cl-card-status cl-status-migrating">In migrazione</span>
+      </div>
+      <p style="font-size:12px;color:#666;line-height:1.6">
+        Genera un PDF clinico selezionando quali sezioni includere:
+        dati anagrafici, note, documenti, relazioni, sintesi AI, osservazioni posturali.
+      </p>
+      <div class="cl-card-cta">
+        <button class="cl-btn-primary" onclick="apriCartella('pdf')">🖨 Apri PDF clinico →</button>
+      </div>
+    </div>
+
+  </main>
+
+  <div class="cl-loading" id="cl-loading">⏳ Caricamento...</div>
+  <div class="cl-error" id="cl-error" style="display:none">
+    <p style="font-size:14px;color:#e53935">Paziente non trovato.</p>
+    <button class="cl-btn-secondary" style="margin-top:16px" onclick="window.location.href='dashboard.html'">← Torna alla home</button>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const params = new URLSearchParams(window.location.search)
+    const patientId = params.get('id')
+    let patient = null
+
+    async function init() {
+      if (!patientId) { window.location.href = 'dashboard.html'; return }
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+
+      const { data, error } = await _supabase.from('patients').select('id,nome,cognome,problema_principale').eq('id', patientId).maybeSingle()
+      if (error || !data) {
+        document.getElementById('cl-loading').style.display = 'none'
+        document.getElementById('cl-error').style.display = 'block'
+        return
+      }
+      patient = data
+      renderHeader()
+      loadStats()
+      document.getElementById('cl-loading').style.display = 'none'
+      document.getElementById('cl-patient-bar').style.display = 'flex'
+      document.getElementById('cl-main').style.display = 'block'
+    }
+
+    function renderHeader() {
+      const nome = (patient.nome || '') + ' ' + (patient.cognome || '')
+      const initials = ((patient.nome || '?')[0] + (patient.cognome || '?')[0]).toUpperCase()
+      document.getElementById('cl-nome').textContent = nome.trim()
+      document.getElementById('cl-sub').textContent = patient.problema_principale || '—'
+      document.getElementById('cl-avatar').textContent = initials
+      document.title = 'Cartella Clinica — ' + nome.trim()
+    }
+
+    async function loadStats() {
+      const [docsRes, noteRes] = await Promise.all([
+        _supabase.from('patient_documents').select('id', { count: 'exact', head: true }).eq('patient_id', patientId),
+        _supabase.from('clinical_notes').select('id,content', { count: 'exact' }).eq('patient_id', patientId)
+      ])
+      const docsCount = docsRes.count ?? 0
+      const allNotes = noteRes.data || []
+      const regularNotes = allNotes.filter(function(n) { return !n.content?.startsWith('[SINTESI_AI_V1]') }).length
+      const aiNotes = allNotes.filter(function(n) { return n.content?.startsWith('[SINTESI_AI_V1]') }).length
+
+      document.getElementById('cl-stat-docs').textContent = docsCount
+      document.getElementById('cl-stat-note').textContent = regularNotes
+      document.getElementById('cl-stat-sintesi').textContent = aiNotes
+    }
+
+    function tornaAlPaziente() {
+      window.location.href = 'paziente.html?id=' + patientId
+    }
+
+    function apriCartella(tab) {
+      // Fase 1: porta a paziente.html con cartella aperta e tab selezionato
+      // Fase 2: questo diventerà contenuto nativo di cartella.html
+      var url = 'paziente.html?id=' + patientId + '&openCartella=1'
+      if (tab) url += '&tab=' + tab
+      window.location.href = url
+    }
+
+    init()
+  </script>
+</body>
+</html>
