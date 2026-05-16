@@ -76,10 +76,20 @@
     .note-box { background: #f9f9f9; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #444; margin-top: 12px; line-height: 1.6; white-space: pre-wrap; }
     .edit-form { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
     .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .edit-group { margin-bottom: 0; }
     .edit-group label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; display: block; margin-bottom: 4px; }
-    .edit-group input { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; }
-    .edit-group input:focus { border-color: #FFD008; }
-    .edit-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .edit-group input, .edit-group textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; box-sizing: border-box; }
+    .edit-group input:focus, .edit-group textarea:focus { border-color: #FFD008; }
+    .edit-group textarea { resize: vertical; }
+    .edit-section-label { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 10px; border-top: 1px solid #f0f0f0; padding-top: 14px; }
+    .edit-chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+    .edit-chip { background: #f5f5f5; border: 1.5px solid #ddd; color: #444; padding: 5px 12px; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .edit-chip:hover { border-color: #FFD008; background: #fffdf0; }
+    .edit-chip.active { background: #FFD008; border-color: #FFD008; color: #000; }
+    .edit-check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: #000; font-family: 'Montserrat', sans-serif; }
+    .edit-check-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: #FFD008; cursor: pointer; flex-shrink: 0; }
+    .ai-filled-edit { border-color: #FFD008 !important; background: #fffef5 !important; }
+    .edit-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
     .btn-save { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
     .btn-cancel { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 10px 16px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; }
     .btn-delete { background: transparent; border: 1.5px solid #c62828; color: #c62828; padding: 10px 16px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; }
@@ -565,34 +575,93 @@
       </div>
       <div class="note-box" id="info-note" style="display:none"></div>
       <div class="edit-form" id="edit-form">
+        <!-- Scanner AI -->
         <div class="referto-scan-box">
           <div class="referto-scan-title">
-            📄 <span>Scansiona referto o documento</span>
+            📷 <span>Importa da documento</span>
             <span id="referto-ai-badge-p" style="display:none;background:#333;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px"></span>
           </div>
-          <div class="referto-scan-sub">Fotografa un documento medico: l'AI compila automaticamente nome, diagnosi e dati clinici.</div>
+          <div class="referto-scan-sub">Fotografa un documento medico: l'AI compila automaticamente i campi disponibili.</div>
           <div class="referto-scan-btns">
             <button class="btn-scan" onclick="apriCamRefertoP()">📷 Fotocamera</button>
             <button class="btn-scan" onclick="apriGalleriaRefertoP()">🖼 Galleria</button>
           </div>
           <div class="referto-scan-loading" id="referto-scan-loading-p">⏳ Analisi documento in corso...</div>
           <div class="referto-scan-ok" id="referto-scan-ok-p">✓ Dati estratti — verifica e completa i campi qui sotto</div>
-          <div class="referto-extra" id="referto-extra-p">
-            <div class="referto-extra-title">DATI AGGIUNTIVI DAL DOCUMENTO</div>
-            <div id="referto-extra-content-p"></div>
-          </div>
           <input type="file" id="referto-cam-input-p" accept="image/*" capture="environment" style="display:none" onchange="handleRefertoFileP(this)">
           <input type="file" id="referto-gal-input-p" accept="image/*" style="display:none" onchange="handleRefertoFileP(this)">
         </div>
+
+        <!-- DATI ANAGRAFICI -->
+        <div class="edit-section-label" style="margin-top:0;border-top:none;padding-top:0">Dati anagrafici</div>
         <div class="edit-grid">
-          <div class="edit-group"><label>Nome</label><input id="edit-nome" type="text"></div>
-          <div class="edit-group"><label>Cognome</label><input id="edit-cognome" type="text"></div>
+          <div class="edit-group"><label>Nome *</label><input id="edit-nome" type="text"></div>
+          <div class="edit-group"><label>Cognome *</label><input id="edit-cognome" type="text"></div>
         </div>
         <div class="edit-grid">
-          <div class="edit-group"><label>Email</label><input id="edit-email" type="email"></div>
+          <div class="edit-group"><label>Data di nascita</label><input id="edit-data-nascita" type="date"></div>
+          <div class="edit-group">
+            <label>Sesso</label>
+            <input type="hidden" id="edit-sesso">
+            <div class="edit-chip-row">
+              <button type="button" class="edit-chip e-chip-sesso" data-val="M" onclick="setEditChipSesso('M')">M</button>
+              <button type="button" class="edit-chip e-chip-sesso" data-val="F" onclick="setEditChipSesso('F')">F</button>
+              <button type="button" class="edit-chip e-chip-sesso" data-val="Altro" onclick="setEditChipSesso('Altro')">Altro</button>
+            </div>
+          </div>
+        </div>
+        <div class="edit-grid" style="margin-bottom:12px">
+          <div class="edit-group"><label>Codice fiscale</label><input id="edit-codice-fiscale" type="text" maxlength="16" oninput="this.value=this.value.toUpperCase()"></div>
           <div class="edit-group"><label>Telefono</label><input id="edit-telefono" type="tel"></div>
         </div>
+        <div class="edit-grid" style="margin-bottom:12px">
+          <div class="edit-group"><label>Email</label><input id="edit-email" type="email"></div>
+          <div class="edit-group"><label>Città</label><input id="edit-citta" type="text"></div>
+        </div>
+
+        <!-- INQUADRAMENTO CLINICO -->
+        <div class="edit-section-label">Inquadramento clinico</div>
         <div class="edit-group" style="margin-bottom:12px"><label>Problema principale</label><input id="edit-problema" type="text"></div>
+        <div class="edit-group" style="margin-bottom:12px">
+          <label>Mano dominante</label>
+          <input type="hidden" id="edit-mano-dominante">
+          <div class="edit-chip-row">
+            <button type="button" class="edit-chip e-chip-mano" data-val="dx" onclick="setEditChipMano('dx')">Dx</button>
+            <button type="button" class="edit-chip e-chip-mano" data-val="sx" onclick="setEditChipMano('sx')">Sx</button>
+            <button type="button" class="edit-chip e-chip-mano" data-val="ambidestro" onclick="setEditChipMano('ambidestro')">Ambidestro</button>
+          </div>
+        </div>
+        <div class="edit-group" style="margin-bottom:12px">
+          <label>Attività sportiva</label>
+          <input type="hidden" id="edit-attivita-sportiva">
+          <div class="edit-chip-row">
+            <button type="button" class="edit-chip e-chip-sport" data-val="nessuna" onclick="setEditChipSport('nessuna')">Nessuna</button>
+            <button type="button" class="edit-chip e-chip-sport" data-val="amatoriale" onclick="setEditChipSport('amatoriale')">Amatoriale</button>
+            <button type="button" class="edit-chip e-chip-sport" data-val="agonistica" onclick="setEditChipSport('agonistica')">Agonistica</button>
+          </div>
+        </div>
+        <div class="edit-group" id="edit-sport-row" style="display:none;margin-bottom:12px">
+          <label>Sport praticato</label><input id="edit-sport-praticato" type="text">
+        </div>
+
+        <!-- STORIA CLINICA -->
+        <div class="edit-section-label">Storia clinica</div>
+        <div class="edit-group" style="margin-bottom:12px"><label>⚠️ Allergie</label><textarea id="edit-allergie" rows="2" placeholder="es. Lattice, FANS..."></textarea></div>
+        <div class="edit-group" style="margin-bottom:12px"><label>Farmaci in uso</label><textarea id="edit-farmaci" rows="3" placeholder="Lista farmaci..."></textarea></div>
+        <div class="edit-group" style="margin-bottom:12px"><label>Patologie pregresse</label><textarea id="edit-patologie" rows="3"></textarea></div>
+        <div class="edit-group" style="margin-bottom:12px"><label>Interventi chirurgici</label><textarea id="edit-interventi" rows="2"></textarea></div>
+        <div class="edit-grid" style="margin-bottom:12px">
+          <div class="edit-group"><label>Medico curante</label><input id="edit-medico-curante" type="text"></div>
+          <div class="edit-group"><label>Specialista inviante</label><input id="edit-specialista" type="text"></div>
+        </div>
+
+        <!-- CONSENSI E NOTE -->
+        <div class="edit-section-label">Consensi e note</div>
+        <label class="edit-check-row" style="margin-bottom:14px">
+          <input type="checkbox" id="edit-consenso-privacy">
+          <span>Consenso privacy firmato</span>
+        </label>
+
         <div class="edit-actions">
           <button class="btn-save" onclick="salvaModifica()">✓ Salva</button>
           <button class="btn-cancel" onclick="toggleModifica()">Annulla</button>
@@ -1077,6 +1146,20 @@
       }
     }
 
+    function setEditChipSesso(val) {
+      document.getElementById('edit-sesso').value = val
+      document.querySelectorAll('.e-chip-sesso').forEach(c => c.classList.toggle('active', c.dataset.val === val))
+    }
+    function setEditChipMano(val) {
+      document.getElementById('edit-mano-dominante').value = val
+      document.querySelectorAll('.e-chip-mano').forEach(c => c.classList.toggle('active', c.dataset.val === val))
+    }
+    function setEditChipSport(val) {
+      document.getElementById('edit-attivita-sportiva').value = val
+      document.querySelectorAll('.e-chip-sport').forEach(c => c.classList.toggle('active', c.dataset.val === val))
+      document.getElementById('edit-sport-row').style.display = val && val !== 'nessuna' ? 'block' : 'none'
+    }
+
     function toggleModifica() {
       const form = document.getElementById('edit-form')
       const visible = form.style.display === 'block'
@@ -1086,49 +1169,69 @@
         document.getElementById('edit-email').value = patient.email || ''
         document.getElementById('edit-telefono').value = patient.telefono || ''
         document.getElementById('edit-problema').value = patient.problema_principale || ''
+        document.getElementById('edit-data-nascita').value = patient.data_nascita || ''
+        document.getElementById('edit-codice-fiscale').value = patient.codice_fiscale || ''
+        document.getElementById('edit-citta').value = patient.citta || ''
+        document.getElementById('edit-allergie').value = patient.allergie || ''
+        document.getElementById('edit-farmaci').value = patient.farmaci_in_uso || ''
+        document.getElementById('edit-patologie').value = patient.patologie_pregresse || ''
+        document.getElementById('edit-interventi').value = patient.interventi_chirurgici || ''
+        document.getElementById('edit-medico-curante').value = patient.medico_curante || ''
+        document.getElementById('edit-specialista').value = patient.specialista_inviante || ''
+        document.getElementById('edit-sport-praticato').value = patient.sport_praticato || ''
+        document.getElementById('edit-consenso-privacy').checked = patient.consenso_privacy || false
+        document.querySelector('#edit-sesso').value = patient.sesso || ''
+        document.querySelectorAll('.e-chip-sesso').forEach(c => c.classList.toggle('active', c.dataset.val === patient.sesso))
+        document.querySelector('#edit-mano-dominante').value = patient.mano_dominante || ''
+        document.querySelectorAll('.e-chip-mano').forEach(c => c.classList.toggle('active', c.dataset.val === patient.mano_dominante))
+        const as = patient.attivita_sportiva || ''
+        document.querySelector('#edit-attivita-sportiva').value = as
+        document.querySelectorAll('.e-chip-sport').forEach(c => c.classList.toggle('active', c.dataset.val === as))
+        document.getElementById('edit-sport-row').style.display = as && as !== 'nessuna' ? 'block' : 'none'
       }
       form.style.display = visible ? 'none' : 'block'
     }
 
     async function salvaModifica() {
+      const nome = document.getElementById('edit-nome').value.trim()
+      const cognome = document.getElementById('edit-cognome').value.trim()
+      if (!nome || !cognome) { alert('Nome e cognome sono obbligatori'); return }
+      const email = document.getElementById('edit-email').value.trim() || null
+      const telefono = document.getElementById('edit-telefono').value.trim() || null
+      if (email) { const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; if (!emailRegex.test(email)) { alert('Inserisci un indirizzo email valido.'); return } }
+      if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return } }
+      const consenso = document.getElementById('edit-consenso-privacy').checked
       const updates = {
-        nome: document.getElementById('edit-nome').value.trim(),
-        cognome: document.getElementById('edit-cognome').value.trim(),
-        email: document.getElementById('edit-email').value.trim() || null,
-        telefono: document.getElementById('edit-telefono').value.trim() || null,
-        problema_principale: document.getElementById('edit-problema').value.trim() || null
-      }
-      if (!updates.nome || !updates.cognome) { alert('Nome e cognome sono obbligatori'); return }
-      if (updates.email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(updates.email)) { alert('Inserisci un indirizzo email valido (es. mario@gmail.com).'); return }
-      }
-      if (updates.telefono) {
-        const digits = updates.telefono.replace(/[^0-9]/g, '')
-        if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return }
+        nome, cognome, email, telefono,
+        problema_principale: document.getElementById('edit-problema').value.trim() || null,
+        data_nascita: document.getElementById('edit-data-nascita').value || null,
+        sesso: document.getElementById('edit-sesso').value || null,
+        codice_fiscale: document.getElementById('edit-codice-fiscale').value.trim().toUpperCase() || null,
+        citta: document.getElementById('edit-citta').value.trim() || null,
+        mano_dominante: document.getElementById('edit-mano-dominante').value || null,
+        attivita_sportiva: document.getElementById('edit-attivita-sportiva').value || null,
+        sport_praticato: document.getElementById('edit-sport-praticato').value.trim() || null,
+        allergie: document.getElementById('edit-allergie').value.trim() || null,
+        farmaci_in_uso: document.getElementById('edit-farmaci').value.trim() || null,
+        patologie_pregresse: document.getElementById('edit-patologie').value.trim() || null,
+        interventi_chirurgici: document.getElementById('edit-interventi').value.trim() || null,
+        medico_curante: document.getElementById('edit-medico-curante').value.trim() || null,
+        specialista_inviante: document.getElementById('edit-specialista').value.trim() || null,
+        consenso_privacy: consenso,
+        consenso_privacy_data: consenso ? new Date().toISOString() : null
       }
       const btn = document.querySelector('.btn-save')
-      btn.disabled = true
-      btn.textContent = 'Salvataggio...'
+      btn.disabled = true; btn.textContent = 'Salvataggio...'
       const { error } = await _supabase.from('patients').update(updates).eq('id', patientId)
-      if (error) {
-        btn.disabled = false
-        btn.textContent = '✓ Salva'
-        alert('Errore: ' + error.message)
-        return
-      }
+      if (error) { btn.disabled = false; btn.textContent = '✓ Salva'; alert('Errore: ' + error.message); return }
       Object.assign(patient, updates)
-      document.getElementById('ph-nome').textContent = updates.nome + ' ' + updates.cognome
+      document.getElementById('ph-nome').textContent = nome + ' ' + cognome
       document.getElementById('ph-sub').textContent = updates.problema_principale || ''
-      document.getElementById('info-email').textContent = updates.email || '—'
-      document.getElementById('info-tel').textContent = updates.telefono || '—'
+      document.getElementById('info-email').textContent = email || '—'
+      document.getElementById('info-tel').textContent = telefono || '—'
       document.getElementById('info-problema').textContent = updates.problema_principale || '—'
       btn.textContent = '✓ Salvato'
-      setTimeout(function() {
-        document.getElementById('edit-form').style.display = 'none'
-        btn.disabled = false
-        btn.textContent = '✓ Salva'
-      }, 1500)
+      setTimeout(function() { document.getElementById('edit-form').style.display = 'none'; btn.disabled = false; btn.textContent = '✓ Salva' }, 1500)
     }
 
     async function cancellaPaziente() {
@@ -2071,20 +2174,36 @@
       }
     }
     function compileEditFormFromReferto(dati) {
-      if (dati.nome)               document.getElementById('edit-nome').value    = dati.nome
-      if (dati.cognome)            document.getElementById('edit-cognome').value  = dati.cognome
-      if (dati.diagnosi_principale) document.getElementById('edit-problema').value = dati.diagnosi_principale
-      const extras = []
-      if (dati.data_nascita)   extras.push('<strong>Nato/a il:</strong> ' + dati.data_nascita)
-      if (dati.codice_fiscale) extras.push('<strong>C.F.:</strong> ' + dati.codice_fiscale)
-      if (dati.patologie)      extras.push('<strong>Patologie:</strong> ' + dati.patologie)
-      if (dati.farmaci)        extras.push('<strong>Farmaci:</strong> ' + dati.farmaci)
-      if (dati.note_cliniche)  extras.push('<strong>Note:</strong> ' + dati.note_cliniche)
-      if (dati.medico_curante) extras.push('<strong>Medico curante:</strong> ' + dati.medico_curante)
-      if (extras.length > 0) {
-        document.getElementById('referto-extra-content-p').innerHTML = extras.join('<br>')
-        document.getElementById('referto-extra-p').style.display = 'block'
+      const map = {
+        'edit-nome':           dati.nome,
+        'edit-cognome':        dati.cognome,
+        'edit-data-nascita':   dati.data_nascita,
+        'edit-codice-fiscale': dati.codice_fiscale,
+        'edit-telefono':       dati.telefono,
+        'edit-email':          dati.email,
+        'edit-citta':          dati.citta,
+        'edit-allergie':       dati.allergie,
+        'edit-farmaci':        dati.farmaci || dati.farmaci_in_uso,
+        'edit-patologie':      dati.patologie || dati.patologie_pregresse,
+        'edit-interventi':     dati.interventi_chirurgici,
+        'edit-medico-curante': dati.medico_curante,
+        'edit-specialista':    dati.specialista_inviante,
+        'edit-problema':       dati.diagnosi_principale || dati.problema,
+        'edit-sport-praticato': dati.sport_praticato
       }
+      let count = 0
+      Object.entries(map).forEach(([id, value]) => {
+        if (value) {
+          const el = document.getElementById(id)
+          if (el) {
+            el.value = value
+            el.classList.add('ai-filled-edit')
+            el.addEventListener('input', function rmAI() { el.classList.remove('ai-filled-edit'); el.removeEventListener('input', rmAI) }, { once: true })
+            count++
+          }
+        }
+      })
+      if (dati.sesso && ['M','F','Altro'].includes(dati.sesso)) setEditChipSesso(dati.sesso)
     }
 
     // ── CLINICAL NOTES (namespace: clinicalNotes*) ────────────────────────────

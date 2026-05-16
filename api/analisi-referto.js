@@ -11,9 +11,17 @@ export default async function handler(req, res) {
   const { image } = req.body
   if (!image || !image.data) return res.status(400).json({ error: 'Image mancante' })
 
-  const prompt = `Sei un assistente medico. Estrai da questo documento medico italiano i seguenti dati se presenti: nome, cognome, data di nascita, codice fiscale, diagnosi principale, patologie, farmaci, note cliniche, medico curante. Rispondi SOLO in JSON con questi campi esatti, senza testo aggiuntivo:
-{"nome":"","cognome":"","data_nascita":"","codice_fiscale":"","diagnosi_principale":"","patologie":"","farmaci":"","note_cliniche":"","medico_curante":""}
-Se un campo non è leggibile o non presente lascia la stringa vuota.`
+  const prompt = `Sei un assistente medico. Estrai da questo documento medico italiano TUTTI i dati presenti. Rispondi SOLO con un oggetto JSON valido, senza testo aggiuntivo, con esattamente questi campi:
+{"nome":"","cognome":"","data_nascita":"","sesso":"","codice_fiscale":"","telefono":"","email":"","indirizzo":"","citta":"","cap":"","professione":"","diagnosi_principale":"","patologie":"","farmaci":"","allergie":"","interventi_chirurgici":"","medico_curante":"","specialista_inviante":"","note_cliniche":""}
+Regole:
+- data_nascita: formato YYYY-MM-DD se presente, altrimenti stringa vuota
+- sesso: solo "M", "F", "Altro" oppure stringa vuota
+- codice_fiscale: maiuscolo
+- diagnosi_principale: la diagnosi principale o il motivo della visita
+- patologie: elenco patologie pregresse o croniche
+- farmaci: farmaci in uso con dosaggio se presente
+- note_cliniche: testo descrittivo libero (anamnesi, storia clinica, referto) che non rientra negli altri campi
+- Se un campo non è leggibile o non presente, lascia la stringa vuota. NON inventare dati.`
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {

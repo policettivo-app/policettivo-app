@@ -216,6 +216,31 @@
     .referto-preview { display: none; margin-top: 10px; border-radius: 8px; overflow: hidden; }
     .referto-preview img { width: 100%; max-height: 110px; object-fit: cover; display: block; }
     .referto-ok { display: none; background: #0a2a0a; border: 1px solid #2a6a2a; border-radius: 8px; padding: 10px 12px; margin-top: 10px; color: #7dda7d; font-size: 11px; font-weight: 700; }
+    .ai-hint-text { color: #888; font-size: 11px; line-height: 1.5; margin-top: 10px; }
+
+    /* ── Form accordion (Nuovo paziente) ── */
+    .acc-section { border: 1.5px solid #e5e5ea; border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+    .acc-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f9f9f9; font-size: 11px; font-weight: 700; color: #000; letter-spacing: 0.5px; text-transform: uppercase; }
+    .acc-head:not(.acc-head-required) { cursor: pointer; user-select: none; }
+    .acc-head:not(.acc-head-required):hover { background: #f3f3f3; }
+    .acc-toggle { font-size: 14px; color: #bbb; transition: transform 0.2s; }
+    .acc-section.collapsed .acc-toggle { transform: rotate(-90deg); }
+    .acc-body { padding: 14px; }
+    .acc-section.collapsed .acc-body { display: none; }
+    .form-group-sm { margin-bottom: 12px; }
+    .form-group-sm label { display: block; font-size: 10px; font-weight: 700; color: #555; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 5px; }
+    .form-group-sm input, .form-group-sm textarea { width: 100%; padding: 9px 11px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; color: #000; outline: none; box-sizing: border-box; }
+    .form-group-sm input:focus, .form-group-sm textarea:focus { border-color: var(--yellow); }
+    .form-group-sm textarea { resize: vertical; }
+    .acc-chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+    .acc-chip { background: #f5f5f5; border: 1.5px solid #ddd; color: #444; padding: 5px 13px; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; line-height: 1; }
+    .acc-chip:hover { border-color: var(--yellow); background: #fffdf0; }
+    .acc-chip.active { background: var(--yellow); border-color: var(--yellow); color: #000; }
+    .acc-chip-small { font-size: 11px; padding: 4px 10px; }
+    .acc-check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: #000; font-family: 'Montserrat', sans-serif; margin-bottom: 4px; }
+    .acc-check-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--yellow); cursor: pointer; flex-shrink: 0; }
+    .ai-filled { border-color: #FFD008 !important; background: #fffef5 !important; }
+    .ai-filled:focus { background: #ffffff !important; }
 
     /* Premium gate modal */
     .pg-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9000; align-items: center; justify-content: center; padding: 24px; }
@@ -404,41 +429,146 @@
 
   <!-- ── Modal: nuovo paziente ───────────────────────────── -->
   <div class="modal-overlay" id="modal-overlay">
-    <div class="modal">
-      <h2>Nuovo paziente</h2>
+    <div class="modal" id="modal-box">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <h2 style="margin:0;font-size:19px">Nuovo paziente</h2>
+        <button onclick="closeModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1;padding:0">✕</button>
+      </div>
+
+      <!-- Scanner AI -->
       <div class="referto-box" id="referto-scan-box">
-        <div class="referto-box-title">📄 <span>Scansiona referto o documento</span> <span id="referto-ai-badge" style="display:none;background:#333;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;margin-left:4px"></span></div>
-        <div class="referto-box-sub">Fotografa o carica un documento medico: l'AI estrae automaticamente i dati del paziente.</div>
+        <div class="referto-box-title">📷 <span>Importa da documento</span> <span id="referto-ai-badge" style="display:none;background:#333;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;margin-left:4px"></span></div>
+        <div class="referto-box-sub">Carica foto o PDF di referto, tessera sanitaria, prescrizione... l'AI estrae i dati automaticamente.</div>
         <div class="referto-btns">
           <button class="btn-referto" onclick="apriCamReferto()">📷 Fotocamera</button>
-          <button class="btn-referto" onclick="apriGalleriaReferto()">🖼 Galleria</button>
+          <button class="btn-referto" onclick="apriGalleriaReferto()">🖼 Galleria / File</button>
         </div>
         <div class="referto-loading" id="referto-loading">⏳ Analisi documento in corso...</div>
         <div class="referto-preview" id="referto-preview"><img id="referto-preview-img" style="width:100%;max-height:110px;object-fit:cover;display:block"></div>
         <div class="referto-ok" id="referto-ok">✓ Dati estratti — verifica e modifica i campi se necessario</div>
         <input type="file" id="referto-cam-input" accept="image/*" capture="environment" style="display:none" onchange="handleRefertoFile(this)">
-        <input type="file" id="referto-gal-input" accept="image/*" style="display:none" onchange="handleRefertoFile(this)">
+        <input type="file" id="referto-gal-input" accept="image/*,application/pdf" style="display:none" onchange="handleRefertoFile(this)">
+        <p class="ai-hint-text">L'AI compilerà automaticamente i campi disponibili. Puoi sempre correggere a mano.</p>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Nome *</label><input type="text" id="p-nome" placeholder="Mario"></div>
-        <div class="form-group"><label>Cognome *</label><input type="text" id="p-cognome" placeholder="Rossi"></div>
+
+      <!-- SEZIONE 1: DATI ANAGRAFICI (sempre espansa) -->
+      <div class="acc-section">
+        <div class="acc-head acc-head-required"><span>1 — Dati anagrafici</span></div>
+        <div class="acc-body">
+          <div class="form-row">
+            <div class="form-group-sm"><label>Nome *</label><input type="text" id="f-nome" placeholder="Mario" autocomplete="given-name"></div>
+            <div class="form-group-sm"><label>Cognome *</label><input type="text" id="f-cognome" placeholder="Rossi" autocomplete="family-name"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group-sm"><label>Data di nascita</label><input type="date" id="f-data-nascita"></div>
+            <div class="form-group-sm">
+              <label>Sesso</label>
+              <input type="hidden" id="f-sesso">
+              <div class="acc-chip-row">
+                <button type="button" class="acc-chip chip-sesso" data-val="M" onclick="setChipSesso('M')">M</button>
+                <button type="button" class="acc-chip chip-sesso" data-val="F" onclick="setChipSesso('F')">F</button>
+                <button type="button" class="acc-chip chip-sesso" data-val="Altro" onclick="setChipSesso('Altro')">Altro</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group-sm"><label>Codice fiscale</label><input type="text" id="f-codice-fiscale" placeholder="RSSMRA80A01H501U" oninput="this.value=this.value.toUpperCase()" maxlength="16"></div>
+          <div class="form-row">
+            <div class="form-group-sm"><label>Telefono</label><input type="tel" id="f-telefono" placeholder="+39 333 000 0000"></div>
+            <div class="form-group-sm"><label>Email</label><input type="email" id="f-email" placeholder="mario@email.it"></div>
+          </div>
+          <div class="form-group-sm"><label>Indirizzo</label><input type="text" id="f-indirizzo" placeholder="Via Roma 1"></div>
+          <div class="form-row">
+            <div class="form-group-sm"><label>Città</label><input type="text" id="f-citta" placeholder="Milano"></div>
+            <div class="form-group-sm"><label>CAP</label><input type="text" id="f-cap" placeholder="20121" maxlength="5" pattern="[0-9]{5}"></div>
+          </div>
+        </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Email</label><input type="email" id="p-email" placeholder="mario@email.it"></div>
-        <div class="form-group"><label>Telefono</label><input type="tel" id="p-telefono" placeholder="+39 333 000 0000"></div>
+
+      <!-- SEZIONE 2: INQUADRAMENTO CLINICO -->
+      <div class="acc-section">
+        <div class="acc-head" onclick="toggleAcc(this)"><span>2 — Inquadramento clinico</span><span class="acc-toggle">▾</span></div>
+        <div class="acc-body">
+          <div class="form-group-sm"><label>Problema principale</label><input type="text" id="f-problema" placeholder="es. Lombalgia, Cervicalgia..."></div>
+          <div class="form-group-sm">
+            <label>Professione</label>
+            <input type="text" id="f-professione" placeholder="es. Impiegato, Infermiere...">
+            <div class="acc-chip-row">
+              <button type="button" class="acc-chip acc-chip-small chip-prof" data-val="Sedentaria" onclick="setChipProf('Sedentaria')">Sedentaria</button>
+              <button type="button" class="acc-chip acc-chip-small chip-prof" data-val="Manuale" onclick="setChipProf('Manuale')">Manuale</button>
+              <button type="button" class="acc-chip acc-chip-small chip-prof" data-val="Sportiva" onclick="setChipProf('Sportiva')">Sportiva</button>
+              <button type="button" class="acc-chip acc-chip-small chip-prof" data-val="Studente" onclick="setChipProf('Studente')">Studente</button>
+              <button type="button" class="acc-chip acc-chip-small chip-prof" data-val="Pensionato" onclick="setChipProf('Pensionato')">Pensionato</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group-sm">
+              <label>Mano dominante</label>
+              <input type="hidden" id="f-mano-dominante">
+              <div class="acc-chip-row">
+                <button type="button" class="acc-chip chip-mano" data-val="dx" onclick="setChipMano('dx')">Dx</button>
+                <button type="button" class="acc-chip chip-mano" data-val="sx" onclick="setChipMano('sx')">Sx</button>
+                <button type="button" class="acc-chip chip-mano" data-val="ambidestro" onclick="setChipMano('ambidestro')">Ambidestro</button>
+              </div>
+            </div>
+            <div class="form-group-sm">
+              <label>Attività sportiva</label>
+              <input type="hidden" id="f-attivita-sportiva">
+              <div class="acc-chip-row">
+                <button type="button" class="acc-chip chip-sport" data-val="nessuna" onclick="setChipSport('nessuna')">Nessuna</button>
+                <button type="button" class="acc-chip chip-sport" data-val="amatoriale" onclick="setChipSport('amatoriale')">Amatoriale</button>
+                <button type="button" class="acc-chip chip-sport" data-val="agonistica" onclick="setChipSport('agonistica')">Agonistica</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group-sm" id="f-sport-row" style="display:none">
+            <label>Sport praticato</label>
+            <input type="text" id="f-sport-praticato" placeholder="es. Calcio, Nuoto, Tennis...">
+          </div>
+        </div>
       </div>
-      <div class="form-group"><label>Problema principale</label><input type="text" id="p-problema" placeholder="es. Lombalgia, Cervicalgia..."></div>
-      <div class="form-group"><label>Note cliniche</label><textarea id="p-note" placeholder="Annotazioni riservate..."></textarea></div>
-      <div class="form-group">
+
+      <!-- SEZIONE 3: STORIA CLINICA -->
+      <div class="acc-section">
+        <div class="acc-head" onclick="toggleAcc(this)"><span>3 — Storia clinica</span><span class="acc-toggle">▾</span></div>
+        <div class="acc-body">
+          <div class="form-group-sm"><label>⚠️ Allergie</label><textarea id="f-allergie" rows="2" placeholder="es. Lattice, FANS, penicillina..."></textarea></div>
+          <div class="form-group-sm"><label>Farmaci in uso</label><textarea id="f-farmaci" rows="3" placeholder="Lista farmaci con dosaggio..."></textarea></div>
+          <div class="form-group-sm"><label>Patologie pregresse</label><textarea id="f-patologie" rows="3" placeholder="es. Ernia L4-L5, Artrosi..."></textarea></div>
+          <div class="form-group-sm"><label>Interventi chirurgici</label><textarea id="f-interventi" rows="3" placeholder="es. Artroscopia ginocchio 2018..."></textarea></div>
+          <div class="form-row">
+            <div class="form-group-sm"><label>Medico curante</label><input type="text" id="f-medico-curante" placeholder="Dr. Bianchi"></div>
+            <div class="form-group-sm"><label>Specialista inviante</label><input type="text" id="f-specialista" placeholder="Dr. Verdi"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEZIONE 4: CONSENSI E NOTE -->
+      <div class="acc-section">
+        <div class="acc-head" onclick="toggleAcc(this)"><span>4 — Consensi e note</span><span class="acc-toggle">▾</span></div>
+        <div class="acc-body">
+          <label class="acc-check-row">
+            <input type="checkbox" id="f-consenso-privacy">
+            <span>Consenso privacy firmato</span>
+          </label>
+          <div class="form-group-sm" style="margin-top:14px">
+            <label>Note libere</label>
+            <textarea id="f-note" rows="4" placeholder="Annotazioni riservate, informazioni aggiuntive..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configurazione cuscini -->
+      <div class="form-group" style="margin-top:4px">
         <label>Configurazione cuscini (opzionale)</label>
         <div class="config-selector">
           <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div></div>
           <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div></div>
         </div>
       </div>
+
       <div class="modal-actions">
         <button class="btn-secondary" onclick="closeModal()">Annulla</button>
-        <button class="btn-primary" onclick="savePatient()">Salva paziente</button>
+        <button class="btn-primary" onclick="savePatient()">💾 Salva paziente</button>
       </div>
     </div>
   </div>
@@ -870,10 +1000,16 @@
       selectedConfig = null
       document.getElementById('opt-npl').className = 'config-option'
       document.getElementById('opt-gpl').className = 'config-option'
-      ;['p-nome','p-cognome','p-email','p-telefono','p-problema','p-note'].forEach(id => document.getElementById(id).value = '')
+      const textIds = ['f-nome','f-cognome','f-email','f-telefono','f-data-nascita','f-codice-fiscale','f-indirizzo','f-citta','f-cap','f-professione','f-sport-praticato','f-allergie','f-farmaci','f-patologie','f-interventi','f-medico-curante','f-specialista','f-problema','f-note']
+      textIds.forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+      ;['f-sesso','f-mano-dominante','f-attivita-sportiva'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+      const cb = document.getElementById('f-consenso-privacy'); if (cb) cb.checked = false
+      document.querySelectorAll('#modal-box .acc-chip.active').forEach(c => c.classList.remove('active'))
+      const sr = document.getElementById('f-sport-row'); if (sr) sr.style.display = 'none'
       document.getElementById('referto-loading').style.display = 'none'
       document.getElementById('referto-preview').style.display = 'none'
       document.getElementById('referto-ok').style.display = 'none'
+      document.querySelectorAll('#modal-box .ai-filled').forEach(el => el.classList.remove('ai-filled'))
     }
     function selectConfig(val) {
       selectedConfig = val
@@ -881,20 +1017,43 @@
       document.getElementById('opt-gpl').className = 'config-option' + (val === 'GPL' ? ' selected-gpl' : '')
     }
     async function savePatient() {
-      const nome = document.getElementById('p-nome').value.trim()
-      const cognome = document.getElementById('p-cognome').value.trim()
+      const nome = document.getElementById('f-nome').value.trim()
+      const cognome = document.getElementById('f-cognome').value.trim()
       if (!nome || !cognome) { alert('Nome e cognome sono obbligatori.'); return }
-      const email = document.getElementById('p-email').value.trim()
-      const telefono = document.getElementById('p-telefono').value.trim()
+      const email = document.getElementById('f-email').value.trim()
+      const telefono = document.getElementById('f-telefono').value.trim()
       if (email) { const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; if (!emailRegex.test(email)) { alert('Inserisci un indirizzo email valido.'); return } }
       if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return } }
-      const { error } = await _supabase.from('patients').insert({
-        professional_id: currentProfessionalId, nome, cognome,
-        email: email || null, telefono: telefono || null,
-        problema_principale: document.getElementById('p-problema').value.trim() || null,
-        note_cliniche: document.getElementById('p-note').value.trim() || null,
-        configurazione_default: selectedConfig, stato: 'attivo'
-      })
+      const consenso = document.getElementById('f-consenso-privacy').checked
+      const payload = {
+        professional_id: currentProfessionalId,
+        nome, cognome,
+        email: email || null,
+        telefono: telefono || null,
+        data_nascita: document.getElementById('f-data-nascita').value || null,
+        sesso: document.getElementById('f-sesso').value || null,
+        codice_fiscale: document.getElementById('f-codice-fiscale').value.trim().toUpperCase() || null,
+        indirizzo: document.getElementById('f-indirizzo').value.trim() || null,
+        citta: document.getElementById('f-citta').value.trim() || null,
+        cap: document.getElementById('f-cap').value.trim() || null,
+        professione: document.getElementById('f-professione').value.trim() || null,
+        mano_dominante: document.getElementById('f-mano-dominante').value || null,
+        attivita_sportiva: document.getElementById('f-attivita-sportiva').value || null,
+        sport_praticato: document.getElementById('f-sport-praticato').value.trim() || null,
+        allergie: document.getElementById('f-allergie').value.trim() || null,
+        farmaci_in_uso: document.getElementById('f-farmaci').value.trim() || null,
+        patologie_pregresse: document.getElementById('f-patologie').value.trim() || null,
+        interventi_chirurgici: document.getElementById('f-interventi').value.trim() || null,
+        medico_curante: document.getElementById('f-medico-curante').value.trim() || null,
+        specialista_inviante: document.getElementById('f-specialista').value.trim() || null,
+        consenso_privacy: consenso,
+        consenso_privacy_data: consenso ? new Date().toISOString() : null,
+        problema_principale: document.getElementById('f-problema').value.trim() || null,
+        note_cliniche: document.getElementById('f-note').value.trim() || null,
+        configurazione_default: selectedConfig,
+        stato: 'attivo'
+      }
+      const { error } = await _supabase.from('patients').insert(payload)
       if (error) { alert('Errore: ' + error.message); return }
       const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).maybeSingle()
       if (nuovo) { window.location.href = 'paziente.html?id=' + nuovo.id } else { closeModal(); loadPatients(); loadStats() }
@@ -1021,18 +1180,75 @@
         loading.style.display = 'none'
       }
     }
+    function toggleAcc(header) { header.parentElement.classList.toggle('collapsed') }
+
+    function setChipSesso(val) {
+      document.getElementById('f-sesso').value = val
+      document.querySelectorAll('#modal-box .chip-sesso').forEach(c => c.classList.toggle('active', c.dataset.val === val))
+    }
+    function setChipMano(val) {
+      document.getElementById('f-mano-dominante').value = val
+      document.querySelectorAll('#modal-box .chip-mano').forEach(c => c.classList.toggle('active', c.dataset.val === val))
+    }
+    function setChipSport(val) {
+      document.getElementById('f-attivita-sportiva').value = val
+      document.querySelectorAll('#modal-box .chip-sport').forEach(c => c.classList.toggle('active', c.dataset.val === val))
+      document.getElementById('f-sport-row').style.display = val && val !== 'nessuna' ? 'block' : 'none'
+    }
+    function setChipProf(val) {
+      document.getElementById('f-professione').value = val
+      document.querySelectorAll('#modal-box .chip-prof').forEach(c => c.classList.toggle('active', c.dataset.val === val))
+    }
+
+    function showToastDash(msg) {
+      let t = document.getElementById('dash-toast')
+      if (!t) {
+        t = document.createElement('div')
+        t.id = 'dash-toast'
+        t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:10px 20px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;white-space:nowrap;max-width:90vw;text-align:center;pointer-events:none'
+        document.body.appendChild(t)
+      }
+      t.textContent = msg
+      t.style.opacity = '1'
+      clearTimeout(t._tid)
+      t._tid = setTimeout(() => { t.style.opacity = '0' }, 3500)
+    }
+
     function compileFormFromReferto(dati) {
-      if (dati.nome) document.getElementById('p-nome').value = dati.nome
-      if (dati.cognome) document.getElementById('p-cognome').value = dati.cognome
-      if (dati.diagnosi_principale) document.getElementById('p-problema').value = dati.diagnosi_principale
-      const extra = []
-      if (dati.data_nascita) extra.push('Nato/a il: ' + dati.data_nascita)
-      if (dati.codice_fiscale) extra.push('C.F.: ' + dati.codice_fiscale)
-      if (dati.patologie) extra.push('Patologie: ' + dati.patologie)
-      if (dati.farmaci) extra.push('Farmaci: ' + dati.farmaci)
-      if (dati.note_cliniche) extra.push('Note: ' + dati.note_cliniche)
-      if (dati.medico_curante) extra.push('Medico curante: ' + dati.medico_curante)
-      if (extra.length) document.getElementById('p-note').value = extra.join('\n')
+      const map = {
+        'f-nome':          dati.nome,
+        'f-cognome':       dati.cognome,
+        'f-data-nascita':  dati.data_nascita,
+        'f-codice-fiscale': dati.codice_fiscale,
+        'f-telefono':      dati.telefono,
+        'f-email':         dati.email,
+        'f-indirizzo':     dati.indirizzo,
+        'f-citta':         dati.citta,
+        'f-cap':           dati.cap,
+        'f-professione':   dati.professione,
+        'f-allergie':      dati.allergie,
+        'f-farmaci':       dati.farmaci || dati.farmaci_in_uso,
+        'f-patologie':     dati.patologie || dati.patologie_pregresse,
+        'f-interventi':    dati.interventi_chirurgici,
+        'f-medico-curante': dati.medico_curante,
+        'f-specialista':   dati.specialista_inviante,
+        'f-problema':      dati.diagnosi_principale || dati.problema,
+        'f-note':          dati.note_cliniche
+      }
+      let count = 0
+      Object.entries(map).forEach(([id, value]) => {
+        if (value) {
+          const el = document.getElementById(id)
+          if (el) {
+            el.value = value
+            el.classList.add('ai-filled')
+            el.addEventListener('input', function rmAI() { el.classList.remove('ai-filled'); el.removeEventListener('input', rmAI) }, { once: true })
+            count++
+          }
+        }
+      })
+      if (dati.sesso && ['M','F','Altro'].includes(dati.sesso)) setChipSesso(dati.sesso)
+      if (count > 0) showToastDash('AI ha compilato ' + count + ' campi. Rivedi e correggi se necessario.')
     }
 
     // ── New UI helpers ──────────────────────────────────────
