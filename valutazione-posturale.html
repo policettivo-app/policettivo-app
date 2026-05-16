@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Valutazione Posturale</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -10,241 +10,177 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; min-height: 100vh; }
 
-    /* ── STICKY HEADER ─────────────────────────────────────── */
+    /* ── STICKY HEADER ──────────────────────────────────────── */
     #sticky-header {
       position: fixed; top: 0; left: 0; right: 0; z-index: 200;
       background: #FFD008; padding: 12px 16px 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,.15);
     }
-    .hdr-row1 { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
-    .hdr-back { background: none; border: none; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+    .hdr-row1 { display: flex; align-items: center; gap: 8px; }
+    .hdr-back { background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0; }
     .hdr-name { font-size: 15px; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .hdr-badge { background: #000; color: #FFD008; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
-    .hdr-row2 { display: flex; align-items: center; gap: 8px; margin-top: 6px; justify-content: space-between; }
-    #hdr-date-input {
-      border: 1.5px solid rgba(0,0,0,.2); border-radius: 6px; padding: 3px 6px;
-      font-family: inherit; font-size: 12px; font-weight: 600; background: rgba(255,255,255,.4);
-    }
-    #hdr-indicator { font-size: 11px; font-weight: 600; opacity: .75; min-width: 90px; text-align: right; }
-    .hdr-chiudi-btn {
-      background: #000; color: #FFD008; border: none; border-radius: 8px;
-      padding: 7px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
-    }
-    .hdr-chiudi-btn:disabled { opacity: .5; cursor: default; }
+    .hdr-badge { background: #000; color: #FFD008; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+    .hdr-row2 { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+    #hdr-date-input { border: 1.5px solid rgba(0,0,0,.2); border-radius: 6px; padding: 3px 7px; font-family: inherit; font-size: 12px; font-weight: 600; background: rgba(255,255,255,.5); flex-shrink: 0; }
+    #hdr-indicator { font-size: 11px; font-weight: 600; opacity: .8; flex: 1; text-align: right; min-width: 0; }
+    .hdr-chiudi-btn { background: #000; color: #FFD008; border: none; border-radius: 8px; padding: 7px 13px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+    .hdr-chiudi-btn:disabled { opacity: .45; cursor: default; }
 
-    /* ── CHIUSA BANNER ─────────────────────────────────────── */
+    /* ── CHIUSA BANNER ──────────────────────────────────────── */
     #chiusa-banner {
-      position: fixed; top: 88px; left: 0; right: 0; z-index: 190;
+      position: fixed; top: 90px; left: 0; right: 0; z-index: 190;
       background: #1a7a3c; color: #fff; padding: 10px 16px;
       display: none; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
     }
     .chiusa-text { font-size: 13px; font-weight: 700; }
     .chiusa-actions { display: flex; gap: 8px; }
-    .btn-chiusa-action {
-      border: 1.5px solid rgba(255,255,255,.5); border-radius: 8px; background: transparent;
-      color: #fff; font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; cursor: pointer;
-    }
-    .btn-chiusa-back { background: rgba(255,255,255,.15); }
+    .btn-chiusa-action { border: 1.5px solid rgba(255,255,255,.5); border-radius: 8px; background: transparent; color: #fff; font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; cursor: pointer; }
 
-    /* ── MAIN CONTENT ──────────────────────────────────────── */
-    #main-content { padding-top: 106px; padding-bottom: 158px; }
-    #main-content.with-banner { padding-top: 148px; }
+    /* ── MAIN CONTENT ───────────────────────────────────────── */
+    #main-content { padding-top: 108px; padding-bottom: 158px; }
+    #main-content.with-banner { padding-top: 150px; }
 
-    /* ── SECTION CARD ──────────────────────────────────────── */
-    .vp-section {
-      background: #fff; border-radius: 12px; margin: 12px;
-      padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
-    }
-    .vp-sec-title {
-      font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px;
-      color: #000; margin-bottom: 14px; display: flex; align-items: center; gap: 7px;
-    }
-    .vp-sec-badge {
-      background: #FFD008; color: #000; font-size: 10px; font-weight: 700;
-      padding: 2px 8px; border-radius: 20px; flex-shrink: 0;
-    }
-    .vp-sec-info-btn {
-      background: none; border: none; cursor: pointer; font-size: 17px; margin-left: auto; padding: 0;
-    }
+    /* ── SECTION CARD ───────────────────────────────────────── */
+    .vp-section { background: #fff; border-radius: 12px; margin: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .vp-sec-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+    .vp-sec-badge { background: #FFD008; color: #000; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
+    .vp-sec-info-btn { background: none; border: none; cursor: pointer; font-size: 17px; margin-left: auto; padding: 0; }
+    .vp-divider { border: none; border-top: 1.5px solid #f0f0f0; margin: 14px 0; }
 
-    /* ── CHIPS ─────────────────────────────────────────────── */
+    /* ── CHIPS ──────────────────────────────────────────────── */
     .chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
-    .chip {
-      padding: 6px 13px; border-radius: 20px; border: 1.5px solid #ddd;
-      font-family: inherit; font-size: 12px; font-weight: 600; background: #fafafa;
-      cursor: pointer; transition: all .15s; user-select: none;
-    }
+    .chip { padding: 6px 13px; border-radius: 20px; border: 1.5px solid #ddd; font-family: inherit; font-size: 12px; font-weight: 600; background: #fafafa; cursor: pointer; transition: all .15s; user-select: none; }
     .chip:active { transform: scale(.95); }
-    .chip.active { background: #FFD008; border-color: #FFD008; color: #000; }
+    .chip.active { background: #FFD008; border-color: #FFD008; }
     .chip.append-chip { color: #444; }
-    .chip.append-chip:active { background: #f0f0f0; }
     .chip-label { font-size: 11px; font-weight: 700; color: #666; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .3px; }
 
-    /* ── TEXTAREA ──────────────────────────────────────────── */
-    .vp-textarea {
-      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px;
-      padding: 10px 12px; font-family: inherit; font-size: 13px; line-height: 1.5;
-      resize: vertical; transition: border-color .2s;
-    }
+    /* ── TEXTAREA ───────────────────────────────────────────── */
+    .vp-textarea { width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical; transition: border-color .2s; }
     .vp-textarea:focus { outline: none; border-color: #FFD008; }
     .vp-textarea:disabled { background: #f8f8f8; color: #888; }
 
-    /* ── PHOTO GRID ────────────────────────────────────────── */
-    .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .photo-slot {
-      border: 2px dashed #ddd; border-radius: 10px; aspect-ratio: 3/4;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      cursor: pointer; position: relative; overflow: hidden; background: #fafafa;
-      transition: border-color .2s;
-    }
+    /* ── PHOTO GRID ─────────────────────────────────────────── */
+    .photo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .photo-group-label { grid-column: 1 / -1; font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .4px; padding: 6px 0 2px; border-top: 1.5px solid #f0f0f0; margin-top: 4px; }
+    .photo-group-label:first-child { border-top: none; margin-top: 0; }
+    .photo-slot-wrap { display: flex; flex-direction: column; gap: 4px; }
+    .photo-slot { border: 2px dashed #ddd; border-radius: 8px; aspect-ratio: 2/3; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; background: #fafafa; transition: border-color .2s; }
     .photo-slot:hover { border-color: #FFD008; }
     .photo-slot.filled { border: none; cursor: default; }
-    .photo-slot-thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
-    .photo-slot-overlay {
-      position: absolute; inset: 0; background: rgba(0,0,0,.45); border-radius: 8px;
-      display: flex; align-items: flex-end; justify-content: space-between; padding: 8px;
-      opacity: 0; transition: opacity .2s;
-    }
-    .photo-slot.filled:hover .photo-slot-overlay { opacity: 1; }
-    .photo-slot-label { font-size: 11px; font-weight: 700; color: #666; text-align: center; padding: 0 6px; margin-top: 8px; }
-    .photo-slot-icon { font-size: 26px; margin-bottom: 4px; }
-    .photo-slot-label-filled {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      background: rgba(0,0,0,.6); color: #fff; font-size: 10px; font-weight: 700;
-      text-align: center; padding: 4px; border-radius: 0 0 8px 8px;
-    }
-    .slot-btn {
-      background: rgba(255,255,255,.9); border: none; border-radius: 6px;
-      padding: 4px 8px; font-size: 12px; cursor: pointer; font-weight: 700;
-    }
-    .slot-btn-del { color: #d32f2f; }
-    .slot-btn-view { color: #000; }
+    .photo-slot-thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+    .photo-slot-label { font-size: 10px; font-weight: 700; color: #666; text-align: center; padding: 0 4px; margin-top: 6px; }
+    .photo-slot-icon { font-size: 20px; }
+    .photo-slot-actions { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.65); display: flex; justify-content: space-around; padding: 4px 2px; border-radius: 0 0 6px 6px; }
+    .slot-btn { background: none; border: none; color: #fff; font-size: 14px; cursor: pointer; padding: 2px 4px; }
+    .photo-note-input { width: 100%; border: 1px solid #e0e0e0; border-radius: 5px; padding: 4px 6px; font-family: inherit; font-size: 11px; background: #fafafa; }
+    .photo-note-input:focus { outline: none; border-color: #FFD008; }
 
-    /* ── FOTO LIBERE ───────────────────────────────────────── */
+    /* ── FOTO LIBERE ────────────────────────────────────────── */
     .foto-lib-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
-    .foto-lib-item {
-      display: flex; gap: 10px; align-items: flex-start;
-      border: 1.5px solid #eee; border-radius: 10px; padding: 8px; background: #fafafa;
-    }
-    .foto-lib-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0; cursor: pointer; }
+    .foto-lib-item { display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid #eee; border-radius: 10px; padding: 8px; background: #fafafa; }
+    .foto-lib-thumb { width: 58px; height: 58px; object-fit: cover; border-radius: 6px; flex-shrink: 0; cursor: pointer; }
     .foto-lib-info { flex: 1; min-width: 0; }
     .foto-lib-titolo { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
     .foto-lib-desc { font-size: 12px; color: #555; word-break: break-word; }
-    .foto-lib-del { background: none; border: none; font-size: 18px; cursor: pointer; color: #d32f2f; padding: 0 4px; }
-    .btn-add-foto {
-      width: 100%; padding: 11px; border: 2px dashed #ddd; border-radius: 10px;
-      background: #fafafa; font-family: inherit; font-size: 13px; font-weight: 600;
-      color: #555; cursor: pointer; transition: border-color .2s, color .2s;
-    }
+    .foto-lib-del { background: none; border: none; font-size: 18px; cursor: pointer; color: #d32f2f; padding: 0 2px; }
+    .btn-add-foto { width: 100%; padding: 11px; border: 2px dashed #ddd; border-radius: 10px; background: #fafafa; font-family: inherit; font-size: 13px; font-weight: 600; color: #555; cursor: pointer; transition: border-color .2s, color .2s; }
     .btn-add-foto:hover { border-color: #FFD008; color: #000; }
     .btn-add-foto:disabled { opacity: .5; cursor: default; }
 
-    /* ── DIVIDER ───────────────────────────────────────────── */
-    .vp-divider { border: none; border-top: 1.5px solid #f0f0f0; margin: 14px 0; }
-
-    /* ── CONFIG CARDS (NPL/GPL) ────────────────────────────── */
+    /* ── CONFIG CARDS NPL/GPL ───────────────────────────────── */
     .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .config-card {
-      border: 2px solid #ddd; border-radius: 12px; padding: 14px 10px;
-      text-align: center; cursor: pointer; transition: all .15s; background: #fafafa; user-select: none;
-    }
+    .config-card { border: 2px solid #ddd; border-radius: 12px; padding: 16px 10px; text-align: center; cursor: pointer; transition: all .15s; user-select: none; }
     .config-card:active { transform: scale(.97); }
-    .config-card.active { border-color: #FFD008; background: #fffde7; }
-    .config-card-label { font-size: 18px; font-weight: 800; }
-    .config-card-desc { font-size: 11px; color: #666; margin-top: 4px; line-height: 1.4; }
+    .config-card-label { font-size: 22px; font-weight: 800; }
+    .config-card-desc { font-size: 11px; margin-top: 4px; line-height: 1.4; opacity: .8; }
 
-    /* ── BOTTOM BAR ────────────────────────────────────────── */
-    #bottom-bar {
-      position: fixed; bottom: 56px; left: 0; right: 0; z-index: 150;
-      background: #fff; border-top: 1.5px solid #eee;
-      display: flex; gap: 10px; padding: 10px 16px; box-shadow: 0 -2px 8px rgba(0,0,0,.08);
-    }
-    .btn-salva {
-      flex: 1; padding: 13px; background: #000; color: #FFD008; border: none;
-      border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
-    }
-    .btn-chiudi-bar {
-      flex: 1; padding: 13px; background: #FFD008; color: #000; border: none;
-      border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
-    }
+    /* NPL = NERO su GIALLO (brand) */
+    #cfg-npl { background: #000; color: #FFD008; border-color: #000; }
+    /* GPL = GIALLO su NERO (brand) */
+    #cfg-gpl { background: #FFD008; color: #000; border-color: #FFD008; }
+
+    /* Non selezionato: opacità ridotta */
+    .config-card.dim { opacity: 0.45; }
+    /* Selezionato: ring */
+    #cfg-npl.active { box-shadow: 0 0 0 3px #FFD008, 0 0 0 5px #000; opacity: 1; }
+    #cfg-gpl.active { box-shadow: 0 0 0 3px #000, 0 0 0 5px #FFD008; opacity: 1; }
+    body.is-chiusa .config-card { pointer-events: none; }
+
+    /* ── BOTTOM BAR ─────────────────────────────────────────── */
+    #bottom-bar { position: fixed; bottom: 56px; left: 0; right: 0; z-index: 150; background: #fff; border-top: 1.5px solid #eee; display: flex; gap: 10px; padding: 10px 16px; box-shadow: 0 -2px 8px rgba(0,0,0,.08); }
+    .btn-salva { flex: 1; padding: 13px; background: #000; color: #FFD008; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn-chiudi-bar { flex: 1; padding: 13px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
     .btn-chiudi-bar:disabled { opacity: .5; cursor: default; }
+    body.is-chiusa #bottom-bar { display: none; }
 
-    /* ── LIGHTBOX ──────────────────────────────────────────── */
-    #lightbox {
-      display: none; position: fixed; inset: 0; z-index: 900;
-      background: rgba(0,0,0,.93); align-items: center; justify-content: center;
-    }
+    /* ── LIGHTBOX ───────────────────────────────────────────── */
+    #lightbox { display: none; position: fixed; inset: 0; z-index: 800; background: #000; flex-direction: column; }
     #lightbox.open { display: flex; }
-    #lightbox-img { max-width: 96vw; max-height: 86vh; border-radius: 8px; }
-    #lightbox-close {
-      position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,.2);
-      border: none; color: #fff; font-size: 22px; border-radius: 50%; width: 40px; height: 40px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-    }
+    #lb-img-wrap { position: relative; flex: 1; overflow: hidden; }
+    #lb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+    #lb-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; touch-action: none; }
+    #lb-canvas.active { display: block; cursor: crosshair; }
+    #lb-grid { position: absolute; inset: 0; display: none; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.25) 1px, transparent 1px); background-size: 10% 10%; }
+    #lb-grid.active { display: block; }
+    #lb-fp-dot { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #FFD008; box-shadow: 0 0 8px #FFD008; transform: translate(-50%,-50%); pointer-events: none; display: none; z-index: 5; }
 
-    /* ── MODAL BASE ────────────────────────────────────────── */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0; z-index: 800;
-      background: rgba(0,0,0,.5); align-items: flex-end; justify-content: center;
-    }
+    /* Lightbox top bar */
+    #lb-topbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(0,0,0,.9); z-index: 2; flex-shrink: 0; }
+    .lb-btn { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: #fff; font-family: inherit; font-size: 12px; font-weight: 700; border-radius: 7px; padding: 6px 11px; cursor: pointer; transition: background .15s; }
+    .lb-btn:active { background: rgba(255,255,255,.25); }
+    .lb-btn.active { background: #FFD008; color: #000; border-color: #FFD008; }
+    #lb-close-btn { margin-right: auto; font-size: 18px; background: none; border: none; color: #fff; cursor: pointer; padding: 4px; }
+
+    /* Lightbox draw toolbar */
+    #lb-drawtool { display: none; padding: 8px 10px; background: #111; border-top: 1px solid #222; flex-shrink: 0; z-index: 2; }
+    #lb-drawtool.active { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .dt-group { display: flex; align-items: center; gap: 4px; }
+    .dt-divider { width: 1px; height: 28px; background: #333; flex-shrink: 0; }
+    .dt-btn { background: #1a1a1a; border: 1.5px solid #2a2a2a; color: #bbb; border-radius: 7px; padding: 7px 9px; font-size: 14px; cursor: pointer; font-family: 'Montserrat',sans-serif; min-width: 36px; text-align: center; line-height: 1; }
+    .dt-btn.active { border-color: #FFD008; color: #FFD008; background: #1a1500; }
+    .dt-btn:active { opacity: .7; }
+    .c-dot { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2.5px solid #333; flex-shrink: 0; transition: transform .12s; }
+    .c-dot.active { border-color: #FFD008; transform: scale(1.2); }
+    .dt-actions { display: flex; gap: 4px; margin-left: auto; }
+    .dt-act { background: #1a1a1a; border: 1.5px solid #2a2a2a; color: #bbb; border-radius: 7px; padding: 6px 8px; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .dt-act:active { opacity: .7; }
+    .dt-act-save { background: #FFD008; color: #000; border-color: #FFD008; }
+    .dt-act-reset { color: #e53935; border-color: #3a1a1a; background: #1a1010; }
+    .dt-act-export { background: #1a1500; color: #FFD008; border-color: #FFD008; }
+
+    /* ── TOAST ──────────────────────────────────────────────── */
+    #toast { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); background: #000; color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; z-index: 9999; pointer-events: none; opacity: 0; transition: opacity .3s; white-space: nowrap; }
+    #toast.show { opacity: 1; }
+
+    /* ── MODALS ─────────────────────────────────────────────── */
+    .modal-overlay { display: none; position: fixed; inset: 0; z-index: 850; background: rgba(0,0,0,.55); align-items: flex-end; justify-content: center; }
     .modal-overlay.open { display: flex; }
-    .modal-box {
-      background: #fff; width: 100%; max-width: 520px; border-radius: 16px 16px 0 0;
-      padding: 20px 16px 36px; max-height: 88vh; overflow-y: auto;
-    }
+    .modal-box { background: #fff; width: 100%; max-width: 520px; border-radius: 16px 16px 0 0; padding: 20px 16px 36px; max-height: 88vh; overflow-y: auto; }
     .modal-center { align-items: center; }
     .modal-center .modal-box { border-radius: 16px; width: calc(100% - 32px); margin: 16px; }
     .modal-title { font-size: 15px; font-weight: 800; margin-bottom: 14px; }
     .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; float: right; margin-top: -2px; }
     .modal-field-label { font-size: 12px; font-weight: 700; color: #555; margin-bottom: 4px; }
-    .modal-input {
-      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px;
-      padding: 9px 12px; font-family: inherit; font-size: 13px; margin-bottom: 12px;
-    }
+    .modal-input { width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 9px 12px; font-family: inherit; font-size: 13px; margin-bottom: 12px; }
     .modal-input:focus { outline: none; border-color: #FFD008; }
-    .modal-textarea {
-      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px;
-      padding: 9px 12px; font-family: inherit; font-size: 13px; resize: vertical; margin-bottom: 12px;
-    }
+    .modal-textarea { width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 9px 12px; font-family: inherit; font-size: 13px; resize: vertical; margin-bottom: 12px; }
     .modal-textarea:focus { outline: none; border-color: #FFD008; }
-    .modal-upload-area {
-      border: 2px dashed #ddd; border-radius: 10px; padding: 20px;
-      text-align: center; cursor: pointer; margin-bottom: 12px; transition: border-color .2s;
-      font-size: 13px; color: #666;
-    }
+    .modal-upload-area { border: 2px dashed #ddd; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 12px; transition: border-color .2s; font-size: 13px; color: #666; }
     .modal-upload-area:hover { border-color: #FFD008; }
     #fl-upload-preview { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; display: none; margin-bottom: 12px; }
-    .modal-btn-primary {
-      width: 100%; padding: 13px; background: #FFD008; color: #000; border: none;
-      border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
-    }
+    .modal-btn-primary { width: 100%; padding: 13px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
     .modal-btn-primary:disabled { opacity: .5; cursor: default; }
-    .modal-btn-secondary {
-      width: 100%; padding: 13px; background: #f0f0f0; color: #333; border: none;
-      border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px;
-    }
-
-    /* ── MONOPODALICO INFO ─────────────────────────────────── */
+    .modal-btn-secondary { width: 100%; padding: 13px; background: #f0f0f0; color: #333; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
     .mono-info-item { padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
     .mono-info-item:last-child { border-bottom: none; }
     .mono-info-term { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
     .mono-info-desc { font-size: 12px; color: #555; line-height: 1.5; }
 
-    /* ── TOAST ─────────────────────────────────────────────── */
-    #toast {
-      position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
-      background: #000; color: #fff; padding: 10px 18px; border-radius: 20px;
-      font-size: 13px; font-weight: 600; z-index: 9999; pointer-events: none;
-      opacity: 0; transition: opacity .3s; white-space: nowrap;
-    }
-    #toast.show { opacity: 1; }
-
-    /* ── CHIUSA LOCK ───────────────────────────────────────── */
+    /* ── LOCK ───────────────────────────────────────────────── */
     body.is-chiusa .chip { pointer-events: none; }
     body.is-chiusa .photo-slot:not(.filled) { pointer-events: none; opacity: .6; }
     body.is-chiusa .btn-add-foto { pointer-events: none; opacity: .5; }
-    body.is-chiusa .config-card { pointer-events: none; }
-    body.is-chiusa #bottom-bar { display: none; }
   </style>
 </head>
 <body>
@@ -268,17 +204,17 @@
   <div class="chiusa-text">✅ Valutazione chiusa</div>
   <div class="chiusa-actions">
     <button class="btn-chiusa-action" onclick="riapriBozza()">Riapri bozza</button>
-    <button class="btn-chiusa-action btn-chiusa-back" onclick="backToPaziente()">← Cartella</button>
+    <button class="btn-chiusa-action" onclick="backToPaziente()">← Cartella</button>
   </div>
 </div>
 
 <!-- MAIN CONTENT -->
 <div id="main-content">
 
-  <!-- A: OSSERVAZIONE INIZIALE -->
+  <!-- A: OSSERVAZIONE -->
   <section class="vp-section">
     <div class="vp-sec-title"><span class="vp-sec-badge">A</span> Osservazione iniziale</div>
-    <div class="chip-label">Elementi rilevati — tocca per aggiungere alle note</div>
+    <div class="chip-label">Elementi rilevati — tocca per aggiungere</div>
     <div class="chip-row">
       <span class="chip append-chip" onclick="appendObs('Iperlordosi lombare')">Iperlordosi lombare</span>
       <span class="chip append-chip" onclick="appendObs('Cifosi dorsale')">Cifosi dorsale</span>
@@ -287,7 +223,7 @@
       <span class="chip append-chip" onclick="appendObs('Spalla sx alta')">Spalla sx alta</span>
       <span class="chip append-chip" onclick="appendObs('Asimmetria bacino')">Asimmetria bacino</span>
       <span class="chip append-chip" onclick="appendObs('Protrazione spalle')">Protrazione spalle</span>
-      <span class="chip append-chip" onclick="appendObs('Atteggiamento scoliotico')">Atteggiamento scoliotico</span>
+      <span class="chip append-chip" onclick="appendObs('Atteggiamento scoliotico')">Atteg. scoliotico</span>
     </div>
     <textarea class="vp-textarea" id="f-note-osservazionali" rows="4"
       placeholder="Note osservazionali libere…" oninput="scheduleSave()"></textarea>
@@ -296,44 +232,13 @@
   <!-- B: FOTO POSTURALI -->
   <section class="vp-section">
     <div class="vp-sec-title"><span class="vp-sec-badge">B</span> Foto posturali</div>
-    <div class="photo-grid" id="photo-grid"><!-- built by JS --></div>
-    <input type="file" id="photo-file-input" accept="image/*" capture="environment"
-      style="display:none" onchange="onPhotoFileSelected(event)">
-  </section>
-
-  <!-- B.1: PIANO SCAPOLARE (conditional) -->
-  <section class="vp-section" id="sec-b1" style="display:none">
-    <div class="vp-sec-title"><span class="vp-sec-badge">B.1</span> Piano scapolare 3R</div>
-
-    <div class="chip-label">PRE — prima delle 3 Rotazioni</div>
-    <div class="chip-row">
-      <span class="chip append-chip" onclick="appendScap('pre','Alare')">Alare</span>
-      <span class="chip append-chip" onclick="appendScap('pre','Elevata')">Elevata</span>
-      <span class="chip append-chip" onclick="appendScap('pre','Depressa')">Depressa</span>
-      <span class="chip append-chip" onclick="appendScap('pre','Simmetrica')">Simmetrica</span>
-      <span class="chip append-chip" onclick="appendScap('pre','Asimmetrica')">Asimmetrica</span>
-    </div>
-    <textarea class="vp-textarea" id="f-note-scapolare-pre" rows="3"
-      placeholder="Descrizione scapola PRE 3R…" oninput="scheduleSave()"></textarea>
-
-    <hr class="vp-divider">
-
-    <div class="chip-label">POST — dopo le 3 Rotazioni</div>
-    <div class="chip-row">
-      <span class="chip append-chip" onclick="appendScap('post','Alare')">Alare</span>
-      <span class="chip append-chip" onclick="appendScap('post','Elevata')">Elevata</span>
-      <span class="chip append-chip" onclick="appendScap('post','Depressa')">Depressa</span>
-      <span class="chip append-chip" onclick="appendScap('post','Simmetrica')">Simmetrica</span>
-      <span class="chip append-chip" onclick="appendScap('post','Asimmetrica')">Asimmetrica</span>
-    </div>
-    <textarea class="vp-textarea" id="f-note-scapolare-post" rows="3"
-      placeholder="Descrizione scapola POST 3R…" oninput="scheduleSave()"></textarea>
+    <div class="photo-grid" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
   </section>
 
   <!-- C: FOTO LIBERE -->
   <section class="vp-section">
     <div class="vp-sec-title"><span class="vp-sec-badge">C</span> Foto libere</div>
-    <div class="foto-lib-list" id="foto-lib-list"><!-- built by JS --></div>
+    <div class="foto-lib-list" id="foto-lib-list"><!-- built by renderFotoLibere() --></div>
     <button class="btn-add-foto" id="btn-add-foto-lib" onclick="showFotoLiberaModal()">
       + Aggiungi foto libera <span id="foto-lib-counter" style="opacity:.6">(0/5)</span>
     </button>
@@ -359,8 +264,7 @@
     </div>
 
     <hr class="vp-divider">
-
-    <div class="vp-sec-title" style="font-size:12px; margin-bottom:10px; text-transform:none; letter-spacing:0">
+    <div class="vp-sec-title" style="font-size:12px;margin-bottom:10px;text-transform:none;letter-spacing:0">
       Test monopodalico di equilibrio
       <button class="vp-sec-info-btn" onclick="showMonoInfo()">ℹ️</button>
     </div>
@@ -389,7 +293,6 @@
   <!-- E: CONCLUSIONI -->
   <section class="vp-section">
     <div class="vp-sec-title"><span class="vp-sec-badge">E</span> Conclusioni</div>
-
     <div class="chip-label">Configurazione suggerita</div>
     <div class="config-row">
       <div class="config-card" id="cfg-npl" onclick="setConfig('NPL')">
@@ -401,7 +304,6 @@
         <div class="config-card-desc">Grande Piede Laterale — catena omolaterale</div>
       </div>
     </div>
-
     <div style="margin-top:14px">
       <div class="chip-label">Note conclusive</div>
       <textarea class="vp-textarea" id="f-note-finali" rows="4"
@@ -417,10 +319,47 @@
   <button class="btn-chiudi-bar" id="btn-chiudi-bar" onclick="showConfermaChiudi()" disabled>🔒 Chiudi</button>
 </div>
 
-<!-- LIGHTBOX -->
-<div id="lightbox" onclick="closeLightbox()">
-  <button id="lightbox-close" onclick="event.stopPropagation();closeLightbox()">✕</button>
-  <img id="lightbox-img" src="" alt="foto posturale">
+<!-- FILE INPUTS (hidden) — FIX 1: no capture, OS propone camera/galleria/file -->
+<input type="file" id="photo-file-input" accept="image/*" style="display:none" onchange="onPhotoFileSelected(event)">
+<input type="file" id="fl-file-input"    accept="image/*" style="display:none" onchange="onFotoLiberaFileSelected(event)">
+
+<!-- ── LIGHTBOX + DRAW CANVAS + GRID (FIX 7, FIX 8) ─────── -->
+<div id="lightbox">
+  <!-- Top bar -->
+  <div id="lb-topbar">
+    <button id="lb-close-btn" onclick="closeLightbox()">✕</button>
+    <button class="lb-btn" id="lb-grid-btn" onclick="toggleGrid()">▦ Griglia</button>
+    <button class="lb-btn" id="lb-draw-btn" onclick="toggleDraw()">✏️ Annota</button>
+  </div>
+  <!-- Image + canvas layers -->
+  <div id="lb-img-wrap">
+    <img id="lb-img" src="" alt="foto posturale">
+    <div id="lb-grid"></div>
+    <canvas id="lb-canvas"></canvas>
+    <div id="lb-fp-dot"></div>
+  </div>
+  <!-- Draw toolbar (visible only in draw mode) -->
+  <div id="lb-drawtool">
+    <div class="dt-group">
+      <button class="dt-btn active" id="dt-h" onclick="dtSetMode('h')" title="Linea orizzontale">━</button>
+      <button class="dt-btn" id="dt-v" onclick="dtSetMode('v')" title="Linea verticale">┃</button>
+      <button class="dt-btn" id="dt-f" onclick="dtSetMode('f')" title="Linea libera">╱</button>
+      <button class="dt-btn" id="dt-p" onclick="dtSetMode('p')" title="Punto">●</button>
+    </div>
+    <div class="dt-divider"></div>
+    <div class="dt-group">
+      <div class="c-dot active" id="dc-white"  style="background:#fff"     onclick="dtSetColor('#ffffff')"></div>
+      <div class="c-dot"        id="dc-yellow" style="background:#FFD008"  onclick="dtSetColor('#FFD008')"></div>
+      <div class="c-dot"        id="dc-green"  style="background:#00C853"  onclick="dtSetColor('#00C853')"></div>
+      <div class="c-dot"        id="dc-red"    style="background:#e53935"  onclick="dtSetColor('#e53935')"></div>
+    </div>
+    <div class="dt-actions">
+      <button class="dt-act" onclick="dtAnnulla()">↩</button>
+      <button class="dt-act dt-act-reset" onclick="dtReset()">🗑</button>
+      <button class="dt-act dt-act-save" onclick="dtSalva()">💾</button>
+      <button class="dt-act dt-act-export" onclick="dtExport()">📤</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: INFO MONOPODALICO -->
@@ -429,41 +368,41 @@
     <button class="modal-close" onclick="closeMonoInfo()">✕</button>
     <div class="modal-title">Test monopodalico di equilibrio</div>
     <p style="font-size:12px;color:#555;margin-bottom:14px;line-height:1.6">
-      Il paziente rimane in appoggio monopodalico per 5–10 secondi. Osservare l'adattamento del piede, del ginocchio e del bacino durante la fase di carico.
+      Il paziente rimane in appoggio monopodalico per 5–10 s. Osservare l'adattamento del piede, ginocchio e bacino.
     </p>
-    <div style="text-align:center;margin:14px 0">
-      <svg width="240" height="80" viewBox="0 0 240 80" xmlns="http://www.w3.org/2000/svg">
-        <g transform="translate(8,8)">
-          <rect x="16" y="4" width="16" height="44" rx="7" fill="#e53935"/>
-          <ellipse cx="24" cy="54" rx="22" ry="9" fill="#ffebee" stroke="#e53935" stroke-width="1.5"/>
-          <text x="24" y="72" text-anchor="middle" font-size="10" fill="#e53935" font-weight="700" font-family="sans-serif">Inversione</text>
-          <text x="24" y="4" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">↗ bordo lat.</text>
+    <div style="text-align:center;margin:10px 0 14px">
+      <svg width="240" height="78" viewBox="0 0 240 78" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(8,6)">
+          <rect x="16" y="2" width="16" height="44" rx="7" fill="#e53935"/>
+          <ellipse cx="24" cy="52" rx="22" ry="8" fill="#ffebee" stroke="#e53935" stroke-width="1.5"/>
+          <text x="24" y="70" text-anchor="middle" font-size="9" fill="#e53935" font-weight="700" font-family="sans-serif">Inversione</text>
+          <text x="24" y="2" text-anchor="middle" font-size="8" fill="#999" font-family="sans-serif">↗ lat.</text>
         </g>
-        <g transform="translate(88,8)">
-          <rect x="16" y="4" width="16" height="44" rx="7" fill="#2e7d32"/>
-          <ellipse cx="24" cy="54" rx="22" ry="9" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
-          <text x="24" y="72" text-anchor="middle" font-size="10" fill="#2e7d32" font-weight="700" font-family="sans-serif">Neutro</text>
-          <text x="24" y="4" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">↕ centrato</text>
+        <g transform="translate(88,6)">
+          <rect x="16" y="2" width="16" height="44" rx="7" fill="#2e7d32"/>
+          <ellipse cx="24" cy="52" rx="22" ry="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+          <text x="24" y="70" text-anchor="middle" font-size="9" fill="#2e7d32" font-weight="700" font-family="sans-serif">Neutro</text>
+          <text x="24" y="2" text-anchor="middle" font-size="8" fill="#999" font-family="sans-serif">↕ centro</text>
         </g>
-        <g transform="translate(168,8)">
-          <rect x="16" y="4" width="16" height="44" rx="7" fill="#e65100"/>
-          <ellipse cx="24" cy="54" rx="22" ry="9" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
-          <text x="24" y="72" text-anchor="middle" font-size="10" fill="#e65100" font-weight="700" font-family="sans-serif">Eversione</text>
-          <text x="24" y="4" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">↖ bordo med.</text>
+        <g transform="translate(168,6)">
+          <rect x="16" y="2" width="16" height="44" rx="7" fill="#e65100"/>
+          <ellipse cx="24" cy="52" rx="22" ry="8" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+          <text x="24" y="70" text-anchor="middle" font-size="9" fill="#e65100" font-weight="700" font-family="sans-serif">Eversione</text>
+          <text x="24" y="2" text-anchor="middle" font-size="8" fill="#999" font-family="sans-serif">↖ med.</text>
         </g>
       </svg>
     </div>
     <div class="mono-info-item">
       <div class="mono-info-term">🔴 Inversione — catena crociera (C-)</div>
-      <div class="mono-info-desc">Piede supina, carico sul bordo laterale, possibile adduzione dell'anca. Indica dominanza della catena crociera. Correlata alla configurazione NPL.</div>
+      <div class="mono-info-desc">Piede supina, carico sul bordo laterale. Correlata alla configurazione NPL.</div>
     </div>
     <div class="mono-info-item">
       <div class="mono-info-term">🟢 Neutro</div>
-      <div class="mono-info-desc">Asse podalico centrato, equilibrio stabile. Non indica predominanza di catena. Valutare altri parametri per la configurazione.</div>
+      <div class="mono-info-desc">Asse podalico centrato, nessuna predominanza di catena.</div>
     </div>
     <div class="mono-info-item">
       <div class="mono-info-term">🟠 Eversione — catena omolaterale (C+)</div>
-      <div class="mono-info-desc">Piede prona, ginocchio in valgo, carico sul bordo mediale. Indica dominanza della catena omolaterale. Correlata alla configurazione GPL.</div>
+      <div class="mono-info-desc">Piede prona, ginocchio in valgo, bordo mediale. Correlata alla configurazione GPL.</div>
     </div>
     <button class="modal-btn-secondary" style="margin-top:16px" onclick="closeMonoInfo()">Chiudi</button>
   </div>
@@ -474,21 +413,15 @@
   <div class="modal-box" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeFotoLiberaModal()">✕</button>
     <div class="modal-title">Aggiungi foto libera</div>
-
     <div class="modal-field-label">Titolo (opzionale)</div>
     <input type="text" class="modal-input" id="fl-titolo" placeholder="Es. Appoggio plantare sx">
-
     <div class="modal-field-label">Descrizione (opzionale)</div>
     <textarea class="modal-textarea" id="fl-desc" rows="3" placeholder="Note sulla foto…"></textarea>
-
     <div class="modal-field-label">Foto</div>
     <img id="fl-upload-preview" src="" alt="">
     <div class="modal-upload-area" id="fl-upload-area" onclick="document.getElementById('fl-file-input').click()">
       📷 Tocca per scattare o scegli dalla galleria
     </div>
-    <input type="file" id="fl-file-input" accept="image/*" capture="environment"
-      style="display:none" onchange="onFotoLiberaFileSelected(event)">
-
     <button class="modal-btn-primary" id="fl-save-btn" onclick="saveFotoLibera()" disabled>Aggiungi foto</button>
     <button class="modal-btn-secondary" onclick="closeFotoLiberaModal()">Annulla</button>
   </div>
@@ -515,15 +448,20 @@
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
   const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
+  // FIX 5: PHOTO_SLOTS riorganizzato — PRE 3R (6 slot) + POST 3R (2 slot sagittali)
+  // I tipi piano_scapolare_pre/post mantengono il valore DB per compatibilità,
+  // l'etichetta visiva cambia in "Sagittale dx/sx POST 3R"
   const PHOTO_SLOTS = [
-    { tipo: 'sagittale_dx',         label: 'Sagittale dx',        ordine: 0 },
-    { tipo: 'sagittale_sx',         label: 'Sagittale sx',        ordine: 1 },
-    { tipo: 'frontale',             label: 'Frontale',            ordine: 2 },
-    { tipo: 'posteriore',           label: 'Posteriore',          ordine: 3 },
-    { tipo: 'podoscopio_sotto',     label: 'Podoscopio (sotto)',   ordine: 4 },
-    { tipo: 'podoscopio_dietro',    label: 'Podoscopio (dietro)', ordine: 5 },
-    { tipo: 'piano_scapolare_pre',  label: 'Scapolare PRE 3R',    ordine: 6 },
-    { tipo: 'piano_scapolare_post', label: 'Scapolare POST 3R',   ordine: 7 },
+    // ── PRE 3 Rotazioni ─────────────────────────────────
+    { tipo: 'sagittale_dx',         label: 'Sagittale dx',        group: 'pre', ordine: 0 },
+    { tipo: 'sagittale_sx',         label: 'Sagittale sx',        group: 'pre', ordine: 1 },
+    { tipo: 'frontale',             label: 'Frontale',            group: 'pre', ordine: 2 },
+    { tipo: 'posteriore',           label: 'Posteriore',          group: 'pre', ordine: 3 },
+    { tipo: 'podoscopio_sotto',     label: 'Podoscopio (sotto)',   group: 'pre', ordine: 4 },
+    { tipo: 'podoscopio_dietro',    label: 'Podoscopio (dietro)', group: 'pre', ordine: 5 },
+    // ── POST 3 Rotazioni ────────────────────────────────
+    { tipo: 'piano_scapolare_pre',  label: 'Sagittale dx POST',   group: 'post', ordine: 6 },
+    { tipo: 'piano_scapolare_post', label: 'Sagittale sx POST',   group: 'post', ordine: 7 },
   ]
 
   const urlParams    = new URLSearchParams(location.search)
@@ -537,31 +475,28 @@
   let isSaving       = false
   let chipState      = {}
   let configSug      = null
-  let photos         = {}
+  let photos         = {}       // tipo → full visit_photos record
   let fotoLibere     = []
   let flPendingFile  = null
   let activeSlotTipo = null
+  let replaceSlotTipo = null
+  let noteTimers     = {}       // tipo → setTimeout handle
 
-  // ── INIT ────────────────────────────────────────────────────
+  // ── INIT ──────────────────────────────────────────────────
   async function init() {
     const { data: { session } } = await _sb.auth.getSession()
     if (!session) { window.location.href = 'index.html'; return }
     professionalId = session.user.id
 
-    if (!visitId && !pidParam) {
-      window.location.href = 'dashboard.html'; return
-    }
+    if (!visitId && !pidParam) { window.location.href = 'dashboard.html'; return }
 
     buildPhotoGrid()
 
-    if (pidParam && !visitId) {
-      await createVisit()
-    } else {
-      await loadVisit()
-    }
+    if (pidParam && !visitId) await createVisit()
+    else await loadVisit()
   }
 
-  // ── CREATE VISIT ─────────────────────────────────────────────
+  // ── CREATE VISIT ───────────────────────────────────────────
   async function createVisit() {
     const { data: nv, error } = await _sb
       .from('visits')
@@ -574,46 +509,32 @@
     await loadVisit()
   }
 
-  // ── LOAD VISIT ───────────────────────────────────────────────
+  // ── LOAD VISIT ─────────────────────────────────────────────
   async function loadVisit() {
-    const { data: v, error } = await _sb
-      .from('visits')
-      .select('*')
-      .eq('id', visitId)
-      .maybeSingle()
+    const { data: v, error } = await _sb.from('visits').select('*').eq('id', visitId).maybeSingle()
     if (error || !v) { showToast('Visita non trovata'); return }
 
     patientId = v.patient_id
     isChiusa  = v.stato === 'chiusa'
 
-    const { data: pat } = await _sb
-      .from('patients')
-      .select('nome, cognome')
-      .eq('id', patientId)
-      .maybeSingle()
-    if (pat) {
-      document.getElementById('hdr-patient-name').textContent =
-        ((pat.nome || '') + ' ' + (pat.cognome || '')).trim() || '—'
-    }
+    const { data: pat } = await _sb.from('patients').select('nome,cognome').eq('id', patientId).maybeSingle()
+    if (pat) document.getElementById('hdr-patient-name').textContent = ((pat.nome || '') + ' ' + (pat.cognome || '')).trim() || '—'
 
     const dateEl = document.getElementById('hdr-date-input')
     dateEl.value = v.data_visita ? v.data_visita.substring(0, 10) : new Date().toISOString().substring(0, 10)
 
-    if (v.arco_plantare)        restoreExcl('arco',    v.arco_plantare)
-    if (v.assetto_podalico)     restoreExcl('assetto', v.assetto_podalico)
-    if (v.monopodalico_dx)      restoreExcl('mono-dx', v.monopodalico_dx)
-    if (v.monopodalico_sx)      restoreExcl('mono-sx', v.monopodalico_sx)
+    if (v.arco_plantare)            restoreExcl('arco',    v.arco_plantare)
+    if (v.assetto_podalico)         restoreExcl('assetto', v.assetto_podalico)
+    if (v.monopodalico_dx)          restoreExcl('mono-dx', v.monopodalico_dx)
+    if (v.monopodalico_sx)          restoreExcl('mono-sx', v.monopodalico_sx)
     if (v.configurazione_suggerita) setConfig(v.configurazione_suggerita, false)
 
     fSet('f-note-osservazionali', v.note_osservazionali)
-    fSet('f-note-scapolare-pre',  v.note_scapolare_pre)
-    fSet('f-note-scapolare-post', v.note_scapolare_post)
     fSet('f-monopodalico-note',   v.monopodalico_note)
     fSet('f-note-finali',         v.note_finali)
 
     await loadPhotos()
     updateChiudiBtn()
-
     if (isChiusa) applyChiusaState()
     setIndicator('saved', '')
   }
@@ -623,14 +544,10 @@
     if (el && val) el.value = val
   }
 
-  // ── PHOTOS ──────────────────────────────────────────────────
+  // ── PHOTOS ────────────────────────────────────────────────
   async function loadPhotos() {
     if (!visitId) return
-    const { data, error } = await _sb
-      .from('visit_photos')
-      .select('*')
-      .eq('visit_id', visitId)
-      .order('ordine')
+    const { data, error } = await _sb.from('visit_photos').select('*').eq('visit_id', visitId).order('ordine')
     if (error || !data) return
 
     photos    = {}
@@ -639,50 +556,96 @@
       if (p.tipo === 'libera') fotoLibere.push(p)
       else photos[p.tipo] = p
     })
-
     PHOTO_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
     renderFotoLibere()
-    updateScapolareVisibility()
   }
 
+  // FIX 5: buildPhotoGrid con sezioni PRE/POST e 3 colonne
   function buildPhotoGrid() {
     const grid = document.getElementById('photo-grid')
     grid.innerHTML = ''
-    PHOTO_SLOTS.forEach(slot => {
-      const div = document.createElement('div')
-      div.className = 'photo-slot'
-      div.id = 'slot-' + slot.tipo
-      div.dataset.tipo = slot.tipo
-      div.onclick = () => onSlotClick(slot.tipo)
-      div.innerHTML =
-        '<div class="photo-slot-icon">📷</div>' +
-        '<div class="photo-slot-label">' + slot.label + '</div>'
-      grid.appendChild(div)
-    })
+
+    const addGroupLabel = (text) => {
+      const lbl = document.createElement('div')
+      lbl.className = 'photo-group-label'
+      lbl.textContent = text
+      grid.appendChild(lbl)
+    }
+
+    addGroupLabel('▶ PRE — Prima delle 3 Rotazioni')
+    PHOTO_SLOTS.filter(s => s.group === 'pre').forEach(s => addSlotToGrid(grid, s))
+
+    addGroupLabel('◀ POST — Dopo le 3 Rotazioni')
+    PHOTO_SLOTS.filter(s => s.group === 'post').forEach(s => addSlotToGrid(grid, s))
+  }
+
+  function addSlotToGrid(grid, slot) {
+    const wrap = document.createElement('div')
+    wrap.className = 'photo-slot-wrap'
+    wrap.id = 'wrap-' + slot.tipo
+
+    const div = document.createElement('div')
+    div.className = 'photo-slot'
+    div.id = 'slot-' + slot.tipo
+    div.innerHTML = '<div class="photo-slot-icon">📷</div><div class="photo-slot-label">' + slot.label + '</div>'
+    div.onclick = () => onSlotClick(slot.tipo)
+
+    const noteDiv = document.createElement('div')
+    noteDiv.id    = 'note-row-' + slot.tipo
+    noteDiv.style.display = 'none'
+    noteDiv.innerHTML = '<input type="text" id="note-' + slot.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota breve…" oninput="scheduleNoteSave(\'' + slot.tipo + '\')">'
+
+    wrap.appendChild(div)
+    wrap.appendChild(noteDiv)
+    grid.appendChild(wrap)
   }
 
   function updatePhotoSlot(tipo) {
     const slot = document.getElementById('slot-' + tipo)
     if (!slot) return
     const p     = photos[tipo]
-    const label = PHOTO_SLOTS.find(s => s.tipo === tipo)?.label || tipo
+    const slotDef = PHOTO_SLOTS.find(s => s.tipo === tipo)
+    const label = slotDef ? slotDef.label : tipo
+    const noteRow = document.getElementById('note-row-' + tipo)
+
     if (p) {
+      // FIX 9: 3 bottoni (view, replace, delete) sempre visibili in basso
       slot.className = 'photo-slot filled'
       slot.onclick   = null
       slot.innerHTML =
         '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '">' +
-        '<div class="photo-slot-label-filled">' + label + '</div>' +
-        '<div class="photo-slot-overlay">' +
-          '<button class="slot-btn slot-btn-del" onclick="event.stopPropagation();removePhoto(\'' + tipo + '\')">🗑</button>' +
-          '<button class="slot-btn slot-btn-view" onclick="event.stopPropagation();showLightbox(\'' + p.url_pubblico + '\')">🔍</button>' +
+        '<div style="position:absolute;bottom:0;left:0;right:0;font-size:9px;font-weight:700;color:#fff;text-align:center;background:rgba(0,0,0,.55);padding:2px 2px 3px;border-radius:0 0 6px 6px;pointer-events:none">' + label + '</div>' +
+        '<div class="photo-slot-actions">' +
+          '<button class="slot-btn" onclick="event.stopPropagation();showLightbox(\'' + tipo + '\')" title="Ingrandisci">🔍</button>' +
+          '<button class="slot-btn" onclick="event.stopPropagation();replacePhoto(\'' + tipo + '\')" title="Sostituisci">🔄</button>' +
+          '<button class="slot-btn" style="color:#ff5252" onclick="event.stopPropagation();removePhoto(\'' + tipo + '\')" title="Elimina">✕</button>' +
         '</div>'
+      if (noteRow) {
+        noteRow.style.display = 'block'
+        const inp = document.getElementById('note-' + tipo)
+        if (inp && p.note && !inp.value) inp.value = p.note
+        inp.disabled = isChiusa
+      }
     } else {
       slot.className = 'photo-slot'
       slot.onclick   = () => onSlotClick(tipo)
-      slot.innerHTML =
-        '<div class="photo-slot-icon">📷</div>' +
-        '<div class="photo-slot-label">' + label + '</div>'
+      slot.innerHTML = '<div class="photo-slot-icon">📷</div><div class="photo-slot-label">' + label + '</div>'
+      if (noteRow) noteRow.style.display = 'none'
     }
+  }
+
+  // FIX 4: Note breve per ogni slot — salva su visit_photos.note
+  function scheduleNoteSave(tipo) {
+    clearTimeout(noteTimers[tipo])
+    noteTimers[tipo] = setTimeout(() => savePhotoNote(tipo), 2000)
+  }
+
+  async function savePhotoNote(tipo) {
+    const p = photos[tipo]
+    if (!p || !p.id) return
+    const note = (document.getElementById('note-' + tipo)?.value || '').trim() || null
+    const { error } = await _sb.from('visit_photos').update({ note }).eq('id', p.id)
+    if (!error) p.note = note
   }
 
   function onSlotClick(tipo) {
@@ -693,39 +656,73 @@
     inp.click()
   }
 
+  // FIX 9: Sostituisci foto esistente
+  function replacePhoto(tipo) {
+    if (isChiusa) return
+    replaceSlotTipo = tipo
+    const inp = document.getElementById('photo-file-input')
+    inp.value = ''
+    inp.click()
+  }
+
+  // FIX 2: Upload con log dettagliati + INSERT/UPDATE distinti
   async function onPhotoFileSelected(event) {
     const file = event.target.files[0]
-    if (!file || !activeSlotTipo) return
-    const tipo = activeSlotTipo
-    activeSlotTipo = null
+    if (!file) return
+
+    const tipo      = activeSlotTipo || replaceSlotTipo
+    const isReplace = !!replaceSlotTipo
+    activeSlotTipo  = null
+    replaceSlotTipo = null
+    if (!tipo) return
+
+    console.log('[upload] file:', file.name, file.size, 'tipo:', tipo, 'replace:', isReplace)
     setIndicator('saving', '')
+
     try {
       const blob = await compressImage(file)
       const path = 'visits/' + visitId + '/' + tipo + '_' + Date.now() + '.jpg'
-      const { error: upErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
-      if (upErr) { showToast('Errore upload: ' + upErr.message); setIndicator('error', ''); return }
+      console.log('[upload] storage path:', path)
+
+      const { error: storErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+      console.log('[upload] storage error:', storErr)
+      if (storErr) { showToast('Errore upload: ' + storErr.message); setIndicator('error', ''); return }
 
       const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
       const pubUrl = urlData.publicUrl
 
-      if (photos[tipo]?.storage_path) {
-        await _sb.storage.from('clinical-docs').remove([photos[tipo].storage_path])
+      let dbErr, saved
+
+      if (isReplace && photos[tipo]?.id) {
+        // Cancella il vecchio file da storage
+        if (photos[tipo].storage_path) {
+          await _sb.storage.from('clinical-docs').remove([photos[tipo].storage_path])
+        }
+        // UPDATE record esistente — mantiene note e annotazioni
+        const r = await _sb.from('visit_photos')
+          .update({ storage_path: path, url_pubblico: pubUrl })
+          .eq('id', photos[tipo].id)
+          .select().maybeSingle()
+        saved  = r.data
+        dbErr  = r.error
+      } else {
+        // INSERT nuovo record
+        const ordine = PHOTO_SLOTS.find(s => s.tipo === tipo)?.ordine ?? 99
+        const r = await _sb.from('visit_photos')
+          .insert({ visit_id: visitId, tipo, storage_path: path, url_pubblico: pubUrl, ordine })
+          .select().maybeSingle()
+        saved  = r.data
+        dbErr  = r.error
       }
 
-      const ordine = PHOTO_SLOTS.find(s => s.tipo === tipo)?.ordine ?? 99
-      const upsertData = { visit_id: visitId, tipo, storage_path: path, url_pubblico: pubUrl, ordine }
-      if (photos[tipo]?.id) upsertData.id = photos[tipo].id
+      console.log('[upload] db error:', dbErr, 'saved:', saved)
+      if (dbErr) { showToast('Errore salvataggio foto: ' + dbErr.message); setIndicator('error', ''); return }
 
-      const { data: saved, error: dbErr } = await _sb.from('visit_photos')
-        .upsert(upsertData, { onConflict: 'id' })
-        .select().maybeSingle()
-      if (dbErr) { showToast('Errore salvataggio foto'); setIndicator('error', ''); return }
-
-      photos[tipo] = saved || { storage_path: path, url_pubblico: pubUrl }
+      photos[tipo] = saved || { ...photos[tipo], storage_path: path, url_pubblico: pubUrl }
       updatePhotoSlot(tipo)
-      updateScapolareVisibility()
       setIndicator('saved', '')
     } catch (e) {
+      console.error('[upload] exception:', e)
       showToast('Errore: ' + e.message)
       setIndicator('error', '')
     }
@@ -739,15 +736,9 @@
     if (p.id)           await _sb.from('visit_photos').delete().eq('id', p.id)
     delete photos[tipo]
     updatePhotoSlot(tipo)
-    updateScapolareVisibility()
   }
 
-  function updateScapolareVisibility() {
-    const has = photos['piano_scapolare_pre'] || photos['piano_scapolare_post']
-    document.getElementById('sec-b1').style.display = has ? 'block' : 'none'
-  }
-
-  // ── FOTO LIBERE ──────────────────────────────────────────────
+  // ── FOTO LIBERE ────────────────────────────────────────────
   function renderFotoLibere() {
     const list    = document.getElementById('foto-lib-list')
     const counter = document.getElementById('foto-lib-counter')
@@ -757,7 +748,7 @@
       const div = document.createElement('div')
       div.className = 'foto-lib-item'
       div.innerHTML =
-        '<img class="foto-lib-thumb" src="' + p.url_pubblico + '" alt="" onclick="showLightbox(\'' + p.url_pubblico + '\')">' +
+        '<img class="foto-lib-thumb" src="' + p.url_pubblico + '" alt="" onclick="showLightbox(\'' + (p.tipo + '_' + p.id) + '\')">' +
         '<div class="foto-lib-info">' +
           '<div class="foto-lib-titolo">' + (p.titolo || 'Foto libera') + '</div>' +
           '<div class="foto-lib-desc">' + (p.descrizione || '') + '</div>' +
@@ -781,12 +772,10 @@
     flPendingFile = null
     document.getElementById('modal-foto-lib').classList.add('open')
   }
-
   function closeFotoLiberaModal() {
     document.getElementById('modal-foto-lib').classList.remove('open')
     flPendingFile = null
   }
-
   function onFotoLiberaFileSelected(event) {
     const file = event.target.files[0]
     if (!file) return
@@ -794,19 +783,16 @@
     const reader  = new FileReader()
     reader.onload = e => {
       const prev = document.getElementById('fl-upload-preview')
-      prev.src   = e.target.result
-      prev.style.display = 'block'
+      prev.src = e.target.result; prev.style.display = 'block'
       document.getElementById('fl-upload-area').style.display = 'none'
       document.getElementById('fl-save-btn').disabled = false
     }
     reader.readAsDataURL(file)
   }
-
   async function saveFotoLibera() {
     if (!flPendingFile) return
     const btn = document.getElementById('fl-save-btn')
-    btn.disabled    = true
-    btn.textContent = 'Caricamento…'
+    btn.disabled = true; btn.textContent = 'Caricamento…'
     try {
       const blob = await compressImage(flPendingFile)
       const path = 'visits/' + visitId + '/libera_' + Date.now() + '.jpg'
@@ -825,13 +811,8 @@
       fotoLibere.push(np)
       closeFotoLiberaModal()
       renderFotoLibere()
-    } catch (e) {
-      showToast('Errore: ' + e.message)
-      btn.disabled    = false
-      btn.textContent = 'Aggiungi foto'
-    }
+    } catch (e) { showToast('Errore: ' + e.message); btn.disabled = false; btn.textContent = 'Aggiungi foto' }
   }
-
   async function removeFotoLibera(id, storagePath) {
     if (isChiusa) return
     if (storagePath) await _sb.storage.from('clinical-docs').remove([storagePath])
@@ -840,28 +821,36 @@
     renderFotoLibere()
   }
 
-  // ── CHIPS ────────────────────────────────────────────────────
+  // ── CHIPS ──────────────────────────────────────────────────
   function setExcl(group, val) {
     if (isChiusa) return
     chipState[group] = chipState[group] === val ? null : val
-    document.querySelectorAll('[data-g="' + group + '"]').forEach(c => {
-      c.classList.toggle('active', c.dataset.v === chipState[group])
-    })
+    document.querySelectorAll('[data-g="' + group + '"]').forEach(c =>
+      c.classList.toggle('active', c.dataset.v === chipState[group]))
     scheduleSave()
   }
-
   function restoreExcl(group, val) {
     chipState[group] = val
-    document.querySelectorAll('[data-g="' + group + '"]').forEach(c => {
-      c.classList.toggle('active', c.dataset.v === val)
-    })
+    document.querySelectorAll('[data-g="' + group + '"]').forEach(c =>
+      c.classList.toggle('active', c.dataset.v === val))
   }
 
+  // FIX 3: setConfig con brand colors NPL/GPL
   function setConfig(val, doSave) {
     if (isChiusa) return
     configSug = configSug === val ? null : val
-    document.getElementById('cfg-npl').classList.toggle('active', configSug === 'NPL')
-    document.getElementById('cfg-gpl').classList.toggle('active', configSug === 'GPL')
+    const npl = document.getElementById('cfg-npl')
+    const gpl = document.getElementById('cfg-gpl')
+    if (configSug === null) {
+      npl.classList.remove('active', 'dim')
+      gpl.classList.remove('active', 'dim')
+    } else if (configSug === 'NPL') {
+      npl.classList.add('active'); npl.classList.remove('dim')
+      gpl.classList.remove('active'); gpl.classList.add('dim')
+    } else {
+      gpl.classList.add('active'); gpl.classList.remove('dim')
+      npl.classList.remove('active'); npl.classList.add('dim')
+    }
     if (doSave !== false) scheduleSave()
   }
 
@@ -872,15 +861,7 @@
     scheduleSave()
   }
 
-  function appendScap(side, text) {
-    if (isChiusa) return
-    const id = side === 'pre' ? 'f-note-scapolare-pre' : 'f-note-scapolare-post'
-    const el = document.getElementById(id)
-    el.value = el.value ? el.value + ', ' + text : text
-    scheduleSave()
-  }
-
-  // ── AUTOSAVE ─────────────────────────────────────────────────
+  // ── AUTOSAVE ───────────────────────────────────────────────
   function scheduleSave() {
     if (isChiusa) return
     setIndicator('pending', '')
@@ -888,24 +869,24 @@
     saveTimer = setTimeout(actualSave, 2000)
   }
 
-  function manualSave() {
+  // FIX 6: manualSave mostra toast
+  async function manualSave() {
     clearTimeout(saveTimer)
-    actualSave()
+    await actualSave()
+    showToast('💾 Bozza salvata')
   }
 
   async function actualSave() {
     if (isChiusa || !visitId || isSaving) return
     isSaving = true
     setIndicator('saving', '')
-    const payload = collectFormData()
-    const { error } = await _sb.from('visits').update(payload).eq('id', visitId)
+    const { error } = await _sb.from('visits').update(collectFormData()).eq('id', visitId)
     isSaving = false
     if (error) {
-      setIndicator('error', error.message)
+      setIndicator('error', '')
     } else {
       const t = new Date()
-      const hhmm = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0')
-      setIndicator('saved', hhmm)
+      setIndicator('saved', t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0'))
       updateChiudiBtn()
     }
   }
@@ -914,8 +895,6 @@
     return {
       data_visita:              document.getElementById('hdr-date-input').value || null,
       note_osservazionali:      document.getElementById('f-note-osservazionali').value.trim() || null,
-      note_scapolare_pre:       document.getElementById('f-note-scapolare-pre').value.trim()  || null,
-      note_scapolare_post:      document.getElementById('f-note-scapolare-post').value.trim() || null,
       arco_plantare:            chipState['arco']    || null,
       assetto_podalico:         chipState['assetto'] || null,
       monopodalico_dx:          chipState['mono-dx'] || null,
@@ -927,21 +906,15 @@
   }
 
   function updateChiudiBtn() {
-    const hasData = Object.keys(photos).length > 0
-      || chipState['arco'] || configSug
+    const hasData = Object.keys(photos).length > 0 || chipState['arco'] || configSug
       || (document.getElementById('f-note-osservazionali').value || '').trim()
-    const dis = !hasData
-    document.getElementById('btn-chiudi-hdr').disabled = dis
-    document.getElementById('btn-chiudi-bar').disabled = dis
+    document.getElementById('btn-chiudi-hdr').disabled = !hasData
+    document.getElementById('btn-chiudi-bar').disabled = !hasData
   }
 
-  // ── CHIUDI / RIAPRI ──────────────────────────────────────────
-  function showConfermaChiudi() {
-    document.getElementById('modal-chiudi').classList.add('open')
-  }
-  function closeConfermaChiudi() {
-    document.getElementById('modal-chiudi').classList.remove('open')
-  }
+  // ── CHIUDI / RIAPRI ────────────────────────────────────────
+  function showConfermaChiudi() { document.getElementById('modal-chiudi').classList.add('open') }
+  function closeConfermaChiudi() { document.getElementById('modal-chiudi').classList.remove('open') }
 
   async function confirmChiudi() {
     closeConfermaChiudi()
@@ -961,72 +934,319 @@
     document.getElementById('main-content').classList.remove('with-banner')
     document.body.classList.remove('is-chiusa')
     document.getElementById('btn-chiudi-hdr').disabled = false
-    document.getElementById('f-note-osservazionali').disabled = false
-    document.getElementById('f-note-scapolare-pre').disabled  = false
-    document.getElementById('f-note-scapolare-post').disabled = false
-    document.getElementById('f-monopodalico-note').disabled   = false
-    document.getElementById('f-note-finali').disabled         = false
-    document.getElementById('hdr-date-input').disabled        = false
-    document.getElementById('bottom-bar').style.display       = 'flex'
+    document.getElementById('bottom-bar').style.display = 'flex'
+    ;['f-note-osservazionali','f-monopodalico-note','f-note-finali'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.disabled = false
+    })
+    document.getElementById('hdr-date-input').disabled = false
+    document.querySelectorAll('.photo-note-input').forEach(el => el.disabled = false)
     renderFotoLibere()
+    PHOTO_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
   }
 
   function applyChiusaState() {
     document.getElementById('chiusa-banner').style.display = 'flex'
     document.getElementById('main-content').classList.add('with-banner')
     document.body.classList.add('is-chiusa')
-    document.getElementById('btn-chiudi-hdr').disabled        = true
-    document.getElementById('f-note-osservazionali').disabled = true
-    document.getElementById('f-note-scapolare-pre').disabled  = true
-    document.getElementById('f-note-scapolare-post').disabled = true
-    document.getElementById('f-monopodalico-note').disabled   = true
-    document.getElementById('f-note-finali').disabled         = true
-    document.getElementById('hdr-date-input').disabled        = true
+    document.getElementById('btn-chiudi-hdr').disabled = true
+    ;['f-note-osservazionali','f-monopodalico-note','f-note-finali'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.disabled = true
+    })
+    document.getElementById('hdr-date-input').disabled = true
+    document.querySelectorAll('.photo-note-input').forEach(el => el.disabled = true)
   }
 
-  // ── LIGHTBOX ─────────────────────────────────────────────────
-  function showLightbox(url) {
-    document.getElementById('lightbox-img').src = url
-    document.getElementById('lightbox').classList.add('open')
-  }
-  function closeLightbox() {
-    document.getElementById('lightbox').classList.remove('open')
-  }
-
-  // ── MONO INFO ────────────────────────────────────────────────
-  function showMonoInfo() {
-    document.getElementById('modal-mono-info').classList.add('open')
-  }
-  function closeMonoInfo() {
-    document.getElementById('modal-mono-info').classList.remove('open')
+  // ── INDICATOR ─────────────────────────────────────────────
+  function setIndicator(state, msg) {
+    const el = document.getElementById('hdr-indicator')
+    if      (state === 'saved')   el.textContent = msg ? '💾 ' + msg : '💾 Salvato'
+    else if (state === 'saving')  el.textContent = '🔄 Salvando…'
+    else if (state === 'pending') el.textContent = '✏️ Modificato'
+    else if (state === 'error')   el.textContent = '✗ Errore'
+    else el.textContent = ''
   }
 
-  // ── NAVIGATION ───────────────────────────────────────────────
+  // ── NAVIGATION ─────────────────────────────────────────────
   function backToPaziente() {
     window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
   }
 
-  // ── INDICATOR ────────────────────────────────────────────────
-  function setIndicator(state, msg) {
-    const el = document.getElementById('hdr-indicator')
-    if      (state === 'saved')   el.textContent = msg ? '💾 ' + msg : '💾 Salvato'
-    else if (state === 'saving')  el.textContent = '🔄 Salvataggio…'
-    else if (state === 'pending') el.textContent = '✏️ Modificato'
-    else if (state === 'error')   el.textContent = '✗ Errore salvataggio'
-    else el.textContent = ''
+  // ──────────────────────────────────────────────────────────
+  // LIGHTBOX + DRAW (FIX 7) + GRID (FIX 8)
+  // Adattato da disegno.html: salva su visit_photos.annotazioni (JSONB)
+  // invece di patients.foto_annotazioni
+  // ──────────────────────────────────────────────────────────
+  const lbCanvas  = document.getElementById('lb-canvas')
+  const lbCtx     = lbCanvas.getContext('2d')
+  const lbFpDot   = document.getElementById('lb-fp-dot')
+  const lbImgWrap = document.getElementById('lb-img-wrap')
+
+  let lbOpen       = false
+  let lbTipo       = null    // tipo of current slot
+  let lbPhotoId    = null    // visit_photos.id for annotation save
+  let lbPhotoUrl   = null
+  let drawActive   = false
+  let gridActive   = false
+  let dtMode       = 'h'
+  let dtColor      = '#ffffff'
+  let dtLines      = []
+  let dtFirst      = null
+  let pendingAnn   = null    // annotation JSON loaded from DB, applied after syncCanvas
+
+  // Show lightbox. tipo may be:
+  //   - a PHOTO_SLOTS tipo (e.g. 'sagittale_dx')
+  //   - a foto libera encoded as 'libera_<id>'
+  function showLightbox(tipo) {
+    let url, photoId
+    if (tipo.startsWith('libera_')) {
+      const id  = tipo.replace('libera_', '')
+      const fl  = fotoLibere.find(p => String(p.id) === id)
+      if (!fl) return
+      url = fl.url_pubblico; photoId = fl.id
+    } else {
+      const p = photos[tipo]
+      if (!p) return
+      url = p.url_pubblico; photoId = p.id
+      lbTipo = tipo
+    }
+    lbPhotoUrl = url
+    lbPhotoId  = photoId
+
+    document.getElementById('lb-img').src = url
+    document.getElementById('lightbox').classList.add('open')
+    lbOpen = true
+    document.body.style.overflow = 'hidden'
+
+    // Reset draw/grid state
+    drawActive = false; gridActive = false
+    dtLines = []; dtFirst = null
+    document.getElementById('lb-canvas').classList.remove('active')
+    document.getElementById('lb-grid').classList.remove('active')
+    document.getElementById('lb-drawtool').classList.remove('active')
+    document.getElementById('lb-draw-btn').classList.remove('active')
+    document.getElementById('lb-grid-btn').classList.remove('active')
+    lbFpDot.style.display = 'none'
+
+    // Load existing annotations for this photo
+    const photo = photos[tipo]
+    if (photo?.annotazioni) {
+      try {
+        const ann = typeof photo.annotazioni === 'string' ? JSON.parse(photo.annotazioni) : photo.annotazioni
+        pendingAnn = ann
+      } catch(e) { pendingAnn = null }
+    } else { pendingAnn = null }
+
+    requestAnimationFrame(() => {
+      syncCanvas()
+      if (pendingAnn) {
+        dtLines = linesFromJSON(pendingAnn)
+        pendingAnn = null
+        redrawCanvas()
+      }
+    })
   }
 
-  // ── TOAST ────────────────────────────────────────────────────
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open')
+    document.getElementById('lb-img').src = ''
+    lbOpen = false; lbTipo = null; lbPhotoId = null; lbPhotoUrl = null
+    drawActive = false; gridActive = false
+    document.body.style.overflow = ''
+  }
+
+  // FIX 8: Toggle grid overlay
+  function toggleGrid() {
+    gridActive = !gridActive
+    document.getElementById('lb-grid').classList.toggle('active', gridActive)
+    document.getElementById('lb-grid-btn').classList.toggle('active', gridActive)
+  }
+
+  // FIX 7: Toggle draw mode
+  function toggleDraw() {
+    drawActive = !drawActive
+    lbCanvas.classList.toggle('active', drawActive)
+    document.getElementById('lb-drawtool').classList.toggle('active', drawActive)
+    document.getElementById('lb-draw-btn').classList.toggle('active', drawActive)
+    if (drawActive) {
+      syncCanvas()
+      redrawCanvas()
+    } else {
+      lbFpDot.style.display = 'none'
+      dtFirst = null
+    }
+  }
+
+  function syncCanvas() {
+    const r     = lbImgWrap.getBoundingClientRect()
+    lbCanvas.width  = r.width
+    lbCanvas.height = r.height
+  }
+
+  // Linee → JSON normalizzato (coordinate 0-1)
+  function linesToJSON() {
+    const cw = lbCanvas.width, ch = lbCanvas.height
+    return {
+      cw, ch,
+      lines: dtLines.map(l => {
+        if (l.type === 'point') return { type: 'point', nx: l.x / cw, ny: l.y / ch, color: l.color, r: l.r }
+        return { type: 'line', lt: l.lt, nx1: l.x1/cw, ny1: l.y1/ch, nx2: l.x2/cw, ny2: l.y2/ch, color: l.color, lw: l.lw }
+      })
+    }
+  }
+
+  function linesFromJSON(stored) {
+    const cw = lbCanvas.width, ch = lbCanvas.height
+    const arr = Array.isArray(stored) ? stored : (stored.lines || [])
+    return arr.map(l => {
+      if (l.type === 'point') return { type: 'point', x: l.nx * cw, y: l.ny * ch, color: l.color, r: l.r }
+      return { type: 'line', lt: l.lt, x1: l.nx1*cw, y1: l.ny1*ch, x2: l.nx2*cw, y2: l.ny2*ch, color: l.color, lw: l.lw }
+    })
+  }
+
+  function redrawCanvas() {
+    lbCtx.clearRect(0, 0, lbCanvas.width, lbCanvas.height)
+    dtLines.forEach(l => {
+      if (l.type === 'point') {
+        lbCtx.beginPath(); lbCtx.fillStyle = l.color
+        lbCtx.arc(l.x, l.y, l.r, 0, Math.PI * 2); lbCtx.fill()
+      } else {
+        lbCtx.beginPath(); lbCtx.strokeStyle = l.color
+        lbCtx.lineWidth = l.lw; lbCtx.lineCap = 'round'
+        lbCtx.moveTo(l.x1, l.y1); lbCtx.lineTo(l.x2, l.y2); lbCtx.stroke()
+      }
+    })
+  }
+
+  function getCanvasPos(e) {
+    const rect = lbCanvas.getBoundingClientRect()
+    const src  = e.changedTouches ? e.changedTouches[0] : (e.touches ? e.touches[0] : e)
+    return {
+      x: (src.clientX - rect.left) * (lbCanvas.width  / rect.width),
+      y: (src.clientY - rect.top)  * (lbCanvas.height / rect.height)
+    }
+  }
+
+  function handleCanvasTap(e) {
+    if (!drawActive) return
+    e.preventDefault()
+    const pos = getCanvasPos(e)
+
+    if (dtMode === 'p') {
+      dtLines.push({ type: 'point', x: pos.x, y: pos.y, color: dtColor, r: 8 })
+      redrawCanvas(); return
+    }
+
+    if (!dtFirst) {
+      dtFirst = pos
+      const cRect = lbCanvas.getBoundingClientRect()
+      const wRect = lbImgWrap.getBoundingClientRect()
+      lbFpDot.style.left = (cRect.left - wRect.left + pos.x * (cRect.width  / lbCanvas.width))  + 'px'
+      lbFpDot.style.top  = (cRect.top  - wRect.top  + pos.y * (cRect.height / lbCanvas.height)) + 'px'
+      lbFpDot.style.display = 'block'
+    } else {
+      const p1 = dtFirst
+      let lt, x1, y1, x2, y2
+      if      (dtMode === 'h') { lt = 'h'; x1 = 0; y1 = p1.y; x2 = lbCanvas.width;  y2 = p1.y }
+      else if (dtMode === 'v') { lt = 'v'; x1 = p1.x; y1 = 0; x2 = p1.x; y2 = lbCanvas.height }
+      else                     { lt = 'f'; x1 = p1.x; y1 = p1.y; x2 = pos.x; y2 = pos.y }
+      dtLines.push({ type: 'line', lt, x1, y1, x2, y2, color: dtColor, lw: 2.5 })
+      dtFirst = null; lbFpDot.style.display = 'none'
+      redrawCanvas()
+    }
+  }
+
+  lbCanvas.addEventListener('touchstart', handleCanvasTap, { passive: false })
+  lbCanvas.addEventListener('click', handleCanvasTap)
+  window.addEventListener('resize', () => {
+    if (!lbOpen) return
+    const saved = linesToJSON()
+    syncCanvas()
+    dtLines = linesFromJSON(saved)
+    redrawCanvas()
+  })
+
+  // Draw toolbar controls
+  function dtSetMode(m) {
+    dtMode = m; dtFirst = null; lbFpDot.style.display = 'none'
+    ;['h','v','f','p'].forEach(k => document.getElementById('dt-' + k).classList.toggle('active', k === m))
+  }
+  function dtSetColor(c) {
+    dtColor = c; dtFirst = null; lbFpDot.style.display = 'none'
+    const map = { '#ffffff': 'dc-white', '#FFD008': 'dc-yellow', '#00C853': 'dc-green', '#e53935': 'dc-red' }
+    Object.values(map).forEach(id => document.getElementById(id).classList.remove('active'))
+    if (map[c]) document.getElementById(map[c]).classList.add('active')
+  }
+  function dtAnnulla() {
+    if (dtLines.length) { dtLines.pop(); dtFirst = null; lbFpDot.style.display = 'none'; redrawCanvas() }
+  }
+  async function dtReset() {
+    dtLines = []; dtFirst = null; lbFpDot.style.display = 'none'; redrawCanvas()
+    if (lbPhotoId) await _sb.from('visit_photos').update({ annotazioni: null }).eq('id', lbPhotoId)
+    if (lbTipo && photos[lbTipo]) photos[lbTipo].annotazioni = null
+  }
+  async function dtSalva() {
+    if (!lbPhotoId) return
+    const ann = linesToJSON()
+    const { error } = await _sb.from('visit_photos').update({ annotazioni: ann }).eq('id', lbPhotoId)
+    if (error) { showToast('Errore salvataggio annotazioni'); return }
+    if (lbTipo && photos[lbTipo]) photos[lbTipo].annotazioni = ann
+    showToast('✏️ Annotazioni salvate')
+  }
+  function dtExport() {
+    const bgImg = document.getElementById('lb-img')
+    if (!bgImg.naturalWidth) return
+    const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
+    const cw = lbCanvas.width,    ch = lbCanvas.height
+
+    const imgA = nw / nh, wrapA = cw / ch
+    let drawW, drawH, ox, oy
+    if (imgA > wrapA) { drawW = cw; oy = (ch - (drawH = cw / imgA)) / 2; ox = 0 }
+    else              { drawH = ch; ox = (cw - (drawW = ch * imgA)) / 2; oy = 0 }
+    const sx = nw / drawW, sy = nh / drawH
+
+    const off = document.createElement('canvas')
+    off.width = nw; off.height = nh
+    const octx = off.getContext('2d')
+    octx.drawImage(bgImg, 0, 0, nw, nh)
+
+    dtLines.forEach(l => {
+      if (l.type === 'point') {
+        octx.beginPath(); octx.fillStyle = l.color
+        octx.arc((l.x - ox) * sx, (l.y - oy) * sy, Math.max(6, l.r * sx), 0, Math.PI * 2); octx.fill()
+      } else {
+        octx.beginPath(); octx.strokeStyle = l.color
+        octx.lineWidth = Math.max(3, l.lw * sx); octx.lineCap = 'round'
+        if      (l.lt === 'h') { octx.moveTo(0, (l.y1 - oy) * sy); octx.lineTo(nw, (l.y1 - oy) * sy) }
+        else if (l.lt === 'v') { octx.moveTo((l.x1 - ox) * sx, 0); octx.lineTo((l.x1 - ox) * sx, nh) }
+        else                   { octx.moveTo((l.x1 - ox) * sx, (l.y1 - oy) * sy); octx.lineTo((l.x2 - ox) * sx, (l.y2 - oy) * sy) }
+        octx.stroke()
+      }
+    })
+    off.toBlob(blob => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.download = 'posturale-' + (lbTipo || 'foto') + '.png'
+      a.href = url
+      document.body.appendChild(a); a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    }, 'image/png')
+  }
+
+  // ── MONO INFO ──────────────────────────────────────────────
+  function showMonoInfo() { document.getElementById('modal-mono-info').classList.add('open') }
+  function closeMonoInfo() { document.getElementById('modal-mono-info').classList.remove('open') }
+
+  // ── TOAST ─────────────────────────────────────────────────
   let toastTimer = null
   function showToast(msg) {
     const el = document.getElementById('toast')
-    el.textContent = msg
-    el.classList.add('show')
+    el.textContent = msg; el.classList.add('show')
     clearTimeout(toastTimer)
     toastTimer = setTimeout(() => el.classList.remove('show'), 3000)
   }
 
-  // ── IMAGE COMPRESSION ────────────────────────────────────────
+  // ── IMAGE COMPRESSION ──────────────────────────────────────
   function compressImage(file) {
     return new Promise((resolve, reject) => {
       const img = new Image()
@@ -1039,23 +1259,20 @@
           if (w > h) { h = Math.round(h * MAX / w); w = MAX }
           else       { w = Math.round(w * MAX / h); h = MAX }
         }
-        const canvas = document.createElement('canvas')
-        canvas.width = w; canvas.height = h
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.80)
+        const c = document.createElement('canvas')
+        c.width = w; c.height = h
+        c.getContext('2d').drawImage(img, 0, 0, w, h)
+        c.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/jpeg', 0.80)
       }
       img.onerror = reject
       img.src = url
     })
   }
 
-  // ── KEYBOARD ─────────────────────────────────────────────────
+  // ── KEYBOARD ──────────────────────────────────────────────
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return
-    closeLightbox()
-    closeMonoInfo()
-    closeFotoLiberaModal()
-    closeConfermaChiudi()
+    closeLightbox(); closeMonoInfo(); closeFotoLiberaModal(); closeConfermaChiudi()
   })
 
   init()
