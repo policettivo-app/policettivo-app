@@ -421,14 +421,32 @@
     .visita-chip.active { background:#FFD008; color:#000; border-color:#FFD008; }
     .visite-loading { text-align:center; padding:20px; color:#999; font-size:13px; }
     .visite-empty { text-align:center; padding:24px 16px; color:#999; font-size:13px; line-height:1.6; }
-    .visita-card { border:1.5px solid #e8e8e8; border-radius:10px; padding:10px 14px; margin-bottom:8px; cursor:pointer; transition:border-color .15s, box-shadow .15s; background:#fff; display:flex; align-items:center; gap:8px; min-height:52px; }
-    .visita-card:hover { border-color:#FFD008; box-shadow:0 2px 8px rgba(0,0,0,.07); }
+    .visita-card { border:1.5px solid #e8e8e8; border-radius:10px; padding:12px 14px; margin-bottom:8px; cursor:pointer; transition:border-color .15s, box-shadow .15s, background .15s; background:#fff; display:flex; flex-direction:column; gap:5px; min-height:78px; }
+    .visita-card:hover { border-color:#FFD008; box-shadow:0 2px 10px rgba(0,0,0,.08); background:#fafafa; }
     .visita-card:active { background:#fffef5; }
-    .visita-date { font-size:12px; font-weight:700; color:#000; flex-shrink:0; white-space:nowrap; }
-    .visita-badge { padding:2px 7px; border-radius:10px; font-size:9px; font-weight:800; letter-spacing:.3px; flex-shrink:0; white-space:nowrap; }
+    .visita-card-row1 { display:flex; align-items:center; gap:8px; }
+    .visita-date { font-size:14px; font-weight:700; color:#000; flex-shrink:0; white-space:nowrap; }
+    .visita-badge { padding:4px 10px; border-radius:12px; font-size:9px; font-weight:800; letter-spacing:.3px; flex-shrink:0; white-space:nowrap; }
     .visita-badge-posturale { background:#000; color:#FFD008; }
     .visita-badge-fisio { background:#FFD008; color:#000; }
-    .visita-subtitle { font-size:12px; color:#777; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+    .visita-azioni { display:flex; gap:2px; margin-left:auto; flex-shrink:0; }
+    .visita-azione-btn { background:none; border:none; cursor:pointer; font-size:15px; padding:3px 6px; border-radius:6px; transition:background .15s; line-height:1; }
+    .visita-azione-btn:hover { background:#f0f0f0; }
+    .visita-azione-btn.del:hover { background:#fee2e2; }
+    .visita-subtitle { font-size:13px; color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    /* ── TOAST ────────────────────────────────────────────────── */
+    #paz-toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px); background:#1a7a3c; color:#fff; padding:10px 20px; border-radius:10px; font-size:13px; font-weight:700; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:9999; white-space:nowrap; }
+    #paz-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    /* ── MODAL CANCELLA ──────────────────────────────────────── */
+    #modal-cancella-visita { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:8000; display:none; align-items:center; justify-content:center; padding:16px; }
+    #modal-cancella-visita .mcv-box { background:#fff; border-radius:14px; border:2px solid #dc2626; padding:24px 20px; max-width:440px; width:100%; }
+    .mcv-title { font-size:17px; font-weight:800; color:#dc2626; margin-bottom:14px; }
+    .mcv-body { font-size:13px; color:#444; line-height:1.6; margin-bottom:10px; }
+    .mcv-warn { font-size:12px; font-weight:700; color:#dc2626; margin-bottom:20px; }
+    .mcv-actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .mcv-btn-annulla { flex:1; min-width:120px; height:48px; background:#f5f5f5; border:1.5px solid #ddd; border-radius:10px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+    .mcv-btn-cancella { flex:1; min-width:120px; height:48px; background:#dc2626; border:none; border-radius:10px; color:#fff; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+    .mcv-btn-cancella:disabled { opacity:.6; cursor:not-allowed; }
   </style>
 </head>
 <body>
@@ -867,7 +885,7 @@
 
 
     <!-- CARTELLA CLINICA -->
-    <div class="section">
+    <div class="section" id="cartella-clinica">
       <div class="section-header">
         <div class="section-title">Cartella Clinica Medica <span class="section-optional">referti • documenti • note cliniche</span></div>
         <button class="btn-edit" onclick="toggleCartella()" id="btn-cartella">&#9660; Mostra</button>
@@ -1083,12 +1101,15 @@
     let _aipResult = null
     let _allVisite = []
     let _visiteFilter = 'all'
+    let _myProfId = null
+    let _myEmail = null
+    let _cancelVisitId = null
 
     // ── VISITE E VALUTAZIONI ─────────────────────────────────
     async function loadVisite() {
       const { data, error } = await _supabase
         .from('visits')
-        .select('id, data_visita, tipo, stato, motivo_visita, diagnosi_funzionale, note_osservazionali, chiusa_at')
+        .select('id, data_visita, tipo, stato, motivo_visita, diagnosi_funzionale, note_osservazionali, chiusa_at, professional_id')
         .eq('patient_id', patientId)
         .order('data_visita', { ascending: false })
         .limit(50)
@@ -1122,9 +1143,10 @@
       }
 
       list.innerHTML = rows.map(v => {
-        const dt      = v.data_visita ? new Date(v.data_visita) : null
+        const dt  = v.data_visita ? new Date(v.data_visita) : null
         const dateStr = dt
           ? dt.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
+            + ' ' + dt.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' })
           : '—'
         const tipo = v.tipo || 'fisioterapica'
         const url  = tipo === 'posturale'
@@ -1133,15 +1155,88 @@
         const tipoBadge = tipo === 'posturale'
           ? '<span class="visita-badge visita-badge-posturale">📐 POSTURALE</span>'
           : '<span class="visita-badge visita-badge-fisio">🩺 FISIO</span>'
-        const sub = tipo === 'posturale'
-          ? (v.note_osservazionali || '').substring(0, 60)
-          : (v.diagnosi_funzionale || v.motivo_visita || '').substring(0, 60)
-        return `<div class="visita-card" onclick="window.location.href='${url}'">
-          <span class="visita-date">${dateStr}</span>
-          ${tipoBadge}
-          ${sub ? `<span class="visita-subtitle">${sub}</span>` : ''}
-        </div>`
+        const rawSub = tipo === 'posturale'
+          ? (v.note_osservazionali || '')
+          : (v.diagnosi_funzionale || v.motivo_visita || '')
+        const sub = rawSub.substring(0, 80) + (rawSub.length > 80 ? '…' : '')
+        const vid = v.id
+        return `
+          <div class="visita-card" onclick="window.location.href='${url}'" id="vcard-${vid}">
+            <div class="visita-card-row1">
+              <span class="visita-date">${dateStr}</span>
+              ${tipoBadge}
+              <div class="visita-azioni">
+                <button class="visita-azione-btn" onclick="event.stopPropagation();window.location.href='${url}'" title="Modifica visita">✏️</button>
+                <button class="visita-azione-btn del" onclick="event.stopPropagation();apriModalCancella('${vid}')" title="Elimina visita">🗑️</button>
+              </div>
+            </div>
+            <span class="visita-subtitle">${sub || '—'}</span>
+          </div>`
       }).join('')
+    }
+
+    function apriModalCancella(visitId) {
+      _cancelVisitId = visitId
+      const v = _allVisite.find(x => x.id === visitId)
+      if (!v) return
+      const tipo = v.tipo === 'posturale' ? '📐 Valutazione Posturale Policettivo®' : '🩺 Visita Fisioterapica'
+      const dt = v.data_visita
+        ? new Date(v.data_visita).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+        : '—'
+      const rawSub = (v.tipo === 'posturale' ? v.note_osservazionali : (v.diagnosi_funzionale || v.motivo_visita)) || ''
+      const sub = rawSub.substring(0, 80)
+      document.getElementById('mcv-body').innerHTML =
+        '<strong>' + tipo + '</strong><br>' + dt +
+        (sub ? '<br><span style="color:#888">' + sub + (rawSub.length > 80 ? '…' : '') + '</span>' : '')
+      document.getElementById('modal-cancella-visita').style.display = 'flex'
+    }
+
+    function chiudiModalCancella() {
+      document.getElementById('modal-cancella-visita').style.display = 'none'
+      _cancelVisitId = null
+      const btn = document.getElementById('mcv-btn-ok')
+      if (btn) { btn.disabled = false; btn.textContent = '🗑️ Sì, cancella' }
+    }
+
+    async function confermaCancel() {
+      if (!_cancelVisitId) return
+      const v = _allVisite.find(x => x.id === _cancelVisitId)
+      if (v && v.professional_id && _myProfId && v.professional_id !== _myProfId && _myEmail !== 'appuntamentimft@gmail.com') {
+        alert('Non puoi cancellare visite di altri professionisti.')
+        chiudiModalCancella()
+        return
+      }
+      const btn = document.getElementById('mcv-btn-ok')
+      if (btn) { btn.disabled = true; btn.textContent = 'Cancellazione…' }
+
+      await _supabase.from('visit_photos').delete().eq('visit_id', _cancelVisitId)
+      const { error } = await _supabase.from('visits').delete().eq('id', _cancelVisitId)
+
+      if (error) {
+        alert('Errore cancellazione: ' + error.message)
+        if (btn) { btn.disabled = false; btn.textContent = '🗑️ Sì, cancella' }
+        return
+      }
+
+      const card = document.getElementById('vcard-' + _cancelVisitId)
+      if (card) { card.style.transition = 'opacity .3s, max-height .3s'; card.style.opacity = '0'; card.style.maxHeight = '0'; card.style.overflow = 'hidden'; setTimeout(() => card.remove(), 350) }
+
+      _allVisite = _allVisite.filter(x => x.id !== _cancelVisitId)
+      chiudiModalCancella()
+      showPazToast('✓ Visita cancellata')
+      if (_allVisite.length === 0 || !_allVisite.some(x => {
+        if (_visiteFilter === 'fisioterapica') return x.tipo === 'fisioterapica' || !x.tipo
+        if (_visiteFilter === 'posturale') return x.tipo === 'posturale'
+        return true
+      })) setTimeout(renderVisite, 400)
+    }
+
+    function showPazToast(msg) {
+      const t = document.getElementById('paz-toast')
+      if (!t) return
+      t.textContent = msg
+      t.classList.add('show')
+      setTimeout(() => t.classList.remove('show'), 2500)
     }
 
     async function caricaProtocollo() {
@@ -1196,7 +1291,9 @@
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
 
+      _myEmail = session.user.email
       const { profId: _profIdP } = await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
+      _myProfId = _profIdP
       if (!window.isPremium && _profIdP) {
         const { data: _profP } = await _supabase.from('professionals').select('ai_uses').eq('id', _profIdP).maybeSingle()
         _pazAiUses = _profP?.ai_uses || 0
@@ -3308,6 +3405,22 @@ Campi:
       </div>
     </div>
   </div>
+
+<!-- TOAST -->
+<div id="paz-toast"></div>
+
+<!-- MODAL: CONFERMA CANCELLAZIONE VISITA -->
+<div id="modal-cancella-visita">
+  <div class="mcv-box">
+    <div class="mcv-title">⚠️ Cancella visita?</div>
+    <div class="mcv-body" id="mcv-body"></div>
+    <div class="mcv-warn">Questa azione NON è reversibile. Verranno cancellati anche tutte le foto e le annotazioni associate.</div>
+    <div class="mcv-actions">
+      <button class="mcv-btn-annulla" onclick="chiudiModalCancella()">Annulla</button>
+      <button class="mcv-btn-cancella" id="mcv-btn-ok" onclick="confermaCancel()">🗑️ Sì, cancella</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
