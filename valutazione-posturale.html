@@ -24,22 +24,10 @@
     .hdr-row2 { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
     #hdr-date-input { border: 1.5px solid rgba(0,0,0,.2); border-radius: 6px; padding: 3px 7px; font-family: inherit; font-size: 12px; font-weight: 600; background: rgba(255,255,255,.5); flex-shrink: 0; }
     #hdr-indicator { font-size: 11px; font-weight: 600; opacity: .8; flex: 1; text-align: right; min-width: 0; }
-    .hdr-chiudi-btn { background: #000; color: #FFD008; border: none; border-radius: 8px; padding: 7px 13px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
-    .hdr-chiudi-btn:disabled { opacity: .45; cursor: default; }
-
-    /* ── CHIUSA BANNER ──────────────────────────────────────── */
-    #chiusa-banner {
-      position: fixed; top: 90px; left: 0; right: 0; z-index: 190;
-      background: #1a7a3c; color: #fff; padding: 10px 16px;
-      display: none; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
-    }
-    .chiusa-text { font-size: 13px; font-weight: 700; }
-    .chiusa-actions { display: flex; gap: 8px; }
-    .btn-chiusa-action { border: 1.5px solid rgba(255,255,255,.5); border-radius: 8px; background: transparent; color: #fff; font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; cursor: pointer; }
+    .hdr-chiudi-btn { background: #1a7a3c; color: #fff; border: none; border-radius: 8px; padding: 7px 13px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
 
     /* ── MAIN CONTENT ───────────────────────────────────────── */
-    #main-content { padding-top: 108px; padding-bottom: 158px; }
-    #main-content.with-banner { padding-top: 150px; }
+    #main-content { padding-top: 108px; padding-bottom: 80px; }
 
     /* ── SECTION CARD ───────────────────────────────────────── */
     .vp-section { background: #fff; border-radius: 12px; margin: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
@@ -118,17 +106,18 @@
     /* Selezionato: ring */
     #cfg-npl.active { box-shadow: 0 0 0 3px #FFD008, 0 0 0 5px #000; opacity: 1; }
     #cfg-gpl.active { box-shadow: 0 0 0 3px #000, 0 0 0 5px #FFD008; opacity: 1; }
-    body.is-chiusa .config-card { pointer-events: none; }
-
-    /* ── BOTTOM BAR ─────────────────────────────────────────── */
-    #bottom-bar { position: fixed; bottom: 56px; left: 0; right: 0; z-index: 150; background: #fff; border-top: 1.5px solid #eee; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 16px 10px; box-shadow: 0 -2px 8px rgba(0,0,0,.08); }
-    #autosave-label { font-size: 12px; color: #999; font-style: italic; text-align: center; min-height: 16px; }
-    #autosave-label.error { color: #e53935; font-style: normal; font-weight: 600; }
-    .btn-chiudi-bar { width: 100%; padding: 13px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
-    .btn-chiudi-bar:disabled { opacity: .5; cursor: default; }
-    body.is-chiusa #bottom-bar { display: none; }
     .hdr-home-btn { width: 34px; height: 34px; background: transparent; border: 1.5px solid #ddd; border-radius: 8px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s, border-color .15s; }
     .hdr-home-btn:hover { background: #FFD008; border-color: #FFD008; }
+
+    /* ── AI RELAZIONE ──────────────────────────────────────── */
+    .vp-ai-btn { width: 100%; padding: 13px; background: #000; color: #FFD008; border: none; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; }
+    .vp-ai-btn:hover:not(:disabled) { background: #1a1a1a; }
+    .vp-ai-btn:disabled { background: #e0e0e0; color: #aaa; cursor: not-allowed; }
+    .vp-ai-spinner { text-align: center; padding: 18px; font-size: 13px; color: #888; display: none; }
+    .vp-ai-result  { display: none; margin-top: 14px; }
+    .vp-ai-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .vp-ai-action-btn { padding: 8px 14px; background: #f5f5f5; color: #333; border: 1.5px solid #ddd; border-radius: 8px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .vp-ai-action-btn:hover { background: #FFD008; border-color: #FFD008; color: #000; }
 
     /* ── LIGHTBOX ───────────────────────────────────────────── */
     #lightbox { display: none; position: fixed; inset: 0; z-index: 800; background: #000; flex-direction: column; }
@@ -253,18 +242,10 @@
     <input type="date" id="hdr-date-input" onchange="scheduleSave()">
     <div id="hdr-indicator"></div>
     <button class="hdr-home-btn" onclick="window.location.href='dashboard.html'" aria-label="Torna alla dashboard">🏠</button>
-    <button class="hdr-chiudi-btn" id="btn-chiudi-hdr" onclick="showConfermaChiudi()" disabled>🔒 Chiudi</button>
+    <button class="hdr-chiudi-btn" id="btn-salva-torna" onclick="salvaETorna()">💾 Salva e torna</button>
   </div>
 </div>
 
-<!-- CHIUSA BANNER -->
-<div id="chiusa-banner">
-  <div class="chiusa-text">✅ Valutazione chiusa</div>
-  <div class="chiusa-actions">
-    <button class="btn-chiusa-action" onclick="riapriBozza()">Riapri bozza</button>
-    <button class="btn-chiusa-action" onclick="backToPaziente()">← Cartella</button>
-  </div>
-</div>
 
 <!-- MAIN CONTENT -->
 <div id="main-content">
@@ -354,9 +335,27 @@
     </div>
   </section>
 
-  <!-- E: CONCLUSIONI -->
+  <!-- E: RELAZIONE AI POLICETTIVO -->
   <section class="vp-section">
-    <div class="vp-sec-title"><span class="vp-sec-badge">E</span> Conclusioni</div>
+    <div class="vp-sec-title"><span class="vp-sec-badge">E</span> Relazione AI Policettivo</div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">Genera una relazione posturale clinica strutturata. Editabile dopo la generazione.</div>
+    <button class="vp-ai-btn" id="vp-ai-btn" onclick="generaRelazioneVP()">🤖 Genera Relazione con AI ⭐</button>
+    <div class="vp-ai-spinner" id="vp-ai-spinner">⏳ Generazione in corso…</div>
+    <div class="vp-ai-result" id="vp-ai-result">
+      <textarea class="vp-textarea" id="f-relazione-ai" rows="8"
+        placeholder="La relazione AI apparirà qui…"
+        oninput="scheduleRelazioneAISave()"></textarea>
+      <div class="vp-ai-actions">
+        <button class="vp-ai-action-btn" onclick="salvaRelazioneVP()">💾 Salva</button>
+        <button class="vp-ai-action-btn" onclick="rigeneraRelazioneVP()">🔄 Rigenera</button>
+        <button class="vp-ai-action-btn" onclick="copiaRelazioneVP()">📋 Copia</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- F: CONCLUSIONI -->
+  <section class="vp-section">
+    <div class="vp-sec-title"><span class="vp-sec-badge">F</span> Conclusioni</div>
     <div class="chip-label">Configurazione suggerita</div>
     <div class="config-row">
       <div class="config-card" id="cfg-npl" onclick="setConfig('NPL')">
@@ -377,11 +376,6 @@
 
 </div><!-- /main-content -->
 
-<!-- BOTTOM BAR -->
-<div id="bottom-bar">
-  <div id="autosave-label"></div>
-  <button class="btn-chiudi-bar" id="btn-chiudi-bar" onclick="showConfermaChiudi()" disabled>🔒 Chiudi valutazione</button>
-</div>
 
 <!-- FILE INPUTS (hidden) — FIX 1: no capture, OS propone camera/galleria/file -->
 <input type="file" id="photo-file-input" accept="image/*" style="display:none" onchange="onPhotoFileSelected(event)">
@@ -526,22 +520,13 @@
   </div>
 </div>
 
-<!-- MODAL: CONFERMA CHIUDI -->
-<div class="modal-overlay modal-center" id="modal-chiudi" onclick="closeConfermaChiudi()">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <div class="modal-title">Chiudi valutazione?</div>
-    <p style="font-size:13px;color:#555;margin-bottom:20px;line-height:1.5">
-      Una volta chiusa, la valutazione non sarà più modificabile. Puoi riaprirla come bozza in qualsiasi momento.
-    </p>
-    <button class="modal-btn-primary" onclick="confirmChiudi()">🔒 Chiudi definitivamente</button>
-    <button class="modal-btn-secondary" onclick="closeConfermaChiudi()">Annulla</button>
-  </div>
-</div>
 
 <!-- TOAST -->
 <div id="toast"></div>
 
 <script src="console-nav.js"></script>
+<script src="utils-premium.js"></script>
+<script src="utils-ai.js"></script>
 <script>
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
@@ -576,7 +561,8 @@
 
   let patientId      = null
   let professionalId = null
-  let isChiusa       = false
+  let vpAiUses       = 0
+  let relazioneAITimer = null
   let saveTimer      = null
   let isSaving       = false
   let chipState      = {}
@@ -607,11 +593,12 @@
     if (!session) { window.location.href = 'index.html'; return }
     const { data: prof } = await _sb
       .from('professionals')
-      .select('id')
+      .select('id, ai_uses')
       .eq('user_id', session.user.id)
       .maybeSingle()
     if (!prof) { showErrorBanner('Profilo professionista non trovato. Contatta il supporto.'); return }
     professionalId = prof.id
+    vpAiUses = prof.ai_uses || 0
 
     if (!visitId && !pidParam) { window.location.href = 'dashboard.html'; return }
 
@@ -642,7 +629,6 @@
     if (error || !v) { showToast('Visita non trovata'); return }
 
     patientId = v.patient_id
-    isChiusa  = v.stato === 'chiusa'
 
     const { data: pat } = await _sb.from('patients').select('nome,cognome').eq('id', patientId).maybeSingle()
     if (pat) document.getElementById('hdr-patient-name').textContent = ((pat.nome || '') + ' ' + (pat.cognome || '')).trim() || '—'
@@ -659,10 +645,12 @@
     fSet('f-note-osservazionali', v.note_osservazionali)
     fSet('f-monopodalico-note',   v.monopodalico_note)
     fSet('f-note-finali',         v.note_finali)
+    if (v.relazione_ai) {
+      fSet('f-relazione-ai', v.relazione_ai)
+      document.getElementById('vp-ai-result').style.display = 'block'
+    }
 
     await loadPhotos()
-    updateChiudiBtn()
-    if (isChiusa) applyChiusaState(v.chiusa_at)
     setIndicator('saved', '')
   }
 
@@ -766,7 +754,6 @@
         noteRow.style.display = 'block'
         const inp = document.getElementById('note-' + tipo)
         if (inp && p.note && !inp.value) inp.value = p.note
-        inp.disabled = isChiusa
       }
     } else {
       slot.className = 'photo-slot'
@@ -792,12 +779,10 @@
   }
 
   function onSlotClick(tipo) {
-    if (isChiusa) return
     showUploadMenu(tipo, false)
   }
 
   function replacePhoto(tipo) {
-    if (isChiusa) return
     showUploadMenu(tipo, true)
   }
 
@@ -1103,7 +1088,6 @@
   }
 
   async function removePhoto(tipo) {
-    if (isChiusa) return
     const p = photos[tipo]
     if (!p) return
     if (p.storage_path) await _sb.storage.from('clinical-docs').remove([p.storage_path])
@@ -1131,11 +1115,11 @@
       list.appendChild(div)
     })
     counter.textContent = '(' + fotoLibere.length + '/5)'
-    btnAdd.disabled     = isChiusa || fotoLibere.length >= 5
+    btnAdd.disabled     = fotoLibere.length >= 5
   }
 
   function showFotoLiberaModal() {
-    if (isChiusa || fotoLibere.length >= 5) return
+    if (fotoLibere.length >= 5) return
     document.getElementById('fl-titolo').value = ''
     document.getElementById('fl-desc').value   = ''
     document.getElementById('fl-file-input').value = ''
@@ -1188,7 +1172,6 @@
     } catch (e) { showToast('Errore: ' + e.message); btn.disabled = false; btn.textContent = 'Aggiungi foto' }
   }
   async function removeFotoLibera(id, storagePath) {
-    if (isChiusa) return
     if (storagePath) await _sb.storage.from('clinical-docs').remove([storagePath])
     await _sb.from('visit_photos').delete().eq('id', id)
     fotoLibere = fotoLibere.filter(p => String(p.id) !== String(id))
@@ -1197,7 +1180,6 @@
 
   // ── CHIPS ──────────────────────────────────────────────────
   function setExcl(group, val) {
-    if (isChiusa) return
     chipState[group] = chipState[group] === val ? null : val
     document.querySelectorAll('[data-g="' + group + '"]').forEach(c =>
       c.classList.toggle('active', c.dataset.v === chipState[group]))
@@ -1211,7 +1193,6 @@
 
   // FIX 3: setConfig con brand colors NPL/GPL
   function setConfig(val, doSave) {
-    if (isChiusa) return
     configSug = configSug === val ? null : val
     const npl = document.getElementById('cfg-npl')
     const gpl = document.getElementById('cfg-gpl')
@@ -1229,7 +1210,6 @@
   }
 
   function appendObs(text) {
-    if (isChiusa) return
     const el = document.getElementById('f-note-osservazionali')
     el.value = el.value ? el.value + ', ' + text : text
     scheduleSave()
@@ -1237,14 +1217,13 @@
 
   // ── AUTOSAVE ───────────────────────────────────────────────
   function scheduleSave() {
-    if (isChiusa) return
     setIndicator('pending', '')
     clearTimeout(saveTimer)
     saveTimer = setTimeout(actualSave, 2000)
   }
 
   async function actualSave() {
-    if (isChiusa || !visitId || isSaving) return
+    if (!visitId || isSaving) return
     isSaving = true
     setIndicator('saving', '')
     const { error } = await _sb.from('visits').update(collectFormData()).eq('id', visitId)
@@ -1255,7 +1234,6 @@
     } else {
       const t = new Date()
       setIndicator('saved', t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0'))
-      updateChiudiBtn()
     }
   }
 
@@ -1270,94 +1248,134 @@
       monopodalico_note:        document.getElementById('f-monopodalico-note').value.trim() || null,
       configurazione_suggerita: configSug || null,
       note_finali:              document.getElementById('f-note-finali').value.trim() || null,
+      relazione_ai:             document.getElementById('f-relazione-ai')?.value.trim() || null,
     }
   }
 
-  function updateChiudiBtn() {
-    const hasData = Object.keys(photos).length > 0 || chipState['arco'] || configSug
-      || (document.getElementById('f-note-osservazionali').value || '').trim()
-    document.getElementById('btn-chiudi-hdr').disabled = !hasData
-    const barBtn = document.getElementById('btn-chiudi-bar')
-    if (barBtn) barBtn.disabled = !hasData
+  // ── AI RELAZIONE POLICETTIVO ──────────────────────────────
+  function scheduleRelazioneAISave() {
+    clearTimeout(relazioneAITimer)
+    relazioneAITimer = setTimeout(async () => {
+      const testo = document.getElementById('f-relazione-ai')?.value.trim() || null
+      await _sb.from('visits').update({ relazione_ai: testo }).eq('id', visitId)
+    }, 2000)
   }
 
-  // ── CHIUDI / RIAPRI ────────────────────────────────────────
-  function showConfermaChiudi() { document.getElementById('modal-chiudi').classList.add('open') }
-  function closeConfermaChiudi() { document.getElementById('modal-chiudi').classList.remove('open') }
+  async function generaRelazioneVP() {
+    if (!window.isPremium && vpAiUses >= 5) {
+      if (window.policettivoHandleAI403) window.policettivoHandleAI403()
+      return
+    }
+    const btn     = document.getElementById('vp-ai-btn')
+    const spinner = document.getElementById('vp-ai-spinner')
+    const result  = document.getElementById('vp-ai-result')
+    btn.disabled = true
+    spinner.style.display = 'block'
+    result.style.display  = 'none'
 
-  async function confirmChiudi() {
-    console.log('[chiudi] avvio chiusura, visitId:', visitId)
-    closeConfermaChiudi()
+    const nomePaz = document.getElementById('hdr-patient-name')?.textContent || 'n.d.'
+    const contesto = {
+      paziente: nomePaz,
+      note_osservazionali: document.getElementById('f-note-osservazionali')?.value.trim() || '',
+      arco_plantare: chipState['arco'] || '',
+      assetto_podalico: chipState['assetto'] || '',
+      monopodalico_dx: chipState['mono-dx'] || '',
+      monopodalico_sx: chipState['mono-sx'] || '',
+      monopodalico_note: document.getElementById('f-monopodalico-note')?.value.trim() || '',
+      configurazione_suggerita: configSug || '',
+      note_finali: document.getElementById('f-note-finali')?.value.trim() || '',
+    }
+
+    const prompt = `Sei un esperto di posturologia e tecnica Policettivo. Genera una relazione clinica posturale in italiano basata sulla valutazione seguente.
+
+DATI VALUTAZIONE POSTURALE:
+${JSON.stringify(contesto, null, 2)}
+
+ISTRUZIONI:
+- Tono professionale, terza persona ("il paziente")
+- Struttura in 4 sezioni: 1) Quadro posturale osservato  2) Analisi podoscopica e test monopodalico  3) Configurazione Policettivo consigliata (NPL o GPL)  4) Piano di trattamento consigliato
+- Massimo 350 parole
+- NO markdown bold/heading, solo testo discorsivo separato in paragrafi
+- Ometti sezioni senza dati sufficienti`
+
+    try {
+      const { data: { session } } = await _sb.auth.getSession()
+      const resp = await fetch('/api/ai-analisi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+        body: JSON.stringify({ prompt, max_tokens: 600 })
+      })
+      const json = await resp.json()
+
+      if (!resp.ok) {
+        if (resp.status === 403) { if (window.policettivoHandleAI403) window.policettivoHandleAI403() }
+        else showToast('Errore AI: ' + (json.error || resp.status))
+        btn.disabled = false; spinner.style.display = 'none'; return
+      }
+
+      const testo = json.testo || ''
+      if (json.ai_uses !== undefined) vpAiUses = json.ai_uses
+
+      await _sb.from('visits').update({ relazione_ai: testo }).eq('id', visitId)
+      document.getElementById('f-relazione-ai').value = testo
+      result.style.display  = 'block'
+      spinner.style.display = 'none'
+      btn.disabled = false
+    } catch (e) {
+      showToast('Errore AI: ' + e.message)
+      btn.disabled = false; spinner.style.display = 'none'
+    }
+  }
+
+  function rigeneraRelazioneVP() {
+    document.getElementById('vp-ai-result').style.display = 'none'
+    generaRelazioneVP()
+  }
+
+  async function salvaRelazioneVP() {
+    const testo = document.getElementById('f-relazione-ai')?.value.trim() || null
+    const { error } = await _sb.from('visits').update({ relazione_ai: testo }).eq('id', visitId)
+    if (error) { showToast('Errore salvataggio: ' + error.message); return }
+    showToast('💾 Relazione salvata')
+  }
+
+  async function copiaRelazioneVP() {
+    const testo = document.getElementById('f-relazione-ai')?.value || ''
+    try {
+      await navigator.clipboard.writeText(testo)
+      showToast('📋 Testo copiato')
+    } catch { showToast('Copia non supportata dal browser') }
+  }
+
+  // ── SAVE & NAVIGATE ───────────────────────────────────────
+  async function salvaETorna() {
     clearTimeout(saveTimer)
     await actualSave()
-    const chiusa_at = new Date().toISOString()
-    const { error } = await _sb.from('visits').update({ stato: 'chiusa', chiusa_at }).eq('id', visitId)
-    console.log('[chiudi] update result, error:', error)
-    if (error) { showToast('Errore chiusura: ' + error.message); return }
-    isChiusa = true
-    applyChiusaState(chiusa_at)
+    showToast('💾 Salvato')
+    setTimeout(() => {
+      window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
+    }, 600)
   }
 
-  async function riapriBozza() {
-    const { error } = await _sb.from('visits').update({ stato: 'bozza' }).eq('id', visitId)
-    if (error) { showToast('Errore riapertura'); return }
-    isChiusa = false
-    document.getElementById('chiusa-banner').style.display = 'none'
-    document.getElementById('main-content').classList.remove('with-banner')
-    document.body.classList.remove('is-chiusa')
-    document.getElementById('btn-chiudi-hdr').disabled = false
-    document.getElementById('bottom-bar').style.display = 'flex'
-    ;['f-note-osservazionali','f-monopodalico-note','f-note-finali'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.disabled = false
-    })
-    document.getElementById('hdr-date-input').disabled = false
-    document.querySelectorAll('.photo-note-input').forEach(el => el.disabled = false)
-    renderFotoLibere()
-    PHOTO_SLOTS_FLAT.forEach(s => updatePhotoSlot(s.tipo))
-  }
-
-  function applyChiusaState(chiusa_at) {
-    const dt = chiusa_at ? new Date(chiusa_at) : new Date()
-    const dateStr = dt.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
-      + ' alle ' + dt.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' })
-    const banner = document.getElementById('chiusa-banner')
-    banner.querySelector('.chiusa-text').textContent = '✅ Valutazione chiusa il ' + dateStr
-    banner.style.display = 'flex'
-    document.getElementById('main-content').classList.add('with-banner')
-    document.body.classList.add('is-chiusa')
-    document.getElementById('btn-chiudi-hdr').disabled = true
-    ;['f-note-osservazionali','f-monopodalico-note','f-note-finali'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.disabled = true
-    })
-    document.getElementById('hdr-date-input').disabled = true
-    document.querySelectorAll('.photo-note-input').forEach(el => el.disabled = true)
+  function backToPaziente() {
+    window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
   }
 
   // ── INDICATOR ─────────────────────────────────────────────
   function setIndicator(state, msg) {
-    const hdr  = document.getElementById('hdr-indicator')
-    const lbl  = document.getElementById('autosave-label')
+    const hdr = document.getElementById('hdr-indicator')
+    if (!hdr) return
     if (state === 'saved') {
-      const text = msg ? '💾 Salvato alle ' + msg : '💾 Salvato'
-      if (hdr) { hdr.textContent = text; hdr.style.color = '#aaa'; }
-      if (lbl) { lbl.textContent = msg ? 'Salvato automaticamente alle ' + msg : 'Salvato automaticamente'; lbl.className = ''; }
+      hdr.textContent = msg ? '💾 ' + msg : '💾'; hdr.style.color = '#aaa'
     } else if (state === 'saving') {
-      if (hdr) { hdr.textContent = '🔄'; hdr.style.color = '#aaa'; }
-      if (lbl) { lbl.textContent = 'Salvataggio in corso…'; lbl.className = ''; }
+      hdr.textContent = '🔄'; hdr.style.color = '#aaa'
     } else if (state === 'pending') {
-      if (hdr) { hdr.textContent = '✏️'; hdr.style.color = '#aaa'; }
+      hdr.textContent = '✏️'; hdr.style.color = '#aaa'
     } else if (state === 'error') {
-      if (hdr) { hdr.textContent = '⚠️'; hdr.style.color = '#e53935'; }
-      if (lbl) { lbl.textContent = '⚠️ Salvataggio fallito'; lbl.className = 'error'; }
+      hdr.textContent = '⚠️'; hdr.style.color = '#e53935'
     } else {
-      if (hdr) { hdr.textContent = ''; }
-      if (lbl) { lbl.textContent = ''; lbl.className = ''; }
+      hdr.textContent = ''
     }
-  }
-
-  // ── NAVIGATION ─────────────────────────────────────────────
-  function backToPaziente() {
-    window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
   }
 
   // ──────────────────────────────────────────────────────────

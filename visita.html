@@ -73,13 +73,12 @@
       flex-shrink: 0;
     }
     .btn-chiudi-hdr {
-      background: #b71c1c; border: none; color: #fff;
+      background: #1a7a3c; border: none; color: #fff;
       padding: 7px 12px; border-radius: 7px;
       font-family: 'Montserrat', sans-serif;
       font-size: 11px; font-weight: 700; cursor: pointer;
       white-space: nowrap; flex-shrink: 0;
     }
-    .btn-chiudi-hdr:disabled { background: #444; color: #777; cursor: not-allowed; }
     .btn-home-hdr { width: 34px; height: 34px; background: transparent; border: 1.5px solid rgba(255,255,255,.3); border-radius: 8px; font-size: 16px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s, border-color .15s; color: #fff; }
     .btn-home-hdr:hover { background: #FFD008; border-color: #FFD008; color: #000; }
     .hdr-row2 {
@@ -141,26 +140,6 @@
     .tab-btn.active .tab-num { background: #000; color: #FFD008; }
     .tab-state { font-size: 11px; margin-left: 1px; color: #ccc; }
 
-    /* ====== CHIUSA BANNER ====== */
-    #chiusa-banner {
-      display: none;
-      background: #1b5e20;
-      border-bottom: 2px solid #388e3c;
-      padding: 9px 16px;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    #chiusa-banner.visible { display: flex; }
-    #chiusa-text { color: #a5d6a7; font-size: 12px; font-weight: 600; }
-    .btn-riapri {
-      background: transparent; border: 1px solid #4caf50;
-      color: #a5d6a7; padding: 4px 12px; border-radius: 6px;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
-    }
-    .btn-riapri:hover { background: rgba(76,175,80,0.15); }
 
     /* ====== MAIN CONTENT ====== */
     .visita-main { max-width: 700px; margin: 0 auto; padding: 20px 16px 120px; }
@@ -243,14 +222,6 @@
       font-size: 13px; font-weight: 700; cursor: pointer;
     }
     .btn-salva-bozza:hover { background: #e6bc00; }
-    .btn-chiudi-finale {
-      flex: 1; padding: 15px; border-radius: 9px;
-      background: #c62828; border: none; color: #fff;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 13px; font-weight: 700; cursor: pointer;
-    }
-    .btn-chiudi-finale:hover:not(:disabled) { background: #b71c1c; }
-    .btn-chiudi-finale:disabled { background: #e57373; cursor: not-allowed; opacity: 0.5; }
 
     /* ====== MODAL ====== */
     .modal-overlay {
@@ -530,6 +501,19 @@
     .s3-prev-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 8px; background: #eee; }
     .s3-prev-label { font-size: 10px; color: #aaa; text-align: center; margin-top: 4px; }
 
+    /* ====== IMPORT POSTURALE BANNER ====== */
+    #import-posturale-banner { display: none; background: #fffde7; border: 1.5px solid #FFD008; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+    .ipb-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .ipb-icon { font-size: 18px; }
+    .ipb-title { font-size: 13px; font-weight: 700; color: #000; flex: 1; }
+    .ipb-date { font-size: 11px; color: #888; font-weight: 600; }
+    .ipb-badge { background: #FFD008; color: #000; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 20px; }
+    .ipb-note { font-size: 12px; color: #555; margin-bottom: 12px; line-height: 1.5; }
+    .ipb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ipb-btn-import { padding: 8px 14px; background: #000; color: #FFD008; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .ipb-btn-open { padding: 8px 14px; background: #fff; color: #000; border: 1.5px solid #000; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .ipb-btn-ignore { padding: 8px 14px; background: transparent; color: #999; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+
     /* ====== STEP 3 CHIUSA ====== */
     .step3-chiusa .s3-slot { pointer-events: none; }
     .step3-chiusa .s3-ai-btn,
@@ -651,7 +635,7 @@
       </div>
       <div class="badge-diagnosi-hdr" id="badge-diagnosi" style="display:none"></div>
       <button class="btn-home-hdr" onclick="window.location.href='dashboard.html'" aria-label="Torna alla dashboard">🏠</button>
-      <button class="btn-chiudi-hdr" id="btn-chiudi-hdr" onclick="apriModalChiudi()" disabled>🔒 Chiudi</button>
+      <button class="btn-chiudi-hdr" id="btn-salva-torna" onclick="salvaETornaVisita()">💾 Salva e torna</button>
     </div>
     <div class="hdr-row2">
       <input type="datetime-local" id="f-data-visita" onchange="scheduleSave()">
@@ -692,14 +676,6 @@
 
 </div><!-- /sticky-top -->
 
-<!-- ====== CHIUSA BANNER (non sticky, scorre con contenuto) ====== -->
-<div id="chiusa-banner">
-  <span id="chiusa-text">✅ Visita chiusa</span>
-  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <button class="btn-riapri" id="btn-riapri" style="display:none" onclick="riapriBozza()">Riapri bozza</button>
-    <button class="btn-riapri" onclick="backToPaziente()" style="background:#000;color:#fff;border-color:#000">← Cartella paziente</button>
-  </div>
-</div>
 
 <!-- ====== CONTENT ====== -->
 <main class="visita-main">
@@ -719,7 +695,7 @@
       </div>
       <textarea class="fi" id="f-motivo" rows="3"
         placeholder="Descrivi il motivo principale della visita…"
-        oninput="scheduleSave(); updateChiudiBtn()"></textarea>
+        oninput="scheduleSave()"></textarea>
     </div>
 
     <div class="field-group">
@@ -853,9 +829,24 @@
     </div>
   </div><!-- /step-2 -->
 
-  <!-- ====== STEP 3: POSTURA (placeholder) ====== -->
   <!-- ====== STEP 3: VALUTAZIONE POSTURALE ====== -->
   <div id="step-3" class="step-content">
+
+    <!-- IMPORT POSTURALE BANNER -->
+    <div id="import-posturale-banner">
+      <div class="ipb-head">
+        <span class="ipb-icon">📐</span>
+        <span class="ipb-title">Valutazione posturale recente</span>
+        <span class="ipb-date" id="ipb-date"></span>
+        <span class="ipb-badge" id="ipb-config"></span>
+      </div>
+      <div class="ipb-note" id="ipb-note"></div>
+      <div class="ipb-actions">
+        <button class="ipb-btn-import" onclick="importDatiPosturale()">📥 Importa dati</button>
+        <button class="ipb-btn-open" id="ipb-btn-open" onclick="apriValutazionePosturale()">Apri valutazione</button>
+        <button class="ipb-btn-ignore" onclick="ignoraBannerPosturale()">Ignora</button>
+      </div>
+    </div>
 
     <!-- A) GALLERIA FOTO -->
     <div class="field-group" style="padding:0;overflow:hidden">
@@ -1116,10 +1107,8 @@
       </div>
     </div>
 
-    <!-- BLOCCO F: BOTTONI FINALI -->
-    <div class="step-footer" style="flex-direction:column; gap:10px;">
-      <button class="btn-nav btn-nav-prev" onclick="goToStep(4)" style="width:100%">← Precedente</button>
-      <button class="btn-chiudi-finale" id="btn-chiudi-finale" onclick="apriModalChiudi()" disabled style="width:100%">🔒 Chiudi e genera PDF</button>
+    <div class="step-footer">
+      <button class="btn-nav btn-nav-prev" onclick="goToStep(4)">← Precedente</button>
     </div>
 
   </div><!-- /step-5 -->
@@ -1151,17 +1140,6 @@
   </div>
 </div>
 
-<!-- ====== MODAL CONFERMA CHIUSURA ====== -->
-<div class="modal-overlay" id="modal-chiudi">
-  <div class="modal-box">
-    <div class="modal-title">🔒 Chiudi visita?</div>
-    <div class="modal-body">Stai per chiudere la visita. Verrà generato un PDF e non potrai più modificare i campi (salvo riapertura entro 48h).<br><br>Vuoi procedere?</div>
-    <div class="modal-actions">
-      <button class="btn-modal-cancel" onclick="chiudiModal()">Annulla</button>
-      <button class="btn-modal-confirm" onclick="confermaChiusura()">Chiudi e genera PDF</button>
-    </div>
-  </div>
-</div>
 
 <!-- ====== TOAST ====== -->
 <div id="toast"></div>
@@ -1208,7 +1186,6 @@
   let saveTimer      = null
   let isSaving       = false
   let currentStep    = 1
-  let isChiusa       = false
 
   const TESTS_BY_ZONE = {
     cervicale: { label: 'Cervicale', tests: ['Spurling','Distrazione','Compressione','Lhermitte','Test arteria vertebrale'] },
@@ -1306,7 +1283,6 @@
     if (error || !v) { showToast('Visita non trovata'); return }
     visitData = v
     patientId = v.patient_id
-    isChiusa  = v.stato === 'chiusa'
 
     // Patient info
     const { data: pat } = await _sb
@@ -1337,10 +1313,8 @@
     populateForm(v)
     loadVisitPhotos()
     loadPreviousVasForCompare()
+    checkImportPosturale()
 
-    if (isChiusa) applyChiusaState(v)
-
-    updateChiudiBtn()
     updateTabStates()
     setIndicator('idle')
   }
@@ -1450,18 +1424,16 @@
 
   // ====== AUTOSAVE ======
   function scheduleSave() {
-    if (isChiusa) return
     clearTimeout(saveTimer)
     setIndicator('saving')
     saveTimer = setTimeout(actualSave, 2000)
   }
 
   async function actualSave() {
-    if (isChiusa || !visitId || isSaving) return
+    if (!visitId || isSaving) return
     isSaving = true
 
     const payload = collectFormData()
-    console.log('[visita] PATCH payload:', payload)
     const { error } = await _sb.from('visits').update(payload).eq('id', visitId)
     isSaving = false
 
@@ -1472,7 +1444,6 @@
       const t = new Date()
       setIndicator('saved', t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0'))
       updateTabStates()
-      updateChiudiBtn()
     }
   }
 
@@ -1532,7 +1503,7 @@
   async function goToStep(n) {
     if (n === currentStep) return
     clearTimeout(saveTimer)
-    if (!isChiusa) await actualSave()
+    await actualSave()
 
     document.getElementById('step-' + currentStep).classList.remove('active')
     document.getElementById('tab-btn-' + currentStep).classList.remove('active')
@@ -1570,14 +1541,12 @@
 
   // ====== CHIP HELPERS ======
   function appendChip(fieldId, text) {
-    if (isChiusa) return
     const el = document.getElementById(fieldId)
     el.value = el.value.trim() ? el.value.trim() + ', ' + text : text
     scheduleSave()
   }
 
   function selectExclusive(chip, field) {
-    if (isChiusa) return
     const row = chip.closest('.chip-row')
     row.querySelectorAll('.chip').forEach(c => c.classList.remove('active'))
     chip.classList.add('active')
@@ -1594,7 +1563,6 @@
   }
 
   function setProssimaVisita(days) {
-    if (isChiusa) return
     const d = new Date()
     d.setDate(d.getDate() + days)
     d.setHours(10, 0, 0, 0)
@@ -1602,87 +1570,14 @@
     scheduleSave()
   }
 
-  // ====== CHIUDI VISITA ======
-  function updateChiudiBtn() {
-    const has = document.getElementById('f-motivo').value.trim().length > 0
-    document.getElementById('btn-chiudi-hdr').disabled    = !has || isChiusa
-    const fb = document.getElementById('btn-chiudi-finale')
-    if (fb) fb.disabled = !has || isChiusa
-  }
-
-  function apriModalChiudi() {
-    if (isChiusa) return
-    document.getElementById('modal-chiudi').classList.add('open')
-  }
-
-  function chiudiModal() {
-    document.getElementById('modal-chiudi').classList.remove('open')
-  }
-
-  async function confermaChiusura() {
-    chiudiModal()
+  // ====== SAVE & NAVIGATE ======
+  async function salvaETornaVisita() {
     clearTimeout(saveTimer)
     await actualSave()
-
-    const { error } = await _sb.from('visits')
-      .update({ stato: 'chiusa', chiusa_at: new Date().toISOString() })
-      .eq('id', visitId)
-
-    if (error) { showToast('Errore chiusura: ' + error.message); return }
-
-    visitData.stato = 'chiusa'
-    visitData.chiusa_at = new Date().toISOString()
-    isChiusa = true
-    applyChiusaState(visitData)
-    showToast('✅ Visita chiusa — generazione PDF…')
-    setTimeout(() => generaPDF(), 400)
-  }
-
-  function applyChiusaState(v) {
-    // Disable inputs
-    document.querySelectorAll('textarea.fi, input.dt-input, #f-data-visita, .vas-slider, .rom-gradi-input, .test-note-input, .rom-note-input, .custom-test-input, .s4-tempo-input, .s5-ai-textarea').forEach(el => {
-      el.disabled = true
-    })
-    // Disable chips + step 2/3/4/5 interactive elements
-    document.querySelectorAll('.chip').forEach(c => c.classList.add('disabled'))
-    document.getElementById('step-2')?.classList.add('step2-chiusa')
-    document.getElementById('step-3')?.classList.add('step3-chiusa')
-    document.getElementById('step-4')?.classList.add('step4-chiusa')
-    document.getElementById('step-5')?.classList.add('step5-chiusa')
-
-    // Hide chiudi buttons
-    document.getElementById('btn-chiudi-hdr').style.display = 'none'
-    const fb = document.getElementById('btn-chiudi-finale')
-    if (fb) fb.style.display = 'none'
-
-    // Show banner
-    const banner = document.getElementById('chiusa-banner')
-    banner.classList.add('visible')
-    if (v.chiusa_at) {
-      const dt = new Date(v.chiusa_at)
-      document.getElementById('chiusa-text').textContent =
-        '✅ Visita chiusa il ' +
-        dt.toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' }) +
-        ' alle ' + dt.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' })
-    }
-
-    // "Riapri bozza" entro 48h o se admin
-    if (v.chiusa_at) {
-      const orePassate = (Date.now() - new Date(v.chiusa_at)) / 3600000
-      if (orePassate < 48 || userEmail === ADMIN_EMAIL) {
-        document.getElementById('btn-riapri').style.display = 'inline-block'
-      }
-    }
-
-    setIndicator('idle')
-  }
-
-  async function riapriBozza() {
-    const { error } = await _sb.from('visits')
-      .update({ stato: 'bozza', chiusa_at: null })
-      .eq('id', visitId)
-    if (error) { showToast('Errore: ' + error.message); return }
-    window.location.reload()
+    showToast('💾 Salvato')
+    setTimeout(() => {
+      window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
+    }, 600)
   }
 
   // ====== SALVA BOZZA (Step 5 esplicito) ======
@@ -1707,7 +1602,6 @@
 
   // ====== STEP 2: VAS ======
   function onVasInput(campo, val) {
-    if (isChiusa) return
     vasState[campo] = parseInt(val, 10)
     updateVasDisplay(campo)
     scheduleSave()
@@ -1844,7 +1738,6 @@
   }
 
   function setTestEsito(btn, key, esito) {
-    if (isChiusa) return
     const row = btn.closest('.test-row')
     row.querySelectorAll('.test-btn').forEach(b => b.classList.remove('active'))
     btn.classList.add('active')
@@ -1859,7 +1752,6 @@
   }
 
   function setTestNota(key, val) {
-    if (isChiusa) return
     if (!testOrtopedici[key]) testOrtopedici[key] = { esito: 'non_eseguito', nota: '' }
     testOrtopedici[key].nota = val
     document.querySelector(`[data-key="${key}"] .test-note-btn`)?.classList.toggle('has-note', val.trim().length > 0)
@@ -1867,7 +1759,6 @@
   }
 
   function toggleTestNote(key) {
-    if (isChiusa) return
     const wrap = document.getElementById(`test-note-wrap-${key}`)
     if (!wrap) return
     if (wrap.classList.toggle('open')) setTimeout(() => document.getElementById(`test-note-${key}`)?.focus(), 50)
@@ -1891,7 +1782,6 @@
   }
 
   function addCustomTest() {
-    if (isChiusa) return
     const nameInput = document.getElementById('custom-test-name')
     const name = nameInput?.value.trim(); if (!name) return
     if (!testOrtopedici._custom) testOrtopedici._custom = []
@@ -1931,7 +1821,6 @@
   }
 
   function setCustomTestEsito(btn, idx, esito) {
-    if (isChiusa) return
     btn.closest('.test-row').querySelectorAll('.test-btn').forEach(b => b.classList.remove('active'))
     btn.classList.add('active')
     if (testOrtopedici._custom?.[idx]) testOrtopedici._custom[idx].esito = esito
@@ -1939,14 +1828,12 @@
   }
 
   function setCustomTestNota(idx, val) {
-    if (isChiusa) return
     if (testOrtopedici._custom?.[idx]) testOrtopedici._custom[idx].nota = val
     document.querySelector(`[data-custom-idx="${idx}"] .test-note-btn`)?.classList.toggle('has-note', val.trim().length > 0)
     scheduleSave()
   }
 
   function toggleCustomTestNote(idx) {
-    if (isChiusa) return
     const wrap = document.getElementById(`custom-note-wrap-${idx}`)
     if (wrap && wrap.classList.toggle('open')) setTimeout(() => document.getElementById(`custom-note-${idx}`)?.focus(), 50)
   }
@@ -2031,7 +1918,6 @@
   function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 
   function setRomStato(key, stato, btn) {
-    if (isChiusa) return
     const row = document.getElementById(`rom-row-${key}`); if (!row) return
     row.querySelectorAll('.rom-chip').forEach(c => c.classList.remove('active'))
     btn.classList.add('active')
@@ -2051,14 +1937,12 @@
   }
 
   function setRomGradi(key, val) {
-    if (isChiusa) return
     if (!romData[key]) romData[key] = {}
     romData[key].gradi = val !== '' ? parseInt(val, 10) : null
     scheduleSave()
   }
 
   function setRomNota(key, val) {
-    if (isChiusa) return
     if (!romData[key]) romData[key] = {}
     romData[key].nota = val
     document.querySelector(`#rom-row-${key} .rom-note-btn`)?.classList.toggle('has-note', val.trim().length > 0)
@@ -2066,13 +1950,11 @@
   }
 
   function toggleRomNote(key) {
-    if (isChiusa) return
     const wrap = document.getElementById(`rom-note-wrap-${key}`)
     if (wrap && wrap.classList.toggle('open')) setTimeout(() => document.getElementById(`rom-note-${key}`)?.focus(), 50)
   }
 
   function removeRomRow(key) {
-    if (isChiusa) return
     document.getElementById(`rom-row-${key}`)?.remove()
     delete romData[key]
     if (!document.querySelector('.rom-row')) document.getElementById('rom-empty').style.display = 'block'
@@ -2112,7 +1994,6 @@
 
   // ====== STEP 2: MRC ======
   function appendMrc(text) {
-    if (isChiusa) return
     const el = document.getElementById('f-note-valutazione'); if (!el) return
     el.value = el.value.trim() ? el.value.trim() + '. ' + text : text
     scheduleSave()
@@ -2147,7 +2028,6 @@
         <input type="file" id="s3-inp-${slot.key}" accept="image/*" capture="environment" style="display:none" onchange="handleFotoUpload('${slot.key}',this)">
       `
       div.onclick = () => {
-        if (isChiusa) return
         if (!step3Photos[slot.key]) document.getElementById(`s3-inp-${slot.key}`)?.click()
       }
       grid.appendChild(div)
@@ -2170,7 +2050,7 @@
         <div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>
         <input type="file" id="s3-inp-${slotKey}" accept="image/*" capture="environment" style="display:none" onchange="handleFotoUpload('${slotKey}',this)">
       `
-      el.onclick = () => { if (!isChiusa) document.getElementById(`s3-inp-${slotKey}`)?.click() }
+      el.onclick = () => { document.getElementById(`s3-inp-${slotKey}`)?.click() }
     } else {
       el.className = 's3-slot has-photo'
       el.onclick = (e) => { if (!e.target.closest('.s3-slot-del')) openLightbox(photo.url) }
@@ -2197,8 +2077,57 @@
     const hasFoto = Object.values(step3Photos).some(Boolean)
     const btn  = document.getElementById('btn-ai-posturale')
     const tip  = document.getElementById('s3-ai-tooltip')
-    if (btn) btn.disabled = !hasFoto || isChiusa
+    if (btn) btn.disabled = !hasFoto
     if (tip) tip.style.display = hasFoto ? 'none' : 'block'
+  }
+
+  // ====== IMPORT POSTURALE BANNER ======
+  let _importPosturaleData = null
+
+  async function checkImportPosturale() {
+    if (!patientId || !visitId) return
+    const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+    const { data } = await _sb.from('visits')
+      .select('id, data_visita, configurazione_suggerita, note_osservazionali')
+      .eq('patient_id', patientId)
+      .eq('tipo', 'posturale')
+      .neq('id', visitId)
+      .gte('data_visita', cutoff)
+      .order('data_visita', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (!data) return
+    _importPosturaleData = data
+    const dt = data.data_visita ? new Date(data.data_visita).toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'numeric' }) : '—'
+    document.getElementById('ipb-date').textContent = dt
+    document.getElementById('ipb-config').textContent = data.configurazione_suggerita || ''
+    document.getElementById('ipb-config').style.display = data.configurazione_suggerita ? '' : 'none'
+    const note = (data.note_osservazionali || '').substring(0, 80)
+    document.getElementById('ipb-note').textContent = note || 'Valutazione posturale senza note osservazionali.'
+    document.getElementById('import-posturale-banner').style.display = 'block'
+  }
+
+  function importDatiPosturale() {
+    if (!_importPosturaleData) return
+    const noteEl = document.getElementById('f-note-posturali')
+    if (noteEl && _importPosturaleData.note_osservazionali) {
+      noteEl.value = _importPosturaleData.note_osservazionali
+      scheduleSave()
+    }
+    if (_importPosturaleData.configurazione_suggerita) {
+      visitData.ai_suggerimento_config = _importPosturaleData.configurazione_suggerita
+    }
+    ignoraBannerPosturale()
+    showToast('📥 Dati posturali importati')
+  }
+
+  function apriValutazionePosturale() {
+    if (!_importPosturaleData) return
+    window.open('valutazione-posturale.html?id=' + _importPosturaleData.id, '_blank')
+  }
+
+  function ignoraBannerPosturale() {
+    document.getElementById('import-posturale-banner').style.display = 'none'
   }
 
   async function loadVisitPhotos() {
@@ -2284,7 +2213,6 @@
   }
 
   async function removeVisitPhoto(slotKey) {
-    if (isChiusa) return
     const photo = step3Photos[slotKey]; if (!photo) return
     if (photo.storage_path) {
       await _sb.storage.from(S3_BUCKET).remove([photo.storage_path]).catch(() => {})
@@ -2311,7 +2239,6 @@
 
   // ====== STEP 3: AI POSTURALE ======
   async function avviaAnalisiPosturaleVisita() {
-    if (isChiusa) return
     if (!window.isPremium && visitAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
 
     const hasFoto = Object.values(step3Photos).some(Boolean)
@@ -2386,7 +2313,7 @@
       showToast('Errore AI: ' + e.message)
     } finally {
       document.getElementById('s3-ai-spinner').style.display = 'none'
-      document.getElementById('btn-ai-posturale').disabled = !Object.values(step3Photos).some(Boolean) || isChiusa
+      document.getElementById('btn-ai-posturale').disabled = !Object.values(step3Photos).some(Boolean)
     }
   }
 
@@ -2439,7 +2366,7 @@
   }
 
   async function confermaSuggerimentoAI() {
-    if (isChiusa || !s3AiResult || !visitId) return
+    if (!s3AiResult || !visitId) return
     const sug = s3AiResult.suggerimento || 'misto'
     const { error } = await _sb.from('visits').update({
       ai_analisi_posturale:  s3AiResult.valutazione_ai || '',
@@ -2511,7 +2438,6 @@
 
   // ====== STEP 4: VAS SEDUTA ======
   function onVas4Input(campo, val) {
-    if (isChiusa) return
     vas4State[campo] = parseInt(val, 10)
     updateVas4Display(campo)
     updateVas4Delta()
@@ -2555,7 +2481,6 @@
 
   // ====== STEP 4: DURATA ======
   function setTempoTrattamento(chip, min) {
-    if (isChiusa) return
     document.querySelectorAll('.s4-tempo-chip').forEach(c => c.classList.remove('active'))
     chip.classList.add('active')
     document.getElementById('f-tempo-trattamento').value = min
@@ -2563,7 +2488,6 @@
   }
 
   function onTempoInput(val) {
-    if (isChiusa) return
     const num = parseInt(val, 10)
     document.querySelectorAll('.s4-tempo-chip').forEach(c => {
       c.classList.toggle('active', parseInt(c.dataset.min) === num)
@@ -2573,7 +2497,6 @@
 
   // ====== STEP 4: RISPOSTA ======
   function setRispostaPaziente(chip, val) {
-    if (isChiusa) return
     document.querySelectorAll('#chips-risposta .chip').forEach(c => c.classList.remove('active'))
     chip.classList.add('active')
     document.getElementById('f-risposta-paziente').value = val
@@ -2748,7 +2671,6 @@ ISTRUZIONI:
   }
 
   function scheduleRelazioneAISave() {
-    if (isChiusa) return
     clearTimeout(s5RelTimer)
     s5RelTimer = setTimeout(salvaRelazioneAI, 2000)
   }

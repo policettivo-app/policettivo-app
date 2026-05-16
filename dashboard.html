@@ -79,29 +79,34 @@
 
     /* ── Hero ───────────────────────────────────────────── */
     .d-hero { margin-bottom: 24px; }
-    .d-hero-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .d-hero-row { display: flex; flex-direction: column; gap: 14px; }
+    @media (min-width: 640px) { .d-hero-row { flex-direction: row; align-items: center; justify-content: space-between; } }
     .d-hero-text { flex: 1; min-width: 0; }
     .d-hero-eyebrow { font-size: 11px; font-weight: 600; color: var(--text-2); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
     .d-hero-title { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1.2; }
     @media (min-width: 640px) { .d-hero-title { font-size: 32px; } }
+    .d-cta-group { display: flex; gap: 10px; }
     .d-cta-visita {
-      background: var(--yellow); color: #000; border: none; border-radius: 10px;
-      padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-size: 14px;
-      font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      flex: 1; height: 48px; background: var(--yellow); color: #000; border: none; border-radius: 10px;
+      padding: 0 20px; font-family: 'Montserrat', sans-serif; font-size: 14px;
+      font-weight: 700; cursor: pointer; white-space: nowrap;
       box-shadow: 0 4px 18px rgba(255,208,8,0.35); transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
       letter-spacing: 0.3px;
     }
-    .d-cta-visita:hover { background: #e6bc00; transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,208,8,0.45); }
+    .d-cta-visita:hover { background: #e6bc00; transform: translateY(-1px); }
     .d-cta-visita:active { transform: translateY(0); }
     .d-cta-paziente {
-      background: #fff; color: #000; border: 2px solid #000; border-radius: 10px;
-      padding: 14px 24px; font-family: 'Montserrat', sans-serif; font-size: 14px;
-      font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      flex: 1; height: 48px; background: #fff; color: #000; border: 2px solid #000; border-radius: 10px;
+      padding: 0 20px; font-family: 'Montserrat', sans-serif; font-size: 14px;
+      font-weight: 700; cursor: pointer; white-space: nowrap;
       transition: background 0.15s, transform 0.1s; letter-spacing: 0.3px;
     }
     .d-cta-paziente:hover { background: #f5f5f5; transform: translateY(-1px); }
     .d-cta-paziente:active { transform: translateY(0); }
-    .d-cta-group { display: flex; gap: 10px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+    @media (min-width: 640px) {
+      .d-cta-group { flex-shrink: 0; }
+      .d-cta-visita, .d-cta-paziente { flex: initial; height: auto; padding: 14px 24px; }
+    }
     .btn-add-pz { display: none; }
 
     /* ── Stats ──────────────────────────────────────────── */
