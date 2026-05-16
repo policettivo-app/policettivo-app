@@ -97,12 +97,21 @@
         display: flex; flex-direction: row;
         overflow-x: auto; scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch;
-        gap: 0; scrollbar-width: none;
+        gap: 8px; scrollbar-width: none;
       }
       .photo-carousel::-webkit-scrollbar { display: none; }
       .photo-slot-wrap {
-        flex: 0 0 100%; scroll-snap-align: start;
+        flex: 0 0 calc(100% - 28px); scroll-snap-align: start;
         padding-bottom: 12px;
+      }
+      .swipe-hint {
+        text-align: center; font-size: 13px; color: #666;
+        font-style: italic; margin: 6px 0 12px;
+        animation: hintFade 2s ease-in-out infinite;
+      }
+      @keyframes hintFade {
+        0%, 100% { opacity: 0.6; }
+        50%       { opacity: 1; }
       }
       .photo-slot { aspect-ratio: 2/3; width: 100%; }
       .photo-slot-icon { font-size: 32px; }
@@ -276,7 +285,7 @@
 
   <!-- B: FOTO POSTURALI -->
   <section class="vp-section">
-    <div class="vp-sec-title"><span class="vp-sec-badge">B</span> Foto posturali</div>
+    <div class="vp-sec-title"><span class="vp-sec-badge">B</span> Acquisizione foto iniziali della postura</div>
     <div class="photo-grid" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
   </section>
 
@@ -542,6 +551,7 @@
     if (!visitId && !pidParam) { window.location.href = 'dashboard.html'; return }
 
     buildPhotoGrid()
+    initSwipeHints()
 
     if (pidParam && !visitId) await createVisit()
     else await loadVisit()
@@ -622,10 +632,12 @@
       const section = document.createElement('div')
       section.className = 'photo-section'
 
-      const lbl = document.createElement('div')
-      lbl.className = 'photo-group-label'
-      lbl.textContent = labelText
-      section.appendChild(lbl)
+      if (labelText) {
+        const lbl = document.createElement('div')
+        lbl.className = 'photo-group-label'
+        lbl.textContent = labelText
+        section.appendChild(lbl)
+      }
 
       const pagination = document.createElement('div')
       pagination.className = 'photo-pagination'
@@ -647,8 +659,8 @@
       initCarouselPagination(group)
     }
 
-    addSection('pre', '▶ PRE — Prima delle 3 Rotazioni')
-    addSection('post', '◀ POST — Dopo le 3 Rotazioni')
+    addSection('pre', '')
+    addSection('post', '◀ FOTO POST TECNICA 3R')
   }
 
   function addSlotToParent(parent, slot) {
@@ -686,6 +698,35 @@
       const idx = Math.min(Math.round(carousel.scrollLeft / slotWidth), dots.length - 1)
       dots.forEach((d, i) => d.classList.toggle('active', i === idx))
     }, { passive: true })
+  }
+
+  function initSwipeHints() {
+    if (window.innerWidth >= 768) return
+
+    // Layer B — animazione peek al primo accesso
+    const KEY_ANIM = 'posturale_swipe_animation_seen'
+    if (!localStorage.getItem(KEY_ANIM)) {
+      document.querySelectorAll('.photo-carousel').forEach(c => {
+        setTimeout(() => {
+          c.scrollTo({ left: 80, behavior: 'smooth' })
+          setTimeout(() => c.scrollTo({ left: 0, behavior: 'smooth' }), 700)
+        }, 800)
+      })
+      localStorage.setItem(KEY_ANIM, '1')
+    }
+
+    // Layer C — testo guida sotto i pallini (prime 3 volte)
+    const KEY_HINT = 'posturale_swipe_hint_count'
+    const count = parseInt(localStorage.getItem(KEY_HINT) || '0', 10)
+    if (count < 3) {
+      document.querySelectorAll('.photo-pagination').forEach(p => {
+        const hint = document.createElement('div')
+        hint.className = 'swipe-hint'
+        hint.textContent = '← Scorri lateralmente per le altre foto →'
+        p.parentNode.insertBefore(hint, p.nextSibling)
+      })
+      localStorage.setItem(KEY_HINT, String(count + 1))
+    }
   }
 
   function updatePhotoSlot(tipo) {
