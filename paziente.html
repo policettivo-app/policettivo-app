@@ -685,9 +685,13 @@
 
         <!-- CONSENSI E NOTE -->
         <div class="edit-section-label">Consensi e note</div>
-        <label class="edit-check-row" style="margin-bottom:14px">
+        <label class="edit-check-row">
           <input type="checkbox" id="edit-consenso-privacy">
           <span>Consenso privacy firmato</span>
+        </label>
+        <label class="edit-check-row" style="margin-top:8px;margin-bottom:14px">
+          <input type="checkbox" id="edit-consenso-ricerca">
+          <span>Consenso ricerca scientifica (dati anonimi)</span>
         </label>
 
         <div class="edit-actions">
@@ -1308,6 +1312,7 @@
         document.getElementById('edit-specialista').value = patient.specialista_inviante || ''
         document.getElementById('edit-sport-praticato').value = patient.sport_praticato || ''
         document.getElementById('edit-consenso-privacy').checked = patient.consenso_privacy || false
+        document.getElementById('edit-consenso-ricerca').checked = patient.consenso_ricerca || false
         document.querySelector('#edit-sesso').value = patient.sesso || ''
         document.querySelectorAll('.e-chip-sesso').forEach(c => c.classList.toggle('active', c.dataset.val === patient.sesso))
         document.querySelector('#edit-mano-dominante').value = patient.mano_dominante || ''
@@ -1329,6 +1334,7 @@
       if (email) { const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; if (!emailRegex.test(email)) { alert('Inserisci un indirizzo email valido.'); return } }
       if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return } }
       const consenso = document.getElementById('edit-consenso-privacy').checked
+      const consenso_ricerca = document.getElementById('edit-consenso-ricerca').checked
       const updates = {
         nome, cognome, email, telefono,
         problema_principale: document.getElementById('edit-problema').value.trim() || null,
@@ -1346,7 +1352,9 @@
         medico_curante: document.getElementById('edit-medico-curante').value.trim() || null,
         specialista_inviante: document.getElementById('edit-specialista').value.trim() || null,
         consenso_privacy: consenso,
-        consenso_privacy_data: consenso ? new Date().toISOString() : null
+        consenso_privacy_data: consenso ? new Date().toISOString() : null,
+        consenso_ricerca,
+        consenso_ricerca_data: consenso_ricerca ? new Date().toISOString() : null
       }
       const btn = document.querySelector('.btn-save')
       btn.disabled = true; btn.textContent = 'Salvataggio...'

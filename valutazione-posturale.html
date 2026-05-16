@@ -61,14 +61,15 @@
     .vp-textarea:focus { outline: none; border-color: #FFD008; }
     .vp-textarea:disabled { background: #f8f8f8; color: #888; }
 
-    /* ── PHOTO GRID ─────────────────────────────────────────── */
-    .photo-grid { display: flex; flex-direction: column; gap: 16px; }
-    .photo-section { display: flex; flex-direction: column; gap: 6px; }
-    .photo-group-label { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .4px; padding: 6px 0 2px; border-top: 1.5px solid #f0f0f0; }
-    .photo-section:first-child .photo-group-label { border-top: none; padding-top: 0; }
-    .photo-pagination { display: none; }
-    .photo-carousel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .photo-slot-wrap { display: flex; flex-direction: column; gap: 4px; }
+    /* ── PHOTO PLANES ────────────────────────────────────────── */
+    .photo-grid { display: flex; flex-direction: column; gap: 14px; }
+    .photo-plane { display: flex; flex-direction: column; gap: 4px; }
+    .photo-plane-label { font-size: 11px; font-weight: 800; color: #555; text-transform: uppercase; letter-spacing: .5px; padding: 6px 0 2px; border-top: 1.5px solid #f0f0f0; }
+    .photo-plane:first-child .photo-plane-label { border-top: none; padding-top: 0; }
+    .photo-pair-headers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 2px; }
+    .photo-pair-header { font-size: 10px; font-weight: 700; text-align: center; color: #888; letter-spacing: .5px; text-transform: uppercase; }
+    .photo-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .photo-slot-wrap { display: flex; flex-direction: column; gap: 3px; }
     .photo-slot { border: 2px dashed #ddd; border-radius: 8px; aspect-ratio: 2/3; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; background: #fafafa; transition: border-color .2s; }
     .photo-slot:hover { border-color: #FFD008; }
     .photo-slot.filled { border: none; cursor: default; }
@@ -77,55 +78,15 @@
     .photo-slot-icon { font-size: 20px; }
     .photo-slot-actions { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.65); display: flex; justify-content: space-around; padding: 4px 2px; border-radius: 0 0 6px 6px; }
     .slot-btn { background: none; border: none; color: #fff; font-size: 14px; cursor: pointer; padding: 2px 4px; }
+    .photo-date-label { font-size: 10px; color: #888; text-align: center; font-style: italic; min-height: 13px; }
     .photo-note-input { width: 100%; border: 1px solid #e0e0e0; border-radius: 5px; padding: 4px 6px; font-family: inherit; font-size: 11px; background: #fafafa; box-sizing: border-box; }
     .photo-note-input:focus { outline: none; border-color: #FFD008; }
-
-    /* ── RESPONSIVE MOBILE FOTO ─────────────────────────────── */
+    .stampiglia-row { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #777; margin-left: auto; cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 600; }
+    .stampiglia-row input[type="checkbox"] { accent-color: #FFD008; width: 14px; height: 14px; cursor: pointer; margin: 0; flex-shrink: 0; }
     @media (max-width: 767px) {
-      .photo-group-label { font-size: 14px; padding: 8px 0 4px; }
-      .photo-pagination {
-        display: flex; justify-content: center; align-items: center;
-        gap: 8px; margin: 4px 0 8px; min-height: 16px;
-      }
-      .photo-pagination .dot {
-        width: 8px; height: 8px; border-radius: 50%;
-        background: #ccc; transition: all .2s; flex-shrink: 0;
-      }
-      .photo-pagination .dot.active {
-        background: #000; width: 24px; border-radius: 4px;
-      }
-      .photo-carousel {
-        display: flex; flex-direction: row;
-        overflow-x: auto; scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch;
-        gap: 8px; scrollbar-width: none;
-      }
-      .photo-carousel::-webkit-scrollbar { display: none; }
-      .photo-slot-wrap {
-        flex: 0 0 calc(100% - 28px); scroll-snap-align: start;
-        padding-bottom: 12px;
-      }
-      .swipe-hint {
-        text-align: center; font-size: 13px; color: #666;
-        font-style: italic; margin: 6px 0 12px;
-        animation: hintFade 2s ease-in-out infinite;
-      }
-      @keyframes hintFade {
-        0%, 100% { opacity: 0.6; }
-        50%       { opacity: 1; }
-      }
-      .photo-slot { aspect-ratio: 2/3; width: 100%; }
-      .photo-slot-icon { font-size: 32px; }
-      .photo-slot-label { font-size: 13px; }
-      .slot-btn {
-        min-height: 44px; min-width: 44px; font-size: 18px;
-        padding: 0; display: flex; align-items: center; justify-content: center;
-      }
-      .photo-slot-actions { padding: 6px 4px; }
-      .photo-note-input {
-        font-size: 16px; padding: 10px 12px;
-        border: 2px solid #FFD008; border-radius: 8px; background: #fffef5;
-      }
+      .slot-btn { min-height: 36px; min-width: 36px; font-size: 16px; padding: 0; display: flex; align-items: center; justify-content: center; }
+      .photo-slot-actions { padding: 5px 2px; }
+      .photo-note-input { font-size: 16px; padding: 8px 10px; border: 2px solid #FFD008; border-radius: 8px; background: #fffef5; }
     }
 
     /* ── FOTO LIBERE ────────────────────────────────────────── */
@@ -328,7 +289,13 @@
 
   <!-- B: FOTO POSTURALI -->
   <section class="vp-section">
-    <div class="vp-sec-title"><span class="vp-sec-badge">B</span> Acquisizione foto iniziali della postura</div>
+    <div class="vp-sec-title">
+      <span class="vp-sec-badge">B</span> Foto posturali
+      <label class="stampiglia-row">
+        <input type="checkbox" id="stampiglia-toggle" checked onchange="updateStampigliaToggle()">
+        <span>Data sulla foto</span>
+      </label>
+    </div>
     <div class="photo-grid" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
   </section>
 
@@ -580,21 +547,28 @@
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
   const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
-  // FIX 5: PHOTO_SLOTS riorganizzato — PRE 3R (6 slot) + POST 3R (2 slot sagittali)
-  // I tipi piano_scapolare_pre/post mantengono il valore DB per compatibilità,
-  // l'etichetta visiva cambia in "Sagittale dx/sx POST 3R"
-  const PHOTO_SLOTS = [
-    // ── PRE 3 Rotazioni ─────────────────────────────────
-    { tipo: 'sagittale_dx',         label: 'Sagittale dx',        group: 'pre', ordine: 0 },
-    { tipo: 'sagittale_sx',         label: 'Sagittale sx',        group: 'pre', ordine: 1 },
-    { tipo: 'frontale',             label: 'Frontale',            group: 'pre', ordine: 2 },
-    { tipo: 'posteriore',           label: 'Posteriore',          group: 'pre', ordine: 3 },
-    { tipo: 'podoscopio_sotto',     label: 'Podoscopio (sotto)',   group: 'pre', ordine: 4 },
-    { tipo: 'podoscopio_dietro',    label: 'Podoscopio (dietro)', group: 'pre', ordine: 5 },
-    // ── POST 3 Rotazioni ────────────────────────────────
-    { tipo: 'piano_scapolare_pre',  label: 'Sagittale dx POST',   group: 'post', ordine: 6 },
-    { tipo: 'piano_scapolare_post', label: 'Sagittale sx POST',   group: 'post', ordine: 7 },
+  // Galleria per piano anatomico: 6 piani × 2 slot (PRE / POST 3R)
+  const PHOTO_PLANES = [
+    { plane: 'sagittale_dx',      label: 'Sagittale DX',
+      pre:  { tipo: 'sagittale_dx_pre',       label: 'PRE',     ordine: 0 },
+      post: { tipo: 'sagittale_dx_post',      label: 'POST 3R', ordine: 1 } },
+    { plane: 'sagittale_sx',      label: 'Sagittale SX',
+      pre:  { tipo: 'sagittale_sx_pre',       label: 'PRE',     ordine: 2 },
+      post: { tipo: 'sagittale_sx_post',      label: 'POST 3R', ordine: 3 } },
+    { plane: 'frontale',          label: 'Frontale',
+      pre:  { tipo: 'frontale_pre',           label: 'PRE',     ordine: 4 },
+      post: { tipo: 'frontale_post',          label: 'POST 3R', ordine: 5 } },
+    { plane: 'posteriore',        label: 'Posteriore',
+      pre:  { tipo: 'posteriore_pre',         label: 'PRE',     ordine: 6 },
+      post: { tipo: 'posteriore_post',        label: 'POST 3R', ordine: 7 } },
+    { plane: 'podoscopio_sotto',  label: 'Podoscopio (sotto)',
+      pre:  { tipo: 'podoscopio_sotto_pre',   label: 'PRE',     ordine: 8 },
+      post: { tipo: 'podoscopio_sotto_post',  label: 'POST 3R', ordine: 9 } },
+    { plane: 'podoscopio_dietro', label: 'Podoscopio (dietro)',
+      pre:  { tipo: 'podoscopio_dietro_pre',  label: 'PRE',     ordine: 10 },
+      post: { tipo: 'podoscopio_dietro_post', label: 'POST 3R', ordine: 11 } },
   ]
+  const PHOTO_SLOTS_FLAT = PHOTO_PLANES.flatMap(p => [p.pre, p.post])
 
   const urlParams    = new URLSearchParams(location.search)
   let   visitId      = urlParams.get('id')
@@ -642,7 +616,8 @@
     if (!visitId && !pidParam) { window.location.href = 'dashboard.html'; return }
 
     buildPhotoGrid()
-    initSwipeHints()
+    const togEl = document.getElementById('stampiglia-toggle')
+    if (togEl) togEl.checked = isStampigliaEnabled()
 
     if (pidParam && !visitId) await createVisit()
     else await loadVisit()
@@ -708,50 +683,36 @@
       if (p.tipo === 'libera') fotoLibere.push(p)
       else photos[p.tipo] = p
     })
-    PHOTO_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
+    PHOTO_SLOTS_FLAT.forEach(s => updatePhotoSlot(s.tipo))
     renderFotoLibere()
   }
 
-  // buildPhotoGrid: sezioni PRE/POST — desktop 3 colonne, mobile carousel swipe
+  // buildPhotoGrid: 6 piani anatomici × 2 slot PRE/POST sempre affiancati
   function buildPhotoGrid() {
     const grid = document.getElementById('photo-grid')
     grid.innerHTML = ''
+    PHOTO_PLANES.forEach(plane => {
+      const planeDiv = document.createElement('div')
+      planeDiv.className = 'photo-plane'
 
-    const addSection = (group, labelText) => {
-      const slots = PHOTO_SLOTS.filter(s => s.group === group)
+      const labelDiv = document.createElement('div')
+      labelDiv.className = 'photo-plane-label'
+      labelDiv.textContent = plane.label
+      planeDiv.appendChild(labelDiv)
 
-      const section = document.createElement('div')
-      section.className = 'photo-section'
+      const headersDiv = document.createElement('div')
+      headersDiv.className = 'photo-pair-headers'
+      headersDiv.innerHTML = '<div class="photo-pair-header">◀ PRE</div><div class="photo-pair-header">POST 3R ▶</div>'
+      planeDiv.appendChild(headersDiv)
 
-      if (labelText) {
-        const lbl = document.createElement('div')
-        lbl.className = 'photo-group-label'
-        lbl.textContent = labelText
-        section.appendChild(lbl)
-      }
+      const pairDiv = document.createElement('div')
+      pairDiv.className = 'photo-pair'
+      addSlotToParent(pairDiv, plane.pre)
+      addSlotToParent(pairDiv, plane.post)
+      planeDiv.appendChild(pairDiv)
 
-      const pagination = document.createElement('div')
-      pagination.className = 'photo-pagination'
-      pagination.id = 'pagination-' + group
-      slots.forEach((_, i) => {
-        const dot = document.createElement('span')
-        dot.className = 'dot' + (i === 0 ? ' active' : '')
-        pagination.appendChild(dot)
-      })
-      section.appendChild(pagination)
-
-      const carousel = document.createElement('div')
-      carousel.className = 'photo-carousel'
-      carousel.id = 'carousel-' + group
-      slots.forEach(s => addSlotToParent(carousel, s))
-      section.appendChild(carousel)
-
-      grid.appendChild(section)
-      initCarouselPagination(group)
-    }
-
-    addSection('pre', '')
-    addSection('post', '◀ FOTO POST TECNICA 3R')
+      grid.appendChild(planeDiv)
+    })
   }
 
   function addSlotToParent(parent, slot) {
@@ -765,71 +726,31 @@
     div.innerHTML = '<div class="photo-slot-icon">📷</div><div class="photo-slot-label">' + slot.label + '</div>'
     div.onclick = () => onSlotClick(slot.tipo)
 
+    const dateDiv = document.createElement('div')
+    dateDiv.className = 'photo-date-label'
+    dateDiv.id = 'date-' + slot.tipo
+
     const noteDiv = document.createElement('div')
     noteDiv.id = 'note-row-' + slot.tipo
     noteDiv.style.display = 'none'
-    noteDiv.innerHTML = '<input type="text" id="note-' + slot.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota breve (es: scapola sx più alta, valgo dx…)" oninput="scheduleNoteSave(\'' + slot.tipo + '\')">'
+    noteDiv.innerHTML = '<input type="text" id="note-' + slot.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota breve…" oninput="scheduleNoteSave(\'' + slot.tipo + '\')">'
 
     wrap.appendChild(div)
+    wrap.appendChild(dateDiv)
     wrap.appendChild(noteDiv)
     parent.appendChild(wrap)
-  }
-
-  function initCarouselPagination(group) {
-    const carousel = document.getElementById('carousel-' + group)
-    const pagination = document.getElementById('pagination-' + group)
-    if (!carousel || !pagination) return
-    const dots = pagination.querySelectorAll('.dot')
-    if (!dots.length) return
-    carousel.addEventListener('scroll', () => {
-      const slotWrap = carousel.querySelector('.photo-slot-wrap')
-      if (!slotWrap) return
-      const slotWidth = slotWrap.offsetWidth
-      if (!slotWidth) return
-      const idx = Math.min(Math.round(carousel.scrollLeft / slotWidth), dots.length - 1)
-      dots.forEach((d, i) => d.classList.toggle('active', i === idx))
-    }, { passive: true })
-  }
-
-  function initSwipeHints() {
-    if (window.innerWidth >= 768) return
-
-    // Layer B — animazione peek al primo accesso
-    const KEY_ANIM = 'posturale_swipe_animation_seen'
-    if (!localStorage.getItem(KEY_ANIM)) {
-      document.querySelectorAll('.photo-carousel').forEach(c => {
-        setTimeout(() => {
-          c.scrollTo({ left: 80, behavior: 'smooth' })
-          setTimeout(() => c.scrollTo({ left: 0, behavior: 'smooth' }), 700)
-        }, 800)
-      })
-      localStorage.setItem(KEY_ANIM, '1')
-    }
-
-    // Layer C — testo guida sotto i pallini (prime 3 volte)
-    const KEY_HINT = 'posturale_swipe_hint_count'
-    const count = parseInt(localStorage.getItem(KEY_HINT) || '0', 10)
-    if (count < 3) {
-      document.querySelectorAll('.photo-pagination').forEach(p => {
-        const hint = document.createElement('div')
-        hint.className = 'swipe-hint'
-        hint.textContent = '← Scorri lateralmente per le altre foto →'
-        p.parentNode.insertBefore(hint, p.nextSibling)
-      })
-      localStorage.setItem(KEY_HINT, String(count + 1))
-    }
   }
 
   function updatePhotoSlot(tipo) {
     const slot = document.getElementById('slot-' + tipo)
     if (!slot) return
-    const p     = photos[tipo]
-    const slotDef = PHOTO_SLOTS.find(s => s.tipo === tipo)
-    const label = slotDef ? slotDef.label : tipo
+    const p       = photos[tipo]
+    const slotDef = PHOTO_SLOTS_FLAT.find(s => s.tipo === tipo)
+    const label   = slotDef ? slotDef.label : tipo
     const noteRow = document.getElementById('note-row-' + tipo)
+    const dateEl  = document.getElementById('date-' + tipo)
 
     if (p) {
-      // FIX 9: 3 bottoni (view, replace, delete) sempre visibili in basso
       slot.className = 'photo-slot filled'
       slot.onclick   = null
       slot.innerHTML =
@@ -840,6 +761,7 @@
           '<button class="slot-btn" onclick="event.stopPropagation();replacePhoto(\'' + tipo + '\')" title="Sostituisci">🔄</button>' +
           '<button class="slot-btn" style="color:#ff5252" onclick="event.stopPropagation();removePhoto(\'' + tipo + '\')" title="Elimina">✕</button>' +
         '</div>'
+      if (dateEl) dateEl.textContent = p.data_scatto ? formatDateForDisplay(p.data_scatto) : ''
       if (noteRow) {
         noteRow.style.display = 'block'
         const inp = document.getElementById('note-' + tipo)
@@ -850,6 +772,7 @@
       slot.className = 'photo-slot'
       slot.onclick   = () => onSlotClick(tipo)
       slot.innerHTML = '<div class="photo-slot-icon">📷</div><div class="photo-slot-label">' + label + '</div>'
+      if (dateEl) dateEl.textContent = ''
       if (noteRow) noteRow.style.display = 'none'
     }
   }
@@ -1071,24 +994,78 @@
     await uploadPhoto(file, tipo, isReplace)
   }
 
+  // ── STAMPIGLIA HELPERS ─────────────────────────────────────
+  function isStampigliaEnabled() {
+    return localStorage.getItem('posturale_stampiglia_data') !== '0'
+  }
+
+  function updateStampigliaToggle() {
+    const on = document.getElementById('stampiglia-toggle')?.checked ?? true
+    localStorage.setItem('posturale_stampiglia_data', on ? '1' : '0')
+  }
+
+  function formatDateForDisplay(isoStr) {
+    const d = new Date(isoStr)
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function formatDateForStamp(isoStr) {
+    const d = new Date(isoStr || new Date().toISOString())
+    const pad = n => String(n).padStart(2, '0')
+    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear()
+      + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes())
+  }
+
+  async function applicaStampigliaData(blob, dateStr) {
+    return new Promise(resolve => {
+      const img = new Image()
+      const url = URL.createObjectURL(blob)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        const c = document.createElement('canvas')
+        c.width = img.width; c.height = img.height
+        const ctx = c.getContext('2d')
+        ctx.drawImage(img, 0, 0)
+        const fontSize = Math.max(18, Math.round(img.width / 30))
+        ctx.font = 'bold ' + fontSize + 'px Arial, sans-serif'
+        ctx.textAlign = 'right'
+        const tw = ctx.measureText(dateStr).width
+        const margin = Math.round(fontSize * 0.6)
+        const padX = Math.round(fontSize * 0.5)
+        const padY = Math.round(fontSize * 0.4)
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'
+        ctx.fillRect(img.width - tw - padX * 2 - margin, img.height - fontSize - padY * 2 - margin,
+          tw + padX * 2, fontSize + padY * 2)
+        ctx.fillStyle = '#FFD008'
+        ctx.fillText(dateStr, img.width - margin - padX, img.height - margin - padY)
+        c.toBlob(result => resolve(result || blob), 'image/jpeg', 0.88)
+      }
+      img.onerror = () => resolve(blob)
+      img.src = url
+    })
+  }
+
   // ── UPLOAD CORE (condiviso da file picker e webcam) ─────────
   async function uploadPhoto(file, tipo, isReplace) {
     if (!visitId || visitId === 'null') {
       showToast('Errore: visita non ancora creata. Ricarica la pagina.')
-      console.error('[upload] visitId null/missing — abort')
       return
     }
 
-    console.log('[upload] file:', file.name, file.size, 'tipo:', tipo, 'replace:', isReplace)
     setIndicator('saving', '')
 
     try {
-      const blob = await compressImage(file)
-      const path = 'visits/' + visitId + '/' + tipo + '_' + Date.now() + '.jpg'
-      console.log('[upload] storage path:', path)
+      let blob = await compressImage(file)
+      const data_scatto = new Date().toISOString()
 
+      if (isStampigliaEnabled()) {
+        const stamped = await applicaStampigliaData(blob, formatDateForStamp(data_scatto))
+        if (stamped) blob = stamped
+      }
+
+      const path = 'visits/' + visitId + '/' + tipo + '_' + Date.now() + '.jpg'
       const { error: storErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
-      console.log('[upload] storage error:', storErr)
       if (storErr) { showToast('Errore upload: ' + storErr.message); setIndicator('error', ''); return }
 
       const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
@@ -1101,22 +1078,21 @@
           await _sb.storage.from('clinical-docs').remove([photos[tipo].storage_path])
         }
         const r = await _sb.from('visit_photos')
-          .update({ storage_path: path, url_pubblico: pubUrl })
+          .update({ storage_path: path, url_pubblico: pubUrl, data_scatto })
           .eq('id', photos[tipo].id)
           .select().maybeSingle()
         saved = r.data; dbErr = r.error
       } else {
-        const ordine = PHOTO_SLOTS.find(s => s.tipo === tipo)?.ordine ?? 99
+        const ordine = PHOTO_SLOTS_FLAT.find(s => s.tipo === tipo)?.ordine ?? 99
         const r = await _sb.from('visit_photos')
-          .insert({ visit_id: visitId, tipo, storage_path: path, url_pubblico: pubUrl, ordine })
+          .insert({ visit_id: visitId, tipo, storage_path: path, url_pubblico: pubUrl, ordine, data_scatto })
           .select().maybeSingle()
         saved = r.data; dbErr = r.error
       }
 
-      console.log('[upload] db error:', dbErr, 'saved:', saved)
       if (dbErr) { showToast('Errore salvataggio foto: ' + dbErr.message); setIndicator('error', ''); return }
 
-      photos[tipo] = saved || { ...photos[tipo], storage_path: path, url_pubblico: pubUrl }
+      photos[tipo] = saved || { ...photos[tipo], storage_path: path, url_pubblico: pubUrl, data_scatto }
       updatePhotoSlot(tipo)
       setIndicator('saved', '')
     } catch (e) {
@@ -1337,7 +1313,7 @@
     document.getElementById('hdr-date-input').disabled = false
     document.querySelectorAll('.photo-note-input').forEach(el => el.disabled = false)
     renderFotoLibere()
-    PHOTO_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
+    PHOTO_SLOTS_FLAT.forEach(s => updatePhotoSlot(s.tipo))
   }
 
   function applyChiusaState(chiusa_at) {

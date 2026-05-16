@@ -550,6 +550,13 @@
             <input type="checkbox" id="f-consenso-privacy">
             <span>Consenso privacy firmato</span>
           </label>
+          <label class="acc-check-row" style="margin-top:10px">
+            <input type="checkbox" id="f-consenso-ricerca">
+            <span>Consenso ricerca scientifica
+              <button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('modal-ricerca-info').style.display='flex'" style="background:none;border:none;font-size:14px;cursor:pointer;padding:0 2px;vertical-align:middle;line-height:1" title="Informativa GDPR">ℹ️</button>
+            </span>
+          </label>
+          <p style="font-size:11px;color:#999;margin:3px 0 0 28px;line-height:1.4">Dati anonimi per studi interni. Revocabile in qualsiasi momento.</p>
           <div class="form-group-sm" style="margin-top:14px">
             <label>Note libere</label>
             <textarea id="f-note" rows="4" placeholder="Annotazioni riservate, informazioni aggiuntive..."></textarea>
@@ -570,6 +577,21 @@
         <button class="btn-secondary" onclick="closeModal()">Annulla</button>
         <button class="btn-primary" onclick="savePatient()">💾 Salva paziente</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Ricerca scientifica info modal ───────────────────── -->
+  <div class="pg-modal" id="modal-ricerca-info" onclick="this.style.display='none'">
+    <div class="pg-box" onclick="event.stopPropagation()">
+      <div class="pg-icon">🔬</div>
+      <div class="pg-title">Consenso ricerca scientifica</div>
+      <div class="pg-desc" style="text-align:left">
+        Autorizza l'uso dei dati clinici <strong>completamente anonimizzati</strong> del paziente per studi interni e ricerca posturale.<br><br>
+        I dati personali identificativi (nome, cognome, email, telefono, codice fiscale) non vengono mai inclusi.<br><br>
+        Il consenso è facoltativo, non influisce sulla qualità del trattamento e può essere revocato in qualsiasi momento modificando il profilo del paziente.<br><br>
+        <em style="font-size:11px;color:#aaa">Base giuridica: art. 9 par. 2 lett. a) GDPR — consenso esplicito del paziente.</em>
+      </div>
+      <button class="pg-close" onclick="document.getElementById('modal-ricerca-info').style.display='none'">Chiudi</button>
     </div>
   </div>
 
@@ -1025,6 +1047,7 @@
       if (email) { const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; if (!emailRegex.test(email)) { alert('Inserisci un indirizzo email valido.'); return } }
       if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return } }
       const consenso = document.getElementById('f-consenso-privacy').checked
+      const consenso_ricerca = document.getElementById('f-consenso-ricerca').checked
       const payload = {
         professional_id: currentProfessionalId,
         nome, cognome,
@@ -1048,6 +1071,8 @@
         specialista_inviante: document.getElementById('f-specialista').value.trim() || null,
         consenso_privacy: consenso,
         consenso_privacy_data: consenso ? new Date().toISOString() : null,
+        consenso_ricerca,
+        consenso_ricerca_data: consenso_ricerca ? new Date().toISOString() : null,
         problema_principale: document.getElementById('f-problema').value.trim() || null,
         note_cliniche: document.getElementById('f-note').value.trim() || null,
         configurazione_default: selectedConfig,
