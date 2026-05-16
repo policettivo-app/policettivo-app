@@ -1298,9 +1298,10 @@
     }
 
     function _pickerSelectPatient(id) {
+      var action = _pickerAction
       closePicker()
       var url
-      switch (_pickerAction) {
+      switch (action) {
         case 'visita':      url = 'visite.html?id=' + id + '&new=1'; break
         case 'visita-ft':   url = 'visita.html?pid=' + id; break
         case 'seduta':      url = 'diario.html?pid=' + id + '&new=1'; break
@@ -1309,7 +1310,7 @@
         case 'sintesi-ai':  url = 'paziente.html?id=' + id + '&action=sintesi-ai'; break
         default:            url = 'paziente.html?id=' + id
       }
-      console.log('[QA redirect]', _pickerAction, id, url)
+      console.log('[QA redirect]', action, id, url)
       window.location.href = url
     }
 
