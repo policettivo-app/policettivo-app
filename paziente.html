@@ -413,6 +413,34 @@
     .paz-tv-card-desc { font-size:11px;color:#888; }
     .paz-tv-card-soon { opacity:0.45;cursor:default; }
     .paz-tv-card-badge { font-size:9px;font-weight:700;background:#e5e5ea;color:#888;padding:2px 7px;border-radius:20px;margin-left:8px;letter-spacing:0.5px; }
+
+    /* ── SEZIONE VISITE ──────────────────────────────────────── */
+    .visite-filtri { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+    .visita-chip { padding:6px 14px; border-radius:20px; border:1.5px solid #e0e0e0; background:#fff; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; color:#555; transition:all .15s; }
+    .visita-chip:hover { border-color:#FFD008; }
+    .visita-chip.active { background:#FFD008; color:#000; border-color:#FFD008; }
+    .visite-loading { text-align:center; padding:20px; color:#999; font-size:13px; }
+    .visite-empty { text-align:center; padding:24px 16px; color:#999; font-size:13px; line-height:1.6; }
+    .visita-card { border:1.5px solid #e8e8e8; border-radius:12px; padding:12px 14px; margin-bottom:10px; cursor:pointer; transition:border-color .15s, box-shadow .15s; background:#fff; }
+    .visita-card:hover { border-color:#FFD008; box-shadow:0 2px 8px rgba(0,0,0,.07); }
+    .visita-card:active { background:#fffef5; }
+    .visita-card-top { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+    .visita-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .visita-dot-bozza { background:#FFD008; border:1.5px solid #e6bc00; }
+    .visita-dot-chiusa { background:#4CAF50; border:1.5px solid #388E3C; }
+    .visita-date { font-size:13px; font-weight:700; color:#000; flex-shrink:0; }
+    .visita-badge { padding:2px 8px; border-radius:10px; font-size:10px; font-weight:800; letter-spacing:.3px; flex-shrink:0; }
+    .visita-badge-posturale { background:#000; color:#FFD008; }
+    .visita-badge-fisio { background:#FFD008; color:#000; }
+    .visita-stato { margin-left:auto; font-size:10px; font-weight:700; padding:2px 8px; border-radius:8px; flex-shrink:0; }
+    .visita-stato-bozza { background:#fff8e1; color:#b8860b; border:1px solid #FFD008; }
+    .visita-stato-chiusa { background:#e8f5e9; color:#2e7d32; border:1px solid #81c784; }
+    .visita-subtitle { font-size:12px; color:#777; margin-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .visita-actions { display:flex; gap:8px; }
+    .visita-btn-apri { padding:7px 16px; background:#000; color:#FFD008; border:none; border-radius:8px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+    .visita-btn-apri:hover { background:#222; }
+    .visita-btn-pdf { padding:7px 12px; background:#f5f5f5; color:#555; border:1.5px solid #ddd; border-radius:8px; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; }
+    .visita-btn-pdf:hover { border-color:#bbb; }
   </style>
 </head>
 <body>
@@ -668,6 +696,21 @@
           <button class="btn-delete" onclick="cancellaPaziente()">🗑 Elimina paziente</button>
         </div>
       </div>
+    </div>
+
+    <!-- VISITE E VALUTAZIONI -->
+    <div class="section" id="section-visite">
+      <div class="section-header">
+        <div class="section-title">📋 Visite e valutazioni</div>
+      </div>
+      <div class="visite-filtri" id="visite-filtri">
+        <button class="visita-chip active" data-filter="all"           onclick="filterVisite('all')">Tutte</button>
+        <button class="visita-chip"        data-filter="fisioterapica" onclick="filterVisite('fisioterapica')">Fisioterapiche</button>
+        <button class="visita-chip"        data-filter="posturale"     onclick="filterVisite('posturale')">Posturali</button>
+        <button class="visita-chip"        data-filter="bozza"         onclick="filterVisite('bozza')">Bozze</button>
+        <button class="visita-chip"        data-filter="chiusa"        onclick="filterVisite('chiusa')">Chiuse</button>
+      </div>
+      <div id="visite-list"><div class="visite-loading">Caricamento…</div></div>
     </div>
 
     <!-- FOTO SAGITTALI -->
@@ -1048,6 +1091,90 @@
     let patient = null, selectedConfig = null, obsSelections = {}, noteSaveTimer = null
     let _pazAiUses = 0
     let _aipResult = null
+    let _allVisite = []
+    let _visiteFilter = 'all'
+
+    // ── VISITE E VALUTAZIONI ─────────────────────────────────
+    async function loadVisite() {
+      const { data, error } = await _supabase
+        .from('visits')
+        .select('id, data_visita, tipo, stato, motivo_visita, diagnosi_funzionale, note_osservazionali, chiusa_at')
+        .eq('patient_id', patientId)
+        .order('data_visita', { ascending: false })
+        .limit(50)
+      if (error) {
+        document.getElementById('visite-list').innerHTML = '<div class="visite-loading">Errore caricamento</div>'
+        return
+      }
+      _allVisite = data || []
+      renderVisite()
+    }
+
+    function filterVisite(filter) {
+      _visiteFilter = filter
+      document.querySelectorAll('.visita-chip').forEach(c =>
+        c.classList.toggle('active', c.dataset.filter === filter))
+      renderVisite()
+    }
+
+    function renderVisite() {
+      const list = document.getElementById('visite-list')
+      let rows = _allVisite
+      if (_visiteFilter === 'fisioterapica') rows = _allVisite.filter(v => v.tipo === 'fisioterapica' || !v.tipo)
+      else if (_visiteFilter === 'posturale')     rows = _allVisite.filter(v => v.tipo === 'posturale')
+      else if (_visiteFilter === 'bozza')         rows = _allVisite.filter(v => v.stato === 'bozza')
+      else if (_visiteFilter === 'chiusa')        rows = _allVisite.filter(v => v.stato === 'chiusa')
+
+      if (!rows.length) {
+        const msg = _visiteFilter === 'all'
+          ? 'Nessuna visita ancora registrata per questo paziente.<br>Usa i pulsanti in alto per crearne una.'
+          : 'Nessuna visita con questo filtro.'
+        list.innerHTML = '<div class="visite-empty">' + msg + '</div>'
+        return
+      }
+
+      list.innerHTML = rows.map(v => {
+        const dt      = v.data_visita ? new Date(v.data_visita) : null
+        const dateStr = dt
+          ? dt.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
+            + ' ' + dt.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' })
+          : '—'
+        const tipo    = v.tipo || 'fisioterapica'
+        const stato   = v.stato || 'bozza'
+        const url     = tipo === 'posturale'
+          ? 'valutazione-posturale.html?id=' + v.id
+          : 'visita.html?id=' + v.id
+        const tipoBadge  = tipo === 'posturale'
+          ? '<span class="visita-badge visita-badge-posturale">POSTURALE</span>'
+          : '<span class="visita-badge visita-badge-fisio">VISITA FISIO</span>'
+        const statoBadge = stato === 'chiusa'
+          ? '<span class="visita-stato visita-stato-chiusa">CHIUSA</span>'
+          : '<span class="visita-stato visita-stato-bozza">BOZZA</span>'
+        const dot   = stato === 'chiusa'
+          ? '<div class="visita-dot visita-dot-chiusa"></div>'
+          : '<div class="visita-dot visita-dot-bozza"></div>'
+        const sub   = tipo === 'posturale'
+          ? (v.note_osservazionali || '').substring(0, 80)
+          : (v.diagnosi_funzionale || v.motivo_visita || '').substring(0, 80)
+        const pdfBtn = stato === 'chiusa'
+          ? `<button class="visita-btn-pdf" onclick="event.stopPropagation();alert('PDF in arrivo nel prossimo rilascio')">📄 PDF</button>`
+          : ''
+        return `
+          <div class="visita-card" onclick="window.location.href='${url}'">
+            <div class="visita-card-top">
+              ${dot}
+              <span class="visita-date">${dateStr}</span>
+              ${tipoBadge}
+              ${statoBadge}
+            </div>
+            ${sub ? `<div class="visita-subtitle">${sub}</div>` : ''}
+            <div class="visita-actions">
+              <button class="visita-btn-apri" onclick="event.stopPropagation();window.location.href='${url}'">▸ Apri</button>
+              ${pdfBtn}
+            </div>
+          </div>`
+      }).join('')
+    }
 
     async function caricaProtocollo() {
       const { data: prots } = await _supabase
@@ -1118,6 +1245,7 @@
       patient = data
       renderPatient()
       caricaProtocollo()
+      loadVisite()
     }
 
     function renderPatient() {

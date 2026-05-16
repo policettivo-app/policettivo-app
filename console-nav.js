@@ -1,6 +1,7 @@
 ;(function () {
   const page = (window.location.pathname.split('/').pop() || 'index.html')
   if (['login.html', 'registrazione.html'].includes(page)) return
+  if (document.querySelector('meta[name="hide-bottom-nav"]')?.content === 'true') return
 
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'

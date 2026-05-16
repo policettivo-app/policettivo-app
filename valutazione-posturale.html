@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="hide-bottom-nav" content="true">
   <title>Valutazione Posturale</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -159,11 +160,14 @@
     body.is-chiusa .config-card { pointer-events: none; }
 
     /* ── BOTTOM BAR ─────────────────────────────────────────── */
-    #bottom-bar { position: fixed; bottom: 56px; left: 0; right: 0; z-index: 150; background: #fff; border-top: 1.5px solid #eee; display: flex; gap: 10px; padding: 10px 16px; box-shadow: 0 -2px 8px rgba(0,0,0,.08); }
-    .btn-salva { flex: 1; padding: 13px; background: #000; color: #FFD008; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
-    .btn-chiudi-bar { flex: 1; padding: 13px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+    #bottom-bar { position: fixed; bottom: 56px; left: 0; right: 0; z-index: 150; background: #fff; border-top: 1.5px solid #eee; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 16px 10px; box-shadow: 0 -2px 8px rgba(0,0,0,.08); }
+    #autosave-label { font-size: 12px; color: #999; font-style: italic; text-align: center; min-height: 16px; }
+    #autosave-label.error { color: #e53935; font-style: normal; font-weight: 600; }
+    .btn-chiudi-bar { width: 100%; padding: 13px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
     .btn-chiudi-bar:disabled { opacity: .5; cursor: default; }
     body.is-chiusa #bottom-bar { display: none; }
+    .hdr-home-btn { width: 34px; height: 34px; background: transparent; border: 1.5px solid #ddd; border-radius: 8px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s, border-color .15s; }
+    .hdr-home-btn:hover { background: #FFD008; border-color: #FFD008; }
 
     /* ── LIGHTBOX ───────────────────────────────────────────── */
     #lightbox { display: none; position: fixed; inset: 0; z-index: 800; background: #000; flex-direction: column; }
@@ -287,6 +291,7 @@
   <div class="hdr-row2">
     <input type="date" id="hdr-date-input" onchange="scheduleSave()">
     <div id="hdr-indicator"></div>
+    <button class="hdr-home-btn" onclick="window.location.href='dashboard.html'" aria-label="Torna alla dashboard">🏠</button>
     <button class="hdr-chiudi-btn" id="btn-chiudi-hdr" onclick="showConfermaChiudi()" disabled>🔒 Chiudi</button>
   </div>
 </div>
@@ -407,8 +412,8 @@
 
 <!-- BOTTOM BAR -->
 <div id="bottom-bar">
-  <button class="btn-salva" onclick="manualSave()">💾 Salva bozza</button>
-  <button class="btn-chiudi-bar" id="btn-chiudi-bar" onclick="showConfermaChiudi()" disabled>🔒 Chiudi</button>
+  <div id="autosave-label"></div>
+  <button class="btn-chiudi-bar" id="btn-chiudi-bar" onclick="showConfermaChiudi()" disabled>🔒 Chiudi valutazione</button>
 </div>
 
 <!-- FILE INPUTS (hidden) — FIX 1: no capture, OS propone camera/galleria/file -->
@@ -682,7 +687,7 @@
 
     await loadPhotos()
     updateChiudiBtn()
-    if (isChiusa) applyChiusaState()
+    if (isChiusa) applyChiusaState(v.chiusa_at)
     setIndicator('saved', '')
   }
 
@@ -1262,13 +1267,6 @@
     saveTimer = setTimeout(actualSave, 2000)
   }
 
-  // FIX 6: manualSave mostra toast
-  async function manualSave() {
-    clearTimeout(saveTimer)
-    await actualSave()
-    showToast('💾 Bozza salvata')
-  }
-
   async function actualSave() {
     if (isChiusa || !visitId || isSaving) return
     isSaving = true
@@ -1276,6 +1274,7 @@
     const { error } = await _sb.from('visits').update(collectFormData()).eq('id', visitId)
     isSaving = false
     if (error) {
+      console.error('[autosave] error:', error)
       setIndicator('error', '')
     } else {
       const t = new Date()
@@ -1302,7 +1301,8 @@
     const hasData = Object.keys(photos).length > 0 || chipState['arco'] || configSug
       || (document.getElementById('f-note-osservazionali').value || '').trim()
     document.getElementById('btn-chiudi-hdr').disabled = !hasData
-    document.getElementById('btn-chiudi-bar').disabled = !hasData
+    const barBtn = document.getElementById('btn-chiudi-bar')
+    if (barBtn) barBtn.disabled = !hasData
   }
 
   // ── CHIUDI / RIAPRI ────────────────────────────────────────
@@ -1310,13 +1310,16 @@
   function closeConfermaChiudi() { document.getElementById('modal-chiudi').classList.remove('open') }
 
   async function confirmChiudi() {
+    console.log('[chiudi] avvio chiusura, visitId:', visitId)
     closeConfermaChiudi()
     clearTimeout(saveTimer)
     await actualSave()
-    const { error } = await _sb.from('visits').update({ stato: 'chiusa' }).eq('id', visitId)
-    if (error) { showToast('Errore chiusura'); return }
+    const chiusa_at = new Date().toISOString()
+    const { error } = await _sb.from('visits').update({ stato: 'chiusa', chiusa_at }).eq('id', visitId)
+    console.log('[chiudi] update result, error:', error)
+    if (error) { showToast('Errore chiusura: ' + error.message); return }
     isChiusa = true
-    applyChiusaState()
+    applyChiusaState(chiusa_at)
   }
 
   async function riapriBozza() {
@@ -1337,8 +1340,13 @@
     PHOTO_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
   }
 
-  function applyChiusaState() {
-    document.getElementById('chiusa-banner').style.display = 'flex'
+  function applyChiusaState(chiusa_at) {
+    const dt = chiusa_at ? new Date(chiusa_at) : new Date()
+    const dateStr = dt.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
+      + ' alle ' + dt.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' })
+    const banner = document.getElementById('chiusa-banner')
+    banner.querySelector('.chiusa-text').textContent = '✅ Valutazione chiusa il ' + dateStr
+    banner.style.display = 'flex'
     document.getElementById('main-content').classList.add('with-banner')
     document.body.classList.add('is-chiusa')
     document.getElementById('btn-chiudi-hdr').disabled = true
@@ -1351,12 +1359,24 @@
 
   // ── INDICATOR ─────────────────────────────────────────────
   function setIndicator(state, msg) {
-    const el = document.getElementById('hdr-indicator')
-    if      (state === 'saved')   el.textContent = msg ? '💾 ' + msg : '💾 Salvato'
-    else if (state === 'saving')  el.textContent = '🔄 Salvando…'
-    else if (state === 'pending') el.textContent = '✏️ Modificato'
-    else if (state === 'error')   el.textContent = '✗ Errore'
-    else el.textContent = ''
+    const hdr  = document.getElementById('hdr-indicator')
+    const lbl  = document.getElementById('autosave-label')
+    if (state === 'saved') {
+      const text = msg ? '💾 Salvato alle ' + msg : '💾 Salvato'
+      if (hdr) { hdr.textContent = text; hdr.style.color = '#aaa'; }
+      if (lbl) { lbl.textContent = msg ? 'Salvato automaticamente alle ' + msg : 'Salvato automaticamente'; lbl.className = ''; }
+    } else if (state === 'saving') {
+      if (hdr) { hdr.textContent = '🔄'; hdr.style.color = '#aaa'; }
+      if (lbl) { lbl.textContent = 'Salvataggio in corso…'; lbl.className = ''; }
+    } else if (state === 'pending') {
+      if (hdr) { hdr.textContent = '✏️'; hdr.style.color = '#aaa'; }
+    } else if (state === 'error') {
+      if (hdr) { hdr.textContent = '⚠️'; hdr.style.color = '#e53935'; }
+      if (lbl) { lbl.textContent = '⚠️ Salvataggio fallito'; lbl.className = 'error'; }
+    } else {
+      if (hdr) { hdr.textContent = ''; }
+      if (lbl) { lbl.textContent = ''; lbl.className = ''; }
+    }
   }
 
   // ── NAVIGATION ─────────────────────────────────────────────

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="hide-bottom-nav" content="true">
   <title>Policettivo® — Visita Clinica</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="policettivo-globals.css">
@@ -79,6 +80,8 @@
       white-space: nowrap; flex-shrink: 0;
     }
     .btn-chiudi-hdr:disabled { background: #444; color: #777; cursor: not-allowed; }
+    .btn-home-hdr { width: 34px; height: 34px; background: transparent; border: 1.5px solid rgba(255,255,255,.3); border-radius: 8px; font-size: 16px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s, border-color .15s; color: #fff; }
+    .btn-home-hdr:hover { background: #FFD008; border-color: #FFD008; color: #000; }
     .hdr-row2 {
       display: flex; align-items: center; gap: 10px;
     }
@@ -647,6 +650,7 @@
         <div class="patient-info-sub" id="patient-sub"></div>
       </div>
       <div class="badge-diagnosi-hdr" id="badge-diagnosi" style="display:none"></div>
+      <button class="btn-home-hdr" onclick="window.location.href='dashboard.html'" aria-label="Torna alla dashboard">🏠</button>
       <button class="btn-chiudi-hdr" id="btn-chiudi-hdr" onclick="apriModalChiudi()" disabled>🔒 Chiudi</button>
     </div>
     <div class="hdr-row2">
@@ -1115,10 +1119,7 @@
     <!-- BLOCCO F: BOTTONI FINALI -->
     <div class="step-footer" style="flex-direction:column; gap:10px;">
       <button class="btn-nav btn-nav-prev" onclick="goToStep(4)" style="width:100%">← Precedente</button>
-      <div style="display:flex; gap:12px; width:100%;">
-        <button class="btn-salva-bozza" onclick="salvaBozza()">💾 Salva bozza</button>
-        <button class="btn-chiudi-finale" id="btn-chiudi-finale" onclick="apriModalChiudi()" disabled>🔒 Chiudi e genera PDF</button>
-      </div>
+      <button class="btn-chiudi-finale" id="btn-chiudi-finale" onclick="apriModalChiudi()" disabled style="width:100%">🔒 Chiudi e genera PDF</button>
     </div>
 
   </div><!-- /step-5 -->
