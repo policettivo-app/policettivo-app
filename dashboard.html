@@ -1272,12 +1272,17 @@
       closeTipoVisitaModal()
       openPatientPicker('visita-ft')
     }
+    function onTipoVisitaPosturale() {
+      closeTipoVisitaModal()
+      openPatientPicker('visita-pt')
+    }
 
     function openPatientPicker(action) {
       _pickerAction = action
       const titles = {
         visita:       '🏥 Nuova visita',
         'visita-ft':  '🩺 Visita Fisioterapica',
+        'visita-pt':  '📸 Valutazione Posturale',
         seduta:       '💪 Nuova seduta',
         protocollo:   '📋 Protocollo',
         pdf:          '🖨 Genera PDF',
@@ -1304,6 +1309,7 @@
       switch (action) {
         case 'visita':      url = 'visite.html?id=' + id + '&new=1'; break
         case 'visita-ft':   url = 'visita.html?pid=' + id; break
+        case 'visita-pt':   url = 'valutazione-posturale.html?pid=' + id; break
         case 'seduta':      url = 'diario.html?pid=' + id + '&new=1'; break
         case 'protocollo':  url = 'assegna-protocollo.html?id=' + id; break
         case 'pdf':         url = 'scheda-pdf.html?id=' + id; break
@@ -1398,11 +1404,11 @@
             <div class="tv-card-desc">Anamnesi · VAS · test clinici · trattamento · rivalutazione</div>
           </div>
         </button>
-        <button class="tv-card tv-card-soon" disabled>
+        <button class="tv-card" onclick="onTipoVisitaPosturale()">
           <span class="tv-card-icon">📸</span>
           <div>
-            <div class="tv-card-label">Valutazione Posturale <span class="tv-card-badge">PRESTO</span></div>
-            <div class="tv-card-desc">Foto posturali · AI · NPL/GPL · protocollo</div>
+            <div class="tv-card-label">Valutazione Posturale</div>
+            <div class="tv-card-desc">Foto posturali · piede · piano scapolare · NPL/GPL</div>
           </div>
         </button>
       </div>

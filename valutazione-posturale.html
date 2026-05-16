@@ -3,308 +3,1062 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Valutazione Posturale — Policettivo®</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="policettivo-globals.css">
+  <title>Valutazione Posturale</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="utils-premium.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Montserrat', sans-serif; background: #f5f5f7; min-height: 100vh; color: #1d1d1f; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; min-height: 100vh; }
 
-    /* Navbar */
-    .vp-nav {
-      position: sticky; top: 0; z-index: 100;
-      background: rgba(0,0,0,0.97); backdrop-filter: blur(20px);
-      height: 52px; padding: 0 16px;
-      display: flex; align-items: center; gap: 12px;
-      border-bottom: 1px solid #1a1a1a;
+    /* ── STICKY HEADER ─────────────────────────────────────── */
+    #sticky-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      background: #FFD008; padding: 12px 16px 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
     }
-    .vp-nav-back {
-      background: #1a1a1a; border: none; color: #ccc;
-      border-radius: 8px; padding: 6px 12px;
-      font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600;
-      cursor: pointer; display: flex; align-items: center; gap: 6px;
-      transition: background 0.15s, color 0.15s;
+    .hdr-row1 { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+    .hdr-back { background: none; border: none; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+    .hdr-name { font-size: 15px; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hdr-badge { background: #000; color: #FFD008; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+    .hdr-row2 { display: flex; align-items: center; gap: 8px; margin-top: 6px; justify-content: space-between; }
+    #hdr-date-input {
+      border: 1.5px solid rgba(0,0,0,.2); border-radius: 6px; padding: 3px 6px;
+      font-family: inherit; font-size: 12px; font-weight: 600; background: rgba(255,255,255,.4);
     }
-    .vp-nav-back:hover { background: #2a2a2a; color: #fff; }
-    .vp-nav-title { color: #fff; font-size: 13px; font-weight: 700; flex: 1; }
-    .vp-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 9px; letter-spacing: 2px; padding: 3px 8px; border-radius: 3px; }
+    #hdr-indicator { font-size: 11px; font-weight: 600; opacity: .75; min-width: 90px; text-align: right; }
+    .hdr-chiudi-btn {
+      background: #000; color: #FFD008; border: none; border-radius: 8px;
+      padding: 7px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .hdr-chiudi-btn:disabled { opacity: .5; cursor: default; }
 
-    /* Patient header */
-    .vp-patient-bar {
-      background: #fff; border-bottom: 1px solid #e5e5ea;
-      padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+    /* ── CHIUSA BANNER ─────────────────────────────────────── */
+    #chiusa-banner {
+      position: fixed; top: 88px; left: 0; right: 0; z-index: 190;
+      background: #1a7a3c; color: #fff; padding: 10px 16px;
+      display: none; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
     }
-    .vp-patient-avatar {
-      width: 42px; height: 42px; border-radius: 50%; background: #FFD008;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 16px; color: #000; flex-shrink: 0;
+    .chiusa-text { font-size: 13px; font-weight: 700; }
+    .chiusa-actions { display: flex; gap: 8px; }
+    .btn-chiusa-action {
+      border: 1.5px solid rgba(255,255,255,.5); border-radius: 8px; background: transparent;
+      color: #fff; font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; cursor: pointer;
     }
-    .vp-patient-name { font-size: 15px; font-weight: 700; color: #000; }
-    .vp-patient-sub { font-size: 12px; color: #888; margin-top: 2px; }
-    .vp-config-badge { margin-left: auto; }
+    .btn-chiusa-back { background: rgba(255,255,255,.15); }
 
-    /* Migration banner */
-    .vp-migration-banner {
-      background: #fffdf0; border-bottom: 2px solid #FFD008;
-      padding: 10px 16px; display: flex; align-items: center; gap: 10px;
-      font-size: 12px; color: #555;
-    }
-    .vp-migration-banner strong { color: #000; }
-    .vp-migration-link {
-      margin-left: auto; background: #000; color: #FFD008; border: none;
-      border-radius: 6px; padding: 6px 12px; font-family: 'Montserrat', sans-serif;
-      font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
-    }
-    .vp-migration-link:hover { background: #1a1a1a; }
+    /* ── MAIN CONTENT ──────────────────────────────────────── */
+    #main-content { padding-top: 106px; padding-bottom: 158px; }
+    #main-content.with-banner { padding-top: 148px; }
 
-    /* Main */
-    .vp-main { max-width: 720px; margin: 0 auto; padding: 20px 16px 80px; }
+    /* ── SECTION CARD ──────────────────────────────────────── */
+    .vp-section {
+      background: #fff; border-radius: 12px; margin: 12px;
+      padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .vp-sec-title {
+      font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px;
+      color: #000; margin-bottom: 14px; display: flex; align-items: center; gap: 7px;
+    }
+    .vp-sec-badge {
+      background: #FFD008; color: #000; font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px; flex-shrink: 0;
+    }
+    .vp-sec-info-btn {
+      background: none; border: none; cursor: pointer; font-size: 17px; margin-left: auto; padding: 0;
+    }
 
-    /* Section cards */
-    .vp-section-card {
-      background: #fff; border-radius: 14px; border: 1.5px solid #e5e5ea;
-      padding: 20px; margin-bottom: 14px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    /* ── CHIPS ─────────────────────────────────────────────── */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+    .chip {
+      padding: 6px 13px; border-radius: 20px; border: 1.5px solid #ddd;
+      font-family: inherit; font-size: 12px; font-weight: 600; background: #fafafa;
+      cursor: pointer; transition: all .15s; user-select: none;
     }
-    .vp-section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .vp-section-icon { font-size: 24px; line-height: 1; }
-    .vp-section-title { font-size: 14px; font-weight: 700; color: #000; }
-    .vp-section-sub { font-size: 12px; color: #888; margin-top: 2px; }
-    .vp-section-status {
-      margin-left: auto; font-size: 10px; font-weight: 700;
-      letter-spacing: 0.5px; padding: 3px 9px; border-radius: 20px;
-    }
-    .vp-status-ready { background: #e8f5e9; color: #2e7d32; }
-    .vp-status-migrating { background: #fff8e1; color: #f57f17; }
-    .vp-section-cta {
-      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
-      padding-top: 12px; border-top: 1px solid #f0f0f0;
-    }
-    .vp-btn-primary {
-      background: #FFD008; color: #000; border: none; border-radius: 8px;
-      padding: 10px 18px; font-family: 'Montserrat', sans-serif;
-      font-size: 12px; font-weight: 700; cursor: pointer;
-    }
-    .vp-btn-primary:hover { background: #e6bc00; }
-    .vp-btn-secondary {
-      background: transparent; border: 1.5px solid #ddd; color: #555;
-      border-radius: 8px; padding: 10px 18px;
-      font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
-    }
-    .vp-btn-secondary:hover { border-color: #FFD008; color: #000; }
+    .chip:active { transform: scale(.95); }
+    .chip.active { background: #FFD008; border-color: #FFD008; color: #000; }
+    .chip.append-chip { color: #444; }
+    .chip.append-chip:active { background: #f0f0f0; }
+    .chip-label { font-size: 11px; font-weight: 700; color: #666; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .3px; }
 
-    /* Step flow */
-    .vp-steps { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
-    .vp-step { background: #f5f5f7; border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; color: #555; display: flex; align-items: center; gap: 5px; }
-    .vp-step-arrow { color: #ccc; font-size: 10px; }
+    /* ── TEXTAREA ──────────────────────────────────────────── */
+    .vp-textarea {
+      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      padding: 10px 12px; font-family: inherit; font-size: 13px; line-height: 1.5;
+      resize: vertical; transition: border-color .2s;
+    }
+    .vp-textarea:focus { outline: none; border-color: #FFD008; }
+    .vp-textarea:disabled { background: #f8f8f8; color: #888; }
 
-    /* Loading */
-    .vp-loading { text-align: center; padding: 60px 20px; color: #aaa; font-size: 14px; }
-    .vp-error { text-align: center; padding: 40px 20px; }
+    /* ── PHOTO GRID ────────────────────────────────────────── */
+    .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .photo-slot {
+      border: 2px dashed #ddd; border-radius: 10px; aspect-ratio: 3/4;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer; position: relative; overflow: hidden; background: #fafafa;
+      transition: border-color .2s;
+    }
+    .photo-slot:hover { border-color: #FFD008; }
+    .photo-slot.filled { border: none; cursor: default; }
+    .photo-slot-thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+    .photo-slot-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,.45); border-radius: 8px;
+      display: flex; align-items: flex-end; justify-content: space-between; padding: 8px;
+      opacity: 0; transition: opacity .2s;
+    }
+    .photo-slot.filled:hover .photo-slot-overlay { opacity: 1; }
+    .photo-slot-label { font-size: 11px; font-weight: 700; color: #666; text-align: center; padding: 0 6px; margin-top: 8px; }
+    .photo-slot-icon { font-size: 26px; margin-bottom: 4px; }
+    .photo-slot-label-filled {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,.6); color: #fff; font-size: 10px; font-weight: 700;
+      text-align: center; padding: 4px; border-radius: 0 0 8px 8px;
+    }
+    .slot-btn {
+      background: rgba(255,255,255,.9); border: none; border-radius: 6px;
+      padding: 4px 8px; font-size: 12px; cursor: pointer; font-weight: 700;
+    }
+    .slot-btn-del { color: #d32f2f; }
+    .slot-btn-view { color: #000; }
+
+    /* ── FOTO LIBERE ───────────────────────────────────────── */
+    .foto-lib-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+    .foto-lib-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      border: 1.5px solid #eee; border-radius: 10px; padding: 8px; background: #fafafa;
+    }
+    .foto-lib-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0; cursor: pointer; }
+    .foto-lib-info { flex: 1; min-width: 0; }
+    .foto-lib-titolo { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    .foto-lib-desc { font-size: 12px; color: #555; word-break: break-word; }
+    .foto-lib-del { background: none; border: none; font-size: 18px; cursor: pointer; color: #d32f2f; padding: 0 4px; }
+    .btn-add-foto {
+      width: 100%; padding: 11px; border: 2px dashed #ddd; border-radius: 10px;
+      background: #fafafa; font-family: inherit; font-size: 13px; font-weight: 600;
+      color: #555; cursor: pointer; transition: border-color .2s, color .2s;
+    }
+    .btn-add-foto:hover { border-color: #FFD008; color: #000; }
+    .btn-add-foto:disabled { opacity: .5; cursor: default; }
+
+    /* ── DIVIDER ───────────────────────────────────────────── */
+    .vp-divider { border: none; border-top: 1.5px solid #f0f0f0; margin: 14px 0; }
+
+    /* ── CONFIG CARDS (NPL/GPL) ────────────────────────────── */
+    .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .config-card {
+      border: 2px solid #ddd; border-radius: 12px; padding: 14px 10px;
+      text-align: center; cursor: pointer; transition: all .15s; background: #fafafa; user-select: none;
+    }
+    .config-card:active { transform: scale(.97); }
+    .config-card.active { border-color: #FFD008; background: #fffde7; }
+    .config-card-label { font-size: 18px; font-weight: 800; }
+    .config-card-desc { font-size: 11px; color: #666; margin-top: 4px; line-height: 1.4; }
+
+    /* ── BOTTOM BAR ────────────────────────────────────────── */
+    #bottom-bar {
+      position: fixed; bottom: 56px; left: 0; right: 0; z-index: 150;
+      background: #fff; border-top: 1.5px solid #eee;
+      display: flex; gap: 10px; padding: 10px 16px; box-shadow: 0 -2px 8px rgba(0,0,0,.08);
+    }
+    .btn-salva {
+      flex: 1; padding: 13px; background: #000; color: #FFD008; border: none;
+      border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .btn-chiudi-bar {
+      flex: 1; padding: 13px; background: #FFD008; color: #000; border: none;
+      border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .btn-chiudi-bar:disabled { opacity: .5; cursor: default; }
+
+    /* ── LIGHTBOX ──────────────────────────────────────────── */
+    #lightbox {
+      display: none; position: fixed; inset: 0; z-index: 900;
+      background: rgba(0,0,0,.93); align-items: center; justify-content: center;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox-img { max-width: 96vw; max-height: 86vh; border-radius: 8px; }
+    #lightbox-close {
+      position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,.2);
+      border: none; color: #fff; font-size: 22px; border-radius: 50%; width: 40px; height: 40px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── MODAL BASE ────────────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 800;
+      background: rgba(0,0,0,.5); align-items: flex-end; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff; width: 100%; max-width: 520px; border-radius: 16px 16px 0 0;
+      padding: 20px 16px 36px; max-height: 88vh; overflow-y: auto;
+    }
+    .modal-center { align-items: center; }
+    .modal-center .modal-box { border-radius: 16px; width: calc(100% - 32px); margin: 16px; }
+    .modal-title { font-size: 15px; font-weight: 800; margin-bottom: 14px; }
+    .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; float: right; margin-top: -2px; }
+    .modal-field-label { font-size: 12px; font-weight: 700; color: #555; margin-bottom: 4px; }
+    .modal-input {
+      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      padding: 9px 12px; font-family: inherit; font-size: 13px; margin-bottom: 12px;
+    }
+    .modal-input:focus { outline: none; border-color: #FFD008; }
+    .modal-textarea {
+      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      padding: 9px 12px; font-family: inherit; font-size: 13px; resize: vertical; margin-bottom: 12px;
+    }
+    .modal-textarea:focus { outline: none; border-color: #FFD008; }
+    .modal-upload-area {
+      border: 2px dashed #ddd; border-radius: 10px; padding: 20px;
+      text-align: center; cursor: pointer; margin-bottom: 12px; transition: border-color .2s;
+      font-size: 13px; color: #666;
+    }
+    .modal-upload-area:hover { border-color: #FFD008; }
+    #fl-upload-preview { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; display: none; margin-bottom: 12px; }
+    .modal-btn-primary {
+      width: 100%; padding: 13px; background: #FFD008; color: #000; border: none;
+      border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .modal-btn-primary:disabled { opacity: .5; cursor: default; }
+    .modal-btn-secondary {
+      width: 100%; padding: 13px; background: #f0f0f0; color: #333; border: none;
+      border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px;
+    }
+
+    /* ── MONOPODALICO INFO ─────────────────────────────────── */
+    .mono-info-item { padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .mono-info-item:last-child { border-bottom: none; }
+    .mono-info-term { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+    .mono-info-desc { font-size: 12px; color: #555; line-height: 1.5; }
+
+    /* ── TOAST ─────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
+      background: #000; color: #fff; padding: 10px 18px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; z-index: 9999; pointer-events: none;
+      opacity: 0; transition: opacity .3s; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── CHIUSA LOCK ───────────────────────────────────────── */
+    body.is-chiusa .chip { pointer-events: none; }
+    body.is-chiusa .photo-slot:not(.filled) { pointer-events: none; opacity: .6; }
+    body.is-chiusa .btn-add-foto { pointer-events: none; opacity: .5; }
+    body.is-chiusa .config-card { pointer-events: none; }
+    body.is-chiusa #bottom-bar { display: none; }
   </style>
 </head>
 <body>
 
-  <!-- Navbar -->
-  <nav class="vp-nav">
-    <button class="vp-nav-back" id="btn-back-paziente" onclick="tornaAlPaziente()">← Scheda paziente</button>
-    <span class="vp-nav-title">📸 Valutazione Posturale</span>
-    <span class="vp-logo">POLICETTIVO®</span>
-  </nav>
-
-  <!-- Patient bar -->
-  <div class="vp-patient-bar" id="vp-patient-bar" style="display:none">
-    <div class="vp-patient-avatar" id="vp-avatar">?</div>
-    <div>
-      <div class="vp-patient-name" id="vp-nome">—</div>
-      <div class="vp-patient-sub" id="vp-sub">—</div>
-    </div>
-    <div class="vp-config-badge" id="vp-config-badge"></div>
+<!-- STICKY HEADER -->
+<div id="sticky-header">
+  <div class="hdr-row1">
+    <button class="hdr-back" onclick="backToPaziente()">←</button>
+    <div class="hdr-name" id="hdr-patient-name">Caricamento…</div>
+    <span class="hdr-badge">POSTURALE</span>
   </div>
-
-  <!-- Migration banner -->
-  <div class="vp-migration-banner">
-    <span>🚧 <strong>Migrazione in corso.</strong> Le funzioni sono attive nella scheda paziente completa.</span>
-    <button class="vp-migration-link" id="btn-apri-paziente" onclick="tornaAlPaziente()">Apri scheda paziente →</button>
+  <div class="hdr-row2">
+    <input type="date" id="hdr-date-input" onchange="scheduleSave()">
+    <div id="hdr-indicator"></div>
+    <button class="hdr-chiudi-btn" id="btn-chiudi-hdr" onclick="showConfermaChiudi()" disabled>🔒 Chiudi</button>
   </div>
+</div>
 
-  <!-- Main content -->
-  <main class="vp-main" id="vp-main" style="display:none">
-
-    <!-- Workflow steps -->
-    <div class="vp-steps">
-      <span class="vp-step">1 Foto posturali</span>
-      <span class="vp-step-arrow">→</span>
-      <span class="vp-step">2 Osservazioni</span>
-      <span class="vp-step-arrow">→</span>
-      <span class="vp-step">3 AI posturale</span>
-      <span class="vp-step-arrow">→</span>
-      <span class="vp-step">4 NPL / GPL</span>
-      <span class="vp-step-arrow">→</span>
-      <span class="vp-step">5 Protocollo</span>
-    </div>
-
-    <!-- 1. Foto posturali -->
-    <div class="vp-section-card">
-      <div class="vp-section-header">
-        <span class="vp-section-icon">📸</span>
-        <div>
-          <div class="vp-section-title">Foto posturali</div>
-          <div class="vp-section-sub">Piano sagittale · Piano frontale · Podoscopia</div>
-        </div>
-        <span class="vp-section-status vp-status-migrating">In migrazione</span>
-      </div>
-      <p style="font-size:12px;color:#666;line-height:1.6">
-        Scatta le foto prima e dopo la Tecnica dei 3 Respiri nei piani sagittale e frontale.
-        Comparazione automatica con overlay visivo.
-      </p>
-      <div class="vp-section-cta">
-        <button class="vp-btn-primary" onclick="apriInPaziente('foto')">📸 Apri Foto in Scheda →</button>
-      </div>
-    </div>
-
-    <!-- 2. Osservazioni posturali -->
-    <div class="vp-section-card">
-      <div class="vp-section-header">
-        <span class="vp-section-icon">👁</span>
-        <div>
-          <div class="vp-section-title">Osservazioni posturali</div>
-          <div class="vp-section-sub">Scapolare · Piede · Rotazione · Inclinazione capo</div>
-        </div>
-        <span class="vp-section-status vp-status-migrating">In migrazione</span>
-      </div>
-      <p style="font-size:12px;color:#666;line-height:1.6">
-        Seleziona le osservazioni cliniche visive: piano scapolare, morfologia del piede,
-        rotazione superiore e inclinazione del capo.
-      </p>
-      <div class="vp-section-cta">
-        <button class="vp-btn-primary" onclick="apriInPaziente('osservazioni')">👁 Apri Osservazioni in Scheda →</button>
-      </div>
-    </div>
-
-    <!-- 3. Analisi AI Posturale -->
-    <div class="vp-section-card">
-      <div class="vp-section-header">
-        <span class="vp-section-icon">🧠</span>
-        <div>
-          <div class="vp-section-title">Analisi AI Posturale</div>
-          <div class="vp-section-sub">Valutazione autonoma immagini · Confronto professionista · Suggerimento NPL/GPL</div>
-        </div>
-        <span class="vp-section-status vp-status-migrating">In migrazione</span>
-      </div>
-      <p style="font-size:12px;color:#666;line-height:1.6">
-        L'AI analizza le foto posturali e confronta la propria valutazione con quella
-        del professionista. Rileva concordanze e discordanze. Suggerisce NPL o GPL.
-      </p>
-      <div class="vp-section-cta">
-        <button class="vp-btn-primary" onclick="apriInPaziente('ai')">🧠 Apri AI Posturale in Scheda →</button>
-      </div>
-    </div>
-
-    <!-- 4. Configurazione NPL/GPL -->
-    <div class="vp-section-card">
-      <div class="vp-section-header">
-        <span class="vp-section-icon">⚙️</span>
-        <div>
-          <div class="vp-section-title">Configurazione NPL / GPL</div>
-          <div class="vp-section-sub">Cuscini · Tecnica · Intensità</div>
-        </div>
-        <span class="vp-section-status vp-status-migrating">In migrazione</span>
-      </div>
-      <p style="font-size:12px;color:#666;line-height:1.6">
-        Configura il tipo di trattamento posturale: NPL (neuro-propioceptivo laterale)
-        o GPL (gravitazionale posturale). Definisci la configurazione dei cuscini.
-      </p>
-      <div class="vp-section-cta">
-        <button class="vp-btn-primary" onclick="apriInPaziente('config')">⚙️ Apri Configurazione in Scheda →</button>
-      </div>
-    </div>
-
-    <!-- 5. Protocollo posturale -->
-    <div class="vp-section-card">
-      <div class="vp-section-header">
-        <span class="vp-section-icon">📋</span>
-        <div>
-          <div class="vp-section-title">Protocollo posturale</div>
-          <div class="vp-section-sub">Esercizi · Link paziente · Monitoraggio</div>
-        </div>
-        <span class="vp-section-status vp-status-ready">Disponibile</span>
-      </div>
-      <p style="font-size:12px;color:#666;line-height:1.6">
-        Assegna il protocollo di esercizi posturali personalizzato.
-        Genera il link paziente per l'esecuzione autonoma.
-      </p>
-      <div class="vp-section-cta">
-        <button class="vp-btn-primary" id="btn-protocollo" onclick="apriProtocollo()">📋 Apri Protocollo →</button>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- Loading / Error states -->
-  <div class="vp-loading" id="vp-loading">⏳ Caricamento paziente...</div>
-  <div class="vp-error" id="vp-error" style="display:none">
-    <p style="font-size:14px;color:#e53935">Paziente non trovato.</p>
-    <button class="vp-btn-secondary" style="margin-top:16px" onclick="window.location.href='dashboard.html'">← Torna alla home</button>
+<!-- CHIUSA BANNER -->
+<div id="chiusa-banner">
+  <div class="chiusa-text">✅ Valutazione chiusa</div>
+  <div class="chiusa-actions">
+    <button class="btn-chiusa-action" onclick="riapriBozza()">Riapri bozza</button>
+    <button class="btn-chiusa-action btn-chiusa-back" onclick="backToPaziente()">← Cartella</button>
   </div>
+</div>
 
-  <script>
-    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
-    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-    const params = new URLSearchParams(window.location.search)
-    const patientId = params.get('id')
-    let patient = null
+<!-- MAIN CONTENT -->
+<div id="main-content">
 
-    async function init() {
-      if (!patientId) { window.location.href = 'dashboard.html'; return }
-      const { data: { session } } = await _supabase.auth.getSession()
-      if (!session) { window.location.href = 'login.html'; return }
+  <!-- A: OSSERVAZIONE INIZIALE -->
+  <section class="vp-section">
+    <div class="vp-sec-title"><span class="vp-sec-badge">A</span> Osservazione iniziale</div>
+    <div class="chip-label">Elementi rilevati — tocca per aggiungere alle note</div>
+    <div class="chip-row">
+      <span class="chip append-chip" onclick="appendObs('Iperlordosi lombare')">Iperlordosi lombare</span>
+      <span class="chip append-chip" onclick="appendObs('Cifosi dorsale')">Cifosi dorsale</span>
+      <span class="chip append-chip" onclick="appendObs('Antepulsione capo')">Antepulsione capo</span>
+      <span class="chip append-chip" onclick="appendObs('Spalla dx alta')">Spalla dx alta</span>
+      <span class="chip append-chip" onclick="appendObs('Spalla sx alta')">Spalla sx alta</span>
+      <span class="chip append-chip" onclick="appendObs('Asimmetria bacino')">Asimmetria bacino</span>
+      <span class="chip append-chip" onclick="appendObs('Protrazione spalle')">Protrazione spalle</span>
+      <span class="chip append-chip" onclick="appendObs('Atteggiamento scoliotico')">Atteggiamento scoliotico</span>
+    </div>
+    <textarea class="vp-textarea" id="f-note-osservazionali" rows="4"
+      placeholder="Note osservazionali libere…" oninput="scheduleSave()"></textarea>
+  </section>
 
-      const { data, error } = await _supabase.from('patients').select('id,nome,cognome,problema_principale,configurazione').eq('id', patientId).maybeSingle()
-      if (error || !data) {
-        document.getElementById('vp-loading').style.display = 'none'
-        document.getElementById('vp-error').style.display = 'block'
-        return
+  <!-- B: FOTO POSTURALI -->
+  <section class="vp-section">
+    <div class="vp-sec-title"><span class="vp-sec-badge">B</span> Foto posturali</div>
+    <div class="photo-grid" id="photo-grid"><!-- built by JS --></div>
+    <input type="file" id="photo-file-input" accept="image/*" capture="environment"
+      style="display:none" onchange="onPhotoFileSelected(event)">
+  </section>
+
+  <!-- B.1: PIANO SCAPOLARE (conditional) -->
+  <section class="vp-section" id="sec-b1" style="display:none">
+    <div class="vp-sec-title"><span class="vp-sec-badge">B.1</span> Piano scapolare 3R</div>
+
+    <div class="chip-label">PRE — prima delle 3 Rotazioni</div>
+    <div class="chip-row">
+      <span class="chip append-chip" onclick="appendScap('pre','Alare')">Alare</span>
+      <span class="chip append-chip" onclick="appendScap('pre','Elevata')">Elevata</span>
+      <span class="chip append-chip" onclick="appendScap('pre','Depressa')">Depressa</span>
+      <span class="chip append-chip" onclick="appendScap('pre','Simmetrica')">Simmetrica</span>
+      <span class="chip append-chip" onclick="appendScap('pre','Asimmetrica')">Asimmetrica</span>
+    </div>
+    <textarea class="vp-textarea" id="f-note-scapolare-pre" rows="3"
+      placeholder="Descrizione scapola PRE 3R…" oninput="scheduleSave()"></textarea>
+
+    <hr class="vp-divider">
+
+    <div class="chip-label">POST — dopo le 3 Rotazioni</div>
+    <div class="chip-row">
+      <span class="chip append-chip" onclick="appendScap('post','Alare')">Alare</span>
+      <span class="chip append-chip" onclick="appendScap('post','Elevata')">Elevata</span>
+      <span class="chip append-chip" onclick="appendScap('post','Depressa')">Depressa</span>
+      <span class="chip append-chip" onclick="appendScap('post','Simmetrica')">Simmetrica</span>
+      <span class="chip append-chip" onclick="appendScap('post','Asimmetrica')">Asimmetrica</span>
+    </div>
+    <textarea class="vp-textarea" id="f-note-scapolare-post" rows="3"
+      placeholder="Descrizione scapola POST 3R…" oninput="scheduleSave()"></textarea>
+  </section>
+
+  <!-- C: FOTO LIBERE -->
+  <section class="vp-section">
+    <div class="vp-sec-title"><span class="vp-sec-badge">C</span> Foto libere</div>
+    <div class="foto-lib-list" id="foto-lib-list"><!-- built by JS --></div>
+    <button class="btn-add-foto" id="btn-add-foto-lib" onclick="showFotoLiberaModal()">
+      + Aggiungi foto libera <span id="foto-lib-counter" style="opacity:.6">(0/5)</span>
+    </button>
+  </section>
+
+  <!-- D: VALUTAZIONE PIEDE -->
+  <section class="vp-section">
+    <div class="vp-sec-title"><span class="vp-sec-badge">D</span> Valutazione del piede</div>
+
+    <div class="chip-label">Arco plantare</div>
+    <div class="chip-row">
+      <span class="chip" data-g="arco" data-v="piatto"  onclick="setExcl('arco','piatto')">Piatto</span>
+      <span class="chip" data-g="arco" data-v="cavo"    onclick="setExcl('arco','cavo')">Cavo</span>
+      <span class="chip" data-g="arco" data-v="normale" onclick="setExcl('arco','normale')">Normale</span>
+    </div>
+
+    <div class="chip-label" style="margin-top:10px">Assetto podalico</div>
+    <div class="chip-row">
+      <span class="chip" data-g="assetto" data-v="valgo"   onclick="setExcl('assetto','valgo')">Valgo</span>
+      <span class="chip" data-g="assetto" data-v="varo"    onclick="setExcl('assetto','varo')">Varo</span>
+      <span class="chip" data-g="assetto" data-v="normale" onclick="setExcl('assetto','normale')">Normale</span>
+      <span class="chip" data-g="assetto" data-v="misto"   onclick="setExcl('assetto','misto')">Misto</span>
+    </div>
+
+    <hr class="vp-divider">
+
+    <div class="vp-sec-title" style="font-size:12px; margin-bottom:10px; text-transform:none; letter-spacing:0">
+      Test monopodalico di equilibrio
+      <button class="vp-sec-info-btn" onclick="showMonoInfo()">ℹ️</button>
+    </div>
+
+    <div class="chip-label">Destro (DX)</div>
+    <div class="chip-row">
+      <span class="chip" data-g="mono-dx" data-v="inversione" onclick="setExcl('mono-dx','inversione')">Inversione</span>
+      <span class="chip" data-g="mono-dx" data-v="eversione"  onclick="setExcl('mono-dx','eversione')">Eversione</span>
+      <span class="chip" data-g="mono-dx" data-v="neutro"     onclick="setExcl('mono-dx','neutro')">Neutro</span>
+    </div>
+
+    <div class="chip-label" style="margin-top:10px">Sinistro (SX)</div>
+    <div class="chip-row">
+      <span class="chip" data-g="mono-sx" data-v="inversione" onclick="setExcl('mono-sx','inversione')">Inversione</span>
+      <span class="chip" data-g="mono-sx" data-v="eversione"  onclick="setExcl('mono-sx','eversione')">Eversione</span>
+      <span class="chip" data-g="mono-sx" data-v="neutro"     onclick="setExcl('mono-sx','neutro')">Neutro</span>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="chip-label">Note monopodalico</div>
+      <textarea class="vp-textarea" id="f-monopodalico-note" rows="3"
+        placeholder="Osservazioni aggiuntive…" oninput="scheduleSave()"></textarea>
+    </div>
+  </section>
+
+  <!-- E: CONCLUSIONI -->
+  <section class="vp-section">
+    <div class="vp-sec-title"><span class="vp-sec-badge">E</span> Conclusioni</div>
+
+    <div class="chip-label">Configurazione suggerita</div>
+    <div class="config-row">
+      <div class="config-card" id="cfg-npl" onclick="setConfig('NPL')">
+        <div class="config-card-label">NPL</div>
+        <div class="config-card-desc">Neutra Posteriore Lombare — catena crociera</div>
+      </div>
+      <div class="config-card" id="cfg-gpl" onclick="setConfig('GPL')">
+        <div class="config-card-label">GPL</div>
+        <div class="config-card-desc">Grande Piede Laterale — catena omolaterale</div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="chip-label">Note conclusive</div>
+      <textarea class="vp-textarea" id="f-note-finali" rows="4"
+        placeholder="Sintesi clinica, raccomandazioni, piano di trattamento…" oninput="scheduleSave()"></textarea>
+    </div>
+  </section>
+
+</div><!-- /main-content -->
+
+<!-- BOTTOM BAR -->
+<div id="bottom-bar">
+  <button class="btn-salva" onclick="manualSave()">💾 Salva bozza</button>
+  <button class="btn-chiudi-bar" id="btn-chiudi-bar" onclick="showConfermaChiudi()" disabled>🔒 Chiudi</button>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox" onclick="closeLightbox()">
+  <button id="lightbox-close" onclick="event.stopPropagation();closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="foto posturale">
+</div>
+
+<!-- MODAL: INFO MONOPODALICO -->
+<div class="modal-overlay modal-center" id="modal-mono-info" onclick="closeMonoInfo()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeMonoInfo()">✕</button>
+    <div class="modal-title">Test monopodalico di equilibrio</div>
+    <p style="font-size:12px;color:#555;margin-bottom:14px;line-height:1.6">
+      Il paziente rimane in appoggio monopodalico per 5–10 secondi. Osservare l'adattamento del piede, del ginocchio e del bacino durante la fase di carico.
+    </p>
+    <div style="text-align:center;margin:14px 0">
+      <svg width="240" height="80" viewBox="0 0 240 80" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(8,8)">
+          <rect x="16" y="4" width="16" height="44" rx="7" fill="#e53935"/>
+          <ellipse cx="24" cy="54" rx="22" ry="9" fill="#ffebee" stroke="#e53935" stroke-width="1.5"/>
+          <text x="24" y="72" text-anchor="middle" font-size="10" fill="#e53935" font-weight="700" font-family="sans-serif">Inversione</text>
+          <text x="24" y="4" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">↗ bordo lat.</text>
+        </g>
+        <g transform="translate(88,8)">
+          <rect x="16" y="4" width="16" height="44" rx="7" fill="#2e7d32"/>
+          <ellipse cx="24" cy="54" rx="22" ry="9" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+          <text x="24" y="72" text-anchor="middle" font-size="10" fill="#2e7d32" font-weight="700" font-family="sans-serif">Neutro</text>
+          <text x="24" y="4" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">↕ centrato</text>
+        </g>
+        <g transform="translate(168,8)">
+          <rect x="16" y="4" width="16" height="44" rx="7" fill="#e65100"/>
+          <ellipse cx="24" cy="54" rx="22" ry="9" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+          <text x="24" y="72" text-anchor="middle" font-size="10" fill="#e65100" font-weight="700" font-family="sans-serif">Eversione</text>
+          <text x="24" y="4" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">↖ bordo med.</text>
+        </g>
+      </svg>
+    </div>
+    <div class="mono-info-item">
+      <div class="mono-info-term">🔴 Inversione — catena crociera (C-)</div>
+      <div class="mono-info-desc">Piede supina, carico sul bordo laterale, possibile adduzione dell'anca. Indica dominanza della catena crociera. Correlata alla configurazione NPL.</div>
+    </div>
+    <div class="mono-info-item">
+      <div class="mono-info-term">🟢 Neutro</div>
+      <div class="mono-info-desc">Asse podalico centrato, equilibrio stabile. Non indica predominanza di catena. Valutare altri parametri per la configurazione.</div>
+    </div>
+    <div class="mono-info-item">
+      <div class="mono-info-term">🟠 Eversione — catena omolaterale (C+)</div>
+      <div class="mono-info-desc">Piede prona, ginocchio in valgo, carico sul bordo mediale. Indica dominanza della catena omolaterale. Correlata alla configurazione GPL.</div>
+    </div>
+    <button class="modal-btn-secondary" style="margin-top:16px" onclick="closeMonoInfo()">Chiudi</button>
+  </div>
+</div>
+
+<!-- MODAL: FOTO LIBERA -->
+<div class="modal-overlay" id="modal-foto-lib" onclick="closeFotoLiberaModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeFotoLiberaModal()">✕</button>
+    <div class="modal-title">Aggiungi foto libera</div>
+
+    <div class="modal-field-label">Titolo (opzionale)</div>
+    <input type="text" class="modal-input" id="fl-titolo" placeholder="Es. Appoggio plantare sx">
+
+    <div class="modal-field-label">Descrizione (opzionale)</div>
+    <textarea class="modal-textarea" id="fl-desc" rows="3" placeholder="Note sulla foto…"></textarea>
+
+    <div class="modal-field-label">Foto</div>
+    <img id="fl-upload-preview" src="" alt="">
+    <div class="modal-upload-area" id="fl-upload-area" onclick="document.getElementById('fl-file-input').click()">
+      📷 Tocca per scattare o scegli dalla galleria
+    </div>
+    <input type="file" id="fl-file-input" accept="image/*" capture="environment"
+      style="display:none" onchange="onFotoLiberaFileSelected(event)">
+
+    <button class="modal-btn-primary" id="fl-save-btn" onclick="saveFotoLibera()" disabled>Aggiungi foto</button>
+    <button class="modal-btn-secondary" onclick="closeFotoLiberaModal()">Annulla</button>
+  </div>
+</div>
+
+<!-- MODAL: CONFERMA CHIUDI -->
+<div class="modal-overlay modal-center" id="modal-chiudi" onclick="closeConfermaChiudi()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">Chiudi valutazione?</div>
+    <p style="font-size:13px;color:#555;margin-bottom:20px;line-height:1.5">
+      Una volta chiusa, la valutazione non sarà più modificabile. Puoi riaprirla come bozza in qualsiasi momento.
+    </p>
+    <button class="modal-btn-primary" onclick="confirmChiudi()">🔒 Chiudi definitivamente</button>
+    <button class="modal-btn-secondary" onclick="closeConfermaChiudi()">Annulla</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script src="console-nav.js"></script>
+<script>
+  const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+  const PHOTO_SLOTS = [
+    { tipo: 'sagittale_dx',         label: 'Sagittale dx',        ordine: 0 },
+    { tipo: 'sagittale_sx',         label: 'Sagittale sx',        ordine: 1 },
+    { tipo: 'frontale',             label: 'Frontale',            ordine: 2 },
+    { tipo: 'posteriore',           label: 'Posteriore',          ordine: 3 },
+    { tipo: 'podoscopio_sotto',     label: 'Podoscopio (sotto)',   ordine: 4 },
+    { tipo: 'podoscopio_dietro',    label: 'Podoscopio (dietro)', ordine: 5 },
+    { tipo: 'piano_scapolare_pre',  label: 'Scapolare PRE 3R',    ordine: 6 },
+    { tipo: 'piano_scapolare_post', label: 'Scapolare POST 3R',   ordine: 7 },
+  ]
+
+  const urlParams    = new URLSearchParams(location.search)
+  let   visitId      = urlParams.get('id')
+  const pidParam     = urlParams.get('pid')
+
+  let patientId      = null
+  let professionalId = null
+  let isChiusa       = false
+  let saveTimer      = null
+  let isSaving       = false
+  let chipState      = {}
+  let configSug      = null
+  let photos         = {}
+  let fotoLibere     = []
+  let flPendingFile  = null
+  let activeSlotTipo = null
+
+  // ── INIT ────────────────────────────────────────────────────
+  async function init() {
+    const { data: { session } } = await _sb.auth.getSession()
+    if (!session) { window.location.href = 'index.html'; return }
+    professionalId = session.user.id
+
+    if (!visitId && !pidParam) {
+      window.location.href = 'dashboard.html'; return
+    }
+
+    buildPhotoGrid()
+
+    if (pidParam && !visitId) {
+      await createVisit()
+    } else {
+      await loadVisit()
+    }
+  }
+
+  // ── CREATE VISIT ─────────────────────────────────────────────
+  async function createVisit() {
+    const { data: nv, error } = await _sb
+      .from('visits')
+      .insert({ patient_id: pidParam, professional_id: professionalId, tipo: 'posturale', stato: 'bozza' })
+      .select('id')
+      .maybeSingle()
+    if (error || !nv) { showToast('Errore creazione visita: ' + (error?.message || '')); return }
+    visitId = nv.id
+    window.history.replaceState({}, '', 'valutazione-posturale.html?id=' + visitId)
+    await loadVisit()
+  }
+
+  // ── LOAD VISIT ───────────────────────────────────────────────
+  async function loadVisit() {
+    const { data: v, error } = await _sb
+      .from('visits')
+      .select('*')
+      .eq('id', visitId)
+      .maybeSingle()
+    if (error || !v) { showToast('Visita non trovata'); return }
+
+    patientId = v.patient_id
+    isChiusa  = v.stato === 'chiusa'
+
+    const { data: pat } = await _sb
+      .from('patients')
+      .select('nome, cognome')
+      .eq('id', patientId)
+      .maybeSingle()
+    if (pat) {
+      document.getElementById('hdr-patient-name').textContent =
+        ((pat.nome || '') + ' ' + (pat.cognome || '')).trim() || '—'
+    }
+
+    const dateEl = document.getElementById('hdr-date-input')
+    dateEl.value = v.data_visita ? v.data_visita.substring(0, 10) : new Date().toISOString().substring(0, 10)
+
+    if (v.arco_plantare)        restoreExcl('arco',    v.arco_plantare)
+    if (v.assetto_podalico)     restoreExcl('assetto', v.assetto_podalico)
+    if (v.monopodalico_dx)      restoreExcl('mono-dx', v.monopodalico_dx)
+    if (v.monopodalico_sx)      restoreExcl('mono-sx', v.monopodalico_sx)
+    if (v.configurazione_suggerita) setConfig(v.configurazione_suggerita, false)
+
+    fSet('f-note-osservazionali', v.note_osservazionali)
+    fSet('f-note-scapolare-pre',  v.note_scapolare_pre)
+    fSet('f-note-scapolare-post', v.note_scapolare_post)
+    fSet('f-monopodalico-note',   v.monopodalico_note)
+    fSet('f-note-finali',         v.note_finali)
+
+    await loadPhotos()
+    updateChiudiBtn()
+
+    if (isChiusa) applyChiusaState()
+    setIndicator('saved', '')
+  }
+
+  function fSet(id, val) {
+    const el = document.getElementById(id)
+    if (el && val) el.value = val
+  }
+
+  // ── PHOTOS ──────────────────────────────────────────────────
+  async function loadPhotos() {
+    if (!visitId) return
+    const { data, error } = await _sb
+      .from('visit_photos')
+      .select('*')
+      .eq('visit_id', visitId)
+      .order('ordine')
+    if (error || !data) return
+
+    photos    = {}
+    fotoLibere = []
+    data.forEach(p => {
+      if (p.tipo === 'libera') fotoLibere.push(p)
+      else photos[p.tipo] = p
+    })
+
+    PHOTO_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
+    renderFotoLibere()
+    updateScapolareVisibility()
+  }
+
+  function buildPhotoGrid() {
+    const grid = document.getElementById('photo-grid')
+    grid.innerHTML = ''
+    PHOTO_SLOTS.forEach(slot => {
+      const div = document.createElement('div')
+      div.className = 'photo-slot'
+      div.id = 'slot-' + slot.tipo
+      div.dataset.tipo = slot.tipo
+      div.onclick = () => onSlotClick(slot.tipo)
+      div.innerHTML =
+        '<div class="photo-slot-icon">📷</div>' +
+        '<div class="photo-slot-label">' + slot.label + '</div>'
+      grid.appendChild(div)
+    })
+  }
+
+  function updatePhotoSlot(tipo) {
+    const slot = document.getElementById('slot-' + tipo)
+    if (!slot) return
+    const p     = photos[tipo]
+    const label = PHOTO_SLOTS.find(s => s.tipo === tipo)?.label || tipo
+    if (p) {
+      slot.className = 'photo-slot filled'
+      slot.onclick   = null
+      slot.innerHTML =
+        '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '">' +
+        '<div class="photo-slot-label-filled">' + label + '</div>' +
+        '<div class="photo-slot-overlay">' +
+          '<button class="slot-btn slot-btn-del" onclick="event.stopPropagation();removePhoto(\'' + tipo + '\')">🗑</button>' +
+          '<button class="slot-btn slot-btn-view" onclick="event.stopPropagation();showLightbox(\'' + p.url_pubblico + '\')">🔍</button>' +
+        '</div>'
+    } else {
+      slot.className = 'photo-slot'
+      slot.onclick   = () => onSlotClick(tipo)
+      slot.innerHTML =
+        '<div class="photo-slot-icon">📷</div>' +
+        '<div class="photo-slot-label">' + label + '</div>'
+    }
+  }
+
+  function onSlotClick(tipo) {
+    if (isChiusa) return
+    activeSlotTipo = tipo
+    const inp = document.getElementById('photo-file-input')
+    inp.value = ''
+    inp.click()
+  }
+
+  async function onPhotoFileSelected(event) {
+    const file = event.target.files[0]
+    if (!file || !activeSlotTipo) return
+    const tipo = activeSlotTipo
+    activeSlotTipo = null
+    setIndicator('saving', '')
+    try {
+      const blob = await compressImage(file)
+      const path = 'visits/' + visitId + '/' + tipo + '_' + Date.now() + '.jpg'
+      const { error: upErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+      if (upErr) { showToast('Errore upload: ' + upErr.message); setIndicator('error', ''); return }
+
+      const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
+      const pubUrl = urlData.publicUrl
+
+      if (photos[tipo]?.storage_path) {
+        await _sb.storage.from('clinical-docs').remove([photos[tipo].storage_path])
       }
-      patient = data
-      renderHeader()
-      document.getElementById('vp-loading').style.display = 'none'
-      document.getElementById('vp-patient-bar').style.display = 'flex'
-      document.getElementById('vp-main').style.display = 'block'
+
+      const ordine = PHOTO_SLOTS.find(s => s.tipo === tipo)?.ordine ?? 99
+      const upsertData = { visit_id: visitId, tipo, storage_path: path, url_pubblico: pubUrl, ordine }
+      if (photos[tipo]?.id) upsertData.id = photos[tipo].id
+
+      const { data: saved, error: dbErr } = await _sb.from('visit_photos')
+        .upsert(upsertData, { onConflict: 'id' })
+        .select().maybeSingle()
+      if (dbErr) { showToast('Errore salvataggio foto'); setIndicator('error', ''); return }
+
+      photos[tipo] = saved || { storage_path: path, url_pubblico: pubUrl }
+      updatePhotoSlot(tipo)
+      updateScapolareVisibility()
+      setIndicator('saved', '')
+    } catch (e) {
+      showToast('Errore: ' + e.message)
+      setIndicator('error', '')
     }
+  }
 
-    function renderHeader() {
-      const nome = (patient.nome || '') + ' ' + (patient.cognome || '')
-      const initials = ((patient.nome || '?')[0] + (patient.cognome || '?')[0]).toUpperCase()
-      document.getElementById('vp-nome').textContent = nome.trim()
-      document.getElementById('vp-sub').textContent = patient.problema_principale || '—'
-      document.getElementById('vp-avatar').textContent = initials
-      document.title = 'Valutazione Posturale — ' + nome.trim()
+  async function removePhoto(tipo) {
+    if (isChiusa) return
+    const p = photos[tipo]
+    if (!p) return
+    if (p.storage_path) await _sb.storage.from('clinical-docs').remove([p.storage_path])
+    if (p.id)           await _sb.from('visit_photos').delete().eq('id', p.id)
+    delete photos[tipo]
+    updatePhotoSlot(tipo)
+    updateScapolareVisibility()
+  }
 
-      if (patient.configurazione) {
-        const isNPL = patient.configurazione.toLowerCase() === 'npl'
-        const badge = document.getElementById('vp-config-badge')
-        badge.innerHTML = '<span class="' + (isNPL ? 'badge-npl' : 'badge-gpl') + '" style="border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700">' + patient.configurazione.toUpperCase() + '</span>'
+  function updateScapolareVisibility() {
+    const has = photos['piano_scapolare_pre'] || photos['piano_scapolare_post']
+    document.getElementById('sec-b1').style.display = has ? 'block' : 'none'
+  }
+
+  // ── FOTO LIBERE ──────────────────────────────────────────────
+  function renderFotoLibere() {
+    const list    = document.getElementById('foto-lib-list')
+    const counter = document.getElementById('foto-lib-counter')
+    const btnAdd  = document.getElementById('btn-add-foto-lib')
+    list.innerHTML = ''
+    fotoLibere.forEach(p => {
+      const div = document.createElement('div')
+      div.className = 'foto-lib-item'
+      div.innerHTML =
+        '<img class="foto-lib-thumb" src="' + p.url_pubblico + '" alt="" onclick="showLightbox(\'' + p.url_pubblico + '\')">' +
+        '<div class="foto-lib-info">' +
+          '<div class="foto-lib-titolo">' + (p.titolo || 'Foto libera') + '</div>' +
+          '<div class="foto-lib-desc">' + (p.descrizione || '') + '</div>' +
+        '</div>' +
+        '<button class="foto-lib-del" onclick="removeFotoLibera(\'' + p.id + '\',\'' + (p.storage_path || '') + '\')">🗑</button>'
+      list.appendChild(div)
+    })
+    counter.textContent = '(' + fotoLibere.length + '/5)'
+    btnAdd.disabled     = isChiusa || fotoLibere.length >= 5
+  }
+
+  function showFotoLiberaModal() {
+    if (isChiusa || fotoLibere.length >= 5) return
+    document.getElementById('fl-titolo').value = ''
+    document.getElementById('fl-desc').value   = ''
+    document.getElementById('fl-file-input').value = ''
+    const prev = document.getElementById('fl-upload-preview')
+    prev.style.display = 'none'; prev.src = ''
+    document.getElementById('fl-upload-area').style.display = 'block'
+    document.getElementById('fl-save-btn').disabled = true
+    flPendingFile = null
+    document.getElementById('modal-foto-lib').classList.add('open')
+  }
+
+  function closeFotoLiberaModal() {
+    document.getElementById('modal-foto-lib').classList.remove('open')
+    flPendingFile = null
+  }
+
+  function onFotoLiberaFileSelected(event) {
+    const file = event.target.files[0]
+    if (!file) return
+    flPendingFile = file
+    const reader  = new FileReader()
+    reader.onload = e => {
+      const prev = document.getElementById('fl-upload-preview')
+      prev.src   = e.target.result
+      prev.style.display = 'block'
+      document.getElementById('fl-upload-area').style.display = 'none'
+      document.getElementById('fl-save-btn').disabled = false
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function saveFotoLibera() {
+    if (!flPendingFile) return
+    const btn = document.getElementById('fl-save-btn')
+    btn.disabled    = true
+    btn.textContent = 'Caricamento…'
+    try {
+      const blob = await compressImage(flPendingFile)
+      const path = 'visits/' + visitId + '/libera_' + Date.now() + '.jpg'
+      const { error: upErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg' })
+      if (upErr) { showToast('Errore upload'); btn.disabled = false; btn.textContent = 'Aggiungi foto'; return }
+
+      const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
+      const titolo     = document.getElementById('fl-titolo').value.trim() || null
+      const descrizione = document.getElementById('fl-desc').value.trim() || null
+
+      const { data: np, error: dbErr } = await _sb.from('visit_photos')
+        .insert({ visit_id: visitId, tipo: 'libera', storage_path: path, url_pubblico: urlData.publicUrl, ordine: 99, titolo, descrizione })
+        .select().maybeSingle()
+      if (dbErr || !np) { showToast('Errore salvataggio'); btn.disabled = false; btn.textContent = 'Aggiungi foto'; return }
+
+      fotoLibere.push(np)
+      closeFotoLiberaModal()
+      renderFotoLibere()
+    } catch (e) {
+      showToast('Errore: ' + e.message)
+      btn.disabled    = false
+      btn.textContent = 'Aggiungi foto'
+    }
+  }
+
+  async function removeFotoLibera(id, storagePath) {
+    if (isChiusa) return
+    if (storagePath) await _sb.storage.from('clinical-docs').remove([storagePath])
+    await _sb.from('visit_photos').delete().eq('id', id)
+    fotoLibere = fotoLibere.filter(p => String(p.id) !== String(id))
+    renderFotoLibere()
+  }
+
+  // ── CHIPS ────────────────────────────────────────────────────
+  function setExcl(group, val) {
+    if (isChiusa) return
+    chipState[group] = chipState[group] === val ? null : val
+    document.querySelectorAll('[data-g="' + group + '"]').forEach(c => {
+      c.classList.toggle('active', c.dataset.v === chipState[group])
+    })
+    scheduleSave()
+  }
+
+  function restoreExcl(group, val) {
+    chipState[group] = val
+    document.querySelectorAll('[data-g="' + group + '"]').forEach(c => {
+      c.classList.toggle('active', c.dataset.v === val)
+    })
+  }
+
+  function setConfig(val, doSave) {
+    if (isChiusa) return
+    configSug = configSug === val ? null : val
+    document.getElementById('cfg-npl').classList.toggle('active', configSug === 'NPL')
+    document.getElementById('cfg-gpl').classList.toggle('active', configSug === 'GPL')
+    if (doSave !== false) scheduleSave()
+  }
+
+  function appendObs(text) {
+    if (isChiusa) return
+    const el = document.getElementById('f-note-osservazionali')
+    el.value = el.value ? el.value + ', ' + text : text
+    scheduleSave()
+  }
+
+  function appendScap(side, text) {
+    if (isChiusa) return
+    const id = side === 'pre' ? 'f-note-scapolare-pre' : 'f-note-scapolare-post'
+    const el = document.getElementById(id)
+    el.value = el.value ? el.value + ', ' + text : text
+    scheduleSave()
+  }
+
+  // ── AUTOSAVE ─────────────────────────────────────────────────
+  function scheduleSave() {
+    if (isChiusa) return
+    setIndicator('pending', '')
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(actualSave, 2000)
+  }
+
+  function manualSave() {
+    clearTimeout(saveTimer)
+    actualSave()
+  }
+
+  async function actualSave() {
+    if (isChiusa || !visitId || isSaving) return
+    isSaving = true
+    setIndicator('saving', '')
+    const payload = collectFormData()
+    const { error } = await _sb.from('visits').update(payload).eq('id', visitId)
+    isSaving = false
+    if (error) {
+      setIndicator('error', error.message)
+    } else {
+      const t = new Date()
+      const hhmm = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0')
+      setIndicator('saved', hhmm)
+      updateChiudiBtn()
+    }
+  }
+
+  function collectFormData() {
+    return {
+      data_visita:              document.getElementById('hdr-date-input').value || null,
+      note_osservazionali:      document.getElementById('f-note-osservazionali').value.trim() || null,
+      note_scapolare_pre:       document.getElementById('f-note-scapolare-pre').value.trim()  || null,
+      note_scapolare_post:      document.getElementById('f-note-scapolare-post').value.trim() || null,
+      arco_plantare:            chipState['arco']    || null,
+      assetto_podalico:         chipState['assetto'] || null,
+      monopodalico_dx:          chipState['mono-dx'] || null,
+      monopodalico_sx:          chipState['mono-sx'] || null,
+      monopodalico_note:        document.getElementById('f-monopodalico-note').value.trim() || null,
+      configurazione_suggerita: configSug || null,
+      note_finali:              document.getElementById('f-note-finali').value.trim() || null,
+    }
+  }
+
+  function updateChiudiBtn() {
+    const hasData = Object.keys(photos).length > 0
+      || chipState['arco'] || configSug
+      || (document.getElementById('f-note-osservazionali').value || '').trim()
+    const dis = !hasData
+    document.getElementById('btn-chiudi-hdr').disabled = dis
+    document.getElementById('btn-chiudi-bar').disabled = dis
+  }
+
+  // ── CHIUDI / RIAPRI ──────────────────────────────────────────
+  function showConfermaChiudi() {
+    document.getElementById('modal-chiudi').classList.add('open')
+  }
+  function closeConfermaChiudi() {
+    document.getElementById('modal-chiudi').classList.remove('open')
+  }
+
+  async function confirmChiudi() {
+    closeConfermaChiudi()
+    clearTimeout(saveTimer)
+    await actualSave()
+    const { error } = await _sb.from('visits').update({ stato: 'chiusa' }).eq('id', visitId)
+    if (error) { showToast('Errore chiusura'); return }
+    isChiusa = true
+    applyChiusaState()
+  }
+
+  async function riapriBozza() {
+    const { error } = await _sb.from('visits').update({ stato: 'bozza' }).eq('id', visitId)
+    if (error) { showToast('Errore riapertura'); return }
+    isChiusa = false
+    document.getElementById('chiusa-banner').style.display = 'none'
+    document.getElementById('main-content').classList.remove('with-banner')
+    document.body.classList.remove('is-chiusa')
+    document.getElementById('btn-chiudi-hdr').disabled = false
+    document.getElementById('f-note-osservazionali').disabled = false
+    document.getElementById('f-note-scapolare-pre').disabled  = false
+    document.getElementById('f-note-scapolare-post').disabled = false
+    document.getElementById('f-monopodalico-note').disabled   = false
+    document.getElementById('f-note-finali').disabled         = false
+    document.getElementById('hdr-date-input').disabled        = false
+    document.getElementById('bottom-bar').style.display       = 'flex'
+    renderFotoLibere()
+  }
+
+  function applyChiusaState() {
+    document.getElementById('chiusa-banner').style.display = 'flex'
+    document.getElementById('main-content').classList.add('with-banner')
+    document.body.classList.add('is-chiusa')
+    document.getElementById('btn-chiudi-hdr').disabled        = true
+    document.getElementById('f-note-osservazionali').disabled = true
+    document.getElementById('f-note-scapolare-pre').disabled  = true
+    document.getElementById('f-note-scapolare-post').disabled = true
+    document.getElementById('f-monopodalico-note').disabled   = true
+    document.getElementById('f-note-finali').disabled         = true
+    document.getElementById('hdr-date-input').disabled        = true
+  }
+
+  // ── LIGHTBOX ─────────────────────────────────────────────────
+  function showLightbox(url) {
+    document.getElementById('lightbox-img').src = url
+    document.getElementById('lightbox').classList.add('open')
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open')
+  }
+
+  // ── MONO INFO ────────────────────────────────────────────────
+  function showMonoInfo() {
+    document.getElementById('modal-mono-info').classList.add('open')
+  }
+  function closeMonoInfo() {
+    document.getElementById('modal-mono-info').classList.remove('open')
+  }
+
+  // ── NAVIGATION ───────────────────────────────────────────────
+  function backToPaziente() {
+    window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
+  }
+
+  // ── INDICATOR ────────────────────────────────────────────────
+  function setIndicator(state, msg) {
+    const el = document.getElementById('hdr-indicator')
+    if      (state === 'saved')   el.textContent = msg ? '💾 ' + msg : '💾 Salvato'
+    else if (state === 'saving')  el.textContent = '🔄 Salvataggio…'
+    else if (state === 'pending') el.textContent = '✏️ Modificato'
+    else if (state === 'error')   el.textContent = '✗ Errore salvataggio'
+    else el.textContent = ''
+  }
+
+  // ── TOAST ────────────────────────────────────────────────────
+  let toastTimer = null
+  function showToast(msg) {
+    const el = document.getElementById('toast')
+    el.textContent = msg
+    el.classList.add('show')
+    clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3000)
+  }
+
+  // ── IMAGE COMPRESSION ────────────────────────────────────────
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        const MAX = 1600
+        let w = img.width, h = img.height
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+          else       { w = Math.round(w * MAX / h); h = MAX }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.80)
       }
-    }
+      img.onerror = reject
+      img.src = url
+    })
+  }
 
-    function tornaAlPaziente() {
-      window.location.href = 'paziente.html?id=' + patientId
-    }
+  // ── KEYBOARD ─────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return
+    closeLightbox()
+    closeMonoInfo()
+    closeFotoLiberaModal()
+    closeConfermaChiudi()
+  })
 
-    function apriInPaziente(section) {
-      const map = { foto: '', osservazioni: '', ai: '', config: '' }
-      window.location.href = 'paziente.html?id=' + patientId
-    }
-
-    function apriProtocollo() {
-      window.location.href = 'assegna-protocollo.html?id=' + patientId
-    }
-
-    init()
-  </script>
+  init()
+</script>
 </body>
 </html>
