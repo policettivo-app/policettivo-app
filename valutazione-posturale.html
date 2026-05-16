@@ -61,9 +61,12 @@
     .vp-textarea:disabled { background: #f8f8f8; color: #888; }
 
     /* ── PHOTO GRID ─────────────────────────────────────────── */
-    .photo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-    .photo-group-label { grid-column: 1 / -1; font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .4px; padding: 6px 0 2px; border-top: 1.5px solid #f0f0f0; margin-top: 4px; }
-    .photo-group-label:first-child { border-top: none; margin-top: 0; }
+    .photo-grid { display: flex; flex-direction: column; gap: 16px; }
+    .photo-section { display: flex; flex-direction: column; gap: 6px; }
+    .photo-group-label { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .4px; padding: 6px 0 2px; border-top: 1.5px solid #f0f0f0; }
+    .photo-section:first-child .photo-group-label { border-top: none; padding-top: 0; }
+    .photo-pagination { display: none; }
+    .photo-carousel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .photo-slot-wrap { display: flex; flex-direction: column; gap: 4px; }
     .photo-slot { border: 2px dashed #ddd; border-radius: 8px; aspect-ratio: 2/3; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; background: #fafafa; transition: border-color .2s; }
     .photo-slot:hover { border-color: #FFD008; }
@@ -73,8 +76,47 @@
     .photo-slot-icon { font-size: 20px; }
     .photo-slot-actions { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.65); display: flex; justify-content: space-around; padding: 4px 2px; border-radius: 0 0 6px 6px; }
     .slot-btn { background: none; border: none; color: #fff; font-size: 14px; cursor: pointer; padding: 2px 4px; }
-    .photo-note-input { width: 100%; border: 1px solid #e0e0e0; border-radius: 5px; padding: 4px 6px; font-family: inherit; font-size: 11px; background: #fafafa; }
+    .photo-note-input { width: 100%; border: 1px solid #e0e0e0; border-radius: 5px; padding: 4px 6px; font-family: inherit; font-size: 11px; background: #fafafa; box-sizing: border-box; }
     .photo-note-input:focus { outline: none; border-color: #FFD008; }
+
+    /* ── RESPONSIVE MOBILE FOTO ─────────────────────────────── */
+    @media (max-width: 767px) {
+      .photo-group-label { font-size: 14px; padding: 8px 0 4px; }
+      .photo-pagination {
+        display: flex; justify-content: center; align-items: center;
+        gap: 8px; margin: 4px 0 8px; min-height: 16px;
+      }
+      .photo-pagination .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #ccc; transition: all .2s; flex-shrink: 0;
+      }
+      .photo-pagination .dot.active {
+        background: #000; width: 24px; border-radius: 4px;
+      }
+      .photo-carousel {
+        display: flex; flex-direction: row;
+        overflow-x: auto; scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        gap: 0; scrollbar-width: none;
+      }
+      .photo-carousel::-webkit-scrollbar { display: none; }
+      .photo-slot-wrap {
+        flex: 0 0 100%; scroll-snap-align: start;
+        padding-bottom: 12px;
+      }
+      .photo-slot { aspect-ratio: 2/3; width: 100%; }
+      .photo-slot-icon { font-size: 32px; }
+      .photo-slot-label { font-size: 13px; }
+      .slot-btn {
+        min-height: 44px; min-width: 44px; font-size: 18px;
+        padding: 0; display: flex; align-items: center; justify-content: center;
+      }
+      .photo-slot-actions { padding: 6px 4px; }
+      .photo-note-input {
+        font-size: 16px; padding: 10px 12px;
+        border: 2px solid #FFD008; border-radius: 8px; background: #fffef5;
+      }
+    }
 
     /* ── FOTO LIBERE ────────────────────────────────────────── */
     .foto-lib-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
@@ -569,26 +611,47 @@
     renderFotoLibere()
   }
 
-  // FIX 5: buildPhotoGrid con sezioni PRE/POST e 3 colonne
+  // buildPhotoGrid: sezioni PRE/POST — desktop 3 colonne, mobile carousel swipe
   function buildPhotoGrid() {
     const grid = document.getElementById('photo-grid')
     grid.innerHTML = ''
 
-    const addGroupLabel = (text) => {
+    const addSection = (group, labelText) => {
+      const slots = PHOTO_SLOTS.filter(s => s.group === group)
+
+      const section = document.createElement('div')
+      section.className = 'photo-section'
+
       const lbl = document.createElement('div')
       lbl.className = 'photo-group-label'
-      lbl.textContent = text
-      grid.appendChild(lbl)
+      lbl.textContent = labelText
+      section.appendChild(lbl)
+
+      const pagination = document.createElement('div')
+      pagination.className = 'photo-pagination'
+      pagination.id = 'pagination-' + group
+      slots.forEach((_, i) => {
+        const dot = document.createElement('span')
+        dot.className = 'dot' + (i === 0 ? ' active' : '')
+        pagination.appendChild(dot)
+      })
+      section.appendChild(pagination)
+
+      const carousel = document.createElement('div')
+      carousel.className = 'photo-carousel'
+      carousel.id = 'carousel-' + group
+      slots.forEach(s => addSlotToParent(carousel, s))
+      section.appendChild(carousel)
+
+      grid.appendChild(section)
+      initCarouselPagination(group)
     }
 
-    addGroupLabel('▶ PRE — Prima delle 3 Rotazioni')
-    PHOTO_SLOTS.filter(s => s.group === 'pre').forEach(s => addSlotToGrid(grid, s))
-
-    addGroupLabel('◀ POST — Dopo le 3 Rotazioni')
-    PHOTO_SLOTS.filter(s => s.group === 'post').forEach(s => addSlotToGrid(grid, s))
+    addSection('pre', '▶ PRE — Prima delle 3 Rotazioni')
+    addSection('post', '◀ POST — Dopo le 3 Rotazioni')
   }
 
-  function addSlotToGrid(grid, slot) {
+  function addSlotToParent(parent, slot) {
     const wrap = document.createElement('div')
     wrap.className = 'photo-slot-wrap'
     wrap.id = 'wrap-' + slot.tipo
@@ -600,13 +663,29 @@
     div.onclick = () => onSlotClick(slot.tipo)
 
     const noteDiv = document.createElement('div')
-    noteDiv.id    = 'note-row-' + slot.tipo
+    noteDiv.id = 'note-row-' + slot.tipo
     noteDiv.style.display = 'none'
-    noteDiv.innerHTML = '<input type="text" id="note-' + slot.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota breve…" oninput="scheduleNoteSave(\'' + slot.tipo + '\')">'
+    noteDiv.innerHTML = '<input type="text" id="note-' + slot.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota breve (es: scapola sx più alta, valgo dx…)" oninput="scheduleNoteSave(\'' + slot.tipo + '\')">'
 
     wrap.appendChild(div)
     wrap.appendChild(noteDiv)
-    grid.appendChild(wrap)
+    parent.appendChild(wrap)
+  }
+
+  function initCarouselPagination(group) {
+    const carousel = document.getElementById('carousel-' + group)
+    const pagination = document.getElementById('pagination-' + group)
+    if (!carousel || !pagination) return
+    const dots = pagination.querySelectorAll('.dot')
+    if (!dots.length) return
+    carousel.addEventListener('scroll', () => {
+      const slotWrap = carousel.querySelector('.photo-slot-wrap')
+      if (!slotWrap) return
+      const slotWidth = slotWrap.offsetWidth
+      if (!slotWidth) return
+      const idx = Math.min(Math.round(carousel.scrollLeft / slotWidth), dots.length - 1)
+      dots.forEach((d, i) => d.classList.toggle('active', i === idx))
+    }, { passive: true })
   }
 
   function updatePhotoSlot(tipo) {
