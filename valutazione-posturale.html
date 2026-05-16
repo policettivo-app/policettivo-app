@@ -232,6 +232,44 @@
     body.is-chiusa .chip { pointer-events: none; }
     body.is-chiusa .photo-slot:not(.filled) { pointer-events: none; opacity: .6; }
     body.is-chiusa .btn-add-foto { pointer-events: none; opacity: .5; }
+
+    /* ── UPLOAD MENU ─────────────────────────────────────────── */
+    #upload-menu-modal { display: none; position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,.55); align-items: flex-end; justify-content: center; }
+    #upload-menu-modal.open { display: flex; }
+    .um-card { background: #fff; width: 100%; max-width: 480px; border-radius: 16px 16px 0 0; padding: 20px 16px 44px; display: flex; flex-direction: column; gap: 10px; }
+    .um-title { font-size: 15px; font-weight: 800; margin: 0 0 6px; text-align: center; }
+    .um-btn { width: 100%; padding: 16px 14px; border-radius: 12px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; }
+    .um-btn-cam  { background: #000; color: #FFD008; border: 2px solid #000; }
+    .um-btn-file { background: #f5f5f5; color: #222; border: 2px solid #e0e0e0; }
+    .um-btn-cancel { background: transparent; color: #888; font-weight: 600; border: none; font-size: 14px; text-align: center; padding: 10px; }
+    .fl-photo-options { display: flex; gap: 8px; margin-bottom: 12px; }
+    .fl-photo-opt-btn { flex: 1; padding: 14px 8px; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; text-align: center; }
+    .fl-photo-opt-cam  { background: #000; color: #FFD008; border: 2px solid #000; }
+    .fl-photo-opt-file { background: #f5f5f5; color: #222; border: 2px solid #e0e0e0; }
+
+    /* ── WEBCAM MODAL ────────────────────────────────────────── */
+    #webcam-modal { display: none; position: fixed; inset: 0; z-index: 1000; background: #000; flex-direction: column; }
+    #webcam-modal.open { display: flex; }
+    #wc-topbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(0,0,0,.9); flex-shrink: 0; flex-wrap: wrap; }
+    .wc-btn { background: rgba(255,255,255,.12); border: 1.5px solid rgba(255,255,255,.25); color: #fff; font-family: inherit; font-size: 13px; font-weight: 700; border-radius: 8px; padding: 8px 14px; cursor: pointer; transition: background .15s; }
+    .wc-btn:active { background: rgba(255,255,255,.25); }
+    .wc-btn.active { background: #FFD008; color: #000; border-color: #FFD008; }
+    #wc-camera-btn { display: none; }
+    #wc-video-wrap { flex: 1; position: relative; overflow: hidden; background: #111; min-height: 200px; }
+    #wc-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #wc-video.mirrored { transform: scaleX(-1); }
+    #wc-grid-overlay { position: absolute; inset: 0; pointer-events: none; display: none;
+      background-image: linear-gradient(rgba(255,255,255,.25) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,.25) 1px, transparent 1px);
+      background-size: 33.33% 33.33%; }
+    #wc-grid-overlay.active { display: block; }
+    #wc-preview-img { display: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+    #wc-bottombar { background: rgba(0,0,0,.85); padding: 14px 16px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    #wc-shoot-row { display: flex; align-items: center; justify-content: center; }
+    #wc-shoot-btn { width: 72px; height: 72px; border-radius: 50%; background: #FFD008; color: #000; border: 4px solid #fff; font-size: 24px; cursor: pointer; box-shadow: 0 2px 12px rgba(255,208,8,.5); transition: transform .1s; }
+    #wc-shoot-btn:active { transform: scale(.93); }
+    #wc-confirm-row { display: none; gap: 10px; width: 100%; }
+    .wc-confirm-btn { flex: 1; padding: 14px; border: none; border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -473,11 +511,46 @@
     <textarea class="modal-textarea" id="fl-desc" rows="3" placeholder="Note sulla foto…"></textarea>
     <div class="modal-field-label">Foto</div>
     <img id="fl-upload-preview" src="" alt="">
-    <div class="modal-upload-area" id="fl-upload-area" onclick="document.getElementById('fl-file-input').click()">
-      📷 Tocca per scattare o scegli dalla galleria
+    <div id="fl-upload-area" class="fl-photo-options">
+      <button class="fl-photo-opt-btn fl-photo-opt-cam" onclick="openWebcamForFotoLib()">📷 Scatta</button>
+      <button class="fl-photo-opt-btn fl-photo-opt-file" onclick="document.getElementById('fl-file-input').click()">🖼️ Scegli file</button>
     </div>
     <button class="modal-btn-primary" id="fl-save-btn" onclick="saveFotoLibera()" disabled>Aggiungi foto</button>
     <button class="modal-btn-secondary" onclick="closeFotoLiberaModal()">Annulla</button>
+  </div>
+</div>
+
+<!-- UPLOAD MENU MODAL -->
+<div id="upload-menu-modal" onclick="closeUploadMenu(event)">
+  <div class="um-card" onclick="event.stopPropagation()">
+    <div class="um-title">Come vuoi caricare la foto?</div>
+    <button class="um-btn um-btn-cam" id="um-btn-webcam" onclick="umChooseWebcam()">📷 Scatta con la webcam / fotocamera</button>
+    <button class="um-btn um-btn-file" id="um-btn-file" onclick="umChooseFile()">🖼️ Scegli da galleria / file</button>
+    <button class="um-btn um-btn-cancel" onclick="closeUploadMenu()">Annulla</button>
+  </div>
+</div>
+
+<!-- WEBCAM MODAL -->
+<div id="webcam-modal">
+  <div id="wc-topbar">
+    <button class="wc-btn" id="wc-close-btn" onclick="closeWebcamModal()">✕ Annulla</button>
+    <button class="wc-btn" id="wc-mirror-btn" onclick="wcToggleMirror()">🔄 Specchia</button>
+    <button class="wc-btn" id="wc-grid-btn" onclick="wcToggleGrid()">⊞ Griglia</button>
+    <button class="wc-btn" id="wc-camera-btn" onclick="wcNextCamera()">↻ Camera</button>
+  </div>
+  <div id="wc-video-wrap">
+    <video id="wc-video" autoplay playsinline muted></video>
+    <div id="wc-grid-overlay"></div>
+    <img id="wc-preview-img" alt="">
+  </div>
+  <div id="wc-bottombar">
+    <div id="wc-shoot-row">
+      <button id="wc-shoot-btn" onclick="wcShoot()">📷</button>
+    </div>
+    <div id="wc-confirm-row">
+      <button class="wc-confirm-btn" style="background:#FFD008;color:#000" onclick="wcConfirm()">✅ Usa questa</button>
+      <button class="wc-confirm-btn" style="background:#222;color:#fff" onclick="wcRetry()">🔄 Riprova</button>
+    </div>
   </div>
 </div>
 
@@ -534,7 +607,20 @@
   let flPendingFile  = null
   let activeSlotTipo = null
   let replaceSlotTipo = null
-  let noteTimers     = {}       // tipo → setTimeout handle
+  let noteTimers     = {}
+
+  // Upload menu state
+  let umTipo = null
+  let umIsReplace = false
+
+  // Webcam state
+  let wcStream      = null
+  let wcTipo        = null
+  let wcIsReplace   = false
+  let wcCallback    = null   // optional fn(file) for non-slot uploads (es. foto libera)
+  let wcCameras     = []
+  let wcCameraIdx   = 0
+  let wcCapturedBlob = null
 
   // ── INIT ──────────────────────────────────────────────────
   async function init() {
@@ -779,32 +865,209 @@
 
   function onSlotClick(tipo) {
     if (isChiusa) return
-    activeSlotTipo = tipo
-    const inp = document.getElementById('photo-file-input')
-    inp.value = ''
-    inp.click()
+    showUploadMenu(tipo, false)
   }
 
-  // FIX 9: Sostituisci foto esistente
   function replacePhoto(tipo) {
     if (isChiusa) return
-    replaceSlotTipo = tipo
+    showUploadMenu(tipo, true)
+  }
+
+  // ── UPLOAD MENU ────────────────────────────────────────────
+  function showUploadMenu(tipo, isReplace) {
+    umTipo      = tipo
+    umIsReplace = !!isReplace
+    const modal = document.getElementById('upload-menu-modal')
+    modal.classList.add('open')
+    // Evidenzia l'ultima scelta
+    const pref = localStorage.getItem('posturale_upload_pref')
+    if (pref === 'webcam') document.getElementById('um-btn-webcam').focus()
+    else if (pref === 'file') document.getElementById('um-btn-file').focus()
+  }
+
+  function closeUploadMenu(e) {
+    if (e && e.target !== document.getElementById('upload-menu-modal')) return
+    document.getElementById('upload-menu-modal').classList.remove('open')
+    umTipo = null
+  }
+
+  function umChooseWebcam() {
+    document.getElementById('upload-menu-modal').classList.remove('open')
+    localStorage.setItem('posturale_upload_pref', 'webcam')
+    openWebcamModal(umTipo, umIsReplace, null)
+    umTipo = null
+  }
+
+  function umChooseFile() {
+    document.getElementById('upload-menu-modal').classList.remove('open')
+    localStorage.setItem('posturale_upload_pref', 'file')
+    if (umIsReplace) { replaceSlotTipo = umTipo } else { activeSlotTipo = umTipo }
     const inp = document.getElementById('photo-file-input')
     inp.value = ''
     inp.click()
+    umTipo = null
   }
 
-  // FIX 2: Upload con log dettagliati + INSERT/UPDATE distinti
+  // ── WEBCAM MODAL ───────────────────────────────────────────
+  async function openWebcamModal(tipo, isReplace, callback) {
+    wcTipo          = tipo
+    wcIsReplace     = !!isReplace
+    wcCallback      = callback || null
+    wcCapturedBlob  = null
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      wcCameras = devices.filter(d => d.kind === 'videoinput')
+    } catch(e) { wcCameras = [] }
+
+    const camBtn = document.getElementById('wc-camera-btn')
+    camBtn.style.display = wcCameras.length >= 2 ? 'inline-flex' : 'none'
+
+    document.getElementById('webcam-modal').classList.add('open')
+    wcShowShootState()
+    await wcStartStream()
+  }
+
+  async function wcStartStream() {
+    if (wcStream) { wcStream.getTracks().forEach(t => t.stop()); wcStream = null }
+
+    let constraints
+    if (wcCameras.length > 0 && wcCameras[wcCameraIdx]) {
+      constraints = { video: { deviceId: { exact: wcCameras[wcCameraIdx].deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }
+    } else {
+      constraints = { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }
+    }
+
+    try {
+      wcStream = await navigator.mediaDevices.getUserMedia(constraints)
+      document.getElementById('wc-video').srcObject = wcStream
+    } catch(err) {
+      console.error('[webcam] getUserMedia error:', err)
+      closeWebcamModal()
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showToast('Permesso webcam negato. Usa il file picker o autorizza nelle impostazioni.')
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        showToast('Nessuna webcam rilevata. Usa il file picker.')
+      } else {
+        showToast('Webcam non disponibile: ' + err.message)
+      }
+    }
+  }
+
+  function closeWebcamModal() {
+    if (wcStream) { wcStream.getTracks().forEach(t => t.stop()); wcStream = null }
+    const video = document.getElementById('wc-video')
+    video.srcObject = null
+    document.getElementById('webcam-modal').classList.remove('open')
+    wcTipo = null; wcIsReplace = false; wcCallback = null
+    wcCameras = []; wcCameraIdx = 0; wcCapturedBlob = null
+    // Reset UI
+    wcShowShootState()
+    video.classList.remove('mirrored')
+    video.style.display = 'block'
+    document.getElementById('wc-grid-overlay').classList.remove('active')
+    document.getElementById('wc-mirror-btn').classList.remove('active')
+    document.getElementById('wc-grid-btn').classList.remove('active')
+    const prev = document.getElementById('wc-preview-img')
+    prev.style.display = 'none'; prev.src = ''
+  }
+
+  async function wcNextCamera() {
+    if (wcCameras.length < 2) return
+    wcCameraIdx = (wcCameraIdx + 1) % wcCameras.length
+    await wcStartStream()
+  }
+
+  function wcToggleMirror() {
+    document.getElementById('wc-video').classList.toggle('mirrored')
+    document.getElementById('wc-mirror-btn').classList.toggle('active')
+  }
+
+  function wcToggleGrid() {
+    document.getElementById('wc-grid-overlay').classList.toggle('active')
+    document.getElementById('wc-grid-btn').classList.toggle('active')
+  }
+
+  function wcShoot() {
+    const video = document.getElementById('wc-video')
+    if (!video.srcObject) return
+    const canvas = document.createElement('canvas')
+    canvas.width  = video.videoWidth  || 1280
+    canvas.height = video.videoHeight || 720
+    const ctx = canvas.getContext('2d')
+    if (video.classList.contains('mirrored')) {
+      ctx.translate(canvas.width, 0); ctx.scale(-1, 1)
+    }
+    ctx.drawImage(video, 0, 0)
+    canvas.toBlob(blob => {
+      wcCapturedBlob = blob
+      const prev = document.getElementById('wc-preview-img')
+      prev.src = URL.createObjectURL(blob)
+      prev.style.display = 'block'
+      video.style.display = 'none'
+      wcShowConfirmState()
+    }, 'image/jpeg', 0.92)
+  }
+
+  function wcShowShootState() {
+    document.getElementById('wc-shoot-row').style.display   = 'flex'
+    document.getElementById('wc-confirm-row').style.display = 'none'
+  }
+
+  function wcShowConfirmState() {
+    document.getElementById('wc-shoot-row').style.display   = 'none'
+    document.getElementById('wc-confirm-row').style.display = 'flex'
+  }
+
+  async function wcConfirm() {
+    if (!wcCapturedBlob) return
+    const tipo      = wcTipo
+    const isReplace = wcIsReplace
+    const callback  = wcCallback
+    const blob      = wcCapturedBlob
+    closeWebcamModal()
+    const file = new File([blob], 'webcam_' + Date.now() + '.jpg', { type: 'image/jpeg' })
+    if (callback) { callback(file) } else { await uploadPhoto(file, tipo, isReplace) }
+  }
+
+  function wcRetry() {
+    wcCapturedBlob = null
+    const video = document.getElementById('wc-video')
+    video.style.display = 'block'
+    const prev = document.getElementById('wc-preview-img')
+    prev.style.display = 'none'; prev.src = ''
+    wcShowShootState()
+  }
+
+  // Webcam per foto libera
+  function openWebcamForFotoLib() {
+    openWebcamModal(null, false, file => {
+      flPendingFile = file
+      const reader = new FileReader()
+      reader.onload = e => {
+        const prev = document.getElementById('fl-upload-preview')
+        prev.src = e.target.result; prev.style.display = 'block'
+        document.getElementById('fl-upload-area').style.display = 'none'
+        document.getElementById('fl-save-btn').disabled = false
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // ── FILE INPUT → UPLOAD (entry point file picker) ──────────
   async function onPhotoFileSelected(event) {
     const file = event.target.files[0]
     if (!file) return
-
     const tipo      = activeSlotTipo || replaceSlotTipo
     const isReplace = !!replaceSlotTipo
     activeSlotTipo  = null
     replaceSlotTipo = null
     if (!tipo) return
+    await uploadPhoto(file, tipo, isReplace)
+  }
 
+  // ── UPLOAD CORE (condiviso da file picker e webcam) ─────────
+  async function uploadPhoto(file, tipo, isReplace) {
     if (!visitId || visitId === 'null') {
       showToast('Errore: visita non ancora creata. Ricarica la pagina.')
       console.error('[upload] visitId null/missing — abort')
@@ -829,25 +1092,20 @@
       let dbErr, saved
 
       if (isReplace && photos[tipo]?.id) {
-        // Cancella il vecchio file da storage
         if (photos[tipo].storage_path) {
           await _sb.storage.from('clinical-docs').remove([photos[tipo].storage_path])
         }
-        // UPDATE record esistente — mantiene note e annotazioni
         const r = await _sb.from('visit_photos')
           .update({ storage_path: path, url_pubblico: pubUrl })
           .eq('id', photos[tipo].id)
           .select().maybeSingle()
-        saved  = r.data
-        dbErr  = r.error
+        saved = r.data; dbErr = r.error
       } else {
-        // INSERT nuovo record
         const ordine = PHOTO_SLOTS.find(s => s.tipo === tipo)?.ordine ?? 99
         const r = await _sb.from('visit_photos')
           .insert({ visit_id: visitId, tipo, storage_path: path, url_pubblico: pubUrl, ordine })
           .select().maybeSingle()
-        saved  = r.data
-        dbErr  = r.error
+        saved = r.data; dbErr = r.error
       }
 
       console.log('[upload] db error:', dbErr, 'saved:', saved)
@@ -902,7 +1160,7 @@
     document.getElementById('fl-file-input').value = ''
     const prev = document.getElementById('fl-upload-preview')
     prev.style.display = 'none'; prev.src = ''
-    document.getElementById('fl-upload-area').style.display = 'block'
+    document.getElementById('fl-upload-area').style.display = 'flex'
     document.getElementById('fl-save-btn').disabled = true
     flPendingFile = null
     document.getElementById('modal-foto-lib').classList.add('open')
@@ -1415,6 +1673,8 @@
   // ── KEYBOARD ──────────────────────────────────────────────
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return
+    if (document.getElementById('webcam-modal').classList.contains('open')) { closeWebcamModal(); return }
+    if (document.getElementById('upload-menu-modal').classList.contains('open')) { document.getElementById('upload-menu-modal').classList.remove('open'); umTipo = null; return }
     closeLightbox(); closeMonoInfo(); closeFotoLiberaModal(); closeConfermaChiudi()
   })
 
