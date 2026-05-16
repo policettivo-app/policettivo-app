@@ -185,6 +185,9 @@
 </head>
 <body>
 
+<!-- ERROR BANNER -->
+<div id="error-banner" style="display:none;background:#c0392b;color:#fff;padding:14px 20px;font-size:14px;font-weight:600;text-align:center;position:sticky;top:0;z-index:9999;"></div>
+
 <!-- STICKY HEADER -->
 <div id="sticky-header">
   <div class="hdr-row1">
@@ -486,7 +489,13 @@
   async function init() {
     const { data: { session } } = await _sb.auth.getSession()
     if (!session) { window.location.href = 'index.html'; return }
-    professionalId = session.user.id
+    const { data: prof } = await _sb
+      .from('professionals')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .maybeSingle()
+    if (!prof) { showErrorBanner('Profilo professionista non trovato. Contatta il supporto.'); return }
+    professionalId = prof.id
 
     if (!visitId && !pidParam) { window.location.href = 'dashboard.html'; return }
 
@@ -503,7 +512,7 @@
       .insert({ patient_id: pidParam, professional_id: professionalId, tipo: 'posturale', stato: 'bozza' })
       .select('id')
       .maybeSingle()
-    if (error || !nv) { showToast('Errore creazione visita: ' + (error?.message || '')); return }
+    if (error || !nv) { showErrorBanner('Errore creazione visita: ' + (error?.message || 'risposta vuota')); return }
     visitId = nv.id
     window.history.replaceState({}, '', 'valutazione-posturale.html?id=' + visitId)
     await loadVisit()
@@ -675,6 +684,12 @@
     activeSlotTipo  = null
     replaceSlotTipo = null
     if (!tipo) return
+
+    if (!visitId || visitId === 'null') {
+      showToast('Errore: visita non ancora creata. Ricarica la pagina.')
+      console.error('[upload] visitId null/missing — abort')
+      return
+    }
 
     console.log('[upload] file:', file.name, file.size, 'tipo:', tipo, 'replace:', isReplace)
     setIndicator('saving', '')
@@ -1244,6 +1259,14 @@
     el.textContent = msg; el.classList.add('show')
     clearTimeout(toastTimer)
     toastTimer = setTimeout(() => el.classList.remove('show'), 3000)
+  }
+
+  function showErrorBanner(msg) {
+    const el = document.getElementById('error-banner')
+    if (!el) return
+    el.textContent = '⚠️ ' + msg
+    el.style.display = 'block'
+    document.querySelectorAll('button, input, textarea, select').forEach(el => el.disabled = true)
   }
 
   // ── IMAGE COMPRESSION ──────────────────────────────────────
