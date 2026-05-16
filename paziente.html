@@ -434,6 +434,8 @@
     .visita-azione-btn:hover { background:#f0f0f0; }
     .visita-azione-btn.del:hover { background:#fee2e2; }
     .visita-subtitle { font-size:13px; color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .visite-mostra-altre { display:block; width:100%; margin-top:4px; padding:12px 24px; min-height:44px; background:#fff; border:1px solid #ddd; border-radius:8px; font-family:inherit; font-size:14px; font-weight:600; color:#333; cursor:pointer; transition:background .15s, border-color .15s; }
+    .visite-mostra-altre:hover { background:#FFD008; border-color:#FFD008; }
     /* ── TOAST ────────────────────────────────────────────────── */
     #paz-toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px); background:#1a7a3c; color:#fff; padding:10px 20px; border-radius:10px; font-size:13px; font-weight:700; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:9999; white-space:nowrap; }
     #paz-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -1101,6 +1103,7 @@
     let _aipResult = null
     let _allVisite = []
     let _visiteFilter = 'all'
+    let _visitsLimitShown = 3
     let _myProfId = null
     let _myEmail = null
     let _cancelVisitId = null
@@ -1123,6 +1126,7 @@
 
     function filterVisite(filter) {
       _visiteFilter = filter
+      _visitsLimitShown = 3
       document.querySelectorAll('.visita-chip').forEach(c =>
         c.classList.toggle('active', c.dataset.filter === filter))
       renderVisite()
@@ -1142,7 +1146,10 @@
         return
       }
 
-      list.innerHTML = rows.map(v => {
+      const visible = rows.slice(0, _visitsLimitShown)
+      const remaining = rows.length - visible.length
+
+      list.innerHTML = visible.map(v => {
         const dt  = v.data_visita ? new Date(v.data_visita) : null
         const dateStr = dt
           ? dt.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
@@ -1173,6 +1180,14 @@
             <span class="visita-subtitle">${sub || '—'}</span>
           </div>`
       }).join('')
+        + (remaining > 0
+          ? `<button class="visite-mostra-altre" onclick="mostraAltreVisite()">▾ Mostra altre (${remaining})</button>`
+          : '')
+    }
+
+    function mostraAltreVisite() {
+      _visitsLimitShown += 5
+      renderVisite()
     }
 
     function apriModalCancella(visitId) {
@@ -1224,11 +1239,7 @@
       _allVisite = _allVisite.filter(x => x.id !== _cancelVisitId)
       chiudiModalCancella()
       showPazToast('✓ Visita cancellata')
-      if (_allVisite.length === 0 || !_allVisite.some(x => {
-        if (_visiteFilter === 'fisioterapica') return x.tipo === 'fisioterapica' || !x.tipo
-        if (_visiteFilter === 'posturale') return x.tipo === 'posturale'
-        return true
-      })) setTimeout(renderVisite, 400)
+      setTimeout(renderVisite, 400)
     }
 
     function showPazToast(msg) {
