@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="utils-premium.js"></script>
+  <script src="js/elicoidali-exercises.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; color: #fff; }
@@ -173,7 +174,7 @@
         }
       }
     }
-    let patient = null, protocol = null, exercises = [], protocolCustomVideos = []
+    let patient = null, protocol = null, exercises = [], protocolCustomVideos = [], protocolElicoidali = []
     let deferredPrompt = null
     let stelleSelezionate = 0
     let ultimaSedutaId = null
@@ -238,6 +239,14 @@
 
       // 4. Video custom del protocollo
       protocolCustomVideos = pd.custom_videos || []
+
+      // Load elicoidali separately (RPC doesn't include them yet)
+      const { data: eliData } = await _supabase
+        .from('patient_protocol_elicoidali')
+        .select('*')
+        .eq('patient_protocol_id', protocol.id)
+        .order('ordine', { ascending: true })
+      protocolElicoidali = eliData || []
 
       renderProtocol()
       loadSmile()
@@ -317,15 +326,21 @@
       const giorno = Math.max(1, Math.floor((oggi - inizio) / (1000*60*60*24)) + 1)
       const cfg = protocol.configurazione_generale || patient.configurazione_default || 'NPL'
       const cfgClass = cfg === 'NPL' ? 'config-npl' : 'config-gpl'
-      const totalItems = exercises.length + protocolCustomVideos.length
+      const totalItems = exercises.length + protocolElicoidali.length + protocolCustomVideos.length
       let exHtml = ''
-      if (exercises.length > 0 || protocolCustomVideos.length > 0) {
+      if (exercises.length > 0 || protocolElicoidali.length > 0 || protocolCustomVideos.length > 0) {
         const standardItems = exercises.map(function(e, i) {
           const ex = e.exercise
           return '<div class="exercise-item"><div class="exercise-num">' + (i+1) + '</div><div class="exercise-info"><div class="exercise-name">' + (ex ? ex.nome : 'Esercizio') + '</div><div class="exercise-meta">' + (e.durata || (ex ? ex.durata_default : 90)) + ' sec</div></div></div>'
         })
-        const customItems = protocolCustomVideos.map(function(v, i) {
+        const eliItems = protocolElicoidali.map(function(e, i) {
           const num = exercises.length + i + 1
+          const def = (typeof EXERCISES_ELICOIDALI !== 'undefined') ? EXERCISES_ELICOIDALI.find(function(x) { return x.id === e.elicoidale_id }) : null
+          const nome = def ? def.title : e.elicoidale_id
+          return '<div class="exercise-item"><div class="exercise-num">' + num + '</div><div class="exercise-info"><div class="exercise-name">' + nome + '</div><div class="exercise-meta">' + (e.durata || 60) + ' sec · Elicoidali</div></div></div>'
+        })
+        const customItems = protocolCustomVideos.map(function(v, i) {
+          const num = exercises.length + protocolElicoidali.length + i + 1
           const dur = v.durata || 60
           const durLabel = dur < 60 ? dur + 's' : (dur % 60 === 0 ? (dur / 60) + ' min' : dur + 's')
           const typeLabel = (v.tipo === 'foto' ? '📷 Foto' : '📹 Video') + ' · ' + durLabel
@@ -334,7 +349,7 @@
             : '<video src="' + v.url + '" controls playsinline preload="metadata" style="width:100%;max-height:200px;border-radius:8px;margin-top:10px;background:#000;display:block"></video>'
           return '<div class="exercise-item" style="flex-direction:column;align-items:flex-start"><div style="display:flex;align-items:center;gap:14px;width:100%"><div class="exercise-num">' + num + '</div><div class="exercise-info"><div class="exercise-name">' + (v.titolo || 'Contenuto personalizzato') + '</div><div class="exercise-meta">' + typeLabel + '</div></div></div>' + media + '</div>'
         })
-        exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' + standardItems.concat(customItems).join('') + '</div>'
+        exHtml = '<div class="section-title">Il tuo programma</div><div class="exercise-list">' + standardItems.concat(eliItems).concat(customItems).join('') + '</div>'
       }
       document.getElementById('content-area').innerHTML =
         '<div class="protocol-card"><div class="protocol-name">' + (protocol.nome_personalizzato || 'Protocollo') + '</div><div class="config-badge ' + cfgClass + '">' + cfg + '</div><div class="protocol-info"><div class="protocol-info-item">Giorno <span>' + giorno + '</span></div><div class="protocol-info-item">Esercizi <span>' + totalItems + '</span></div><div class="protocol-info-item">Frequenza <span>' + (protocol.frequenza || 'Quotidiana') + '</span></div></div><button class="btn-start" onclick="iniziaEsercizi()">Inizia gli esercizi</button><button id="btn-rapida" onclick="modalitaRapida()" style="width:100%;padding:14px;background:#1a1a1a;border:1.5px solid #FFD008;color:#FFD008;border-radius:12px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px">&#9889; Modalita Rapida</button></div>' +
