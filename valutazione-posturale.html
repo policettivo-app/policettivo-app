@@ -113,6 +113,8 @@
     .vp-ai-btn { width: 100%; padding: 13px; background: #000; color: #FFD008; border: none; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; }
     .vp-ai-btn:hover:not(:disabled) { background: #1a1a1a; }
     .vp-ai-btn:disabled { background: #e0e0e0; color: #aaa; cursor: not-allowed; }
+    .vp-pdf-btn { width: 100%; padding: 13px; background: #fff; color: #000; border: 2px solid #000; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .vp-pdf-btn:hover { background: #f5f5f5; }
     .vp-ai-spinner { text-align: center; padding: 18px; font-size: 13px; color: #888; display: none; }
     .vp-ai-result  { display: none; margin-top: 14px; }
     .vp-ai-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -360,24 +362,32 @@
 
     /* ── LIVELLA WEBCAM ──────────────────────────────────────── */
     #wc-livella {
-      position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
-      width: 200px; height: 30px; z-index: 5; pointer-events: none; display: none;
+      position: absolute; inset: 0; z-index: 5; pointer-events: none; display: none;
     }
-    .wc-livella-line {
+    .wc-livella-vline {
+      position: absolute; top: 0; bottom: 0; left: 50%; width: 1px;
+      background: rgba(255,255,255,.25); transform: translateX(-50%);
+    }
+    .wc-livella-hline {
       position: absolute; top: 50%; left: 0; right: 0; height: 2px;
-      background: rgba(220,38,38,.75); transform: translateY(-50%); transition: background .2s;
-    }
-    .wc-livella-line.level { background: rgba(34,197,94,.9); }
-    .wc-livella-bubble {
-      position: absolute; top: 50%; left: 50%;
-      width: 13px; height: 13px; border-radius: 50%;
-      background: #FFD008; border: 2px solid #000;
-      transform: translate(-50%,-50%); transition: left .05s;
+      background: rgba(220,38,38,.85); transform-origin: center;
+      transform: translateY(-50%) rotate(0deg); transition: background .15s;
     }
     .wc-livella-lbl {
-      position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
-      font-size: 9px; font-weight: 700; color: rgba(255,255,255,.9);
-      background: rgba(0,0,0,.5); padding: 2px 6px; border-radius: 3px; white-space: nowrap;
+      position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,.95);
+      background: rgba(0,0,0,.55); padding: 3px 10px; border-radius: 10px; white-space: nowrap;
+    }
+
+    /* ── RESPONSIVE DESKTOP ──────────────────────────────────── */
+    @media (min-width: 768px) {
+      #main-content { max-width: 1200px; margin: 0 auto; }
+      .vp-section { margin: 12px 0; }
+      .photo-slot { max-width: 380px; max-height: 500px; }
+    }
+    @media (min-width: 1024px) {
+      .photo-grid { flex-direction: row; flex-wrap: wrap; }
+      .photo-slot-wrap { flex: 0 0 calc(50% - 7px); max-width: calc(50% - 7px); }
     }
 
   </style>
@@ -467,6 +477,7 @@
   <!-- D: FOTO LIBERE -->
   <section class="vp-section">
     <div class="vp-sec-title"><span class="vp-sec-badge">D</span> Foto libere</div>
+    <p style="font-size:13px;color:#888;font-style:italic;margin:4px 0 14px;line-height:1.5">Foto aggiuntive per test specifici: convergenza oculare, valutazione stomatognatica, rotazione cervicale, altri test funzionali.</p>
     <div class="foto-lib-list" id="foto-lib-list"><!-- built by renderFotoLibere() --></div>
     <button class="btn-add-foto" id="btn-add-foto-lib" onclick="showFotoLiberaModal()">
       + Aggiungi foto libera <span id="foto-lib-counter" style="opacity:.6">(0/5)</span>
@@ -509,6 +520,9 @@
       <div class="chip-label">Note conclusive</div>
       <textarea class="vp-textarea" id="f-note-finali" rows="4"
         placeholder="Sintesi clinica, raccomandazioni, piano di trattamento…" oninput="scheduleSave()"></textarea>
+    </div>
+    <div style="margin-top:20px">
+      <button class="vp-pdf-btn" onclick="alert('Funzione PDF Valutazione in arrivo.')">📄 Genera PDF Valutazione Posturale</button>
     </div>
   </section>
 
@@ -646,10 +660,10 @@
     <video id="wc-video" autoplay playsinline muted></video>
     <div id="wc-grid-overlay"></div>
     <img id="wc-preview-img" alt="">
-    <!-- Livella overlay -->
+    <!-- Livella overlay cross-style -->
     <div id="wc-livella">
-      <div class="wc-livella-line" id="wc-livella-line"></div>
-      <div class="wc-livella-bubble" id="wc-livella-bubble"></div>
+      <div class="wc-livella-vline"></div>
+      <div class="wc-livella-hline" id="wc-livella-hline"></div>
       <div class="wc-livella-lbl" id="wc-livella-lbl">—</div>
     </div>
   </div>
@@ -675,61 +689,18 @@
 <script src="console-nav.js"></script>
 <script src="utils-premium.js"></script>
 <script src="utils-ai.js"></script>
+<script src="js/postural-component.js"></script>
 <script>
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
   const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
   // Galleria per piano anatomico: 6 piani × 2 slot (PRE / POST 3R)
-  const PHOTO_PLANES = [
-    { plane: 'sagittale_dx',      label: 'Sagittale DX',
-      pre:  { tipo: 'sagittale_dx_pre',       label: 'PRE',     ordine: 0 },
-      post: { tipo: 'sagittale_dx_post',      label: 'POST 3R', ordine: 1 } },
-    { plane: 'sagittale_sx',      label: 'Sagittale SX',
-      pre:  { tipo: 'sagittale_sx_pre',       label: 'PRE',     ordine: 2 },
-      post: { tipo: 'sagittale_sx_post',      label: 'POST 3R', ordine: 3 } },
-    { plane: 'frontale',          label: 'Frontale',
-      pre:  { tipo: 'frontale_pre',           label: 'PRE',     ordine: 4 },
-      post: { tipo: 'frontale_post',          label: 'POST 3R', ordine: 5 } },
-    { plane: 'posteriore',        label: 'Posteriore',
-      pre:  { tipo: 'posteriore_pre',         label: 'PRE',     ordine: 6 },
-      post: { tipo: 'posteriore_post',        label: 'POST 3R', ordine: 7 } },
-    { plane: 'podoscopio_sotto',  label: 'Podoscopio (sotto)',
-      pre:  { tipo: 'podoscopio_sotto_pre',   label: 'PRE',     ordine: 8 },
-      post: { tipo: 'podoscopio_sotto_post',  label: 'POST 3R', ordine: 9 } },
-    { plane: 'podoscopio_dietro', label: 'Podoscopio (dietro)',
-      pre:  { tipo: 'podoscopio_dietro_pre',  label: 'PRE',     ordine: 10 },
-      post: { tipo: 'podoscopio_dietro_post', label: 'POST 3R', ordine: 11 } },
-  ]
-  const PHOTO_SLOTS_FLAT = PHOTO_PLANES.flatMap(p => [p.pre, p.post])
-
-  // Raggruppamento in sezioni per layout per-piano
-  const PHOTO_SECTIONS = [
-    { sectionKey: 'sagittale',        sectionLabel: 'Piano Sagittale',
-      hasScapolare: true,  noteField: 'note_sagittale',         obsPiano: 'sagittale',
-      planes: ['sagittale_dx','sagittale_sx'] },
-    { sectionKey: 'frontale',         sectionLabel: 'Piano Frontale',
-      hasScapolare: false, noteField: 'note_frontale',          obsPiano: 'frontale',
-      planes: ['frontale'] },
-    { sectionKey: 'posteriore',       sectionLabel: 'Piano Posteriore',
-      hasScapolare: false, noteField: 'note_posteriore',        obsPiano: 'posteriore',
-      planes: ['posteriore'] },
-    { sectionKey: 'podoscopio_sotto', sectionLabel: 'Podoscopio — Vista Plantare',
-      hasScapolare: false, noteField: 'note_podoscopio_sotto',  obsPiano: 'podoscopio_sotto',
-      planes: ['podoscopio_sotto'] },
-    { sectionKey: 'podoscopio_dietro',sectionLabel: 'Podoscopio — Vista Posteriore',
-      hasScapolare: false, noteField: 'note_podoscopio_dietro', obsPiano: 'podoscopio_dietro',
-      planes: ['podoscopio_dietro'] },
-  ]
-
-  // Dizionario osservazioni per piano
-  const POSTURAL_OBSERVATIONS = {
-    sagittale: ['Allineamento sagittale neutro','Testa anteriorizzata','Testa retratta','Ipercifosi dorsale','Dorso piatto','Iperlordosi lombare','Ipolordosi lombare','Bacino in antiversione','Bacino in retroversione','Spalle anteposte','Spalle posteriorizzate','Ginocchia flesse','Ginocchia recurvate','Carico anteriore','Carico posteriore','Appoggio pronatorio','Appoggio supinatorio','Respirazione toracica','Respirazione diaframmatica','Assetto rigido','Assetto ipotonico'],
-    frontale:  ['Allineamento frontale neutro','Testa inclinata dx','Testa inclinata sx','Spalla dx elevata','Spalla sx elevata','Scapole asimmetriche','Tronco inclinato dx','Tronco inclinato sx','Scoliosi funzionale','Bacino elevato dx','Bacino elevato sx','Bacino ruotato','Ginocchio valgo','Ginocchio varo','Piede pronato dx','Piede pronato sx','Piede supinato dx','Piede supinato sx','Carico prevalente dx','Carico prevalente sx'],
-    posteriore:['Allineamento posteriore neutro','Testa inclinata dx','Testa inclinata sx','Spalla dx elevata','Spalla sx elevata','Scapola alata dx','Scapola alata sx','Scapole asimmetriche','Tronco deviato dx','Tronco deviato sx','Scoliosi evidente','Bacino elevato dx','Bacino elevato sx','Glutei asimmetrici','Ginocchio valgo dx','Ginocchio valgo sx','Ginocchio varo dx','Ginocchio varo sx','Tendine achilleo valgo dx','Tendine achilleo valgo sx','Tendine achilleo varo dx','Tendine achilleo varo sx','Appoggio calcaneare asimmetrico'],
-    podoscopio_sotto: ['Allineamento podalico neutro','Arco mediale ridotto','Arco mediale aumentato','Piede piatto dx','Piede piatto sx','Piede cavo dx','Piede cavo sx','Ipercarico avampiede','Ipercarico retropiede','Carico mediale prevalente','Carico laterale prevalente','Alluce valgo dx','Alluce valgo sx','Dita a griffe','Appoggio asimmetrico','Impronta pronata dx','Impronta pronata sx','Impronta supinata dx','Impronta supinata sx','Scarso appoggio dita'],
-    podoscopio_dietro:['Allineamento neutro arti inferiori','Calcagno valgo dx','Calcagno valgo sx','Calcagno varo dx','Calcagno varo sx','Tendine achilleo deviato dx','Tendine achilleo deviato sx','Retropiede pronato dx','Retropiede pronato sx','Retropiede supinato dx','Retropiede supinato sx','Asimmetria retropodalica','Carico prevalente dx','Carico prevalente sx','Rotazione tibiale interna','Rotazione tibiale esterna','Ginocchia valghe','Ginocchia vare','Appoggio instabile','Appoggio simmetrico'],
-  }
+  // Sourced from js/postural-component.js
+  const PHOTO_PLANES       = POSTURAL_PHOTO_PLANES
+  const PHOTO_SLOTS_FLAT   = POSTURAL_PHOTO_SLOTS_FLAT
+  const PHOTO_SECTIONS     = POSTURAL_PHOTO_SECTIONS
+  // POSTURAL_OBSERVATIONS loaded from js/postural-component.js
 
   const urlParams    = new URLSearchParams(location.search)
   let   visitId      = urlParams.get('id')
@@ -1352,19 +1323,27 @@
     const overlay = document.getElementById('wc-livella')
     if (!overlay) return
     overlay.style.display = 'block'
-    if (_wcOriHandler) return // già attivo
+    if (_wcOriHandler) return
     _wcOriHandler = e => {
       const gamma = e.gamma || 0
-      const isLevel = Math.abs(gamma) < 4
-      const bubble = document.getElementById('wc-livella-bubble')
-      const line   = document.getElementById('wc-livella-line')
-      const lbl    = document.getElementById('wc-livella-lbl')
-      if (bubble) {
-        const offset = Math.min(Math.max(gamma / 15 * 45, -80), 80)
-        bubble.style.left = 'calc(50% + ' + offset + 'px)'
+      const absG  = Math.abs(gamma)
+      const hline = document.getElementById('wc-livella-hline')
+      const lbl   = document.getElementById('wc-livella-lbl')
+      if (hline) {
+        hline.style.transform = 'translateY(-50%) rotate(' + (-gamma) + 'deg)'
+        hline.style.background = absG < 4
+          ? 'rgba(34,197,94,.9)'
+          : absG < 10
+            ? 'rgba(251,146,60,.9)'
+            : 'rgba(220,38,38,.85)'
       }
-      if (line) line.classList.toggle('level', isLevel)
-      if (lbl)  lbl.textContent = isLevel ? 'Livello ✓' : Math.round(Math.abs(gamma)) + '°'
+      if (lbl) {
+        lbl.textContent = absG < 4
+          ? '✓ Livellato'
+          : absG < 10
+            ? 'Quasi livellato (' + Math.round(absG) + '°)'
+            : 'Non livellato (' + Math.round(absG) + '°)'
+      }
     }
     window.addEventListener('deviceorientation', _wcOriHandler)
   }
@@ -1856,7 +1835,9 @@ ISTRUZIONI:
     }, 600)
   }
 
-  function backToPaziente() {
+  async function backToPaziente() {
+    clearTimeout(saveTimer)
+    await actualSave()
     window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
   }
 

@@ -692,6 +692,15 @@
 
     /* Note per piano */
     .s3-plane-note-label { font-size: 11px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .3px; }
+
+    /* ── RESPONSIVE DESKTOP ─────────────────────────────── */
+    @media (min-width: 768px) {
+      .visita-main { max-width: 1200px; padding: 20px 32px 120px; }
+      .s3-pairs-row > * { max-width: 380px; }
+    }
+    @media (min-width: 1024px) {
+      .s3-photo-section .s3-pairs-row { flex-wrap: wrap; }
+    }
   </style>
 </head>
 <body>
@@ -1181,6 +1190,10 @@
       </div>
     </div>
 
+    <div class="field-group" style="margin-top:8px">
+      <button style="width:100%;padding:13px;background:#fff;color:#000;border:2px solid #000;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer" onclick="alert('Funzione PDF Visita in arrivo.')">📄 Genera PDF Visita Fisioterapica</button>
+    </div>
+
     <div class="step-footer">
       <button class="btn-nav btn-nav-prev" onclick="goToStep(4)">← Precedente</button>
     </div>
@@ -1219,6 +1232,7 @@
 <div id="toast"></div>
 
 <script src="console-nav.js"></script>
+<script src="js/postural-component.js"></script>
 
 <script>
   // ====== CONFIG ======
@@ -1249,44 +1263,10 @@
   let s5RelTimer     = null
 
   // Flat slot list (12 slot PRE+POST) — usata per loadVisitPhotos e conteggio
-  const S3_SLOTS = [
-    { key: 'sagittale_dx_pre',      label: 'Sagittale DX (PRE)',      tipo: 'sagittale_dx_pre',      ordine: 0  },
-    { key: 'sagittale_dx_post',     label: 'Sagittale DX (POST 3R)',  tipo: 'sagittale_dx_post',     ordine: 1  },
-    { key: 'sagittale_sx_pre',      label: 'Sagittale SX (PRE)',      tipo: 'sagittale_sx_pre',      ordine: 2  },
-    { key: 'sagittale_sx_post',     label: 'Sagittale SX (POST 3R)',  tipo: 'sagittale_sx_post',     ordine: 3  },
-    { key: 'frontale_pre',          label: 'Frontale (PRE)',          tipo: 'frontale_pre',          ordine: 4  },
-    { key: 'frontale_post',         label: 'Frontale (POST 3R)',      tipo: 'frontale_post',         ordine: 5  },
-    { key: 'posteriore_pre',        label: 'Posteriore (PRE)',        tipo: 'posteriore_pre',        ordine: 6  },
-    { key: 'posteriore_post',       label: 'Posteriore (POST 3R)',    tipo: 'posteriore_post',       ordine: 7  },
-    { key: 'podoscopio_sotto_pre',  label: 'Podoscopio plantare (PRE)',    tipo: 'podoscopio_sotto_pre',  ordine: 8  },
-    { key: 'podoscopio_sotto_post', label: 'Podoscopio plantare (POST 3R)',tipo: 'podoscopio_sotto_post', ordine: 9  },
-    { key: 'podoscopio_dietro_pre', label: 'Podoscopio posteriore (PRE)',  tipo: 'podoscopio_dietro_pre', ordine: 10 },
-    { key: 'podoscopio_dietro_post',label: 'Podoscopio posteriore (POST 3R)',tipo:'podoscopio_dietro_post',ordine: 11 },
-  ]
-  // Sezioni per il layout carousel
-  const S3_SECTIONS = [
-    { sectionKey:'sagittale',         sectionLabel:'Piano Sagittale',            hasScapolare:true,  noteField:'note_sagittale',         obsPiano:'sagittale',
-      pairs:[
-        { pairKey:'sagittale_dx', pairLabel:'Sagittale DX', preKey:'sagittale_dx_pre',  postKey:'sagittale_dx_post'  },
-        { pairKey:'sagittale_sx', pairLabel:'Sagittale SX', preKey:'sagittale_sx_pre',  postKey:'sagittale_sx_post'  },
-      ]},
-    { sectionKey:'frontale',          sectionLabel:'Piano Frontale',             hasScapolare:false, noteField:'note_frontale',          obsPiano:'frontale',
-      pairs:[ { pairKey:'frontale',          pairLabel:'Frontale',          preKey:'frontale_pre',         postKey:'frontale_post'         }]},
-    { sectionKey:'posteriore',        sectionLabel:'Piano Posteriore',           hasScapolare:false, noteField:'note_posteriore',        obsPiano:'posteriore',
-      pairs:[ { pairKey:'posteriore',        pairLabel:'Posteriore',        preKey:'posteriore_pre',       postKey:'posteriore_post'       }]},
-    { sectionKey:'podoscopio_sotto',  sectionLabel:'Podoscopio — Vista Plantare',hasScapolare:false, noteField:'note_podoscopio_sotto',  obsPiano:'podoscopio_sotto',
-      pairs:[ { pairKey:'podoscopio_sotto',  pairLabel:'Vista plantare',   preKey:'podoscopio_sotto_pre', postKey:'podoscopio_sotto_post' }]},
-    { sectionKey:'podoscopio_dietro', sectionLabel:'Podoscopio — Vista Posteriore',hasScapolare:false,noteField:'note_podoscopio_dietro',obsPiano:'podoscopio_dietro',
-      pairs:[ { pairKey:'podoscopio_dietro', pairLabel:'Vista posteriore', preKey:'podoscopio_dietro_pre',postKey:'podoscopio_dietro_post'}]},
-  ]
-  // Osservazioni per piano (shared with valutazione-posturale.html)
-  const POSTURAL_OBSERVATIONS = {
-    sagittale:        ['Allineamento sagittale neutro','Testa anteriorizzata','Testa retratta','Ipercifosi dorsale','Dorso piatto','Iperlordosi lombare','Ipolordosi lombare','Bacino in antiversione','Bacino in retroversione','Spalle anteposte','Spalle posteriorizzate','Ginocchia flesse','Ginocchia recurvate','Carico anteriore','Carico posteriore','Appoggio pronatorio','Appoggio supinatorio','Respirazione toracica','Respirazione diaframmatica','Assetto rigido','Assetto ipotonico'],
-    frontale:         ['Allineamento frontale neutro','Testa inclinata dx','Testa inclinata sx','Spalla dx elevata','Spalla sx elevata','Scapole asimmetriche','Tronco inclinato dx','Tronco inclinato sx','Scoliosi funzionale','Bacino elevato dx','Bacino elevato sx','Bacino ruotato','Ginocchio valgo','Ginocchio varo','Piede pronato dx','Piede pronato sx','Piede supinato dx','Piede supinato sx','Carico prevalente dx','Carico prevalente sx'],
-    posteriore:       ['Allineamento posteriore neutro','Testa inclinata dx','Testa inclinata sx','Spalla dx elevata','Spalla sx elevata','Scapola alata dx','Scapola alata sx','Scapole asimmetriche','Tronco deviato dx','Tronco deviato sx','Scoliosi evidente','Bacino elevato dx','Bacino elevato sx','Glutei asimmetrici','Ginocchio valgo dx','Ginocchio valgo sx','Ginocchio varo dx','Ginocchio varo sx','Tendine achilleo valgo dx','Tendine achilleo valgo sx','Tendine achilleo varo dx','Tendine achilleo varo sx','Appoggio calcaneare asimmetrico'],
-    podoscopio_sotto: ['Allineamento podalico neutro','Arco mediale ridotto','Arco mediale aumentato','Piede piatto dx','Piede piatto sx','Piede cavo dx','Piede cavo sx','Ipercarico avampiede','Ipercarico retropiede','Carico mediale prevalente','Carico laterale prevalente','Alluce valgo dx','Alluce valgo sx','Dita a griffe','Appoggio asimmetrico','Impronta pronata dx','Impronta pronata sx','Impronta supinata dx','Impronta supinata sx','Scarso appoggio dita'],
-    podoscopio_dietro:['Allineamento neutro arti inferiori','Calcagno valgo dx','Calcagno valgo sx','Calcagno varo dx','Calcagno varo sx','Tendine achilleo deviato dx','Tendine achilleo deviato sx','Retropiede pronato dx','Retropiede pronato sx','Retropiede supinato dx','Retropiede supinato sx','Asimmetria retropodalica','Carico prevalente dx','Carico prevalente sx','Rotazione tibiale interna','Rotazione tibiale esterna','Ginocchia valghe','Ginocchia vare','Appoggio instabile','Appoggio simmetrico'],
-  }
+  // Sourced from js/postural-component.js
+  const S3_SLOTS    = POSTURAL_PHOTO_SLOTS_FLAT
+  const S3_SECTIONS = POSTURAL_PHOTO_SECTIONS
+  // POSTURAL_OBSERVATIONS loaded from js/postural-component.js
   let s3CarouselState = {}  // pairKey → 0|1
   const S3_BUCKET   = 'clinical-docs'
   let saveTimer      = null
@@ -1708,7 +1688,9 @@
   }
 
   // ====== BACK ======
-  function backToPaziente() {
+  async function backToPaziente() {
+    clearTimeout(saveTimer)
+    await actualSave()
     window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
   }
 
