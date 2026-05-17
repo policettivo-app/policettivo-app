@@ -1452,8 +1452,8 @@
     fSet('s3-note-note_posteriore',        v.note_posteriore)
     fSet('s3-note-note_podoscopio_sotto',  v.note_podoscopio_sotto)
     fSet('s3-note-note_podoscopio_dietro', v.note_podoscopio_dietro)
-    if (v.note_scapolare_pre)  s3ScapChip('pre',  v.note_scapolare_pre)
-    if (v.note_scapolare_post) s3ScapChip('post', v.note_scapolare_post)
+    if (v.note_scapolare_pre)  _s3ScapChipRestore('pre',  v.note_scapolare_pre)
+    if (v.note_scapolare_post) _s3ScapChipRestore('post', v.note_scapolare_post)
     if (v.ai_analisi_posturale && v.ai_suggerimento_config) {
 
       s3AiResult = { valutazione_ai: v.ai_analisi_posturale, suggerimento: v.ai_suggerimento_config, confidenza: null, osservazioni_chiave: [] }
@@ -1525,14 +1525,20 @@
   async function actualSave() {
     if (!visitId || isSaving) return
     isSaving = true
-
-    const payload = collectFormData()
-    const { error } = await _sb.from('visits').update(payload).eq('id', visitId)
+    const data = collectFormData()
+    let { error } = await _sb.from('visits').update(data).eq('id', visitId)
+    if (error && (error.code === 'PGRST204' || error.code === '42703' || (error.message || '').includes('does not exist'))) {
+      // Migration 009 columns missing — retry without them
+      const { note_sagittale, note_frontale, note_posteriore, note_podoscopio_sotto, note_podoscopio_dietro, ...coreData } = data
+      const { error: e2 } = await _sb.from('visits').update(coreData).eq('id', visitId)
+      if (!e2) { error = null; console.warn('[visita] migration 009 non applicata — note piano non salvate') }
+      else error = e2
+    }
     isSaving = false
-
     if (error) {
       console.error('[visita] PATCH error:', error)
       setIndicator('error', error.message)
+      showToast?.('⚠️ Errore salvataggio: ' + (error.message || error.code || 'sconosciuto'))
     } else {
       const t = new Date()
       setIndicator('saved', t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0'))
@@ -2248,12 +2254,36 @@
     return wrap
   }
 
+  const S3_SCAP_CHIP_LABELS = {
+    in_asse: 'In asse', anteriore: 'Anteriore', posteriore: 'Posteriore',
+  }
+  function _s3ChipToNote(noteId, text, isAdd) {
+    const ta = document.getElementById(noteId)
+    if (!ta) return
+    const bullet = '• ' + text
+    const lines = ta.value.split('\n').filter(l => l.trim())
+    if (isAdd) {
+      if (!lines.includes(bullet)) ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + bullet
+    } else {
+      ta.value = lines.filter(l => l !== bullet).join('\n')
+    }
+  }
   let s3ScapState = { pre: null, post: null }
   function s3ScapChip(which, val) {
-    const g = 's3scap-' + which
-    s3ScapState[which] = s3ScapState[which] === val ? null : val
+    const g    = 's3scap-' + which
+    const prev = s3ScapState[which]
+    s3ScapState[which] = prev === val ? null : val
     document.querySelectorAll('[data-g="' + g + '"]').forEach(c => c.classList.toggle('active', c.dataset.v === s3ScapState[which]))
+    const noteId = 's3-note-note_sagittale'
+    const prefix = which === 'pre' ? 'Scapola PRE' : 'Scapola POST'
+    if (prev)             _s3ChipToNote(noteId, prefix + ': ' + (S3_SCAP_CHIP_LABELS[prev]             || prev),             false)
+    if (s3ScapState[which]) _s3ChipToNote(noteId, prefix + ': ' + (S3_SCAP_CHIP_LABELS[s3ScapState[which]] || s3ScapState[which]), true)
     scheduleSave()
+  }
+  function _s3ScapChipRestore(which, val) {
+    s3ScapState[which] = val
+    const g = 's3scap-' + which
+    document.querySelectorAll('[data-g="' + g + '"]').forEach(c => c.classList.toggle('active', c.dataset.v === val))
   }
 
   function s3BuildPlaneNoteSection(sectionKey, noteField, obsPiano) {

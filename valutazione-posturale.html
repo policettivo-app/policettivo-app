@@ -720,6 +720,18 @@
   let saveTimer      = null
   let isSaving       = false
   let chipState      = {}
+  const CHIP_NOTE_MAP = {
+    'arco':      { noteId: 'note-piano-note_podoscopio_sotto', prefix: 'Arco Plantare' },
+    'assetto':   { noteId: 'note-piano-note_podoscopio_dietro', prefix: 'Assetto Podalico' },
+    'scap-pre':  { noteId: 'note-piano-note_sagittale', prefix: 'Scapola PRE' },
+    'scap-post': { noteId: 'note-piano-note_sagittale', prefix: 'Scapola POST' },
+  }
+  const CHIP_LABELS = {
+    piatto: 'Piatto', cavo: 'Cavo', normale: 'Normale',
+    valgo: 'Valgo', varo: 'Varo', misto: 'Misto',
+    in_asse: 'In asse', anteriore: 'Anteriore', posteriore: 'Posteriore',
+    inversione: 'Inversione', eversione: 'Eversione', neutro: 'Neutro',
+  }
   let configSug      = null
   let photos         = {}       // tipo → full visit_photos record
   let fotoLibere     = []
@@ -742,8 +754,13 @@
   let wcCameraIdx    = 0
   let wcCapturedBlob = null
   let wcLivellaActive = localStorage.getItem('posturale_livella_active') === '1'
-  let _wcOriHandler  = null
+  let _wcOriHandler   = null
   let _wcOriPermGranted = null   // null=unchecked, true=granted, false=denied
+  let _wcGammaRaw     = 0
+  let _wcGammaSmooth  = 0
+  let _wcRafId        = null
+  let _wcDbgTimer     = null
+  const WC_SMOOTH     = 0.15
 
   // ── INIT ──────────────────────────────────────────────────
   async function init() {
@@ -1357,39 +1374,50 @@
     }
   }
 
+  function _wcLivellaFrame() {
+    _wcRafId = null
+    _wcGammaSmooth = WC_SMOOTH * _wcGammaRaw + (1 - WC_SMOOTH) * _wcGammaSmooth
+    const g    = _wcGammaSmooth
+    const absG = Math.abs(g)
+    const hline = document.getElementById('wc-livella-hline')
+    const lbl   = document.getElementById('wc-livella-lbl')
+    if (hline) {
+      hline.style.transform = 'translateY(-50%) rotate(' + (-g) + 'deg)'
+      hline.style.background = absG < 4
+        ? 'rgba(34,197,94,.9)'
+        : absG < 10
+          ? 'rgba(251,146,60,.9)'
+          : 'rgba(220,38,38,.85)'
+    }
+    if (lbl) {
+      lbl.textContent = absG < 4
+        ? '✓ Livellato'
+        : absG < 10
+          ? 'Quasi (' + Math.round(absG) + '°)'
+          : Math.round(absG) + '°'
+    }
+  }
   function _wcStartLivella() {
     const overlay = document.getElementById('wc-livella')
     if (!overlay) return
     overlay.style.display = 'block'
     if (_wcOriHandler) return
+    _wcGammaSmooth = 0
     _wcOriHandler = e => {
-      const gamma = e.gamma ?? 0
-      const absG  = Math.abs(gamma)
-      const hline = document.getElementById('wc-livella-hline')
-      const lbl   = document.getElementById('wc-livella-lbl')
-      const dbg   = document.getElementById('wc-livella-dbg')
-      if (hline) {
-        hline.style.transform = 'translateY(-50%) rotate(' + (-gamma) + 'deg)'
-        hline.style.background = absG < 4
-          ? 'rgba(34,197,94,.9)'
-          : absG < 10
-            ? 'rgba(251,146,60,.9)'
-            : 'rgba(220,38,38,.85)'
-      }
-      if (lbl) {
-        lbl.textContent = absG < 4
-          ? '✓ Livellato'
-          : absG < 10
-            ? 'Quasi (' + Math.round(absG) + '°)'
-            : Math.round(absG) + '°'
-      }
-      if (dbg) dbg.textContent = 'γ ' + (gamma >= 0 ? '+' : '') + gamma.toFixed(1) + '°'
+      _wcGammaRaw = e.gamma ?? 0
+      if (!_wcRafId) _wcRafId = requestAnimationFrame(_wcLivellaFrame)
     }
     window.addEventListener('deviceorientation', _wcOriHandler)
+    _wcDbgTimer = setInterval(() => {
+      const dbg = document.getElementById('wc-livella-dbg')
+      if (dbg) dbg.textContent = 'γ ' + (_wcGammaSmooth >= 0 ? '+' : '') + _wcGammaSmooth.toFixed(1) + '°'
+    }, 200)
   }
 
   function _wcStopLivella() {
     if (_wcOriHandler) { window.removeEventListener('deviceorientation', _wcOriHandler); _wcOriHandler = null }
+    if (_wcRafId)      { cancelAnimationFrame(_wcRafId); _wcRafId = null }
+    if (_wcDbgTimer)   { clearInterval(_wcDbgTimer); _wcDbgTimer = null }
     const overlay = document.getElementById('wc-livella')
     if (overlay) overlay.style.display = 'none'
   }
@@ -1688,10 +1716,27 @@
   }
 
   // ── CHIPS ──────────────────────────────────────────────────
+  function _chipToNote(noteId, text, isAdd) {
+    const ta = document.getElementById(noteId)
+    if (!ta) return
+    const bullet = '• ' + text
+    const lines = ta.value.split('\n').filter(l => l.trim())
+    if (isAdd) {
+      if (!lines.includes(bullet)) ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + bullet
+    } else {
+      ta.value = lines.filter(l => l !== bullet).join('\n')
+    }
+  }
   function setExcl(group, val) {
-    chipState[group] = chipState[group] === val ? null : val
+    const prev = chipState[group]
+    chipState[group] = prev === val ? null : val
     document.querySelectorAll('[data-g="' + group + '"]').forEach(c =>
       c.classList.toggle('active', c.dataset.v === chipState[group]))
+    const nm = CHIP_NOTE_MAP[group]
+    if (nm) {
+      if (prev)              _chipToNote(nm.noteId, nm.prefix + ': ' + (CHIP_LABELS[prev]             || prev),             false)
+      if (chipState[group])  _chipToNote(nm.noteId, nm.prefix + ': ' + (CHIP_LABELS[chipState[group]] || chipState[group]), true)
+    }
     scheduleSave()
   }
   function restoreExcl(group, val) {
@@ -1735,11 +1780,20 @@
     if (!visitId || isSaving) return
     isSaving = true
     setIndicator('saving', '')
-    const { error } = await _sb.from('visits').update(collectFormData()).eq('id', visitId)
+    const data = collectFormData()
+    let { error } = await _sb.from('visits').update(data).eq('id', visitId)
+    if (error && (error.code === 'PGRST204' || error.code === '42703' || (error.message || '').includes('does not exist'))) {
+      // Migration 009 columns missing — retry without them (migration 005 data still saves)
+      const { note_sagittale, note_frontale, note_posteriore, note_podoscopio_sotto, note_podoscopio_dietro, ...coreData } = data
+      const { error: e2 } = await _sb.from('visits').update(coreData).eq('id', visitId)
+      if (!e2) { error = null; console.warn('[save] migration 009 non applicata — note piano non salvate') }
+      else error = e2
+    }
     isSaving = false
     if (error) {
       console.error('[autosave] error:', error)
       setIndicator('error', '')
+      showToast('⚠️ Errore salvataggio: ' + (error.message || error.code || 'sconosciuto'))
     } else {
       const t = new Date()
       setIndicator('saved', t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0'))
