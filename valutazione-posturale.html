@@ -6,7 +6,6 @@
   <meta name="hide-bottom-nav" content="true">
   <title>Valutazione Posturale</title>
   <link rel="stylesheet" href="css/design-system.css">
-  <link rel="stylesheet" href="css/postural-layout.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -387,6 +386,28 @@
       font-family: 'Montserrat', monospace; pointer-events: none;
     }
 
+    /* ── PP LAYOUT (3 gruppi semantici, 2-col su desktop) ────── */
+    .pp-group { margin-bottom: 8px; }
+    .pp-group + .pp-group { margin-top: 28px; }
+    .pp-group:first-child .photo-section-divider { border-top: none; padding-top: 0; margin-top: 0; }
+    .pp-row-2 { display: flex; flex-direction: column; gap: 14px; }
+    .pp-col   { display: flex; flex-direction: column; gap: 8px; }
+    .pp-sublabel {
+      font-size: 10px; font-weight: 800; color: #333;
+      text-transform: uppercase; letter-spacing: .8px;
+      padding-bottom: 4px;
+    }
+    /* 2-col solo su valutazione-posturale.html (ha .pp-layout-wide) */
+    @media (min-width: 1024px) {
+      .pp-layout-wide .pp-row-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      .pp-layout-wide .photo-slot-paired { aspect-ratio: 3/4; }
+      .pp-layout-wide .photo-slot        { aspect-ratio: 3/4; }
+    }
+
     /* ── RESPONSIVE DESKTOP ──────────────────────────────────── */
     @media (min-width: 768px) {
       #main-content { max-width: 1200px; margin: 0 auto; }
@@ -466,7 +487,7 @@
         <span>Data sulla foto</span>
       </label>
     </div>
-    <div class="photo-grid" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
+    <div class="photo-grid pp-layout-wide" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
   </section>
 
   <!-- C: TEST MONOPODALICO -->
@@ -883,40 +904,63 @@
     renderFotoLibere()
   }
 
-  // buildPhotoGrid: 5 sezioni anatomiche, ognuna con carousel PRE↔POST
+  // buildPhotoGrid: 3 gruppi semantici (sagittale full-width, frontale+posteriore 2-col, podoscopio 2-col)
   function buildPhotoGrid() {
     const grid = document.getElementById('photo-grid')
     grid.innerHTML = ''
-    PHOTO_SECTIONS.forEach(section => {
-      const secDiv = document.createElement('div')
-      secDiv.className = 'photo-section'
-      secDiv.dataset.section = section.sectionKey
 
-      const divHdr = document.createElement('div')
-      divHdr.className = 'photo-section-divider'
-      divHdr.textContent = section.sectionLabel
-      secDiv.appendChild(divHdr)
+    // ── GRUPPO 1: Piano Sagittale (larghezza piena) ──────────
+    const sagSec = PHOTO_SECTIONS.find(s => s.sectionKey === 'sagittale')
+    const gSag = _ppGroup('sagittale')
+    _ppDivider(gSag, sagSec.sectionLabel)
 
-      // Riga con i carousel dei piani di questa sezione
-      const pairsRow = document.createElement('div')
-      pairsRow.className = 'photo-pairs-row'
-      section.planes.forEach(planeName => {
-        const plane = PHOTO_PLANES.find(p => p.plane === planeName)
-        if (!plane) return
-        pairsRow.appendChild(buildCarousel(plane))
-      })
-      secDiv.appendChild(pairsRow)
+    const sagRow = document.createElement('div')
+    sagRow.className = 'pp-row-2'
+    sagSec.planes.forEach(planeName => {
+      const plane = PHOTO_PLANES.find(p => p.plane === planeName)
+      if (plane) sagRow.appendChild(buildCarousel(plane))
+    })
+    gSag.appendChild(sagRow)
+    gSag.appendChild(buildScapolareBlock())
+    gSag.appendChild(buildPlaneNoteSection(sagSec.sectionKey, sagSec.noteField, sagSec.obsPiano))
+    grid.appendChild(gSag)
 
-      // Piano scapolare PRE/POST (solo per la sezione sagittale)
-      if (section.hasScapolare) {
-        secDiv.appendChild(buildScapolareBlock())
-      }
+    // ── GRUPPO 2: Frontale + Posteriore (2 colonne) ──────────
+    const gFP = _ppGroup('frontale-posteriore')
+    _ppDivider(gFP, 'Piano Frontale e Posteriore')
 
-      // Tendina osservazioni + textarea note per piano
-      secDiv.appendChild(buildPlaneNoteSection(section.sectionKey, section.noteField, section.obsPiano))
+    const fpRow = document.createElement('div')
+    fpRow.className = 'pp-row-2'
+    ;['frontale', 'posteriore'].forEach(key => {
+      const sec = PHOTO_SECTIONS.find(s => s.sectionKey === key)
+      if (!sec) return
+      const col = document.createElement('div')
+      col.className = 'pp-col'
+      _ppSubLabel(col, sec.sectionLabel)
+      const plane = PHOTO_PLANES.find(p => p.plane === sec.planes[0])
+      if (plane) col.appendChild(buildCarousel(plane))
+      col.appendChild(buildPlaneNoteSection(sec.sectionKey, sec.noteField, sec.obsPiano))
+      fpRow.appendChild(col)
+    })
+    gFP.appendChild(fpRow)
+    grid.appendChild(gFP)
 
-      // Chips specifici per piano podoscopio
-      if (section.sectionKey === 'podoscopio_sotto') {
+    // ── GRUPPO 3: Podoscopio (2 colonne) ─────────────────────
+    const gPod = _ppGroup('podoscopio')
+    _ppDivider(gPod, 'Podoscopio')
+
+    const podRow = document.createElement('div')
+    podRow.className = 'pp-row-2'
+    ;['podoscopio_sotto', 'podoscopio_dietro'].forEach(key => {
+      const sec = PHOTO_SECTIONS.find(s => s.sectionKey === key)
+      if (!sec) return
+      const col = document.createElement('div')
+      col.className = 'pp-col'
+      _ppSubLabel(col, sec.sectionLabel)
+      const plane = PHOTO_PLANES.find(p => p.plane === sec.planes[0])
+      if (plane) col.appendChild(buildCarousel(plane))
+      col.appendChild(buildPlaneNoteSection(sec.sectionKey, sec.noteField, sec.obsPiano))
+      if (key === 'podoscopio_sotto') {
         const c = document.createElement('div')
         c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
           '<div class="chip-label ds-chip-label">Arco plantare</div>' +
@@ -925,9 +969,9 @@
             '<span class="chip" data-g="arco" data-v="cavo" onclick="setExcl(\'arco\',\'cavo\')">Cavo</span>' +
             '<span class="chip" data-g="arco" data-v="normale" onclick="setExcl(\'arco\',\'normale\')">Normale</span>' +
           '</div>'
-        secDiv.appendChild(c)
+        col.appendChild(c)
       }
-      if (section.sectionKey === 'podoscopio_dietro') {
+      if (key === 'podoscopio_dietro') {
         const c = document.createElement('div')
         c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
           '<div class="chip-label ds-chip-label">Assetto podalico</div>' +
@@ -937,11 +981,31 @@
             '<span class="chip" data-g="assetto" data-v="normale" onclick="setExcl(\'assetto\',\'normale\')">Normale</span>' +
             '<span class="chip" data-g="assetto" data-v="misto" onclick="setExcl(\'assetto\',\'misto\')">Misto</span>' +
           '</div>'
-        secDiv.appendChild(c)
+        col.appendChild(c)
       }
-
-      grid.appendChild(secDiv)
+      podRow.appendChild(col)
     })
+    gPod.appendChild(podRow)
+    grid.appendChild(gPod)
+  }
+
+  function _ppGroup(key) {
+    const el = document.createElement('div')
+    el.className = 'pp-group'
+    el.dataset.pianoGroup = key
+    return el
+  }
+  function _ppDivider(parent, text) {
+    const el = document.createElement('div')
+    el.className = 'photo-section-divider'
+    el.textContent = text
+    parent.appendChild(el)
+  }
+  function _ppSubLabel(parent, text) {
+    const el = document.createElement('div')
+    el.className = 'pp-sublabel'
+    el.textContent = text
+    parent.appendChild(el)
   }
 
   function buildCarousel(plane) {
