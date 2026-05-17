@@ -273,22 +273,18 @@
       background: rgba(0,0,0,.45); padding: 2px 4px; z-index: 8; pointer-events: none;
     }
 
-    /* Paging dots */
+    /* Paging dots — top-left, no text labels */
     .photo-paging {
-      position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+      position: absolute; top: 6px; left: 8px;
       display: flex; gap: 5px; align-items: center; z-index: 15; pointer-events: none;
     }
     .photo-paging .pp-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: rgba(255,255,255,.45); border: 1.5px solid rgba(255,255,255,.8);
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,.5); border: 1.5px solid rgba(255,255,255,.9);
       cursor: pointer; pointer-events: all; transition: all .2s;
     }
-    .photo-paging .pp-dot.active { background: #FFD008; width: 22px; border-radius: 4px; border-color: #e6b800; }
-    .photo-paging .pp-lbl {
-      font-size: 9px; font-weight: 700; color: rgba(255,255,255,.95);
-      background: rgba(0,0,0,.55); padding: 2px 6px; border-radius: 3px;
-      pointer-events: none; white-space: nowrap;
-    }
+    .photo-paging .pp-dot.active { background: #FFD008; width: 18px; border-radius: 3px; border-color: #e6b800; }
+    .photo-paging .pp-lbl { display: none; /* nascosto, appare come toast */ }
     /* Arrows */
     .carousel-arrow {
       position: absolute; top: 50%; transform: translateY(-50%);
@@ -344,6 +340,45 @@
     /* ── NOTE PER PIANO ──────────────────────────────────────── */
     .plane-note-section { margin-top: 10px; }
     .plane-note-label { font-size: 11px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .3px; }
+
+    /* ── SPAZIATURA SEZIONI ANATOMICHE ───────────────────────── */
+    .photo-section { margin-bottom: 6px; }
+    .photo-section + .photo-section { margin-top: 32px; }
+
+    /* ── BOTTONE OSSERVAZIONI PIÙ COMPATTO ───────────────────── */
+    .obs-trigger-btn { padding: 9px 14px; }
+
+    /* ── SLOT BOTTOM BAR (foto caricata) ─────────────────────── */
+    .slot-bottom-bar {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 30px;
+      background: rgba(255,255,255,.82); display: flex; align-items: center;
+      gap: 2px; padding: 0 5px; border-radius: 0 0 8px 8px; z-index: 8;
+    }
+    .slot-date-mini { font-size: 9px; color: #555; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .slot-btn-mini { background: none; border: none; font-size: 13px; cursor: pointer; padding: 2px 3px; min-width: 22px; min-height: 22px; display: flex; align-items: center; justify-content: center; }
+    .slot-btn-mini:active { opacity: .65; }
+
+    /* ── LIVELLA WEBCAM ──────────────────────────────────────── */
+    #wc-livella {
+      position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+      width: 200px; height: 30px; z-index: 5; pointer-events: none; display: none;
+    }
+    .wc-livella-line {
+      position: absolute; top: 50%; left: 0; right: 0; height: 2px;
+      background: rgba(220,38,38,.75); transform: translateY(-50%); transition: background .2s;
+    }
+    .wc-livella-line.level { background: rgba(34,197,94,.9); }
+    .wc-livella-bubble {
+      position: absolute; top: 50%; left: 50%;
+      width: 13px; height: 13px; border-radius: 50%;
+      background: #FFD008; border: 2px solid #000;
+      transform: translate(-50%,-50%); transition: left .05s;
+    }
+    .wc-livella-lbl {
+      position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+      font-size: 9px; font-weight: 700; color: rgba(255,255,255,.9);
+      background: rgba(0,0,0,.5); padding: 2px 6px; border-radius: 3px; white-space: nowrap;
+    }
 
   </style>
 </head>
@@ -401,37 +436,10 @@
     <div class="photo-grid" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
   </section>
 
-  <!-- C: FOTO LIBERE -->
+  <!-- C: TEST MONOPODALICO -->
   <section class="vp-section">
-    <div class="vp-sec-title"><span class="vp-sec-badge">C</span> Foto libere</div>
-    <div class="foto-lib-list" id="foto-lib-list"><!-- built by renderFotoLibere() --></div>
-    <button class="btn-add-foto" id="btn-add-foto-lib" onclick="showFotoLiberaModal()">
-      + Aggiungi foto libera <span id="foto-lib-counter" style="opacity:.6">(0/5)</span>
-    </button>
-  </section>
-
-  <!-- D: VALUTAZIONE PIEDE -->
-  <section class="vp-section">
-    <div class="vp-sec-title"><span class="vp-sec-badge">D</span> Valutazione del piede</div>
-
-    <div class="chip-label">Arco plantare</div>
-    <div class="chip-row">
-      <span class="chip" data-g="arco" data-v="piatto"  onclick="setExcl('arco','piatto')">Piatto</span>
-      <span class="chip" data-g="arco" data-v="cavo"    onclick="setExcl('arco','cavo')">Cavo</span>
-      <span class="chip" data-g="arco" data-v="normale" onclick="setExcl('arco','normale')">Normale</span>
-    </div>
-
-    <div class="chip-label" style="margin-top:10px">Assetto podalico</div>
-    <div class="chip-row">
-      <span class="chip" data-g="assetto" data-v="valgo"   onclick="setExcl('assetto','valgo')">Valgo</span>
-      <span class="chip" data-g="assetto" data-v="varo"    onclick="setExcl('assetto','varo')">Varo</span>
-      <span class="chip" data-g="assetto" data-v="normale" onclick="setExcl('assetto','normale')">Normale</span>
-      <span class="chip" data-g="assetto" data-v="misto"   onclick="setExcl('assetto','misto')">Misto</span>
-    </div>
-
-    <hr class="vp-divider">
-    <div class="vp-sec-title" style="font-size:12px;margin-bottom:10px;text-transform:none;letter-spacing:0">
-      Test monopodalico di equilibrio
+    <div class="vp-sec-title">
+      <span class="vp-sec-badge">C</span> Test monopodalico di equilibrio
       <button class="vp-sec-info-btn" onclick="showMonoInfo()">ℹ️</button>
     </div>
 
@@ -454,6 +462,15 @@
       <textarea class="vp-textarea" id="f-monopodalico-note" rows="3"
         placeholder="Osservazioni aggiuntive…" oninput="scheduleSave()"></textarea>
     </div>
+  </section>
+
+  <!-- D: FOTO LIBERE -->
+  <section class="vp-section">
+    <div class="vp-sec-title"><span class="vp-sec-badge">D</span> Foto libere</div>
+    <div class="foto-lib-list" id="foto-lib-list"><!-- built by renderFotoLibere() --></div>
+    <button class="btn-add-foto" id="btn-add-foto-lib" onclick="showFotoLiberaModal()">
+      + Aggiungi foto libera <span id="foto-lib-counter" style="opacity:.6">(0/5)</span>
+    </button>
   </section>
 
   <!-- E: RELAZIONE AI POLICETTIVO -->
@@ -620,19 +637,29 @@
 <!-- WEBCAM MODAL -->
 <div id="webcam-modal">
   <div id="wc-topbar">
-    <button class="wc-btn" id="wc-close-btn" onclick="closeWebcamModal()">✕ Annulla</button>
-    <button class="wc-btn" id="wc-mirror-btn" onclick="wcToggleMirror()">🔄 Specchia</button>
-    <button class="wc-btn" id="wc-grid-btn" onclick="wcToggleGrid()">⊞ Griglia</button>
-    <button class="wc-btn" id="wc-camera-btn" onclick="wcNextCamera()">↻ Camera</button>
+    <button class="wc-btn" id="wc-close-btn" onclick="closeWebcamModal()">✕</button>
+    <div style="flex:1"></div>
+    <button class="wc-btn" id="wc-livella-btn" onclick="wcToggleLivella()">📐 Livella</button>
+    <button class="wc-btn" id="wc-grid-btn" onclick="wcToggleGrid()">⊞</button>
   </div>
   <div id="wc-video-wrap">
     <video id="wc-video" autoplay playsinline muted></video>
     <div id="wc-grid-overlay"></div>
     <img id="wc-preview-img" alt="">
+    <!-- Livella overlay -->
+    <div id="wc-livella">
+      <div class="wc-livella-line" id="wc-livella-line"></div>
+      <div class="wc-livella-bubble" id="wc-livella-bubble"></div>
+      <div class="wc-livella-lbl" id="wc-livella-lbl">—</div>
+    </div>
   </div>
   <div id="wc-bottombar">
-    <div id="wc-shoot-row">
-      <button id="wc-shoot-btn" onclick="wcShoot()">📷</button>
+    <div id="wc-shoot-row" style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:12px">
+      <button class="wc-btn" id="wc-camera-btn" onclick="wcNextCamera()" style="display:none">↻</button>
+      <div style="flex:1;display:flex;justify-content:center">
+        <button id="wc-shoot-btn" onclick="wcShoot()">📷</button>
+      </div>
+      <button class="wc-btn" id="wc-mirror-btn" onclick="wcToggleMirror()">🔄</button>
     </div>
     <div id="wc-confirm-row">
       <button class="wc-confirm-btn" style="background:#FFD008;color:#000" onclick="wcConfirm()">✅ Usa questa</button>
@@ -729,13 +756,15 @@
   let umIsReplace = false
 
   // Webcam state
-  let wcStream      = null
-  let wcTipo        = null
-  let wcIsReplace   = false
-  let wcCallback    = null   // optional fn(file) for non-slot uploads (es. foto libera)
-  let wcCameras     = []
-  let wcCameraIdx   = 0
+  let wcStream       = null
+  let wcTipo         = null
+  let wcIsReplace    = false
+  let wcCallback     = null   // optional fn(file) for non-slot uploads (es. foto libera)
+  let wcCameras      = []
+  let wcCameraIdx    = 0
   let wcCapturedBlob = null
+  let wcLivellaActive = localStorage.getItem('posturale_livella_active') !== '0'
+  let _wcOriHandler  = null
 
   // ── INIT ──────────────────────────────────────────────────
   async function init() {
@@ -866,6 +895,31 @@
       // Tendina osservazioni + textarea note per piano
       secDiv.appendChild(buildPlaneNoteSection(section.sectionKey, section.noteField, section.obsPiano))
 
+      // Chips specifici per piano podoscopio
+      if (section.sectionKey === 'podoscopio_sotto') {
+        const c = document.createElement('div')
+        c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
+          '<div class="chip-label">Arco plantare</div>' +
+          '<div class="chip-row">' +
+            '<span class="chip" data-g="arco" data-v="piatto" onclick="setExcl(\'arco\',\'piatto\')">Piatto</span>' +
+            '<span class="chip" data-g="arco" data-v="cavo" onclick="setExcl(\'arco\',\'cavo\')">Cavo</span>' +
+            '<span class="chip" data-g="arco" data-v="normale" onclick="setExcl(\'arco\',\'normale\')">Normale</span>' +
+          '</div>'
+        secDiv.appendChild(c)
+      }
+      if (section.sectionKey === 'podoscopio_dietro') {
+        const c = document.createElement('div')
+        c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
+          '<div class="chip-label">Assetto podalico</div>' +
+          '<div class="chip-row">' +
+            '<span class="chip" data-g="assetto" data-v="valgo" onclick="setExcl(\'assetto\',\'valgo\')">Valgo</span>' +
+            '<span class="chip" data-g="assetto" data-v="varo" onclick="setExcl(\'assetto\',\'varo\')">Varo</span>' +
+            '<span class="chip" data-g="assetto" data-v="normale" onclick="setExcl(\'assetto\',\'normale\')">Normale</span>' +
+            '<span class="chip" data-g="assetto" data-v="misto" onclick="setExcl(\'assetto\',\'misto\')">Misto</span>' +
+          '</div>'
+        secDiv.appendChild(c)
+      }
+
       grid.appendChild(secDiv)
     })
   }
@@ -886,14 +940,12 @@
     carousel.className = 'photo-slot-paired'
     carousel.id = 'carousel-' + pairKey
 
-    // Paging dots
+    // Paging dots (no text labels — PRE/POST shown as toast on change)
     const paging = document.createElement('div')
     paging.className = 'photo-paging'
     paging.innerHTML =
-      '<span class="pp-lbl">PRE</span>' +
-      '<div class="pp-dot active" id="pp-dot-' + pairKey + '-0" onclick="setCarouselPage(\'' + pairKey + '\',0)"></div>' +
-      '<div class="pp-dot" id="pp-dot-' + pairKey + '-1" onclick="setCarouselPage(\'' + pairKey + '\',1)"></div>' +
-      '<span class="pp-lbl">POST 3R</span>'
+      '<div class="pp-dot active" id="pp-dot-' + pairKey + '-0" onclick="setCarouselPage(\'' + pairKey + '\',0)" title="PRE"></div>' +
+      '<div class="pp-dot" id="pp-dot-' + pairKey + '-1" onclick="setCarouselPage(\'' + pairKey + '\',1)" title="POST 3R"></div>'
     carousel.appendChild(paging)
 
     // PRE page (idx 0)
@@ -971,6 +1023,7 @@
   function setCarouselPage(pairKey, idx) {
     const plane = PHOTO_PLANES.find(p => p.plane === pairKey)
     if (!plane) return
+    const prevIdx = carouselState[pairKey]
     carouselState[pairKey] = idx
     const slots = [plane.pre, plane.post]
     slots.forEach((s, i) => {
@@ -979,6 +1032,11 @@
       const dot = document.getElementById('pp-dot-' + pairKey + '-' + i)
       if (dot) dot.classList.toggle('active', i === idx)
     })
+    // Toast momentaneo PRE/POST
+    if (prevIdx !== idx) {
+      const lbl = idx === 0 ? 'PRE' : 'POST 3R'
+      showToast(lbl, 900)
+    }
   }
 
   function buildScapolareBlock() {
@@ -1030,14 +1088,15 @@
 
     if (p) {
       slot.className = 'photo-slot filled'
-      slot.onclick   = null
+      slot.onclick   = () => showLightbox(tipo)
+      const dateStr = p.data_scatto ? new Date(p.data_scatto).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit' }) : ''
       slot.innerHTML =
         '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
-        '<div style="position:absolute;bottom:0;left:0;right:0;font-size:9px;font-weight:700;color:#fff;text-align:center;background:rgba(0,0,0,.55);padding:2px 2px 3px;pointer-events:none">' + label + '</div>' +
-        '<div class="photo-slot-actions">' +
-          '<button class="slot-btn" onclick="event.stopPropagation();showLightbox(\'' + tipo + '\')" title="Ingrandisci">🔍</button>' +
-          '<button class="slot-btn" onclick="event.stopPropagation();replacePhoto(\'' + tipo + '\')" title="Sostituisci">🔄</button>' +
-          '<button class="slot-btn" style="color:#ff5252" onclick="event.stopPropagation();removePhoto(\'' + tipo + '\')" title="Elimina">✕</button>' +
+        '<div class="slot-bottom-bar">' +
+          '<span class="slot-date-mini">' + (dateStr ? '📅 ' + dateStr : '') + '</span>' +
+          '<button class="slot-btn-mini" onclick="event.stopPropagation();showLightbox(\'' + tipo + '\')" title="Annota">✏️</button>' +
+          '<button class="slot-btn-mini" onclick="event.stopPropagation();replacePhoto(\'' + tipo + '\')" title="Sostituisci">🔄</button>' +
+          '<button class="slot-btn-mini" style="color:#e53935" onclick="event.stopPropagation();removePhoto(\'' + tipo + '\')" title="Elimina">✕</button>' +
         '</div>'
       if (dateEl) dateEl.textContent = p.data_scatto ? formatDateForDisplay(p.data_scatto) : ''
       if (noteRow) {
@@ -1224,19 +1283,26 @@
     const camBtn = document.getElementById('wc-camera-btn')
     camBtn.style.display = wcCameras.length >= 2 ? 'inline-flex' : 'none'
 
+    // Init livella
+    const livellaBtn = document.getElementById('wc-livella-btn')
+    if (livellaBtn) livellaBtn.classList.toggle('active', wcLivellaActive)
+
     document.getElementById('webcam-modal').classList.add('open')
     wcShowShootState()
     await wcStartStream()
+    if (wcLivellaActive) _wcStartLivella()
   }
 
   async function wcStartStream() {
     if (wcStream) { wcStream.getTracks().forEach(t => t.stop()); wcStream = null }
 
     let constraints
-    if (wcCameras.length > 0 && wcCameras[wcCameraIdx]) {
-      constraints = { video: { deviceId: { exact: wcCameras[wcCameraIdx].deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }
+    if (wcCameras.length > 0 && wcCameraIdx > 0) {
+      // Utente sta ciclando manualmente tra le camere
+      constraints = { video: { deviceId: { exact: wcCameras[wcCameraIdx % wcCameras.length].deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }
     } else {
-      constraints = { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }
+      // Default: fotocamera posteriore (environment) su mobile, default su desktop
+      constraints = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }
     }
 
     try {
@@ -1256,6 +1322,7 @@
   }
 
   function closeWebcamModal() {
+    _wcStopLivella()
     if (wcStream) { wcStream.getTracks().forEach(t => t.stop()); wcStream = null }
     const video = document.getElementById('wc-video')
     video.srcObject = null
@@ -1271,6 +1338,41 @@
     document.getElementById('wc-grid-btn').classList.remove('active')
     const prev = document.getElementById('wc-preview-img')
     prev.style.display = 'none'; prev.src = ''
+  }
+
+  // ── LIVELLA ────────────────────────────────────────────────
+  function wcToggleLivella() {
+    wcLivellaActive = !wcLivellaActive
+    localStorage.setItem('posturale_livella_active', wcLivellaActive ? '1' : '0')
+    document.getElementById('wc-livella-btn')?.classList.toggle('active', wcLivellaActive)
+    if (wcLivellaActive) _wcStartLivella(); else _wcStopLivella()
+  }
+
+  function _wcStartLivella() {
+    const overlay = document.getElementById('wc-livella')
+    if (!overlay) return
+    overlay.style.display = 'block'
+    if (_wcOriHandler) return // già attivo
+    _wcOriHandler = e => {
+      const gamma = e.gamma || 0
+      const isLevel = Math.abs(gamma) < 4
+      const bubble = document.getElementById('wc-livella-bubble')
+      const line   = document.getElementById('wc-livella-line')
+      const lbl    = document.getElementById('wc-livella-lbl')
+      if (bubble) {
+        const offset = Math.min(Math.max(gamma / 15 * 45, -80), 80)
+        bubble.style.left = 'calc(50% + ' + offset + 'px)'
+      }
+      if (line) line.classList.toggle('level', isLevel)
+      if (lbl)  lbl.textContent = isLevel ? 'Livello ✓' : Math.round(Math.abs(gamma)) + '°'
+    }
+    window.addEventListener('deviceorientation', _wcOriHandler)
+  }
+
+  function _wcStopLivella() {
+    if (_wcOriHandler) { window.removeEventListener('deviceorientation', _wcOriHandler); _wcOriHandler = null }
+    const overlay = document.getElementById('wc-livella')
+    if (overlay) overlay.style.display = 'none'
   }
 
   async function wcNextCamera() {
@@ -2043,11 +2145,11 @@ ISTRUZIONI:
 
   // ── TOAST ─────────────────────────────────────────────────
   let toastTimer = null
-  function showToast(msg) {
+  function showToast(msg, ms) {
     const el = document.getElementById('toast')
     el.textContent = msg; el.classList.add('show')
     clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => el.classList.remove('show'), 3000)
+    toastTimer = setTimeout(() => el.classList.remove('show'), ms || 3000)
   }
 
   function showErrorBanner(msg) {

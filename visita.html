@@ -620,7 +620,9 @@
     }
 
     /* ====== STEP 3: NUOVO LAYOUT PER PIANO ====== */
+    #s3-foto-grid { padding: 0 16px 16px; }
     .s3-photo-section { margin-bottom: 8px; }
+    .s3-photo-section + .s3-photo-section { margin-top: 28px; }
     .s3-section-divider {
       font-size: 10px; font-weight: 800; color: #333; text-transform: uppercase;
       letter-spacing: 1px; border-top: 2px solid #333; padding: 8px 0 10px; margin: 4px 0 10px;
@@ -643,18 +645,15 @@
     .s3-page.prev   { left: -100%; }
     .s3-page .s3-slot { position: absolute; inset: 0; border: none !important; border-radius: 8px; aspect-ratio: unset; height: 100%; background: transparent; }
     .s3-paging {
-      position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+      position: absolute; top: 6px; left: 8px;
       display: flex; gap: 5px; align-items: center; z-index: 15; pointer-events: none;
     }
     .s3-paging .pp-dot {
-      width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.45);
-      border: 1.5px solid rgba(255,255,255,.8); cursor: pointer; pointer-events: all; transition: all .2s;
+      width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.5);
+      border: 1.5px solid rgba(255,255,255,.9); cursor: pointer; pointer-events: all; transition: all .2s;
     }
-    .s3-paging .pp-dot.active { background: #FFD008; width: 22px; border-radius: 4px; border-color: #e6b800; }
-    .s3-paging .pp-lbl {
-      font-size: 9px; font-weight: 700; color: rgba(255,255,255,.95); background: rgba(0,0,0,.55);
-      padding: 2px 6px; border-radius: 3px; pointer-events: none; white-space: nowrap;
-    }
+    .s3-paging .pp-dot.active { background: #FFD008; width: 18px; border-radius: 3px; border-color: #e6b800; }
+    .s3-paging .pp-lbl { display: none; }
     .s3-carr-arrow {
       position: absolute; top: 50%; transform: translateY(-50%); width: 26px; height: 44px;
       background: rgba(0,0,0,.28); color: #fff; border: none; font-size: 11px; cursor: pointer;
@@ -670,9 +669,10 @@
 
     /* Osservazioni dropdown (shared) */
     .s3-obs-trigger-btn {
-      width: 100%; padding: 11px 14px; background: #FFD008; color: #000; border: 2px solid #FFD008;
+      width: 100%; padding: 9px 14px; background: #FFD008; color: #000; border: 2px solid #FFD008;
       border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
       text-align: left; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+      min-height: 44px;
     }
     .s3-obs-trigger-btn:hover { background: #e6bc00; border-color: #e6bc00; }
     .s3-obs-panel {
@@ -2186,10 +2186,8 @@
     const paging = document.createElement('div')
     paging.className = 's3-paging'
     paging.innerHTML =
-      '<span class="pp-lbl">PRE</span>' +
-      '<div class="pp-dot active" id="s3pp-' + pairKey + '-0" onclick="s3SetPage(\'' + pairKey + '\',0)"></div>' +
-      '<div class="pp-dot" id="s3pp-' + pairKey + '-1" onclick="s3SetPage(\'' + pairKey + '\',1)"></div>' +
-      '<span class="pp-lbl">POST 3R</span>'
+      '<div class="pp-dot active" id="s3pp-' + pairKey + '-0" onclick="s3SetPage(\'' + pairKey + '\',0)" title="PRE"></div>' +
+      '<div class="pp-dot" id="s3pp-' + pairKey + '-1" onclick="s3SetPage(\'' + pairKey + '\',1)" title="POST 3R"></div>'
     carousel.appendChild(paging)
 
     // PRE page
@@ -2238,6 +2236,7 @@
     let pair = null
     for (const sec of S3_SECTIONS) { pair = sec.pairs.find(p => p.pairKey === pairKey); if (pair) break }
     if (!pair) return
+    const prevIdx = s3CarouselState[pairKey]
     s3CarouselState[pairKey] = idx
     const keys = [pair.preKey, pair.postKey]
     keys.forEach((k, i) => {
@@ -2246,8 +2245,7 @@
       const dot = document.getElementById('s3pp-' + pairKey + '-' + i)
       if (dot) dot.classList.toggle('active', i === idx)
     })
-    // Auto-switch to POST page if PRE photo exists and user taps carousel
-    s3SetPage._last = { pairKey, idx }
+    if (prevIdx !== idx) showToast(idx === 0 ? 'PRE' : 'POST 3R', 900)
   }
 
   function s3BuildScapolareBlock() {
@@ -2308,7 +2306,11 @@
     const voci = POSTURAL_OBSERVATIONS[piano] || []
     panel.dataset.built = '1'
     panel.innerHTML =
-      '<div class="obs-search-wrap"><input class="obs-search" type="text" placeholder="Cerca…" oninput="_s3FilterObs(this,\'' + piano + '\')" /></div>' +
+      '<div class="obs-search-wrap"><input class="obs-search" type="text" placeholder="Cerca osservazione…" oninput="_s3FilterObs(this,\'' + piano + '\')" /></div>' +
+      '<div class="obs-ctrl-row" style="display:flex;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f0f0">' +
+        '<button class="obs-ctrl-btn" onclick="_s3SelAll(\'' + piano + '\',true)" style="padding:4px 10px;border:1.5px solid #ddd;border-radius:5px;background:#fafafa;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer">Seleziona tutto</button>' +
+        '<button class="obs-ctrl-btn" onclick="_s3SelAll(\'' + piano + '\',false)" style="padding:4px 10px;border:1.5px solid #ddd;border-radius:5px;background:#fafafa;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer">Deseleziona</button>' +
+      '</div>' +
       '<div class="s3-obs-list" id="s3-obs-list-' + piano + '">' +
         voci.map(v => '<label class="s3-obs-item"><input type="checkbox" value="' + v + '"><span>' + v + '</span></label>').join('') +
       '</div>' +
@@ -2321,6 +2323,15 @@
       const btn = document.getElementById('s3-obs-add-' + piano)
       if (btn) { btn.textContent = '✓ Aggiungi ' + n; btn.disabled = n === 0 }
     }))
+  }
+
+  function _s3SelAll(piano, val) {
+    const list = document.getElementById('s3-obs-list-' + piano)
+    if (!list) return
+    list.querySelectorAll('input[type=checkbox]').forEach(cb => { if (cb.closest('.s3-obs-item').style.display !== 'none') cb.checked = val })
+    const n = list.querySelectorAll('input[type=checkbox]:checked').length
+    const btn = document.getElementById('s3-obs-add-' + piano)
+    if (btn) { btn.textContent = '✓ Aggiungi ' + n; btn.disabled = n === 0 }
   }
   function _s3FilterObs(input, piano) {
     const q = input.value.toLowerCase()
