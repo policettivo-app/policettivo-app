@@ -6,6 +6,7 @@
   <meta name="hide-bottom-nav" content="true">
   <title>Valutazione Posturale</title>
   <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/postural-layout.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -391,25 +392,30 @@
       #main-content { max-width: 1200px; margin: 0 auto; }
       .vp-section { margin: 12px 0; }
     }
-    @media (min-width: 1024px) {
-      /* Grid 2 colonne: Sagittale larghezza piena, coppie affiancate sotto */
-      .photo-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-      }
-      /* Sagittale DX + SX: riga intera (ha già la coppia affiancata internamente) */
-      .photo-section:first-child {
-        grid-column: 1 / -1;
-      }
-      /* Foto uniformi: proporzione 3/4, max 380px */
-      .photo-slot-paired { aspect-ratio: 3/4; }
-      .photo-slot        { aspect-ratio: 3/4; max-width: 380px; }
+
+    /* ── VP FULLSCREEN MODAL ─────────────────────────────────── */
+    #vp-fullscreen {
+      display: none; position: fixed; inset: 0; z-index: 1200;
+      background: rgba(0,0,0,0.92);
+      align-items: center; justify-content: center;
     }
+    #vp-fullscreen.open { display: flex; }
+    #vp-fs-img {
+      max-width: 90vw; max-height: 90vh;
+      object-fit: contain; border-radius: 4px;
+      display: block;
+    }
+    #vp-fs-close {
+      position: fixed; top: 16px; right: 20px;
+      background: none; border: none; color: #fff;
+      font-size: 28px; cursor: pointer; z-index: 1201;
+      line-height: 1; padding: 4px 8px;
+    }
+    #vp-fs-close:hover { color: #FFD008; }
 
   </style>
 </head>
-<body>
+<body class="page-postural-standalone">
 
 <!-- ERROR BANNER -->
 <div id="error-banner" style="display:none;background:#c0392b;color:#fff;padding:14px 20px;font-size:14px;font-weight:600;text-align:center;position:sticky;top:0;z-index:9999;"></div>
@@ -549,6 +555,12 @@
 <!-- FILE INPUTS (hidden) — FIX 1: no capture, OS propone camera/galleria/file -->
 <input type="file" id="photo-file-input" accept="image/*" style="display:none" onchange="onPhotoFileSelected(event)">
 <input type="file" id="fl-file-input"    accept="image/*" style="display:none" onchange="onFotoLiberaFileSelected(event)">
+
+<!-- ── VP FULLSCREEN VIEWER ──────────────────────────────── -->
+<div id="vp-fullscreen" onclick="closeVpFullscreen()">
+  <button id="vp-fs-close" onclick="closeVpFullscreen()" aria-label="Chiudi">✕</button>
+  <img id="vp-fs-img" src="" alt="Foto posturale" onclick="event.stopPropagation()">
+</div>
 
 <!-- ── LIGHTBOX + DRAW CANVAS + GRID (FIX 7, FIX 8) ─────── -->
 <div id="lightbox">
@@ -878,6 +890,7 @@
     PHOTO_SECTIONS.forEach(section => {
       const secDiv = document.createElement('div')
       secDiv.className = 'photo-section'
+      secDiv.dataset.section = section.sectionKey
 
       const divHdr = document.createElement('div')
       divHdr.className = 'photo-section-divider'
@@ -1101,6 +1114,7 @@
         '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
         '<div class="slot-bottom-bar">' +
           '<span class="slot-date-mini">' + (dateStr ? '📅 ' + dateStr : '') + '</span>' +
+          '<button class="slot-btn-mini" onclick="event.stopPropagation();openVpFullscreen(\'' + p.url_pubblico + '\')" title="Schermo intero">⛶</button>' +
           '<button class="slot-btn-mini" onclick="event.stopPropagation();showLightbox(\'' + tipo + '\')" title="Annota">✏️</button>' +
           '<button class="slot-btn-mini" onclick="event.stopPropagation();replacePhoto(\'' + tipo + '\')" title="Sostituisci">🔄</button>' +
           '<button class="slot-btn-mini" style="color:#e53935" onclick="event.stopPropagation();removePhoto(\'' + tipo + '\')" title="Elimina">✕</button>' +
@@ -2046,6 +2060,20 @@ ISTRUZIONI:
     document.body.style.overflow = ''
   }
 
+  // VP Fullscreen viewer (view-only, no annotation)
+  function openVpFullscreen(url) {
+    const modal = document.getElementById('vp-fullscreen')
+    document.getElementById('vp-fs-img').src = url
+    modal.classList.add('open')
+    document.body.style.overflow = 'hidden'
+  }
+  function closeVpFullscreen() {
+    const modal = document.getElementById('vp-fullscreen')
+    modal.classList.remove('open')
+    document.getElementById('vp-fs-img').src = ''
+    document.body.style.overflow = ''
+  }
+
   // FIX 8: Toggle grid overlay
   function toggleGrid() {
     gridActive = !gridActive
@@ -2272,6 +2300,7 @@ ISTRUZIONI:
   // ── KEYBOARD ──────────────────────────────────────────────
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return
+    if (document.getElementById('vp-fullscreen').classList.contains('open')) { closeVpFullscreen(); return }
     if (document.getElementById('webcam-modal').classList.contains('open')) { closeWebcamModal(); return }
     if (document.getElementById('upload-menu-modal').classList.contains('open')) { document.getElementById('upload-menu-modal').classList.remove('open'); umTipo = null; return }
     closeLightbox(); closeMonoInfo(); closeFotoLiberaModal()
