@@ -186,7 +186,8 @@ BEGIN
                        ),
       'protocol',      NULL,
       'exercises',     '[]'::jsonb,
-      'custom_videos', '[]'::jsonb
+      'custom_videos', '[]'::jsonb,
+      'elicoidali',    '[]'::jsonb
     );
   END IF;
 
@@ -250,6 +251,21 @@ BEGIN
       )
       FROM exercise_videos ev
       WHERE ev.protocol_id = v_proto_id
+    ), '[]'::jsonb),
+
+    -- Elicoidali: text-id exercises stored in separate table (no UUID FK)
+    'elicoidali', COALESCE((
+      SELECT jsonb_agg(
+        jsonb_build_object(
+          'id',            eli.id,
+          'elicoidale_id', eli.elicoidale_id,
+          'ordine',        eli.ordine,
+          'durata',        eli.durata
+        )
+        ORDER BY eli.ordine ASC NULLS LAST
+      )
+      FROM patient_protocol_elicoidali eli
+      WHERE eli.patient_protocol_id = v_proto_id
     ), '[]'::jsonb)
 
   ) INTO v_result;

@@ -240,13 +240,8 @@
       // 4. Video custom del protocollo
       protocolCustomVideos = pd.custom_videos || []
 
-      // Load elicoidali separately (RPC doesn't include them yet)
-      const { data: eliData } = await _supabase
-        .from('patient_protocol_elicoidali')
-        .select('*')
-        .eq('patient_protocol_id', protocol.id)
-        .order('ordine', { ascending: true })
-      protocolElicoidali = eliData || []
+      // 5. Elicoidali — inclusi nel payload RPC, nessuna query diretta
+      protocolElicoidali = pd.elicoidali || []
 
       renderProtocol()
       loadSmile()

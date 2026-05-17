@@ -27,8 +27,6 @@ CREATE POLICY "professionals can manage elicoidali"
     )
   );
 
--- Allow anon SELECT (patient-facing view loads via protocol_id obtained from token-validated RPC)
-CREATE POLICY "anon can read elicoidali"
-  ON patient_protocol_elicoidali
-  FOR SELECT
-  USING (true);
+-- Anon access is intentionally absent: patient-facing reads go through
+-- the SECURITY DEFINER RPC get_protocol_data() which includes elicoidali
+-- in its response payload. No direct table access needed (or allowed) for anon.
