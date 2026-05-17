@@ -2266,8 +2266,7 @@
         aiHtml = '<div style="margin-top:24px"><div style="font-size:13px;font-weight:700;color:#1565c0;margin-bottom:12px">Analisi AI</div>' + aiContent.innerHTML + '</div>'
       }
       const win = window.open('', '_blank')
-      win.document.write('<html><head><title>Cartella Clinica Medica — ' + nomePaz + '</title>
-  <link rel="stylesheet" href="css/design-system.css">')
+      win.document.write('<html><head><title>Cartella Clinica Medica — ' + nomePaz + '</title>')
       win.document.write('<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">')
       win.document.write('<style>body{font-family:Montserrat,sans-serif;max-width:800px;margin:0 auto;padding:40px 32px;color:#000} h1{font-size:24px;margin-bottom:4px} .sub{font-size:13px;color:#666;margin-bottom:24px} .logo{background:#FFD008;color:#000;font-weight:700;font-size:11px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px} .note{background:#f9f9f9;border-radius:8px;padding:14px;font-size:13px;color:#444;margin-bottom:24px;white-space:pre-wrap} @media print{button{display:none}}</style>')
       win.document.write('</head><body>')
@@ -2601,8 +2600,7 @@ Campi:
       const noteProf = document.getElementById('csai-note-prof')?.value || ''
       const nomePaz = ((patient?.nome||'') + ' ' + (patient?.cognome||'')).trim()
       const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
-      let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Assistente Clinico AI — ${nomePaz}</title>
-  <link rel="stylesheet" href="css/design-system.css"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;max-width:700px;margin:40px auto;padding:0 24px;color:#111;font-size:13px;line-height:1.7}h1{font-size:18px;font-weight:700;margin-bottom:4px}.meta{color:#888;font-size:12px;margin-bottom:32px}.section{margin-bottom:22px}.section-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:6px}.section-text{background:#f7f7f7;border-radius:6px;padding:12px}.note-prof{border-top:2px solid #FFD008;margin-top:32px;padding-top:16px}.footer{margin-top:40px;font-size:10px;color:#bbb;border-top:1px solid #eee;padding-top:12px}@media print{body{margin:20px}}</style></head><body><h1>Assistente Clinico AI</h1><div class="meta">${nomePaz} — generato il ${oggi}</div>`
+      let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Assistente Clinico AI — ${nomePaz}</title><style>body{font-family:'Helvetica Neue',Arial,sans-serif;max-width:700px;margin:40px auto;padding:0 24px;color:#111;font-size:13px;line-height:1.7}h1{font-size:18px;font-weight:700;margin-bottom:4px}.meta{color:#888;font-size:12px;margin-bottom:32px}.section{margin-bottom:22px}.section-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:6px}.section-text{background:#f7f7f7;border-radius:6px;padding:12px}.note-prof{border-top:2px solid #FFD008;margin-top:32px;padding-top:16px}.footer{margin-top:40px;font-size:10px;color:#bbb;border-top:1px solid #eee;padding-top:12px}@media print{body{margin:20px}}</style></head><body><h1>Assistente Clinico AI</h1><div class="meta">${nomePaz} — generato il ${oggi}</div>`
       ids.forEach((id, i) => {
         const el = document.getElementById(id)
         html += `<div class="section ds-card"><div class="section-label">${labels[i]}</div><div class="section-text">${el?.textContent || '—'}</div></div>`
@@ -2769,8 +2767,7 @@ Campi:
       var oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
       var esc = function(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 
-      var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cartella Clinica — ' + nomePaz + '</title>
-  <link rel="stylesheet" href="css/design-system.css">'
+      var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cartella Clinica — ' + nomePaz + '</title>'
       html += '<style>body{font-family:"Helvetica Neue",Arial,sans-serif;max-width:800px;margin:40px auto;padding:0 32px;color:#111;font-size:13px;line-height:1.7}'
       html += 'h1{font-size:22px;font-weight:700;margin-bottom:4px}.logo{background:#FFD008;color:#000;font-weight:700;font-size:10px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px}'
       html += '.meta{color:#888;font-size:12px;margin-bottom:28px}.sec-hdr{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;border-bottom:2px solid #FFD008;padding-bottom:6px;margin:28px 0 14px}'
