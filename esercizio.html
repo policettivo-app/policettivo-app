@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/elicoidali-exercises.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; color: #fff; }
@@ -183,10 +184,14 @@
       if (!pd.protocol || pd.protocol.stato !== 'attivo') { window.location.href = 'protocollo.html?token=' + token; return }
       protocol = pd.protocol
       exercises = (pd.exercises || []).map(function(item) { return Object.assign({}, item.ppe, { exercise: item.exercise || null, item_type: 'standard' }) })
+      const eliItems = (pd.elicoidali || []).map(function(eli) {
+        const def = EXERCISES_ELICOIDALI.find(function(e) { return e.id === eli.elicoidale_id }) || {}
+        return { item_type: 'elicoidale', id: eli.id, elicoidale_id: eli.elicoidale_id, titolo: def.title || eli.elicoidale_id, descrizione: def.description || '', video_url: def.video_url || '', durata: eli.durata || def.default_duration || 60 }
+      })
       const customItems = (pd.custom_videos || []).map(function(v) {
         return { item_type: 'custom_video', id: v.id, titolo: v.titolo, url: v.url, tipo: v.tipo, descrizione: v.descrizione, durata: v.durata || 60 }
       })
-      items = exercises.concat(customItems)
+      items = exercises.concat(eliItems).concat(customItems)
       if (items.length === 0) { finishSession(); return }
       if (idx >= items.length) { finishSession(); return }
       loadExercise()
@@ -210,6 +215,8 @@
       document.getElementById('btn-prev').style.display = idx > 0 ? 'block' : 'none'
       if (item.item_type === 'custom_video') {
         loadCustomVideoItem(item)
+      } else if (item.item_type === 'elicoidale') {
+        loadElicoidaleItem(item)
       } else {
         loadStandardExercise(item)
       }
@@ -262,6 +269,33 @@
         videoBox.innerHTML = '<img src="' + item.url + '" loading="lazy" style="width:100%;max-height:360px;object-fit:contain;background:#000;display:block">'
       } else {
         videoBox.innerHTML = '<video src="' + item.url + '" controls playsinline preload="metadata" style="width:100%;max-height:360px;background:#000;display:block"></video>'
+      }
+      totalSeconds = item.durata || 60
+      remaining = totalSeconds
+      updateTimerDisplay()
+      updateRing()
+    }
+
+    function loadElicoidaleItem(item) {
+      document.getElementById('ex-name').textContent = item.titolo || item.elicoidale_id
+      document.getElementById('ex-desc').textContent = item.descrizione || ''
+      document.getElementById('hint-3r').style.display = 'none'
+      document.getElementById('ex-config').innerHTML = '<span class="config-pill pill-npl">Elicoidale NLP</span>'
+      document.getElementById('timer-section').style.display = 'block'
+      document.getElementById('btn-pain').style.display = 'none'
+      const videoBox = document.getElementById('video-box')
+      if (item.video_url) {
+        const { id, isShorts } = extractVideoId(item.video_url)
+        if (id) {
+          videoBox.className = 'video-box ' + (isShorts ? 'shorts' : 'normal')
+          videoBox.innerHTML = '<iframe src="https://www.youtube.com/embed/' + id + '?playsinline=1&rel=0" allowfullscreen allow="autoplay"></iframe>'
+        } else {
+          videoBox.className = 'video-box normal'
+          videoBox.innerHTML = '<div class="video-placeholder"><div style="font-size:40px">▶</div><p style="margin-bottom:12px;color:#aaa">Guarda il video</p><a href="' + item.video_url + '" target="_blank" style="background:#FF0000;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block">▶ Guarda su YouTube</a></div>'
+        }
+      } else {
+        videoBox.className = 'video-box normal'
+        videoBox.innerHTML = '<div class="video-placeholder"><div>▶</div><p>Video non disponibile</p></div>'
       }
       totalSeconds = item.durata || 60
       remaining = totalSeconds
@@ -335,7 +369,7 @@
         await salvaDiarioAutomatico(streak)
       } else {
         const nextItem = items[idx+1]
-        const nextName = nextItem.item_type === 'custom_video'
+        const nextName = nextItem.item_type === 'custom_video' || nextItem.item_type === 'elicoidale'
           ? (nextItem.titolo || 'Contenuto personalizzato')
           : (nextItem.exercise ? nextItem.exercise.nome : '')
         document.getElementById('completed-sub').textContent = 'Prossimo: ' + nextName
