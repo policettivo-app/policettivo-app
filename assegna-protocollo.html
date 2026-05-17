@@ -536,7 +536,8 @@
             const ex = EXERCISES_ELICOIDALI.find(function(e) { return e.id === id })
             return { patient_protocol_id: editProtocolId, elicoidale_id: id, ordine: i + 1, durata: elicoidaliDurata[id] || (ex ? ex.default_duration : 60) }
           })
-          await _supabase.from('patient_protocol_elicoidali').insert(eliRows)
+          const { error: eliErr } = await _supabase.from('patient_protocol_elicoidali').insert(eliRows)
+          if (eliErr) { showToast('Errore salvataggio elicoidali: ' + eliErr.message); btn.disabled = false; btn.textContent = '✓ Salva modifiche'; return }
         }
         // Sync contenuti personalizzati: reset poi assegna selezionati con durata
         await _supabase.from('exercise_videos').update({ protocol_id: null }).eq('protocol_id', editProtocolId)
@@ -565,7 +566,8 @@
             const ex = EXERCISES_ELICOIDALI.find(function(e) { return e.id === id })
             return { patient_protocol_id: proto.id, elicoidale_id: id, ordine: i + 1, durata: elicoidaliDurata[id] || (ex ? ex.default_duration : 60) }
           })
-          await _supabase.from('patient_protocol_elicoidali').insert(eliRows)
+          const { error: eliErr } = await _supabase.from('patient_protocol_elicoidali').insert(eliRows)
+          if (eliErr) { showToast('Errore salvataggio elicoidali: ' + eliErr.message); btn.disabled = false; btn.textContent = '✓ Assegna protocollo'; return }
         }
         // Assegna contenuti personalizzati al nuovo protocollo con durata
         for (let i = 0; i < selectedCustomVideos.length; i++) {
