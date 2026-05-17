@@ -224,6 +224,127 @@
     #wc-shoot-btn:active { transform: scale(.93); }
     #wc-confirm-row { display: none; gap: 10px; width: 100%; }
     .wc-confirm-btn { flex: 1; padding: 14px; border: none; border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+
+    /* ── PHOTO SECTIONS (uniform layout) ─────────────────────── */
+    .photo-section { margin-bottom: 6px; }
+    .photo-section-divider {
+      font-size: 10px; font-weight: 800; color: #333;
+      text-transform: uppercase; letter-spacing: 1px;
+      border-top: 2px solid #333; padding: 8px 0 10px;
+      margin: 6px 0 10px;
+    }
+    .photo-section:first-child .photo-section-divider { border-top: none; padding-top: 0; margin-top: 0; }
+    .photo-pairs-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .photo-pairs-row > * { flex: 1; min-width: 0; }
+    .photo-carousel-wrap { display: flex; flex-direction: column; gap: 3px; }
+    .photo-carousel-label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .5px; text-align: center; }
+
+    /* ── CAROUSEL ──────────────────────────────────────────────── */
+    .photo-slot-paired {
+      position: relative;
+      aspect-ratio: 2/3;
+      border: 2px dashed #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fafafa;
+      transition: border-color .2s;
+    }
+    .photo-slot-paired:hover { border-color: #FFD008; }
+
+    .photo-page {
+      position: absolute;
+      top: 0; left: 100%;
+      width: 100%; height: 100%;
+      transition: left 0.28s ease;
+    }
+    .photo-page.active { left: 0; }
+    .photo-page.prev   { left: -100%; }
+
+    /* Slot inside carousel page — fills entirely */
+    .photo-page .photo-slot {
+      position: absolute; inset: 0;
+      border: none !important; border-radius: 8px;
+      aspect-ratio: unset; height: 100%;
+    }
+    .photo-page .photo-slot:hover { border-color: transparent !important; }
+    .photo-page .photo-date-label {
+      position: absolute; bottom: 36px; left: 0; right: 0;
+      font-size: 9px; color: #fff; text-align: center;
+      background: rgba(0,0,0,.45); padding: 2px 4px; z-index: 8; pointer-events: none;
+    }
+
+    /* Paging dots */
+    .photo-paging {
+      position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 5px; align-items: center; z-index: 15; pointer-events: none;
+    }
+    .photo-paging .pp-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: rgba(255,255,255,.45); border: 1.5px solid rgba(255,255,255,.8);
+      cursor: pointer; pointer-events: all; transition: all .2s;
+    }
+    .photo-paging .pp-dot.active { background: #FFD008; width: 22px; border-radius: 4px; border-color: #e6b800; }
+    .photo-paging .pp-lbl {
+      font-size: 9px; font-weight: 700; color: rgba(255,255,255,.95);
+      background: rgba(0,0,0,.55); padding: 2px 6px; border-radius: 3px;
+      pointer-events: none; white-space: nowrap;
+    }
+    /* Arrows */
+    .carousel-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 26px; height: 44px; background: rgba(0,0,0,.28); color: #fff;
+      border: none; font-size: 11px; cursor: pointer; z-index: 10;
+      display: flex; align-items: center; justify-content: center; transition: background .15s;
+    }
+    .carousel-arrow:active { background: rgba(0,0,0,.6); }
+    .carousel-arrow-l { left: 0;  border-radius: 0 5px 5px 0; }
+    .carousel-arrow-r { right: 0; border-radius: 5px 0 0 5px; }
+
+    /* Per-slot note below carousel */
+    .photo-slot-note-row { display: none; margin-top: 3px; }
+    .photo-slot-note-row.visible { display: block; }
+    @media (max-width: 767px) {
+      .photo-slot-note-row input { font-size: 16px; padding: 8px 10px; border: 2px solid #FFD008; border-radius: 8px; background: #fffef5; }
+    }
+
+    /* ── PIANO SCAPOLARE ──────────────────────────────────────── */
+    .scapolare-block { background: #f5f5f5; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+    .scapolare-block-label { font-size: 11px; font-weight: 800; color: #333; margin-bottom: 7px; }
+
+    /* ── OBSERVATIONS DROPDOWN ────────────────────────────────── */
+    .obs-trigger-btn {
+      width: 100%; padding: 11px 14px; background: #FFD008; color: #000;
+      border: 2px solid #FFD008; border-radius: 8px; font-family: inherit;
+      font-size: 13px; font-weight: 700; cursor: pointer; text-align: left;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+    }
+    .obs-trigger-btn:hover { background: #e6bc00; border-color: #e6bc00; }
+    .obs-dropdown-panel {
+      display: none; border: 1.5px solid #e0e0e0; border-radius: 10px;
+      background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.12); overflow: hidden; margin-bottom: 8px;
+    }
+    .obs-dropdown-panel.open { display: block; }
+    .obs-search-wrap { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+    .obs-search { width: 100%; padding: 8px 10px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-family: inherit; font-size: 13px; }
+    .obs-search:focus { outline: none; border-color: #FFD008; }
+    .obs-ctrl-row { display: flex; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #f0f0f0; }
+    .obs-ctrl-btn { padding: 4px 10px; border: 1.5px solid #ddd; border-radius: 5px; background: #fafafa; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .obs-ctrl-btn:hover { background: #FFD008; border-color: #FFD008; }
+    .obs-list { max-height: 220px; overflow-y: auto; padding: 4px 0; }
+    .obs-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; min-height: 44px; border-bottom: 1px solid #f8f8f8; }
+    .obs-item:last-child { border-bottom: none; }
+    .obs-item:hover { background: #fffde7; }
+    .obs-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: #FFD008; flex-shrink: 0; cursor: pointer; }
+    .obs-item-label { font-size: 13px; cursor: pointer; }
+    .obs-footer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #f0f0f0; background: #fafafa; }
+    .obs-btn-add { flex: 1; padding: 11px; background: #000; color: #FFD008; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .obs-btn-add:disabled { background: #ccc; color: #888; cursor: not-allowed; }
+    .obs-btn-cancel { padding: 11px 16px; background: #f0f0f0; color: #333; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+    /* ── NOTE PER PIANO ──────────────────────────────────────── */
+    .plane-note-section { margin-top: 10px; }
+    .plane-note-label { font-size: 11px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .3px; }
+
   </style>
 </head>
 <body>
@@ -555,6 +676,34 @@
   ]
   const PHOTO_SLOTS_FLAT = PHOTO_PLANES.flatMap(p => [p.pre, p.post])
 
+  // Raggruppamento in sezioni per layout per-piano
+  const PHOTO_SECTIONS = [
+    { sectionKey: 'sagittale',        sectionLabel: 'Piano Sagittale',
+      hasScapolare: true,  noteField: 'note_sagittale',         obsPiano: 'sagittale',
+      planes: ['sagittale_dx','sagittale_sx'] },
+    { sectionKey: 'frontale',         sectionLabel: 'Piano Frontale',
+      hasScapolare: false, noteField: 'note_frontale',          obsPiano: 'frontale',
+      planes: ['frontale'] },
+    { sectionKey: 'posteriore',       sectionLabel: 'Piano Posteriore',
+      hasScapolare: false, noteField: 'note_posteriore',        obsPiano: 'posteriore',
+      planes: ['posteriore'] },
+    { sectionKey: 'podoscopio_sotto', sectionLabel: 'Podoscopio — Vista Plantare',
+      hasScapolare: false, noteField: 'note_podoscopio_sotto',  obsPiano: 'podoscopio_sotto',
+      planes: ['podoscopio_sotto'] },
+    { sectionKey: 'podoscopio_dietro',sectionLabel: 'Podoscopio — Vista Posteriore',
+      hasScapolare: false, noteField: 'note_podoscopio_dietro', obsPiano: 'podoscopio_dietro',
+      planes: ['podoscopio_dietro'] },
+  ]
+
+  // Dizionario osservazioni per piano
+  const POSTURAL_OBSERVATIONS = {
+    sagittale: ['Allineamento sagittale neutro','Testa anteriorizzata','Testa retratta','Ipercifosi dorsale','Dorso piatto','Iperlordosi lombare','Ipolordosi lombare','Bacino in antiversione','Bacino in retroversione','Spalle anteposte','Spalle posteriorizzate','Ginocchia flesse','Ginocchia recurvate','Carico anteriore','Carico posteriore','Appoggio pronatorio','Appoggio supinatorio','Respirazione toracica','Respirazione diaframmatica','Assetto rigido','Assetto ipotonico'],
+    frontale:  ['Allineamento frontale neutro','Testa inclinata dx','Testa inclinata sx','Spalla dx elevata','Spalla sx elevata','Scapole asimmetriche','Tronco inclinato dx','Tronco inclinato sx','Scoliosi funzionale','Bacino elevato dx','Bacino elevato sx','Bacino ruotato','Ginocchio valgo','Ginocchio varo','Piede pronato dx','Piede pronato sx','Piede supinato dx','Piede supinato sx','Carico prevalente dx','Carico prevalente sx'],
+    posteriore:['Allineamento posteriore neutro','Testa inclinata dx','Testa inclinata sx','Spalla dx elevata','Spalla sx elevata','Scapola alata dx','Scapola alata sx','Scapole asimmetriche','Tronco deviato dx','Tronco deviato sx','Scoliosi evidente','Bacino elevato dx','Bacino elevato sx','Glutei asimmetrici','Ginocchio valgo dx','Ginocchio valgo sx','Ginocchio varo dx','Ginocchio varo sx','Tendine achilleo valgo dx','Tendine achilleo valgo sx','Tendine achilleo varo dx','Tendine achilleo varo sx','Appoggio calcaneare asimmetrico'],
+    podoscopio_sotto: ['Allineamento podalico neutro','Arco mediale ridotto','Arco mediale aumentato','Piede piatto dx','Piede piatto sx','Piede cavo dx','Piede cavo sx','Ipercarico avampiede','Ipercarico retropiede','Carico mediale prevalente','Carico laterale prevalente','Alluce valgo dx','Alluce valgo sx','Dita a griffe','Appoggio asimmetrico','Impronta pronata dx','Impronta pronata sx','Impronta supinata dx','Impronta supinata sx','Scarso appoggio dita'],
+    podoscopio_dietro:['Allineamento neutro arti inferiori','Calcagno valgo dx','Calcagno valgo sx','Calcagno varo dx','Calcagno varo sx','Tendine achilleo deviato dx','Tendine achilleo deviato sx','Retropiede pronato dx','Retropiede pronato sx','Retropiede supinato dx','Retropiede supinato sx','Asimmetria retropodalica','Carico prevalente dx','Carico prevalente sx','Rotazione tibiale interna','Rotazione tibiale esterna','Ginocchia valghe','Ginocchia vare','Appoggio instabile','Appoggio simmetrico'],
+  }
+
   const urlParams    = new URLSearchParams(location.search)
   let   visitId      = urlParams.get('id')
   const pidParam     = urlParams.get('pid')
@@ -573,6 +722,7 @@
   let activeSlotTipo = null
   let replaceSlotTipo = null
   let noteTimers     = {}
+  let carouselState  = {}       // pairKey → 0 (PRE) | 1 (POST)
 
   // Upload menu state
   let umTipo = null
@@ -650,6 +800,16 @@
       document.getElementById('vp-ai-result').style.display = 'block'
     }
 
+    // Note per piano anatomico
+    fSet('note-piano-note_sagittale',          v.note_sagittale)
+    fSet('note-piano-note_frontale',           v.note_frontale)
+    fSet('note-piano-note_posteriore',         v.note_posteriore)
+    fSet('note-piano-note_podoscopio_sotto',   v.note_podoscopio_sotto)
+    fSet('note-piano-note_podoscopio_dietro',  v.note_podoscopio_dietro)
+    // Piano scapolare chip
+    if (v.note_scapolare_pre)  restoreExcl('scap-pre',  v.note_scapolare_pre)
+    if (v.note_scapolare_post) restoreExcl('scap-post', v.note_scapolare_post)
+
     await loadPhotos()
     setIndicator('saved', '')
   }
@@ -675,58 +835,188 @@
     renderFotoLibere()
   }
 
-  // buildPhotoGrid: 6 piani anatomici × 2 slot PRE/POST sempre affiancati
+  // buildPhotoGrid: 5 sezioni anatomiche, ognuna con carousel PRE↔POST
   function buildPhotoGrid() {
     const grid = document.getElementById('photo-grid')
     grid.innerHTML = ''
-    PHOTO_PLANES.forEach(plane => {
-      const planeDiv = document.createElement('div')
-      planeDiv.className = 'photo-plane'
+    PHOTO_SECTIONS.forEach(section => {
+      const secDiv = document.createElement('div')
+      secDiv.className = 'photo-section'
 
-      const labelDiv = document.createElement('div')
-      labelDiv.className = 'photo-plane-label'
-      labelDiv.textContent = plane.label
-      planeDiv.appendChild(labelDiv)
+      const divHdr = document.createElement('div')
+      divHdr.className = 'photo-section-divider'
+      divHdr.textContent = section.sectionLabel
+      secDiv.appendChild(divHdr)
 
-      const headersDiv = document.createElement('div')
-      headersDiv.className = 'photo-pair-headers'
-      headersDiv.innerHTML = '<div class="photo-pair-header">◀ PRE</div><div class="photo-pair-header">POST 3R ▶</div>'
-      planeDiv.appendChild(headersDiv)
+      // Riga con i carousel dei piani di questa sezione
+      const pairsRow = document.createElement('div')
+      pairsRow.className = 'photo-pairs-row'
+      section.planes.forEach(planeName => {
+        const plane = PHOTO_PLANES.find(p => p.plane === planeName)
+        if (!plane) return
+        pairsRow.appendChild(buildCarousel(plane))
+      })
+      secDiv.appendChild(pairsRow)
 
-      const pairDiv = document.createElement('div')
-      pairDiv.className = 'photo-pair'
-      addSlotToParent(pairDiv, plane.pre)
-      addSlotToParent(pairDiv, plane.post)
-      planeDiv.appendChild(pairDiv)
+      // Piano scapolare PRE/POST (solo per la sezione sagittale)
+      if (section.hasScapolare) {
+        secDiv.appendChild(buildScapolareBlock())
+      }
 
-      grid.appendChild(planeDiv)
+      // Tendina osservazioni + textarea note per piano
+      secDiv.appendChild(buildPlaneNoteSection(section.sectionKey, section.noteField, section.obsPiano))
+
+      grid.appendChild(secDiv)
     })
   }
 
-  function addSlotToParent(parent, slot) {
+  function buildCarousel(plane) {
+    const pairKey = plane.plane
+    carouselState[pairKey] = 0
+
     const wrap = document.createElement('div')
-    wrap.className = 'photo-slot-wrap'
-    wrap.id = 'wrap-' + slot.tipo
+    wrap.className = 'photo-carousel-wrap'
 
-    const div = document.createElement('div')
-    div.className = 'photo-slot'
-    div.id = 'slot-' + slot.tipo
-    div.innerHTML = '<div class="photo-slot-icon">📷</div><div class="photo-slot-label">' + slot.label + '</div>'
-    div.onclick = () => onSlotClick(slot.tipo)
+    const lbl = document.createElement('div')
+    lbl.className = 'photo-carousel-label'
+    lbl.textContent = plane.label
+    wrap.appendChild(lbl)
 
-    const dateDiv = document.createElement('div')
-    dateDiv.className = 'photo-date-label'
-    dateDiv.id = 'date-' + slot.tipo
+    const carousel = document.createElement('div')
+    carousel.className = 'photo-slot-paired'
+    carousel.id = 'carousel-' + pairKey
 
-    const noteDiv = document.createElement('div')
-    noteDiv.id = 'note-row-' + slot.tipo
-    noteDiv.style.display = 'none'
-    noteDiv.innerHTML = '<input type="text" id="note-' + slot.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota breve…" oninput="scheduleNoteSave(\'' + slot.tipo + '\')">'
+    // Paging dots
+    const paging = document.createElement('div')
+    paging.className = 'photo-paging'
+    paging.innerHTML =
+      '<span class="pp-lbl">PRE</span>' +
+      '<div class="pp-dot active" id="pp-dot-' + pairKey + '-0" onclick="setCarouselPage(\'' + pairKey + '\',0)"></div>' +
+      '<div class="pp-dot" id="pp-dot-' + pairKey + '-1" onclick="setCarouselPage(\'' + pairKey + '\',1)"></div>' +
+      '<span class="pp-lbl">POST 3R</span>'
+    carousel.appendChild(paging)
 
-    wrap.appendChild(div)
-    wrap.appendChild(dateDiv)
-    wrap.appendChild(noteDiv)
-    parent.appendChild(wrap)
+    // PRE page (idx 0)
+    const pagePre = document.createElement('div')
+    pagePre.className = 'photo-page active'
+    pagePre.id = 'page-' + plane.pre.tipo
+    const slotPre = document.createElement('div')
+    slotPre.className = 'photo-slot'
+    slotPre.id = 'slot-' + plane.pre.tipo
+    slotPre.innerHTML = '<div class="photo-slot-icon">📷</div><div class="photo-slot-label">' + plane.pre.label + '</div>'
+    slotPre.onclick = () => onSlotClick(plane.pre.tipo)
+    const datePre = document.createElement('div')
+    datePre.className = 'photo-date-label'
+    datePre.id = 'date-' + plane.pre.tipo
+    pagePre.appendChild(slotPre)
+    pagePre.appendChild(datePre)
+    carousel.appendChild(pagePre)
+
+    // POST page (idx 1)
+    const pagePost = document.createElement('div')
+    pagePost.className = 'photo-page'
+    pagePost.id = 'page-' + plane.post.tipo
+    const slotPost = document.createElement('div')
+    slotPost.className = 'photo-slot'
+    slotPost.id = 'slot-' + plane.post.tipo
+    slotPost.innerHTML = '<div class="photo-slot-icon">📷</div><div class="photo-slot-label">' + plane.post.label + '</div>'
+    slotPost.onclick = () => onSlotClick(plane.post.tipo)
+    const datePost = document.createElement('div')
+    datePost.className = 'photo-date-label'
+    datePost.id = 'date-' + plane.post.tipo
+    pagePost.appendChild(slotPost)
+    pagePost.appendChild(datePost)
+    carousel.appendChild(pagePost)
+
+    // Arrow buttons
+    const arrowL = document.createElement('button')
+    arrowL.className = 'carousel-arrow carousel-arrow-l'
+    arrowL.textContent = '◄'
+    arrowL.setAttribute('aria-label', 'PRE')
+    arrowL.onclick = e => { e.stopPropagation(); setCarouselPage(pairKey, 0) }
+    const arrowR = document.createElement('button')
+    arrowR.className = 'carousel-arrow carousel-arrow-r'
+    arrowR.textContent = '►'
+    arrowR.setAttribute('aria-label', 'POST 3R')
+    arrowR.onclick = e => { e.stopPropagation(); setCarouselPage(pairKey, 1) }
+    carousel.appendChild(arrowL)
+    carousel.appendChild(arrowR)
+
+    // Swipe
+    let _tx = 0
+    carousel.addEventListener('touchstart', e => { _tx = e.touches[0].clientX }, { passive: true })
+    carousel.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - _tx
+      if (Math.abs(dx) > 50) setCarouselPage(pairKey, dx < 0 ? 1 : 0)
+    }, { passive: true })
+
+    wrap.appendChild(carousel)
+
+    // Note brevi per slot (fuori dal carousel, sotto)
+    const noteRowPre = document.createElement('div')
+    noteRowPre.className = 'photo-slot-note-row'
+    noteRowPre.id = 'note-row-' + plane.pre.tipo
+    noteRowPre.innerHTML = '<input type="text" id="note-' + plane.pre.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota PRE…" oninput="scheduleNoteSave(\'' + plane.pre.tipo + '\')">'
+    wrap.appendChild(noteRowPre)
+
+    const noteRowPost = document.createElement('div')
+    noteRowPost.className = 'photo-slot-note-row'
+    noteRowPost.id = 'note-row-' + plane.post.tipo
+    noteRowPost.innerHTML = '<input type="text" id="note-' + plane.post.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota POST 3R…" oninput="scheduleNoteSave(\'' + plane.post.tipo + '\')">'
+    wrap.appendChild(noteRowPost)
+
+    return wrap
+  }
+
+  function setCarouselPage(pairKey, idx) {
+    const plane = PHOTO_PLANES.find(p => p.plane === pairKey)
+    if (!plane) return
+    carouselState[pairKey] = idx
+    const slots = [plane.pre, plane.post]
+    slots.forEach((s, i) => {
+      const page = document.getElementById('page-' + s.tipo)
+      if (page) { page.classList.toggle('active', i === idx); page.classList.toggle('prev', i < idx) }
+      const dot = document.getElementById('pp-dot-' + pairKey + '-' + i)
+      if (dot) dot.classList.toggle('active', i === idx)
+    })
+  }
+
+  function buildScapolareBlock() {
+    const wrap = document.createElement('div')
+    wrap.innerHTML =
+      '<div class="scapolare-block">' +
+        '<div class="scapolare-block-label">🦴 Piano Scapolare — PRE 3R</div>' +
+        '<div class="chip-row">' +
+          '<span class="chip" data-g="scap-pre" data-v="in_asse"    onclick="setExcl(\'scap-pre\',\'in_asse\')">In asse</span>' +
+          '<span class="chip" data-g="scap-pre" data-v="anteriore"  onclick="setExcl(\'scap-pre\',\'anteriore\')">Anteriore</span>' +
+          '<span class="chip" data-g="scap-pre" data-v="posteriore" onclick="setExcl(\'scap-pre\',\'posteriore\')">Posteriore</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="scapolare-block">' +
+        '<div class="scapolare-block-label">🦴 Piano Scapolare — POST 3R</div>' +
+        '<div class="chip-row">' +
+          '<span class="chip" data-g="scap-post" data-v="in_asse"    onclick="setExcl(\'scap-post\',\'in_asse\')">In asse</span>' +
+          '<span class="chip" data-g="scap-post" data-v="anteriore"  onclick="setExcl(\'scap-post\',\'anteriore\')">Anteriore</span>' +
+          '<span class="chip" data-g="scap-post" data-v="posteriore" onclick="setExcl(\'scap-post\',\'posteriore\')">Posteriore</span>' +
+        '</div>' +
+      '</div>'
+    return wrap
+  }
+
+  function buildPlaneNoteSection(sectionKey, noteField, obsPiano) {
+    const wrap = document.createElement('div')
+    wrap.className = 'plane-note-section'
+    wrap.innerHTML =
+      '<div class="plane-note-label">📝 Note ' + sectionKey.replace(/_/g,' ') + '</div>' +
+      '<button class="obs-trigger-btn" onclick="toggleObsDropdown(\'' + obsPiano + '\')">' +
+        '+ Aggiungi osservazione <span>▼</span>' +
+      '</button>' +
+      '<div class="obs-dropdown-panel" id="obs-panel-' + obsPiano + '"></div>' +
+      '<textarea class="vp-textarea" id="note-piano-' + noteField + '" rows="3" maxlength="2000"' +
+        ' placeholder="Osservazioni libere sul piano ' + sectionKey.replace(/_/g,' ') + '…"' +
+        ' oninput="scheduleSave()"></textarea>'
+    // Init dropdown content (lazy)
+    return wrap
   }
 
   function updatePhotoSlot(tipo) {
@@ -742,8 +1032,8 @@
       slot.className = 'photo-slot filled'
       slot.onclick   = null
       slot.innerHTML =
-        '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '">' +
-        '<div style="position:absolute;bottom:0;left:0;right:0;font-size:9px;font-weight:700;color:#fff;text-align:center;background:rgba(0,0,0,.55);padding:2px 2px 3px;border-radius:0 0 6px 6px;pointer-events:none">' + label + '</div>' +
+        '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
+        '<div style="position:absolute;bottom:0;left:0;right:0;font-size:9px;font-weight:700;color:#fff;text-align:center;background:rgba(0,0,0,.55);padding:2px 2px 3px;pointer-events:none">' + label + '</div>' +
         '<div class="photo-slot-actions">' +
           '<button class="slot-btn" onclick="event.stopPropagation();showLightbox(\'' + tipo + '\')" title="Ingrandisci">🔍</button>' +
           '<button class="slot-btn" onclick="event.stopPropagation();replacePhoto(\'' + tipo + '\')" title="Sostituisci">🔄</button>' +
@@ -751,7 +1041,7 @@
         '</div>'
       if (dateEl) dateEl.textContent = p.data_scatto ? formatDateForDisplay(p.data_scatto) : ''
       if (noteRow) {
-        noteRow.style.display = 'block'
+        noteRow.classList.add('visible')
         const inp = document.getElementById('note-' + tipo)
         if (inp && p.note && !inp.value) inp.value = p.note
       }
@@ -760,7 +1050,7 @@
       slot.onclick   = () => onSlotClick(tipo)
       slot.innerHTML = '<div class="photo-slot-icon">📷</div><div class="photo-slot-label">' + label + '</div>'
       if (dateEl) dateEl.textContent = ''
-      if (noteRow) noteRow.style.display = 'none'
+      if (noteRow) noteRow.classList.remove('visible')
     }
   }
 
@@ -777,6 +1067,104 @@
     const { error } = await _sb.from('visit_photos').update({ note }).eq('id', p.id)
     if (!error) p.note = note
   }
+
+  // ── OBSERVATIONS DROPDOWN ─────────────────────────────────────
+  let _obsOpenPiano = null
+
+  function toggleObsDropdown(piano) {
+    const panel = document.getElementById('obs-panel-' + piano)
+    if (!panel) return
+    const isOpen = panel.classList.contains('open')
+    // Chiudi tutti
+    document.querySelectorAll('.obs-dropdown-panel.open').forEach(p => p.classList.remove('open'))
+    _obsOpenPiano = null
+    if (!isOpen) {
+      if (!panel.dataset.built) _buildObsDropdown(panel, piano)
+      panel.classList.add('open')
+      _obsOpenPiano = piano
+      panel.querySelector('.obs-search')?.focus()
+    }
+  }
+
+  function _buildObsDropdown(panel, piano) {
+    const voci = POSTURAL_OBSERVATIONS[piano] || []
+    const noteId = 'note-piano-note_' + piano
+    panel.dataset.built = '1'
+    panel.innerHTML =
+      '<div class="obs-search-wrap"><input class="obs-search" type="text" placeholder="Cerca osservazione…" oninput="_filterObs(this,\'' + piano + '\')" /></div>' +
+      '<div class="obs-ctrl-row">' +
+        '<button class="obs-ctrl-btn" onclick="_obsSelAll(\'' + piano + '\',true)">Seleziona tutto</button>' +
+        '<button class="obs-ctrl-btn" onclick="_obsSelAll(\'' + piano + '\',false)">Deseleziona</button>' +
+      '</div>' +
+      '<div class="obs-list" id="obs-list-' + piano + '">' +
+        voci.map(v =>
+          '<label class="obs-item">' +
+            '<input type="checkbox" value="' + v + '">' +
+            '<span class="obs-item-label">' + v + '</span>' +
+          '</label>'
+        ).join('') +
+      '</div>' +
+      '<div class="obs-footer">' +
+        '<button class="obs-btn-add" id="obs-add-' + piano + '" onclick="_addObservations(\'' + piano + '\')" disabled>✓ Aggiungi 0 osservazioni</button>' +
+        '<button class="obs-btn-cancel" onclick="toggleObsDropdown(\'' + piano + '\')">✕</button>' +
+      '</div>'
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => _updateObsCount(piano)))
+  }
+
+  function _filterObs(input, piano) {
+    const q = input.value.toLowerCase()
+    const list = document.getElementById('obs-list-' + piano)
+    if (!list) return
+    list.querySelectorAll('.obs-item').forEach(item => {
+      const lbl = item.querySelector('.obs-item-label')?.textContent.toLowerCase() || ''
+      item.style.display = lbl.includes(q) ? '' : 'none'
+    })
+  }
+
+  function _obsSelAll(piano, val) {
+    const list = document.getElementById('obs-list-' + piano)
+    if (!list) return
+    list.querySelectorAll('input[type=checkbox]').forEach(cb => { if (cb.closest('.obs-item').style.display !== 'none') cb.checked = val })
+    _updateObsCount(piano)
+  }
+
+  function _updateObsCount(piano) {
+    const panel = document.getElementById('obs-panel-' + piano)
+    if (!panel) return
+    const n = panel.querySelectorAll('input[type=checkbox]:checked').length
+    const btn = document.getElementById('obs-add-' + piano)
+    if (btn) { btn.textContent = '✓ Aggiungi ' + n + ' osservazioni'; btn.disabled = n === 0 }
+  }
+
+  function _addObservations(piano) {
+    const panel = document.getElementById('obs-panel-' + piano)
+    if (!panel) return
+    const checked = [...panel.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value)
+    if (!checked.length) return
+
+    // Find the target textarea (note-piano-note_<piano>)
+    const noteId = 'note-piano-note_' + piano
+    const ta = document.getElementById(noteId)
+    if (ta) {
+      const existing = ta.value.trim()
+      const newLines = checked.map(v => '• ' + v).join('\n')
+      ta.value = existing ? existing + '\n' + newLines : newLines
+      scheduleSave()
+    }
+    // Reset checkboxes + chiudi
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false)
+    _updateObsCount(piano)
+    panel.classList.remove('open')
+    _obsOpenPiano = null
+  }
+
+  // Chiudi dropdown al click fuori
+  document.addEventListener('click', e => {
+    if (_obsOpenPiano && !e.target.closest('.obs-dropdown-panel') && !e.target.closest('.obs-trigger-btn')) {
+      document.querySelectorAll('.obs-dropdown-panel.open').forEach(p => p.classList.remove('open'))
+      _obsOpenPiano = null
+    }
+  })
 
   function onSlotClick(tipo) {
     showUploadMenu(tipo, false)
@@ -1249,6 +1637,15 @@
       configurazione_suggerita: configSug || null,
       note_finali:              document.getElementById('f-note-finali').value.trim() || null,
       relazione_ai:             document.getElementById('f-relazione-ai')?.value.trim() || null,
+      // Note per piano anatomico (migration 009)
+      note_sagittale:           document.getElementById('note-piano-note_sagittale')?.value.trim() || null,
+      note_frontale:            document.getElementById('note-piano-note_frontale')?.value.trim() || null,
+      note_posteriore:          document.getElementById('note-piano-note_posteriore')?.value.trim() || null,
+      note_podoscopio_sotto:    document.getElementById('note-piano-note_podoscopio_sotto')?.value.trim() || null,
+      note_podoscopio_dietro:   document.getElementById('note-piano-note_podoscopio_dietro')?.value.trim() || null,
+      // Piano scapolare classificazione chip (riusa colonne note_scapolare_pre/post da migration 005)
+      note_scapolare_pre:       chipState['scap-pre']  || null,
+      note_scapolare_post:      chipState['scap-post'] || null,
     }
   }
 
@@ -1689,7 +2086,8 @@ ISTRUZIONI:
     if (e.key !== 'Escape') return
     if (document.getElementById('webcam-modal').classList.contains('open')) { closeWebcamModal(); return }
     if (document.getElementById('upload-menu-modal').classList.contains('open')) { document.getElementById('upload-menu-modal').classList.remove('open'); umTipo = null; return }
-    closeLightbox(); closeMonoInfo(); closeFotoLiberaModal(); closeConfermaChiudi()
+    closeLightbox(); closeMonoInfo(); closeFotoLiberaModal()
+    document.querySelectorAll('.obs-dropdown-panel.open').forEach(p => p.classList.remove('open')); _obsOpenPiano = null
   })
 
   init()
