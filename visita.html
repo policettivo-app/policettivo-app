@@ -700,7 +700,17 @@
       .s3-pairs-row > * { max-width: 380px; }
     }
     @media (min-width: 1024px) {
-      .s3-photo-section .s3-pairs-row { flex-wrap: wrap; }
+      /* Step 3: grid 2 colonne — Sagittale piena larghezza, coppie affiancate */
+      #s3-foto-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        padding: 16px 0 16px !important;
+      }
+      .s3-photo-section:first-child {
+        grid-column: 1 / -1;
+      }
+      .s3-slot-paired { aspect-ratio: 3/4; }
     }
   </style>
 </head>
@@ -711,7 +721,7 @@
 
   <header id="visita-header">
     <div class="hdr-row1">
-      <button class="btn-back-visita" id="btn-back" onclick="backToPaziente()">← Indietro</button>
+      <button class="btn-back-visita ds-btn-back" id="btn-back" onclick="backToPaziente()">← Indietro</button>
       <div class="patient-avatar" id="patient-avatar">?</div>
       <div class="patient-info">
         <div class="patient-info-name" id="patient-name">Caricamento…</div>
@@ -719,7 +729,7 @@
       </div>
       <div class="badge-diagnosi-hdr" id="badge-diagnosi" style="display:none"></div>
       <button class="btn-home-hdr" onclick="window.location.href='dashboard.html'" aria-label="Torna alla dashboard">🏠</button>
-      <button class="btn-chiudi-hdr" id="btn-salva-torna" onclick="salvaETornaVisita()">💾 Salva e torna</button>
+      <button class="btn-chiudi-hdr ds-hdr-btn-save" id="btn-salva-torna" onclick="salvaETornaVisita()">💾 Salva e torna</button>
     </div>
     <div class="hdr-row2">
       <input type="datetime-local" id="f-data-visita" onchange="scheduleSave()">
@@ -768,8 +778,8 @@
   <div id="step-1" class="step-content active">
 
     <div class="field-group">
-      <label class="field-label">Motivo della visita *</label>
-      <div class="chip-row" id="chips-motivo-quick">
+      <label class="field-label ds-label">Motivo della visita *</label>
+      <div class="chip-row ds-chip-row" id="chips-motivo-quick">
         <span class="chip" onclick="appendChip('f-motivo','Dolore lombare')">Dolore lombare</span>
         <span class="chip" onclick="appendChip('f-motivo','Cervicalgia')">Cervicalgia</span>
         <span class="chip" onclick="appendChip('f-motivo','Dolore spalla')">Dolore spalla</span>
@@ -783,15 +793,15 @@
     </div>
 
     <div class="field-group">
-      <label class="field-label">Storia clinica recente</label>
+      <label class="field-label ds-label">Storia clinica recente</label>
       <textarea class="fi" id="f-storia" rows="4"
         placeholder="Sintomi attuali, trattamenti precedenti, esami diagnostici…"
         oninput="scheduleSave()"></textarea>
     </div>
 
     <div class="field-group">
-      <label class="field-label">Durata dei sintomi</label>
-      <div class="chip-row" id="chips-durata">
+      <label class="field-label ds-label">Durata dei sintomi</label>
+      <div class="chip-row ds-chip-row" id="chips-durata">
         <span class="chip" data-val="meno_1_sett" onclick="selectExclusive(this,'durata_sintomi')">&lt;1 settimana</span>
         <span class="chip" data-val="1_4_sett"    onclick="selectExclusive(this,'durata_sintomi')">1–4 settimane</span>
         <span class="chip" data-val="1_3_mesi"    onclick="selectExclusive(this,'durata_sintomi')">1–3 mesi</span>
@@ -801,8 +811,8 @@
     </div>
 
     <div class="field-group">
-      <label class="field-label">Insorgenza</label>
-      <div class="chip-row" id="chips-insorgenza">
+      <label class="field-label ds-label">Insorgenza</label>
+      <div class="chip-row ds-chip-row" id="chips-insorgenza">
         <span class="chip" data-val="improvvisa"  onclick="selectExclusive(this,'insorgenza')">Improvvisa</span>
         <span class="chip" data-val="graduale"    onclick="selectExclusive(this,'insorgenza')">Graduale</span>
         <span class="chip" data-val="post_trauma" onclick="selectExclusive(this,'insorgenza')">Post-trauma</span>
@@ -811,14 +821,14 @@
     </div>
 
     <div class="field-group">
-      <label class="field-label">Obiettivi del paziente</label>
+      <label class="field-label ds-label">Obiettivi del paziente</label>
       <textarea class="fi" id="f-obiettivi" rows="3"
         placeholder="Es: riduzione del dolore, miglioramento funzionale, ritorno alle attività…"
         oninput="scheduleSave()"></textarea>
     </div>
 
     <div class="field-group">
-      <label class="field-label">Diagnosi funzionale</label>
+      <label class="field-label ds-label">Diagnosi funzionale</label>
       <textarea class="fi" id="f-diagnosi" rows="3"
         placeholder="Diagnosi fisioterapica (non medica)…"
         oninput="scheduleSave()"></textarea>
@@ -836,7 +846,7 @@
 
     <!-- BLOCCO A: VAS -->
     <div class="field-group">
-      <label class="field-label">VAS — Scala del dolore (0–10)</label>
+      <label class="field-label ds-label">VAS — Scala del dolore (0–10)</label>
 
       <div class="vas-block">
         <span class="vas-label">Dolore a RIPOSO</span>
@@ -872,7 +882,7 @@
     <!-- BLOCCO B: TEST ORTOPEDICI -->
     <div class="field-group" style="padding:0; overflow:hidden">
       <div style="padding:18px 16px 10px">
-        <label class="field-label" style="margin-bottom:0">Test ortopedici</label>
+        <label class="field-label ds-label" style="margin-bottom:0">Test ortopedici</label>
       </div>
       <div id="test-accordion-container"></div>
     </div>
@@ -880,7 +890,7 @@
     <!-- BLOCCO C: ROM -->
     <div class="field-group">
       <div class="rom-header">
-        <label class="field-label" style="margin-bottom:0">ROM — Range of Motion</label>
+        <label class="field-label ds-label" style="margin-bottom:0">ROM — Range of Motion</label>
         <button class="btn-add-rom" onclick="openAddRomModal()">+ Aggiungi</button>
       </div>
       <div id="rom-container">
@@ -893,7 +903,7 @@
 
     <!-- BLOCCO D: NOTE VALUTAZIONE -->
     <div class="field-group">
-      <label class="field-label">Note di valutazione</label>
+      <label class="field-label ds-label">Note di valutazione</label>
       <textarea class="fi" id="f-note-valutazione" rows="5"
         placeholder="Forza muscolare (MRC 0-5), palpazione, segni neurologici, osservazioni..."
         oninput="scheduleSave()"></textarea>
@@ -935,7 +945,7 @@
     <!-- A) GALLERIA FOTO -->
     <div class="field-group" style="padding:0;overflow:hidden">
       <div style="padding:18px 16px 10px;display:flex;align-items:center;justify-content:space-between">
-        <label class="field-label" style="margin-bottom:0">Foto posturali</label>
+        <label class="field-label ds-label" style="margin-bottom:0">Foto posturali</label>
         <span id="s3-foto-count" style="font-size:11px;color:#999;font-weight:600;font-family:'Montserrat',sans-serif">0 / 12</span>
       </div>
       <div id="s3-foto-grid"></div>
@@ -943,8 +953,8 @@
 
     <!-- B) NOTE POSTURALI -->
     <div class="field-group">
-      <label class="field-label">Note posturali</label>
-      <div class="chip-row">
+      <label class="field-label ds-label">Note posturali</label>
+      <div class="chip-row ds-chip-row">
         <span class="chip" onclick="appendChip('f-note-posturali','Spalla destra alta')">Spalla dx alta</span>
         <span class="chip" onclick="appendChip('f-note-posturali','Spalla sinistra alta')">Spalla sx alta</span>
         <span class="chip" onclick="appendChip('f-note-posturali','Antepulsione capo')">Antepulsione capo</span>
@@ -1014,7 +1024,7 @@
 
     <!-- BLOCCO A: VAS SEDUTA -->
     <div class="field-group">
-      <label class="field-label">VAS seduta — Risposta al trattamento</label>
+      <label class="field-label ds-label">VAS seduta — Risposta al trattamento</label>
       <div style="font-size:11px;color:#999;margin-bottom:16px;line-height:1.5">
         Registra il dolore percepito dal paziente prima e dopo la seduta terapeutica (diverso dal VAS di valutazione).
       </div>
@@ -1046,8 +1056,8 @@
 
     <!-- BLOCCO B: TECNICHE -->
     <div class="field-group">
-      <label class="field-label">Tecniche utilizzate</label>
-      <div class="chip-row" style="margin-bottom:10px">
+      <label class="field-label ds-label">Tecniche utilizzate</label>
+      <div class="chip-row ds-chip-row" style="margin-bottom:10px">
         <span class="chip" onclick="appendChip('f-tecniche','Terapia manuale')">Terapia manuale</span>
         <span class="chip" onclick="appendChip('f-tecniche','Massoterapia')">Massoterapia</span>
         <span class="chip" onclick="appendChip('f-tecniche','Esercizio terapeutico')">Esercizio ter.</span>
@@ -1068,8 +1078,8 @@
 
     <!-- BLOCCO C: DURATA -->
     <div class="field-group">
-      <label class="field-label">Durata del trattamento</label>
-      <div class="chip-row" style="margin-bottom:12px">
+      <label class="field-label ds-label">Durata del trattamento</label>
+      <div class="chip-row ds-chip-row" style="margin-bottom:12px">
         <button class="s4-tempo-chip" data-min="15" onclick="setTempoTrattamento(this,15)">15 min</button>
         <button class="s4-tempo-chip" data-min="30" onclick="setTempoTrattamento(this,30)">30 min</button>
         <button class="s4-tempo-chip" data-min="45" onclick="setTempoTrattamento(this,45)">45 min</button>
@@ -1085,8 +1095,8 @@
 
     <!-- BLOCCO D: RISPOSTA DEL PAZIENTE -->
     <div class="field-group">
-      <label class="field-label">Risposta del paziente</label>
-      <div class="chip-row" id="chips-risposta" style="margin-bottom:10px">
+      <label class="field-label ds-label">Risposta del paziente</label>
+      <div class="chip-row ds-chip-row" id="chips-risposta" style="margin-bottom:10px">
         <span class="chip s4-risposta-chip-ottima"   data-val="Ottima"                  onclick="setRispostaPaziente(this,'Ottima')">Ottima</span>
         <span class="chip s4-risposta-chip-buona"    data-val="Buona"                   onclick="setRispostaPaziente(this,'Buona')">Buona</span>
         <span class="chip s4-risposta-chip-discreta" data-val="Discreta"                onclick="setRispostaPaziente(this,'Discreta')">Discreta</span>
@@ -1109,9 +1119,9 @@
 
     <!-- BLOCCO A: MIGLIORAMENTI -->
     <div class="field-group">
-      <label class="field-label">Miglioramenti rilevati</label>
+      <label class="field-label ds-label">Miglioramenti rilevati</label>
       <div id="s5-vas-delta" style="margin-bottom:12px"></div>
-      <div class="chip-row" style="margin-bottom:10px">
+      <div class="chip-row ds-chip-row" style="margin-bottom:10px">
         <span class="chip" onclick="appendChip('f-miglioramenti','Riduzione dolore')">Riduzione dolore</span>
         <span class="chip" onclick="appendChip('f-miglioramenti','Miglior ROM')">Miglior ROM</span>
         <span class="chip" onclick="appendChip('f-miglioramenti','Miglior postura')">Miglior postura</span>
@@ -1126,8 +1136,8 @@
 
     <!-- BLOCCO B: NOTE FINALI -->
     <div class="field-group">
-      <label class="field-label">Note finali / Piano di lavoro</label>
-      <div class="chip-row" style="margin-bottom:10px">
+      <label class="field-label ds-label">Note finali / Piano di lavoro</label>
+      <div class="chip-row ds-chip-row" style="margin-bottom:10px">
         <span class="chip" onclick="appendChip('f-note-finali','Continuare il protocollo')">Continuare protocollo</span>
         <span class="chip" onclick="appendChip('f-note-finali','Aggiungere esercizi domiciliari')">+ Esercizi domiciliari</span>
         <span class="chip" onclick="appendChip('f-note-finali','Rivalutazione a breve')">Rivalutazione a breve</span>
@@ -1142,8 +1152,8 @@
 
     <!-- BLOCCO C: PROSSIMA VISITA -->
     <div class="field-group">
-      <label class="field-label">Prossima visita programmata</label>
-      <div class="chip-row" style="margin-bottom:10px">
+      <label class="field-label ds-label">Prossima visita programmata</label>
+      <div class="chip-row ds-chip-row" style="margin-bottom:10px">
         <span class="chip" onclick="setProssimaVisita(7)">Tra 1 settimana</span>
         <span class="chip" onclick="setProssimaVisita(14)">Tra 2 settimane</span>
         <span class="chip" onclick="setProssimaVisita(30)">Tra 1 mese</span>
@@ -1155,8 +1165,8 @@
 
     <!-- BLOCCO D: INDICAZIONI -->
     <div class="field-group">
-      <label class="field-label">Indicazioni al paziente</label>
-      <div class="chip-row" style="margin-bottom:10px">
+      <label class="field-label ds-label">Indicazioni al paziente</label>
+      <div class="chip-row ds-chip-row" style="margin-bottom:10px">
         <span class="chip" onclick="appendChip('f-indicazioni','Riposo attivo')">Riposo attivo</span>
         <span class="chip" onclick="appendChip('f-indicazioni','Evitare carichi pesanti')">Evitare carichi pesanti</span>
         <span class="chip" onclick="appendChip('f-indicazioni','Postura ergonomica al lavoro')">Postura ergonomica</span>
@@ -1173,7 +1183,7 @@
 
     <!-- BLOCCO E: AI RELAZIONE -->
     <div class="field-group">
-      <label class="field-label">Relazione AI della visita</label>
+      <label class="field-label ds-label">Relazione AI della visita</label>
       <div style="font-size:11px;color:#999;margin-bottom:14px;line-height:1.5">
         Genera una relazione clinica strutturata dell'intera visita. Editabile prima della chiusura.
       </div>
@@ -1192,7 +1202,7 @@
     </div>
 
     <div class="field-group" style="margin-top:8px">
-      <button style="width:100%;padding:13px;background:#fff;color:#000;border:2px solid #000;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer" onclick="alert('Funzione PDF Visita in arrivo.')">📄 Genera PDF Visita Fisioterapica</button>
+      <button class="ds-btn-primary" style="width:100%;padding:13px;justify-content:center" onclick="alert('Funzione PDF Visita in arrivo.')">📄 Genera PDF Visita Fisioterapica</button>
     </div>
 
     <div class="step-footer">
@@ -2241,13 +2251,13 @@
     const wrap = document.createElement('div')
     wrap.innerHTML =
       '<div class="s3-scapolare-block"><div class="s3-scapolare-label">🦴 Piano Scapolare — PRE 3R</div>' +
-      '<div class="chip-row">' +
+      '<div class="chip-row ds-chip-row">' +
       '<span class="chip" data-g="s3scap-pre" data-v="in_asse"    onclick="s3ScapChip(\'pre\',\'in_asse\')">In asse</span>' +
       '<span class="chip" data-g="s3scap-pre" data-v="anteriore"  onclick="s3ScapChip(\'pre\',\'anteriore\')">Anteriore</span>' +
       '<span class="chip" data-g="s3scap-pre" data-v="posteriore" onclick="s3ScapChip(\'pre\',\'posteriore\')">Posteriore</span>' +
       '</div></div>' +
       '<div class="s3-scapolare-block"><div class="s3-scapolare-label">🦴 Piano Scapolare — POST 3R</div>' +
-      '<div class="chip-row">' +
+      '<div class="chip-row ds-chip-row">' +
       '<span class="chip" data-g="s3scap-post" data-v="in_asse"    onclick="s3ScapChip(\'post\',\'in_asse\')">In asse</span>' +
       '<span class="chip" data-g="s3scap-post" data-v="anteriore"  onclick="s3ScapChip(\'post\',\'anteriore\')">Anteriore</span>' +
       '<span class="chip" data-g="s3scap-post" data-v="posteriore" onclick="s3ScapChip(\'post\',\'posteriore\')">Posteriore</span>' +
