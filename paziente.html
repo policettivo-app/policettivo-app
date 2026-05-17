@@ -1739,17 +1739,29 @@
     }
 
     async function caricaStorico() {
+      const lista = document.getElementById('storico-lista')
+      lista.innerHTML = '<p style="font-size:13px;color:#888">Caricamento...</p>'
+
       const { data: prots } = await _supabase
         .from('patient_protocols')
         .select('*')
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
 
-      const lista = document.getElementById('storico-lista')
       if (!prots || prots.length === 0) {
         lista.innerHTML = '<p style="font-size:13px;color:#888">Nessun protocollo trovato.</p>'
         return
       }
+
+      // Conta diary_entries per protocollo in una sola query
+      const { data: allDiary } = await _supabase
+        .from('diary_entries')
+        .select('patient_protocol_id')
+        .eq('patient_id', patientId)
+      const diaryMap = {}
+      ;(allDiary || []).forEach(function(de) {
+        if (de.patient_protocol_id) diaryMap[de.patient_protocol_id] = (diaryMap[de.patient_protocol_id] || 0) + 1
+      })
 
       let html = ''
       for (const prot of prots) {
@@ -1767,16 +1779,59 @@
         const esercizi = ppe ? ppe.map(e => e.exercises ? e.exercises.nome : '—').join(', ') : '—'
         const numEx = ppe ? ppe.length : 0
 
+        const diaryCnt = diaryMap[prot.id] || 0
+        const canDelete = diaryCnt === 0
+        const isAttivo = stato === 'attivo'
+        const nomeStr = JSON.stringify(prot.nome_personalizzato || 'Protocollo')
+
+        const btnModifica = '<button onclick="modificaProtocollo(\'' + prot.id + '\')" style="background:transparent;border:1.5px solid #FFD008;color:#000;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Montserrat,sans-serif">✏️ Modifica</button>'
+        const btnCancella = canDelete
+          ? '<button onclick="confermaCancellazioneProtocollo(\'' + prot.id + '\',' + nomeStr + ',' + isAttivo + ',' + diaryCnt + ')" title="Cancella protocollo" style="background:transparent;border:1.5px solid #c62828;color:#c62828;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Montserrat,sans-serif">🗑️ Cancella</button>'
+          : '<button disabled title="Non cancellabile: ha ' + diaryCnt + ' sedut' + (diaryCnt === 1 ? 'a' : 'e') + ' paziente" style="background:transparent;border:1.5px solid #ddd;color:#bbb;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:not-allowed;font-family:Montserrat,sans-serif">🗑️ Cancella</button>'
+
         html += '<div style="border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:12px;background:#fafafa">' +
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
           '<span style="font-weight:700;font-size:14px;color:#000">' + (prot.nome_personalizzato || 'Protocollo') + '</span>' +
           '<span style="font-size:11px;font-weight:700;color:' + statoColor + ';margin-left:auto">' + statoLabel + '</span>' +
           '</div>' +
           '<div style="font-size:12px;color:#555;margin-bottom:6px">📅 ' + dataInizio + ' &nbsp;·&nbsp; ' + numEx + ' esercizi</div>' +
-          '<div style="font-size:12px;color:#666"><strong>Esercizi:</strong> ' + esercizi + '</div>' +
+          '<div style="font-size:12px;color:#666;margin-bottom:10px"><strong>Esercizi:</strong> ' + esercizi + '</div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap">' + btnModifica + btnCancella + '</div>' +
           '</div>'
       }
       lista.innerHTML = html
+    }
+
+    function modificaProtocollo(id) {
+      window.location.href = 'assegna-protocollo.html?id=' + patientId + '&edit=' + id
+    }
+
+    async function confermaCancellazioneProtocollo(id, nome, isAttivo, diaryCnt) {
+      if (diaryCnt > 0) {
+        alert('Non cancellabile: questo protocollo ha ' + diaryCnt + ' sedut' + (diaryCnt === 1 ? 'a' : 'e') + ' paziente registrat' + (diaryCnt === 1 ? 'a' : 'e') + '.')
+        return
+      }
+      let msg = 'Cancellare "' + nome + '"?\nL\'azione è irreversibile.'
+      if (isAttivo) {
+        msg = '⚠️ ATTENZIONE: stai cancellando il protocollo ATTIVO.\nIl paziente vedrà il protocollo precedente o nessun protocollo.\n\n' + msg
+        if (!confirm(msg)) return
+        if (!confirm('Conferma definitiva: cancellare il protocollo ATTIVO "' + nome + '"?')) return
+      } else {
+        if (!confirm(msg)) return
+      }
+      await eseguiCancellazioneProtocollo(id)
+    }
+
+    async function eseguiCancellazioneProtocollo(id) {
+      // Sgancia exercise_videos (FK senza CASCADE)
+      await _supabase.from('exercise_videos').update({ protocol_id: null }).eq('protocol_id', id)
+      const { error } = await _supabase.from('patient_protocols').delete().eq('id', id)
+      if (error) {
+        alert('Errore durante la cancellazione: ' + error.message)
+        return
+      }
+      showPazToast('✓ Protocollo cancellato')
+      await caricaStorico()
     }
 
 
