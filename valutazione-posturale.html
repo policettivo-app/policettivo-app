@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="hide-bottom-nav" content="true">
   <title>Valutazione Posturale</title>
+  <link rel="stylesheet" href="css/design-system.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -389,11 +390,21 @@
     @media (min-width: 768px) {
       #main-content { max-width: 1200px; margin: 0 auto; }
       .vp-section { margin: 12px 0; }
-      .photo-slot { max-width: 380px; max-height: 500px; }
     }
     @media (min-width: 1024px) {
-      .photo-grid { flex-direction: row; flex-wrap: wrap; }
-      .photo-slot-wrap { flex: 0 0 calc(50% - 7px); max-width: calc(50% - 7px); }
+      /* Grid 2 colonne: Sagittale larghezza piena, coppie affiancate sotto */
+      .photo-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      /* Sagittale DX + SX: riga intera (ha già la coppia affiancata internamente) */
+      .photo-section:first-child {
+        grid-column: 1 / -1;
+      }
+      /* Foto uniformi: proporzione 3/4, max 380px */
+      .photo-slot-paired { aspect-ratio: 3/4; }
+      .photo-slot        { aspect-ratio: 3/4; max-width: 380px; }
     }
 
   </style>
@@ -404,17 +415,17 @@
 <div id="error-banner" style="display:none;background:#c0392b;color:#fff;padding:14px 20px;font-size:14px;font-weight:600;text-align:center;position:sticky;top:0;z-index:9999;"></div>
 
 <!-- STICKY HEADER -->
-<div id="sticky-header">
-  <div class="hdr-row1">
+<div id="sticky-header" class="ds-header-bar">
+  <div class="hdr-row1 ds-hdr-row">
     <button class="hdr-back" onclick="backToPaziente()">←</button>
-    <div class="hdr-name" id="hdr-patient-name">Caricamento…</div>
-    <span class="hdr-badge">POSTURALE</span>
+    <div class="hdr-name ds-hdr-name" id="hdr-patient-name">Caricamento…</div>
+    <span class="hdr-badge ds-hdr-badge">POSTURALE</span>
   </div>
   <div class="hdr-row2">
     <input type="date" id="hdr-date-input" onchange="scheduleSave()">
     <div id="hdr-indicator"></div>
     <button class="hdr-home-btn" onclick="window.location.href='dashboard.html'" aria-label="Torna alla dashboard">🏠</button>
-    <button class="hdr-chiudi-btn" id="btn-salva-torna" onclick="salvaETorna()">💾 Salva e torna</button>
+    <button class="hdr-chiudi-btn ds-hdr-btn-save" id="btn-salva-torna" onclick="salvaETorna()">💾 Salva e torna</button>
   </div>
 </div>
 
@@ -423,27 +434,27 @@
 <div id="main-content">
 
   <!-- A: OSSERVAZIONE -->
-  <section class="vp-section">
-    <div class="vp-sec-title"><span class="vp-sec-badge">A</span> Osservazione iniziale</div>
-    <div class="chip-label">Elementi rilevati — tocca per aggiungere</div>
-    <div class="chip-row">
-      <span class="chip append-chip" onclick="appendObs('Iperlordosi lombare')">Iperlordosi lombare</span>
-      <span class="chip append-chip" onclick="appendObs('Cifosi dorsale')">Cifosi dorsale</span>
-      <span class="chip append-chip" onclick="appendObs('Antepulsione capo')">Antepulsione capo</span>
-      <span class="chip append-chip" onclick="appendObs('Spalla dx alta')">Spalla dx alta</span>
-      <span class="chip append-chip" onclick="appendObs('Spalla sx alta')">Spalla sx alta</span>
-      <span class="chip append-chip" onclick="appendObs('Asimmetria bacino')">Asimmetria bacino</span>
-      <span class="chip append-chip" onclick="appendObs('Protrazione spalle')">Protrazione spalle</span>
-      <span class="chip append-chip" onclick="appendObs('Atteggiamento scoliotico')">Atteg. scoliotico</span>
+  <section class="vp-section ds-section">
+    <div class="vp-sec-title ds-section-title"><span class="vp-sec-badge ds-section-badge">A</span> Osservazione iniziale</div>
+    <div class="chip-label ds-chip-label">Elementi rilevati — tocca per aggiungere</div>
+    <div class="chip-row ds-chip-row">
+      <span class="chip ds-chip append-chip" onclick="appendObs('Iperlordosi lombare')">Iperlordosi lombare</span>
+      <span class="chip ds-chip append-chip" onclick="appendObs('Cifosi dorsale')">Cifosi dorsale</span>
+      <span class="chip ds-chip append-chip" onclick="appendObs('Antepulsione capo')">Antepulsione capo</span>
+      <span class="chip ds-chip append-chip" onclick="appendObs('Spalla dx alta')">Spalla dx alta</span>
+      <span class="chip ds-chip append-chip" onclick="appendObs('Spalla sx alta')">Spalla sx alta</span>
+      <span class="chip ds-chip append-chip" onclick="appendObs('Asimmetria bacino')">Asimmetria bacino</span>
+      <span class="chip ds-chip append-chip" onclick="appendObs('Protrazione spalle')">Protrazione spalle</span>
+      <span class="chip ds-chip append-chip" onclick="appendObs('Atteggiamento scoliotico')">Atteg. scoliotico</span>
     </div>
-    <textarea class="vp-textarea" id="f-note-osservazionali" rows="4"
+    <textarea class="vp-textarea ds-textarea" id="f-note-osservazionali" rows="4"
       placeholder="Note osservazionali libere…" oninput="scheduleSave()"></textarea>
   </section>
 
   <!-- B: FOTO POSTURALI -->
-  <section class="vp-section">
-    <div class="vp-sec-title">
-      <span class="vp-sec-badge">B</span> Foto posturali
+  <section class="vp-section ds-section">
+    <div class="vp-sec-title ds-section-title">
+      <span class="vp-sec-badge ds-section-badge">B</span> Foto posturali
       <label class="stampiglia-row">
         <input type="checkbox" id="stampiglia-toggle" checked onchange="updateStampigliaToggle()">
         <span>Data sulla foto</span>
@@ -453,36 +464,36 @@
   </section>
 
   <!-- C: TEST MONOPODALICO -->
-  <section class="vp-section">
-    <div class="vp-sec-title">
-      <span class="vp-sec-badge">C</span> Test monopodalico di equilibrio
+  <section class="vp-section ds-section">
+    <div class="vp-sec-title ds-section-title">
+      <span class="vp-sec-badge ds-section-badge">C</span> Test monopodalico di equilibrio
       <button class="vp-sec-info-btn" onclick="showMonoInfo()">ℹ️</button>
     </div>
 
-    <div class="chip-label">Destro (DX)</div>
-    <div class="chip-row">
+    <div class="chip-label ds-chip-label">Destro (DX)</div>
+    <div class="chip-row ds-chip-row">
       <span class="chip" data-g="mono-dx" data-v="inversione" onclick="setExcl('mono-dx','inversione')">Inversione</span>
       <span class="chip" data-g="mono-dx" data-v="eversione"  onclick="setExcl('mono-dx','eversione')">Eversione</span>
       <span class="chip" data-g="mono-dx" data-v="neutro"     onclick="setExcl('mono-dx','neutro')">Neutro</span>
     </div>
 
-    <div class="chip-label" style="margin-top:10px">Sinistro (SX)</div>
-    <div class="chip-row">
+    <div class="chip-label ds-chip-label" style="margin-top:10px">Sinistro (SX)</div>
+    <div class="chip-row ds-chip-row">
       <span class="chip" data-g="mono-sx" data-v="inversione" onclick="setExcl('mono-sx','inversione')">Inversione</span>
       <span class="chip" data-g="mono-sx" data-v="eversione"  onclick="setExcl('mono-sx','eversione')">Eversione</span>
       <span class="chip" data-g="mono-sx" data-v="neutro"     onclick="setExcl('mono-sx','neutro')">Neutro</span>
     </div>
 
     <div style="margin-top:12px">
-      <div class="chip-label">Note monopodalico</div>
-      <textarea class="vp-textarea" id="f-monopodalico-note" rows="3"
+      <div class="chip-label ds-chip-label">Note monopodalico</div>
+      <textarea class="vp-textarea ds-textarea" id="f-monopodalico-note" rows="3"
         placeholder="Osservazioni aggiuntive…" oninput="scheduleSave()"></textarea>
     </div>
   </section>
 
   <!-- D: FOTO LIBERE -->
-  <section class="vp-section">
-    <div class="vp-sec-title"><span class="vp-sec-badge">D</span> Foto libere</div>
+  <section class="vp-section ds-section">
+    <div class="vp-sec-title ds-section-title"><span class="vp-sec-badge ds-section-badge">D</span> Foto libere</div>
     <p style="font-size:13px;color:#888;font-style:italic;margin:4px 0 14px;line-height:1.5">Foto aggiuntive per test specifici: convergenza oculare, valutazione stomatognatica, rotazione cervicale, altri test funzionali.</p>
     <div class="foto-lib-list" id="foto-lib-list"><!-- built by renderFotoLibere() --></div>
     <button class="btn-add-foto" id="btn-add-foto-lib" onclick="showFotoLiberaModal()">
@@ -491,13 +502,13 @@
   </section>
 
   <!-- E: RELAZIONE AI POLICETTIVO -->
-  <section class="vp-section">
-    <div class="vp-sec-title"><span class="vp-sec-badge">E</span> Relazione AI Policettivo</div>
+  <section class="vp-section ds-section">
+    <div class="vp-sec-title ds-section-title"><span class="vp-sec-badge ds-section-badge">E</span> Relazione AI Policettivo</div>
     <div style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">Genera una relazione posturale clinica strutturata. Editabile dopo la generazione.</div>
     <button class="vp-ai-btn" id="vp-ai-btn" onclick="generaRelazioneVP()">🤖 Genera Relazione con AI ⭐</button>
     <div class="vp-ai-spinner" id="vp-ai-spinner">⏳ Generazione in corso…</div>
     <div class="vp-ai-result" id="vp-ai-result">
-      <textarea class="vp-textarea" id="f-relazione-ai" rows="8"
+      <textarea class="vp-textarea ds-textarea" id="f-relazione-ai" rows="8"
         placeholder="La relazione AI apparirà qui…"
         oninput="scheduleRelazioneAISave()"></textarea>
       <div class="vp-ai-actions">
@@ -509,9 +520,9 @@
   </section>
 
   <!-- F: CONCLUSIONI -->
-  <section class="vp-section">
-    <div class="vp-sec-title"><span class="vp-sec-badge">F</span> Conclusioni</div>
-    <div class="chip-label">Configurazione suggerita</div>
+  <section class="vp-section ds-section">
+    <div class="vp-sec-title ds-section-title"><span class="vp-sec-badge ds-section-badge">F</span> Conclusioni</div>
+    <div class="chip-label ds-chip-label">Configurazione suggerita</div>
     <div class="config-row">
       <div class="config-card" id="cfg-npl" onclick="setConfig('NPL')">
         <div class="config-card-label">NPL</div>
@@ -523,8 +534,8 @@
       </div>
     </div>
     <div style="margin-top:14px">
-      <div class="chip-label">Note conclusive</div>
-      <textarea class="vp-textarea" id="f-note-finali" rows="4"
+      <div class="chip-label ds-chip-label">Note conclusive</div>
+      <textarea class="vp-textarea ds-textarea" id="f-note-finali" rows="4"
         placeholder="Sintesi clinica, raccomandazioni, piano di trattamento…" oninput="scheduleSave()"></textarea>
     </div>
     <div style="margin-top:20px">
@@ -895,8 +906,8 @@
       if (section.sectionKey === 'podoscopio_sotto') {
         const c = document.createElement('div')
         c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
-          '<div class="chip-label">Arco plantare</div>' +
-          '<div class="chip-row">' +
+          '<div class="chip-label ds-chip-label">Arco plantare</div>' +
+          '<div class="chip-row ds-chip-row">' +
             '<span class="chip" data-g="arco" data-v="piatto" onclick="setExcl(\'arco\',\'piatto\')">Piatto</span>' +
             '<span class="chip" data-g="arco" data-v="cavo" onclick="setExcl(\'arco\',\'cavo\')">Cavo</span>' +
             '<span class="chip" data-g="arco" data-v="normale" onclick="setExcl(\'arco\',\'normale\')">Normale</span>' +
@@ -906,8 +917,8 @@
       if (section.sectionKey === 'podoscopio_dietro') {
         const c = document.createElement('div')
         c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
-          '<div class="chip-label">Assetto podalico</div>' +
-          '<div class="chip-row">' +
+          '<div class="chip-label ds-chip-label">Assetto podalico</div>' +
+          '<div class="chip-row ds-chip-row">' +
             '<span class="chip" data-g="assetto" data-v="valgo" onclick="setExcl(\'assetto\',\'valgo\')">Valgo</span>' +
             '<span class="chip" data-g="assetto" data-v="varo" onclick="setExcl(\'assetto\',\'varo\')">Varo</span>' +
             '<span class="chip" data-g="assetto" data-v="normale" onclick="setExcl(\'assetto\',\'normale\')">Normale</span>' +
@@ -1040,7 +1051,7 @@
     wrap.innerHTML =
       '<div class="scapolare-block">' +
         '<div class="scapolare-block-label">🦴 Piano Scapolare — PRE 3R</div>' +
-        '<div class="chip-row">' +
+        '<div class="chip-row ds-chip-row">' +
           '<span class="chip" data-g="scap-pre" data-v="in_asse"    onclick="setExcl(\'scap-pre\',\'in_asse\')">In asse</span>' +
           '<span class="chip" data-g="scap-pre" data-v="anteriore"  onclick="setExcl(\'scap-pre\',\'anteriore\')">Anteriore</span>' +
           '<span class="chip" data-g="scap-pre" data-v="posteriore" onclick="setExcl(\'scap-pre\',\'posteriore\')">Posteriore</span>' +
@@ -1048,7 +1059,7 @@
       '</div>' +
       '<div class="scapolare-block">' +
         '<div class="scapolare-block-label">🦴 Piano Scapolare — POST 3R</div>' +
-        '<div class="chip-row">' +
+        '<div class="chip-row ds-chip-row">' +
           '<span class="chip" data-g="scap-post" data-v="in_asse"    onclick="setExcl(\'scap-post\',\'in_asse\')">In asse</span>' +
           '<span class="chip" data-g="scap-post" data-v="anteriore"  onclick="setExcl(\'scap-post\',\'anteriore\')">Anteriore</span>' +
           '<span class="chip" data-g="scap-post" data-v="posteriore" onclick="setExcl(\'scap-post\',\'posteriore\')">Posteriore</span>' +
@@ -1062,11 +1073,11 @@
     wrap.className = 'plane-note-section'
     wrap.innerHTML =
       '<div class="plane-note-label">📝 Note ' + sectionKey.replace(/_/g,' ') + '</div>' +
-      '<button class="obs-trigger-btn" onclick="toggleObsDropdown(\'' + obsPiano + '\')">' +
+      '<button class="obs-trigger-btn ds-observation-trigger" onclick="toggleObsDropdown(\'' + obsPiano + '\')">' +
         '+ Aggiungi osservazione <span>▼</span>' +
       '</button>' +
       '<div class="obs-dropdown-panel" id="obs-panel-' + obsPiano + '"></div>' +
-      '<textarea class="vp-textarea" id="note-piano-' + noteField + '" rows="3" maxlength="2000"' +
+      '<textarea class="vp-textarea ds-textarea" id="note-piano-' + noteField + '" rows="3" maxlength="2000"' +
         ' placeholder="Osservazioni libere sul piano ' + sectionKey.replace(/_/g,' ') + '…"' +
         ' oninput="scheduleSave()"></textarea>'
     // Init dropdown content (lazy)

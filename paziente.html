@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Scheda Paziente</title>
+  <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -558,8 +559,8 @@
     </div>
   </div>
 
-  <div class="main">
-    <div class="patient-header">
+  <div class="main ds-page">
+    <div class="patient-header ds-card">
       <div>
         <div class="patient-name" id="ph-nome">Caricamento...</div>
         <div class="patient-sub" id="ph-sub"></div>
@@ -593,9 +594,9 @@
     </div>
 
     <!-- DATI ANAGRAFICI -->
-    <div class="section">
+    <div class="section ds-card">
       <div class="section-header">
-        <div class="section-title">Dati anagrafici</div>
+        <div class="section-title ds-section-title-line">Dati anagrafici</div>
         <div class="qa-group">
           <button class="btn-qa" onclick="toggleCartella(true)">📁 Cartella</button>
           <button class="btn-qa" onclick="apriComposizionePDF()">📄 PDF</button>
@@ -711,9 +712,9 @@
     </div>
 
     <!-- VISITE E VALUTAZIONI -->
-    <div class="section" id="section-visite">
+    <div class="section ds-card" id="section-visite">
       <div class="section-header">
-        <div class="section-title">📋 Visite e valutazioni</div>
+        <div class="section-title ds-section-title-line">📋 Visite e valutazioni</div>
       </div>
       <div class="visite-filtri" id="visite-filtri">
         <button class="visita-chip active" data-filter="all"           onclick="filterVisite('all')">Tutte</button>
@@ -724,8 +725,8 @@
     </div>
 
     <!-- FOTO SAGITTALI -->
-    <div class="section">
-      <div class="section-title-plain">Foto posturali — Piano sagittale</div>
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Foto posturali — Piano sagittale</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta le foto prima e dopo la Tecnica dei 3 Respiri. Poi seleziona il piano scapolare.</p>
       <div class="foto-group-label"><span class="step-label">PRIMA</span> Piano sagittale — prima dei 3R</div>
       <div class="foto-grid-2">
@@ -767,8 +768,8 @@
     </div>
 
     <!-- PIANO FRONTALE -->
-    <div class="section">
-      <div class="section-title-plain">Piano frontale e posteriore <span class="section-optional">(facoltativo)</span></div>
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Piano frontale e posteriore <span class="section-optional">(facoltativo)</span></div>
       <div class="foto-grid-2" style="margin-bottom:16px">
         <div>
           <div class="foto-group-label">Piano frontale</div>
@@ -805,8 +806,8 @@
     </div>
 
     <!-- PODOSCOPIO -->
-    <div class="section">
-      <div class="section-title-plain">Osservazione podoscopica</div>
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Osservazione podoscopica</div>
       <div class="foto-grid-2" style="margin-bottom:16px">
         <div>
           <div class="foto-group-label">Vista plantare (da sotto)</div>
@@ -843,8 +844,8 @@
     </div>
 
     <!-- CONFIGURAZIONE -->
-    <div class="section">
-      <div class="section-title-plain">Configurazione cuscini</div>
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Configurazione cuscini</div>
       <div class="config-selector">
         <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div></div>
         <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div></div>
@@ -853,8 +854,8 @@
     </div>
 
     <!-- MONITORAGGIO -->
-    <div class="section" id="section-monitoraggio">
-      <div class="section-title-plain">Monitoraggio</div>
+    <div class="section ds-card" id="section-monitoraggio">
+      <div class="section-title-plain ds-section-title-line">Monitoraggio</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Visualizza l'andamento del paziente nel tempo: aderenza, dolore, energia e diario.</p>
       <div class="actions-row">
         <button class="btn-primary" onclick="window.location.href='monitoraggio.html?id=' + patientId">📊 Vedi monitoraggio</button>
@@ -864,8 +865,8 @@
     </div>
 
     <!-- PROTOCOLLO -->
-    <div class="section">
-      <div class="section-title-plain">Protocollo</div>
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Protocollo</div>
       <div id="protocollo-info" style="margin-bottom:16px">
         <p style="font-size:13px;color:#666">Caricamento protocollo...</p>
       </div>
@@ -875,9 +876,9 @@
     </div>
 
     <!-- STORICO PROTOCOLLI -->
-    <div class="section">
+    <div class="section ds-card">
       <div class="section-header">
-        <div class="section-title">Storico protocolli</div>
+        <div class="section-title ds-section-title-line">Storico protocolli</div>
         <button class="btn-edit" onclick="toggleStorico()" id="btn-storico">▼ Mostra</button>
       </div>
       <div id="storico-container" style="display:none">
@@ -887,9 +888,9 @@
 
 
     <!-- CARTELLA CLINICA -->
-    <div class="section" id="cartella-clinica">
+    <div class="section ds-card" id="cartella-clinica">
       <div class="section-header">
-        <div class="section-title">Cartella Clinica Medica <span class="section-optional">referti • documenti • note cliniche</span></div>
+        <div class="section-title ds-section-title-line">Cartella Clinica Medica <span class="section-optional">referti • documenti • note cliniche</span></div>
         <button class="btn-edit" onclick="toggleCartella()" id="btn-cartella">&#9660; Mostra</button>
       </div>
       <div id="cartella-container" style="display:none">
@@ -1039,9 +1040,9 @@
     </div>
 
     <!-- TIMELINE CLINICA -->
-    <div class="section">
+    <div class="section ds-card">
       <div class="section-header">
-        <div class="section-title">🕒 Timeline Clinica <span class="section-optional">visite • sedute • note</span></div>
+        <div class="section-title ds-section-title-line">🕒 Timeline Clinica <span class="section-optional">visite • sedute • note</span></div>
         <button class="btn-edit" onclick="timelineToggle()" id="btn-timeline">▼ Mostra</button>
       </div>
       <div id="timeline-container" style="display:none">
@@ -1050,8 +1051,8 @@
     </div>
 
     <!-- COMPARAZIONE -->
-    <div class="section">
-      <div class="section-title-plain">Comparazione posturale</div>
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Comparazione posturale</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Visualizza le 4 foto prima e dopo affiancate con griglia di riferimento per comparare l andamento posturale.</p>
       <div class="actions-row">
         <button class="btn-primary" onclick="apriComparazione()">🔍 Apri comparazione</button>
@@ -1059,8 +1060,8 @@
     </div>
 
     <!-- AI POSTURALE -->
-    <div class="section">
-      <div class="section-title-plain">🤖 Analisi AI Posturale</div>
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">🤖 Analisi AI Posturale</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">L'AI analizza le osservazioni del piano scapolare e del piede e suggerisce la colorazione NPL o GPL del cuscino.</p>
       <div class="actions-row">
         <button class="btn-primary" onclick="apriModaleAIP()">🤖 Avvia Analisi AI Posturale</button>
@@ -1070,8 +1071,8 @@
         <div id="aip-last-content"></div>
       </div>
     </div>
-    <div class="section">
-      <div class="section-title-plain">Scheda clinica PDF</div>
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Scheda clinica PDF</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Genera la scheda clinica completa con foto e note, pronta per la stampa.</p>
       <div class="actions-row">
         <button class="btn-primary" onclick="apriSchedaPDF()">📄 Genera PDF Comparazione</button>
@@ -1079,8 +1080,8 @@
     </div>
 
     <!-- ACCESSO PAZIENTE -->
-    <div class="section">
-      <div class="section-title-plain">Accesso paziente</div>
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Accesso paziente</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Genera il link personale da inviare al paziente.</p>
       <div class="actions-row">
         <button class="btn-primary" onclick="generaLink()">Genera link paziente</button>
@@ -2265,7 +2266,8 @@
         aiHtml = '<div style="margin-top:24px"><div style="font-size:13px;font-weight:700;color:#1565c0;margin-bottom:12px">Analisi AI</div>' + aiContent.innerHTML + '</div>'
       }
       const win = window.open('', '_blank')
-      win.document.write('<html><head><title>Cartella Clinica Medica — ' + nomePaz + '</title>')
+      win.document.write('<html><head><title>Cartella Clinica Medica — ' + nomePaz + '</title>
+  <link rel="stylesheet" href="css/design-system.css">')
       win.document.write('<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">')
       win.document.write('<style>body{font-family:Montserrat,sans-serif;max-width:800px;margin:0 auto;padding:40px 32px;color:#000} h1{font-size:24px;margin-bottom:4px} .sub{font-size:13px;color:#666;margin-bottom:24px} .logo{background:#FFD008;color:#000;font-weight:700;font-size:11px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px} .note{background:#f9f9f9;border-radius:8px;padding:14px;font-size:13px;color:#444;margin-bottom:24px;white-space:pre-wrap} @media print{button{display:none}}</style>')
       win.document.write('</head><body>')
@@ -2599,10 +2601,11 @@ Campi:
       const noteProf = document.getElementById('csai-note-prof')?.value || ''
       const nomePaz = ((patient?.nome||'') + ' ' + (patient?.cognome||'')).trim()
       const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
-      let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Assistente Clinico AI — ${nomePaz}</title><style>body{font-family:'Helvetica Neue',Arial,sans-serif;max-width:700px;margin:40px auto;padding:0 24px;color:#111;font-size:13px;line-height:1.7}h1{font-size:18px;font-weight:700;margin-bottom:4px}.meta{color:#888;font-size:12px;margin-bottom:32px}.section{margin-bottom:22px}.section-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:6px}.section-text{background:#f7f7f7;border-radius:6px;padding:12px}.note-prof{border-top:2px solid #FFD008;margin-top:32px;padding-top:16px}.footer{margin-top:40px;font-size:10px;color:#bbb;border-top:1px solid #eee;padding-top:12px}@media print{body{margin:20px}}</style></head><body><h1>Assistente Clinico AI</h1><div class="meta">${nomePaz} — generato il ${oggi}</div>`
+      let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Assistente Clinico AI — ${nomePaz}</title>
+  <link rel="stylesheet" href="css/design-system.css"><style>body{font-family:'Helvetica Neue',Arial,sans-serif;max-width:700px;margin:40px auto;padding:0 24px;color:#111;font-size:13px;line-height:1.7}h1{font-size:18px;font-weight:700;margin-bottom:4px}.meta{color:#888;font-size:12px;margin-bottom:32px}.section{margin-bottom:22px}.section-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:6px}.section-text{background:#f7f7f7;border-radius:6px;padding:12px}.note-prof{border-top:2px solid #FFD008;margin-top:32px;padding-top:16px}.footer{margin-top:40px;font-size:10px;color:#bbb;border-top:1px solid #eee;padding-top:12px}@media print{body{margin:20px}}</style></head><body><h1>Assistente Clinico AI</h1><div class="meta">${nomePaz} — generato il ${oggi}</div>`
       ids.forEach((id, i) => {
         const el = document.getElementById(id)
-        html += `<div class="section"><div class="section-label">${labels[i]}</div><div class="section-text">${el?.textContent || '—'}</div></div>`
+        html += `<div class="section ds-card"><div class="section-label">${labels[i]}</div><div class="section-text">${el?.textContent || '—'}</div></div>`
       })
       if (noteProf) html += `<div class="note-prof"><div class="section-label">Note professionista</div><div class="section-text">${noteProf.replace(/\n/g,'<br>')}</div></div>`
       html += `<div class="footer">Generato con Policettivo® Assistente Clinico AI. Strumento assistivo — non sostituisce il ragionamento clinico del professionista.</div></body></html>`
@@ -2766,7 +2769,8 @@ Campi:
       var oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
       var esc = function(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 
-      var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cartella Clinica — ' + nomePaz + '</title>'
+      var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cartella Clinica — ' + nomePaz + '</title>
+  <link rel="stylesheet" href="css/design-system.css">'
       html += '<style>body{font-family:"Helvetica Neue",Arial,sans-serif;max-width:800px;margin:40px auto;padding:0 32px;color:#111;font-size:13px;line-height:1.7}'
       html += 'h1{font-size:22px;font-weight:700;margin-bottom:4px}.logo{background:#FFD008;color:#000;font-weight:700;font-size:10px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px}'
       html += '.meta{color:#888;font-size:12px;margin-bottom:28px}.sec-hdr{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;border-bottom:2px solid #FFD008;padding-bottom:6px;margin:28px 0 14px}'

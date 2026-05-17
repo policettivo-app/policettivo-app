@@ -1,0 +1,466 @@
+/* =============================================================
+   POLICETTIVO DESIGN SYSTEM — css/design-system.css
+   Estratto da paziente.html (riferimento grafico ufficiale).
+   Prefisso ds-* per zero conflitti con classi legacy.
+   ============================================================= */
+
+/* ─────────────────────────────────────────────────────────────
+   TOKENS
+   ───────────────────────────────────────────────────────────── */
+:root {
+  /* COLORS */
+  --ds-accent:       #FFD008;   /* giallo Policettivo         */
+  --ds-accent-hover: #e6bc00;   /* giallo scuro (hover)       */
+  --ds-black:        #000000;
+  --ds-soft-black:   #1a1a1a;
+  --ds-white:        #ffffff;
+
+  /* Gray — 6 livelli semantici */
+  --ds-gray-50:      #f5f5f5;   /* bg pagina                  */
+  --ds-gray-100:     #fafafa;   /* bg card secondaria, chip   */
+  --ds-gray-200:     #eeeeee;   /* border card                */
+  --ds-gray-300:     #dddddd;   /* border input, chip         */
+  --ds-gray-500:     #999999;   /* testo meta / label         */
+  --ds-gray-600:     #666666;   /* testo secondario           */
+  --ds-gray-700:     #444444;   /* testo corpo                */
+  --ds-gray-900:     #000000;   /* testo principale           */
+
+  /* Semantic states */
+  --ds-success:      #22c55e;
+  --ds-success-bg:   #e8f5e9;
+  --ds-warning:      #f59e0b;
+  --ds-danger:       #dc2626;
+  --ds-danger-bg:    #fff3f3;
+  --ds-danger-border:#ffcdd2;
+
+  /* TYPOGRAPHY */
+  --ds-font:         'Montserrat', sans-serif;
+  --ds-text-xs:      11px;   /* labels, meta                 */
+  --ds-text-sm:      12px;   /* body small, date             */
+  --ds-text-base:    13px;   /* body default                 */
+  --ds-text-md:      14px;   /* body medium                  */
+  --ds-text-lg:      17px;   /* heading sezione              */
+  --ds-text-xl:      22px;   /* titolo pagina                */
+
+  /* SPACING — base 4 px */
+  --ds-sp-1:   4px;
+  --ds-sp-2:   8px;
+  --ds-sp-3:   12px;
+  --ds-sp-4:   16px;
+  --ds-sp-5:   24px;
+  --ds-sp-6:   32px;
+  --ds-sp-7:   48px;
+
+  /* RADIUS */
+  --ds-r-xs:   6px;
+  --ds-r-sm:   8px;
+  --ds-r-md:   12px;
+  --ds-r-lg:   16px;
+  --ds-r-full: 999px;
+
+  /* SHADOWS */
+  --ds-shadow-sm:  0 1px 3px rgba(0,0,0,0.06);
+  --ds-shadow-md:  0 2px 8px rgba(0,0,0,0.08);
+  --ds-shadow-lg:  0 8px 24px rgba(0,0,0,0.12);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   LAYOUT
+   ───────────────────────────────────────────────────────────── */
+
+/* Contenitore pagina centrato */
+.ds-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 36px 24px;
+}
+@media (max-width: 640px) {
+  .ds-page { padding: 20px 16px; }
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   HEADER BAR (barra gialla sticky — valutazione-posturale style)
+   ───────────────────────────────────────────────────────────── */
+.ds-header-bar {
+  background: var(--ds-accent);
+  padding: 12px 16px 10px;
+  box-shadow: var(--ds-shadow-md);
+}
+.ds-hdr-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ds-hdr-name {
+  font-size: var(--ds-text-md);
+  font-weight: 700;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-hdr-badge {
+  background: var(--ds-black);
+  color: var(--ds-accent);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--ds-r-full);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ds-hdr-btn-save {
+  background: #1a7a3c;
+  color: #fff;
+  border: none;
+  border-radius: var(--ds-r-sm);
+  padding: 7px 13px;
+  font-family: var(--ds-font);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   CARDS & SECTIONS
+   ───────────────────────────────────────────────────────────── */
+
+/* Card principale — stile paziente.html */
+.ds-card {
+  background: var(--ds-white);
+  border-radius: var(--ds-r-lg);
+  border: 1px solid var(--ds-gray-200);
+  padding: 28px 32px;
+  margin-bottom: 24px;
+}
+@media (max-width: 640px) {
+  .ds-card {
+    padding: 16px;
+    border-radius: var(--ds-r-md);
+  }
+}
+
+/* Section compatta — stile valutazione-posturale */
+.ds-section {
+  background: var(--ds-white);
+  border-radius: var(--ds-r-md);
+  padding: 16px;
+  box-shadow: var(--ds-shadow-sm);
+  margin-bottom: 16px;
+}
+
+/* Badge lettera (A, B, C…) nel titolo sezione */
+.ds-section-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ds-accent);
+  color: var(--ds-black);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--ds-r-full);
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+/* Titolo sezione con badge (valutazione style) */
+.ds-section-title {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+/* Titolo sezione con sottolineatura gialla (paziente style) */
+.ds-section-title-line {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ds-black);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 2px solid var(--ds-accent);
+  padding-bottom: 8px;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+
+/* Chip label (piccolo uppercase sopra i chip) */
+.ds-chip-label {
+  font-size: var(--ds-text-xs);
+  font-weight: 700;
+  color: var(--ds-gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 5px;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   CHIPS
+   ───────────────────────────────────────────────────────────── */
+.ds-chip {
+  padding: 6px 13px;
+  border-radius: var(--ds-r-full);
+  border: 1.5px solid var(--ds-gray-300);
+  font-family: var(--ds-font);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--ds-gray-100);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  display: inline-block;
+  line-height: 1.4;
+}
+.ds-chip:hover {
+  border-color: var(--ds-accent);
+  background: #fffdf0;
+}
+.ds-chip.active,
+.ds-chip.ds-chip-active {
+  background: var(--ds-accent);
+  border-color: var(--ds-accent);
+  color: var(--ds-black);
+}
+
+/* Riga di chip */
+.ds-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   BUTTONS
+   ───────────────────────────────────────────────────────────── */
+
+/* Primario — giallo (azione principale) */
+.ds-btn-primary {
+  background: var(--ds-accent);
+  color: var(--ds-black);
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--ds-r-sm);
+  font-family: var(--ds-font);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.ds-btn-primary:hover:not(:disabled) { background: var(--ds-accent-hover); }
+.ds-btn-primary:disabled { background: #ccc; color: var(--ds-gray-500); cursor: not-allowed; }
+
+/* Accent — nero con testo giallo (azione secondaria scura) */
+.ds-btn-accent {
+  background: var(--ds-black);
+  color: var(--ds-accent);
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--ds-r-sm);
+  font-family: var(--ds-font);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.ds-btn-accent:hover:not(:disabled) { background: var(--ds-soft-black); }
+
+/* Outline — bordo sottile, no fill */
+.ds-btn-outline {
+  background: transparent;
+  color: var(--ds-gray-700);
+  border: 1.5px solid var(--ds-gray-300);
+  padding: 10px 20px;
+  border-radius: var(--ds-r-sm);
+  font-family: var(--ds-font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.ds-btn-outline:hover { border-color: var(--ds-gray-500); color: var(--ds-black); }
+
+/* Danger — rosso, uso per eliminazione */
+.ds-btn-danger {
+  background: transparent;
+  color: var(--ds-danger);
+  border: 1.5px solid var(--ds-danger);
+  padding: 10px 16px;
+  border-radius: var(--ds-r-sm);
+  font-family: var(--ds-font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ds-btn-danger:hover { background: var(--ds-danger-bg); }
+
+/* Back — bordo 1px, usato nelle navbar scure */
+.ds-btn-back {
+  background: transparent;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: var(--ds-r-xs);
+  font-family: var(--ds-font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ds-btn-back:hover { border-color: var(--ds-accent); color: var(--ds-accent); }
+
+
+/* ─────────────────────────────────────────────────────────────
+   OBSERVATION TRIGGER (tendina "+ Aggiungi osservazione")
+   ───────────────────────────────────────────────────────────── */
+.ds-observation-trigger {
+  width: 100%;
+  padding: 9px 14px;
+  background: var(--ds-accent);
+  color: var(--ds-black);
+  border: 2px solid var(--ds-accent);
+  border-radius: var(--ds-r-sm);
+  font-family: var(--ds-font);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ds-observation-trigger:hover {
+  background: var(--ds-accent-hover);
+  border-color: var(--ds-accent-hover);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   FORM ELEMENTS
+   ───────────────────────────────────────────────────────────── */
+.ds-label {
+  display: block;
+  font-size: var(--ds-text-xs);
+  font-weight: 700;
+  color: var(--ds-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.ds-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--ds-gray-300);
+  border-radius: var(--ds-r-sm);
+  font-family: var(--ds-font);
+  font-size: 13px;
+  color: var(--ds-black);
+  background: var(--ds-white);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.ds-input:focus { border-color: var(--ds-accent); }
+
+.ds-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--ds-gray-300);
+  border-radius: var(--ds-r-sm);
+  font-family: var(--ds-font);
+  font-size: 13px;
+  color: var(--ds-black);
+  background: var(--ds-white);
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+  line-height: 1.5;
+}
+.ds-textarea:focus { border-color: var(--ds-accent); }
+
+.ds-form-group {
+  margin-bottom: 16px;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   GRID UTILITÀ
+   ───────────────────────────────────────────────────────────── */
+
+/* 2 colonne responsive (1 col mobile → 2 col tablet+) */
+.ds-grid-2-cols {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--ds-sp-4);
+}
+@media (min-width: 640px) {
+  .ds-grid-2-cols { grid-template-columns: 1fr 1fr; }
+}
+
+/* Info grid auto-fit (schede info paziente) */
+.ds-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--ds-sp-4);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   MISC UTILITIES
+   ───────────────────────────────────────────────────────────── */
+.ds-divider {
+  border: none;
+  border-top: 1.5px solid var(--ds-gray-200);
+  margin: 16px 0;
+}
+
+.ds-note-box {
+  background: var(--ds-gray-100);
+  border-radius: var(--ds-r-sm);
+  padding: 14px 16px;
+  font-size: var(--ds-text-base);
+  color: var(--ds-gray-700);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Status / saving indicator */
+.ds-status {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-gray-500);
+  min-height: 16px;
+  display: inline-block;
+}
+.ds-status.saved { color: var(--ds-success); }
+.ds-status.error { color: var(--ds-danger); }
