@@ -378,6 +378,12 @@
       font-size: 11px; font-weight: 700; color: rgba(255,255,255,.95);
       background: rgba(0,0,0,.55); padding: 3px 10px; border-radius: 10px; white-space: nowrap;
     }
+    #wc-livella-dbg {
+      position: absolute; top: 8px; right: 10px;
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,.8);
+      background: rgba(0,0,0,.45); padding: 2px 7px; border-radius: 4px;
+      font-family: 'Montserrat', monospace; pointer-events: none;
+    }
 
     /* ── RESPONSIVE DESKTOP ──────────────────────────────────── */
     @media (min-width: 768px) {
@@ -665,6 +671,7 @@
       <div class="wc-livella-vline"></div>
       <div class="wc-livella-hline" id="wc-livella-hline"></div>
       <div class="wc-livella-lbl" id="wc-livella-lbl">—</div>
+      <div id="wc-livella-dbg"></div>
     </div>
   </div>
   <div id="wc-bottombar">
@@ -734,8 +741,9 @@
   let wcCameras      = []
   let wcCameraIdx    = 0
   let wcCapturedBlob = null
-  let wcLivellaActive = localStorage.getItem('posturale_livella_active') !== '0'
+  let wcLivellaActive = localStorage.getItem('posturale_livella_active') === '1'
   let _wcOriHandler  = null
+  let _wcOriPermGranted = null   // null=unchecked, true=granted, false=denied
 
   // ── INIT ──────────────────────────────────────────────────
   async function init() {
@@ -1261,7 +1269,10 @@
     document.getElementById('webcam-modal').classList.add('open')
     wcShowShootState()
     await wcStartStream()
-    if (wcLivellaActive) _wcStartLivella()
+    if (wcLivellaActive) {
+      if (_wcOriPermGranted === null) await _wcRequestOriPerm()
+      if (_wcOriPermGranted) _wcStartLivella()
+    }
   }
 
   async function wcStartStream() {
@@ -1312,11 +1323,38 @@
   }
 
   // ── LIVELLA ────────────────────────────────────────────────
-  function wcToggleLivella() {
+  async function _wcRequestOriPerm() {
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try {
+        const state = await DeviceOrientationEvent.requestPermission()
+        _wcOriPermGranted = state === 'granted'
+      } catch(e) {
+        _wcOriPermGranted = false
+      }
+    } else {
+      _wcOriPermGranted = true  // non-iOS: no permission needed
+    }
+    return _wcOriPermGranted
+  }
+
+  async function wcToggleLivella() {
     wcLivellaActive = !wcLivellaActive
     localStorage.setItem('posturale_livella_active', wcLivellaActive ? '1' : '0')
     document.getElementById('wc-livella-btn')?.classList.toggle('active', wcLivellaActive)
-    if (wcLivellaActive) _wcStartLivella(); else _wcStopLivella()
+    if (wcLivellaActive) {
+      const granted = await _wcRequestOriPerm()
+      if (!granted) {
+        wcLivellaActive = false
+        localStorage.setItem('posturale_livella_active', '0')
+        document.getElementById('wc-livella-btn')?.classList.remove('active')
+        showToast('Permesso orientamento negato. Abilitalo nelle impostazioni del browser.')
+        return
+      }
+      _wcStartLivella()
+    } else {
+      _wcStopLivella()
+    }
   }
 
   function _wcStartLivella() {
@@ -1325,10 +1363,11 @@
     overlay.style.display = 'block'
     if (_wcOriHandler) return
     _wcOriHandler = e => {
-      const gamma = e.gamma || 0
+      const gamma = e.gamma ?? 0
       const absG  = Math.abs(gamma)
       const hline = document.getElementById('wc-livella-hline')
       const lbl   = document.getElementById('wc-livella-lbl')
+      const dbg   = document.getElementById('wc-livella-dbg')
       if (hline) {
         hline.style.transform = 'translateY(-50%) rotate(' + (-gamma) + 'deg)'
         hline.style.background = absG < 4
@@ -1341,9 +1380,10 @@
         lbl.textContent = absG < 4
           ? '✓ Livellato'
           : absG < 10
-            ? 'Quasi livellato (' + Math.round(absG) + '°)'
-            : 'Non livellato (' + Math.round(absG) + '°)'
+            ? 'Quasi (' + Math.round(absG) + '°)'
+            : Math.round(absG) + '°'
       }
+      if (dbg) dbg.textContent = 'γ ' + (gamma >= 0 ? '+' : '') + gamma.toFixed(1) + '°'
     }
     window.addEventListener('deviceorientation', _wcOriHandler)
   }
