@@ -1051,13 +1051,16 @@
       document.getElementById('opt-npl').className = 'config-option' + (val === 'NPL' ? ' selected-npl' : '')
       document.getElementById('opt-gpl').className = 'config-option' + (val === 'GPL' ? ' selected-gpl' : '')
     }
-    async function _checkDuplicate(profId, cf, email, telefono) {
+    async function _checkDuplicate(profId, cf, email, telefono, excludeId, nome, cognome) {
       try {
         const { data } = await _supabase.rpc('check_patient_duplicate', {
           p_professional_id: profId,
           p_codice_fiscale: cf || null,
           p_email: email || null,
-          p_telefono: telefono || null
+          p_telefono: telefono || null,
+          p_exclude_id: excludeId || null,
+          p_nome: nome || null,
+          p_cognome: cognome || null
         })
         return data || []
       } catch { return [] }
@@ -1068,7 +1071,7 @@
         _dupResolve = resolve
         const m = matches[0]
         document.getElementById('dup-modal-text').textContent =
-          (m.nome || '') + ' ' + (m.cognome || '') + ' (match: ' + (m.match_field || '?') + ')'
+          (m.nome || '') + ' ' + (m.cognome || '') + ' (match: ' + ({ codice_fiscale: 'codice fiscale', email: 'email', telefono: 'telefono', nome_cognome: 'nome e cognome' }[m.match_field] || '?') + ')'
         document.getElementById('dup-modal-id').value = m.id
         document.getElementById('dup-overlay').classList.add('open')
       })
@@ -1106,7 +1109,9 @@
       if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return } }
 
       const cf = document.getElementById('f-codice-fiscale').value.trim().toUpperCase() || null
-      const dupMatches = await _checkDuplicate(currentProfessionalId, cf, email, telefono)
+      const dupMatches = await _checkDuplicate(
+        currentProfessionalId, cf, email, telefono, null, nome, cognome
+      )
       if (dupMatches.length > 0) {
         const choice = await _showDupModal(dupMatches)
         if (choice === 'cancel') return
