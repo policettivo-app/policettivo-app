@@ -116,6 +116,13 @@
     .btn-panel-action.reset { background: #fff8e1; border-color: #ffe082; color: #7c5f00; }
     .btn-panel-action.reset:hover { background: #fff0a0; }
     .panel-actions-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f0; }
+    .logo-preview-box { border: 2px dashed #ddd; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 16px; background: #fafafa; }
+    .logo-preview-box img { max-width: 200px; max-height: 120px; object-fit: contain; display: block; margin: 0 auto 12px; }
+    .logo-placeholder { color: #bbb; font-size: 13px; margin-bottom: 8px; }
+    .logo-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+    .btn-logo-upload { padding: 9px 20px; background: #FFD008; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; }
+    .btn-logo-remove { padding: 9px 20px; background: transparent; border: 1.5px solid #ffcdd2; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; color: #c62828; }
+    .logo-hint { font-size: 11px; color: #999; line-height: 1.5; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -760,6 +767,21 @@
       btnP.style.background  = isPremium ? '#ffebee' : '#FFD008'
       btnP.style.color       = isPremium ? '#c62828' : '#000'
 
+      const logoImg = document.getElementById('prof-logo-preview')
+      const logoPlaceholder = document.getElementById('prof-logo-placeholder')
+      const logoRemoveBtn = document.getElementById('btn-remove-logo')
+      if (prof.logo_url) {
+        logoImg.src = prof.logo_url
+        logoImg.style.display = 'block'
+        logoPlaceholder.style.display = 'none'
+        logoRemoveBtn.style.display = 'inline-block'
+      } else {
+        logoImg.style.display = 'none'
+        logoImg.src = ''
+        logoPlaceholder.style.display = 'block'
+        logoRemoveBtn.style.display = 'none'
+      }
+
       switchTab('dati')
       document.getElementById('panel-overlay').classList.add('open')
       document.getElementById('side-panel').classList.add('open')
@@ -799,6 +821,69 @@
       })
       if (error) { alert('Errore: ' + error.message); return }
       alert('Email di reset password inviata a ' + email + ' ✓')
+    }
+
+    async function uploadLogo(file) {
+      if (!file || !currentProfId) return
+      const allowed = ['image/png', 'image/jpeg', 'image/svg+xml']
+      if (!allowed.includes(file.type)) { alert('Formato non supportato. Usa PNG, JPG o SVG.'); return }
+      if (file.size > 2 * 1024 * 1024) { alert('File troppo grande. Massimo 2 MB.'); return }
+
+      const ext = file.name.split('.').pop().toLowerCase()
+      const path = 'logos/' + currentProfId + '/' + Date.now() + '.' + ext
+
+      // Rimuovi logo precedente dallo storage se presente
+      if (_panelProfData?.logo_url) {
+        const parts = _panelProfData.logo_url.split('/clinical-docs/')
+        if (parts[1]) await _supabase.storage.from('clinical-docs').remove([parts[1]]).catch(() => {})
+      }
+
+      const { error: upErr } = await _supabase.storage
+        .from('clinical-docs')
+        .upload(path, file, { contentType: file.type, upsert: true })
+      if (upErr) { alert('Errore upload: ' + upErr.message); return }
+
+      const { data: urlData } = _supabase.storage.from('clinical-docs').getPublicUrl(path)
+      const logoUrl = urlData.publicUrl
+
+      const { error: dbErr } = await _supabase
+        .from('professionals')
+        .update({ logo_url: logoUrl })
+        .eq('id', currentProfId)
+      if (dbErr) { alert('Errore salvataggio logo: ' + dbErr.message); return }
+
+      _panelProfData.logo_url = logoUrl
+      const logoImg = document.getElementById('prof-logo-preview')
+      logoImg.src = logoUrl
+      logoImg.style.display = 'block'
+      document.getElementById('prof-logo-placeholder').style.display = 'none'
+      document.getElementById('btn-remove-logo').style.display = 'inline-block'
+      document.getElementById('logo-file-input').value = ''
+      alert('Logo caricato ✓')
+    }
+
+    async function removeLogo() {
+      if (!currentProfId) return
+      if (!confirm('Rimuovere il logo di questo professionista?')) return
+
+      if (_panelProfData?.logo_url) {
+        const parts = _panelProfData.logo_url.split('/clinical-docs/')
+        if (parts[1]) await _supabase.storage.from('clinical-docs').remove([parts[1]]).catch(() => {})
+      }
+
+      const { error } = await _supabase
+        .from('professionals')
+        .update({ logo_url: null })
+        .eq('id', currentProfId)
+      if (error) { alert('Errore rimozione logo: ' + error.message); return }
+
+      _panelProfData.logo_url = null
+      const logoImg = document.getElementById('prof-logo-preview')
+      logoImg.style.display = 'none'
+      logoImg.src = ''
+      document.getElementById('prof-logo-placeholder').style.display = 'block'
+      document.getElementById('btn-remove-logo').style.display = 'none'
+      alert('Logo rimosso ✓')
     }
 
     async function caricaAttivita(profId) {
@@ -993,6 +1078,7 @@
       <div class="panel-tabs">
         <div class="panel-tab active" data-tab="dati" onclick="switchTab('dati')">Dati</div>
         <div class="panel-tab" data-tab="attivita" onclick="switchTab('attivita')">Attività</div>
+        <div class="panel-tab" data-tab="branding" onclick="switchTab('branding')">Branding</div>
         <div class="panel-tab" data-tab="note" onclick="switchTab('note')">Note admin</div>
       </div>
 
@@ -1032,6 +1118,21 @@
         <button class="btn-save" onclick="salvaProfessionista()">💾 Salva modifiche</button>
         <button class="btn-view-as" onclick="visualizzaComeProfessionista()">👁 Visualizza come questo professionista</button>
         <button id="btn-elimina-pannello" onclick="eliminaProfessionistaDalPannello()" style="width:100%;margin-top:8px;padding:12px;background:transparent;border:1.5px solid #ffcdd2;color:#c62828;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Elimina professionista</button>
+      </div>
+
+      <!-- TAB BRANDING -->
+      <div class="panel-section" id="tab-branding">
+        <p style="font-size:12px;color:#999;margin-bottom:16px">Logo personalizzato del professionista. Appare nell'intestazione dei PDF generati.</p>
+        <div class="logo-preview-box">
+          <img id="prof-logo-preview" src="" alt="Logo professionista" style="display:none">
+          <div class="logo-placeholder" id="prof-logo-placeholder">Nessun logo caricato</div>
+        </div>
+        <div class="logo-actions">
+          <button class="btn-logo-upload" onclick="document.getElementById('logo-file-input').click()">📁 Carica nuovo logo</button>
+          <button class="btn-logo-remove" id="btn-remove-logo" style="display:none" onclick="removeLogo()">🗑 Rimuovi logo</button>
+        </div>
+        <p class="logo-hint">PNG / JPG / SVG — max 2 MB — sfondo trasparente consigliato.<br>Il logo apparirà sui PDF visite e valutazioni posturali.</p>
+        <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadLogo(this.files[0])">
       </div>
 
       <!-- TAB ATTIVITÀ -->
