@@ -581,7 +581,7 @@
 
       <div class="modal-actions">
         <button class="btn-secondary" onclick="closeModal()">Annulla</button>
-        <button class="btn-primary" onclick="savePatient()">💾 Salva paziente</button>
+        <button class="btn-primary" id="btn-salva-paziente" onclick="savePatient()">💾 Salva paziente</button>
       </div>
     </div>
   </div>
@@ -1022,7 +1022,14 @@
       document.getElementById('stat-sessioni').textContent = sessRes.count || 0
     }
 
-    function openModal() { document.getElementById('modal-overlay').classList.add('open') }
+    let _newPatientToken = null
+    let _wizardPatientToken = null
+    let _dupResolve = null  // resolver for duplicate-patient modal promise
+
+    function openModal() {
+      _newPatientToken = crypto.randomUUID()
+      document.getElementById('modal-overlay').classList.add('open')
+    }
     function closeModal() {
       document.getElementById('modal-overlay').classList.remove('open')
       selectedConfig = null
@@ -1044,7 +1051,52 @@
       document.getElementById('opt-npl').className = 'config-option' + (val === 'NPL' ? ' selected-npl' : '')
       document.getElementById('opt-gpl').className = 'config-option' + (val === 'GPL' ? ' selected-gpl' : '')
     }
+    async function _checkDuplicate(profId, cf, email, telefono) {
+      try {
+        const { data } = await _supabase.rpc('check_patient_duplicate', {
+          p_professional_id: profId,
+          p_codice_fiscale: cf || null,
+          p_email: email || null,
+          p_telefono: telefono || null
+        })
+        return data || []
+      } catch { return [] }
+    }
+
+    function _showDupModal(matches) {
+      return new Promise(resolve => {
+        _dupResolve = resolve
+        const m = matches[0]
+        document.getElementById('dup-modal-text').textContent =
+          (m.nome || '') + ' ' + (m.cognome || '') + ' (match: ' + (m.match_field || '?') + ')'
+        document.getElementById('dup-modal-id').value = m.id
+        document.getElementById('dup-overlay').classList.add('open')
+      })
+    }
+
+    function _closeDupModal() {
+      document.getElementById('dup-overlay').classList.remove('open')
+    }
+
+    function dupGoExisting() {
+      const id = document.getElementById('dup-modal-id').value
+      _closeDupModal()
+      if (_dupResolve) { _dupResolve('existing:' + id); _dupResolve = null }
+    }
+
+    function dupContinueNew() {
+      _closeDupModal()
+      if (_dupResolve) { _dupResolve('continue'); _dupResolve = null }
+    }
+
+    function dupCancel() {
+      _closeDupModal()
+      if (_dupResolve) { _dupResolve('cancel'); _dupResolve = null }
+    }
+
     async function savePatient() {
+      const btn = document.getElementById('btn-salva-paziente')
+      if (btn.disabled) return
       const nome = document.getElementById('f-nome').value.trim()
       const cognome = document.getElementById('f-cognome').value.trim()
       if (!nome || !cognome) { alert('Nome e cognome sono obbligatori.'); return }
@@ -1052,6 +1104,23 @@
       const telefono = document.getElementById('f-telefono').value.trim()
       if (email) { const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; if (!emailRegex.test(email)) { alert('Inserisci un indirizzo email valido.'); return } }
       if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return } }
+
+      const cf = document.getElementById('f-codice-fiscale').value.trim().toUpperCase() || null
+      const dupMatches = await _checkDuplicate(currentProfessionalId, cf, email, telefono)
+      if (dupMatches.length > 0) {
+        const choice = await _showDupModal(dupMatches)
+        if (choice === 'cancel') return
+        if (choice && choice.startsWith('existing:')) {
+          window.location.href = 'paziente.html?id=' + choice.split(':')[1]
+          return
+        }
+      }
+
+      btn.disabled = true
+      const originalText = btn.innerHTML
+      btn.innerHTML = '⏳ Salvando...'
+      btn.style.opacity = '0.7'
+
       const consenso = document.getElementById('f-consenso-privacy').checked
       const consenso_ricerca = document.getElementById('f-consenso-ricerca').checked
       const payload = {
@@ -1061,7 +1130,7 @@
         telefono: telefono || null,
         data_nascita: document.getElementById('f-data-nascita').value || null,
         sesso: document.getElementById('f-sesso').value || null,
-        codice_fiscale: document.getElementById('f-codice-fiscale').value.trim().toUpperCase() || null,
+        codice_fiscale: cf,
         indirizzo: document.getElementById('f-indirizzo').value.trim() || null,
         citta: document.getElementById('f-citta').value.trim() || null,
         cap: document.getElementById('f-cap').value.trim() || null,
@@ -1082,12 +1151,31 @@
         problema_principale: document.getElementById('f-problema').value.trim() || null,
         note_cliniche: document.getElementById('f-note').value.trim() || null,
         configurazione_default: selectedConfig,
-        stato: 'attivo'
+        stato: 'attivo',
+        client_token: _newPatientToken
       }
-      const { error } = await _supabase.from('patients').insert(payload)
-      if (error) { alert('Errore: ' + error.message); return }
-      const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).maybeSingle()
-      if (nuovo) { window.location.href = 'paziente.html?id=' + nuovo.id } else { closeModal(); loadPatients(); loadStats() }
+
+      let { data: inserted, error } = await _supabase.from('patients').insert(payload).select('id').maybeSingle()
+
+      if (error?.code === '23505' && error.message.includes('client_token')) {
+        const { data: existing } = await _supabase.from('patients').select('id').eq('client_token', _newPatientToken).maybeSingle()
+        if (existing) inserted = existing
+        error = null
+      }
+
+      if (error) {
+        btn.innerHTML = '⚠️ Errore'
+        setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; btn.style.opacity = '' }, 2000)
+        alert('Errore: ' + error.message)
+        return
+      }
+
+      if (inserted) {
+        window.location.href = 'paziente.html?id=' + inserted.id
+      } else {
+        const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+        if (nuovo) { window.location.href = 'paziente.html?id=' + nuovo.id } else { closeModal(); loadPatients(); loadStats() }
+      }
     }
     function goToPatient(id) { trackRecentPatient(id); window.location.href = 'paziente.html?id=' + id }
     async function eliminaPaziente(id, nome) {
@@ -1106,7 +1194,7 @@
     let wizardPatientNome = ''
     function shouldShowWizard() { return localStorage.getItem('policettivo_onboarding_done') !== '1' }
     function markWizardDone() { localStorage.setItem('policettivo_onboarding_done', '1') }
-    function openWizard() { document.getElementById('wizard-overlay').classList.add('open') }
+    function openWizard() { _wizardPatientToken = crypto.randomUUID(); document.getElementById('wizard-overlay').classList.add('open') }
     function skipWizard() { markWizardDone(); document.getElementById('wizard-overlay').classList.remove('open') }
     function finishWizard() { markWizardDone(); document.getElementById('wizard-overlay').classList.remove('open'); loadPatients(); loadStats() }
     function goWizardStep(n) {
@@ -1125,14 +1213,24 @@
       const telefono = document.getElementById('w-telefono').value.trim()
       if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Numero di telefono non valido.'); return } }
       const btn = document.getElementById('btn-crea-paziente')
-      btn.textContent = 'Salvataggio...'; btn.disabled = true
-      const { data: paziente, error: errPaz } = await _supabase.from('patients').insert({
+      if (btn.disabled) return
+      btn.textContent = 'Salvando...'; btn.disabled = true
+
+      let { data: paziente, error: errPaz } = await _supabase.from('patients').insert({
         professional_id: currentProfessionalId, nome, cognome,
         telefono: telefono || null,
         problema_principale: document.getElementById('w-problema').value.trim() || null,
-        stato: 'attivo'
-      }).select().single()
+        stato: 'attivo',
+        client_token: _wizardPatientToken
+      }).select().maybeSingle()
+
+      if (errPaz?.code === '23505' && errPaz.message.includes('client_token')) {
+        const { data: existing } = await _supabase.from('patients').select('*').eq('client_token', _wizardPatientToken).maybeSingle()
+        if (existing) { paziente = existing; errPaz = null }
+      }
+
       if (errPaz) { alert('Errore: ' + errPaz.message); btn.textContent = 'Crea paziente'; btn.disabled = false; return }
+
       const { data: protocollo, error: errProt } = await _supabase.from('patient_protocols').insert({
         patient_id: paziente.id,
         professional_id: currentProfessionalId,
@@ -1469,5 +1567,32 @@
   </div>
 
   <script src="console-nav.js"></script>
+
+  <!-- ── Duplicate patient warning modal ──────────────────── -->
+  <style>
+    .dup-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center; }
+    .dup-overlay.open { display:flex; }
+    .dup-box { background:#111; border:1px solid #444; border-radius:16px; padding:28px 24px; width:90%; max-width:380px; }
+    .dup-title { font-size:15px; font-weight:700; color:#fff; margin-bottom:8px; }
+    .dup-body { font-size:13px; color:#bbb; margin-bottom:20px; line-height:1.5; }
+    .dup-name { color:#FFD008; font-weight:600; }
+    .dup-actions { display:flex; flex-direction:column; gap:8px; }
+    .dup-btn { padding:12px 16px; border-radius:10px; font-family:'Montserrat',sans-serif; font-size:13px; font-weight:600; cursor:pointer; border:none; }
+    .dup-btn-existing { background:#FFD008; color:#000; }
+    .dup-btn-new { background:transparent; border:1.5px solid #666; color:#ccc; }
+    .dup-btn-cancel { background:transparent; border:1.5px solid #333; color:#888; }
+  </style>
+  <div id="dup-overlay" class="dup-overlay">
+    <div class="dup-box" onclick="event.stopPropagation()">
+      <div class="dup-title">⚠️ Possibile paziente esistente</div>
+      <div class="dup-body"><span id="dup-modal-text" class="dup-name"></span><br>Hai già un paziente con questi dati.</div>
+      <input type="hidden" id="dup-modal-id">
+      <div class="dup-actions">
+        <button class="dup-btn dup-btn-existing" onclick="dupGoExisting()">Apri scheda esistente</button>
+        <button class="dup-btn dup-btn-new" onclick="dupContinueNew()">Continua e crea nuovo</button>
+        <button class="dup-btn dup-btn-cancel" onclick="dupCancel()">Annulla</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

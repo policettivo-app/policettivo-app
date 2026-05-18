@@ -1689,6 +1689,9 @@
 
   // ====== SAVE & NAVIGATE ======
   async function salvaETornaVisita() {
+    const btn = document.getElementById('btn-salva-torna')
+    if (btn && btn.disabled) return
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Salvando...' }
     clearTimeout(saveTimer)
     await actualSave()
     showToast('💾 Salvato')

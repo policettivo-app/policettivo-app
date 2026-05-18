@@ -1839,6 +1839,13 @@
     let docTipoSelezionato = 'altro'
     let docFileSelezionato = null
     let documentiCaricati = []
+    let _uploadInProgress = false
+
+    async function _fileHash(file) {
+      const buf = await file.arrayBuffer()
+      const hashBuf = await crypto.subtle.digest('SHA-256', buf)
+      return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('')
+    }
 
     function toggleCartella(autoApri) {
       const container = document.getElementById('cartella-container')
@@ -1888,19 +1895,40 @@
     }
 
     async function uploadDocumento() {
-      if (!docFileSelezionato) return
+      if (!docFileSelezionato || _uploadInProgress) return
+      _uploadInProgress = true
+
+      const progress = document.getElementById('upload-progress')
+      progress.style.display = 'block'
+
+      const hash = await _fileHash(docFileSelezionato)
+      const { data: dupDoc } = await _supabase
+        .from('clinical_documents')
+        .select('id, descrizione, created_at')
+        .eq('patient_id', patientId)
+        .eq('file_hash', hash)
+        .maybeSingle()
+      if (dupDoc) {
+        progress.style.display = 'none'
+        _uploadInProgress = false
+        const data = new Date(dupDoc.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
+        alert('Questo file è già caricato come "' + dupDoc.descrizione + '" il ' + data + '. Carica un file diverso.')
+        return
+      }
+
       const descrizione = document.getElementById('doc-descrizione').value.trim()
       const tipoLabel = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita', esame: 'Esame', altro: 'Documento' }
       const descFinale = descrizione || tipoLabel[docTipoSelezionato] || 'Documento'
-      const progress = document.getElementById('upload-progress')
-      progress.style.display = 'block'
       const ext = docFileSelezionato.name.split('.').pop()
       const fileName = patientId + '/' + Date.now() + '.' + ext
+      const clientToken = crypto.randomUUID()
+
       const { error: storageError } = await _supabase.storage
         .from('clinical-docs')
         .upload(fileName, docFileSelezionato, { upsert: false })
       if (storageError) {
         progress.style.display = 'none'
+        _uploadInProgress = false
         alert('Errore upload: ' + storageError.message)
         return
       }
@@ -1908,20 +1936,26 @@
       const fileUrl = urlData.publicUrl
       const { data: { session } } = await _supabase.auth.getSession()
       const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).maybeSingle()
-      const { error: dbError } = await _supabase.from('clinical_documents').insert({
+
+      let { error: dbError } = await _supabase.from('clinical_documents').insert({
         patient_id: patientId,
         professional_id: prof ? prof.id : null,
         tipo: docTipoSelezionato,
         descrizione: descFinale,
         file_url: fileUrl,
-        file_type: docFileSelezionato.type
+        file_type: docFileSelezionato.type,
+        file_hash: hash,
+        client_token: clientToken
       })
+      if (dbError?.code === '23505' && dbError.message.includes('client_token')) { dbError = null }
       if (dbError) {
         progress.style.display = 'none'
+        _uploadInProgress = false
         alert('Errore salvataggio: ' + dbError.message)
         return
       }
       progress.style.display = 'none'
+      _uploadInProgress = false
       chiudiUploadForm()
       caricaDocumenti()
     }
