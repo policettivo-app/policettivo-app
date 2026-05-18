@@ -1338,6 +1338,24 @@
           Object.keys(urls).forEach(k => { if (urls[k]) showFotoPreview(k, urls[k]) })
         } catch(e) {}
       }
+      try {
+        const savedObs = localStorage.getItem('obs3r_' + patientId)
+        if (savedObs) {
+          const s = JSON.parse(savedObs)
+          if (s.sagittale) document.getElementById('note-sagittale').value = s.sagittale
+          if (s.frontale)  document.getElementById('note-frontale').value  = s.frontale
+          if (s.podo)      document.getElementById('note-podo').value       = s.podo
+          if (s.chips) {
+            Object.assign(obsSelections, s.chips)
+            document.querySelectorAll('.obs-btn').forEach(btn => {
+              const m = btn.getAttribute('onclick')?.match(/selectObs\('([^']+)','([^']+)'/)
+              if (!m) return
+              const [, g, v] = m
+              if (obsSelections[g] === v) btn.classList.add('selected')
+            })
+          }
+        }
+      } catch(e) {}
     }
 
     function setEditChipSesso(val) {
@@ -1654,11 +1672,41 @@
       }
     }
 
+    const OBS_NOTE_MAP = {
+      'scapolare-prima':   'note-sagittale',
+      'scapolare-dopo':    'note-sagittale',
+      'rotazione-sup':     'note-frontale',
+      'inclinazione-capo': 'note-frontale',
+      'piede-morfologia':  'note-podo',
+      'piede-asse':        'note-podo'
+    }
+    function _chipToNote(noteId, text, isAdd) {
+      const ta = document.getElementById(noteId)
+      if (!ta) return
+      const bullet = '• ' + text
+      const lines = ta.value.split('\n').filter(l => l.trim())
+      if (isAdd) {
+        if (!lines.includes(bullet)) ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + bullet
+      } else {
+        ta.value = lines.filter(l => l !== bullet).join('\n')
+      }
+    }
     function selectObs(gruppo, valore, btn) {
       const parent = btn.closest('.osservazione-buttons')
+      const isToggleOff = btn.classList.contains('selected')
+      const prevLabel = parent.querySelector('.obs-btn.selected')?.textContent.trim() || null
       parent.querySelectorAll('.obs-btn').forEach(b => b.classList.remove('selected'))
-      btn.classList.add('selected')
-      obsSelections[gruppo] = valore
+      if (isToggleOff) {
+        obsSelections[gruppo] = null
+      } else {
+        btn.classList.add('selected')
+        obsSelections[gruppo] = valore
+      }
+      const noteId = OBS_NOTE_MAP[gruppo]
+      if (noteId) {
+        if (prevLabel) _chipToNote(noteId, prevLabel, false)
+        if (!isToggleOff) _chipToNote(noteId, btn.textContent.trim(), true)
+      }
       scheduleNoteSave()
     }
 
@@ -1681,6 +1729,14 @@
       const noteFinali = righe.join('\n')
       await _supabase.from('patients').update({ note_cliniche: noteFinali }).eq('id', patientId)
       patient.note_cliniche = noteFinali
+      try {
+        localStorage.setItem('obs3r_' + patientId, JSON.stringify({
+          chips: { ...obsSelections },
+          sagittale: document.getElementById('note-sagittale')?.value || '',
+          frontale:  document.getElementById('note-frontale')?.value  || '',
+          podo:      document.getElementById('note-podo')?.value       || ''
+        }))
+      } catch(e) {}
       const nb = document.getElementById('info-note')
       if (noteFinali) { nb.textContent = noteFinali; nb.style.display = 'block' }
       ;['saving-sagittale','saving-frontale','saving-note'].forEach(id => {
