@@ -1155,6 +1155,15 @@
         client_token: _newPatientToken
       }
 
+      const { data: { user: _diagUser } } = await _supabase.auth.getUser()
+      console.log('[DEBUG savePatient]', {
+        auth_uid: _diagUser?.id,
+        auth_email: _diagUser?.email,
+        currentProfessionalId,
+        payload_professional_id: payload.professional_id,
+        client_token: payload.client_token
+      })
+
       let { data: inserted, error } = await _supabase.from('patients').insert(payload).select('id').maybeSingle()
 
       if (error?.code === '23505' && error.message.includes('client_token')) {
