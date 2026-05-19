@@ -713,6 +713,69 @@
       }
       .s3-slot-paired { aspect-ratio: 3/4; }
     }
+
+    /* ====== PDF PREVIEW MODAL ====== */
+    #pdf-preview-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9200;
+      flex-direction: column;
+    }
+    #pdf-preview-bar {
+      height: 60px;
+      background: #fff;
+      border-bottom: 3px solid #FFD008;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      flex-shrink: 0;
+      gap: 12px;
+    }
+    #pdf-preview-scroll {
+      flex: 1;
+      overflow-y: auto;
+      background: #e5e5e5;
+      padding: 24px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    #pdf-preview-body {
+      max-width: 800px;
+      width: 100%;
+      background: #fff;
+      box-shadow: 0 6px 32px rgba(0,0,0,.35);
+    }
+    .pdf-modal-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px; font-weight: 600;
+      border: none; cursor: pointer;
+      transition: opacity .15s;
+      white-space: nowrap;
+    }
+    .pdf-modal-btn:hover { opacity: .82; }
+    .pdf-modal-btn-print  { background: #1a1a1a; color: #fff; }
+    .pdf-modal-btn-save   { background: #FFD008; color: #000; }
+    .pdf-modal-btn-close  { background: transparent; color: #555; border: 1.5px solid #ccc; padding: 7px 14px; font-size: 15px; }
+    .pdf-modal-btn-close:hover { background: #f5f5f5; opacity: 1; }
+    #pdf-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.85);
+      z-index: -1;
+    }
+    @media (max-width: 768px) {
+      #pdf-preview-bar {
+        height: auto;
+        flex-direction: column;
+        padding: 12px 16px;
+        gap: 8px;
+      }
+      .pdf-modal-btn { width: 100%; justify-content: center; }
+    }
   </style>
 </head>
 <body>
@@ -1214,6 +1277,19 @@
 
 </main>
 
+<!-- ====== PDF PREVIEW MODAL ====== -->
+<div id="pdf-preview-modal" role="dialog" aria-modal="true" aria-label="Anteprima PDF visita">
+  <div id="pdf-modal-backdrop" onclick="closePDFPreview()"></div>
+  <div id="pdf-preview-bar">
+    <button class="pdf-modal-btn pdf-modal-btn-print" onclick="printPDFPreview()">🖨️ Stampa</button>
+    <button class="pdf-modal-btn pdf-modal-btn-save"  onclick="savePDFPreview()">💾 Salva PDF</button>
+    <button class="pdf-modal-btn pdf-modal-btn-close" onclick="closePDFPreview()" aria-label="Chiudi anteprima">✕</button>
+  </div>
+  <div id="pdf-preview-scroll">
+    <div id="pdf-preview-body"></div>
+  </div>
+</div>
+
 <!-- ====== LIGHTBOX FOTO ====== -->
 <div id="s3-lightbox" onclick="closeLightbox()">
   <button id="s3-lightbox-close" onclick="closeLightbox()">✕</button>
@@ -1273,6 +1349,7 @@
   let prevVisitVas   = null
   let s5RelazioneAI  = null
   let s5RelTimer     = null
+  let _pdfState      = null  // dati cached per savePDFPreview()
 
   // Flat slot list (12 slot PRE+POST) — usata per loadVisitPhotos e conteggio
   // Sourced from js/postural-component.js
@@ -3284,46 +3361,30 @@ ISTRUZIONI:
       const idShort  = (visitId || '').slice(-4).toUpperCase()
       const filename = `Visita_${cog}_${dataFile}_${idShort}.pdf`
 
-      // Build HTML template and attach off-screen
-      const wrapper = document.createElement('div')
-      wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px'
-      wrapper.innerHTML = buildPDFTemplate(visit_data, patient, professional, photos || [], ai_relazione || visitData.relazione_ai)
-      document.body.appendChild(wrapper)
-
-      const opt = {
-        margin:      [15, 12],
+      // Cache state for savePDFPreview()
+      _pdfState = {
         filename,
-        image:       { type: 'jpeg', quality: 0.9 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:   { mode: ['css', 'legacy'] }
+        storagePath: `pdf-reports/${professionalId}/${visitId}.pdf`,
+        visit_data, patient, professional,
+        photos:      photos || [],
+        ai_relazione: ai_relazione || visitData.relazione_ai
       }
 
-      // Generate blob (for upload) then save (download)
-      const pdfBlob = await html2pdf().set(opt).from(wrapper.firstElementChild).outputPdf('blob')
-      document.body.removeChild(wrapper)
+      // Inject template into modal preview body
+      const previewBody = document.getElementById('pdf-preview-body')
+      previewBody.innerHTML = buildPDFTemplate(
+        visit_data, patient, professional,
+        photos || [],
+        ai_relazione || visitData.relazione_ai
+      )
 
-      // Trigger download
-      const dlUrl = URL.createObjectURL(pdfBlob)
-      const a = document.createElement('a')
-      a.href = dlUrl; a.download = filename; a.click()
-      URL.revokeObjectURL(dlUrl)
+      // Show modal, lock body scroll
+      const modal = document.getElementById('pdf-preview-modal')
+      modal.style.display = 'flex'
+      document.body.style.overflow = 'hidden'
 
-      // Upload to clinical-docs Storage and persist pdf_url
-      const storagePath = `pdf-reports/${professionalId}/${visitId}.pdf`
-      const { error: upErr } = await _sb.storage
-        .from('clinical-docs')
-        .upload(storagePath, await pdfBlob.arrayBuffer(), { contentType: 'application/pdf', upsert: true })
-
-      if (!upErr) {
-        const { data: { publicUrl } } = _sb.storage.from('clinical-docs').getPublicUrl(storagePath)
-        await _sb.from('visits').update({ pdf_url: publicUrl }).eq('id', visitId)
-        visitData.pdf_url = publicUrl
-      }
-
-      showToast('✅ PDF generato e salvato')
       btn.disabled = false
-      btn.textContent = '✅ PDF Generato'
+      btn.textContent = '📄 Genera PDF Visita Fisioterapica'
     } catch (e) {
       console.error('[PDF Visita]', e)
       showToast('Errore generazione PDF: ' + e.message)
@@ -3331,6 +3392,81 @@ ISTRUZIONI:
       btn.textContent = '📄 Genera PDF Visita Fisioterapica'
     }
   }
+
+  function closePDFPreview() {
+    document.getElementById('pdf-preview-modal').style.display = 'none'
+    document.getElementById('pdf-preview-body').innerHTML = ''
+    document.body.style.overflow = ''
+    _pdfState = null
+  }
+
+  function printPDFPreview() {
+    const content = document.getElementById('pdf-preview-body').innerHTML
+    const w = window.open('', '_blank', 'width=860,height=1100')
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <style>
+        body { margin: 0; background: #fff; }
+        @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style>
+    </head><body>${content}</body></html>`)
+    w.document.close()
+    w.focus()
+    setTimeout(() => { w.print() }, 400)
+  }
+
+  async function savePDFPreview() {
+    if (!_pdfState) { showToast('Nessuna anteprima attiva'); return }
+    const saveBtn = document.querySelector('.pdf-modal-btn-save')
+    saveBtn.disabled = true
+    saveBtn.textContent = '⏳ Salvataggio...'
+
+    try {
+      const previewBody = document.getElementById('pdf-preview-body')
+
+      const opt = {
+        margin:      [15, 12],
+        filename:    _pdfState.filename,
+        image:       { type: 'jpeg', quality: 0.9 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:   { mode: ['css', 'legacy'] }
+      }
+
+      const pdfBlob = await html2pdf().set(opt).from(previewBody.firstElementChild).outputPdf('blob')
+
+      // Trigger download
+      const dlUrl = URL.createObjectURL(pdfBlob)
+      const a = document.createElement('a')
+      a.href = dlUrl; a.download = _pdfState.filename; a.click()
+      URL.revokeObjectURL(dlUrl)
+
+      // Upload to Storage and persist pdf_url
+      const { error: upErr } = await _sb.storage
+        .from('clinical-docs')
+        .upload(_pdfState.storagePath, await pdfBlob.arrayBuffer(), { contentType: 'application/pdf', upsert: true })
+
+      if (!upErr) {
+        const { data: { publicUrl } } = _sb.storage.from('clinical-docs').getPublicUrl(_pdfState.storagePath)
+        await _sb.from('visits').update({ pdf_url: publicUrl }).eq('id', visitId)
+        visitData.pdf_url = publicUrl
+      }
+
+      showToast('✅ PDF salvato')
+    } catch (e) {
+      console.error('[PDF Save]', e)
+      showToast('Errore salvataggio PDF: ' + e.message)
+    } finally {
+      saveBtn.disabled = false
+      saveBtn.textContent = '💾 Salva PDF'
+    }
+  }
+
+  // ESC chiude il modal PDF
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('pdf-preview-modal')?.style.display === 'flex') {
+      closePDFPreview()
+    }
+  })
 
   function buildPDFTemplate(v, patient, prof, photos, relazioneAI) {
     const nomePaz  = [patient.nome, patient.cognome].filter(Boolean).join(' ') || 'Paziente'
