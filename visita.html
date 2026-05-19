@@ -721,6 +721,8 @@
       inset: 0;
       z-index: 9200;
       flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
     }
     #pdf-preview-bar {
       height: 60px;
@@ -735,17 +737,22 @@
     }
     #pdf-preview-scroll {
       flex: 1;
+      overflow-x: hidden;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       background: #e5e5e5;
       padding: 24px 20px;
       display: flex;
       justify-content: center;
+      align-items: flex-start;
     }
     #pdf-preview-body {
-      max-width: 800px;
-      width: 100%;
+      width: min(770px, 95vw);
       background: #fff;
       box-shadow: 0 6px 32px rgba(0,0,0,.35);
+      overflow: hidden;
+      position: relative;
+      flex-shrink: 0;
     }
     .pdf-modal-btn {
       display: flex; align-items: center; gap: 6px;
@@ -774,7 +781,7 @@
         padding: 12px 16px;
         gap: 8px;
       }
-      .pdf-modal-btn { width: 100%; justify-content: center; }
+      .pdf-modal-btn { width: 100%; justify-content: center; min-height: 44px; }
     }
   </style>
 </head>
@@ -1350,6 +1357,7 @@
   let s5RelazioneAI  = null
   let s5RelTimer     = null
   let _pdfState      = null  // dati cached per savePDFPreview()
+  let _pdfScaleCleanup = null  // rimuove resize listener quando modal si chiude
 
   // Flat slot list (12 slot PRE+POST) — usata per loadVisitPhotos e conteggio
   // Sourced from js/postural-component.js
@@ -3383,6 +3391,41 @@ ISTRUZIONI:
       modal.style.display = 'flex'
       document.body.style.overflow = 'hidden'
 
+      // Scale template to fit modal width on mobile (visual only — html2pdf unaffected)
+      function applyPDFScale() {
+        const inner = previewBody.firstElementChild
+        if (!inner) return
+        // Force explicit width so iOS Safari can't reflow to 100%
+        inner.style.width = '770px'
+        inner.style.maxWidth = '770px'
+        const wrapperWidth = previewBody.clientWidth
+        if (wrapperWidth === 0) return
+        const scale = Math.min(1, wrapperWidth / 770)
+        console.log('[PDF Scale]', { wrapperWidth, scale })
+        if (scale < 1) {
+          inner.style.transformOrigin = 'top left'
+          inner.style.transform = `scale(${scale})`
+          previewBody.style.height = (inner.scrollHeight * scale) + 'px'
+        } else {
+          inner.style.transform = ''
+          previewBody.style.height = ''
+        }
+      }
+      // iOS Safari needs multiple retries — rAF alone is not enough after display:flex
+      const applyPDFScaleSafe = () => {
+        applyPDFScale()
+        setTimeout(applyPDFScale, 100)
+        setTimeout(applyPDFScale, 300)
+      }
+      applyPDFScaleSafe()
+      if (_pdfScaleCleanup) _pdfScaleCleanup()
+      window.addEventListener('resize', applyPDFScale)
+      window.addEventListener('orientationchange', () => setTimeout(applyPDFScale, 300))
+      _pdfScaleCleanup = () => {
+        window.removeEventListener('resize', applyPDFScale)
+        window.removeEventListener('orientationchange', applyPDFScale)
+      }
+
       btn.disabled = false
       btn.textContent = '📄 Genera PDF Visita Fisioterapica'
     } catch (e) {
@@ -3396,8 +3439,10 @@ ISTRUZIONI:
   function closePDFPreview() {
     document.getElementById('pdf-preview-modal').style.display = 'none'
     document.getElementById('pdf-preview-body').innerHTML = ''
+    document.getElementById('pdf-preview-body').style.height = ''
     document.body.style.overflow = ''
     _pdfState = null
+    if (_pdfScaleCleanup) { _pdfScaleCleanup(); _pdfScaleCleanup = null }
   }
 
   function printPDFPreview() {
@@ -3432,7 +3477,13 @@ ISTRUZIONI:
         pagebreak:   { mode: ['css', 'legacy'] }
       }
 
-      const pdfBlob = await html2pdf().set(opt).from(previewBody.firstElementChild).outputPdf('blob')
+      // Temporarily remove scale transform so html2canvas captures at full 770px A4 size
+      const templateEl = previewBody.firstElementChild
+      const savedTransform = templateEl?.style.transform || ''
+      const savedHeight = previewBody.style.height
+      if (templateEl) { templateEl.style.transform = ''; previewBody.style.height = '' }
+      const pdfBlob = await html2pdf().set(opt).from(templateEl || previewBody.firstElementChild).outputPdf('blob')
+      if (templateEl) { templateEl.style.transform = savedTransform; previewBody.style.height = savedHeight }
 
       // Trigger download
       const dlUrl = URL.createObjectURL(pdfBlob)
