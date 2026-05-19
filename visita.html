@@ -783,6 +783,43 @@
       }
       .pdf-modal-btn { width: 100%; justify-content: center; min-height: 44px; }
     }
+
+    /* ====== PDF OPTIONS MODAL (pre-flight) ====== */
+    #pdf-options-modal { z-index: 9100; }
+    .pdf-options-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 28px 24px;
+      max-width: 500px;
+      width: 100%;
+      text-align: left;
+    }
+    .pdf-options-title {
+      font-size: 16px; font-weight: 700;
+      margin-bottom: 18px; letter-spacing: 0.3px;
+    }
+    .pdf-options-section-label {
+      font-size: 11px; font-weight: 700; color: #999;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+    }
+    .pdf-options-radio-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+    .pdf-options-radio-label {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      cursor: pointer; font-size: 13px; font-weight: 500;
+      transition: border-color .15s, background .15s;
+    }
+    .pdf-options-radio-label:has(input:checked) { border-color: #FFD008; background: #fffde7; }
+    .pdf-options-radio-label input[type="radio"] {
+      accent-color: #000; width: 16px; height: 16px; flex-shrink: 0;
+    }
+    .pdf-options-radio-note { font-size: 11px; color: #888; font-weight: 400; }
+    .btn-modal-confirm-yellow {
+      flex: 1; padding: 11px; border: none; border-radius: 8px;
+      background: #FFD008; color: #000;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-modal-confirm-yellow:hover { background: #f5c800; }
   </style>
 </head>
 <body>
@@ -1273,7 +1310,7 @@
     </div>
 
     <div class="field-group" style="margin-top:8px">
-      <button id="btn-genera-pdf" class="ds-btn-primary" style="width:100%;padding:13px;justify-content:center" onclick="generaPDFVisita()">📄 Genera PDF Visita Fisioterapica</button>
+      <button id="btn-genera-pdf" class="ds-btn-primary" style="width:100%;padding:13px;justify-content:center" onclick="showPDFOptionsModal()">📄 Genera PDF Visita Fisioterapica</button>
     </div>
 
     <div class="step-footer">
@@ -1283,6 +1320,32 @@
   </div><!-- /step-5 -->
 
 </main>
+
+<!-- ====== PDF OPTIONS MODAL (pre-flight) ====== -->
+<div class="modal-overlay" id="pdf-options-modal" role="dialog" aria-modal="true" aria-label="Opzioni PDF visita">
+  <div class="pdf-options-box">
+    <div class="pdf-options-title">📋 OPZIONI PDF VISITA</div>
+    <div class="pdf-options-section-label">Relazione clinica AI</div>
+    <div class="pdf-options-radio-group">
+      <label class="pdf-options-radio-label">
+        <input type="radio" name="pdf-relazione-modalita" value="singola" checked>
+        <span>Solo questa visita <span class="pdf-options-radio-note">(~5s)</span></span>
+      </label>
+      <label class="pdf-options-radio-label">
+        <input type="radio" name="pdf-relazione-modalita" value="storia_completa">
+        <span>Storia clinica completa, ultime 5 visite <span class="pdf-options-radio-note">(~15–25s)</span></span>
+      </label>
+      <label class="pdf-options-radio-label">
+        <input type="radio" name="pdf-relazione-modalita" value="nessuna">
+        <span>Nessuna relazione AI</span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closePDFOptionsModal()">Annulla</button>
+      <button class="btn-modal-confirm-yellow" onclick="confirmPDFOptions()">Genera PDF</button>
+    </div>
+  </div>
+</div>
 
 <!-- ====== PDF PREVIEW MODAL ====== -->
 <div id="pdf-preview-modal" role="dialog" aria-modal="true" aria-label="Anteprima PDF visita">
@@ -3323,10 +3386,28 @@ ISTRUZIONI:
   }
 
   // ====== PDF VISITA (con logo professionale + AI relazione server-side) ======
-  async function generaPDFVisita() {
+  function showPDFOptionsModal() {
+    // Reset a "singola" ogni volta che si apre
+    const radio = document.querySelector('input[name="pdf-relazione-modalita"][value="singola"]')
+    if (radio) radio.checked = true
+    document.getElementById('pdf-options-modal').classList.add('open')
+  }
+  function closePDFOptionsModal() {
+    document.getElementById('pdf-options-modal').classList.remove('open')
+  }
+  function confirmPDFOptions() {
+    const selected = document.querySelector('input[name="pdf-relazione-modalita"]:checked')
+    const modalita = selected ? selected.value : 'singola'
+    closePDFOptionsModal()
+    generaPDFVisita(modalita)
+  }
+
+  async function generaPDFVisita(modalita = 'singola') {
     const btn = document.getElementById('btn-genera-pdf')
     btn.disabled = true
-    btn.textContent = '⏳ Generazione in corso...'
+    btn.textContent = modalita === 'storia_completa'
+      ? '⏳ Analisi storia clinica (~20s)...'
+      : '⏳ Generazione in corso...'
 
     try {
       const { data: { session } } = await _sb.auth.getSession()
@@ -3336,7 +3417,7 @@ ISTRUZIONI:
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + session.access_token
         },
-        body: JSON.stringify({ visit_id: visitId, professional_id: professionalId })
+        body: JSON.stringify({ visit_id: visitId, professional_id: professionalId, relazione_modalita: modalita })
       })
 
       const json = await resp.json()
@@ -3354,8 +3435,8 @@ ISTRUZIONI:
 
       const { visit_data, patient, professional, photos, ai_relazione } = json
 
-      // Sync AI relazione into local UI if it was just generated
-      if (ai_relazione && !visitData.relazione_ai) {
+      // Sync AI relazione into local UI only for single-visit mode
+      if (ai_relazione && modalita === 'singola' && !visitData.relazione_ai) {
         visitData.relazione_ai = ai_relazione
         const elAI = document.getElementById('f-relazione-ai')
         if (elAI) {
@@ -3512,11 +3593,11 @@ ISTRUZIONI:
     }
   }
 
-  // ESC chiude il modal PDF
+  // ESC chiude i modal PDF
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.getElementById('pdf-preview-modal')?.style.display === 'flex') {
-      closePDFPreview()
-    }
+    if (e.key !== 'Escape') return
+    if (document.getElementById('pdf-preview-modal')?.style.display === 'flex') closePDFPreview()
+    else if (document.getElementById('pdf-options-modal')?.classList.contains('open')) closePDFOptionsModal()
   })
 
   function buildPDFTemplate(v, patient, prof, photos, relazioneAI) {
