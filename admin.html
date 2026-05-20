@@ -554,9 +554,10 @@
 
       const [profsRes, emailsRes] = await Promise.all([
         _supabase.from('professionals').select('*, profiles(*)').order('created_at', { ascending: false }),
-        getAdminToken().then(tok => fetch('/api/admin-list-user-emails', {
+        getAdminToken().then(tok => fetch('/api/admin', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+          body: JSON.stringify({ action: 'list-user-emails' })
         }).then(r => r.json()).catch(() => ({ emails: {} })))
       ])
 
@@ -645,10 +646,10 @@
       if (!confirm('Attivare Piano Premium per questo professionista?')) return
       const dataScadenza = new Date(); dataScadenza.setFullYear(dataScadenza.getFullYear() + 1)
       const adminToken = await getAdminToken()
-      const res = await fetch('/api/admin-update-piano', {
+      const res = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-        body: JSON.stringify({ profId, piano: 'premium', premiumScadenza: dataScadenza.toISOString() })
+        body: JSON.stringify({ action: 'update-piano', profId, piano: 'premium', premiumScadenza: dataScadenza.toISOString() })
       })
       const json = await res.json()
       if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
@@ -659,10 +660,10 @@
     async function revocaPremium(profId) {
       if (!confirm('Revocare il Piano Premium? Il professionista tornerà al piano Free.')) return
       const adminToken = await getAdminToken()
-      const res = await fetch('/api/admin-update-piano', {
+      const res = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-        body: JSON.stringify({ profId, piano: 'free', premiumScadenza: null })
+        body: JSON.stringify({ action: 'update-piano', profId, piano: 'free', premiumScadenza: null })
       })
       const json = await res.json()
       if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
@@ -942,10 +943,11 @@
 
       // Step 2 — aggiorna profiles via API con service key (bypassa RLS)
       const adminToken = await getAdminToken()
-      const r1 = await fetch('/api/admin-update-profile', {
+      const r1 = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
         body: JSON.stringify({
+          action:    'update-profile',
           profileId: prof.user_id,
           nome:      document.getElementById('edit-nome').value,
           cognome:   document.getElementById('edit-cognome').value,
@@ -989,10 +991,10 @@
       const btn = document.getElementById('btn-elimina-pannello')
       if (btn) { btn.disabled = true; btn.textContent = 'Eliminazione...' }
 
-      const res = await fetch('/api/admin-delete-user', {
+      const res = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ profId: currentProfId, userId: profileId })
+        body: JSON.stringify({ action: 'delete-user', profId: currentProfId, userId: profileId })
       })
       const json = await res.json()
 
@@ -1025,10 +1027,10 @@
       }
 
       const adminToken = await getAdminToken()
-      const res = await fetch('/api/admin-update-piano', {
+      const res = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-        body: JSON.stringify({ profId: currentProfId, piano: newPiano, premiumScadenza })
+        body: JSON.stringify({ action: 'update-piano', profId: currentProfId, piano: newPiano, premiumScadenza })
       })
       const json = await res.json()
       if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
