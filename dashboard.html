@@ -222,6 +222,7 @@
     .referto-preview { display: none; margin-top: 10px; border-radius: 8px; overflow: hidden; }
     .referto-preview img { width: 100%; max-height: 110px; object-fit: cover; display: block; }
     .referto-ok { display: none; background: #0a2a0a; border: 1px solid #2a6a2a; border-radius: 8px; padding: 10px 12px; margin-top: 10px; color: #7dda7d; font-size: 11px; font-weight: 700; }
+    .referto-warn { margin-top: 12px; padding: 10px 14px; background: rgba(217, 60, 46, 0.12); border: 1.5px solid rgba(217, 60, 46, 0.4); border-radius: 8px; color: #d93c2e; font-size: 13px; font-weight: 600; text-align: center; display: none; }
     .ai-hint-text { color: #888; font-size: 11px; line-height: 1.5; margin-top: 10px; }
 
     /* ── Form accordion (Nuovo paziente) ── */
@@ -452,6 +453,7 @@
         <div class="referto-loading" id="referto-loading">⏳ Analisi documento in corso...</div>
         <div class="referto-preview" id="referto-preview"><img id="referto-preview-img" style="width:100%;max-height:110px;object-fit:cover;display:block"></div>
         <div class="referto-ok" id="referto-ok">✓ Dati estratti — verifica e modifica i campi se necessario</div>
+        <div class="referto-warn" id="referto-warn">⚠️ L'AI non è riuscita a estrarre dati da questo documento — compila i campi manualmente</div>
         <input type="file" id="referto-cam-input" accept="image/*" capture="environment" style="display:none" onchange="handleRefertoFile(this)">
         <input type="file" id="referto-gal-input" accept="image/*,application/pdf" style="display:none" onchange="handleRefertoFile(this)">
         <p class="ai-hint-text">L'AI compilerà automaticamente i campi disponibili. Puoi sempre correggere a mano.</p>
@@ -1301,8 +1303,10 @@
     async function analizzaReferto(base64, mediaType) {
       const loading = document.getElementById('referto-loading')
       const ok = document.getElementById('referto-ok')
+      const warn = document.getElementById('referto-warn')
       loading.style.display = 'block'
       ok.style.display = 'none'
+      warn.style.display = 'none'
       try {
         const { data: { session: _s } } = await _supabase.auth.getSession()
         const res = await fetch('/api/analisi-referto', {
@@ -1317,8 +1321,13 @@
           const _ab = document.getElementById('referto-ai-badge')
           if (_ab) { const _r = Math.max(0, 5 - json.ai_uses); _ab.textContent = _r + ' analisi AI disponibili' }
         }
-        if (json.dati) compileFormFromReferto(json.dati)
-        ok.style.display = 'block'
+        let count = 0
+        if (json.dati) count = compileFormFromReferto(json.dati)
+        if (count > 0) {
+          ok.style.display = 'block'
+        } else {
+          warn.style.display = 'block'
+        }
       } catch(e) {
         alert('Errore analisi referto: ' + e.message)
       } finally {
@@ -1394,6 +1403,7 @@
       })
       if (dati.sesso && ['M','F','Altro'].includes(dati.sesso)) setChipSesso(dati.sesso)
       if (count > 0) showToastDash('AI ha compilato ' + count + ' campi. Rivedi e correggi se necessario.')
+      return count
     }
 
     // ── New UI helpers ──────────────────────────────────────

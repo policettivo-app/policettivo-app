@@ -33,7 +33,7 @@ Regole:
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 800,
+        max_tokens: 3000,
         messages: [{
           role: 'user',
           content: [
@@ -57,11 +57,20 @@ Regole:
     const text = data.content?.[0]?.text || ''
     const match = text.match(/\{[\s\S]*\}/)
     let dati = {}
+    let parseError = null
     if (match) {
-      try { dati = JSON.parse(match[0]) } catch (e) { /* json malformato, ritorna vuoto */ }
+      try {
+        dati = JSON.parse(match[0])
+      } catch (e) {
+        parseError = e.message
+        console.error('[analisi-referto] JSON.parse failed:', e.message, '— text length:', text.length)
+      }
+    } else {
+      parseError = 'no JSON found in response'
+      console.error('[analisi-referto] no JSON match found — text length:', text.length, 'preview:', text.substring(0, 200))
     }
 
-    return res.status(200).json({ dati, ai_uses: access.ai_uses_new })
+    return res.status(200).json({ dati, ai_uses: access.ai_uses_new, parseError })
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }
