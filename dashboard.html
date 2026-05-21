@@ -1185,6 +1185,7 @@
       }
 
       if (inserted) {
+        trackRecentPatient(inserted.id)
         window.location.href = 'paziente.html?id=' + inserted.id
       } else {
         const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).maybeSingle()
@@ -1259,6 +1260,7 @@
       })
       btn.textContent = 'Crea paziente'; btn.disabled = false
       wizardPatientId = paziente.id
+      trackRecentPatient(paziente.id)
       wizardPatientNome = nome + ' ' + cognome
       document.getElementById('wizard-link-text').textContent = 'https://policettivo-app.vercel.app/protocollo.html?token=' + paziente.access_token
       goWizardStep(2)
