@@ -2631,30 +2631,6 @@ ISTRUZIONI:
     setTimeout(() => { w.print() }, 400)
   }
 
-  async function inlineImagesForPDF(rootEl) {
-    const imgs = Array.from(rootEl.querySelectorAll('img'))
-    const originals = imgs.map(img => img.src)
-    await Promise.all(imgs.map(async (img, i) => {
-      const url = originals[i]
-      if (!url || url.startsWith('data:')) return
-      try {
-        const resp = await fetch(url, { mode: 'cors', cache: 'no-cache' })
-        if (!resp.ok) throw new Error('HTTP ' + resp.status)
-        const blob = await resp.blob()
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result)
-          reader.onerror = () => reject(reader.error)
-          reader.readAsDataURL(blob)
-        })
-        img.src = dataUrl
-      } catch (e) {
-        console.warn('[PDF inlineImages] fallita:', url, e.message)
-      }
-    }))
-    return originals
-  }
-
   async function saveVPPDFPreview() {
     if (!_vpPdfState) { showToast('Nessuna anteprima attiva'); return }
     const saveBtn = document.querySelector('.vp-pdf-modal-btn-save')
@@ -2682,21 +2658,8 @@ ISTRUZIONI:
       const savedTransform = templateEl?.style.transform || ''
       const savedHeight    = previewBody.style.height
       if (templateEl) { templateEl.style.transform = ''; previewBody.style.height = '' }
-
-      saveBtn.textContent = '⏳ Caricamento foto...'
-      const originalSrcs = templateEl ? await inlineImagesForPDF(templateEl) : []
-      saveBtn.textContent = '⏳ Generazione PDF...'
-
-      let pdfBlob
-      try {
-        pdfBlob = await html2pdf().set(opt).from(templateEl || previewBody.firstElementChild).outputPdf('blob')
-      } finally {
-        if (templateEl) {
-          const imgs = Array.from(templateEl.querySelectorAll('img'))
-          imgs.forEach((img, i) => { if (originalSrcs[i]) img.src = originalSrcs[i] })
-        }
-        if (templateEl) { templateEl.style.transform = savedTransform; previewBody.style.height = savedHeight }
-      }
+      const pdfBlob = await html2pdf().set(opt).from(templateEl || previewBody.firstElementChild).outputPdf('blob')
+      if (templateEl) { templateEl.style.transform = savedTransform; previewBody.style.height = savedHeight }
 
       const dlUrl = URL.createObjectURL(pdfBlob)
       const a = document.createElement('a')
