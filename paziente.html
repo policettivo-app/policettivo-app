@@ -450,6 +450,27 @@
     .mcv-btn-annulla { flex:1; min-width:120px; height:48px; background:#f5f5f5; border:1.5px solid #ddd; border-radius:10px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
     .mcv-btn-cancella { flex:1; min-width:120px; height:48px; background:#dc2626; border:none; border-radius:10px; color:#fff; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
     .mcv-btn-cancella:disabled { opacity:.6; cursor:not-allowed; }
+
+    #foto-source-modal {
+      display: none; position: fixed; inset: 0; z-index: 9500;
+      background: rgba(0,0,0,.6); align-items: center; justify-content: center; padding: 20px;
+    }
+    #foto-source-modal.open { display: flex; }
+    .foto-source-box {
+      background: #fff; border-radius: 16px; padding: 24px 20px;
+      width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .foto-source-title {
+      font-size: 16px; font-weight: 700; text-align: center; margin-bottom: 6px; color: #1a1a1a;
+    }
+    .foto-source-btn {
+      padding: 14px; border-radius: 10px; font-family: inherit; font-size: 15px;
+      font-weight: 600; cursor: pointer; border: none; min-height: 50px;
+    }
+    .foto-source-btn-cam  { background: #FFD008; color: #000; }
+    .foto-source-btn-file { background: #1a1a1a; color: #fff; }
+    .foto-source-btn-cancel { background: transparent; color: #777; border: 1.5px solid #ddd; }
+    .foto-source-btn:hover { opacity: .88; }
   </style>
 </head>
 <body>
@@ -1467,13 +1488,33 @@
       document.getElementById('sagoma-wrap').classList.toggle('visible', !noCross.includes(slot))
     }
 
+    let _fotoSourceSlot = null
+
     function triggerInput(id) {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        apriCameraModal(id)
-      } else {
+      _fotoSourceSlot = id
+      if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
         const inp = document.getElementById('input-' + id)
         if (inp) inp.click()
+        return
       }
+      document.getElementById('foto-source-modal').classList.add('open')
+    }
+
+    function fotoSourceCamera() {
+      document.getElementById('foto-source-modal').classList.remove('open')
+      if (_fotoSourceSlot) apriCameraModal(_fotoSourceSlot)
+    }
+
+    function fotoSourceFile() {
+      document.getElementById('foto-source-modal').classList.remove('open')
+      if (_fotoSourceSlot) {
+        const inp = document.getElementById('input-' + _fotoSourceSlot)
+        if (inp) inp.click()
+      }
+    }
+
+    function chiudiFotoSourceModal() {
+      document.getElementById('foto-source-modal').classList.remove('open')
     }
 
     async function apriCameraModal(slot) {
@@ -3415,6 +3456,16 @@ Campi:
     <button onclick="window.location.href='assegna-protocollo.html?id='+patientId" style="flex:1;max-width:120px;background:#FFD008;border:none;color:#000;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">➕<span>Protocollo</span></button>
     <button onclick="toggleCartella(true)" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📁<span>Cartella</span></button>
     <button onclick="apriModaleAIP()" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">🤖<span>AI</span></button>
+  </div>
+
+  <!-- Popup scelta sorgente foto -->
+  <div id="foto-source-modal" onclick="if(event.target===this)chiudiFotoSourceModal()">
+    <div class="foto-source-box">
+      <div class="foto-source-title">Aggiungi foto</div>
+      <button class="foto-source-btn foto-source-btn-cam" onclick="fotoSourceCamera()">📷 Scatta foto (con livella)</button>
+      <button class="foto-source-btn foto-source-btn-file" onclick="fotoSourceFile()">📁 Carica file</button>
+      <button class="foto-source-btn foto-source-btn-cancel" onclick="chiudiFotoSourceModal()">Annulla</button>
+    </div>
   </div>
 
   <!-- Camera Modal con Livella Digitale e Croce Centratrice -->
