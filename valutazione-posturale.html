@@ -71,8 +71,6 @@
     .photo-date-label { font-size: 10px; color: #888; text-align: center; font-style: italic; min-height: 13px; }
     .photo-note-input { width: 100%; border: 1px solid #e0e0e0; border-radius: 5px; padding: 4px 6px; font-family: inherit; font-size: 11px; background: #fafafa; box-sizing: border-box; }
     .photo-note-input:focus { outline: none; border-color: #FFD008; }
-    .stampiglia-row { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #777; margin-left: auto; cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 600; }
-    .stampiglia-row input[type="checkbox"] { accent-color: #FFD008; width: 14px; height: 14px; cursor: pointer; margin: 0; flex-shrink: 0; }
     @media (max-width: 767px) {
       .slot-btn { min-height: 36px; min-width: 36px; font-size: 16px; padding: 0; display: flex; align-items: center; justify-content: center; }
       .photo-slot-actions { padding: 5px 2px; }
@@ -562,10 +560,6 @@
   <section class="vp-section ds-section">
     <div class="vp-sec-title ds-section-title">
       <span class="vp-sec-badge ds-section-badge">B</span> Foto posturali
-      <label class="stampiglia-row">
-        <input type="checkbox" id="stampiglia-toggle" checked onchange="updateStampigliaToggle()">
-        <span>Data sulla foto</span>
-      </label>
     </div>
     <div class="photo-grid pp-layout-wide" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
   </section>
@@ -944,8 +938,6 @@
     if (!visitId && !pidParam) { window.location.href = 'dashboard.html'; return }
 
     buildPhotoGrid()
-    const togEl = document.getElementById('stampiglia-toggle')
-    if (togEl) togEl.checked = isStampigliaEnabled()
 
     if (pidParam && !visitId) await createVisit()
     else await loadVisit()
@@ -1727,56 +1719,10 @@
     await uploadPhoto(file, tipo, isReplace)
   }
 
-  // ── STAMPIGLIA HELPERS ─────────────────────────────────────
-  function isStampigliaEnabled() {
-    return localStorage.getItem('posturale_stampiglia_data') !== '0'
-  }
-
-  function updateStampigliaToggle() {
-    const on = document.getElementById('stampiglia-toggle')?.checked ?? true
-    localStorage.setItem('posturale_stampiglia_data', on ? '1' : '0')
-  }
-
   function formatDateForDisplay(isoStr) {
     const d = new Date(isoStr)
     return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
       + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-  }
-
-  function formatDateForStamp(isoStr) {
-    const d = new Date(isoStr || new Date().toISOString())
-    const pad = n => String(n).padStart(2, '0')
-    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear()
-      + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes())
-  }
-
-  async function applicaStampigliaData(blob, dateStr) {
-    return new Promise(resolve => {
-      const img = new Image()
-      const url = URL.createObjectURL(blob)
-      img.onload = () => {
-        URL.revokeObjectURL(url)
-        const c = document.createElement('canvas')
-        c.width = img.width; c.height = img.height
-        const ctx = c.getContext('2d')
-        ctx.drawImage(img, 0, 0)
-        const fontSize = Math.max(18, Math.round(img.width / 30))
-        ctx.font = 'bold ' + fontSize + 'px Arial, sans-serif'
-        ctx.textAlign = 'right'
-        const tw = ctx.measureText(dateStr).width
-        const margin = Math.round(fontSize * 0.6)
-        const padX = Math.round(fontSize * 0.5)
-        const padY = Math.round(fontSize * 0.4)
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'
-        ctx.fillRect(img.width - tw - padX * 2 - margin, img.height - fontSize - padY * 2 - margin,
-          tw + padX * 2, fontSize + padY * 2)
-        ctx.fillStyle = '#FFD008'
-        ctx.fillText(dateStr, img.width - margin - padX, img.height - margin - padY)
-        c.toBlob(result => resolve(result || blob), 'image/jpeg', 0.88)
-      }
-      img.onerror = () => resolve(blob)
-      img.src = url
-    })
   }
 
   // ── UPLOAD CORE (condiviso da file picker e webcam) ─────────
@@ -1791,11 +1737,6 @@
     try {
       let blob = await compressImage(file)
       const data_scatto = new Date().toISOString()
-
-      if (isStampigliaEnabled()) {
-        const stamped = await applicaStampigliaData(blob, formatDateForStamp(data_scatto))
-        if (stamped) blob = stamped
-      }
 
       const path = 'visits/' + visitId + '/' + tipo + '_' + Date.now() + '.jpg'
       const { error: storErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg', upsert: true })

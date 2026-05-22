@@ -11,12 +11,12 @@ const POSTURAL_OBSERVATIONS = {
 
 // Canonical photo plane definitions
 const POSTURAL_PHOTO_PLANES = [
-  { plane: 'sagittale_dx',      label: 'Sagittale DX',
-    pre:  { tipo: 'sagittale_dx_pre',       label: 'PRE',     ordine: 0 },
-    post: { tipo: 'sagittale_dx_post',      label: 'POST 3R', ordine: 1 } },
   { plane: 'sagittale_sx',      label: 'Sagittale SX',
     pre:  { tipo: 'sagittale_sx_pre',       label: 'PRE',     ordine: 2 },
     post: { tipo: 'sagittale_sx_post',      label: 'POST 3R', ordine: 3 } },
+  { plane: 'sagittale_dx',      label: 'Sagittale DX',
+    pre:  { tipo: 'sagittale_dx_pre',       label: 'PRE',     ordine: 0 },
+    post: { tipo: 'sagittale_dx_post',      label: 'POST 3R', ordine: 1 } },
   { plane: 'frontale',          label: 'Frontale',
     pre:  { tipo: 'frontale_pre',           label: 'PRE',     ordine: 4 },
     post: { tipo: 'frontale_post',          label: 'POST 3R', ordine: 5 } },
@@ -41,10 +41,10 @@ const POSTURAL_PHOTO_SLOTS_FLAT = POSTURAL_PHOTO_PLANES.flatMap(p => [
 const POSTURAL_PHOTO_SECTIONS = [
   { sectionKey: 'sagittale',         sectionLabel: 'Piano Sagittale',
     hasScapolare: true,  noteField: 'note_sagittale',         obsPiano: 'sagittale',
-    planes: ['sagittale_dx', 'sagittale_sx'],
+    planes: ['sagittale_sx', 'sagittale_dx'],
     pairs: [
-      { pairKey: 'sagittale_dx', pairLabel: 'Sagittale DX', preKey: 'sagittale_dx_pre',  postKey: 'sagittale_dx_post'  },
       { pairKey: 'sagittale_sx', pairLabel: 'Sagittale SX', preKey: 'sagittale_sx_pre',  postKey: 'sagittale_sx_post'  },
+      { pairKey: 'sagittale_dx', pairLabel: 'Sagittale DX', preKey: 'sagittale_dx_pre',  postKey: 'sagittale_dx_post'  },
     ]},
   { sectionKey: 'frontale',          sectionLabel: 'Piano Frontale',
     hasScapolare: false, noteField: 'note_frontale',          obsPiano: 'frontale',
