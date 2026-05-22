@@ -1128,70 +1128,78 @@
       btn.innerHTML = '⏳ Salvando...'
       btn.style.opacity = '0.7'
 
-      const consenso = document.getElementById('f-consenso-privacy').checked
-      const consenso_ricerca = document.getElementById('f-consenso-ricerca').checked
-      const payload = {
-        professional_id: currentProfessionalId,
-        nome, cognome,
-        email: email || null,
-        telefono: telefono || null,
-        data_nascita: document.getElementById('f-data-nascita').value || null,
-        sesso: document.getElementById('f-sesso').value || null,
-        codice_fiscale: cf,
-        indirizzo: document.getElementById('f-indirizzo').value.trim() || null,
-        citta: document.getElementById('f-citta').value.trim() || null,
-        cap: document.getElementById('f-cap').value.trim() || null,
-        professione: document.getElementById('f-professione').value.trim() || null,
-        mano_dominante: document.getElementById('f-mano-dominante').value || null,
-        attivita_sportiva: document.getElementById('f-attivita-sportiva').value || null,
-        sport_praticato: document.getElementById('f-sport-praticato').value.trim() || null,
-        allergie: document.getElementById('f-allergie').value.trim() || null,
-        farmaci_in_uso: document.getElementById('f-farmaci').value.trim() || null,
-        patologie_pregresse: document.getElementById('f-patologie').value.trim() || null,
-        interventi_chirurgici: document.getElementById('f-interventi').value.trim() || null,
-        medico_curante: document.getElementById('f-medico-curante').value.trim() || null,
-        specialista_inviante: document.getElementById('f-specialista').value.trim() || null,
-        consenso_privacy: consenso,
-        consenso_privacy_data: consenso ? new Date().toISOString() : null,
-        consenso_ricerca,
-        consenso_ricerca_data: consenso_ricerca ? new Date().toISOString() : null,
-        problema_principale: document.getElementById('f-problema').value.trim() || null,
-        note_cliniche: document.getElementById('f-note').value.trim() || null,
-        configurazione_default: selectedConfig,
-        stato: 'attivo',
-        client_token: _newPatientToken
+      const ripristinaBottone = () => {
+        btn.innerHTML = originalText
+        btn.disabled = false
+        btn.style.opacity = ''
       }
 
-      const { data: { user: _diagUser } } = await _supabase.auth.getUser()
-      console.log('[DEBUG savePatient]', {
-        auth_uid: _diagUser?.id,
-        auth_email: _diagUser?.email,
-        currentProfessionalId,
-        payload_professional_id: payload.professional_id,
-        client_token: payload.client_token
-      })
+      try {
+        const consenso = document.getElementById('f-consenso-privacy').checked
+        const consenso_ricerca = document.getElementById('f-consenso-ricerca').checked
+        const payload = {
+          professional_id: currentProfessionalId,
+          nome, cognome,
+          email: email || null,
+          telefono: telefono || null,
+          data_nascita: document.getElementById('f-data-nascita').value || null,
+          sesso: document.getElementById('f-sesso').value || null,
+          codice_fiscale: cf,
+          indirizzo: document.getElementById('f-indirizzo').value.trim() || null,
+          citta: document.getElementById('f-citta').value.trim() || null,
+          cap: document.getElementById('f-cap').value.trim() || null,
+          professione: document.getElementById('f-professione').value.trim() || null,
+          mano_dominante: document.getElementById('f-mano-dominante').value || null,
+          attivita_sportiva: document.getElementById('f-attivita-sportiva').value || null,
+          sport_praticato: document.getElementById('f-sport-praticato').value.trim() || null,
+          allergie: document.getElementById('f-allergie').value.trim() || null,
+          farmaci_in_uso: document.getElementById('f-farmaci').value.trim() || null,
+          patologie_pregresse: document.getElementById('f-patologie').value.trim() || null,
+          interventi_chirurgici: document.getElementById('f-interventi').value.trim() || null,
+          medico_curante: document.getElementById('f-medico-curante').value.trim() || null,
+          specialista_inviante: document.getElementById('f-specialista').value.trim() || null,
+          consenso_privacy: consenso,
+          consenso_privacy_data: consenso ? new Date().toISOString() : null,
+          consenso_ricerca,
+          consenso_ricerca_data: consenso_ricerca ? new Date().toISOString() : null,
+          problema_principale: document.getElementById('f-problema').value.trim() || null,
+          note_cliniche: document.getElementById('f-note').value.trim() || null,
+          configurazione_default: selectedConfig,
+          stato: 'attivo',
+          client_token: _newPatientToken
+        }
 
-      let { data: inserted, error } = await _supabase.from('patients').insert(payload).select('id').maybeSingle()
+        let { data: inserted, error } = await _supabase.from('patients').insert(payload).select('id').maybeSingle()
 
-      if (error?.code === '23505' && error.message.includes('client_token')) {
-        const { data: existing } = await _supabase.from('patients').select('id').eq('client_token', _newPatientToken).maybeSingle()
-        if (existing) inserted = existing
-        error = null
-      }
+        if (error?.code === '23505' && error.message.includes('client_token')) {
+          const { data: existing } = await _supabase.from('patients').select('id').eq('client_token', _newPatientToken).maybeSingle()
+          if (existing) inserted = existing
+          error = null
+        }
 
-      if (error) {
-        btn.innerHTML = '⚠️ Errore'
-        setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; btn.style.opacity = '' }, 2000)
-        alert('Errore: ' + error.message)
-        return
-      }
+        if (error) {
+          btn.innerHTML = '⚠️ Errore'
+          setTimeout(ripristinaBottone, 2000)
+          alert('Errore: ' + error.message)
+          return
+        }
 
-      if (inserted) {
-        trackRecentPatient(inserted.id)
-        window.location.href = 'paziente.html?id=' + inserted.id
-      } else {
-        const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).maybeSingle()
-        if (nuovo) { window.location.href = 'paziente.html?id=' + nuovo.id } else { closeModal(); loadPatients(); loadStats() }
+        if (inserted) {
+          trackRecentPatient(inserted.id)
+          window.location.href = 'paziente.html?id=' + inserted.id
+        } else {
+          const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+          if (nuovo) {
+            window.location.href = 'paziente.html?id=' + nuovo.id
+          } else {
+            closeModal(); loadPatients(); loadStats()
+            ripristinaBottone()
+          }
+        }
+      } catch (e) {
+        console.error('[savePatient] errore imprevisto:', e)
+        alert('Errore imprevisto durante il salvataggio: ' + (e.message || e) + '\nIl paziente potrebbe essere stato comunque creato — controlla la lista o ricarica.')
+        ripristinaBottone()
       }
     }
     function goToPatient(id) { trackRecentPatient(id); window.location.href = 'paziente.html?id=' + id }
