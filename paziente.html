@@ -159,6 +159,8 @@
     .ai-loading { text-align: center; padding: 20px; font-size: 13px; color: #666; display: none; }
     .upload-form { background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; display: none; }
     .upload-form.visible { display: block; }
+    .doc-dropzone { border: 2px dashed #ccc; border-radius: 10px; padding: 18px 12px; margin-bottom: 16px; text-align: center; font-size: 13px; color: #aaa; cursor: default; transition: border-color 0.15s, background 0.15s; }
+    .doc-dropzone.drag-over { border-color: #FFD008; background: #fffdf0; color: #555; }
     .premium-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
     .premium-overlay.visible { opacity: 1; pointer-events: all; }
     .premium-modal { background: #111; color: #fff; border-radius: 16px; padding: 36px 32px 28px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
@@ -952,6 +954,7 @@
             <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
             <button class="btn-secondary" id="btn-stampa-cartella" onclick="apriComposizionePDF()" style="display:none">🖨 Stampa / PDF</button>
           </div>
+          <div id="doc-dropzone" class="doc-dropzone">Trascina qui un file (PDF, immagine, documento)</div>
           <div class="doc-list" id="doc-list">
             <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
           </div>
@@ -1979,10 +1982,12 @@
       docFileSelezionato = null
     }
 
-    function handleDocFile(input) {
-      const file = input.files[0]
+    function processDocFile(file) {
       if (!file) return
-      if (file.size > 10 * 1024 * 1024) { alert('File troppo grande. Massimo 10MB.'); return }
+      if (file.size > 20 * 1024 * 1024) { alert('File troppo grande. Massimo 20MB.'); return }
+      if (!document.getElementById('upload-form').classList.contains('visible')) {
+        apriUploadForm()
+      }
       docFileSelezionato = file
       const preview = document.getElementById('doc-file-preview')
       const kb = (file.size / 1024).toFixed(0)
@@ -1990,6 +1995,28 @@
       preview.style.display = 'block'
       uploadDocumento()
     }
+
+    function handleDocFile(input) {
+      processDocFile(input.files[0])
+    }
+
+    ;(function() {
+      const dz = document.getElementById('doc-dropzone')
+      if (!dz) return
+      dz.addEventListener('dragover', function(e) {
+        e.preventDefault()
+        dz.classList.add('drag-over')
+      })
+      dz.addEventListener('dragleave', function(e) {
+        if (!dz.contains(e.relatedTarget)) dz.classList.remove('drag-over')
+      })
+      dz.addEventListener('drop', function(e) {
+        e.preventDefault()
+        dz.classList.remove('drag-over')
+        const file = e.dataTransfer.files[0]
+        if (file) processDocFile(file)
+      })
+    })()
 
     async function uploadDocumento() {
       if (!docFileSelezionato || _uploadInProgress) return
