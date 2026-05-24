@@ -2576,31 +2576,29 @@ ISTRUZIONI:
     if (!_vpPdfState) { showToast('Nessuna anteprima attiva'); return }
     const saveBtn = document.querySelector('.vp-pdf-modal-btn-save')
     saveBtn.disabled = true
-    saveBtn.textContent = '⏳ Salvataggio...'
+    saveBtn.textContent = '⏳ Generazione PDF...'
 
     try {
       const previewBody = document.getElementById('vp-pdf-preview-body')
-      const opt = {
-        margin:      [15, 12],
-        filename:    _vpPdfState.filename,
-        image:       { type: 'jpeg', quality: 0.9 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          imageTimeout: 30000,
-          logging: false
-        },
-        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:   { mode: ['css', 'legacy'] }
-      }
+      const templateEl  = previewBody.firstElementChild
 
-      const templateEl    = previewBody.firstElementChild
+      // Rimuove temporaneamente lo scale per esportare a dimensione piena
       const savedTransform = templateEl?.style.transform || ''
       const savedHeight    = previewBody.style.height
       if (templateEl) { templateEl.style.transform = ''; previewBody.style.height = '' }
-      const pdfBlob = await html2pdf().set(opt).from(templateEl || previewBody.firstElementChild).outputPdf('blob')
+      const fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}body{margin:0;background:#fff}</style></head><body>' + previewBody.innerHTML + '</body></html>'
       if (templateEl) { templateEl.style.transform = savedTransform; previewBody.style.height = savedHeight }
+
+      const resp = await fetch('/api/pdf-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html: fullHtml, filename: _vpPdfState.filename })
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        throw new Error(err.error || ('HTTP ' + resp.status))
+      }
+      const pdfBlob = await resp.blob()
 
       const dlUrl = URL.createObjectURL(pdfBlob)
       const a = document.createElement('a')
@@ -2619,7 +2617,7 @@ ISTRUZIONI:
       showToast('✅ PDF salvato')
     } catch (e) {
       console.error('[PDF VP Save]', e)
-      showToast('Errore salvataggio PDF: ' + e.message)
+      showToast('Errore generazione PDF: ' + e.message)
     } finally {
       saveBtn.disabled = false
       saveBtn.textContent = '💾 Salva PDF'
