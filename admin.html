@@ -401,7 +401,7 @@
       const rows = pageData.map(({ prof, numPazienti, numVisite, numSessioni, ultimaAttivita }) => {
         const nome = prof.profiles ? escHtml(((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim()) : '—'
         const email = escHtml(prof.email || '—')
-        const telefono = escHtml(prof.profiles?.telefono || '—')
+        const telefono = escHtml(prof.telefono || '—')
         const citta = escHtml(prof.citta || '—')
         const dataReg = prof.created_at ? new Date(prof.created_at).toLocaleDateString('it-IT') : '—'
         const dot = getActivityDot(ultimaAttivita)
@@ -681,7 +681,7 @@
         const vals = [
           nome,
           prof.email || '',
-          prof.profiles?.telefono || '',
+          prof.telefono || '',
           prof.qualifica || '',
           prof.centro || '',
           prof.citta || '',
@@ -745,7 +745,10 @@
       document.getElementById('edit-qualifica').value      = prof.qualifica || ''
       document.getElementById('edit-centro').value         = prof.centro || ''
       document.getElementById('edit-citta').value          = prof.citta || ''
-      document.getElementById('edit-telefono').value       = prof.profiles?.telefono || ''
+      document.getElementById('edit-indirizzo').value      = prof.indirizzo || ''
+      document.getElementById('edit-telefono').value       = prof.telefono || ''
+      document.getElementById('edit-email-studio').value   = prof.email_studio || ''
+      document.getElementById('edit-piva').value           = prof.partita_iva || ''
       document.getElementById('p-scadenza').value       = prof.premium_scadenza ? prof.premium_scadenza.split('T')[0] : ''
       document.getElementById('edit-note').value = prof.note_admin || ''
 
@@ -950,8 +953,7 @@
           action:    'update-profile',
           profileId: prof.user_id,
           nome:      document.getElementById('edit-nome').value,
-          cognome:   document.getElementById('edit-cognome').value,
-          telefono:  document.getElementById('edit-telefono').value
+          cognome:   document.getElementById('edit-cognome').value
         })
       })
       const j1 = await r1.json()
@@ -961,10 +963,14 @@
       const { error: r2err } = await _supabase
         .from('professionals')
         .update({
-          qualifica:  document.getElementById('edit-qualifica').value,
-          centro:     document.getElementById('edit-centro').value,
-          citta:      document.getElementById('edit-citta').value,
-          note_admin: document.getElementById('edit-note').value
+          qualifica:    document.getElementById('edit-qualifica').value,
+          centro:       document.getElementById('edit-centro').value,
+          citta:        document.getElementById('edit-citta').value,
+          indirizzo:    document.getElementById('edit-indirizzo').value,
+          telefono:     document.getElementById('edit-telefono').value,
+          email_studio: document.getElementById('edit-email-studio').value,
+          partita_iva:  document.getElementById('edit-piva').value,
+          note_admin:   document.getElementById('edit-note').value
         })
         .eq('id', currentProfId)
 
@@ -1103,8 +1109,14 @@
         </div>
         <label class="p-label">Città</label>
         <input class="p-input" id="edit-citta" type="text" placeholder="Milano">
+        <label class="p-label">Indirizzo</label>
+        <input class="p-input" id="edit-indirizzo" type="text" placeholder="Via Roma 1">
         <label class="p-label">Telefono</label>
-        <input class="p-input" id="edit-telefono" type="tel" placeholder="+39 333 1234567">
+        <input class="p-input" id="edit-telefono" type="text" placeholder="Telefono">
+        <label class="p-label">Email studio</label>
+        <input class="p-input" id="edit-email-studio" type="text" placeholder="Email studio">
+        <label class="p-label">Partita IVA</label>
+        <input class="p-input" id="edit-piva" type="text" placeholder="Partita IVA">
 
         <div class="piano-toggle-row">
           <div>
