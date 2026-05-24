@@ -180,6 +180,11 @@
         </div>
       </div>
 
+      <div class="f-group" style="margin-top:8px">
+        <label class="f-label" style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;display:block">Data documento</label>
+        <input type="date" id="campo-data" style="padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px">
+      </div>
+
       <button class="btn-genera" id="btn-genera" onclick="generaDocumento()">✨ Genera con AI</button>
     </div>
 
@@ -247,6 +252,7 @@
       }
 
       await caricaPazienti()
+      document.getElementById('campo-data').value = new Date().toISOString().slice(0,10)
       document.body.style.visibility = 'visible'
     }
 
@@ -355,7 +361,10 @@
 
       try {
         const testo = document.getElementById('txt-risultato').value
-        const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+        const _dataVal = document.getElementById('campo-data').value
+        const oggi = _dataVal
+          ? new Date(_dataVal + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+          : new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
         const intestazione = _intestazione || {}
 
         const logoHtml = intestazione.logo_url
@@ -401,10 +410,6 @@
   </div>
   <div style="text-align:right;font-size:13px;color:#444;margin-bottom:24px">${intestazione.citta || ''}, ${oggi}</div>
   <div class="body-text">${testoHtml}</div>
-  <div class="footer" style="margin-top:56px;text-align:right">
-    <div style="font-size:13px;color:#555;margin-bottom:48px">Firma</div>
-    <div style="border-top:1px solid #999;padding-top:6px;display:inline-block;min-width:240px;font-size:13px">${intestazione.nome || ''}${intestazione.qualifica ? '<br><span style="font-size:11px;color:#777">'+intestazione.qualifica+'</span>' : ''}</div>
-  </div>
 </div>
 </body>
 </html>`
