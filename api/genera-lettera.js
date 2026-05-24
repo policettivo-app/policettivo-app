@@ -26,7 +26,7 @@ export default async function handler(req, res) {
 
   const { data: prof } = await svc
     .from('professionals')
-    .select('id, qualifica, profiles(nome, cognome)')
+    .select('id, qualifica, centro, citta, indirizzo, telefono, email_studio, partita_iva, logo_url, profiles(nome, cognome)')
     .eq('user_id', user.id)
     .maybeSingle()
   if (!prof) return res.status(403).json({ error: 'Profilo professionista non trovato' })
@@ -118,7 +118,21 @@ Scrivi il documento completo in italiano.`
     if (aiData.error) return res.status(500).json({ error: 'Errore AI: ' + aiData.error.message })
     const testo = aiData.content?.[0]?.text || null
     if (!testo) return res.status(500).json({ error: 'Nessun testo generato' })
-    return res.status(200).json({ testo, paziente: nomePaz, professionista: profName })
+    return res.status(200).json({
+      testo,
+      paziente: nomePaz,
+      intestazione: {
+        nome:         profName,
+        qualifica:    prof.qualifica    || '',
+        centro:       prof.centro        || '',
+        citta:        prof.citta         || '',
+        indirizzo:    prof.indirizzo     || '',
+        telefono:     prof.telefono      || '',
+        email_studio: prof.email_studio  || '',
+        partita_iva:  prof.partita_iva   || '',
+        logo_url:     prof.logo_url      || null
+      }
+    })
   } catch (e) {
     return res.status(500).json({ error: 'Errore: ' + e.message })
   }
