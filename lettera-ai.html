@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <style>body{visibility:hidden}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Lettera / Relazione AI</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; color: #1d1d1f; }
+
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .btn-logout { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-logout:hover { border-color: #888; }
+
+    .main { max-width: 720px; margin: 0 auto; padding: 36px 24px 80px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #666; text-decoration: none; margin-bottom: 28px; transition: color 0.15s; }
+    .back-link:hover { color: #000; }
+
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 26px; font-weight: 700; color: #000; }
+    .page-header p { font-size: 13px; color: #888; margin-top: 6px; }
+
+    .card { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 20px; }
+    .card-title { font-size: 12px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; margin-bottom: 22px; }
+
+    /* Toggle buttons (tipo doc / lunghezza) */
+    .toggle-group { display: flex; gap: 10px; flex-wrap: wrap; }
+    .toggle-btn {
+      padding: 9px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer; border: 2px solid #ddd;
+      background: #fff; color: #555; transition: border-color 0.15s, color 0.15s;
+    }
+    .toggle-btn.active { border-color: #FFD008; color: #000; background: #fffbea; }
+    .toggle-btn:hover:not(.active) { border-color: #bbb; }
+
+    .f-label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
+    .f-group { margin-bottom: 18px; }
+
+    .f-select {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; color: #000;
+      outline: none; transition: border-color 0.15s; background: #fff; cursor: pointer;
+    }
+    .f-select:focus { border-color: #FFD008; }
+
+    .f-textarea {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; color: #000;
+      outline: none; transition: border-color 0.15s; resize: vertical;
+    }
+    .f-textarea:focus { border-color: #FFD008; }
+
+    /* Checkbox sezione */
+    .checkboxes-section { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 14px 16px; margin-top: 10px; }
+    .chk-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer; }
+    .chk-row input[type=checkbox] { width: 16px; height: 16px; accent-color: #FFD008; cursor: pointer; flex-shrink: 0; }
+    .chk-row span { font-size: 13px; color: #333; }
+
+    /* Bottone genera */
+    .btn-genera {
+      background: #FFD008; color: #000; border: none; padding: 14px 28px;
+      border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 15px;
+      font-weight: 700; cursor: pointer; width: 100%; margin-top: 8px; transition: background 0.15s;
+    }
+    .btn-genera:hover:not(:disabled) { background: #e6bc00; }
+    .btn-genera:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* Card risultato */
+    #card-risultato { display: none; }
+
+    .txt-risultato {
+      width: 100%; min-height: 400px; padding: 14px 16px; border: 1.5px solid #ddd;
+      border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px;
+      line-height: 1.7; color: #000; outline: none; resize: vertical;
+      transition: border-color 0.15s;
+    }
+    .txt-risultato:focus { border-color: #FFD008; }
+
+    .btn-pdf {
+      background: #000; color: #fff; border: none; padding: 12px 24px;
+      border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px;
+      font-weight: 600; cursor: pointer; margin-top: 14px; transition: background 0.15s;
+    }
+    .btn-pdf:hover:not(:disabled) { background: #222; }
+    .btn-pdf:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .disclaimer { font-size: 11px; color: #aaa; margin-top: 12px; line-height: 1.6; }
+
+    @media (max-width: 520px) {
+      .navbar { padding: 0 16px; }
+      .main { padding: 24px 16px 60px; }
+      .card { padding: 22px 18px; }
+      .toggle-group { flex-direction: column; }
+      .toggle-btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">Lettera / Relazione AI</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Esci</button>
+  </nav>
+
+  <div class="main">
+    <a class="back-link" href="dashboard.html">← Torna alla dashboard</a>
+
+    <div class="page-header">
+      <h1>Lettera / Relazione AI</h1>
+      <p>Genera documenti clinici con l'intelligenza artificiale. Rileggi sempre prima di inviare.</p>
+    </div>
+
+    <!-- SEZIONE 1 — OPZIONI -->
+    <div class="card">
+      <div class="card-title">Opzioni documento</div>
+
+      <!-- Tipo documento -->
+      <div class="f-group">
+        <label class="f-label">Tipo documento</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="btn-tipo-relazione" onclick="setTipo('relazione')">Relazione clinica</button>
+          <button class="toggle-btn" id="btn-tipo-lettera" onclick="setTipo('lettera')">Lettera / comunicazione</button>
+        </div>
+      </div>
+
+      <!-- Paziente -->
+      <div class="f-group">
+        <label class="f-label">Paziente (opzionale)</label>
+        <select class="f-select" id="sel-paziente" onchange="onPazienteChange()">
+          <option value="">— Nessun paziente (documento generico) —</option>
+        </select>
+      </div>
+
+      <!-- Cosa includere (visibile solo se paziente selezionato) -->
+      <div class="f-group" id="sezione-includi" style="display:none">
+        <label class="f-label">Cosa includere</label>
+        <div class="checkboxes-section">
+          <label class="chk-row">
+            <input type="checkbox" id="chk-iniziale" checked>
+            <span>Riassunto iniziale (anamnesi, problema)</span>
+          </label>
+          <label class="chk-row">
+            <input type="checkbox" id="chk-sedute" checked>
+            <span>Riassunto sedute con date</span>
+          </label>
+          <label class="chk-row">
+            <input type="checkbox" id="chk-esito">
+            <span>Esito e miglioramenti</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Testo libero -->
+      <div class="f-group">
+        <label class="f-label">Cosa vuoi dire (tue parole)</label>
+        <textarea
+          class="f-textarea"
+          id="txt-utente"
+          rows="4"
+          placeholder="Es. relazione per l'assicurazione, ciclo concluso, buon recupero, consiglio mantenimento a casa"
+        ></textarea>
+      </div>
+
+      <!-- Lunghezza -->
+      <div class="f-group">
+        <label class="f-label">Lunghezza</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="btn-lung-sintetica" onclick="setLunghezza('sintetica')">Sintetica</button>
+          <button class="toggle-btn" id="btn-lung-approfondita" onclick="setLunghezza('approfondita')">Approfondita</button>
+        </div>
+      </div>
+
+      <button class="btn-genera" id="btn-genera" onclick="generaDocumento()">✨ Genera con AI</button>
+    </div>
+
+    <!-- SEZIONE 2 — RISULTATO -->
+    <div class="card" id="card-risultato">
+      <div class="card-title">Testo generato</div>
+
+      <textarea class="txt-risultato" id="txt-risultato"></textarea>
+
+      <button class="btn-pdf" id="btn-pdf" onclick="generaPDF()">📄 Genera PDF</button>
+
+      <p class="disclaimer">Rileggi e correggi sempre il testo prima di inviarlo. L'AI può commettere errori.</p>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    let profId = null
+    let _accessToken = null
+    let _intestazione = null
+    let tipoDoc = 'relazione'
+    let lunghezza = 'sintetica'
+
+    /* ── INIT ── */
+    async function init() {
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+      _accessToken = session.access_token
+
+      const { data: prof } = await _supabase
+        .from('professionals')
+        .select('id, nome, qualifica, centro, indirizzo, citta, telefono, email_studio, partita_iva, logo_url, profiles(nome, cognome)')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+
+      if (!prof) { alert('Profilo non trovato'); window.location.href = 'dashboard.html'; return }
+      profId = prof.id
+
+      _intestazione = {
+        nome:        (prof.profiles?.nome || '') + ' ' + (prof.profiles?.cognome || ''),
+        qualifica:   prof.qualifica    || '',
+        centro:      prof.centro       || '',
+        indirizzo:   prof.indirizzo    || '',
+        citta:       prof.citta        || '',
+        telefono:    prof.telefono     || '',
+        email_studio: prof.email_studio || '',
+        partita_iva: prof.partita_iva  || '',
+        logo_url:    prof.logo_url     || null,
+      }
+
+      await caricaPazienti()
+      document.body.style.visibility = 'visible'
+    }
+
+    async function caricaPazienti() {
+      const { data: pazienti } = await _supabase
+        .from('patients')
+        .select('id, nome, cognome')
+        .eq('professional_id', profId)
+        .order('cognome')
+
+      const sel = document.getElementById('sel-paziente')
+      if (pazienti && pazienti.length > 0) {
+        pazienti.forEach(p => {
+          const opt = document.createElement('option')
+          opt.value = p.id
+          opt.textContent = (p.cognome || '') + ' ' + (p.nome || '')
+          sel.appendChild(opt)
+        })
+      }
+    }
+
+    /* ── TOGGLE TIPO / LUNGHEZZA ── */
+    function setTipo(val) {
+      tipoDoc = val
+      document.getElementById('btn-tipo-relazione').classList.toggle('active', val === 'relazione')
+      document.getElementById('btn-tipo-lettera').classList.toggle('active', val === 'lettera')
+    }
+
+    function setLunghezza(val) {
+      lunghezza = val
+      document.getElementById('btn-lung-sintetica').classList.toggle('active', val === 'sintetica')
+      document.getElementById('btn-lung-approfondita').classList.toggle('active', val === 'approfondita')
+    }
+
+    /* ── PAZIENTE CHANGE ── */
+    function onPazienteChange() {
+      const sel = document.getElementById('sel-paziente')
+      const sezione = document.getElementById('sezione-includi')
+      sezione.style.display = sel.value ? 'block' : 'none'
+    }
+
+    /* ── GENERA DOCUMENTO ── */
+    async function generaDocumento() {
+      const btn = document.getElementById('btn-genera')
+      btn.disabled = true
+      btn.textContent = '⏳ Generazione AI...'
+
+      try {
+        const patientId = document.getElementById('sel-paziente').value || null
+        const body = {
+          tipo_doc:    tipoDoc,
+          patient_id:  patientId,
+          includi: {
+            iniziale: document.getElementById('chk-iniziale').checked,
+            sedute:   document.getElementById('chk-sedute').checked,
+            esito:    document.getElementById('chk-esito').checked,
+          },
+          testo_utente: document.getElementById('txt-utente').value,
+          lunghezza:    lunghezza,
+        }
+
+        const resp = await fetch('/api/genera-lettera', {
+          method:  'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': 'Bearer ' + _accessToken,
+          },
+          body: JSON.stringify(body),
+        })
+
+        if (resp.status === 403) {
+          const err = await resp.json().catch(() => ({}))
+          if (err.limitReached) {
+            alert('Limite AI raggiunto. Questa è una funzione premium.')
+            return
+          }
+          throw new Error(err.error || 'Accesso negato')
+        }
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}))
+          throw new Error(err.error || 'Errore ' + resp.status)
+        }
+
+        const json = await resp.json()
+        if (json.intestazione) _intestazione = json.intestazione
+
+        document.getElementById('txt-risultato').value = json.testo || ''
+        const cardRisultato = document.getElementById('card-risultato')
+        cardRisultato.style.display = 'block'
+        cardRisultato.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+      } catch (err) {
+        alert('Errore nella generazione: ' + err.message)
+      } finally {
+        btn.disabled = false
+        btn.textContent = '✨ Genera con AI'
+      }
+    }
+
+    /* ── GENERA PDF ── */
+    async function generaPDF() {
+      const btn = document.getElementById('btn-pdf')
+      btn.disabled = true
+      btn.textContent = '⏳ Generazione PDF...'
+
+      try {
+        const testo = document.getElementById('txt-risultato').value
+        const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+        const intestazione = _intestazione || {}
+
+        const logoHtml = intestazione.logo_url
+          ? `<img src="${intestazione.logo_url}" style="max-height:70px;max-width:180px;object-fit:contain;display:block;margin-bottom:12px" alt="Logo">`
+          : ''
+
+        const righeIntestazione = [
+          intestazione.nome       ? `<div style="font-size:16px;font-weight:700;color:#000">${intestazione.nome}</div>` : '',
+          intestazione.qualifica  ? `<div style="font-size:13px;color:#444;margin-top:2px">${intestazione.qualifica}</div>` : '',
+          intestazione.centro     ? `<div style="font-size:13px;color:#444">${intestazione.centro}</div>` : '',
+          (intestazione.indirizzo || intestazione.citta)
+            ? `<div style="font-size:12px;color:#666">${[intestazione.indirizzo, intestazione.citta].filter(Boolean).join(' — ')}</div>` : '',
+          intestazione.telefono   ? `<div style="font-size:12px;color:#666">Tel: ${intestazione.telefono}</div>` : '',
+          intestazione.email_studio ? `<div style="font-size:12px;color:#666">Email: ${intestazione.email_studio}</div>` : '',
+          intestazione.partita_iva  ? `<div style="font-size:12px;color:#666">P.IVA: ${intestazione.partita_iva}</div>` : '',
+        ].filter(Boolean).join('')
+
+        const testoHtml = testo
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+
+        const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }
+  body { margin: 0; background: #fff; font-family: 'Georgia', serif; color: #000; }
+  .page { max-width: 680px; margin: 0 auto; padding: 48px 56px; }
+  .header { border-bottom: 2px solid #FFD008; padding-bottom: 18px; margin-bottom: 32px; }
+  .body-text { font-size: 14px; line-height: 1.8; white-space: pre-wrap; color: #1a1a1a; }
+  .footer { margin-top: 48px; font-size: 13px; color: #555; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    ${logoHtml}
+    ${righeIntestazione}
+  </div>
+  <div class="body-text">${testoHtml}</div>
+  <div class="footer">
+    <div>${intestazione.citta || ''}, ${oggi}</div>
+    <div style="margin-top:40px;border-top:1px solid #ccc;padding-top:8px;display:inline-block;min-width:200px">${intestazione.nome || ''}</div>
+  </div>
+</div>
+</body>
+</html>`
+
+        const resp = await fetch('/api/pdf-render', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ html: fullHtml, filename: 'documento.pdf' }),
+        })
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}))
+          throw new Error(err.error || 'HTTP ' + resp.status)
+        }
+
+        const pdfBlob = await resp.blob()
+        const dlUrl = URL.createObjectURL(pdfBlob)
+        const a = document.createElement('a')
+        a.href = dlUrl
+        a.download = 'documento.pdf'
+        a.click()
+        URL.revokeObjectURL(dlUrl)
+
+      } catch (err) {
+        alert('Errore generazione PDF: ' + err.message)
+      } finally {
+        btn.disabled = false
+        btn.textContent = '📄 Genera PDF'
+      }
+    }
+
+    /* ── LOGOUT ── */
+    async function doLogout() {
+      await _supabase.auth.signOut()
+      window.location.href = 'login.html'
+    }
+
+    init()
+  </script>
+</body>
+</html>
