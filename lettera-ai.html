@@ -214,7 +214,7 @@
 
       const { data: prof } = await _supabase
         .from('professionals')
-        .select('id, nome, qualifica, centro, indirizzo, citta, telefono, email_studio, partita_iva, logo_url, profiles(nome, cognome)')
+        .select('id, qualifica, centro, indirizzo, citta, telefono, email_studio, partita_iva, logo_url, profiles(nome, cognome)')
         .eq('user_id', session.user.id)
         .maybeSingle()
 
