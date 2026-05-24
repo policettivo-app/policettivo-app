@@ -193,6 +193,18 @@
 
       <p class="disclaimer">Rileggi e correggi sempre il testo prima di inviarlo. L'AI può commettere errori.</p>
     </div>
+
+    <div id="pdf-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;padding:20px">
+      <div style="background:#fff;border-radius:12px;width:100%;max-width:800px;height:90vh;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;gap:10px;padding:14px 18px;border-bottom:1px solid #eee;align-items:center">
+          <strong style="flex:1;font-size:14px">Anteprima documento</strong>
+          <button onclick="stampaPdfAnteprima()" style="padding:8px 16px;background:#FFD008;border:none;border-radius:8px;font-weight:700;cursor:pointer">🖨 Stampa</button>
+          <button onclick="scaricaPdfAnteprima()" style="padding:8px 16px;background:#fff;border:1.5px solid #ddd;border-radius:8px;font-weight:600;cursor:pointer">💾 Scarica</button>
+          <button onclick="chiudiPdfAnteprima()" style="padding:8px 14px;background:#fff;border:1.5px solid #ddd;border-radius:8px;cursor:pointer">✕</button>
+        </div>
+        <iframe id="pdf-iframe" style="flex:1;border:none;width:100%"></iframe>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -205,6 +217,7 @@
     let _intestazione = null
     let tipoDoc = 'relazione'
     let lunghezza = 'sintetica'
+    let _pdfBlobUrl = null
 
     /* ── INIT ── */
     async function init() {
@@ -405,12 +418,10 @@
         }
 
         const pdfBlob = await resp.blob()
-        const dlUrl = URL.createObjectURL(pdfBlob)
-        const a = document.createElement('a')
-        a.href = dlUrl
-        a.download = 'documento.pdf'
-        a.click()
-        URL.revokeObjectURL(dlUrl)
+        if (_pdfBlobUrl) URL.revokeObjectURL(_pdfBlobUrl)
+        _pdfBlobUrl = URL.createObjectURL(pdfBlob)
+        document.getElementById('pdf-iframe').src = _pdfBlobUrl
+        document.getElementById('pdf-modal').style.display = 'flex'
 
       } catch (err) {
         alert('Errore generazione PDF: ' + err.message)
@@ -418,6 +429,21 @@
         btn.disabled = false
         btn.textContent = '📄 Genera PDF'
       }
+    }
+
+    function chiudiPdfAnteprima() {
+      document.getElementById('pdf-modal').style.display = 'none'
+    }
+    function scaricaPdfAnteprima() {
+      if (!_pdfBlobUrl) return
+      const a = document.createElement('a')
+      a.href = _pdfBlobUrl
+      a.download = 'documento.pdf'
+      a.click()
+    }
+    function stampaPdfAnteprima() {
+      const ifr = document.getElementById('pdf-iframe')
+      if (ifr && ifr.contentWindow) { ifr.contentWindow.focus(); ifr.contentWindow.print() }
     }
 
     /* ── LOGOUT ── */
