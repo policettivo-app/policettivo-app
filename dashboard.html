@@ -373,45 +373,31 @@
           <div class="d-hero-eyebrow" id="d-hero-date"></div>
           <h1 class="d-hero-title" id="welcome-msg">Bentornato</h1>
         </div>
-        <div class="d-cta-group">
-          <button class="d-cta-paziente" onclick="openModal()">👤 Nuovo paziente</button>
-          <button class="d-cta-visita ds-btn-primary"   onclick="openTipoVisitaModal()">➕ Nuova visita</button>
+        <div style="display:flex;gap:16px">
+          <div style="text-align:center"><div style="font-size:26px;font-weight:700;line-height:1" id="stat-pazienti">—</div><div style="font-size:11px;color:#888;font-weight:600">Pazienti attivi</div></div>
+          <div style="text-align:center"><div style="font-size:26px;font-weight:700;line-height:1" id="stat-protocolli">—</div><div style="font-size:11px;color:#888;font-weight:600">Protocolli attivi</div></div>
         </div>
       </div>
     </div>
 
     <!-- Azioni rapide -->
-    <div class="d-stats" style="margin-bottom:14px">
-      <button class="d-stat-card ds-card" onclick="openModal()" style="cursor:pointer;border:none;text-align:center;background:#000;color:#fff">
-        <div class="d-stat-icon">👤</div>
-        <div class="d-stat-lbl" style="color:#fff;font-size:13px">Nuovo paziente</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px">
+      <button onclick="openModal()" style="cursor:pointer;border:none;border-radius:16px;padding:26px 16px;background:#000;color:#fff;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform 0.12s;font-family:inherit" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+        <span style="font-size:28px">👤</span>
+        <span style="font-size:14px;font-weight:600">Nuovo paziente</span>
       </button>
-      <button class="d-stat-card ds-card" onclick="openTipoVisitaModal()" style="cursor:pointer;text-align:center">
-        <div class="d-stat-icon">➕</div>
-        <div class="d-stat-lbl" style="font-size:13px">Nuova visita</div>
+      <button onclick="openTipoVisitaModal()" style="cursor:pointer;border:1px solid #eee;border-radius:16px;padding:26px 16px;background:#fff;color:#1d1d1f;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform 0.12s;font-family:inherit" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='#FFD008'" onmouseout="this.style.transform='';this.style.borderColor='#eee'">
+        <span style="font-size:28px">➕</span>
+        <span style="font-size:14px;font-weight:600">Nuova visita</span>
       </button>
-      <button class="d-stat-card ds-card" onclick="window.location.href='lettera-ai.html'" style="cursor:pointer;text-align:center">
-        <div class="d-stat-icon">✨</div>
-        <div class="d-stat-lbl" style="font-size:13px">Lettera / Relazione AI</div>
+      <button onclick="window.location.href='lettera-ai.html'" style="cursor:pointer;border:1px solid #eee;border-radius:16px;padding:26px 16px;background:#fff;color:#1d1d1f;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform 0.12s;font-family:inherit" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='#FFD008'" onmouseout="this.style.transform='';this.style.borderColor='#eee'">
+        <span style="font-size:28px">✨</span>
+        <span style="font-size:14px;font-weight:600">Lettera / Relazione AI</span>
       </button>
-      <button class="d-stat-card ds-card" onclick="document.getElementById('search-input').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('search-input').focus()" style="cursor:pointer;text-align:center">
-        <div class="d-stat-icon">🔍</div>
-        <div class="d-stat-lbl" style="font-size:13px">Cerca paziente</div>
+      <button onclick="document.getElementById('search-input').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('search-input').focus()" style="cursor:pointer;border:1px solid #eee;border-radius:16px;padding:26px 16px;background:#fff;color:#1d1d1f;display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform 0.12s;font-family:inherit" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='#FFD008'" onmouseout="this.style.transform='';this.style.borderColor='#eee'">
+        <span style="font-size:28px">🔍</span>
+        <span style="font-size:14px;font-weight:600">Cerca paziente</span>
       </button>
-    </div>
-
-    <!-- Statistiche (2) -->
-    <div class="d-stats" style="grid-template-columns:repeat(2,1fr);margin-bottom:24px">
-      <div class="d-stat-card ds-card">
-        <div class="d-stat-icon">👥</div>
-        <div class="d-stat-num" id="stat-pazienti">—</div>
-        <div class="d-stat-lbl">Pazienti attivi</div>
-      </div>
-      <div class="d-stat-card ds-card">
-        <div class="d-stat-icon">📋</div>
-        <div class="d-stat-num" id="stat-protocolli">—</div>
-        <div class="d-stat-lbl">Protocolli attivi</div>
-      </div>
     </div>
 
     <!-- Recent patients -->
