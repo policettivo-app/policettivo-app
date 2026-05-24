@@ -86,7 +86,7 @@ export default async function handler(req, res) {
   const lung = lunghezza === 'approfondita' ? 'approfondita e dettagliata' : 'sintetica e concisa'
   const tipoLabel = tipo_doc === 'lettera' ? 'lettera/comunicazione professionale' : 'relazione clinica fisioterapica'
 
-  const systemPrompt = `Sei un fisioterapista esperto che redige documenti professionali in italiano formale. Scrivi una ${tipoLabel} ${lung}. Stile: terza persona, linguaggio tecnico-clinico appropriato, professionale. NON inventare dati clinici non forniti: se un dato manca, ometti. NON fare diagnosi mediche né prognosi vincolanti. Basati sulle indicazioni del professionista e sui dati forniti. Restituisci SOLO il testo del documento, pronto da rileggere e firmare, senza intestazioni tipo "Ecco la lettera".`
+  const systemPrompt = `Sei un fisioterapista esperto che redige documenti professionali in italiano formale. Scrivi una ${tipoLabel} ${lung}. Stile: terza persona, linguaggio tecnico-clinico appropriato, professionale. NON inventare dati clinici non forniti: se un dato manca, ometti. NON fare diagnosi mediche né prognosi vincolanti. Basati sulle indicazioni del professionista e sui dati forniti. Restituisci SOLO il testo del documento, pronto da rileggere e firmare, senza intestazioni tipo "Ecco la lettera". IMPORTANTE: NON includere nel testo la data, il luogo, righe tipo 'Data: ___', 'Firma: ___', 'Firma del professionista', né il nome/firma finale del professionista: questi elementi sono già aggiunti automaticamente all'intestazione e in fondo al documento. Termina il testo con il contenuto clinico, senza blocco firma.`
 
   const userPrompt = `Redigi il documento.
 
