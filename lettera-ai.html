@@ -185,6 +185,11 @@
         <input type="date" id="campo-data" style="padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px">
       </div>
 
+      <div class="f-group" style="margin-top:8px">
+        <label class="f-label" style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;display:block">Firmato da</label>
+        <input type="text" id="campo-firma" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px" placeholder="Nome di chi firma">
+      </div>
+
       <button class="btn-genera" id="btn-genera" onclick="generaDocumento()">✨ Genera con AI</button>
     </div>
 
@@ -253,6 +258,8 @@
 
       await caricaPazienti()
       document.getElementById('campo-data').value = new Date().toISOString().slice(0,10)
+      document.getElementById('campo-firma').value =
+        (_intestazione.nome || '') + (_intestazione.qualifica ? ' — ' + _intestazione.qualifica : '')
       document.body.style.visibility = 'visible'
     }
 
@@ -410,6 +417,7 @@
   </div>
   <div style="text-align:right;font-size:13px;color:#444;margin-bottom:24px">${intestazione.citta || ''}, ${oggi}</div>
   <div class="body-text">${testoHtml}</div>
+  <div style="margin-top:64px;text-align:right;font-size:14px;font-weight:700;color:#000">${(document.getElementById('campo-firma').value || '').replace(/</g,'&lt;')}</div>
 </div>
 </body>
 </html>`
