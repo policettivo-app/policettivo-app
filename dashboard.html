@@ -380,8 +380,28 @@
       </div>
     </div>
 
-    <!-- Stats 4 card -->
-    <div class="d-stats">
+    <!-- Azioni rapide -->
+    <div class="d-stats" style="margin-bottom:14px">
+      <button class="d-stat-card ds-card" onclick="openModal()" style="cursor:pointer;border:none;text-align:center;background:#000;color:#fff">
+        <div class="d-stat-icon">👤</div>
+        <div class="d-stat-lbl" style="color:#fff;font-size:13px">Nuovo paziente</div>
+      </button>
+      <button class="d-stat-card ds-card" onclick="openTipoVisitaModal()" style="cursor:pointer;text-align:center">
+        <div class="d-stat-icon">➕</div>
+        <div class="d-stat-lbl" style="font-size:13px">Nuova visita</div>
+      </button>
+      <button class="d-stat-card ds-card" onclick="window.location.href='lettera-ai.html'" style="cursor:pointer;text-align:center">
+        <div class="d-stat-icon">✨</div>
+        <div class="d-stat-lbl" style="font-size:13px">Lettera / Relazione AI</div>
+      </button>
+      <button class="d-stat-card ds-card" onclick="document.getElementById('search-input').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('search-input').focus()" style="cursor:pointer;text-align:center">
+        <div class="d-stat-icon">🔍</div>
+        <div class="d-stat-lbl" style="font-size:13px">Cerca paziente</div>
+      </button>
+    </div>
+
+    <!-- Statistiche (2) -->
+    <div class="d-stats" style="grid-template-columns:repeat(2,1fr);margin-bottom:24px">
       <div class="d-stat-card ds-card">
         <div class="d-stat-icon">👥</div>
         <div class="d-stat-num" id="stat-pazienti">—</div>
@@ -391,16 +411,6 @@
         <div class="d-stat-icon">📋</div>
         <div class="d-stat-num" id="stat-protocolli">—</div>
         <div class="d-stat-lbl">Protocolli attivi</div>
-      </div>
-      <div class="d-stat-card ds-card">
-        <div class="d-stat-icon">⚡</div>
-        <div class="d-stat-num accent" id="stat-sessioni">—</div>
-        <div class="d-stat-lbl">Sessioni oggi</div>
-      </div>
-      <div class="d-stat-card ds-card">
-        <div class="d-stat-icon">🤖</div>
-        <div class="d-stat-num" id="stat-ai">—</div>
-        <div class="d-stat-lbl">Analisi AI</div>
       </div>
     </div>
 
@@ -1023,7 +1033,7 @@
         _supabase.from('session_logs').select('*', { count: 'exact', head: true }).gte('started_at', today)
       ])
       document.getElementById('stat-protocolli').textContent = protRes.count || 0
-      document.getElementById('stat-sessioni').textContent = sessRes.count || 0
+      const _statSess = document.getElementById('stat-sessioni'); if (_statSess) _statSess.textContent = sessRes.count || 0
     }
 
     let _newPatientToken = null
