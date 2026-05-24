@@ -11,19 +11,18 @@ export default async function handler(req, res) {
 
   let browser = null
   try {
+    const executablePath = await chromium.executablePath()
     browser = await puppeteer.launch({
-      args: chromium.args,
+      args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath,
       headless: true
     })
     const page = await browser.newPage()
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
     try {
       await page.waitForNetworkIdle({ idleTime: 400, timeout: 8000 })
-    } catch (_) {
-      // foto lente o assenti: si procede comunque col PDF
-    }
+    } catch (_) {}
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
