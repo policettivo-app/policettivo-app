@@ -135,6 +135,7 @@
 
     .doc-upload-area { border: 2px dashed #ddd; border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.2s; margin-bottom: 16px; }
     .doc-upload-area:hover { border-color: #FFD008; background: #fffdf0; }
+    .doc-upload-area.drag-over { border-color: #FFD008; background: #fffdf0; }
     .doc-upload-area .upload-icon { font-size: 32px; margin-bottom: 8px; }
     .doc-upload-area .upload-text { font-size: 13px; color: #666; }
     .doc-upload-area .upload-hint { font-size: 11px; color: #bbb; margin-top: 4px; }
@@ -159,8 +160,7 @@
     .ai-loading { text-align: center; padding: 20px; font-size: 13px; color: #666; display: none; }
     .upload-form { background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; display: none; }
     .upload-form.visible { display: block; }
-    .doc-dropzone { border: 2px dashed #ccc; border-radius: 10px; padding: 18px 12px; margin-bottom: 16px; text-align: center; font-size: 13px; color: #aaa; cursor: default; transition: border-color 0.15s, background 0.15s; }
-    .doc-dropzone.drag-over { border-color: #FFD008; background: #fffdf0; color: #555; }
+
     .premium-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
     .premium-overlay.visible { opacity: 1; pointer-events: all; }
     .premium-modal { background: #111; color: #fff; border-radius: 16px; padding: 36px 32px 28px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
@@ -931,7 +931,7 @@
               <input type="text" id="doc-descrizione" placeholder="Es. RMN lombare gennaio 2025">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-              <div class="doc-upload-area" onclick="document.getElementById('doc-file-input').click()" style="margin-bottom:0">
+              <div id="doc-drop-scegli" class="doc-upload-area" onclick="document.getElementById('doc-file-input').click()" style="margin-bottom:0">
                 <div class="upload-icon">📁</div>
                 <div class="upload-text" style="font-weight:600">Scegli file</div>
                 <div class="upload-hint">JPG, PNG o PDF</div>
@@ -954,7 +954,6 @@
             <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
             <button class="btn-secondary" id="btn-stampa-cartella" onclick="apriComposizionePDF()" style="display:none">🖨 Stampa / PDF</button>
           </div>
-          <div id="doc-dropzone" class="doc-dropzone">Trascina qui un file (PDF, immagine, documento)</div>
           <div class="doc-list" id="doc-list">
             <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
           </div>
@@ -2001,7 +2000,7 @@
     }
 
     ;(function() {
-      const dz = document.getElementById('doc-dropzone')
+      const dz = document.getElementById('doc-drop-scegli')
       if (!dz) return
       dz.addEventListener('dragover', function(e) {
         e.preventDefault()
