@@ -18,7 +18,12 @@ export default async function handler(req, res) {
       headless: true
     })
     const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 50000 })
+    await page.setContent(html, { waitUntil: 'domcontentloaded' })
+    try {
+      await page.waitForNetworkIdle({ idleTime: 400, timeout: 8000 })
+    } catch (_) {
+      // foto lente o assenti: si procede comunque col PDF
+    }
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
