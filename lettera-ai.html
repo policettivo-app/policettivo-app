@@ -377,6 +377,8 @@
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
 
         const fullHtml = `<!DOCTYPE html>
 <html>
@@ -397,10 +399,11 @@
     ${logoHtml}
     ${righeIntestazione}
   </div>
+  <div style="text-align:right;font-size:13px;color:#444;margin-bottom:24px">${intestazione.citta || ''}, ${oggi}</div>
   <div class="body-text">${testoHtml}</div>
-  <div class="footer">
-    <div>${intestazione.citta || ''}, ${oggi}</div>
-    <div style="margin-top:40px;border-top:1px solid #ccc;padding-top:8px;display:inline-block;min-width:200px">${intestazione.nome || ''}</div>
+  <div class="footer" style="margin-top:56px;text-align:right">
+    <div style="font-size:13px;color:#555;margin-bottom:48px">Firma</div>
+    <div style="border-top:1px solid #999;padding-top:6px;display:inline-block;min-width:240px;font-size:13px">${intestazione.nome || ''}${intestazione.qualifica ? '<br><span style="font-size:11px;color:#777">'+intestazione.qualifica+'</span>' : ''}</div>
   </div>
 </div>
 </body>
