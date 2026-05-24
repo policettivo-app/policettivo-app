@@ -935,6 +935,7 @@
                 <div class="upload-icon">📁</div>
                 <div class="upload-text" style="font-weight:600">Scegli file</div>
                 <div class="upload-hint">JPG, PNG o PDF</div>
+                <div class="upload-hint">o trascina qui il file</div>
               </div>
               <div class="doc-upload-area" onclick="document.getElementById('doc-camera-input').click()" style="margin-bottom:0;border-color:#FFD008;background:#fffdf0">
                 <div class="upload-icon">📷</div>
@@ -2002,8 +2003,13 @@
     ;(function() {
       const dz = document.getElementById('doc-drop-scegli')
       if (!dz) return
+      dz.addEventListener('dragenter', function(e) {
+        e.preventDefault()
+        dz.classList.add('drag-over')
+      })
       dz.addEventListener('dragover', function(e) {
         e.preventDefault()
+        e.stopPropagation()
         dz.classList.add('drag-over')
       })
       dz.addEventListener('dragleave', function(e) {
