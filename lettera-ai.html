@@ -279,6 +279,11 @@
           sel.appendChild(opt)
         })
       }
+      const urlPaz = new URLSearchParams(window.location.search).get('paziente')
+      if (urlPaz) {
+        sel.value = urlPaz
+        sel.dispatchEvent(new Event('change'))
+      }
     }
 
     /* ── TOGGLE TIPO / LUNGHEZZA ── */
