@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <style>body{visibility:hidden}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Il mio profilo</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; color: #1d1d1f; }
+
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .btn-logout { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-logout:hover { border-color: #888; }
+
+    .main { max-width: 680px; margin: 0 auto; padding: 36px 24px 80px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #666; text-decoration: none; margin-bottom: 28px; transition: color 0.15s; }
+    .back-link:hover { color: #000; }
+
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 26px; font-weight: 700; color: #000; }
+    .page-header p { font-size: 13px; color: #888; margin-top: 6px; }
+
+    .card { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 20px; }
+    .card-title { font-size: 12px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; margin-bottom: 22px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 520px) { .form-row { grid-template-columns: 1fr; } .navbar { padding: 0 16px; } .main { padding: 24px 16px 60px; } .card { padding: 22px 18px; } }
+
+    .f-label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
+    .f-input { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; color: #000; outline: none; transition: border-color 0.15s; }
+    .f-input:focus { border-color: #FFD008; }
+    .f-input[readonly] { background: #f9f9f9; color: #aaa; cursor: not-allowed; }
+    .f-group { margin-bottom: 14px; }
+
+    .btn-save { background: #FFD008; color: #000; border: none; padding: 13px 28px; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 6px; transition: background 0.15s; }
+    .btn-save:hover { background: #e6bc00; }
+    .btn-save:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .save-msg { display: none; text-align: center; font-size: 13px; color: #2e7d32; margin-top: 10px; font-weight: 600; }
+    .save-msg.visible { display: block; }
+
+    /* Logo section */
+    .logo-preview-box { border: 2px dashed #ddd; border-radius: 12px; padding: 28px 20px; text-align: center; margin-bottom: 16px; background: #fafafa; }
+    .logo-preview-box img { max-width: 200px; max-height: 120px; object-fit: contain; display: block; margin: 0 auto 12px; }
+    .logo-placeholder { color: #bbb; font-size: 13px; }
+    .logo-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+    .btn-logo-upload { padding: 9px 20px; background: #FFD008; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; }
+    .btn-logo-upload:hover { background: #e6bc00; }
+    .btn-logo-remove { padding: 9px 20px; background: transparent; border: 1.5px solid #ffcdd2; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; color: #c62828; }
+    .btn-logo-remove:hover { background: #ffebee; }
+    .logo-hint { font-size: 11px; color: #bbb; line-height: 1.6; margin-top: 10px; text-align: center; }
+
+    .read-only-note { font-size: 11px; color: #bbb; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">Il mio profilo</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Esci</button>
+  </nav>
+
+  <div class="main">
+    <a class="back-link" href="dashboard.html">← Torna alla dashboard</a>
+
+    <div class="page-header">
+      <h1>Il mio profilo</h1>
+      <p>Modifica i dati del tuo studio e del tuo account professionale.</p>
+    </div>
+
+    <!-- DATI PROFILO -->
+    <div class="card">
+      <div class="card-title">Dati personali</div>
+
+      <div class="form-row">
+        <div class="f-group">
+          <label class="f-label">Nome</label>
+          <input class="f-input" id="field-nome" type="text" readonly>
+          <div class="read-only-note">Modificabile solo dall'admin</div>
+        </div>
+        <div class="f-group">
+          <label class="f-label">Cognome</label>
+          <input class="f-input" id="field-cognome" type="text" readonly>
+          <div class="read-only-note">Modificabile solo dall'admin</div>
+        </div>
+      </div>
+
+      <div class="f-group">
+        <label class="f-label">Qualifica professionale</label>
+        <input class="f-input" id="field-qualifica" type="text" placeholder="es. Fisioterapista, Osteopata...">
+      </div>
+    </div>
+
+    <!-- DATI STUDIO -->
+    <div class="card">
+      <div class="card-title">Dati studio / intestazione PDF</div>
+
+      <div class="f-group">
+        <label class="f-label">Centro / Studio</label>
+        <input class="f-input" id="field-centro" type="text" placeholder="es. Studio Fisio Milano">
+      </div>
+
+      <div class="form-row">
+        <div class="f-group">
+          <label class="f-label">Città</label>
+          <input class="f-input" id="field-citta" type="text" placeholder="es. Milano">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Indirizzo</label>
+          <input class="f-input" id="field-indirizzo" type="text" placeholder="es. Via Roma 1">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="f-group">
+          <label class="f-label">Telefono</label>
+          <input class="f-input" id="field-telefono" type="tel" placeholder="es. +39 02 1234567">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Email studio</label>
+          <input class="f-input" id="edit-email-studio" type="email" placeholder="es. studio@email.it">
+        </div>
+      </div>
+
+      <div class="f-group">
+        <label class="f-label">Partita IVA</label>
+        <input class="f-input" id="edit-piva" type="text" placeholder="es. 01234567890">
+      </div>
+
+      <button class="btn-save" id="btn-salva" onclick="salvaProfilo()">Salva modifiche</button>
+      <div class="save-msg" id="save-msg">✅ Salvato con successo</div>
+    </div>
+
+    <!-- LOGO -->
+    <div class="card">
+      <div class="card-title">Logo studio</div>
+      <p style="font-size:12px;color:#999;margin-bottom:16px">Il logo appare nell'intestazione dei PDF generati (visite, valutazioni posturali, lettere).</p>
+
+      <div class="logo-preview-box">
+        <img id="logo-preview-img" src="" alt="Logo studio" style="display:none">
+        <div class="logo-placeholder" id="logo-placeholder">Nessun logo caricato</div>
+      </div>
+
+      <div class="logo-actions">
+        <button class="btn-logo-upload" onclick="document.getElementById('logo-file-input').click()">📁 Carica logo</button>
+        <button class="btn-logo-remove" id="btn-remove-logo" style="display:none" onclick="rimuoviLogo()">🗑 Rimuovi logo</button>
+      </div>
+      <p class="logo-hint">PNG / JPG / SVG — max 2 MB — sfondo trasparente consigliato</p>
+      <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="caricaLogo(this.files[0])">
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    let profId = null
+    let _profLogoUrl = null
+
+    async function init() {
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+
+      const { data: prof } = await _supabase
+        .from('professionals')
+        .select('*, profiles(nome, cognome)')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+
+      if (!prof) { alert('Profilo non trovato'); window.location.href = 'dashboard.html'; return }
+
+      profId = prof.id
+      _profLogoUrl = prof.logo_url || null
+
+      document.getElementById('field-nome').value      = prof.profiles?.nome     || ''
+      document.getElementById('field-cognome').value   = prof.profiles?.cognome  || ''
+      document.getElementById('field-qualifica').value = prof.qualifica           || ''
+      document.getElementById('field-centro').value    = prof.centro              || ''
+      document.getElementById('field-citta').value     = prof.citta               || ''
+      document.getElementById('field-indirizzo').value = prof.indirizzo           || ''
+      document.getElementById('field-telefono').value  = prof.telefono            || ''
+      document.getElementById('edit-email-studio').value = prof.email_studio      || ''
+      document.getElementById('edit-piva').value       = prof.partita_iva         || ''
+
+      _renderLogo()
+      document.body.style.visibility = 'visible'
+    }
+
+    function _renderLogo() {
+      const img = document.getElementById('logo-preview-img')
+      const placeholder = document.getElementById('logo-placeholder')
+      const removeBtn = document.getElementById('btn-remove-logo')
+      if (_profLogoUrl) {
+        img.src = _profLogoUrl
+        img.style.display = 'block'
+        placeholder.style.display = 'none'
+        removeBtn.style.display = 'inline-block'
+      } else {
+        img.style.display = 'none'
+        img.src = ''
+        placeholder.style.display = 'block'
+        removeBtn.style.display = 'none'
+      }
+    }
+
+    async function salvaProfilo() {
+      if (!profId) return
+      const btn = document.getElementById('btn-salva')
+      const msg = document.getElementById('save-msg')
+      btn.disabled = true
+      btn.textContent = 'Salvataggio...'
+      msg.classList.remove('visible')
+
+      const { error } = await _supabase
+        .from('professionals')
+        .update({
+          qualifica:    document.getElementById('field-qualifica').value,
+          centro:       document.getElementById('field-centro').value,
+          citta:        document.getElementById('field-citta').value,
+          indirizzo:    document.getElementById('field-indirizzo').value,
+          telefono:     document.getElementById('field-telefono').value,
+          email_studio: document.getElementById('edit-email-studio').value,
+          partita_iva:  document.getElementById('edit-piva').value
+        })
+        .eq('id', profId)
+
+      btn.disabled = false
+      btn.textContent = 'Salva modifiche'
+
+      if (error) { alert('Errore salvataggio: ' + error.message); return }
+
+      msg.classList.add('visible')
+      setTimeout(() => msg.classList.remove('visible'), 3500)
+    }
+
+    async function caricaLogo(file) {
+      if (!file || !profId) return
+      const allowed = ['image/png', 'image/jpeg', 'image/svg+xml']
+      if (!allowed.includes(file.type)) { alert('Formato non supportato. Usa PNG, JPG o SVG.'); return }
+      if (file.size > 2 * 1024 * 1024) { alert('File troppo grande. Massimo 2 MB.'); return }
+
+      const ext  = file.name.split('.').pop().toLowerCase()
+      const path = 'logos/' + profId + '/' + Date.now() + '.' + ext
+
+      if (_profLogoUrl) {
+        const parts = _profLogoUrl.split('/clinical-docs/')
+        if (parts[1]) await _supabase.storage.from('clinical-docs').remove([parts[1]]).catch(() => {})
+      }
+
+      const { error: upErr } = await _supabase.storage
+        .from('clinical-docs')
+        .upload(path, file, { contentType: file.type, upsert: true })
+      if (upErr) { alert('Errore upload: ' + upErr.message); return }
+
+      const { data: urlData } = _supabase.storage.from('clinical-docs').getPublicUrl(path)
+      const logoUrl = urlData.publicUrl
+
+      const { error: dbErr } = await _supabase
+        .from('professionals')
+        .update({ logo_url: logoUrl })
+        .eq('id', profId)
+      if (dbErr) { alert('Errore salvataggio logo: ' + dbErr.message); return }
+
+      _profLogoUrl = logoUrl
+      _renderLogo()
+      document.getElementById('logo-file-input').value = ''
+      alert('Logo caricato ✓')
+    }
+
+    async function rimuoviLogo() {
+      if (!profId) return
+      if (!confirm('Rimuovere il logo?')) return
+
+      if (_profLogoUrl) {
+        const parts = _profLogoUrl.split('/clinical-docs/')
+        if (parts[1]) await _supabase.storage.from('clinical-docs').remove([parts[1]]).catch(() => {})
+      }
+
+      const { error } = await _supabase
+        .from('professionals')
+        .update({ logo_url: null })
+        .eq('id', profId)
+      if (error) { alert('Errore rimozione logo: ' + error.message); return }
+
+      _profLogoUrl = null
+      _renderLogo()
+      alert('Logo rimosso ✓')
+    }
+
+    async function doLogout() {
+      await _supabase.auth.signOut()
+      window.location.href = 'login.html'
+    }
+
+    init()
+  </script>
+</body>
+</html>
