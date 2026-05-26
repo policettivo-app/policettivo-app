@@ -413,6 +413,10 @@
       .vp-section { margin: 12px 0; }
     }
 
+    /* ── ACQUISIZIONE RAPIDA ─────────────────────────────────── */
+    #wc-rapid-banner { display:none; width:100%; font-size:12px; font-weight:700; color:#FFD008; text-align:center; padding:4px 0 2px; letter-spacing:.3px; }
+    #wc-rapid-skip   { display:none; }
+
     /* ── VP FULLSCREEN MODAL ─────────────────────────────────── */
     #vp-fullscreen {
       display: none; position: fixed; inset: 0; z-index: 1200;
@@ -560,6 +564,7 @@
   <section class="vp-section ds-section">
     <div class="vp-sec-title ds-section-title">
       <span class="vp-sec-badge ds-section-badge">B</span> Foto posturali
+      <button onclick="rapidStart()" style="margin-left:auto;background:#FFD008;color:#000;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">📷 Acquisizione Rapida</button>
     </div>
     <div class="photo-grid pp-layout-wide" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
   </section>
@@ -815,10 +820,11 @@
 <!-- WEBCAM MODAL -->
 <div id="webcam-modal">
   <div id="wc-topbar">
-    <button class="wc-btn" id="wc-close-btn" onclick="closeWebcamModal()">✕</button>
+    <button class="wc-btn" id="wc-close-btn" onclick="wcCloseBtn()">✕</button>
     <div style="flex:1"></div>
     <button class="wc-btn" id="wc-livella-btn" onclick="wcToggleLivella()">📐 Livella</button>
     <button class="wc-btn" id="wc-grid-btn" onclick="wcToggleGrid()">⊞</button>
+    <div id="wc-rapid-banner"></div>
   </div>
   <div id="wc-video-wrap">
     <video id="wc-video" autoplay playsinline muted></video>
@@ -839,6 +845,7 @@
         <button id="wc-shoot-btn" onclick="wcShoot()">📷</button>
       </div>
       <button class="wc-btn" id="wc-mirror-btn" onclick="wcToggleMirror()">🔄</button>
+      <button class="wc-btn" id="wc-rapid-skip" onclick="rapidSkip()">⏭️ Salta</button>
     </div>
     <div id="wc-confirm-row">
       <button class="wc-confirm-btn" style="background:#FFD008;color:#000" onclick="wcConfirm()">✅ Usa questa</button>
@@ -2791,6 +2798,104 @@ ISTRUZIONI:
   </div>
 
 </div>`
+  }
+
+  // ── ACQUISIZIONE RAPIDA ───────────────────────────────────
+  const RAPID_STEPS = [
+    { tipo:'frontale_pre',          titolo:'Frontale' },
+    { tipo:'posteriore_pre',        titolo:'Posteriore' },
+    { tipo:'sagittale_sx_pre',      titolo:'Sagittale Sinistra' },
+    { tipo:'sagittale_dx_pre',      titolo:'Sagittale Destra' },
+    { tipo:'podoscopio_sotto_pre',  titolo:'Plantare / Podoscopio' },
+    { tipo:'podoscopio_dietro_pre', titolo:'Arti Inferiori Posteriori' },
+    { tipo:'convergenza',           titolo:'Test Convergenza Oculare' },
+    { tipo:'capo_frontale',         titolo:'Capo Frontale' },
+    { tipo:'capo_profilo',          titolo:'Capo Profilo' },
+    { tipo:'stomato_frontale',      titolo:'Stomatognatico Frontale' },
+    { tipo:'stomato_profilo',       titolo:'Stomatognatico Profilo' },
+    { tipo:'libera',                titolo:'Foto Opzionale (puoi saltare)' },
+  ]
+  let rapidIdx = -1
+
+  function wcCloseBtn() {
+    if (rapidIdx >= 0) { rapidIdx = -1; rapidUpdateBanner() }
+    closeWebcamModal()
+  }
+
+  function rapidStart() {
+    rapidIdx = 0
+    rapidOpenCurrent()
+  }
+
+  function rapidOpenCurrent() {
+    if (rapidIdx >= RAPID_STEPS.length) { rapidFinish(); return }
+    const step = RAPID_STEPS[rapidIdx]
+    if (step.tipo === 'libera') {
+      openWebcamModal(null, false, async file => {
+        await rapidUploadFotoLibera(file)
+        if (navigator.vibrate) navigator.vibrate(40)
+        rapidNext()
+      })
+    } else {
+      openWebcamModal(step.tipo, false, async file => {
+        await uploadPhoto(file, step.tipo, false)
+        if (navigator.vibrate) navigator.vibrate(40)
+        rapidNext()
+      })
+    }
+    rapidUpdateBanner()
+  }
+
+  function rapidNext() {
+    rapidIdx++
+    rapidOpenCurrent()
+  }
+
+  function rapidSkip() {
+    rapidNext()
+  }
+
+  function rapidFinish() {
+    rapidIdx = -1
+    rapidUpdateBanner()
+    const missing = RAPID_STEPS
+      .filter(s => s.tipo !== 'libera' && !photos[s.tipo])
+      .map(s => s.titolo)
+    const msg = missing.length
+      ? 'Acquisizione completata. Mancano: ' + missing.join(', ')
+      : 'Tutte le foto acquisite ✅'
+    setTimeout(() => showToast(msg), 300)
+  }
+
+  function rapidUpdateBanner() {
+    const banner  = document.getElementById('wc-rapid-banner')
+    const skipBtn = document.getElementById('wc-rapid-skip')
+    if (!banner || !skipBtn) return
+    if (rapidIdx >= 0 && rapidIdx < RAPID_STEPS.length) {
+      const step = RAPID_STEPS[rapidIdx]
+      banner.textContent = 'Step ' + (rapidIdx + 1) + '/' + RAPID_STEPS.length + ' — ' + step.titolo
+      banner.style.display = 'block'
+      skipBtn.style.display = 'inline-flex'
+    } else {
+      banner.style.display = 'none'
+      skipBtn.style.display = 'none'
+    }
+  }
+
+  async function rapidUploadFotoLibera(file) {
+    try {
+      const blob = await compressImage(file)
+      const path = 'visits/' + visitId + '/libera_' + Date.now() + '.jpg'
+      const { error: upErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg' })
+      if (upErr) { showToast('Errore upload foto libera'); return }
+      const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
+      const { data: np, error: dbErr } = await _sb.from('visit_photos')
+        .insert({ visit_id: visitId, tipo: 'libera', storage_path: path, url_pubblico: urlData.publicUrl, ordine: 99 })
+        .select().maybeSingle()
+      if (dbErr || !np) { showToast('Errore salvataggio foto libera'); return }
+      fotoLibere.push(np)
+      renderFotoLibere()
+    } catch(e) { showToast('Errore: ' + e.message) }
   }
 
   // ── KEYBOARD ──────────────────────────────────────────────
