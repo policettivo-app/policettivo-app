@@ -413,6 +413,9 @@
       .vp-section { margin: 12px 0; }
     }
 
+    /* ── EXTRA PHOTOS ROW (sezione G) ───────────────────────── */
+    .extra-photos-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+
     /* ── ACQUISIZIONE RAPIDA ─────────────────────────────────── */
     #wc-rapid-banner { display:none; width:100%; font-size:12px; font-weight:700; color:#FFD008; text-align:center; padding:4px 0 2px; letter-spacing:.3px; }
     #wc-rapid-skip   { display:none; }
@@ -613,6 +616,7 @@
 
     <!-- CAPO -->
     <div class="photo-section-divider">Capo</div>
+    <div id="extra-photos-capo" class="extra-photos-row"></div>
 
     <div class="chip-label ds-chip-label">Linea bipupillare</div>
     <div class="chip-row ds-chip-row">
@@ -647,6 +651,7 @@
 
     <!-- VISIONE -->
     <div class="photo-section-divider" style="margin-top:18px">Visione</div>
+    <div id="extra-photos-visione" class="extra-photos-row"></div>
 
     <div class="chip-label ds-chip-label">Occhiali</div>
     <div class="chip-row ds-chip-row">
@@ -688,6 +693,7 @@
 
     <!-- STOMATOGNATICO -->
     <div class="photo-section-divider" style="margin-top:18px">Stomatognatico</div>
+    <div id="extra-photos-stomato" class="extra-photos-row"></div>
 
     <div class="chip-label ds-chip-label">Apertura bocca — deviazione mento</div>
     <div class="chip-row ds-chip-row">
@@ -1111,6 +1117,7 @@
     if (!visitId && !pidParam) { window.location.href = 'dashboard.html'; return }
 
     buildPhotoGrid()
+    buildExtraPhotos()
 
     if (pidParam && !visitId) await createVisit()
     else await loadVisit()
@@ -1285,15 +1292,6 @@
     })
     gPod.appendChild(podRow)
     grid.appendChild(gPod)
-
-    // ── GRUPPO 4: Test specifici (slot singoli) ───────────────
-    const gExtra = _ppGroup('test-specifici')
-    _ppDivider(gExtra, 'Test Specifici')
-    const extraGrid = document.createElement('div')
-    extraGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;'
-    RAPID_EXTRA_SLOTS.forEach(s => extraGrid.appendChild(buildSingleSlot(s.tipo, s.label)))
-    gExtra.appendChild(extraGrid)
-    grid.appendChild(gExtra)
   }
 
   function buildSingleSlot(tipo, label) {
@@ -1314,6 +1312,15 @@
     wrap.appendChild(slot)
     wrap.appendChild(dateEl)
     return wrap
+  }
+
+  function buildExtraPhotos() {
+    const capo = document.getElementById('extra-photos-capo')
+    const vis  = document.getElementById('extra-photos-visione')
+    const stm  = document.getElementById('extra-photos-stomato')
+    if (capo) { capo.innerHTML = ''; capo.appendChild(buildSingleSlot('capo_frontale','Capo Frontale')); capo.appendChild(buildSingleSlot('capo_profilo','Capo Profilo')) }
+    if (vis)  { vis.innerHTML  = ''; vis.appendChild(buildSingleSlot('convergenza','Convergenza Oculare')) }
+    if (stm)  { stm.innerHTML  = ''; stm.appendChild(buildSingleSlot('stomato_frontale','Stomatognatico Frontale')); stm.appendChild(buildSingleSlot('stomato_profilo','Stomatognatico Profilo')) }
   }
 
   function _ppGroup(key) {
