@@ -872,6 +872,13 @@
   const PHOTO_PLANES       = POSTURAL_PHOTO_PLANES
   const PHOTO_SLOTS_FLAT   = POSTURAL_PHOTO_SLOTS_FLAT
   const PHOTO_SECTIONS     = POSTURAL_PHOTO_SECTIONS
+  const RAPID_EXTRA_SLOTS  = [
+    { tipo:'capo_frontale',    label:'Capo Frontale' },
+    { tipo:'capo_profilo',     label:'Capo Profilo' },
+    { tipo:'stomato_frontale', label:'Stomatognatico Frontale' },
+    { tipo:'stomato_profilo',  label:'Stomatognatico Profilo' },
+    { tipo:'convergenza',      label:'Convergenza Oculare' },
+  ]
   // POSTURAL_OBSERVATIONS loaded from js/postural-component.js
 
   const urlParams    = new URLSearchParams(location.search)
@@ -1022,6 +1029,7 @@
       else photos[p.tipo] = p
     })
     PHOTO_SLOTS_FLAT.forEach(s => updatePhotoSlot(s.tipo))
+    RAPID_EXTRA_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
     renderFotoLibere()
   }
 
@@ -1108,6 +1116,35 @@
     })
     gPod.appendChild(podRow)
     grid.appendChild(gPod)
+
+    // ── GRUPPO 4: Test specifici (slot singoli) ───────────────
+    const gExtra = _ppGroup('test-specifici')
+    _ppDivider(gExtra, 'Test Specifici')
+    const extraGrid = document.createElement('div')
+    extraGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;'
+    RAPID_EXTRA_SLOTS.forEach(s => extraGrid.appendChild(buildSingleSlot(s.tipo, s.label)))
+    gExtra.appendChild(extraGrid)
+    grid.appendChild(gExtra)
+  }
+
+  function buildSingleSlot(tipo, label) {
+    const wrap = document.createElement('div')
+    wrap.className = 'photo-carousel-wrap'
+    const lbl = document.createElement('div')
+    lbl.className = 'photo-carousel-label'
+    lbl.textContent = label
+    const slot = document.createElement('div')
+    slot.className = 'photo-slot'
+    slot.id = 'slot-' + tipo
+    slot.onclick = () => onSlotClick(tipo)
+    slot.innerHTML = '<div class="photo-slot-icon">📷</div><div class="photo-slot-label">' + label + '</div>'
+    const dateEl = document.createElement('div')
+    dateEl.className = 'photo-date-label'
+    dateEl.id = 'date-' + tipo
+    wrap.appendChild(lbl)
+    wrap.appendChild(slot)
+    wrap.appendChild(dateEl)
+    return wrap
   }
 
   function _ppGroup(key) {
@@ -1286,8 +1323,9 @@
     const slot = document.getElementById('slot-' + tipo)
     if (!slot) return
     const p       = photos[tipo]
-    const slotDef = PHOTO_SLOTS_FLAT.find(s => s.tipo === tipo)
-    const label   = slotDef ? slotDef.label : tipo
+    const slotDef  = PHOTO_SLOTS_FLAT.find(s => s.tipo === tipo)
+    const extraDef = RAPID_EXTRA_SLOTS.find(s => s.tipo === tipo)
+    const label    = slotDef ? slotDef.label : (extraDef ? extraDef.label : tipo)
     const noteRow = document.getElementById('note-row-' + tipo)
     const dateEl  = document.getElementById('date-' + tipo)
 
