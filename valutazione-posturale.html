@@ -1028,6 +1028,25 @@
     in_asse: 'In asse', anteriore: 'Anteriore', posteriore: 'Posteriore',
     inversione: 'Inversione', eversione: 'Eversione', neutro: 'Neutro',
   }
+  const EXTRA_NOTE_MAP = {
+    'capo-bipup':'extra-note-capo','capo-incl':'extra-note-capo','capo-rot':'extra-note-capo','capo-mento':'extra-note-capo',
+    'vis-occhiali':'extra-note-visione','vis-occhiali-tipo':'extra-note-visione','vis-lang':'extra-note-visione','vis-conv':'extra-note-visione','vis-dom':'extra-note-visione',
+    'stm-apertura':'extra-note-stomato','stm-atm':'extra-note-stomato','stm-frenulo':'extra-note-stomato',
+    'dent-mancante':'extra-note-stomato',
+  }
+  const EXTRA_PREFIX = {
+    'capo-bipup':'Linea bipupillare','capo-incl':'Inclinazione capo','capo-rot':'Rotazione capo','capo-mento':'Linea del mento',
+    'vis-occhiali':'Occhiali','vis-occhiali-tipo':'Tipo occhiali','vis-lang':'Lang stereo test','vis-conv':'Forza convergenza','vis-dom':'Dominanza visiva',
+    'stm-apertura':'Apertura bocca','stm-atm':'ATM','stm-frenulo':'Frenulo',
+    'dent-mancante':'Dentatura mancante',
+  }
+  const EXTRA_LABELS = {
+    simm:'Simmetrica', dx:'Dx', sx:'Sx', neutro:'Allineato/Assente', pron:'Pronunciato', sfug:'Sfuggente',
+    si:'Sì', no:'No', vicino:'Da vicino', lontano:'Da lontano', progr:'Progressivi',
+    ok:'Percepito', ipo_sx:'Ipo sx', ipo_dx:'Ipo dx', nessuna:'Nessuna', bino:'Binoculare',
+    normale:'Normale', corto:'Corto',
+    sup_dx:'Superiore dx', sup_sx:'Superiore sx', inf_dx:'Inferiore dx', inf_sx:'Inferiore sx',
+  }
   let configSug      = null
   let photos         = {}       // tipo → full visit_photos record
   let fotoLibere     = []
@@ -1060,12 +1079,27 @@
 
   // ── SEZIONE G — chip/stato separati ──────────────────────
   function setExtra(group, val) {
-    extraState[group] = extraState[group] === val ? null : val
+    const prev = extraState[group]
+    extraState[group] = prev === val ? null : val
     document.querySelectorAll('[data-eg="'+group+'"]').forEach(c =>
       c.classList.toggle('active', c.dataset.v === extraState[group]))
     if (group === 'vis-occhiali') {
       const box = document.getElementById('occhiali-tipo-box')
       if (box) box.style.display = extraState[group] === 'si' ? 'block' : 'none'
+    }
+    const noteId = EXTRA_NOTE_MAP[group]
+    if (noteId) {
+      const prefix = EXTRA_PREFIX[group] || group
+      if (prev) {
+        const prevEl = document.querySelector('[data-eg="'+group+'"][data-v="'+prev+'"]')
+        const prevLabel = prevEl ? prevEl.textContent.trim() : (EXTRA_LABELS[prev] || prev)
+        _chipToNote(noteId, prefix + ': ' + prevLabel, false)
+      }
+      if (extraState[group]) {
+        const lblEl = document.querySelector('[data-eg="'+group+'"][data-v="'+extraState[group]+'"]')
+        const valLabel = lblEl ? lblEl.textContent.trim() : (EXTRA_LABELS[extraState[group]] || extraState[group])
+        _chipToNote(noteId, prefix + ': ' + valLabel, true)
+      }
     }
     scheduleSave()
   }
@@ -1081,9 +1115,17 @@
   function toggleMulti(group, val) {
     if (!extraMulti[group]) extraMulti[group] = []
     const i = extraMulti[group].indexOf(val)
+    const isAdd = i < 0
     if (i >= 0) extraMulti[group].splice(i,1); else extraMulti[group].push(val)
     document.querySelectorAll('[data-mg="'+group+'"]').forEach(c =>
       c.classList.toggle('active', extraMulti[group].includes(c.dataset.v)))
+    const noteId = EXTRA_NOTE_MAP[group]
+    if (noteId) {
+      const prefix = EXTRA_PREFIX[group] || group
+      const lblEl = document.querySelector('[data-mg="'+group+'"][data-v="'+val+'"]')
+      const valLabel = lblEl ? lblEl.textContent.trim() : (EXTRA_LABELS[val] || val)
+      _chipToNote(noteId, prefix + ': ' + valLabel, isAdd)
+    }
     scheduleSave()
   }
   function restoreMulti(group, arr) {
