@@ -443,6 +443,23 @@
     .vpc-cell-lbl { color:#aaa; font-size:11px; font-weight:600; margin-bottom:6px; }
     .vpc-cell img { width:100%; border-radius:8px; display:block; cursor:pointer; }
     .vpc-cell-empty { background:#1c1c1c; border:1px dashed #444; border-radius:8px; min-height:160px; display:flex; align-items:center; justify-content:center; color:#666; font-size:12px; }
+    .vpc-toolbar { position:sticky; top:52px; background:#1a1a1a; display:flex; gap:14px; align-items:center; flex-wrap:wrap; padding:10px 18px; border-bottom:1px solid #333; z-index:2; }
+    .vpc-seg { display:flex; border:1px solid #444; border-radius:8px; overflow:hidden; }
+    .vpc-seg button { background:transparent; color:#aaa; border:none; padding:7px 14px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+    .vpc-seg button.active { background:#FFD008; color:#000; }
+    .vpc-check { display:flex; align-items:center; gap:6px; color:#aaa; font-size:12px; cursor:pointer; }
+    .vpc-check input { accent-color:#FFD008; width:15px; height:15px; cursor:pointer; }
+    .vpc-photo { position:relative; width:100%; }
+    .vpc-photo img { width:100%; border-radius:8px; display:block; cursor:pointer; }
+    .vpc-grid-svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; border-radius:8px; }
+    .vpc-ss-wrap { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:18px; }
+    .vpc-ss-plane { background:#161616; border-radius:10px; padding:10px; }
+    .vpc-ss-plane-lbl { color:#FFD008; font-size:12px; font-weight:700; text-align:center; margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px; }
+    .vpc-ss-stack > div { margin-bottom:8px; }
+    .vpc-mini-lbl { font-size:10px; font-weight:600; margin-bottom:4px; }
+    .vpc-mini-lbl.pre { color:#aaa; }
+    .vpc-mini-lbl.post { color:#4CAF50; }
+    @media (max-width:600px){ .vpc-ss-wrap{ grid-template-columns:1fr; } }
 
     /* ── VP FULLSCREEN MODAL ─────────────────────────────────── */
     #vp-fullscreen {
@@ -854,6 +871,14 @@
   <div class="vpc-topbar">
     <span class="vpc-title">🔄 Confronto PRE / POST</span>
     <button class="vpc-close" onclick="closeCompare()">✕ Chiudi</button>
+  </div>
+  <div class="vpc-toolbar">
+    <div class="vpc-seg">
+      <button id="vpc-btn-affianca" class="active" onclick="vpcSetLayout('affianca')">Affianca</button>
+      <button id="vpc-btn-soprasotto" onclick="vpcSetLayout('soprasotto')">Sopra / Sotto</button>
+    </div>
+    <label class="vpc-check"><input type="checkbox" id="vpc-griglia" checked onchange="vpcSetGriglia(this.checked)"> Griglia</label>
+    <label class="vpc-check"><input type="checkbox" id="vpc-linea" onchange="vpcSetLinea(this.checked)"> Linea centrale</label>
   </div>
   <div id="vpc-body"></div>
 </div>
@@ -3129,6 +3154,9 @@ ISTRUZIONI:
   ]
   let rapidSteps = RAPID_STEPS_PRE
   let rapidIdx = -1
+  let vpcLayout  = 'affianca'
+  let vpcGriglia = true
+  let vpcLinea   = false
 
   function wcCloseBtn() {
     if (rapidIdx >= 0) { rapidIdx = -1; rapidUpdateBanner() }
@@ -3221,29 +3249,82 @@ ISTRUZIONI:
   }
 
   // ── CONFRONTO PRE/POST ────────────────────────────────────
+  function vpcSetLayout(l) {
+    vpcLayout = l
+    document.getElementById('vpc-btn-affianca').classList.toggle('active', l === 'affianca')
+    document.getElementById('vpc-btn-soprasotto').classList.toggle('active', l === 'soprasotto')
+    renderCompare()
+  }
+  function vpcSetGriglia(v) { vpcGriglia = v; renderCompare() }
+  function vpcSetLinea(v)   { vpcLinea   = v; renderCompare() }
+
+  function vpcGridSvg() {
+    let g = ''
+    if (vpcGriglia) {
+      for (let x = 10; x < 100; x += 10) g += '<line x1="'+x+'" y1="0" x2="'+x+'" y2="133" stroke="rgba(255,208,8,0.15)" stroke-width="0.3"/>'
+      for (let y = 10; y < 133; y += 10) g += '<line x1="0" y1="'+y+'" x2="100" y2="'+y+'" stroke="rgba(255,208,8,0.15)" stroke-width="0.3"/>'
+    }
+    if (vpcLinea) g += '<line x1="50" y1="0" x2="50" y2="133" stroke="rgba(255,100,100,0.6)" stroke-width="0.5" stroke-dasharray="2 2"/>'
+    return '<svg class="vpc-grid-svg" viewBox="0 0 100 133" preserveAspectRatio="none">'+g+'</svg>'
+  }
+  function vpcPhoto(url, alt) {
+    return url
+      ? '<div class="vpc-photo"><img src="'+url+'" alt="'+alt+'" onclick="openVpFullscreen(\''+url+'\')">'+vpcGridSvg()+'</div>'
+      : '<div class="vpc-cell-empty">— assente —</div>'
+  }
+
   function openCompare() {
-    const body = document.getElementById('vpc-body')
-    body.innerHTML = ''
-    let anyShown = false
-    PHOTO_PLANES.forEach(plane => {
-      const pre  = photos[plane.pre.tipo]?.url_pubblico
-      const post = photos[plane.post.tipo]?.url_pubblico
-      if (!pre && !post) return
-      anyShown = true
-      const row = document.createElement('div')
-      row.className = 'vpc-row'
-      const cell = (url, lbl) => url
-        ? '<div class="vpc-cell"><div class="vpc-cell-lbl">'+lbl+'</div><img src="'+url+'" alt="'+lbl+'" onclick="openVpFullscreen(\''+url+'\')"></div>'
-        : '<div class="vpc-cell"><div class="vpc-cell-lbl">'+lbl+'</div><div class="vpc-cell-empty">— assente —</div></div>'
-      row.innerHTML =
-        '<div class="vpc-row-label">'+plane.label+'</div>' +
-        '<div class="vpc-pair">'+ cell(pre,'PRE') + cell(post,'POST 3R') +'</div>'
-      body.appendChild(row)
-    })
-    if (!anyShown) { showToast('Nessuna foto da confrontare'); return }
+    const hasAny = PHOTO_PLANES.some(p => photos[p.pre.tipo]?.url_pubblico || photos[p.post.tipo]?.url_pubblico)
+    if (!hasAny) { showToast('Nessuna foto da confrontare'); return }
+    // sync toolbar checkboxes con stato corrente
+    const cbGriglia = document.getElementById('vpc-griglia')
+    const cbLinea   = document.getElementById('vpc-linea')
+    if (cbGriglia) cbGriglia.checked = vpcGriglia
+    if (cbLinea)   cbLinea.checked   = vpcLinea
     document.getElementById('vp-compare').classList.add('open')
     document.body.style.overflow = 'hidden'
+    renderCompare()
   }
+
+  function renderCompare() {
+    const body = document.getElementById('vpc-body')
+    if (!body) return
+    body.innerHTML = ''
+    const planes = PHOTO_PLANES.filter(p => photos[p.pre.tipo]?.url_pubblico || photos[p.post.tipo]?.url_pubblico)
+
+    if (vpcLayout === 'affianca') {
+      planes.forEach(plane => {
+        const pre  = photos[plane.pre.tipo]?.url_pubblico
+        const post = photos[plane.post.tipo]?.url_pubblico
+        const row = document.createElement('div')
+        row.className = 'vpc-row'
+        const cell = (url, lbl) =>
+          '<div class="vpc-cell"><div class="vpc-cell-lbl">'+lbl+'</div>'+ vpcPhoto(url, lbl) +'</div>'
+        row.innerHTML =
+          '<div class="vpc-row-label">'+plane.label+'</div>' +
+          '<div class="vpc-pair">'+ cell(pre,'PRE') + cell(post,'POST 3R') +'</div>'
+        body.appendChild(row)
+      })
+    } else {
+      const wrap = document.createElement('div')
+      wrap.className = 'vpc-ss-wrap'
+      planes.forEach(plane => {
+        const pre  = photos[plane.pre.tipo]?.url_pubblico
+        const post = photos[plane.post.tipo]?.url_pubblico
+        const block = document.createElement('div')
+        block.className = 'vpc-ss-plane'
+        block.innerHTML =
+          '<div class="vpc-ss-plane-lbl">'+plane.label+'</div>' +
+          '<div class="vpc-ss-stack">' +
+            '<div><div class="vpc-mini-lbl pre">PRE</div>'+ vpcPhoto(pre, plane.label+' PRE') +'</div>' +
+            '<div><div class="vpc-mini-lbl post">POST 3R</div>'+ vpcPhoto(post, plane.label+' POST') +'</div>' +
+          '</div>'
+        wrap.appendChild(block)
+      })
+      body.appendChild(wrap)
+    }
+  }
+
   function closeCompare() {
     document.getElementById('vp-compare').classList.remove('open')
     document.body.style.overflow = ''
