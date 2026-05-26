@@ -880,6 +880,7 @@
     <label class="vpc-check"><input type="checkbox" id="vpc-griglia" checked onchange="vpcSetGriglia(this.checked)"> Griglia</label>
     <label class="vpc-check"><input type="checkbox" id="vpc-linea" onchange="vpcSetLinea(this.checked)"> Linea centrale</label>
     <label class="vpc-check"><input type="checkbox" id="vpc-pdf-griglia"> Griglia nel PDF</label>
+    <label class="vpc-check"><input type="checkbox" id="vpc-pdf-ai"> Commento AI nel PDF</label>
     <button class="vpc-pdf-btn" onclick="generaPdfConfronto()" style="margin-left:auto;background:#fff;color:#000;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-family:inherit;font-size:12px;">📄 PDF Confronto</button>
   </div>
   <div id="vpc-body"></div>
@@ -3338,10 +3339,50 @@ ISTRUZIONI:
     }
   }
 
+  function getNoteVal(field) { return document.getElementById('note-piano-' + field)?.value?.trim() || '' }
+
   async function generaPdfConfronto() {
     const withGrid = !!document.getElementById('vpc-pdf-griglia')?.checked
     const nomePaz  = document.getElementById('hdr-patient-name')?.textContent?.trim() || 'Paziente'
     const dataOggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+
+    let aiComment = ''
+    const wantAI = !!document.getElementById('vpc-pdf-ai')?.checked
+    if (wantAI) {
+      showToast('⏳ Generazione commento AI...')
+      const or = v => v || 'Non riportato'
+      const prompt =
+        'Sei un fisioterapista esperto in valutazione posturale. Scrivi un BREVE commento clinico ' +
+        'di confronto PRE/POST trattamento (tecnica 3 Respiri / cuscini), in italiano formale, terza persona, ' +
+        'massimo 150 parole, SENZA markdown, solo testo discorsivo. Commenta SOLO i dati forniti, NON inventare, ' +
+        'NON descrivere foto (non le vedi). Se i dati sono scarsi, fai un commento generale sintetico.\n\n' +
+        'DATI VALUTAZIONE:\n' +
+        'Piano sagittale: '       + or(getNoteVal('note_sagittale'))          + '\n' +
+        'Piano frontale: '        + or(getNoteVal('note_frontale'))           + '\n' +
+        'Piano posteriore: '      + or(getNoteVal('note_posteriore'))         + '\n' +
+        'Podoscopio plantare: '   + or(getNoteVal('note_podoscopio_sotto'))   + '\n' +
+        'Podoscopio posteriore: ' + or(getNoteVal('note_podoscopio_dietro'))  + '\n' +
+        '3 Respiri scapolare PRE: '  + or(chipState['scap-pre'])  + '\n' +
+        '3 Respiri scapolare POST: ' + or(chipState['scap-post']) + '\n' +
+        'Note finali: '              + or(document.getElementById('f-note-finali')?.value)
+      try {
+        const { data: { session } } = await _sb.auth.getSession()
+        const resp = await fetch('/api/ai-analisi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+          body: JSON.stringify({ prompt, max_tokens: 350 })
+        })
+        const json = await resp.json()
+        if (!resp.ok) {
+          if (resp.status === 403) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
+          showToast('Errore AI: ' + (json.error || resp.status)); return
+        }
+        aiComment = json.testo || ''
+        if (json.ai_uses !== undefined) vpAiUses = json.ai_uses
+      } catch (e) {
+        showToast('Errore AI: ' + e.message); return
+      }
+    }
 
     // Sovrascrive temporaneamente i globali per vpcGridSvg
     const savedGriglia = vpcGriglia, savedLinea = vpcLinea
@@ -3389,6 +3430,7 @@ ISTRUZIONI:
         '<div style="font-size:20px;font-weight:900;margin-bottom:4px">Confronto Posturale PRE / POST 3R</div>' +
         '<div style="font-size:13px;color:#555">' + nomePaz + ' &nbsp;·&nbsp; ' + dataOggi + '</div>' +
       '</div>' +
+      (aiComment ? '<div style="margin-bottom:24px;padding:14px 16px;background:#fff8e0;border-left:4px solid #FFD008;border-radius:6px"><div style="font-size:11px;font-weight:800;color:#b8940a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Sintesi clinica AI</div><div style="font-size:12px;line-height:1.6;color:#333;white-space:pre-wrap">'+aiComment+'</div></div>' : '') +
       gruppiHtml +
       '</body></html>'
 
