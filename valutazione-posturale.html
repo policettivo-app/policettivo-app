@@ -879,6 +879,8 @@
     </div>
     <label class="vpc-check"><input type="checkbox" id="vpc-griglia" checked onchange="vpcSetGriglia(this.checked)"> Griglia</label>
     <label class="vpc-check"><input type="checkbox" id="vpc-linea" onchange="vpcSetLinea(this.checked)"> Linea centrale</label>
+    <label class="vpc-check"><input type="checkbox" id="vpc-pdf-griglia"> Griglia nel PDF</label>
+    <button class="vpc-pdf-btn" onclick="generaPdfConfronto()" style="margin-left:auto;background:#fff;color:#000;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-family:inherit;font-size:12px;">📄 PDF Confronto</button>
   </div>
   <div id="vpc-body"></div>
 </div>
@@ -3333,6 +3335,84 @@ ISTRUZIONI:
           '<div class="vpc-quad-row">'+rowPost+'</div>'
         body.appendChild(g)
       })
+    }
+  }
+
+  async function generaPdfConfronto() {
+    const withGrid = !!document.getElementById('vpc-pdf-griglia')?.checked
+    const nomePaz  = document.getElementById('hdr-patient-name')?.textContent?.trim() || 'Paziente'
+    const dataOggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+
+    // Sovrascrive temporaneamente i globali per vpcGridSvg
+    const savedGriglia = vpcGriglia, savedLinea = vpcLinea
+    vpcGriglia = withGrid
+    vpcLinea   = false
+
+    const fotoTag = (url, label) => url
+      ? '<div style="position:relative;flex:1;min-width:0;text-align:center">' +
+          '<div style="font-size:10px;font-weight:600;color:#666;margin-bottom:4px">' + label + '</div>' +
+          '<div style="position:relative">' +
+            '<img src="' + url + '" style="width:100%;border-radius:6px;display:block;object-fit:contain">' +
+            (withGrid ? vpcGridSvg() : '') +
+          '</div>' +
+        '</div>'
+      : '<div style="flex:1;text-align:center;color:#bbb;font-size:10px;padding:30px 0">— assente —</div>'
+
+    let gruppiHtml = ''
+    VPC_GRUPPI.forEach(gruppo => {
+      const planesG = gruppo.planes
+        .map(pk => PHOTO_PLANES.find(p => p.plane === pk))
+        .filter(p => p && (photos[p.pre.tipo]?.url_pubblico || photos[p.post.tipo]?.url_pubblico))
+      if (!planesG.length) return
+      const rowPre  = planesG.map(p => fotoTag(photos[p.pre.tipo]?.url_pubblico,  p.label + ' — PRE')).join('')
+      const rowPost = planesG.map(p => fotoTag(photos[p.post.tipo]?.url_pubblico, p.label + ' — POST 3R')).join('')
+      gruppiHtml +=
+        '<div style="page-break-inside:avoid;margin-bottom:28px">' +
+          '<div style="color:#b8940a;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;border-bottom:1px solid #ddd;padding-bottom:6px">' + gruppo.titolo + '</div>' +
+          '<div style="display:flex;gap:12px;margin-bottom:10px">' + rowPre  + '</div>' +
+          '<div style="display:flex;gap:12px">'                    + rowPost + '</div>' +
+        '</div>'
+    })
+
+    vpcGriglia = savedGriglia
+    vpcLinea   = savedLinea
+
+    if (!gruppiHtml) { showToast('Nessuna foto da includere nel PDF'); return }
+
+    const fullHtml =
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
+      '*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}' +
+      'body{margin:0;padding:24px;background:#fff;font-family:system-ui,sans-serif;color:#111}' +
+      'img{max-width:100%}' +
+      '</style></head><body>' +
+      '<div style="margin-bottom:24px;border-bottom:2px solid #b8940a;padding-bottom:12px">' +
+        '<div style="font-size:20px;font-weight:900;margin-bottom:4px">Confronto Posturale PRE / POST 3R</div>' +
+        '<div style="font-size:13px;color:#555">' + nomePaz + ' &nbsp;·&nbsp; ' + dataOggi + '</div>' +
+      '</div>' +
+      gruppiHtml +
+      '</body></html>'
+
+    showToast('⏳ Generazione PDF...')
+    try {
+      const resp = await fetch('/api/pdf-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html: fullHtml, filename: 'confronto_posturale.pdf' })
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        if (resp.status >= 500) throw new Error('Riprova tra qualche secondo (avvio server)')
+        throw new Error(err.error || ('HTTP ' + resp.status))
+      }
+      const pdfBlob = await resp.blob()
+      const dlUrl = URL.createObjectURL(pdfBlob)
+      const a = document.createElement('a')
+      a.href = dlUrl; a.download = 'confronto_posturale.pdf'; a.click()
+      URL.revokeObjectURL(dlUrl)
+      showToast('✅ PDF scaricato')
+    } catch (e) {
+      console.error('[PDF Confronto]', e)
+      showToast('Errore: ' + e.message)
     }
   }
 
