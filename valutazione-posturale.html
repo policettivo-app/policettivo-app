@@ -1095,6 +1095,8 @@
   // Upload menu state
   let umTipo = null
   let umIsReplace = false
+  let umCallback = null
+  let pendingFileCallback = null
 
   // Webcam state
   let wcStream       = null
@@ -1732,9 +1734,10 @@
   }
 
   // ── UPLOAD MENU ────────────────────────────────────────────
-  function showUploadMenu(tipo, isReplace) {
+  function showUploadMenu(tipo, isReplace, callback) {
     umTipo      = tipo
     umIsReplace = !!isReplace
+    umCallback  = callback || null
     const modal = document.getElementById('upload-menu-modal')
     modal.classList.add('open')
     // Evidenzia l'ultima scelta
@@ -1747,23 +1750,26 @@
     if (e && e.target !== document.getElementById('upload-menu-modal')) return
     document.getElementById('upload-menu-modal').classList.remove('open')
     umTipo = null
+    if (umCallback) { umCallback = null; if (rapidIdx >= 0) { rapidIdx = -1; rapidUpdateBanner() } }
   }
 
   function umChooseWebcam() {
     document.getElementById('upload-menu-modal').classList.remove('open')
     localStorage.setItem('posturale_upload_pref', 'webcam')
-    openWebcamModal(umTipo, umIsReplace, null)
-    umTipo = null
+    const cb = umCallback
+    openWebcamModal(umTipo, umIsReplace, cb)
+    umTipo = null; umCallback = null
   }
 
   function umChooseFile() {
     document.getElementById('upload-menu-modal').classList.remove('open')
     localStorage.setItem('posturale_upload_pref', 'file')
     if (umIsReplace) { replaceSlotTipo = umTipo } else { activeSlotTipo = umTipo }
+    pendingFileCallback = umCallback
     const inp = document.getElementById('photo-file-input')
     inp.value = ''
     inp.click()
-    umTipo = null
+    umTipo = null; umCallback = null
   }
 
   // ── WEBCAM MODAL ───────────────────────────────────────────
@@ -2010,6 +2016,11 @@
   async function onPhotoFileSelected(event) {
     const file = event.target.files[0]
     if (!file) return
+    if (pendingFileCallback) {
+      const cb = pendingFileCallback; pendingFileCallback = null
+      activeSlotTipo = null; replaceSlotTipo = null
+      cb(file); return
+    }
     const tipo      = activeSlotTipo || replaceSlotTipo
     const isReplace = !!replaceSlotTipo
     activeSlotTipo  = null
@@ -3142,13 +3153,13 @@ ISTRUZIONI:
     if (rapidIdx >= rapidSteps.length) { rapidFinish(); return }
     const step = rapidSteps[rapidIdx]
     if (step.tipo === 'libera') {
-      openWebcamModal(null, false, async file => {
+      showUploadMenu('libera', false, async file => {
         await rapidUploadFotoLibera(file)
         if (navigator.vibrate) navigator.vibrate(40)
         rapidNext()
       })
     } else {
-      openWebcamModal(step.tipo, false, async file => {
+      showUploadMenu(step.tipo, false, async file => {
         await uploadPhoto(file, step.tipo, false)
         if (navigator.vibrate) navigator.vibrate(40)
         rapidNext()
@@ -3246,7 +3257,7 @@ ISTRUZIONI:
     if (document.getElementById('vp-compare').classList.contains('open')) { closeCompare(); return }
     if (document.getElementById('vp-fullscreen').classList.contains('open')) { closeVpFullscreen(); return }
     if (document.getElementById('webcam-modal').classList.contains('open')) { closeWebcamModal(); return }
-    if (document.getElementById('upload-menu-modal').classList.contains('open')) { document.getElementById('upload-menu-modal').classList.remove('open'); umTipo = null; return }
+    if (document.getElementById('upload-menu-modal').classList.contains('open')) { document.getElementById('upload-menu-modal').classList.remove('open'); umTipo = null; if (umCallback) { umCallback = null; if (rapidIdx >= 0) { rapidIdx = -1; rapidUpdateBanner() } } return }
     closeLightbox(); closeMonoInfo(); closeFotoLiberaModal()
     document.querySelectorAll('.obs-dropdown-panel.open').forEach(p => p.classList.remove('open')); _obsOpenPiano = null
   })
