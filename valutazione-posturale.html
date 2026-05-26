@@ -452,14 +452,14 @@
     .vpc-photo { position:relative; width:100%; }
     .vpc-photo img { width:100%; border-radius:8px; display:block; cursor:pointer; }
     .vpc-grid-svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; border-radius:8px; }
-    .vpc-ss-wrap { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:18px; }
-    .vpc-ss-plane { background:#161616; border-radius:10px; padding:10px; }
-    .vpc-ss-plane-lbl { color:#FFD008; font-size:12px; font-weight:700; text-align:center; margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px; }
-    .vpc-ss-stack > div { margin-bottom:8px; }
-    .vpc-mini-lbl { font-size:10px; font-weight:600; margin-bottom:4px; }
-    .vpc-mini-lbl.pre { color:#aaa; }
-    .vpc-mini-lbl.post { color:#4CAF50; }
-    @media (max-width:600px){ .vpc-ss-wrap{ grid-template-columns:1fr; } }
+    .vpc-gruppo { padding:18px; border-bottom:1px solid #222; }
+    .vpc-gruppo-titolo { color:#FFD008; font-size:14px; font-weight:800; margin-bottom:14px; text-transform:uppercase; letter-spacing:.5px; }
+    .vpc-quad-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+    .vpc-quad-cell { text-align:center; }
+    .vpc-quad-cell-lbl { font-size:10px; font-weight:600; margin-bottom:5px; }
+    .vpc-quad-cell-lbl.pre { color:#aaa; }
+    .vpc-quad-cell-lbl.post { color:#4CAF50; }
+    @media (max-width:600px){ .vpc-quad-row{ grid-template-columns:1fr 1fr; } }
 
     /* ── VP FULLSCREEN MODAL ─────────────────────────────────── */
     #vp-fullscreen {
@@ -874,8 +874,8 @@
   </div>
   <div class="vpc-toolbar">
     <div class="vpc-seg">
-      <button id="vpc-btn-affianca" class="active" onclick="vpcSetLayout('affianca')">Affianca</button>
-      <button id="vpc-btn-soprasotto" onclick="vpcSetLayout('soprasotto')">Sopra / Sotto</button>
+      <button id="vpc-btn-gruppi" class="active" onclick="vpcSetLayout('gruppi')">Confronto</button>
+      <button id="vpc-btn-affianca" onclick="vpcSetLayout('affianca')">Affianca</button>
     </div>
     <label class="vpc-check"><input type="checkbox" id="vpc-griglia" checked onchange="vpcSetGriglia(this.checked)"> Griglia</label>
     <label class="vpc-check"><input type="checkbox" id="vpc-linea" onchange="vpcSetLinea(this.checked)"> Linea centrale</label>
@@ -3154,7 +3154,7 @@ ISTRUZIONI:
   ]
   let rapidSteps = RAPID_STEPS_PRE
   let rapidIdx = -1
-  let vpcLayout  = 'affianca'
+  let vpcLayout  = 'gruppi'
   let vpcGriglia = true
   let vpcLinea   = false
 
@@ -3249,10 +3249,16 @@ ISTRUZIONI:
   }
 
   // ── CONFRONTO PRE/POST ────────────────────────────────────
+  const VPC_GRUPPI = [
+    { titolo: 'Piano Sagittale',                  planes: ['sagittale_sx', 'sagittale_dx'] },
+    { titolo: 'Tronco — Frontale e Posteriore',   planes: ['frontale', 'posteriore'] },
+    { titolo: 'Piedi e Arti Inferiori',            planes: ['podoscopio_sotto', 'podoscopio_dietro'] },
+  ]
+
   function vpcSetLayout(l) {
     vpcLayout = l
+    document.getElementById('vpc-btn-gruppi').classList.toggle('active', l === 'gruppi')
     document.getElementById('vpc-btn-affianca').classList.toggle('active', l === 'affianca')
-    document.getElementById('vpc-btn-soprasotto').classList.toggle('active', l === 'soprasotto')
     renderCompare()
   }
   function vpcSetGriglia(v) { vpcGriglia = v; renderCompare() }
@@ -3276,11 +3282,13 @@ ISTRUZIONI:
   function openCompare() {
     const hasAny = PHOTO_PLANES.some(p => photos[p.pre.tipo]?.url_pubblico || photos[p.post.tipo]?.url_pubblico)
     if (!hasAny) { showToast('Nessuna foto da confrontare'); return }
-    // sync toolbar checkboxes con stato corrente
+    // sync toolbar
     const cbGriglia = document.getElementById('vpc-griglia')
     const cbLinea   = document.getElementById('vpc-linea')
     if (cbGriglia) cbGriglia.checked = vpcGriglia
     if (cbLinea)   cbLinea.checked   = vpcLinea
+    document.getElementById('vpc-btn-gruppi')?.classList.toggle('active', vpcLayout === 'gruppi')
+    document.getElementById('vpc-btn-affianca')?.classList.toggle('active', vpcLayout === 'affianca')
     document.getElementById('vp-compare').classList.add('open')
     document.body.style.overflow = 'hidden'
     renderCompare()
@@ -3305,23 +3313,26 @@ ISTRUZIONI:
           '<div class="vpc-pair">'+ cell(pre,'PRE') + cell(post,'POST 3R') +'</div>'
         body.appendChild(row)
       })
-    } else {
-      const wrap = document.createElement('div')
-      wrap.className = 'vpc-ss-wrap'
-      planes.forEach(plane => {
-        const pre  = photos[plane.pre.tipo]?.url_pubblico
-        const post = photos[plane.post.tipo]?.url_pubblico
-        const block = document.createElement('div')
-        block.className = 'vpc-ss-plane'
-        block.innerHTML =
-          '<div class="vpc-ss-plane-lbl">'+plane.label+'</div>' +
-          '<div class="vpc-ss-stack">' +
-            '<div><div class="vpc-mini-lbl pre">PRE</div>'+ vpcPhoto(pre, plane.label+' PRE') +'</div>' +
-            '<div><div class="vpc-mini-lbl post">POST 3R</div>'+ vpcPhoto(post, plane.label+' POST') +'</div>' +
-          '</div>'
-        wrap.appendChild(block)
+    } else {  // 'gruppi'
+      VPC_GRUPPI.forEach(gruppo => {
+        const planesG = gruppo.planes
+          .map(pk => PHOTO_PLANES.find(p => p.plane === pk))
+          .filter(p => p && (photos[p.pre.tipo]?.url_pubblico || photos[p.post.tipo]?.url_pubblico))
+        if (!planesG.length) return
+        const g = document.createElement('div')
+        g.className = 'vpc-gruppo'
+        const rowPre = planesG.map(p =>
+          '<div class="vpc-quad-cell"><div class="vpc-quad-cell-lbl pre">'+p.label+' — PRE</div>'+ vpcPhoto(photos[p.pre.tipo]?.url_pubblico, p.label+' PRE') +'</div>'
+        ).join('')
+        const rowPost = planesG.map(p =>
+          '<div class="vpc-quad-cell"><div class="vpc-quad-cell-lbl post">'+p.label+' — POST 3R</div>'+ vpcPhoto(photos[p.post.tipo]?.url_pubblico, p.label+' POST') +'</div>'
+        ).join('')
+        g.innerHTML =
+          '<div class="vpc-gruppo-titolo">'+gruppo.titolo+'</div>' +
+          '<div class="vpc-quad-row">'+rowPre+'</div>' +
+          '<div class="vpc-quad-row">'+rowPost+'</div>'
+        body.appendChild(g)
       })
-      body.appendChild(wrap)
     }
   }
 
