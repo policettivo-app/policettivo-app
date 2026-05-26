@@ -419,6 +419,16 @@
     /* ── ACQUISIZIONE RAPIDA ─────────────────────────────────── */
     #wc-rapid-banner { display:none; width:100%; font-size:12px; font-weight:700; color:#FFD008; text-align:center; padding:4px 0 2px; letter-spacing:.3px; }
     #wc-rapid-skip   { display:none; }
+    .rapid-fase-modal  { display:none; position:fixed; inset:0; z-index:1300; background:rgba(0,0,0,.5); align-items:center; justify-content:center; }
+    .rapid-fase-modal.open { display:flex; }
+    .rapid-fase-box    { background:#fff; border-radius:16px; padding:22px; width:90%; max-width:380px; text-align:center; }
+    .rapid-fase-title  { font-size:18px; font-weight:800; margin-bottom:4px; }
+    .rapid-fase-sub    { font-size:13px; color:#888; margin-bottom:18px; }
+    .rapid-fase-btn    { display:block; width:100%; border:none; border-radius:12px; padding:14px; margin-bottom:10px; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer; line-height:1.3; }
+    .rapid-fase-btn small { font-weight:500; opacity:.7; font-size:11px; }
+    .rapid-fase-pre    { background:#FFD008; color:#000; }
+    .rapid-fase-post   { background:#222; color:#fff; }
+    .rapid-fase-cancel { background:none; border:none; color:#888; font-size:13px; cursor:pointer; margin-top:4px; font-family:inherit; }
 
     /* ── VP FULLSCREEN MODAL ─────────────────────────────────── */
     #vp-fullscreen {
@@ -567,7 +577,7 @@
   <section class="vp-section ds-section">
     <div class="vp-sec-title ds-section-title">
       <span class="vp-sec-badge ds-section-badge">B</span> Foto posturali
-      <button onclick="rapidStart()" style="margin-left:auto;background:#FFD008;color:#000;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">📷 Acquisizione Rapida</button>
+      <button onclick="rapidChooseFase()" style="margin-left:auto;background:#FFD008;color:#000;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">📷 Acquisizione Rapida</button>
     </div>
     <div class="photo-grid pp-layout-wide" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
   </section>
@@ -3058,7 +3068,7 @@ ISTRUZIONI:
   }
 
   // ── ACQUISIZIONE RAPIDA ───────────────────────────────────
-  const RAPID_STEPS = [
+  const RAPID_STEPS_PRE = [
     { tipo:'frontale_pre',          titolo:'Frontale' },
     { tipo:'posteriore_pre',        titolo:'Posteriore' },
     { tipo:'sagittale_sx_pre',      titolo:'Sagittale Sinistra' },
@@ -3072,6 +3082,15 @@ ISTRUZIONI:
     { tipo:'stomato_profilo',       titolo:'Stomatognatico Profilo' },
     { tipo:'libera',                titolo:'Foto Opzionale (puoi saltare)' },
   ]
+  const RAPID_STEPS_POST = [
+    { tipo:'frontale_post',          titolo:'Frontale (POST)' },
+    { tipo:'posteriore_post',        titolo:'Posteriore (POST)' },
+    { tipo:'sagittale_sx_post',      titolo:'Sagittale Sinistra (POST)' },
+    { tipo:'sagittale_dx_post',      titolo:'Sagittale Destra (POST)' },
+    { tipo:'podoscopio_sotto_post',  titolo:'Plantare / Podoscopio (POST)' },
+    { tipo:'podoscopio_dietro_post', titolo:'Arti Inferiori Posteriori (POST)' },
+  ]
+  let rapidSteps = RAPID_STEPS_PRE
   let rapidIdx = -1
 
   function wcCloseBtn() {
@@ -3079,14 +3098,23 @@ ISTRUZIONI:
     closeWebcamModal()
   }
 
-  function rapidStart() {
+  function rapidChooseFase() {
+    document.getElementById('rapid-fase-modal').classList.add('open')
+  }
+  function rapidPickFase(fase) {
+    document.getElementById('rapid-fase-modal').classList.remove('open')
+    rapidStart(fase)
+  }
+
+  function rapidStart(fase) {
+    rapidSteps = (fase === 'post') ? RAPID_STEPS_POST : RAPID_STEPS_PRE
     rapidIdx = 0
     rapidOpenCurrent()
   }
 
   function rapidOpenCurrent() {
-    if (rapidIdx >= RAPID_STEPS.length) { rapidFinish(); return }
-    const step = RAPID_STEPS[rapidIdx]
+    if (rapidIdx >= rapidSteps.length) { rapidFinish(); return }
+    const step = rapidSteps[rapidIdx]
     if (step.tipo === 'libera') {
       openWebcamModal(null, false, async file => {
         await rapidUploadFotoLibera(file)
@@ -3115,7 +3143,7 @@ ISTRUZIONI:
   function rapidFinish() {
     rapidIdx = -1
     rapidUpdateBanner()
-    const missing = RAPID_STEPS
+    const missing = rapidSteps
       .filter(s => s.tipo !== 'libera' && !photos[s.tipo])
       .map(s => s.titolo)
     const msg = missing.length
@@ -3128,9 +3156,9 @@ ISTRUZIONI:
     const banner  = document.getElementById('wc-rapid-banner')
     const skipBtn = document.getElementById('wc-rapid-skip')
     if (!banner || !skipBtn) return
-    if (rapidIdx >= 0 && rapidIdx < RAPID_STEPS.length) {
-      const step = RAPID_STEPS[rapidIdx]
-      banner.textContent = 'Step ' + (rapidIdx + 1) + '/' + RAPID_STEPS.length + ' — ' + step.titolo
+    if (rapidIdx >= 0 && rapidIdx < rapidSteps.length) {
+      const step = rapidSteps[rapidIdx]
+      banner.textContent = 'Step ' + (rapidIdx + 1) + '/' + rapidSteps.length + ' — ' + step.titolo
       banner.style.display = 'block'
       skipBtn.style.display = 'inline-flex'
     } else {
@@ -3169,5 +3197,16 @@ ISTRUZIONI:
 
   init()
 </script>
+
+<!-- RAPID FASE MODAL -->
+<div id="rapid-fase-modal" class="rapid-fase-modal">
+  <div class="rapid-fase-box">
+    <div class="rapid-fase-title">📷 Acquisizione Rapida</div>
+    <div class="rapid-fase-sub">Quale fase vuoi acquisire?</div>
+    <button class="rapid-fase-btn rapid-fase-pre"  onclick="rapidPickFase('pre')">PRE — Valutazione iniziale<br><small>12 step: piani + capo, visione, stomatognatico</small></button>
+    <button class="rapid-fase-btn rapid-fase-post" onclick="rapidPickFase('post')">POST 3R — Dopo trattamento<br><small>6 step: solo piani posturali</small></button>
+    <button class="rapid-fase-cancel" onclick="document.getElementById('rapid-fase-modal').classList.remove('open')">Annulla</button>
+  </div>
+</div>
 </body>
 </html>
