@@ -238,7 +238,14 @@
     async function loadAll() {
       const { data: profs } = await _supabase.from('professionals').select('*, profiles(*)').order('created_at', { ascending: false })
       const { data: pazienti } = await _supabase.from('patients').select('id')
-      const { data: inviti } = await _supabase.from('invites').select('*').eq('usato', false).order('created_at', { ascending: false })
+      const adminToken_li = await getAdminToken()
+      const _rInv = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken_li },
+        body: JSON.stringify({ action: 'list-invites' })
+      })
+      const _jInv = await _rInv.json()
+      const inviti = _jInv.inviti || []
       const { data: sessioni } = await _supabase.from('diary_entries').select('id')
 
       document.getElementById('stat-prof').textContent = profs ? profs.length : 0
@@ -453,7 +460,15 @@
       const nome = document.getElementById('invite-nome').value.trim()
       if (!nome) { alert('Inserisci il nome del professionista'); return }
       const email = document.getElementById('invite-email').value.trim()
-      const { data, error } = await _supabase.from('invites').insert({ nome, email: email || null }).select().single()
+      const adminToken_ci = await getAdminToken()
+      const _rCi = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken_ci },
+        body: JSON.stringify({ action: 'create-invite', nome, email: email || null })
+      })
+      const _jCi = await _rCi.json()
+      const data = _jCi.invito
+      const error = _jCi.error ? { message: _jCi.error } : null
       if (error) { alert('Errore: ' + error.message); return }
       lastInviteLink = 'https://policettivo-app.vercel.app/registrazione.html?token=' + data.token
       document.getElementById('invite-link-text').textContent = lastInviteLink
@@ -475,7 +490,12 @@
 
     async function eliminaInvito(id) {
       if (!confirm('Eliminare questo invito?')) return
-      await _supabase.from('invites').delete().eq('id', id)
+      const adminToken_di = await getAdminToken()
+      await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken_di },
+        body: JSON.stringify({ action: 'delete-invite', id })
+      })
       loadAll()
     }
 

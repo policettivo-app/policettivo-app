@@ -106,8 +106,14 @@
 
     async function init() {
       if (!token) return
-      const { data, error } = await _supabase.from('invites').select('*').eq('token', token).eq('usato', false).maybeSingle()
-      if (error || !data) return
+      const _rInv = await fetch('/api/invite-public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get-invite', token })
+      })
+      const _jInv = await _rInv.json()
+      const data = _jInv.invito
+      if (!data) return
       inviteData = data
       const banner = document.getElementById('invite-banner')
       banner.innerHTML = data.nome
@@ -171,7 +177,11 @@
       if (profError) { showError('Errore salvataggio dati: ' + profError.message); btn.disabled = false; btn.textContent = 'Crea account gratuitamente'; return }
 
       if (token) {
-        await _supabase.from('invites').update({ usato: true, used_at: new Date().toISOString() }).eq('token', token)
+        await fetch('/api/invite-public', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'consume-invite', token })
+        })
       }
 
       document.getElementById('success-email').textContent = email
