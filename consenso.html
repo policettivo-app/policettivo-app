@@ -22,11 +22,24 @@
     .checkbox-row input { margin-top: 2px; flex-shrink: 0; accent-color: #FFD008; width: 18px; height: 18px; cursor: pointer; }
     .checkbox-label { font-size: 13px; color: #aaa; line-height: 1.5; }
     .checkbox-label strong { color: #fff; }
+    .link-doc { color: #FFD008; text-decoration: underline; cursor: pointer; }
     .btn-accetta { width: 100%; padding: 16px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 20px; }
     .btn-accetta:disabled { background: #333; color: #666; cursor: not-allowed; }
     .btn-accetta:not(:disabled):hover { background: #e6bc00; }
     .note-legale { font-size: 10px; color: #444; margin-top: 14px; text-align: center; line-height: 1.5; }
     .errore { font-size: 12px; color: #ff6b6b; margin-top: 12px; text-align: center; display: none; }
+    /* Overlay documenti */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .overlay.open { display: flex; }
+    .doc-box { background: #111; border: 1px solid #333; border-radius: 16px; max-width: 560px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; }
+    .doc-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid #222; }
+    .doc-head h2 { font-size: 15px; font-weight: 700; color: #fff; }
+    .doc-close { background: none; border: none; color: #888; font-size: 24px; cursor: pointer; line-height: 1; }
+    .doc-body { padding: 22px; overflow-y: auto; font-size: 12.5px; color: #bbb; line-height: 1.7; }
+    .doc-body h3 { color: #FFD008; font-size: 12px; font-weight: 700; margin: 16px 0 4px; }
+    .doc-body h3:first-child { margin-top: 0; }
+    .doc-body p { margin-bottom: 4px; }
+    .doc-body em { color: #777; font-size: 11px; }
   </style>
 </head>
 <body>
@@ -59,7 +72,7 @@
 
     <label class="checkbox-row">
       <input type="checkbox" id="check1" onchange="checkAll()">
-      <span class="checkbox-label">Ho letto l'informativa sulla privacy e acconsento al <strong>trattamento dei miei dati sanitari</strong> da parte del professionista che mi segue.</span>
+      <span class="checkbox-label">Ho letto l'<span class="link-doc" onclick="apriDoc(event,'privacy')">informativa sulla privacy</span> e acconsento al <strong>trattamento dei miei dati sanitari</strong> (inclusi foto, video e documenti clinici) da parte del professionista che mi segue.</span>
     </label>
 
     <label class="checkbox-row">
@@ -69,7 +82,7 @@
 
     <label class="checkbox-row">
       <input type="checkbox" id="check3" onchange="checkAll()">
-      <span class="checkbox-label">Accetto i <strong>Termini di utilizzo</strong> dell'app Policettivo.</span>
+      <span class="checkbox-label">Accetto i <span class="link-doc" onclick="apriDoc(event,'termini')">Termini di utilizzo</span> dell'app Policettivo.</span>
     </label>
 
     <label class="checkbox-row">
@@ -83,14 +96,80 @@
     <div class="note-legale">Titolare del trattamento dei dati sanitari: il professionista che ti ha assegnato il protocollo. Policettivo (PHYSIOMOOD srl) agisce come responsabile del trattamento. Puoi richiedere la cancellazione dei tuoi dati in qualsiasi momento contattando il tuo professionista.</div>
   </div>
 
+  <!-- Overlay PRIVACY -->
+  <div class="overlay" id="overlay-privacy">
+    <div class="doc-box">
+      <div class="doc-head">
+        <h2>Informativa sul trattamento dei dati personali</h2>
+        <button class="doc-close" onclick="chiudiDoc('privacy')">&times;</button>
+      </div>
+      <div class="doc-body">
+        <p><em>(art. 13 Regolamento UE 2016/679 - GDPR)</em></p>
+        <h3>1. Titolare del trattamento</h3>
+        <p>Il titolare e il professionista sanitario che ti ha in cura e che ti ha fornito l'accesso a questa applicazione, contattabile ai recapiti che ti ha comunicato. Il professionista e il responsabile delle decisioni sul trattamento dei tuoi dati clinici.</p>
+        <h3>2. Responsabile del trattamento</h3>
+        <p>La piattaforma tecnologica e fornita da PHYSIOMOOD S.r.l., Via Risorgimento 167, 31020 San Zenone degli Ezzelini (TV), P.IVA IT05136420261, email segreteria@physiomood.com. PHYSIOMOOD tratta i dati esclusivamente per conto del professionista, in qualita di responsabile del trattamento, e non li utilizza per finalita proprie.</p>
+        <h3>3. Categorie di dati trattati</h3>
+        <p>Vengono trattati: dati anagrafici (nome, cognome, data di nascita, sesso, codice fiscale, indirizzo); dati di contatto (telefono, email); e dati relativi alla salute (categoria particolare, art. 9 GDPR), tra cui: problema clinico, professione e attivita fisica, allergie, farmaci in uso, patologie pregresse, interventi chirurgici, medico curante e specialisti, valutazioni posturali e funzionali, diario dei sintomi, note cliniche, nonche fotografie, video, documenti clinici e referti (es. radiografie, visite specialistiche, esami) che tu o il professionista caricate nell'applicazione.</p>
+        <h3>4. Finalita del trattamento</h3>
+        <p>I dati sono trattati unicamente per: l'erogazione del percorso fisioterapico, posturale, di terapia e/o cura erogata dal professionista, l'assegnazione e il monitoraggio del protocollo di esercizi, la gestione del diario clinico, la redazione di relazioni e la documentazione sanitaria connessa alla tua cura. I dati non sono utilizzati per finalita diverse da quelle qui indicate.</p>
+        <h3>5. Base giuridica</h3>
+        <p>Il trattamento dei dati sanitari si fonda sul tuo consenso esplicito (art. 9, par. 2, lett. a GDPR) e sulla finalita di cura sanitaria (art. 9, par. 2, lett. h GDPR).</p>
+        <h3>6. Modalita e conservazione</h3>
+        <p>I dati sono conservati su infrastruttura sicura con accesso protetto. Sono conservati per il tempo necessario alle finalita di cura e per gli obblighi di legge applicabili alla documentazione sanitaria, dopodiche sono cancellati o anonimizzati.</p>
+        <h3>7. Comunicazione dei dati</h3>
+        <p>I dati non sono diffusi ne ceduti a terzi per finalita commerciali. Possono essere trattati da PHYSIOMOOD (responsabile) e dai fornitori tecnici strettamente necessari al funzionamento del servizio, vincolati alla riservatezza.</p>
+        <h3>8. I tuoi diritti</h3>
+        <p>Puoi in ogni momento esercitare i diritti previsti dagli artt. 15-22 GDPR: accesso, rettifica, cancellazione, limitazione, opposizione, portabilita, e revoca del consenso (senza pregiudicare i trattamenti gia effettuati). Per esercitarli, contatta il professionista che ti ha in cura. Hai inoltre diritto di proporre reclamo al Garante per la protezione dei dati personali.</p>
+        <h3>9. Riservatezza del link di accesso</h3>
+        <p>Il link che hai ricevuto e personale e riservato e consente l'accesso ai tuoi dati. Non condividerlo con nessuno: chiunque ne sia in possesso potra accedere alle tue informazioni. Il professionista e PHYSIOMOOD non rispondono di accessi non autorizzati derivanti dalla condivisione del link da parte tua.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay TERMINI -->
+  <div class="overlay" id="overlay-termini">
+    <div class="doc-box">
+      <div class="doc-head">
+        <h2>Termini di utilizzo</h2>
+        <button class="doc-close" onclick="chiudiDoc('termini')">&times;</button>
+      </div>
+      <div class="doc-body">
+        <h3>1. Oggetto</h3>
+        <p>L'applicazione Policettivo e uno strumento digitale fornito da PHYSIOMOOD S.r.l. che consente al paziente di seguire il protocollo di esercizi assegnato dal proprio professionista sanitario e di registrare i progressi. Serve inoltre a tenere monitorato l'andamento delle terapie o cure erogate, a inquadrare le condizioni cliniche di partenza del paziente e a seguirne l'evoluzione nel tempo. L'applicazione e un supporto al percorso di cura e non sostituisce la visita clinica, la diagnosi o il giudizio del professionista.</p>
+        <h3>2. Natura del servizio</h3>
+        <p>I contenuti, gli esercizi e le indicazioni presenti nell'applicazione sono selezionati e assegnati dal professionista che ti ha in cura. PHYSIOMOOD fornisce la sola infrastruttura tecnologica e non eroga prestazioni sanitarie ne fornisce pareri clinici.</p>
+        <h3>3. Uso corretto e sicurezza</h3>
+        <p>Ti impegni a eseguire gli esercizi secondo le indicazioni del professionista. In caso di dolore, malessere o dubbi, interrompi immediatamente e contatta il professionista. Gli esercizi vengono svolti in autonomia dal paziente: poiche il professionista non esercita un monitoraggio diretto e in tempo reale sulla loro esecuzione, non e a lui imputabile alcun infortunio, trauma o danno che il paziente possa cagionare a se stesso o a terzi durante o in conseguenza dell'esecuzione degli esercizi. Resta inteso che la selezione e l'assegnazione del protocollo competono al professionista.</p>
+        <h3>4. Account e link di accesso</h3>
+        <p>L'accesso avviene tramite link personale, che equivale a una credenziale riservata. Sei responsabile della sua custodia e del suo uso. Non condividerlo con terzi.</p>
+        <h3>5. Limitazione di responsabilita</h3>
+        <p>Nei limiti consentiti dalla legge, PHYSIOMOOD non risponde di danni derivanti da: uso improprio dell'applicazione, mancato rispetto delle indicazioni del professionista, condivisione del link di accesso, o interruzioni tecniche del servizio. La responsabilita clinica del percorso di cura resta in capo al professionista.</p>
+        <h3>6. Modifiche</h3>
+        <p>PHYSIOMOOD puo aggiornare l'applicazione e i presenti termini. Le modifiche rilevanti ti saranno comunicate e potra esserti richiesto un nuovo consenso.</p>
+        <h3>7. Legge applicabile</h3>
+        <p>I presenti termini sono regolati dalla legge italiana. Per ogni controversia e competente il foro del luogo di residenza del consumatore, ove previsto dalla normativa applicabile.</p>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
-    const DOC_VERSIONE = '1.0'  // incrementare quando cambia l'informativa
+    const DOC_VERSIONE = '1.0'
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
+
+    function apriDoc(e, nome) {
+      e.preventDefault()
+      e.stopPropagation()
+      document.getElementById('overlay-' + nome).classList.add('open')
+    }
+    function chiudiDoc(nome) {
+      document.getElementById('overlay-' + nome).classList.remove('open')
+    }
 
     function checkAll() {
       const ok = document.getElementById('check1').checked &&
@@ -127,7 +206,6 @@
           throw new Error(error ? error.message : 'Registrazione non riuscita')
         }
 
-        // Consenso registrato nel DB con successo -> prosegui
         window.location.href = 'protocollo.html?token=' + token
       } catch (e) {
         err.style.display = 'block'
