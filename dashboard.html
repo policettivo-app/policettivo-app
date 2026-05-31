@@ -1135,6 +1135,13 @@
       try {
         const consenso = document.getElementById('f-consenso-privacy').checked
         const consenso_ricerca = document.getElementById('f-consenso-ricerca').checked
+
+        // Blocco obbligatorio: il consenso privacy firmato e' una dichiarazione necessaria
+        if (!consenso) {
+          ripristinaBottone()
+          alert('Per proseguire devi confermare di aver raccolto il consenso firmato del paziente al trattamento dei suoi dati personali e sanitari.')
+          return
+        }
         const payload = {
           professional_id: currentProfessionalId,
           nome, cognome,
@@ -1183,6 +1190,19 @@
         }
 
         if (inserted) {
+          // Registra la dichiarazione del professionista nello storico consensi (immutabile)
+          try {
+            await _supabase.from('consents').insert({
+              soggetto_tipo: 'professionista',
+              professional_id: currentProfessionalId,
+              patient_id: inserted.id,
+              documento: 'dichiarazione_consenso_paziente',
+              versione: '1.0',
+              caselle: { consenso_privacy_firmato: true, consenso_ricerca: consenso_ricerca },
+              user_agent: navigator.userAgent
+            })
+          } catch (cErr) { console.warn('[consents] registrazione dichiarazione fallita:', cErr) }
+
           trackRecentPatient(inserted.id)
           window.location.href = 'paziente.html?id=' + inserted.id
         } else {
