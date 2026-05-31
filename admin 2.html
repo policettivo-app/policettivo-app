@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <style>body{visibility:hidden}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .navbar-badge { background: #c62828; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; }
+    .btn-logout { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .main { max-width: 1000px; margin: 0 auto; padding: 36px 24px; }
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; color: #000; }
+    .page-header p { font-size: 13px; color: #666; margin-top: 4px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #eee; text-align: center; }
+    .stat-value { font-size: 32px; font-weight: 700; color: #000; }
+    .stat-value.yellow { color: #FFD008; }
+    .stat-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .section { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; }
+    .btn-primary { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-primary:hover { background: #e6bc00; }
+    .invite-form { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .invite-form input { flex: 1; min-width: 200px; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; }
+    .invite-form input:focus { border-color: #FFD008; }
+    .invite-link-box { background: #f0f9f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #2e7d32; word-break: break-all; margin-top: 12px; display: none; }
+    .invite-link-box.visible { display: block; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .table td { font-size: 13px; color: #333; padding: 12px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    .table tr:last-child td { border-bottom: none; }
+    .table tr:hover td { background: #fffdf0; }
+    .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-attivo { background: #e8f5e9; color: #2e7d32; }
+    .status-bloccato { background: #ffebee; color: #c62828; }
+    .status-invitato { background: #fff8e1; color: #f57f17; }
+    .action-btn { background: transparent; border: 1px solid #ddd; color: #333; padding: 4px 10px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 11px; cursor: pointer; margin-right: 4px; }
+    .action-btn.danger { border-color: #ffcdd2; color: #c62828; }
+    .action-btn.warning { border-color: #ffe082; color: #f57f17; }
+    .action-btn.success { border-color: #c8e6c9; color: #2e7d32; }
+    .empty-state { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+    .copy-btn { background: #000; color: #FFD008; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 8px; }
+    .badge-premium { display: inline-block; background: #2e7d32; color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    .badge-free { display: inline-block; background: #eee; color: #666; padding: 2px 10px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    .btn-csv { background: #000; color: #FFD008; border: none; padding: 8px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-csv:hover { background: #222; }
+    .stats-section { max-width: 100%; overflow-x: auto; }
+    .action-btn.premium-on { border-color: #FFD008; color: #000; background: #FFD008; }
+    .action-btn.premium-off { border-color: #c62828; color: #fff; background: #c62828; }
+    .legend-row { display: flex; gap: 20px; flex-wrap: wrap; font-size: 11px; color: #666; margin-bottom: 14px; }
+    .legend-row span { display: flex; align-items: center; gap: 4px; }
+    /* Side panel */
+    .panel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; }
+    .panel-overlay.open { display: block; }
+    .side-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 500px; max-width: 100vw; background: #fff; z-index: 1001; overflow-y: auto; transform: translateX(100%); transition: transform 0.3s ease; box-shadow: -4px 0 32px rgba(0,0,0,0.25); }
+    .side-panel.open { transform: translateX(0); }
+    .panel-header { background: #000; color: #fff; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .panel-header h2 { font-size: 15px; font-weight: 700; margin: 0; }
+    .panel-close { background: transparent; border: 1px solid #444; color: #fff; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    .panel-body { padding: 24px; }
+    .panel-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 24px; }
+    .panel-tab { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #999; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.15s; }
+    .panel-tab.active { color: #000; border-bottom-color: #FFD008; }
+    .panel-section { display: none; }
+    .panel-section.active { display: block; }
+    .p-label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
+    .p-input { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; margin-bottom: 14px; outline: none; color: #000; }
+    .p-input:focus { border-color: #FFD008; }
+    .p-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .btn-save { width: 100%; padding: 14px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+    .btn-save:hover { background: #e6bc00; }
+    .btn-view-as { width: 100%; padding: 12px; background: #000; color: #fff; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .btn-view-as:hover { background: #222; }
+    .piano-toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 14px; background: #f9f9f9; border-radius: 10px; border: 1px solid #eee; }
+    .piano-toggle-row strong { flex: 1; font-size: 13px; }
+    .btn-toggle-piano { padding: 8px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border: none; }
+    .act-count-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .act-count-box { background: #f5f5f5; border-radius: 10px; padding: 14px; text-align: center; }
+    .act-count-num { font-size: 26px; font-weight: 700; color: #000; }
+    .act-count-lbl { font-size: 11px; color: #999; margin-top: 2px; }
+    .act-section-title { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 18px 0 8px; }
+    .act-item { padding: 9px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+    .act-item:last-child { border-bottom: none; }
+    .act-item-date { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .note-field { width: 100%; padding: 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; resize: vertical; min-height: 150px; outline: none; color: #333; line-height: 1.6; }
+    .note-field:focus { border-color: #FFD008; }
+    .name-link { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+    .name-link:hover { color: #b8960a; }
+    .badge-bloccato { display: inline-block; background: #c62828; color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    .search-bar-admin { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+    .search-input-admin { flex: 1; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; }
+    .search-input-admin:focus { border-color: #FFD008; }
+    .admin-pagination { display: flex; gap: 6px; padding: 14px 0 0; justify-content: center; flex-wrap: wrap; }
+    .admin-pagination-btn { background: #fff; border: 1.5px solid #ddd; color: #333; padding: 6px 12px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; transition: border-color 0.15s; }
+    .admin-pagination-btn:hover:not(:disabled) { border-color: #FFD008; }
+    .admin-pagination-btn.active { background: #FFD008; border-color: #FFD008; color: #000; font-weight: 700; }
+    .admin-pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .fav-btn { background: transparent; border: none; font-size: 16px; cursor: pointer; padding: 0 2px; color: #ccc; transition: color 0.15s; line-height: 1; }
+    .fav-btn.active { color: #FFD008; }
+    .fav-btn:hover { color: #FFD008; }
+    .btn-panel-action { padding: 9px 12px; background: #f5f5f5; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; color: #333; text-align: center; transition: border-color 0.15s, background 0.15s; }
+    .btn-panel-action:hover { border-color: #FFD008; background: #fffdf0; }
+    .btn-panel-action.wa { background: #e8f5e9; border-color: #c8e6c9; color: #1b5e20; }
+    .btn-panel-action.wa:hover { background: #c8e6c9; }
+    .btn-panel-action.reset { background: #fff8e1; border-color: #ffe082; color: #7c5f00; }
+    .btn-panel-action.reset:hover { background: #fff0a0; }
+    .panel-actions-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f0; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">Pannello Admin</span>
+      <span class="navbar-badge">MASTER</span>
+      <span style="background:#FFD008;color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:1px">⭐ PREMIUM</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Esci</button>
+  </nav>
+
+  <div class="main">
+    <div class="page-header">
+      <h1>Pannello di controllo</h1>
+      <p>Gestisci i professionisti autorizzati alla piattaforma Policettivo®</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value yellow" id="stat-prof">—</div><div class="stat-label">Professionisti attivi</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-pazienti">—</div><div class="stat-label">Pazienti totali</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-inviti">—</div><div class="stat-label">Inviti pendenti</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-sessioni">—</div><div class="stat-label">Sessioni totali</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Genera invito</div>
+      </div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Inserisci nome e email del professionista da invitare. Verrà generato un link univoco da inviare.</p>
+      <div class="invite-form">
+        <input type="text" id="invite-nome" placeholder="Nome professionista">
+        <input type="email" id="invite-email" placeholder="Email (opzionale)">
+        <button class="btn-primary" onclick="generaInvito()">Genera link invito</button>
+      </div>
+      <div class="invite-link-box" id="invite-link-box">
+        <strong>Link invito:</strong><br>
+        <span id="invite-link-text"></span>
+        <button class="copy-btn" onclick="copiaInvito()">Copia</button>
+        <button class="copy-btn" style="background:#25D366" onclick="inviaWhatsAppInvito()">📲 WhatsApp</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Inviti pendenti</div>
+      </div>
+      <div id="inviti-list"><div class="empty-state">Nessun invito pendente.</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Professionisti registrati</div>
+        <span id="prof-count" style="font-size:12px;color:#999"></span>
+      </div>
+      <div class="search-bar-admin">
+        <input class="search-input-admin" type="text" id="admin-search" placeholder="🔍  Cerca per nome, email, città, centro/studio..." oninput="filterAdmin(this.value)">
+      </div>
+      <div id="prof-list"><div class="empty-state">Nessun professionista registrato.</div></div>
+      <div id="prof-pagination" class="admin-pagination"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">📊 Statistiche professionisti</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="stats-count" style="font-size:12px;color:#999"></span>
+          <button class="btn-csv" onclick="esportaCSV()">📥 Esporta CSV</button>
+        </div>
+      </div>
+      <div class="legend-row">
+        <span>🟢 Attivo (ultimi 7 gg)</span>
+        <span>🟡 Dormiente (8–30 gg)</span>
+        <span>🔴 Inattivo (oltre 30 gg)</span>
+        <span>⚫ Nessuna attività</span>
+        <span>★ Preferito</span>
+      </div>
+      <div class="stats-section">
+        <div id="stats-prof-list"><div class="empty-state">Caricamento statistiche...</div></div>
+      </div>
+      <div id="stats-pagination" class="admin-pagination"></div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
+    let lastInviteLink = ''
+    let allProfessionisti = []
+    let currentSearchQuery = ''
+    let currentProfPage = 1
+    let currentStatsPage = 1
+    const ADMIN_PAGE_SIZE = 10
+    let savedScrollY = 0
+    let adminFavorites = new Set(JSON.parse(localStorage.getItem('policettivo_admin_favorites') || '[]'))
+
+    async function init() {
+      // Clear any stale preview key — admin.html is protected by email check below
+      sessionStorage.removeItem('admin_preview_user_id')
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+      if (session.user.email !== ADMIN_EMAIL) {
+        window.location.href = 'dashboard.html'
+        return
+      }
+      document.body.style.visibility = 'visible'
+      loadAll()
+    }
+
+    async function loadAll() {
+      const { data: profs } = await _supabase.from('professionals').select('*, profiles(*)').order('created_at', { ascending: false })
+      const { data: pazienti } = await _supabase.from('patients').select('id')
+      const { data: inviti } = await _supabase.from('invites').select('*').eq('usato', false).order('created_at', { ascending: false })
+      const { data: sessioni } = await _supabase.from('diary_entries').select('id')
+
+      document.getElementById('stat-prof').textContent = profs ? profs.length : 0
+      document.getElementById('stat-pazienti').textContent = pazienti ? pazienti.length : 0
+      document.getElementById('stat-inviti').textContent = inviti ? inviti.length : 0
+      document.getElementById('stat-sessioni').textContent = sessioni ? sessioni.length : 0
+
+      allProfessionisti = profs || []
+      renderInviti(inviti || [])
+      renderProfessionistiFiltered()
+      loadStatsProfessionisti()
+    }
+
+    // ── Badge unificato FREE / PREMIUM / BLOCCATO ──
+    function getBadgeHtml(prof) {
+      if (!prof.attivo) return '<span class="badge-bloccato">BLOCCATO</span>'
+      const piano = (prof.piano || 'free').toLowerCase()
+      if (piano === 'premium') return '<span class="badge-premium">PREMIUM ⭐</span>'
+      const uses = prof.ai_uses || 0
+      const rem = Math.max(0, 5 - uses)
+      return '<span class="badge-free">Free · ' + uses + '/5 AI</span>'
+    }
+
+    // ── Ordinamento: preferiti > ultima attività > pazienti > registrazione ──
+    function sortProfessionisti(list) {
+      return [...list].sort((a, b) => {
+        const fa = adminFavorites.has(a.id) ? 1 : 0
+        const fb = adminFavorites.has(b.id) ? 1 : 0
+        if (fa !== fb) return fb - fa
+        const sa = _statsCache.find(s => s.prof.id === a.id)
+        const sb = _statsCache.find(s => s.prof.id === b.id)
+        const da = sa?.ultimaAttivita?.getTime() || 0
+        const db = sb?.ultimaAttivita?.getTime() || 0
+        if (da !== db) return db - da
+        const pa = sa?.numPazienti || 0
+        const pb = sb?.numPazienti || 0
+        if (pa !== pb) return pb - pa
+        const ra = a.created_at ? new Date(a.created_at).getTime() : 0
+        const rb = b.created_at ? new Date(b.created_at).getTime() : 0
+        return rb - ra
+      })
+    }
+
+    function applySearchFilter(list, query) {
+      if (!query) return list
+      const q = query.toLowerCase()
+      return list.filter(prof => {
+        const nome = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).toLowerCase() : ''
+        return nome.includes(q) ||
+          (prof.email || '').toLowerCase().includes(q) ||
+          (prof.citta || '').toLowerCase().includes(q) ||
+          (prof.centro || '').toLowerCase().includes(q)
+      })
+    }
+
+    function filterAdmin(query) {
+      currentSearchQuery = query
+      currentProfPage = 1
+      currentStatsPage = 1
+      renderProfessionistiFiltered()
+      renderStatsFiltered()
+    }
+
+    function renderAdminPagination(elId, page, totalPages, sectionKey) {
+      const el = document.getElementById(elId)
+      if (!el) return
+      if (totalPages <= 1) { el.innerHTML = ''; return }
+      let pages = [...new Set([1, totalPages, page, page-1, page+1].filter(n => n >= 1 && n <= totalPages))].sort((a,b) => a-b)
+      let html = '<button class="admin-pagination-btn" onclick="goAdminPage(\'' + sectionKey + '\',' + (page-1) + ')" ' + (page===1?'disabled':'') + '>← Prec</button>'
+      let prev = 0
+      pages.forEach(p => {
+        if (p - prev > 1) html += '<span style="padding:0 4px;color:#bbb">…</span>'
+        html += '<button class="admin-pagination-btn ' + (p===page?'active':'') + '" onclick="goAdminPage(\'' + sectionKey + '\',' + p + ')">' + p + '</button>'
+        prev = p
+      })
+      html += '<button class="admin-pagination-btn" onclick="goAdminPage(\'' + sectionKey + '\',' + (page+1) + ')" ' + (page===totalPages?'disabled':'') + '>Succ →</button>'
+      el.innerHTML = html
+    }
+
+    function goAdminPage(section, page) {
+      if (section === 'prof') { currentProfPage = page; renderProfessionistiFiltered() }
+      else { currentStatsPage = page; renderStatsFiltered() }
+    }
+
+    function toggleFavorite(id) {
+      if (adminFavorites.has(id)) adminFavorites.delete(id)
+      else adminFavorites.add(id)
+      localStorage.setItem('policettivo_admin_favorites', JSON.stringify([...adminFavorites]))
+      renderProfessionistiFiltered()
+      renderStatsFiltered()
+    }
+
+    function renderProfessionistiFiltered() {
+      const el = document.getElementById('prof-list')
+      const filtered = applySearchFilter(sortProfessionisti(allProfessionisti), currentSearchQuery)
+      const totalPages = Math.max(1, Math.ceil(filtered.length / ADMIN_PAGE_SIZE))
+      if (currentProfPage > totalPages) currentProfPage = 1
+      const pageData = filtered.slice((currentProfPage-1)*ADMIN_PAGE_SIZE, currentProfPage*ADMIN_PAGE_SIZE)
+      const countEl = document.getElementById('prof-count')
+      if (countEl) countEl.textContent = filtered.length + ' professionisti'
+      if (filtered.length === 0) {
+        el.innerHTML = '<div class="empty-state">Nessun professionista' + (currentSearchQuery ? ' trovato.' : ' ancora.') + '</div>'
+        document.getElementById('prof-pagination').innerHTML = ''
+        return
+      }
+      el.innerHTML = '<table class="table"><thead><tr><th></th><th>Nome</th><th>Email</th><th>Centro</th><th>Città</th><th>Piano</th><th>Stato</th><th>Azioni</th></tr></thead><tbody>' +
+        pageData.map(p => {
+          const nome = p.profiles ? escHtml(((p.profiles.nome || '') + ' ' + (p.profiles.cognome || '')).trim()) : '—'
+          const isFav = adminFavorites.has(p.id)
+          const stato = p.attivo ? 'attivo' : 'bloccato'
+          return '<tr>' +
+            '<td><button class="fav-btn ' + (isFav?'active':'') + '" onclick="toggleFavorite(\'' + p.id + '\')" title="' + (isFav?'Rimuovi dai preferiti':'Aggiungi ai preferiti') + '">' + (isFav?'★':'☆') + '</button></td>' +
+            '<td><strong class="name-link" onclick="apriPannello(\'' + p.id + '\')">' + nome + '</strong></td>' +
+            '<td style="font-size:12px;color:#666">' + escHtml(p.email || '—') + '</td>' +
+            '<td>' + escHtml(p.centro || '—') + '</td>' +
+            '<td>' + escHtml(p.citta || '—') + '</td>' +
+            '<td>' + getBadgeHtml(p) + '</td>' +
+            '<td><span class="status-badge status-' + stato + '">' + stato + '</span></td>' +
+            '<td>' +
+            (p.attivo ? '<button class="action-btn warning" onclick="bloccaProfessionista(\'' + p.id + '\')">Blocca</button>' : '<button class="action-btn success" onclick="sbloccaProfessionista(\'' + p.id + '\')">Sblocca</button>') +
+            '<button class="action-btn danger" onclick="eliminaProfessionista(\'' + p.id + '\')">Elimina</button>' +
+            '</td></tr>'
+        }).join('') +
+        '</tbody></table>'
+      renderAdminPagination('prof-pagination', currentProfPage, totalPages, 'prof')
+    }
+
+    function renderStatsFiltered() {
+      const el = document.getElementById('stats-prof-list')
+      if (!_statsCache || _statsCache.length === 0) return
+      const filteredStats = _statsCache.filter(({ prof }) => {
+        if (!currentSearchQuery) return true
+        const q = currentSearchQuery.toLowerCase()
+        const nome = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).toLowerCase() : ''
+        return nome.includes(q) || (prof.email || '').toLowerCase().includes(q) ||
+          (prof.citta || '').toLowerCase().includes(q) || (prof.centro || '').toLowerCase().includes(q)
+      })
+      filteredStats.sort((a, b) => {
+        const fa = adminFavorites.has(a.prof.id) ? 1 : 0
+        const fb = adminFavorites.has(b.prof.id) ? 1 : 0
+        if (fa !== fb) return fb - fa
+        const da = a.ultimaAttivita?.getTime() || 0
+        const db = b.ultimaAttivita?.getTime() || 0
+        if (da !== db) return db - da
+        if (a.numPazienti !== b.numPazienti) return b.numPazienti - a.numPazienti
+        const ra = a.prof.created_at ? new Date(a.prof.created_at).getTime() : 0
+        const rb = b.prof.created_at ? new Date(b.prof.created_at).getTime() : 0
+        return rb - ra
+      })
+      const countEl = document.getElementById('stats-count')
+      if (countEl) countEl.textContent = filteredStats.length + ' risultati'
+      const totalPages = Math.max(1, Math.ceil(filteredStats.length / ADMIN_PAGE_SIZE))
+      if (currentStatsPage > totalPages) currentStatsPage = 1
+      const pageData = filteredStats.slice((currentStatsPage-1)*ADMIN_PAGE_SIZE, currentStatsPage*ADMIN_PAGE_SIZE)
+      if (pageData.length === 0) {
+        el.innerHTML = '<div class="empty-state">Nessun dato' + (currentSearchQuery ? ' trovato.' : '.') + '</div>'
+        document.getElementById('stats-pagination').innerHTML = ''
+        return
+      }
+      const rows = pageData.map(({ prof, numPazienti, numVisite, numSessioni, ultimaAttivita }) => {
+        const nome = prof.profiles ? escHtml(((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim()) : '—'
+        const email = escHtml(prof.email || '—')
+        const telefono = escHtml(prof.profiles?.telefono || '—')
+        const citta = escHtml(prof.citta || '—')
+        const dataReg = prof.created_at ? new Date(prof.created_at).toLocaleDateString('it-IT') : '—'
+        const dot = getActivityDot(ultimaAttivita)
+        const ultimaStr = ultimaAttivita ? ultimaAttivita.toLocaleDateString('it-IT') : '—'
+        const isFav = adminFavorites.has(prof.id)
+        const isPremium = (prof.piano || '').toLowerCase() === 'premium'
+        const aiUsesStr = isPremium ? '<span style="color:#aaa;font-size:11px">—</span>' : '<span style="font-size:11px;font-weight:700;color:' + ((prof.ai_uses||0) >= 5 ? '#c62828' : '#555') + '">' + (prof.ai_uses||0) + '/5</span>'
+        return '<tr>' +
+          '<td><button class="fav-btn ' + (isFav?'active':'') + '" onclick="toggleFavorite(\'' + prof.id + '\')">' + (isFav?'★':'☆') + '</button></td>' +
+          '<td style="text-align:center;font-size:16px">' + dot + '</td>' +
+          '<td><strong class="name-link" onclick="apriPannello(\'' + prof.id + '\')">' + nome + '</strong></td>' +
+          '<td style="font-size:11px;color:#666">' + email + '</td>' +
+          '<td style="font-size:11px;color:#666">' + telefono + '</td>' +
+          '<td>' + citta + '</td>' +
+          '<td>' + getBadgeHtml(prof) + '</td>' +
+          '<td style="text-align:center">' + aiUsesStr + '</td>' +
+          '<td style="font-size:12px;color:#888">' + dataReg + '</td>' +
+          '<td style="text-align:center;font-weight:700;color:#000">' + numPazienti + '</td>' +
+          '<td style="text-align:center;color:#555">' + numSessioni + '</td>' +
+          '<td style="text-align:center;color:#555">' + numVisite + '</td>' +
+          '<td style="font-size:12px;color:#888">' + ultimaStr + '</td>' +
+          '<td style="white-space:nowrap">' +
+          (!isPremium
+            ? '<button id="btn-piano-' + prof.id + '" class="action-btn premium-on" onclick="attivaPremiump(\'' + prof.id + '\')">⭐ Attiva Premium</button>'
+            : '<button id="btn-piano-' + prof.id + '" class="action-btn premium-off" onclick="revocaPremium(\'' + prof.id + '\')">🔴 Revoca Premium</button>'
+          ) + '</td></tr>'
+      }).join('')
+      el.innerHTML = '<table class="table" style="min-width:1000px"><thead><tr>' +
+        '<th></th><th style="text-align:center">Att.</th><th>Nome</th><th>Email</th><th>Tel.</th><th>Città</th><th>Piano</th><th style="text-align:center">AI</th><th>Registrato</th>' +
+        '<th style="text-align:center">Paz.</th><th style="text-align:center">Sess.</th><th style="text-align:center">Vis.</th><th>Ultima att.</th><th>Azioni</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>'
+      renderAdminPagination('stats-pagination', currentStatsPage, totalPages, 'stats')
+    }
+
+    function renderInviti(inviti) {
+      const el = document.getElementById('inviti-list')
+      if (inviti.length === 0) { el.innerHTML = '<div class="empty-state">Nessun invito pendente.</div>'; return }
+      el.innerHTML = '<table class="table"><thead><tr><th>Nome</th><th>Email</th><th>Creato il</th><th>Link</th><th>Azioni</th></tr></thead><tbody>' +
+        inviti.map(inv => {
+          const link = 'https://policettivo-app.vercel.app/registrazione.html?token=' + inv.token
+          const data = new Date(inv.created_at).toLocaleDateString('it-IT')
+          return '<tr><td><strong>' + (inv.nome || '—') + '</strong></td><td>' + (inv.email || '—') + '</td><td>' + data + '</td><td><button class="copy-btn" onclick="navigator.clipboard.writeText(\'' + link + '\').then(()=>alert(\'Copiato!\'))">Copia link</button></td><td><button class="action-btn danger" onclick="eliminaInvito(\'' + inv.id + '\')">Elimina</button></td></tr>'
+        }).join('') +
+        '</tbody></table>'
+    }
+
+
+    async function generaInvito() {
+      const nome = document.getElementById('invite-nome').value.trim()
+      if (!nome) { alert('Inserisci il nome del professionista'); return }
+      const email = document.getElementById('invite-email').value.trim()
+      const { data, error } = await _supabase.from('invites').insert({ nome, email: email || null }).select().single()
+      if (error) { alert('Errore: ' + error.message); return }
+      lastInviteLink = 'https://policettivo-app.vercel.app/registrazione.html?token=' + data.token
+      document.getElementById('invite-link-text').textContent = lastInviteLink
+      document.getElementById('invite-link-box').classList.add('visible')
+      document.getElementById('invite-nome').value = ''
+      document.getElementById('invite-email').value = ''
+      loadAll()
+    }
+
+    function copiaInvito() {
+      navigator.clipboard.writeText(lastInviteLink).then(() => alert('Link copiato!'))
+    }
+
+    function inviaWhatsAppInvito() {
+      const nome = document.getElementById('invite-link-text').textContent.split('token=')[1] ? 'professionista' : 'professionista'
+      const testo = 'Ciao! Ti invito ad accedere alla piattaforma Policettivo®. Registrati da questo link: ' + lastInviteLink
+      window.open('https://wa.me/?text=' + encodeURIComponent(testo))
+    }
+
+    async function eliminaInvito(id) {
+      if (!confirm('Eliminare questo invito?')) return
+      await _supabase.from('invites').delete().eq('id', id)
+      loadAll()
+    }
+
+    async function bloccaProfessionista(id) {
+      if (!confirm('Bloccare questo professionista? Non potrà più accedere.')) return
+      await _supabase.from('professionals').update({ attivo: false }).eq('id', id)
+      const p = allProfessionisti.find(x => x.id === id)
+      if (p) p.attivo = false
+      const sc = _statsCache.find(s => s.prof.id === id)
+      if (sc) sc.prof.attivo = false
+      renderProfessionistiFiltered(); renderStatsFiltered()
+    }
+
+    async function sbloccaProfessionista(id) {
+      await _supabase.from('professionals').update({ attivo: true }).eq('id', id)
+      const p = allProfessionisti.find(x => x.id === id)
+      if (p) p.attivo = true
+      const sc = _statsCache.find(s => s.prof.id === id)
+      if (sc) sc.prof.attivo = true
+      renderProfessionistiFiltered(); renderStatsFiltered()
+    }
+
+    async function eliminaProfessionista(id) {
+      if (!confirm('Eliminare definitivamente questo professionista e tutti i suoi dati? Operazione irreversibile.')) return
+      const { data: prof } = await _supabase.from('professionals').select('user_id').eq('id', id).maybeSingle()
+      if (prof && prof.user_id) {
+        const { data: pats } = await _supabase.from('patients').select('id').eq('professional_id', id)
+        if (pats && pats.length > 0) {
+          const patIds = pats.map(p => p.id)
+          for (const pid of patIds) {
+            const { data: pp } = await _supabase.from('patient_protocols').select('id').eq('patient_id', pid)
+            if (pp && pp.length > 0) {
+              for (const prot of pp) {
+                await _supabase.from('patient_protocol_exercises').delete().eq('patient_protocol_id', prot.id)
+              }
+              await _supabase.from('patient_protocols').delete().eq('patient_id', pid)
+            }
+            await _supabase.from('diary_entries').delete().eq('patient_id', pid)
+          }
+          await _supabase.from('patients').delete().eq('professional_id', id)
+        }
+        await _supabase.from('professionals').delete().eq('id', id)
+        await _supabase.from('profiles').delete().eq('id', prof.user_id)
+      } else {
+        await _supabase.from('professionals').delete().eq('id', id)
+      }
+      allProfessionisti = allProfessionisti.filter(p => p.id !== id)
+      _statsCache = _statsCache.filter(s => s.prof.id !== id)
+      document.getElementById('stat-prof').textContent = allProfessionisti.length
+      alert('Professionista eliminato con successo.')
+      renderProfessionistiFiltered(); renderStatsFiltered()
+    }
+
+    async function doLogout() {
+      await _supabase.auth.signOut()
+      window.location.href = 'login.html'
+    }
+
+    function escHtml(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    }
+
+    function getActivityDot(date) {
+      if (!date) return '⚫'
+      const days = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24))
+      if (days <= 7) return '🟢'
+      if (days <= 30) return '🟡'
+      return '🔴'
+    }
+
+    let _statsCache = []
+
+    async function loadStatsProfessionisti() {
+      const el = document.getElementById('stats-prof-list')
+      el.innerHTML = '<div class="empty-state">Caricamento...</div>'
+
+      const [profsRes, emailsRes] = await Promise.all([
+        _supabase.from('professionals').select('*, profiles(*)').order('created_at', { ascending: false }),
+        getAdminToken().then(tok => fetch('/api/admin-list-user-emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }
+        }).then(r => r.json()).catch(() => ({ emails: {} })))
+      ])
+
+      const profs = profsRes.data
+      const emailMap = emailsRes.emails || {}
+      if (profs) profs.forEach(p => { if (!p.email) p.email = emailMap[p.user_id] || '' })
+
+      if (!profs || profs.length === 0) {
+        el.innerHTML = '<div class="empty-state">Nessun professionista.</div>'
+        return
+      }
+
+      const profIds = profs.map(p => p.id)
+
+      const { data: patients } = await _supabase
+        .from('patients')
+        .select('id, professional_id, created_at')
+        .in('professional_id', profIds)
+        .eq('stato', 'attivo')
+
+      const patientIds = (patients || []).map(p => p.id)
+
+      const [visiteRes, sessionsRes] = patientIds.length > 0
+        ? await Promise.all([
+            _supabase.from('visite').select('id, patient_id, created_at').in('patient_id', patientIds),
+            _supabase.from('diary_entries').select('id, patient_id, created_at').in('patient_id', patientIds)
+          ])
+        : [{ data: [] }, { data: [] }]
+
+      const visite    = visiteRes.data    || []
+      const sessions  = sessionsRes.data  || []
+
+      const patsByProf = {}
+      ;(patients || []).forEach(p => {
+        if (!patsByProf[p.professional_id]) patsByProf[p.professional_id] = []
+        patsByProf[p.professional_id].push(p)
+      })
+
+      const visiteByPat = {}
+      visite.forEach(v => {
+        if (!visiteByPat[v.patient_id]) visiteByPat[v.patient_id] = []
+        visiteByPat[v.patient_id].push(v)
+      })
+
+      const sessionsByPat = {}
+      sessions.forEach(s => {
+        if (!sessionsByPat[s.patient_id]) sessionsByPat[s.patient_id] = []
+        sessionsByPat[s.patient_id].push(s)
+      })
+
+      _statsCache = profs.map(prof => {
+        const pats       = patsByProf[prof.id] || []
+        let numVisite    = 0
+        let numSessioni  = 0
+        let dates        = prof.created_at ? [new Date(prof.created_at)] : []
+
+        pats.forEach(pat => {
+          if (pat.created_at) dates.push(new Date(pat.created_at))
+          const v = visiteByPat[pat.id] || []
+          numVisite += v.length
+          v.forEach(x => { if (x.created_at) dates.push(new Date(x.created_at)) })
+          const s = sessionsByPat[pat.id] || []
+          numSessioni += s.length
+          s.forEach(x => { if (x.created_at) dates.push(new Date(x.created_at)) })
+        })
+
+        const ultimaAttivita = dates.length > 0
+          ? dates.reduce((max, d) => d > max ? d : max)
+          : null
+
+        return { prof, numPazienti: pats.length, numVisite, numSessioni, ultimaAttivita }
+      })
+
+      renderProfessionistiFiltered()
+      renderStatsFiltered()
+    }
+
+    function _updatePianoCaches(profId, piano) {
+      const p = allProfessionisti.find(x => x.id === profId)
+      if (p) p.piano = piano
+      const sc = _statsCache.find(s => s.prof.id === profId)
+      if (sc) sc.prof.piano = piano
+    }
+
+    async function attivaPremiump(profId) {
+      if (!confirm('Attivare Piano Premium per questo professionista?')) return
+      const dataScadenza = new Date(); dataScadenza.setFullYear(dataScadenza.getFullYear() + 1)
+      const adminToken = await getAdminToken()
+      const res = await fetch('/api/admin-update-piano', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+        body: JSON.stringify({ profId, piano: 'premium', premiumScadenza: dataScadenza.toISOString() })
+      })
+      const json = await res.json()
+      if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
+      _updatePianoCaches(profId, 'premium')
+      renderProfessionistiFiltered(); renderStatsFiltered()
+    }
+
+    async function revocaPremium(profId) {
+      if (!confirm('Revocare il Piano Premium? Il professionista tornerà al piano Free.')) return
+      const adminToken = await getAdminToken()
+      const res = await fetch('/api/admin-update-piano', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+        body: JSON.stringify({ profId, piano: 'free', premiumScadenza: null })
+      })
+      const json = await res.json()
+      if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
+      _updatePianoCaches(profId, 'free')
+      renderProfessionistiFiltered(); renderStatsFiltered()
+    }
+
+    function esportaCSV() {
+      if (!_statsCache || _statsCache.length === 0) { alert('Carica prima le statistiche.'); return }
+      const headers = ['Nome', 'Email', 'Telefono', 'Qualifica', 'Centro', 'Città', 'Piano', 'Fonte', 'Data registrazione', 'Pazienti attivi', 'Sessioni totali', 'Visite totali', 'Ultima attività', 'Indicatore']
+      const csvRows = _statsCache.map(({ prof, numPazienti, numVisite, numSessioni, ultimaAttivita }) => {
+        const nome      = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : ''
+        const days      = ultimaAttivita ? Math.floor((Date.now() - ultimaAttivita.getTime()) / (1000 * 60 * 60 * 24)) : 999
+        const indicator = days <= 7 ? 'attivo' : days <= 30 ? 'dormiente' : 'inattivo'
+        const vals = [
+          nome,
+          prof.email || '',
+          prof.profiles?.telefono || '',
+          prof.qualifica || '',
+          prof.centro || '',
+          prof.citta || '',
+          (prof.piano || 'free').toUpperCase(),
+          prof.fonte || '',
+          prof.created_at ? new Date(prof.created_at).toLocaleDateString('it-IT') : '',
+          numPazienti,
+          numSessioni,
+          numVisite,
+          ultimaAttivita ? ultimaAttivita.toLocaleDateString('it-IT') : '',
+          indicator
+        ]
+        return vals.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')
+      })
+      const csv   = [headers.map(h => '"' + h + '"').join(','), ...csvRows].join('\n')
+      const blob  = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+      const url   = URL.createObjectURL(blob)
+      const a     = document.createElement('a')
+      a.href      = url
+      a.download  = 'policettivo_professionisti_' + new Date().toISOString().split('T')[0] + '.csv'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
+
+    /* ── SIDE PANEL ── */
+    let currentProfId  = null
+    let _panelProfData = null
+
+    async function getAdminToken() {
+      const { data: { session } } = await _supabase.auth.getSession()
+      return session?.access_token || ''
+    }
+
+    function switchTab(name) {
+      document.querySelectorAll('.panel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name))
+      document.querySelectorAll('.panel-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name))
+    }
+
+    async function apriPannello(profId) {
+      savedScrollY = window.scrollY
+      currentProfId = profId
+
+      const { data: prof, error: profErr } = await _supabase
+        .from('professionals')
+        .select('*, profiles(id, nome, cognome, telefono)')
+        .eq('id', profId)
+        .maybeSingle()
+      if (!prof) { console.error('[apriPannello] prof null:', profErr); return }
+      _panelProfData = prof
+
+      const nome = prof.profiles ? ((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim() : '—'
+      document.getElementById('panel-title').textContent = nome || '—'
+
+      document.getElementById('edit-nome').value           = prof.profiles?.nome || ''
+      document.getElementById('edit-cognome').value        = prof.profiles?.cognome || ''
+      const _cachedEmail = (_statsCache.find(s => s.prof.id === profId)?.prof?.email) || prof.email || ''
+      document.getElementById('p-email').value = _cachedEmail
+      _panelProfData.email = _cachedEmail
+      document.getElementById('edit-qualifica').value      = prof.qualifica || ''
+      document.getElementById('edit-centro').value         = prof.centro || ''
+      document.getElementById('edit-citta').value          = prof.citta || ''
+      document.getElementById('edit-telefono').value       = prof.profiles?.telefono || ''
+      document.getElementById('p-scadenza').value       = prof.premium_scadenza ? prof.premium_scadenza.split('T')[0] : ''
+      document.getElementById('edit-note').value = prof.note_admin || ''
+
+      const isPremium = (prof.piano || '').toLowerCase() === 'premium'
+      const pianoLabel = document.getElementById('piano-label')
+      pianoLabel.textContent = 'Piano: ' + (isPremium ? 'PREMIUM ⭐' : 'Free')
+      const aiUsesLbl = document.getElementById('ai-uses-label')
+      if (aiUsesLbl) {
+        if (isPremium) {
+          aiUsesLbl.textContent = 'Analisi AI illimitate'
+        } else {
+          const uses = prof.ai_uses || 0
+          const rem = Math.max(0, 5 - uses)
+          aiUsesLbl.textContent = 'Analisi AI: ' + uses + '/5 usate · ' + rem + ' disponibili'
+          aiUsesLbl.style.color = uses >= 5 ? '#c62828' : '#888'
+        }
+      }
+      const btnP = document.getElementById('btn-toggle-piano')
+      btnP.textContent       = isPremium ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
+      btnP.style.background  = isPremium ? '#ffebee' : '#FFD008'
+      btnP.style.color       = isPremium ? '#c62828' : '#000'
+
+      switchTab('dati')
+      document.getElementById('panel-overlay').classList.add('open')
+      document.getElementById('side-panel').classList.add('open')
+
+      caricaAttivita(profId)
+    }
+
+    function chiudiPannello() {
+      document.getElementById('panel-overlay').classList.remove('open')
+      document.getElementById('side-panel').classList.remove('open')
+      currentProfId = null; _panelProfData = null
+      setTimeout(() => window.scrollTo({ top: savedScrollY, behavior: 'instant' }), 30)
+    }
+
+    // ── Nuove azioni pannello laterale ──
+    function copiaLinkAccesso() {
+      const link = 'https://policettivo-app.vercel.app/login.html'
+      navigator.clipboard.writeText(link).then(() => {
+        const btn = document.querySelector('[onclick="copiaLinkAccesso()"]')
+        if (btn) { const orig = btn.textContent; btn.textContent = '✓ Copiato!'; setTimeout(() => btn.textContent = orig, 2000) }
+      })
+    }
+
+    function inviaLinkAccesso() {
+      const nome = _panelProfData?.profiles?.nome || 'professionista'
+      const link = 'https://policettivo-app.vercel.app/login.html'
+      const msg = 'Ciao ' + nome + '! Ecco il link per accedere alla piattaforma Policettivo®:\n' + link + '\n\nAccedi con la tua email e password.'
+      window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank')
+    }
+
+    async function resetAccessoProf() {
+      const email = _panelProfData?.email
+      if (!email) { alert('Email non disponibile per questo professionista.'); return }
+      if (!confirm('Inviare email di reset password a:\n' + email + '\n\nIl professionista riceverà un link per impostare una nuova password.')) return
+      const { error } = await _supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://policettivo-app.vercel.app/dashboard.html'
+      })
+      if (error) { alert('Errore: ' + error.message); return }
+      alert('Email di reset password inviata a ' + email + ' ✓')
+    }
+
+    async function caricaAttivita(profId) {
+      const actEl = document.getElementById('tab-attivita')
+      actEl.innerHTML = '<div class="empty-state">Caricamento...</div>'
+
+      const cached = _statsCache.find(s => s.prof.id === profId)
+
+      const { data: pats } = await _supabase
+        .from('patients').select('id,nome,cognome,created_at')
+        .eq('professional_id', profId)
+        .order('created_at', { ascending: false }).limit(10)
+
+      const patIds = (pats || []).map(p => p.id)
+      const patMap = {}
+      ;(pats || []).forEach(p => { patMap[p.id] = escHtml((p.nome || '') + ' ' + (p.cognome || '')) })
+
+      let sessioni = [], visite = []
+      if (patIds.length > 0) {
+        const [sR, vR] = await Promise.all([
+          _supabase.from('diary_entries').select('id,patient_id,created_at').in('patient_id', patIds).order('created_at', { ascending: false }).limit(10),
+          _supabase.from('visite').select('id,patient_id,created_at,tipo').in('patient_id', patIds).order('created_at', { ascending: false }).limit(5)
+        ])
+        sessioni = sR.data || []
+        visite   = vR.data || []
+      }
+
+      const totP = cached?.numPazienti ?? (pats?.length ?? 0)
+      const totS = cached?.numSessioni ?? 0
+      const totV = cached?.numVisite   ?? 0
+
+      const fmtDate = d => d ? new Date(d).toLocaleDateString('it-IT') : '—'
+
+      actEl.innerHTML = `
+        <div class="act-count-grid">
+          <div class="act-count-box"><div class="act-count-num">${totP}</div><div class="act-count-lbl">Pazienti</div></div>
+          <div class="act-count-box"><div class="act-count-num">${totS}</div><div class="act-count-lbl">Sessioni</div></div>
+          <div class="act-count-box"><div class="act-count-num">${totV}</div><div class="act-count-lbl">Visite</div></div>
+        </div>
+        <div class="act-section-title">👥 Ultimi pazienti aggiunti</div>
+        ${pats && pats.length ? pats.map(p => `<div class="act-item"><div>${patMap[p.id]}</div><div class="act-item-date">${fmtDate(p.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessun paziente.</div>'}
+        <div class="act-section-title">📋 Ultime sedute registrate</div>
+        ${sessioni.length ? sessioni.map(s => `<div class="act-item"><div>${patMap[s.patient_id] || '—'}</div><div class="act-item-date">${fmtDate(s.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessuna seduta.</div>'}
+        <div class="act-section-title">📅 Ultime visite di controllo</div>
+        ${visite.length ? visite.map(v => `<div class="act-item"><div>${patMap[v.patient_id] || '—'}${v.tipo ? ' — ' + escHtml(v.tipo) : ''}</div><div class="act-item-date">${fmtDate(v.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessuna visita.</div>'}`
+    }
+
+    async function salvaProfessionista() {
+      if (!currentProfId) { alert('Errore: nessun professionista selezionato.'); return }
+
+      // Step 1 — leggi user_id fresco dal DB
+      const { data: prof } = await _supabase
+        .from('professionals').select('user_id').eq('id', currentProfId).maybeSingle()
+
+      if (!prof || !prof.user_id) { alert('Errore: user_id non trovato per questo professionista.'); return }
+
+      // Step 2 — aggiorna profiles via API con service key (bypassa RLS)
+      const adminToken = await getAdminToken()
+      const r1 = await fetch('/api/admin-update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+        body: JSON.stringify({
+          profileId: prof.user_id,
+          nome:      document.getElementById('edit-nome').value,
+          cognome:   document.getElementById('edit-cognome').value,
+          telefono:  document.getElementById('edit-telefono').value
+        })
+      })
+      const j1 = await r1.json()
+      if (!r1.ok) { alert('Errore salvataggio profilo: ' + (j1.error || r1.status)); return }
+
+      // Step 3 — aggiorna professionals (qualifica, centro, citta, note_admin)
+      const { error: r2err } = await _supabase
+        .from('professionals')
+        .update({
+          qualifica:  document.getElementById('edit-qualifica').value,
+          centro:     document.getElementById('edit-centro').value,
+          citta:      document.getElementById('edit-citta').value,
+          note_admin: document.getElementById('edit-note').value
+        })
+        .eq('id', currentProfId)
+
+      if (r2err) { alert('Errore salvataggio professionista: ' + r2err.message); return }
+
+      const nomeCompleto = document.getElementById('edit-nome').value + ' ' + document.getElementById('edit-cognome').value
+      document.getElementById('panel-title').textContent = nomeCompleto.trim()
+      alert('Modifiche salvate ✓')
+      loadStatsProfessionisti()
+    }
+
+    async function eliminaProfessionistaDalPannello() {
+      if (!currentProfId || !_panelProfData) return
+      const nome = document.getElementById('panel-title').textContent
+      const ok1 = confirm('Eliminare ' + nome + '?\n\nQuesta azione eliminerà tutti i dati del professionista: pazienti, sedute, protocolli, visite.')
+      if (!ok1) return
+      const ok2 = confirm('⚠️ CONFERMA FINALE\n\nStai per eliminare definitivamente ' + nome + ' e tutti i suoi dati. Operazione irreversibile.\n\nProcedere?')
+      if (!ok2) return
+
+      const profileId = _panelProfData.user_id
+      if (!profileId) { alert('Errore: user_id non trovato sul record professionals.'); return }
+
+      const token = await getAdminToken()
+      const btn = document.getElementById('btn-elimina-pannello')
+      if (btn) { btn.disabled = true; btn.textContent = 'Eliminazione...' }
+
+      const res = await fetch('/api/admin-delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ profId: currentProfId, userId: profileId })
+      })
+      const json = await res.json()
+
+      if (!res.ok) {
+        alert('Errore eliminazione: ' + (json.error || res.status))
+        if (btn) { btn.disabled = false; btn.textContent = '🗑 Elimina professionista' }
+        return
+      }
+
+      const deletedId = currentProfId
+      chiudiPannello()
+      allProfessionisti = allProfessionisti.filter(p => p.id !== deletedId)
+      _statsCache = _statsCache.filter(s => s.prof.id !== deletedId)
+      document.getElementById('stat-prof').textContent = allProfessionisti.length
+      alert(nome + ' eliminato con successo.')
+      renderProfessionistiFiltered(); renderStatsFiltered()
+    }
+
+    async function attivaPremiuPannello() {
+      if (!currentProfId) { alert('Errore: nessun professionista selezionato.'); return }
+
+      const isPremium = (_panelProfData?.piano || '').toLowerCase() === 'premium'
+      const newPiano  = isPremium ? 'free' : 'premium'
+      if (!confirm(isPremium ? 'Revocare il Premium?' : 'Attivare il Premium?')) return
+
+      let premiumScadenza = null
+      if (newPiano === 'premium') {
+        const scad = new Date(); scad.setFullYear(scad.getFullYear() + 1)
+        premiumScadenza = scad.toISOString()
+      }
+
+      const adminToken = await getAdminToken()
+      const res = await fetch('/api/admin-update-piano', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+        body: JSON.stringify({ profId: currentProfId, piano: newPiano, premiumScadenza })
+      })
+      const json = await res.json()
+      if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
+
+      if (_panelProfData) _panelProfData.piano = newPiano
+      _updatePianoCaches(currentProfId, newPiano)
+      const nowPrem = newPiano === 'premium'
+
+      // Aggiorna UI pannello
+      document.getElementById('piano-label').textContent = 'Piano: ' + (nowPrem ? 'PREMIUM ⭐' : 'Free')
+      const aiUsesLblT = document.getElementById('ai-uses-label')
+      if (aiUsesLblT) aiUsesLblT.textContent = nowPrem ? 'Analisi AI illimitate' : 'Analisi AI: ' + (_panelProfData?.ai_uses || 0) + '/5 usate'
+      const btnP = document.getElementById('btn-toggle-piano')
+      btnP.textContent      = nowPrem ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
+      btnP.style.background = nowPrem ? '#ffebee' : '#FFD008'
+      btnP.style.color      = nowPrem ? '#c62828' : '#000'
+
+      // Aggiorna tabelle principali senza resettare pagina/ricerca
+      renderProfessionistiFiltered(); renderStatsFiltered()
+    }
+
+    async function salvaNote() {
+      if (!currentProfId) return
+      const note = document.getElementById('edit-note').value
+      const { error } = await _supabase.from('professionals').update({ note_admin: note }).eq('id', currentProfId)
+      if (error) { alert('Errore: ' + error.message); return }
+      alert('Nota salvata ✓')
+    }
+
+    function visualizzaComeProfessionista() {
+      if (!_panelProfData) return
+      sessionStorage.setItem('admin_preview_user_id', _panelProfData.user_id)
+      window.open('dashboard.html?admin_preview=1', '_blank')
+    }
+
+    init()
+  </script>
+
+  <!-- SIDE PANEL HTML -->
+  <div class="panel-overlay" id="panel-overlay" onclick="chiudiPannello()"></div>
+  <div class="side-panel" id="side-panel">
+    <div class="panel-header">
+      <h2 id="panel-title">—</h2>
+      <button class="panel-close" onclick="chiudiPannello()">✕</button>
+    </div>
+    <div class="panel-body">
+      <div class="panel-tabs">
+        <div class="panel-tab active" data-tab="dati" onclick="switchTab('dati')">Dati</div>
+        <div class="panel-tab" data-tab="attivita" onclick="switchTab('attivita')">Attività</div>
+        <div class="panel-tab" data-tab="note" onclick="switchTab('note')">Note admin</div>
+      </div>
+
+      <!-- TAB DATI -->
+      <div class="panel-section active" id="tab-dati">
+        <div class="panel-actions-bar">
+          <button class="btn-panel-action" onclick="copiaLinkAccesso()">📋 Copia link accesso</button>
+          <button class="btn-panel-action wa" onclick="inviaLinkAccesso()">📲 Invia WhatsApp</button>
+          <button class="btn-panel-action reset" style="grid-column:1/-1" onclick="resetAccessoProf()">🔑 Invia reset password via email</button>
+        </div>
+        <div class="p-row">
+          <div><label class="p-label">Nome</label><input class="p-input" id="edit-nome" type="text" placeholder="Mario"></div>
+          <div><label class="p-label">Cognome</label><input class="p-input" id="edit-cognome" type="text" placeholder="Rossi"></div>
+        </div>
+        <label class="p-label">Email</label>
+        <input class="p-input" id="p-email" type="email" placeholder="mario@email.it" readonly style="background:#f9f9f9;color:#999">
+        <div class="p-row">
+          <div><label class="p-label">Qualifica</label><input class="p-input" id="edit-qualifica" type="text" placeholder="Fisioterapista"></div>
+          <div><label class="p-label">Centro / Studio</label><input class="p-input" id="edit-centro" type="text" placeholder="Studio X"></div>
+        </div>
+        <label class="p-label">Città</label>
+        <input class="p-input" id="edit-citta" type="text" placeholder="Milano">
+        <label class="p-label">Telefono</label>
+        <input class="p-input" id="edit-telefono" type="tel" placeholder="+39 333 1234567">
+
+        <div class="piano-toggle-row">
+          <div>
+            <strong id="piano-label">Piano: Free</strong>
+            <div id="ai-uses-label" style="font-size:11px;color:#888;margin-top:2px"></div>
+          </div>
+          <button class="btn-toggle-piano" id="btn-toggle-piano" onclick="attivaPremiuPannello()">—</button>
+        </div>
+
+        <label class="p-label">Scadenza Premium</label>
+        <input class="p-input" id="p-scadenza" type="date">
+
+        <button class="btn-save" onclick="salvaProfessionista()">💾 Salva modifiche</button>
+        <button class="btn-view-as" onclick="visualizzaComeProfessionista()">👁 Visualizza come questo professionista</button>
+        <button id="btn-elimina-pannello" onclick="eliminaProfessionistaDalPannello()" style="width:100%;margin-top:8px;padding:12px;background:transparent;border:1.5px solid #ffcdd2;color:#c62828;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Elimina professionista</button>
+      </div>
+
+      <!-- TAB ATTIVITÀ -->
+      <div class="panel-section" id="tab-attivita">
+        <div class="empty-state">Caricamento...</div>
+      </div>
+
+      <!-- TAB NOTE -->
+      <div class="panel-section" id="tab-note">
+        <p style="font-size:12px;color:#999;margin-bottom:14px">Note private visibili solo all'admin. Non vengono mostrate al professionista.</p>
+        <textarea class="note-field" id="edit-note" placeholder="es. Contattato il 10/05, interessato ai cuscini GPL..."></textarea>
+        <button class="btn-save" style="margin-top:12px" onclick="salvaNote()">💾 Salva nota</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="console-nav.js"></script>
+</body>
+</html>

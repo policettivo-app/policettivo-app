@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Scheda Paziente</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="utils-premium.js"></script>
+  <script src="utils-ai.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .premium-banner { display: none; background: #111; border-bottom: 2.5px solid #FFD008; padding: 12px 32px; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .premium-banner.visible { display: flex; }
+    .premium-banner-text { color: #fff; font-size: 13px; font-weight: 500; }
+    .premium-banner-btn { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
+    .premium-banner-btn:hover { background: #e6bb00; }
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-back:hover { border-color: #FFD008; color: #FFD008; }
+    .btn-nav-icon { background: transparent; border: 1px solid #444; color: #fff; width: 36px; height: 36px; border-radius: 8px; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color 0.15s, color 0.15s; flex-shrink: 0; }
+    .btn-nav-icon:hover { border-color: #FFD008; color: #FFD008; }
+    .main { max-width: 900px; margin: 0 auto; padding: 36px 24px; }
+    .patient-header { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .patient-name { font-size: 26px; font-weight: 700; color: #000; }
+    .patient-sub { font-size: 13px; color: #666; margin-top: 4px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .badge-npl { background: #000; color: #FFD008; }
+    .badge-gpl { background: #FFD008; color: #000; }
+    .badge-none { background: #eee; color: #888; }
+    .section { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; }
+    .section-title-plain { font-size: 14px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; margin-bottom: 20px; }
+    .section-optional { font-size: 11px; color: #999; font-weight: 400; margin-left: 8px; text-transform: none; letter-spacing: 0; }
+    .btn-edit { background: transparent; border: 1.5px solid #FFD008; color: #000; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-edit:hover { background: #FFD008; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .info-item label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+    .info-item span { font-size: 14px; color: #000; font-weight: 500; }
+    .note-box { background: #f9f9f9; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #444; margin-top: 12px; line-height: 1.6; white-space: pre-wrap; }
+    .edit-form { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .edit-group label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; display: block; margin-bottom: 4px; }
+    .edit-group input { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; }
+    .edit-group input:focus { border-color: #FFD008; }
+    .edit-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .btn-save { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-cancel { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 10px 16px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; }
+    .btn-delete { background: transparent; border: 1.5px solid #c62828; color: #c62828; padding: 10px 16px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; }
+    .foto-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; }
+    .foto-group-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; margin-top: 16px; display: flex; align-items: center; gap: 8px; }
+    .confronto-divider { border: none; border-top: 2px dashed #FFD008; margin: 20px 0; }
+    .foto-slot { border: 2px dashed #ddd; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; position: relative; overflow: hidden; min-height: 480px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fafafa; transition: border-color 0.2s; }
+    .foto-slot:hover { border-color: #FFD008; background: #fffdf0; }
+    .foto-slot.has-photo { border-style: solid; border-color: #eee; padding: 0; background: #000; }
+    .foto-slot img { width: 100%; height: 480px; object-fit: contain; background: #000; border-radius: 10px; display: block; }
+    .foto-slot .foto-label { font-size: 11px; font-weight: 600; color: #999; margin-bottom: 8px; text-transform: uppercase; }
+    .foto-slot .foto-icon { font-size: 28px; margin-bottom: 6px; }
+    .foto-slot .foto-hint { font-size: 11px; color: #bbb; }
+    .foto-overlay { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,0.7); color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 4px; cursor: pointer; z-index: 2; }
+    .foto-draw-btn { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7); color: #fff; font-size: 14px; padding: 3px 7px; border-radius: 4px; cursor: pointer; z-index: 3; }
+    .osservazione-group { margin-bottom: 16px; }
+    .osservazione-label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 8px; }
+    .osservazione-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+    .obs-btn { padding: 8px 18px; border: 2px solid #ddd; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: #555; transition: all 0.15s; }
+    .obs-btn:hover { border-color: #FFD008; color: #000; }
+    .obs-btn.selected { background: #FFD008; border-color: #FFD008; color: #000; }
+    .notes-textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; color: #000; outline: none; resize: vertical; min-height: 80px; margin-top: 4px; }
+    .notes-textarea:focus { border-color: #FFD008; }
+    .piano-scapolare-box { background: #f9f9f9; border-radius: 12px; padding: 16px; margin-top: 16px; border: 1px solid #eee; }
+    .piano-scapolare-title { font-size: 12px; font-weight: 700; color: #333; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .config-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+    .config-option { border: 2px solid #333; border-radius: 10px; padding: 16px; cursor: pointer; text-align: center; transition: all 0.2s; background: #000; color: #fff; }
+    .config-option:hover { border-color: #555; }
+    .config-option.selected { border-color: #FFD008; background: #111; }
+    .config-name { font-weight: 700; font-size: 20px; }
+    .config-desc { font-size: 11px; margin-top: 4px; opacity: 0.7; }
+    .btn-primary { background: #FFD008; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-primary:hover { background: #e6bc00; }
+    .btn-secondary { background: transparent; border: 1.5px solid #ddd; color: #333; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-secondary:hover { border-color: #999; }
+    .actions-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .link-box { background: #f0f9f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #2e7d32; word-break: break-all; margin-top: 12px; display: none; }
+    .link-box.visible { display: block; }
+    .saving-indicator { font-size: 12px; color: #999; margin-top: 8px; display: none; }
+    .step-label { background: #000; color: #FFD008; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+
+    .doc-upload-area { border: 2px dashed #ddd; border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.2s; margin-bottom: 16px; }
+    .doc-upload-area:hover { border-color: #FFD008; background: #fffdf0; }
+    .doc-upload-area .upload-icon { font-size: 32px; margin-bottom: 8px; }
+    .doc-upload-area .upload-text { font-size: 13px; color: #666; }
+    .doc-upload-area .upload-hint { font-size: 11px; color: #bbb; margin-top: 4px; }
+    .doc-tipo-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .doc-tipo-btn { padding: 6px 14px; border: 1.5px solid #ddd; border-radius: 20px; font-family: Montserrat, sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: #555; transition: all 0.15s; }
+    .doc-tipo-btn:hover { border-color: #FFD008; }
+    .doc-tipo-btn.selected { background: #FFD008; border-color: #FFD008; color: #000; }
+    .doc-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    .doc-item { display: flex; align-items: center; gap: 12px; background: #f9f9f9; border: 1px solid #eee; border-radius: 10px; padding: 12px 14px; }
+    .doc-item-icon { font-size: 24px; flex-shrink: 0; }
+    .doc-item-info { flex: 1; min-width: 0; }
+    .doc-item-tipo { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+    .doc-item-desc { font-size: 13px; font-weight: 600; color: #000; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .doc-item-date { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .doc-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-doc-view { background: #FFD008; border: none; color: #000; padding: 6px 12px; border-radius: 6px; font-family: Montserrat, sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .btn-doc-del { background: transparent; border: 1px solid #ddd; color: #c62828; padding: 6px 10px; border-radius: 6px; font-family: Montserrat, sans-serif; font-size: 11px; cursor: pointer; }
+    .ai-report-box { background: #f0f4ff; border: 1.5px solid #90caf9; border-radius: 12px; padding: 20px; margin-top: 16px; display: none; }
+    .ai-report-box.visible { display: block; }
+    .ai-report-title { font-size: 13px; font-weight: 700; color: #1565c0; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .ai-report-content { font-size: 13px; color: #222; line-height: 1.7; white-space: pre-wrap; }
+    .ai-loading { text-align: center; padding: 20px; font-size: 13px; color: #666; display: none; }
+    .upload-form { background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; display: none; }
+    .upload-form.visible { display: block; }
+    .premium-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .premium-overlay.visible { opacity: 1; pointer-events: all; }
+    .premium-modal { background: #111; color: #fff; border-radius: 16px; padding: 36px 32px 28px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+    .premium-modal h2 { font-size: 22px; font-weight: 700; margin: 0 0 14px; letter-spacing: -0.3px; }
+    .premium-modal p { font-size: 14px; color: #ccc; line-height: 1.6; margin: 0 0 28px; }
+    .premium-modal .btn-scopri { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 13px 28px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; margin-bottom: 10px; }
+    .premium-modal .btn-scopri:hover { background: #e6bb00; }
+    .premium-modal .btn-annulla { background: transparent; color: #aaa; border: 1px solid #333; border-radius: 8px; padding: 11px 28px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; width: 100%; }
+    .premium-modal .btn-annulla:hover { border-color: #666; color: #fff; }
+    .aip-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9998; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .aip-overlay.visible { opacity: 1; pointer-events: all; }
+    .aip-modal { background: #111; color: #fff; border-radius: 16px; padding: 32px 28px; max-width: 440px; width: 92%; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+    .aip-modal h2 { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
+    .aip-sub { font-size: 13px; color: #aaa; margin: 0 0 24px; }
+    .aip-base-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .aip-base-btn { background: #1a1a1a; border: 2px solid #333; border-radius: 12px; padding: 22px 12px; color: #fff; font-family: 'Montserrat',sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; line-height: 1.5; }
+    .aip-base-btn:hover { border-color: #FFD008; color: #FFD008; }
+    .aip-cancel { background: transparent; color: #888; border: 1px solid #333; border-radius: 8px; padding: 10px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; }
+    .aip-cancel:hover { color: #fff; border-color: #666; }
+    .aip-spinner { width: 36px; height: 36px; border: 3px solid #333; border-top-color: #FFD008; border-radius: 50%; animation: aip-spin 0.8s linear infinite; margin: 0 auto 14px; }
+    @keyframes aip-spin { to { transform: rotate(360deg); } }
+    .aip-loading { text-align: center; padding: 36px 0; }
+    .aip-loading-text { color: #aaa; font-size: 14px; }
+    .aip-risultato { text-align: center; }
+    .aip-badge-npl { display: inline-block; background: #111; border: 2px solid #555; color: #fff; padding: 10px 36px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 14px; }
+    .aip-badge-gpl { display: inline-block; background: #C6F135; color: #000; padding: 10px 36px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 14px; }
+    .aip-badge-neutro { display: inline-block; background: #444; color: #fff; padding: 10px 36px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 3px; margin-bottom: 14px; }
+    .aip-motivazione { font-size: 13px; color: #ccc; margin-bottom: 16px; line-height: 1.6; }
+    .aip-obs-box { background: #1a1a1a; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; text-align: left; list-style: none; }
+    .aip-obs-box li { font-size: 12px; color: #aaa; margin-bottom: 3px; padding-left: 12px; position: relative; }
+    .aip-obs-box li::before { content: '•'; position: absolute; left: 0; color: #666; }
+    .aip-override { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+    .aip-btn-npl { background: #111; color: #fff; border: 2px solid #555; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .aip-btn-gpl { background: #C6F135; color: #000; border: none; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .aip-disclaimer { font-size: 11px; color: #555; font-style: italic; margin-bottom: 20px; }
+    .aip-close { background: #222; color: #fff; border: none; border-radius: 8px; padding: 10px 28px; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .aip-last-box { margin-top: 16px; background: #f9f9f9; border-radius: 10px; padding: 14px 16px; display: none; }
+    .aip-last-box.visible { display: block; }
+
+    /* ── Camera Modal + Livella ── */
+    #camera-modal { display: none; position: fixed; inset: 0; z-index: 2000; background: #000; }
+    #camera-modal.open { display: block; }
+    .referto-scan-box { background: #000; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+    .referto-scan-title { color: #FFD008; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .referto-scan-sub { color: #aaa; font-size: 11px; line-height: 1.5; margin-bottom: 12px; }
+    .referto-scan-btns { display: flex; gap: 8px; }
+    .btn-scan { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 8px; padding: 10px 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color 0.15s; }
+    .btn-scan:hover { border-color: #FFD008; }
+    .referto-scan-loading { display: none; text-align: center; padding: 12px 0; color: #aaa; font-size: 12px; margin-top: 8px; }
+    .referto-scan-ok { display: none; background: #0a2a0a; border: 1px solid #2a6a2a; border-radius: 8px; padding: 8px 12px; margin-top: 8px; color: #7dda7d; font-size: 11px; font-weight: 700; }
+    .referto-extra { display: none; background: #111; border: 1px solid #2a2a2a; border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: 11px; color: #ccc; line-height: 1.8; }
+    .referto-extra-title { color: #FFD008; font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-bottom: 6px; }
+    #camera-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #livella-wrap {
+      position: absolute; inset: 0; pointer-events: none;
+      display: flex; align-items: center; justify-content: center; flex-direction: column;
+    }
+    #livella-inner { width: 100%; transition: transform 0.07s linear; }
+    #livella-line {
+      width: 100%; height: 2px; background: #e53935;
+      box-shadow: 0 0 8px rgba(229,57,53,0.7);
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    #livella-testo {
+      text-align: center; margin-top: 8px;
+      font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700;
+      color: #e53935; text-shadow: 0 1px 5px rgba(0,0,0,0.95);
+      transition: color 0.2s; letter-spacing: 0.5px;
+    }
+    #camera-close-btn {
+      position: absolute; top: 20px; left: 20px;
+      background: rgba(0,0,0,0.55); color: #fff; border: none;
+      width: 44px; height: 44px; border-radius: 50%; font-size: 20px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    #camera-gallery-btn {
+      position: absolute; top: 20px; right: 20px;
+      background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 22px;
+      padding: 10px 16px; font-family: 'Montserrat', sans-serif; font-size: 12px;
+      font-weight: 700; cursor: pointer;
+    }
+    #camera-shutter-btn {
+      position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%);
+      width: 76px; height: 76px; border-radius: 50%;
+      background: #fff; border: 5px solid rgba(255,255,255,0.35);
+      cursor: pointer; box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
+      transition: transform 0.1s, opacity 0.1s;
+    }
+    #camera-shutter-btn:active { transform: translateX(-50%) scale(0.9); opacity: 0.75; }
+
+    /* ── Sagoma Guida (croce centratrice) ── */
+    #sagoma-wrap { position: absolute; inset: 0; pointer-events: none; display: none; }
+    #sagoma-wrap.visible { display: block; }
+    #sagoma-v-line {
+      position: absolute; top: 0; bottom: 0; left: 50%;
+      width: 1px; background: rgba(255,255,255,0.5); transform: translateX(-50%);
+    }
+    #sagoma-h-line {
+      position: absolute; top: 35%; left: 0; right: 0;
+      height: 1px; background: rgba(255,255,255,0.5);
+    }
+    #sagoma-hint {
+      position: absolute; bottom: 142px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.88); font-size: 11px; font-weight: 700;
+      background: rgba(0,0,0,0.52); border-radius: 20px; padding: 6px 16px;
+      font-family: 'Montserrat', sans-serif; white-space: nowrap; letter-spacing: 0.3px;
+    }
+    /* Livella iOS permission button */
+    #livella-ios-btn {
+      display: none; position: absolute; bottom: 142px; left: 50%; transform: translateX(-50%);
+      background: #FFD008; color: #000; border: none; border-radius: 22px;
+      padding: 10px 20px; font-family: 'Montserrat', sans-serif; font-size: 13px;
+      font-weight: 700; cursor: pointer; white-space: nowrap; z-index: 10;
+    }
+    /* Debug gamma (piccolo, angolo) */
+    #livella-debug {
+      position: absolute; top: 76px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.55); font-size: 10px; font-family: monospace;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="premium-overlay" id="premium-overlay" onclick="chiudiModalePremium(event)">
+    <div class="premium-modal">
+      <h2>⭐ Funzione Premium</h2>
+      <p>Questa funzione è disponibile solo con il piano Premium. Scopri tutti i vantaggi e attiva il tuo abbonamento.</p>
+      <button class="btn-scopri" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
+      <button class="btn-annulla" onclick="document.getElementById('premium-overlay').classList.remove('visible')">Annulla</button>
+    </div>
+  </div>
+
+  <div class="aip-overlay" id="aip-overlay">
+    <div class="aip-modal">
+      <div id="aip-step-scelta">
+        <h2>🤖 Analisi AI Posturale</h2>
+        <p class="aip-sub">Su cosa vuoi basare la scelta della colorazione?</p>
+        <div class="aip-base-btns">
+          <button class="aip-base-btn" onclick="avviaAnalisiPosturale('scapolare')">🦴 Piano<br>Scapolare</button>
+          <button class="aip-base-btn" onclick="avviaAnalisiPosturale('piede')">🦶 Piede</button>
+        </div>
+        <button class="aip-cancel" onclick="chiudiAIPModal()">Annulla</button>
+      </div>
+      <div id="aip-step-obs" style="display:none">
+        <h2>🔍 Osservazione scapolare</h2>
+        <p class="aip-sub">Qual è la tua osservazione del piano scapolare?</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+          <button class="aip-base-btn" style="padding:16px" onclick="confermaOsservazioneAIP('Piano scapolare anteriore (prima)')">Anteriore</button>
+          <button class="aip-base-btn" style="padding:16px" onclick="confermaOsservazioneAIP('Piano scapolare in asse (prima)')">In asse</button>
+          <button class="aip-base-btn" style="padding:16px" onclick="confermaOsservazioneAIP('Piano scapolare posteriore (prima)')">Posteriore</button>
+        </div>
+        <button class="aip-cancel" onclick="chiudiAIPModal()">Annulla</button>
+      </div>
+      <div id="aip-step-loading" style="display:none">
+        <div class="aip-loading">
+          <div class="aip-spinner"></div>
+          <div class="aip-loading-text">L'AI sta analizzando le foto...</div>
+        </div>
+      </div>
+      <div id="aip-step-risultato" style="display:none">
+        <div class="aip-risultato">
+          <div id="aip-badge"></div>
+          <svg id="aip-svg" width="160" height="80" viewBox="0 0 160 80" style="margin:0 auto 14px;display:block"></svg>
+          <div class="aip-motivazione" id="aip-motivazione"></div>
+          <ul class="aip-obs-box" id="aip-obs-box"></ul>
+          <div class="aip-override">
+            <button class="aip-btn-npl" onclick="impostaColorazione('NPL')">Scegli NPL</button>
+            <button class="aip-btn-gpl" onclick="impostaColorazione('GPL')">Scegli GPL</button>
+          </div>
+          <div class="aip-disclaimer">⚠️ Suggerimento AI — la valutazione finale è sempre del professionista</div>
+          <button class="aip-close" onclick="chiudiAIPModal()">Chiudi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">Scheda Paziente</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn-nav-icon" onclick="window.location.href='dashboard.html'" title="Dashboard">🏠</button>
+      <button class="btn-nav-icon" onclick="apriRicercaPz()" title="Cerca paziente">🔍</button>
+    </div>
+  </nav>
+
+  <div class="premium-banner" id="premium-banner">
+    <span class="premium-banner-text">⭐ Stai usando Policettivo Free — Hai ancora 5 analisi AI gratuite per provare il sistema Policettivo®</span>
+    <button class="premium-banner-btn" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
+  </div>
+
+  <!-- Modal ricerca rapida paziente -->
+  <div id="search-pz-overlay" onclick="chiudiRicercaPz()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:8000"></div>
+  <div id="search-pz-modal" style="display:none;position:fixed;top:72px;left:50%;transform:translateX(-50%);width:min(480px,calc(100vw - 24px));background:#fff;border-radius:16px;z-index:8001;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.25);font-family:'Montserrat',sans-serif">
+    <div style="background:#000;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <span style="color:#fff;font-size:13px;font-weight:700">🔍 Cerca paziente</span>
+      <button onclick="chiudiRicercaPz()" style="background:none;border:none;color:#888;font-size:18px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div style="padding:16px;max-height:60vh;overflow-y:auto">
+      <input id="search-pz-input" type="search" placeholder="Nome o cognome..." autocomplete="off"
+        style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:10px 14px;font-family:'Montserrat',sans-serif;font-size:14px;outline:none;color:#000;margin-bottom:12px;box-sizing:border-box">
+      <ul id="search-pz-results" style="list-style:none;margin:0;padding:0"></ul>
+      <div id="search-pz-empty" style="display:none;font-size:13px;color:#999;text-align:center;padding:12px 0">Nessun risultato</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="patient-header">
+      <div>
+        <div class="patient-name" id="ph-nome">Caricamento...</div>
+        <div class="patient-sub" id="ph-sub"></div>
+      </div>
+      <div id="ph-config"></div>
+    </div>
+
+    <!-- DATI ANAGRAFICI -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Dati anagrafici</div>
+        <button class="btn-edit" onclick="toggleModifica()">✏️ Modifica</button>
+      </div>
+      <div class="info-grid">
+        <div class="info-item"><label>Email</label><span id="info-email">—</span></div>
+        <div class="info-item"><label>Telefono</label><span id="info-tel">—</span></div>
+        <div class="info-item"><label>Problema principale</label><span id="info-problema">—</span></div>
+      </div>
+      <div class="note-box" id="info-note" style="display:none"></div>
+      <div class="edit-form" id="edit-form">
+        <div class="referto-scan-box">
+          <div class="referto-scan-title">
+            📄 <span>Scansiona referto o documento</span>
+            <span id="referto-ai-badge-p" style="display:none;background:#333;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px"></span>
+          </div>
+          <div class="referto-scan-sub">Fotografa un documento medico: l'AI compila automaticamente nome, diagnosi e dati clinici.</div>
+          <div class="referto-scan-btns">
+            <button class="btn-scan" onclick="apriCamRefertoP()">📷 Fotocamera</button>
+            <button class="btn-scan" onclick="apriGalleriaRefertoP()">🖼 Galleria</button>
+          </div>
+          <div class="referto-scan-loading" id="referto-scan-loading-p">⏳ Analisi documento in corso...</div>
+          <div class="referto-scan-ok" id="referto-scan-ok-p">✓ Dati estratti — verifica e completa i campi qui sotto</div>
+          <div class="referto-extra" id="referto-extra-p">
+            <div class="referto-extra-title">DATI AGGIUNTIVI DAL DOCUMENTO</div>
+            <div id="referto-extra-content-p"></div>
+          </div>
+          <input type="file" id="referto-cam-input-p" accept="image/*" capture="environment" style="display:none" onchange="handleRefertoFileP(this)">
+          <input type="file" id="referto-gal-input-p" accept="image/*" style="display:none" onchange="handleRefertoFileP(this)">
+        </div>
+        <div class="edit-grid">
+          <div class="edit-group"><label>Nome</label><input id="edit-nome" type="text"></div>
+          <div class="edit-group"><label>Cognome</label><input id="edit-cognome" type="text"></div>
+        </div>
+        <div class="edit-grid">
+          <div class="edit-group"><label>Email</label><input id="edit-email" type="email"></div>
+          <div class="edit-group"><label>Telefono</label><input id="edit-telefono" type="tel"></div>
+        </div>
+        <div class="edit-group" style="margin-bottom:12px"><label>Problema principale</label><input id="edit-problema" type="text"></div>
+        <div class="edit-actions">
+          <button class="btn-save" onclick="salvaModifica()">✓ Salva</button>
+          <button class="btn-cancel" onclick="toggleModifica()">Annulla</button>
+          <button class="btn-delete" onclick="cancellaPaziente()">🗑 Elimina paziente</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOTO SAGITTALI -->
+    <div class="section">
+      <div class="section-title-plain">Foto posturali — Piano sagittale</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta le foto prima e dopo la Tecnica dei 3 Respiri. Poi seleziona il piano scapolare.</p>
+      <div class="foto-group-label"><span class="step-label">PRIMA</span> Piano sagittale — prima dei 3R</div>
+      <div class="foto-grid-2">
+        <div class="foto-slot" id="slot-prima-sx" onclick="triggerInput('prima-sx')"><div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+        <div class="foto-slot" id="slot-prima-dx" onclick="triggerInput('prima-dx')"><div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+      </div>
+      <div class="piano-scapolare-box">
+        <div class="piano-scapolare-title">Piano scapolare — prima dei 3R</div>
+        <div class="osservazione-buttons">
+          <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare in asse (prima)',this)">In asse</button>
+          <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare anteriore (prima)',this)">Anteriore</button>
+          <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare posteriore (prima)',this)">Posteriore</button>
+        </div>
+        <div id="ai-hint-prima" style="display:none;margin-top:10px;font-size:12px;color:#666;line-height:1.5"></div>
+      </div>
+      <hr class="confronto-divider">
+      <div class="foto-group-label"><span class="step-label">DOPO</span> Piano sagittale — dopo i 3R</div>
+      <div class="foto-grid-2">
+        <div class="foto-slot" id="slot-dopo-sx" onclick="triggerInput('dopo-sx')"><div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+        <div class="foto-slot" id="slot-dopo-dx" onclick="triggerInput('dopo-dx')"><div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+      </div>
+      <div class="piano-scapolare-box">
+        <div class="piano-scapolare-title">Piano scapolare — dopo i 3R</div>
+        <div class="osservazione-buttons">
+          <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare in asse (dopo)',this)">In asse</button>
+          <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare anteriore (dopo)',this)">Anteriore</button>
+          <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare posteriore (dopo)',this)">Posteriore</button>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="osservazione-label">Note piano sagittale:</div>
+        <textarea class="notes-textarea" id="note-sagittale" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
+      </div>
+      <input type="file" id="input-prima-sx" accept="image/*" style="display:none" onchange="handleFoto('prima-sx',this)">
+      <input type="file" id="input-prima-dx" accept="image/*" style="display:none" onchange="handleFoto('prima-dx',this)">
+      <input type="file" id="input-dopo-sx" accept="image/*" style="display:none" onchange="handleFoto('dopo-sx',this)">
+      <input type="file" id="input-dopo-dx" accept="image/*" style="display:none" onchange="handleFoto('dopo-dx',this)">
+      <div class="saving-indicator" id="saving-sagittale">✓ Salvato</div>
+    </div>
+
+    <!-- PIANO FRONTALE -->
+    <div class="section">
+      <div class="section-title-plain">Piano frontale e posteriore <span class="section-optional">(facoltativo)</span></div>
+      <div class="foto-grid-2" style="margin-bottom:16px">
+        <div>
+          <div class="foto-group-label">Piano frontale</div>
+          <div class="foto-slot" id="slot-frontale" onclick="triggerInput('frontale')"><div class="foto-label">Vista frontale</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+          <input type="file" id="input-frontale" accept="image/*" style="display:none" onchange="handleFoto('frontale',this)">
+        </div>
+        <div>
+          <div class="foto-group-label">Piano posteriore</div>
+          <div class="foto-slot" id="slot-posteriore" onclick="triggerInput('posteriore')"><div class="foto-label">Vista posteriore</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+          <input type="file" id="input-posteriore" accept="image/*" style="display:none" onchange="handleFoto('posteriore',this)">
+        </div>
+      </div>
+      <div class="osservazione-group">
+        <div class="osservazione-label">Rotazione superiore:</div>
+        <div class="osservazione-buttons">
+          <button class="obs-btn" onclick="selectObs('rotazione-sup','Rotazione superiore normale',this)">Normale</button>
+          <button class="obs-btn" onclick="selectObs('rotazione-sup','Rotazione superiore sinistra',this)">Sinistra</button>
+          <button class="obs-btn" onclick="selectObs('rotazione-sup','Rotazione superiore destra',this)">Destra</button>
+        </div>
+      </div>
+      <div class="osservazione-group">
+        <div class="osservazione-label">Inclinazione capo:</div>
+        <div class="osservazione-buttons">
+          <button class="obs-btn" onclick="selectObs('inclinazione-capo','Inclinazione capo normale',this)">Normale</button>
+          <button class="obs-btn" onclick="selectObs('inclinazione-capo','Inclinazione capo sinistra',this)">Sinistra</button>
+          <button class="obs-btn" onclick="selectObs('inclinazione-capo','Inclinazione capo destra',this)">Destra</button>
+        </div>
+      </div>
+      <div>
+        <div class="osservazione-label">Note piano frontale/posteriore:</div>
+        <textarea class="notes-textarea" id="note-frontale" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
+      </div>
+      <div class="saving-indicator" id="saving-frontale">✓ Salvato</div>
+    </div>
+
+    <!-- PODOSCOPIO -->
+    <div class="section">
+      <div class="section-title-plain">Osservazione podoscopica</div>
+      <div class="foto-grid-2" style="margin-bottom:16px">
+        <div>
+          <div class="foto-group-label">Vista plantare (da sotto)</div>
+          <div class="foto-slot" id="slot-podo-sotto" onclick="triggerInput('podo-sotto')"><div class="foto-label">Piede da sotto</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div></div>
+          <input type="file" id="input-podo-sotto" accept="image/*" style="display:none" onchange="handleFoto('podo-sotto',this)">
+          <div class="osservazione-group" style="margin-top:12px">
+            <div class="osservazione-label">Morfologia piede:</div>
+            <div class="osservazione-buttons">
+              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede normale',this)">Normale</button>
+              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede piatto',this)">Piatto</button>
+              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede cavo',this)">Cavo</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="foto-group-label">Vista posteriore (da dietro)</div>
+          <div class="foto-slot" id="slot-podo-dietro" onclick="triggerInput('podo-dietro')"><div class="foto-label">Piede da dietro</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div></div>
+          <input type="file" id="input-podo-dietro" accept="image/*" style="display:none" onchange="handleFoto('podo-dietro',this)">
+          <div class="osservazione-group" style="margin-top:12px">
+            <div class="osservazione-label">Asse calcaneare:</div>
+            <div class="osservazione-buttons">
+              <button class="obs-btn" onclick="selectObs('piede-asse','Calcagno normale',this)">Normale</button>
+              <button class="obs-btn" onclick="selectObs('piede-asse','Piede valgo',this)">Valgo</button>
+              <button class="obs-btn" onclick="selectObs('piede-asse','Piede varo',this)">Varo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="osservazione-label">Note podoscopio:</div>
+        <textarea class="notes-textarea" id="note-podo" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
+      </div>
+      <div class="saving-indicator" id="saving-note">✓ Salvato</div>
+    </div>
+
+    <!-- CONFIGURAZIONE -->
+    <div class="section">
+      <div class="section-title-plain">Configurazione cuscini</div>
+      <div class="config-selector">
+        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div></div>
+        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div></div>
+      </div>
+      <div class="saving-indicator" id="saving-config">✓ Salvato</div>
+    </div>
+
+    <!-- MONITORAGGIO -->
+    <div class="section">
+      <div class="section-title-plain">Monitoraggio</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Visualizza l'andamento del paziente nel tempo: aderenza, dolore, energia e diario.</p>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="window.location.href='monitoraggio.html?id=' + patientId">📊 Vedi monitoraggio</button>
+        <button class="btn-primary" onclick="window.location.href='diario.html?pid=' + patientId">📋 Diario Sedute</button>
+      </div>
+    </div>
+
+    <!-- PROTOCOLLO -->
+    <div class="section">
+      <div class="section-title-plain">Protocollo</div>
+      <div id="protocollo-info" style="margin-bottom:16px">
+        <p style="font-size:13px;color:#666">Caricamento protocollo...</p>
+      </div>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="window.location.href='assegna-protocollo.html?id=' + patientId">+ Assegna protocollo</button>
+      </div>
+    </div>
+
+    <!-- STORICO PROTOCOLLI -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Storico protocolli</div>
+        <button class="btn-edit" onclick="toggleStorico()" id="btn-storico">▼ Mostra</button>
+      </div>
+      <div id="storico-container" style="display:none">
+        <div id="storico-lista"><p style="font-size:13px;color:#888">Caricamento...</p></div>
+      </div>
+    </div>
+
+
+    <!-- CARTELLA CLINICA -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Cartella Clinica <span class="section-optional">documenti e referti</span></div>
+        <button class="btn-edit" onclick="toggleCartella()" id="btn-cartella">&#9660; Mostra</button>
+      </div>
+      <div id="cartella-container" style="display:none">
+        <div class="upload-form" id="upload-form">
+          <div style="margin-bottom:12px">
+            <div class="osservazione-label" style="margin-bottom:8px">Tipo documento:</div>
+            <div class="doc-tipo-selector">
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'lastra')">🩻 Lastra</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'referto')">📄 Referto</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'visita')">👨‍⚕️ Visita</button>
+              <button class="doc-tipo-btn" onclick="selectTipo(this,'esame')">🧪 Esame</button>
+              <button class="doc-tipo-btn selected" onclick="selectTipo(this,'altro')">📎 Altro</button>
+            </div>
+          </div>
+          <div class="edit-group" style="margin-bottom:12px">
+            <label>Descrizione <span style="font-weight:400;color:#bbb">(opzionale)</span></label>
+            <input type="text" id="doc-descrizione" placeholder="Es. RMN lombare gennaio 2025">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="doc-upload-area" onclick="document.getElementById('doc-file-input').click()" style="margin-bottom:0">
+              <div class="upload-icon">📁</div>
+              <div class="upload-text" style="font-weight:600">Scegli file</div>
+              <div class="upload-hint">JPG, PNG o PDF</div>
+            </div>
+            <div class="doc-upload-area" onclick="document.getElementById('doc-camera-input').click()" style="margin-bottom:0;border-color:#FFD008;background:#fffdf0">
+              <div class="upload-icon">📷</div>
+              <div class="upload-text" style="font-weight:600">Scatta foto</div>
+              <div class="upload-hint">Usa la fotocamera</div>
+            </div>
+          </div>
+          <input type="file" id="doc-file-input" accept="image/*,.pdf" style="display:none" onchange="handleDocFile(this)">
+          <input type="file" id="doc-camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleDocFile(this)">
+          <div id="doc-file-preview" style="font-size:12px;color:#666;margin-bottom:10px;display:none"></div>
+          <div id="upload-progress" style="font-size:12px;color:#999;margin-top:4px;display:none">⏳ Caricamento in corso...</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn-cancel" onclick="chiudiUploadForm()">Annulla</button>
+          </div>
+        </div>
+        <div class="actions-row" style="margin-bottom:16px">
+          <button class="btn-primary" onclick="apriUploadForm()">+ Aggiungi documento</button>
+          <button class="btn-secondary" id="btn-ai-analisi" onclick="avviaAnalisiAI()" style="display:none">🤖 Analisi AI</button>
+          <button class="btn-secondary" id="btn-stampa-cartella" onclick="stampaCartella()" style="display:none">🖨 Stampa / PDF</button>
+        </div>
+        <div class="doc-list" id="doc-list">
+          <p style="font-size:13px;color:#888">Nessun documento caricato.</p>
+        </div>
+        <div class="ai-loading" id="ai-loading">Analisi AI in corso... attendere</div>
+        <div class="ai-report-box" id="ai-report-box">
+          <div class="ai-report-title">Analisi AI - <span id="ai-report-date"></span></div>
+          <div class="ai-report-content" id="ai-report-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPARAZIONE -->
+    <div class="section">
+      <div class="section-title-plain">Comparazione posturale</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Visualizza le 4 foto prima e dopo affiancate con griglia di riferimento per comparare l andamento posturale.</p>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="apriComparazione()">🔍 Apri comparazione</button>
+      </div>
+    </div>
+
+    <!-- AI POSTURALE -->
+    <div class="section">
+      <div class="section-title-plain">🤖 Analisi AI Posturale</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">L'AI analizza le osservazioni del piano scapolare e del piede e suggerisce la colorazione NPL o GPL del cuscino.</p>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="apriModaleAIP()">🤖 Avvia Analisi AI Posturale</button>
+      </div>
+      <div class="aip-last-box" id="aip-last-box">
+        <div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Ultimo suggerimento AI</div>
+        <div id="aip-last-content"></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title-plain">Scheda clinica PDF</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Genera la scheda clinica completa con foto e note, pronta per la stampa.</p>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="apriSchedaPDF()">🖨 Genera scheda PDF</button>
+      </div>
+    </div>
+
+    <!-- ACCESSO PAZIENTE -->
+    <div class="section">
+      <div class="section-title-plain">Accesso paziente</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Genera il link personale da inviare al paziente.</p>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="generaLink()">Genera link paziente</button>
+        <button class="btn-secondary" onclick="copiaLink()">Copia link</button>
+        <button class="btn-secondary" onclick="inviaWhatsApp()" style="background:#25D366;color:#fff;border-color:#25D366">📲 Invia link WhatsApp</button>
+        <button class="btn-secondary" onclick="scriviPaziente()" style="background:#128C7E;color:#fff;border-color:#128C7E">💬 Scrivi al paziente</button>
+      </div>
+      <div class="link-box" id="link-box"></div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const params = new URLSearchParams(window.location.search)
+    const patientId = params.get('id')
+    let patient = null, selectedConfig = null, obsSelections = {}, noteSaveTimer = null
+
+    async function caricaProtocollo() {
+      const { data: prots } = await _supabase
+        .from('patient_protocols')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('stato', 'attivo')
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      const box = document.getElementById('protocollo-info')
+      if (!prots || prots.length === 0) {
+        box.innerHTML = '<div style="background:#f9f9f9;border-radius:8px;padding:14px 16px;font-size:13px;color:#888">Nessun protocollo assegnato.</div>'
+        return
+      }
+      const prot = prots[0]
+      const dataInizio = prot.created_at ? new Date(prot.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric'}) : '—'
+      const cfg = prot.configurazione_generale || '—'
+
+      const { data: ppe } = await _supabase
+        .from('patient_protocol_exercises')
+        .select('*, exercises(nome)')
+        .eq('patient_protocol_id', prot.id)
+        .order('ordine', { ascending: true })
+
+      const nomiEsercizi = ppe ? ppe.map(e => e.exercises ? e.exercises.nome : '—').join(', ') : '—'
+      const numEx = ppe ? ppe.length : 0
+
+      box.innerHTML =
+        '<div style="background:#f0fff4;border:1px solid #a5d6a7;border-radius:10px;padding:16px 18px">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
+        '<span style="font-size:18px">✅</span>' +
+        '<span style="font-weight:700;font-size:15px;color:#000">' + (prot.nome || 'Protocollo attivo') + '</span>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-left:auto">' +'<button onclick="window.location.href=\'assegna-protocollo.html?id=' + patientId + '&edit=' + prot.id + '\'" style="background:transparent;border:1.5px solid #FFD008;color:#000;padding:4px 12px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer">✏️ Modifica</button>' +'<span class="badge badge-' + cfg.toLowerCase() + '">' + cfg + '</span></div>' +
+        '</div>' +
+        '<div style="font-size:12px;color:#555;margin-bottom:6px">📅 Attivo dal ' + dataInizio + ' &nbsp;·&nbsp; ' + numEx + ' esercizi</div>' +
+        '<div style="font-size:12px;color:#666;line-height:1.6"><strong>Esercizi:</strong> ' + nomiEsercizi + '</div>' +
+        (prot.note ? '<div style="margin-top:10px;font-size:12px;color:#555;background:#fff;border-radius:6px;padding:10px"><strong>Note:</strong> ' + prot.note + '</div>' : '') +
+        '</div>'
+    }
+
+    async function init() {
+      if (!patientId) { window.location.href = 'dashboard.html'; return }
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+
+      const { profId: _profIdP } = await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
+      if (!window.isPremium && _profIdP) {
+        const { data: _profP } = await _supabase.from('professionals').select('ai_uses').eq('id', _profIdP).maybeSingle()
+        const _aiUsesP = _profP?.ai_uses || 0
+        if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_aiUsesP)
+        const _aiBadgeP = document.getElementById('referto-ai-badge-p')
+        if (_aiBadgeP) {
+          _aiBadgeP.textContent = Math.max(0, 5 - _aiUsesP) + ' analisi AI disponibili'
+          _aiBadgeP.style.display = 'inline-block'
+        }
+      }
+
+      const { data, error } = await _supabase.from('patients').select('*').eq('id', patientId).maybeSingle()
+      if (error || !data) { alert('Paziente non trovato'); window.location.href = 'dashboard.html'; return }
+      patient = data
+      renderPatient()
+      caricaProtocollo()
+    }
+
+    function renderPatient() {
+      document.getElementById('ph-nome').textContent = patient.nome + ' ' + patient.cognome
+      document.getElementById('ph-sub').textContent = patient.problema_principale || ''
+      document.getElementById('info-email').textContent = patient.email || '—'
+      document.getElementById('info-tel').textContent = patient.telefono || '—'
+      document.getElementById('info-problema').textContent = patient.problema_principale || '—'
+      if (patient.note_cliniche) {
+        const nb = document.getElementById('info-note')
+        nb.textContent = patient.note_cliniche
+        nb.style.display = 'block'
+      }
+      if (patient.configurazione_default) {
+        selectedConfig = patient.configurazione_default
+        updateConfigUI()
+        document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + selectedConfig.toLowerCase() + '">' + selectedConfig + '</span>'
+      } else {
+        document.getElementById('ph-config').innerHTML = '<span class="badge badge-none">Config. da definire</span>'
+      }
+      if (patient.foto_url) {
+        try {
+          const urls = JSON.parse(patient.foto_url)
+          Object.keys(urls).forEach(k => { if (urls[k]) showFotoPreview(k, urls[k]) })
+        } catch(e) {}
+      }
+    }
+
+    function toggleModifica() {
+      const form = document.getElementById('edit-form')
+      const visible = form.style.display === 'block'
+      if (!visible) {
+        document.getElementById('edit-nome').value = patient.nome || ''
+        document.getElementById('edit-cognome').value = patient.cognome || ''
+        document.getElementById('edit-email').value = patient.email || ''
+        document.getElementById('edit-telefono').value = patient.telefono || ''
+        document.getElementById('edit-problema').value = patient.problema_principale || ''
+      }
+      form.style.display = visible ? 'none' : 'block'
+    }
+
+    async function salvaModifica() {
+      const updates = {
+        nome: document.getElementById('edit-nome').value.trim(),
+        cognome: document.getElementById('edit-cognome').value.trim(),
+        email: document.getElementById('edit-email').value.trim() || null,
+        telefono: document.getElementById('edit-telefono').value.trim() || null,
+        problema_principale: document.getElementById('edit-problema').value.trim() || null
+      }
+      if (!updates.nome || !updates.cognome) { alert('Nome e cognome sono obbligatori'); return }
+      if (updates.email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(updates.email)) { alert('Inserisci un indirizzo email valido (es. mario@gmail.com).'); return }
+      }
+      if (updates.telefono) {
+        const digits = updates.telefono.replace(/[^0-9]/g, '')
+        if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return }
+      }
+      const { error } = await _supabase.from('patients').update(updates).eq('id', patientId)
+      if (error) { alert('Errore: ' + error.message); return }
+      Object.assign(patient, updates)
+      document.getElementById('ph-nome').textContent = updates.nome + ' ' + updates.cognome
+      document.getElementById('ph-sub').textContent = updates.problema_principale || ''
+      document.getElementById('info-email').textContent = updates.email || '—'
+      document.getElementById('info-tel').textContent = updates.telefono || '—'
+      document.getElementById('info-problema').textContent = updates.problema_principale || '—'
+      document.getElementById('edit-form').style.display = 'none'
+      alert('Dati aggiornati!')
+    }
+
+    async function cancellaPaziente() {
+      if (!confirm('Sei sicuro di voler eliminare ' + patient.nome + ' ' + patient.cognome + '?\nQuesta operazione è irreversibile.')) return
+      await _supabase.from('diary_entries').delete().eq('patient_id', patientId)
+      await _supabase.from('patient_protocols').delete().eq('patient_id', patientId)
+      const { error } = await _supabase.from('patients').delete().eq('id', patientId)
+      if (error) { alert('Errore: ' + error.message); return }
+      window.location.href = 'dashboard.html'
+    }
+
+    // ── Camera Modal + Livella + Sagoma ──
+    let _camStream = null, _camSlot = null, _orientHandler = null
+
+    function mostraSagoma(slot) {
+      const noCross = ['podo-sotto', 'podo-dietro']
+      document.getElementById('sagoma-wrap').classList.toggle('visible', !noCross.includes(slot))
+    }
+
+    function triggerInput(id) {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        apriCameraModal(id)
+      } else {
+        const inp = document.getElementById('input-' + id)
+        if (inp) inp.click()
+      }
+    }
+
+    async function apriCameraModal(slot) {
+      _camSlot = slot
+      try {
+        _camStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        })
+        document.getElementById('camera-video').srcObject = _camStream
+        document.getElementById('camera-modal').classList.add('open')
+        mostraSagoma(slot)
+        initLivella()
+      } catch(e) {
+        const inp = document.getElementById('input-' + slot)
+        if (inp) inp.click()
+      }
+    }
+
+    function initLivella() {
+      const attachOrientListener = () => {
+        if (_orientHandler) return  // già attivo
+        _orientHandler = e => {
+          const gamma = e.gamma != null ? e.gamma : 0
+          document.getElementById('livella-debug').textContent = `γ ${gamma.toFixed(2)}°`
+          const shift = Math.max(-90, Math.min(90, gamma * 5))
+          document.getElementById('livella-inner').style.transform = `translateY(${shift}px)`
+          const ok = Math.abs(gamma) <= 2
+          const line  = document.getElementById('livella-line')
+          const testo = document.getElementById('livella-testo')
+          line.style.background = ok ? '#00C853' : '#e53935'
+          line.style.boxShadow  = ok ? '0 0 10px #00C85355' : '0 0 8px rgba(229,57,53,0.7)'
+          testo.style.color     = ok ? '#00C853' : '#e53935'
+          testo.textContent     = ok ? 'In asse ✓' : `${Math.abs(gamma).toFixed(1)}°`
+        }
+        window.addEventListener('deviceorientation', _orientHandler, true)
+      }
+
+      const needsPermission = (
+        typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function'
+      )
+
+      if (needsPermission) {
+        // iOS 13+: getUserMedia() ha già consumato il contesto di gesto.
+        // Mostriamo un bottone che l'utente tocca direttamente → gesto valido.
+        const btn = document.getElementById('livella-ios-btn')
+        btn.textContent = '🎯 Abilita Livella'
+        btn.style.display = 'block'
+        btn.onclick = async () => {
+          try {
+            const perm = await DeviceOrientationEvent.requestPermission()
+            if (perm === 'granted') {
+              btn.style.display = 'none'
+              attachOrientListener()
+            } else {
+              btn.textContent = 'Permesso negato'
+            }
+          } catch(err) {
+            btn.textContent = 'Errore: ' + err.message
+          }
+        }
+      } else {
+        // Android / desktop: nessun permesso necessario
+        attachOrientListener()
+      }
+    }
+
+    function chiudiCameraModal() {
+      if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null }
+      if (_orientHandler) { window.removeEventListener('deviceorientation', _orientHandler, true); _orientHandler = null }
+      document.getElementById('camera-modal').classList.remove('open')
+      document.getElementById('livella-inner').style.transform = ''
+      document.getElementById('livella-line').style.background = '#e53935'
+      document.getElementById('livella-testo').textContent = '—'
+      document.getElementById('livella-debug').textContent = ''
+      document.getElementById('livella-ios-btn').style.display = 'none'
+      document.getElementById('sagoma-wrap').classList.remove('visible')
+    }
+
+    async function scattaFoto() {
+      const video = document.getElementById('camera-video')
+      const raw = document.createElement('canvas')
+      raw.width = video.videoWidth; raw.height = video.videoHeight
+      raw.getContext('2d').drawImage(video, 0, 0)
+      const slot = _camSlot
+      chiudiCameraModal()
+      // Resize identically to handleFoto (max 1200×1600, jpeg 0.82)
+      const tmp = new Image()
+      tmp.onload = async () => {
+        let w = tmp.width, h = tmp.height
+        if (w > 1200 || h > 1600) { const r = Math.min(1200/w, 1600/h); w = Math.round(w*r); h = Math.round(h*r) }
+        const c2 = document.createElement('canvas'); c2.width = w; c2.height = h
+        c2.getContext('2d').drawImage(tmp, 0, 0, w, h)
+        const dataUrl = c2.toDataURL('image/jpeg', 0.82)
+        showFotoPreview(slot, dataUrl)
+        let urls = {}
+        try { urls = JSON.parse(patient.foto_url || '{}') } catch(_) {}
+        urls[slot] = dataUrl
+        patient.foto_url = JSON.stringify(urls)
+        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+      }
+      tmp.src = raw.toDataURL()
+    }
+
+    function apriGalleria() {
+      const slot = _camSlot
+      chiudiCameraModal()
+      const inp = document.getElementById('input-' + slot)
+      if (inp) inp.click()
+    }
+
+    function resizeImage(file, maxW, maxH, cb) {
+      const reader = new FileReader()
+      reader.onload = e => {
+        const img = new Image()
+        img.onload = () => {
+          let w = img.width, h = img.height
+          if (w > maxW || h > maxH) { const r = Math.min(maxW/w, maxH/h); w = Math.round(w*r); h = Math.round(h*r) }
+          const canvas = document.createElement('canvas')
+          canvas.width = w; canvas.height = h
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+          cb(canvas.toDataURL('image/jpeg', 0.82))
+        }
+        img.src = e.target.result
+      }
+      reader.readAsDataURL(file)
+    }
+
+    async function handleFoto(slot, input) {
+      const file = input.files[0]; if (!file) return
+      resizeImage(file, 1200, 1600, async (dataUrl) => {
+        showFotoPreview(slot, dataUrl)
+        let urls = {}
+        try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
+        urls[slot] = dataUrl
+        patient.foto_url = JSON.stringify(urls)
+        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+      })
+    }
+
+    function showFotoPreview(slot, src) {
+      const el = document.getElementById('slot-' + slot); if (!el) return
+      el.classList.add('has-photo'); el.onclick = null
+      el.innerHTML = '<img src="' + src + '" alt="foto">' +
+        '<div class="foto-draw-btn" onclick="event.stopPropagation();window.location.href=\'disegno.html?id=' + patientId + '&foto=' + slot + '\'">✏️</div>' +
+        '<div class="foto-overlay" onclick="triggerInput(\'' + slot + '\')">Cambia</div>' +
+        '<input type="file" id="input-' + slot + '" accept="image/*" style="display:none" onchange="handleFoto(\'' + slot + '\',this)">'
+      if (slot === 'prima-sx' || slot === 'prima-dx') avviaAIHintPrima()
+    }
+
+    async function avviaAIHintPrima() {
+      const hintEl = document.getElementById('ai-hint-prima')
+      if (!hintEl || hintEl.dataset.stato === 'fatto' || hintEl.dataset.stato === 'caricamento') return
+      let fotoUrls = {}
+      try { fotoUrls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
+      if (!fotoUrls['prima-sx'] || !fotoUrls['prima-dx']) return
+      hintEl.textContent = '🤖 Analisi AI in corso...'
+      hintEl.style.display = 'block'
+      hintEl.dataset.stato = 'caricamento'
+      try {
+        const content = []
+        for (const slot of ['prima-sx', 'prima-dx']) {
+          const img = await imgUrlToBase64(fotoUrls[slot])
+          if (img) content.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })
+        }
+        content.push({ type: 'text', text:
+          'Analizza queste foto posturali sagittali (piano scapolare pre-tecnica). ' +
+          'Determina se il piano scapolare è ANTERIORE, POSTERIORE o IN ASSE. ' +
+          'Poi suggerisci NPL (scapolare anteriore) o GPL (scapolare posteriore) o NEUTRO. ' +
+          'Rispondi SOLO con JSON valido: {"rilevamento":"piano scapolare anteriore"|"piano scapolare posteriore"|"allineamento neutro","suggerimento":"NPL"|"GPL"|"NEUTRO"}'
+        })
+        const { data: { session: _aiS1 } } = await _supabase.auth.getSession()
+        const resp = await fetch('/api/analisi-posturale', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_aiS1?.access_token || '') },
+          body: JSON.stringify({
+            system: 'Sei un assistente AI per fisioterapisti. Analizza la postura scapolare e rispondi SOLO con JSON valido, nessun testo extra.',
+            content: content
+          })
+        })
+        if (resp.status === 403) { const e403 = await resp.json(); hintEl.style.display = 'none'; if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
+        const data = await resp.json()
+        if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
+        let result
+        try { result = JSON.parse(data.testo || '{}') } catch(e) { result = {} }
+        const rilevamento = result.rilevamento || 'allineamento neutro'
+        const sug = result.suggerimento || 'NEUTRO'
+        if (sug === 'NPL') hintEl.textContent = `🤖 L'AI rileva: ${rilevamento} — suggerisce NPL`
+        else if (sug === 'GPL') hintEl.textContent = `🤖 L'AI rileva: ${rilevamento} — suggerisce GPL`
+        else hintEl.textContent = `🤖 L'AI rileva: ${rilevamento} — valutazione del professionista necessaria`
+        hintEl.dataset.stato = 'fatto'
+      } catch(e) {
+        hintEl.style.display = 'none'
+        hintEl.dataset.stato = ''
+      }
+    }
+
+    function selectObs(gruppo, valore, btn) {
+      const parent = btn.closest('.osservazione-buttons')
+      parent.querySelectorAll('.obs-btn').forEach(b => b.classList.remove('selected'))
+      btn.classList.add('selected')
+      obsSelections[gruppo] = valore
+      scheduleNoteSave()
+    }
+
+    function scheduleNoteSave() { clearTimeout(noteSaveTimer); noteSaveTimer = setTimeout(() => aggiornaNoteCliniche(), 800) }
+
+    async function aggiornaNoteCliniche() {
+      const righe = []
+      if (obsSelections['scapolare-prima']) righe.push('Piano scapolare prima 3R: ' + obsSelections['scapolare-prima'])
+      if (obsSelections['scapolare-dopo']) righe.push('Piano scapolare dopo 3R: ' + obsSelections['scapolare-dopo'])
+      const noteSag = document.getElementById('note-sagittale').value.trim()
+      if (noteSag) righe.push('Note sagittale: ' + noteSag)
+      if (obsSelections['rotazione-sup']) righe.push('Rotazione superiore: ' + obsSelections['rotazione-sup'])
+      if (obsSelections['inclinazione-capo']) righe.push('Inclinazione capo: ' + obsSelections['inclinazione-capo'])
+      const noteFront = document.getElementById('note-frontale').value.trim()
+      if (noteFront) righe.push('Note frontale/posteriore: ' + noteFront)
+      if (obsSelections['piede-morfologia']) righe.push('Morfologia piede: ' + obsSelections['piede-morfologia'])
+      if (obsSelections['piede-asse']) righe.push('Asse calcaneare: ' + obsSelections['piede-asse'])
+      const notePodo = document.getElementById('note-podo').value.trim()
+      if (notePodo) righe.push('Note podoscopio: ' + notePodo)
+      const noteFinali = righe.join('\n')
+      await _supabase.from('patients').update({ note_cliniche: noteFinali }).eq('id', patientId)
+      patient.note_cliniche = noteFinali
+      const nb = document.getElementById('info-note')
+      if (noteFinali) { nb.textContent = noteFinali; nb.style.display = 'block' }
+      ;['saving-sagittale','saving-frontale','saving-note'].forEach(id => {
+        const el = document.getElementById(id); el.style.display = 'block'
+        setTimeout(() => { el.style.display = 'none' }, 2000)
+      })
+    }
+
+    function updateConfigUI() {
+      document.getElementById('opt-npl').className = 'config-option' + (selectedConfig === 'NPL' ? ' selected' : '')
+      document.getElementById('opt-gpl').className = 'config-option' + (selectedConfig === 'GPL' ? ' selected' : '')
+    }
+
+    async function selectConfig(val) {
+      selectedConfig = val; updateConfigUI()
+      document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + val.toLowerCase() + '">' + val + '</span>'
+      const ind = document.getElementById('saving-config'); ind.style.display = 'block'
+      await _supabase.from('patients').update({ configurazione_default: val }).eq('id', patientId)
+      setTimeout(() => { ind.style.display = 'none' }, 2000)
+    }
+
+    function generaLink() {
+      const link = 'https://policettivo-app.vercel.app/consenso.html?token=' + patient.access_token
+      document.getElementById('link-box').textContent = link
+      document.getElementById('link-box').classList.add('visible')
+    }
+
+    function copiaLink() {
+      const link = 'https://policettivo-app.vercel.app/consenso.html?token=' + patient.access_token
+      navigator.clipboard.writeText(link).then(() => alert('Link copiato!'))
+    }
+
+    function scriviPaziente() {
+      if (!patient.telefono) { alert('Numero di telefono non inserito per questo paziente.'); return }
+      const tel = patient.telefono.replace(/[^0-9+]/g, '')
+      const msg = 'Ciao ' + patient.nome + ', ti scrivo riguardo al tuo percorso Policettivo.'
+      window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg))
+    }
+    function inviaWhatsApp() {
+      const link = 'https://policettivo-app.vercel.app/consenso.html?token=' + patient.access_token
+      const testo = 'Ciao ' + patient.nome + ', ecco il tuo protocollo Policettivo®. Aprilo da qui: ' + link
+      window.open('https://wa.me/?text=' + encodeURIComponent(testo))
+    }
+
+    async function toggleStorico() {
+      const container = document.getElementById('storico-container')
+      const btn = document.getElementById('btn-storico')
+      if (container.style.display === 'none') {
+        container.style.display = 'block'
+        btn.textContent = '▲ Nascondi'
+        await caricaStorico()
+      } else {
+        container.style.display = 'none'
+        btn.textContent = '▼ Mostra'
+      }
+    }
+
+    async function caricaStorico() {
+      const { data: prots } = await _supabase
+        .from('patient_protocols')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+
+      const lista = document.getElementById('storico-lista')
+      if (!prots || prots.length === 0) {
+        lista.innerHTML = '<p style="font-size:13px;color:#888">Nessun protocollo trovato.</p>'
+        return
+      }
+
+      let html = ''
+      for (const prot of prots) {
+        const dataInizio = prot.created_at ? new Date(prot.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric'}) : '—'
+        const stato = prot.stato || 'sconosciuto'
+        const statoColor = stato === 'attivo' ? '#2e7d32' : stato === 'completato' ? '#1565c0' : '#888'
+        const statoLabel = stato === 'attivo' ? '✅ Attivo' : stato === 'completato' ? '✔ Completato' : '⏹ ' + stato
+
+        const { data: ppe } = await _supabase
+          .from('patient_protocol_exercises')
+          .select('*, exercises(nome)')
+          .eq('patient_protocol_id', prot.id)
+          .order('ordine', { ascending: true })
+
+        const esercizi = ppe ? ppe.map(e => e.exercises ? e.exercises.nome : '—').join(', ') : '—'
+        const numEx = ppe ? ppe.length : 0
+
+        html += '<div style="border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:12px;background:#fafafa">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
+          '<span style="font-weight:700;font-size:14px;color:#000">' + (prot.nome_personalizzato || 'Protocollo') + '</span>' +
+          '<span style="font-size:11px;font-weight:700;color:' + statoColor + ';margin-left:auto">' + statoLabel + '</span>' +
+          '</div>' +
+          '<div style="font-size:12px;color:#555;margin-bottom:6px">📅 ' + dataInizio + ' &nbsp;·&nbsp; ' + numEx + ' esercizi</div>' +
+          '<div style="font-size:12px;color:#666"><strong>Esercizi:</strong> ' + esercizi + '</div>' +
+          '</div>'
+      }
+      lista.innerHTML = html
+    }
+
+
+    // CARTELLA CLINICA
+    let docTipoSelezionato = 'altro'
+    let docFileSelezionato = null
+    let documentiCaricati = []
+
+    function toggleCartella(autoApri) {
+      const container = document.getElementById('cartella-container')
+      const btn = document.getElementById('btn-cartella')
+      if (container.style.display === 'none' || autoApri) {
+        container.style.display = 'block'
+        btn.textContent = 'Nascondi'
+        caricaDocumenti()
+        setTimeout(() => {
+          document.querySelector('.section:has(#cartella-container)').scrollIntoView({behavior:'smooth', block:'start'})
+        }, 100)
+      } else {
+        container.style.display = 'none'
+        btn.textContent = 'Mostra'
+      }
+    }
+
+    function selectTipo(btn, tipo) {
+      document.querySelectorAll('.doc-tipo-btn').forEach(function(b) { b.classList.remove('selected') })
+      btn.classList.add('selected')
+      docTipoSelezionato = tipo
+    }
+
+    function apriUploadForm() {
+      document.getElementById('upload-form').classList.add('visible')
+      document.getElementById('doc-descrizione').focus()
+    }
+
+    function chiudiUploadForm() {
+      document.getElementById('upload-form').classList.remove('visible')
+      document.getElementById('doc-file-input').value = ''
+      document.getElementById('doc-descrizione').value = ''
+      document.getElementById('doc-file-preview').style.display = 'none'
+      docFileSelezionato = null
+    }
+
+    function handleDocFile(input) {
+      const file = input.files[0]
+      if (!file) return
+      if (file.size > 10 * 1024 * 1024) { alert('File troppo grande. Massimo 10MB.'); return }
+      docFileSelezionato = file
+      const preview = document.getElementById('doc-file-preview')
+      const kb = (file.size / 1024).toFixed(0)
+      preview.textContent = 'File selezionato: ' + file.name + ' (' + kb + ' KB)'
+      preview.style.display = 'block'
+      uploadDocumento()
+    }
+
+    async function uploadDocumento() {
+      if (!docFileSelezionato) return
+      const descrizione = document.getElementById('doc-descrizione').value.trim()
+      const tipoLabel = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita', esame: 'Esame', altro: 'Documento' }
+      const descFinale = descrizione || tipoLabel[docTipoSelezionato] || 'Documento'
+      const progress = document.getElementById('upload-progress')
+      progress.style.display = 'block'
+      const ext = docFileSelezionato.name.split('.').pop()
+      const fileName = patientId + '/' + Date.now() + '.' + ext
+      const { error: storageError } = await _supabase.storage
+        .from('clinical-docs')
+        .upload(fileName, docFileSelezionato, { upsert: false })
+      if (storageError) {
+        progress.style.display = 'none'
+        alert('Errore upload: ' + storageError.message)
+        return
+      }
+      const { data: urlData } = _supabase.storage.from('clinical-docs').getPublicUrl(fileName)
+      const fileUrl = urlData.publicUrl
+      const { data: { session } } = await _supabase.auth.getSession()
+      const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).maybeSingle()
+      const { error: dbError } = await _supabase.from('clinical_documents').insert({
+        patient_id: patientId,
+        professional_id: prof ? prof.id : null,
+        tipo: docTipoSelezionato,
+        descrizione: descFinale,
+        file_url: fileUrl,
+        file_type: docFileSelezionato.type
+      })
+      if (dbError) {
+        progress.style.display = 'none'
+        alert('Errore salvataggio: ' + dbError.message)
+        return
+      }
+      progress.style.display = 'none'
+      chiudiUploadForm()
+      caricaDocumenti()
+    }
+
+    async function caricaDocumenti() {
+      const { data: docs } = await _supabase
+        .from('clinical_documents')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+      documentiCaricati = docs || []
+      const lista = document.getElementById('doc-list')
+      const btnAI = document.getElementById('btn-ai-analisi')
+      if (!docs || docs.length === 0) {
+        lista.innerHTML = '<p style="font-size:13px;color:#888">Nessun documento caricato.</p>'
+        btnAI.style.display = 'none'
+        document.getElementById('btn-stampa-cartella').style.display = 'none'
+        return
+      }
+      btnAI.style.display = 'inline-block'
+      document.getElementById('btn-stampa-cartella').style.display = 'inline-block'
+      const tipoIcon = { lastra: '🩻', referto: '📄', visita: '👨', esame: '🧪', altro: '📎' }
+      const tipoLabel = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita spec.', esame: 'Esame lab.', altro: 'Altro' }
+      let html = ''
+      docs.forEach(function(doc) {
+        const icon = tipoIcon[doc.tipo] || '📎'
+        const label = tipoLabel[doc.tipo] || doc.tipo
+        const data = new Date(doc.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric'})
+        html += '<div class="doc-item">'
+        html += '<div class="doc-item-icon">' + icon + '</div>'
+        html += '<div class="doc-item-info">'
+        html += '<div class="doc-item-tipo">' + label + '</div>'
+        html += '<div class="doc-item-desc">' + doc.descrizione + '</div>'
+        html += '<div class="doc-item-date">' + data + '</div>'
+        html += '</div>'
+        html += '<div class="doc-item-actions">'
+        html += '<button class="btn-doc-view" onclick="window.open(' + "'" + doc.file_url + "'" + ')">Apri</button>'
+        html += '<button class="btn-doc-del" onclick="eliminaDocumento(' + "'" + doc.id + "','" + doc.file_url + "'" + ')">🗑</button>'
+        html += '</div></div>'
+      })
+      lista.innerHTML = html
+    }
+
+    async function eliminaDocumento(id, fileUrl) {
+      if (!confirm('Eliminare questo documento?')) return
+      const parts = fileUrl.split('/clinical-docs/')
+      if (parts.length > 1) {
+        await _supabase.storage.from('clinical-docs').remove([parts[1]])
+      }
+      await _supabase.from('clinical_documents').delete().eq('id', id)
+      caricaDocumenti()
+    }
+
+    function mostraModalePremium() {
+      document.getElementById('premium-overlay').classList.add('visible')
+    }
+
+    function chiudiModalePremium(e) {
+      if (e.target === document.getElementById('premium-overlay')) {
+        document.getElementById('premium-overlay').classList.remove('visible')
+      }
+    }
+
+    function apriModaleAIP() {
+      document.getElementById('aip-step-scelta').style.display = 'block'
+      document.getElementById('aip-step-loading').style.display = 'none'
+      document.getElementById('aip-step-risultato').style.display = 'none'
+      document.getElementById('aip-overlay').classList.add('visible')
+    }
+
+    function chiudiAIPModal() {
+      document.getElementById('aip-overlay').classList.remove('visible')
+    }
+
+    async function imgUrlToBase64(url) {
+      try {
+        const resp = await fetch(url)
+        const blob = await resp.blob()
+        return new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve({ data: reader.result.split(',')[1], mediaType: blob.type || 'image/jpeg' })
+          reader.readAsDataURL(blob)
+        })
+      } catch(e) { return null }
+    }
+
+    function confermaOsservazioneAIP(valore) {
+      obsSelections['scapolare-prima'] = valore
+      document.getElementById('aip-step-obs').style.display = 'none'
+      avviaAnalisiPosturale('scapolare')
+    }
+
+    async function avviaAnalisiPosturale(base) {
+      const scapPrima = obsSelections['scapolare-prima'] || ''
+      const scapDopo  = obsSelections['scapolare-dopo']  || ''
+
+      if (base === 'scapolare' && !scapPrima && !scapDopo) {
+        document.getElementById('aip-step-scelta').style.display = 'none'
+        document.getElementById('aip-step-obs').style.display = 'block'
+        return
+      }
+
+      document.getElementById('aip-step-scelta').style.display = 'none'
+      document.getElementById('aip-step-obs').style.display = 'none'
+      document.getElementById('aip-step-loading').style.display = 'block'
+
+      const piede    = obsSelections['piede-morfologia'] || ''
+      const calcagno = obsSelections['piede-asse']       || ''
+      const rotSup   = obsSelections['rotazione-sup']    || ''
+      const incCapo  = obsSelections['inclinazione-capo'] || ''
+
+      let fotoUrls = {}
+      try { fotoUrls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
+
+      const slotsPerBase = {
+        scapolare: ['prima-sx', 'prima-dx'],
+        piede: ['podo-sotto', 'podo-dietro']
+      }
+      const content = []
+      for (const slot of (slotsPerBase[base] || [])) {
+        if (fotoUrls[slot]) {
+          const img = await imgUrlToBase64(fotoUrls[slot])
+          if (img) content.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })
+        }
+      }
+      content.push({ type: 'text', text:
+        `Osservazioni posturali — base: ${base === 'scapolare' ? 'piano scapolare (pre-3R)' : 'piede'}.\n` +
+        `Piano scapolare (osservazione professionista): ${scapPrima || 'non rilevato'}\n` +
+        `Morfologia piede: ${piede || 'non rilevata'}\n` +
+        `Asse calcaneare: ${calcagno || 'non rilevato'}\n` +
+        `Rotazione superiore: ${rotSup || 'non rilevata'}\n` +
+        `Inclinazione capo: ${incCapo || 'non rilevata'}\n\n` +
+        `Le foto allegate sono SOLO quelle pre-tecnica (postura naturale del paziente).\n` +
+        `Applica la logica NPL/GPL e rispondi SOLO con JSON valido senza markdown.`
+      })
+
+      const systemPrompt =
+        `Sei un assistente AI per fisioterapisti specializzato in posturologia e colorazione dei cuscini NPL/GPL.\n\n` +
+        `Logica di scelta:\n` +
+        `- NPL (cuscino nero, tonico): piano scapolare ANTERIORE, piede CAVO, calcagno VARO\n` +
+        `- GPL (cuscino verde lime, decompressivo): piano scapolare POSTERIORE, piede PIATTO, calcagno VALGO\n` +
+        `- NEUTRO: piano scapolare in asse/normali o osservazioni contraddittorie — lascia decidere al professionista\n\n` +
+        `Rispondi ESCLUSIVAMENTE con questo JSON (nessun testo extra):\n` +
+        `{"suggerimento":"NPL"|"GPL"|"NEUTRO","confidenza":"alta"|"media"|"bassa","motivazione":"1-2 frasi","osservazioni_chiave":["..."]}`
+
+      try {
+        const { data: { session: _aiS2 } } = await _supabase.auth.getSession()
+        const resp = await fetch('/api/analisi-posturale', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_aiS2?.access_token || '') },
+          body: JSON.stringify({ system: systemPrompt, content: content })
+        })
+        if (resp.status === 403) { const e403 = await resp.json(); document.getElementById('aip-step-loading').style.display = 'none'; document.getElementById('aip-step-scelta').style.display = 'block'; if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
+        const data = await resp.json()
+        if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
+        let result
+        try { result = JSON.parse(data.testo || '{}') }
+        catch(e) { result = { suggerimento: 'NEUTRO', confidenza: 'bassa', motivazione: 'Errore nel parsing della risposta AI.', osservazioni_chiave: [] } }
+        mostraRisultatoAIP(result)
+      } catch(e) {
+        document.getElementById('aip-step-loading').style.display = 'none'
+        document.getElementById('aip-step-scelta').style.display = 'block'
+        alert('Errore connessione AI: ' + e.message)
+      }
+    }
+
+    function mostraRisultatoAIP(result) {
+      document.getElementById('aip-step-loading').style.display = 'none'
+      const sug = result.suggerimento || 'NEUTRO'
+      const badgeEl = document.getElementById('aip-badge')
+      const svgEl   = document.getElementById('aip-svg')
+      const svgNPL = `<rect x="10" y="22" width="140" height="36" rx="18" fill="#111" stroke="#555" stroke-width="1.5"/>
+        <ellipse cx="28" cy="40" rx="9" ry="13" fill="#1d1d1d"/>
+        <ellipse cx="132" cy="40" rx="9" ry="13" fill="#1d1d1d"/>
+        <text x="80" y="45" text-anchor="middle" fill="#fff" font-size="13" font-family="Montserrat,sans-serif" font-weight="700" letter-spacing="2">NPL</text>`
+      const svgGPL = `<rect x="10" y="22" width="140" height="36" rx="18" fill="#C6F135" stroke="#9ec01a" stroke-width="1.5"/>
+        <ellipse cx="28" cy="40" rx="9" ry="13" fill="#b5de2e"/>
+        <ellipse cx="132" cy="40" rx="9" ry="13" fill="#b5de2e"/>
+        <text x="80" y="45" text-anchor="middle" fill="#000" font-size="13" font-family="Montserrat,sans-serif" font-weight="700" letter-spacing="2">GPL</text>`
+      const svgNEU = `<rect x="10" y="22" width="140" height="36" rx="18" fill="#444" stroke="#666" stroke-width="1.5"/>
+        <text x="80" y="45" text-anchor="middle" fill="#fff" font-size="11" font-family="Montserrat,sans-serif" font-weight="700">NPL / GPL</text>`
+      if (sug === 'NPL')      { badgeEl.innerHTML = '<div class="aip-badge-npl">⬛ NPL</div>'; svgEl.innerHTML = svgNPL }
+      else if (sug === 'GPL') { badgeEl.innerHTML = '<div class="aip-badge-gpl">🟢 GPL</div>'; svgEl.innerHTML = svgGPL }
+      else                    { badgeEl.innerHTML = '<div class="aip-badge-neutro">⚪ NEUTRO</div>'; svgEl.innerHTML = svgNEU }
+      document.getElementById('aip-motivazione').textContent = result.motivazione || ''
+      document.getElementById('aip-obs-box').innerHTML = (result.osservazioni_chiave || []).map(o => `<li>${o}</li>`).join('')
+      document.getElementById('aip-step-risultato').style.display = 'block'
+    }
+
+    function renderCuscino(tipo) {
+      if (!tipo) return
+      const isNPL = tipo === 'NPL'
+      document.getElementById('cuscino-badge').innerHTML =
+        `<span style="display:inline-block;background:${isNPL ? '#000' : '#9AFF00'};color:${isNPL ? '#9AFF00' : '#000'};` +
+        `font-size:28px;font-weight:700;letter-spacing:4px;padding:12px 32px;border-radius:10px;` +
+        `border:${isNPL ? '2px solid #333' : 'none'}">${tipo}</span>`
+      document.getElementById('cuscino-label').textContent =
+        isNPL ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'
+      document.getElementById('cuscino-visual').style.display = 'block'
+    }
+
+    function impostaColorazione(tipo) {
+      chiudiAIPModal()
+      selectConfig(tipo)
+      const isNPL = tipo === 'NPL'
+      document.getElementById('aip-last-content').innerHTML =
+        `<span style="background:${isNPL ? '#111' : '#C6F135'};color:${isNPL ? '#fff' : '#000'};` +
+        `padding:5px 18px;border-radius:6px;font-weight:700;font-size:15px;letter-spacing:2px">${tipo}</span>` +
+        `<span style="font-size:12px;color:#888;margin-left:10px">Scelta confermata dal professionista</span>`
+      document.getElementById('aip-last-box').classList.add('visible')
+    }
+
+    function apriComparazione() {
+      if (!window.isPremium) { mostraModalePremium(); return }
+      window.open('comparazione.html?id=' + patientId)
+    }
+
+    function apriSchedaPDF() {
+      if (!window.isPremium) { mostraModalePremium(); return }
+      window.open('scheda-pdf.html?id=' + patientId)
+    }
+
+    async function avviaAnalisiAI() {
+      if (documentiCaricati.length === 0) { alert('Nessun documento da analizzare.'); return }
+      const loading = document.getElementById('ai-loading')
+      const reportBox = document.getElementById('ai-report-box')
+      reportBox.classList.remove('visible')
+      loading.style.display = 'block'
+      let elencoDoc = ''
+      documentiCaricati.forEach(function(d, i) {
+        const data = new Date(d.created_at).toLocaleDateString('it-IT')
+        elencoDoc += (i+1) + '. [' + d.tipo.toUpperCase() + '] ' + d.descrizione + ' - ' + data + '\n'
+      })
+      const nomePaz = patient.nome + ' ' + patient.cognome
+      const problema = patient.problema_principale || 'non specificato'
+      const note = patient.note_cliniche || 'nessuna'
+      const prompt = 'Sei un assistente per fisioterapisti. Analizza brevemente i documenti del paziente ' + nomePaz + ' (problema: ' + problema + '). Documenti: ' + elencoDoc + '. Rispondi in max 300 parole con: RED FLAG (elenco puntato), CONDIZIONI DA RISPETTARE (elenco puntato), ORDINE DI INTERVENTO (3 fasi max). Niente intro, niente conclusioni, solo i punti essenziali.'
+      try {
+        const { data: { session: _aiSDoc } } = await _supabase.auth.getSession()
+        const response = await fetch('/api/ai-analisi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_aiSDoc?.access_token || '') },
+          body: JSON.stringify({ prompt: prompt })
+        })
+        if (response.status === 403) { loading.style.display = 'none'; if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert('Limite AI raggiunto.'); return }
+        const data = await response.json()
+        if (data.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(data.ai_uses)
+        const testo = data.testo || data.error || 'Errore nella risposta AI.'
+        loading.style.display = 'none'
+        const testoFormattato = testo
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/## (.+)/g, '<div style="font-size:13px;font-weight:700;color:#1565c0;margin:12px 0 4px">$1</div>')
+          .replace(/### (.+)/g, '<div style="font-size:12px;font-weight:700;color:#333;margin:8px 0 2px">$1</div>')
+          .replace(/^- (.+)/gm, '<div style="padding-left:12px;margin:2px 0">• $1</div>')
+          .replace(/^\d+\. (.+)/gm, '<div style="padding-left:12px;margin:2px 0">$1</div>')
+          .replace(/---/g, '<hr style="border:none;border-top:1px solid #ddd;margin:8px 0">')
+          .replace(/\n/g, '<br>')
+        document.getElementById('ai-report-content').innerHTML = testoFormattato
+        document.getElementById('ai-report-date').textContent = new Date().toLocaleDateString('it-IT')
+        reportBox.classList.add('visible')
+      } catch(e) {
+        loading.style.display = 'none'
+        alert('Errore connessione AI: ' + e.message)
+      }
+    }
+
+    function stampaCartella() {
+      const nomePaz = patient.nome + ' ' + patient.cognome
+      const problema = patient.problema_principale || ''
+      const note = patient.note_cliniche || ''
+      const tipoIcon = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita', esame: 'Esame', altro: 'Documento' }
+      let docsHtml = ''
+      documentiCaricati.forEach(function(doc) {
+        const data = new Date(doc.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'long',year:'numeric'})
+        const tipo = tipoIcon[doc.tipo] || doc.tipo
+        const isImg = doc.file_type && doc.file_type.startsWith('image/')
+        docsHtml += '<div style="margin-bottom:20px;padding:16px;border:1px solid #ddd;border-radius:8px">'
+        docsHtml += '<div style="font-size:11px;color:#999;text-transform:uppercase;margin-bottom:4px">' + tipo + ' — ' + data + '</div>'
+        docsHtml += '<div style="font-size:14px;font-weight:700;margin-bottom:8px">' + doc.descrizione + '</div>'
+        if (isImg) docsHtml += '<img src="' + doc.file_url + '" style="max-width:100%;max-height:300px;object-fit:contain;border-radius:6px">'
+        else docsHtml += '<a href="' + doc.file_url + '" target="_blank" style="font-size:12px;color:#1565c0">Apri documento PDF</a>'
+        docsHtml += '</div>'
+      })
+      const aiContent = document.getElementById('ai-report-content')
+      let aiHtml = ''
+      if (aiContent && aiContent.innerHTML) {
+        aiHtml = '<div style="margin-top:24px"><div style="font-size:13px;font-weight:700;color:#1565c0;margin-bottom:12px">Analisi AI</div>' + aiContent.innerHTML + '</div>'
+      }
+      const win = window.open('', '_blank')
+      win.document.write('<html><head><title>Cartella Clinica — ' + nomePaz + '</title>')
+      win.document.write('<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">')
+      win.document.write('<style>body{font-family:Montserrat,sans-serif;max-width:800px;margin:0 auto;padding:40px 32px;color:#000} h1{font-size:24px;margin-bottom:4px} .sub{font-size:13px;color:#666;margin-bottom:24px} .logo{background:#FFD008;color:#000;font-weight:700;font-size:11px;letter-spacing:2px;padding:4px 10px;border-radius:4px;display:inline-block;margin-bottom:16px} .note{background:#f9f9f9;border-radius:8px;padding:14px;font-size:13px;color:#444;margin-bottom:24px;white-space:pre-wrap} @media print{button{display:none}}</style>')
+      win.document.write('</head><body>')
+      win.document.write('<div class="logo">POLICETTIVO</div>')
+      win.document.write('<h1>' + nomePaz + '</h1>')
+      win.document.write('<div class="sub">' + problema + '</div>')
+      if (note) win.document.write('<div class="note">' + note + '</div>')
+      win.document.write('<div style="font-size:14px;font-weight:700;margin-bottom:16px;border-bottom:2px solid #FFD008;padding-bottom:8px">Documenti (' + documentiCaricati.length + ')</div>')
+      win.document.write(docsHtml)
+      win.document.write(aiHtml)
+      win.document.write('<div style="margin-top:32px;font-size:11px;color:#999;text-align:center">Generato il ' + new Date().toLocaleDateString('it-IT') + ' — Policettivo</div>')
+      win.document.write('<br><button onclick="window.print()" style="background:#FFD008;border:none;padding:12px 24px;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;cursor:pointer">Stampa / Salva PDF</button>')
+      win.document.write('</body></html>')
+      win.document.close()
+    }
+
+    // ── Ricerca rapida paziente ───────────────────────────
+
+    function apriRicercaPz() {
+      document.getElementById('search-pz-modal').style.display = 'block'
+      document.getElementById('search-pz-overlay').style.display = 'block'
+      setTimeout(() => document.getElementById('search-pz-input')?.focus(), 80)
+    }
+
+    function chiudiRicercaPz() {
+      document.getElementById('search-pz-modal').style.display = 'none'
+      document.getElementById('search-pz-overlay').style.display = 'none'
+    }
+
+    ;(function () {
+      let debTimer = null
+      const setupSearch = () => {
+        const input = document.getElementById('search-pz-input')
+        if (!input) return
+        input.addEventListener('input', () => {
+          clearTimeout(debTimer)
+          debTimer = setTimeout(() => runSearchPz(input.value.trim()), 280)
+        })
+        input.addEventListener('keydown', e => { if (e.key === 'Escape') chiudiRicercaPz() })
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupSearch)
+      else setupSearch()
+    })()
+
+    async function runSearchPz(q) {
+      const list  = document.getElementById('search-pz-results')
+      const empty = document.getElementById('search-pz-empty')
+      if (!list) return
+      list.innerHTML = ''
+      empty.style.display = 'none'
+      if (q.length < 2) return
+      const { data } = await _supabase
+        .from('patients')
+        .select('id, nome, cognome, problema_principale')
+        .or(`nome.ilike.%${q}%,cognome.ilike.%${q}%`)
+        .limit(10)
+      if (!data || !data.length) { empty.style.display = 'block'; return }
+      data.forEach(p => {
+        const li = document.createElement('li')
+        li.style.cssText = 'padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:#000;border:1px solid #f0f0f0;margin-bottom:6px;transition:background 0.1s,border-color 0.1s'
+        li.innerHTML = `<strong>${p.nome} ${p.cognome}</strong>${p.problema_principale ? '<br><span style="font-size:11px;color:#999">' + p.problema_principale + '</span>' : ''}`
+        li.onmouseover = () => { li.style.background = '#fffdf0'; li.style.borderColor = '#FFD008' }
+        li.onmouseout  = () => { li.style.background = '';        li.style.borderColor = '#f0f0f0' }
+        li.onclick = () => { window.location.href = 'paziente.html?id=' + p.id }
+        list.appendChild(li)
+      })
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') chiudiRicercaPz() })
+
+    function apriCamRefertoP() {
+      document.getElementById('referto-cam-input-p').click()
+    }
+    function apriGalleriaRefertoP() {
+      document.getElementById('referto-gal-input-p').click()
+    }
+    function handleRefertoFileP(input) {
+      const file = input.files[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = function(e) {
+        analizzaRefertoP(e.target.result.split(',')[1], file.type || 'image/jpeg')
+      }
+      reader.readAsDataURL(file)
+      input.value = ''
+    }
+    async function analizzaRefertoP(base64, mediaType) {
+      const loading = document.getElementById('referto-scan-loading-p')
+      const ok      = document.getElementById('referto-scan-ok-p')
+      const extra   = document.getElementById('referto-extra-p')
+      loading.style.display = 'block'
+      ok.style.display = 'none'
+      extra.style.display = 'none'
+      try {
+        const { data: { session: _aiS3 } } = await _supabase.auth.getSession()
+        const res  = await fetch('/api/analisi-referto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_aiS3?.access_token || '') },
+          body: JSON.stringify({ image: { data: base64, type: mediaType } })
+        })
+        if (res.status === 403) { const e403 = await res.json(); if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
+        const json = await res.json()
+        if (json.ai_uses !== undefined) {
+          if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
+          const _ab = document.getElementById('referto-ai-badge-p')
+          if (_ab) { _ab.textContent = Math.max(0, 5 - json.ai_uses) + ' analisi AI disponibili' }
+        }
+        if (json.dati) compileEditFormFromReferto(json.dati)
+        ok.style.display = 'block'
+      } catch(e) {
+        alert('Errore analisi referto: ' + e.message)
+      } finally {
+        loading.style.display = 'none'
+      }
+    }
+    function compileEditFormFromReferto(dati) {
+      if (dati.nome)               document.getElementById('edit-nome').value    = dati.nome
+      if (dati.cognome)            document.getElementById('edit-cognome').value  = dati.cognome
+      if (dati.diagnosi_principale) document.getElementById('edit-problema').value = dati.diagnosi_principale
+      const extras = []
+      if (dati.data_nascita)   extras.push('<strong>Nato/a il:</strong> ' + dati.data_nascita)
+      if (dati.codice_fiscale) extras.push('<strong>C.F.:</strong> ' + dati.codice_fiscale)
+      if (dati.patologie)      extras.push('<strong>Patologie:</strong> ' + dati.patologie)
+      if (dati.farmaci)        extras.push('<strong>Farmaci:</strong> ' + dati.farmaci)
+      if (dati.note_cliniche)  extras.push('<strong>Note:</strong> ' + dati.note_cliniche)
+      if (dati.medico_curante) extras.push('<strong>Medico curante:</strong> ' + dati.medico_curante)
+      if (extras.length > 0) {
+        document.getElementById('referto-extra-content-p').innerHTML = extras.join('<br>')
+        document.getElementById('referto-extra-p').style.display = 'block'
+      }
+    }
+
+    init()
+  </script>
+
+  <!-- BARRA AZIONI RAPIDE FISSA -->
+  <div style="position:fixed;bottom:0;left:0;right:0;background:#000;padding:12px 16px;display:flex;gap:8px;justify-content:center;z-index:999;box-shadow:0 -2px 12px rgba(0,0,0,0.3)">
+    <button onclick="window.location.href='monitoraggio.html?id='+patientId" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📊<span>Monitoraggio</span></button>
+    <button onclick="window.location.href='diario.html?pid='+patientId" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📋<span>Diario Sedute</span></button>
+    <button onclick="window.location.href='visite.html?id='+patientId" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📅<span>Visite</span></button>
+    <button onclick="window.location.href='assegna-protocollo.html?id='+patientId" style="flex:1;max-width:120px;background:#FFD008;border:none;color:#000;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">➕<span>Protocollo</span></button>
+    <button onclick="toggleCartella(true)" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📁<span>Cartella</span></button>
+    <button onclick="apriModaleAIP()" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">🤖<span>AI</span></button>
+  </div>
+
+  <!-- Camera Modal con Livella Digitale e Croce Centratrice -->
+  <div id="camera-modal">
+    <video id="camera-video" autoplay playsinline muted></video>
+
+    <!-- Croce centratrice (no per podo) -->
+    <div id="sagoma-wrap">
+      <div id="sagoma-v-line"></div>
+      <div id="sagoma-h-line"></div>
+      <div id="sagoma-hint">Centra il paziente &bull; distanza 2,5&nbsp;m</div>
+    </div>
+
+    <!-- Livella digitale -->
+    <div id="livella-wrap">
+      <div id="livella-inner">
+        <div id="livella-line"></div>
+        <div id="livella-testo">—</div>
+      </div>
+    </div>
+
+    <!-- Debug gamma (sempre visibile durante sviluppo) -->
+    <div id="livella-debug"></div>
+
+    <!-- iOS 13+: bottone per richiedere permesso orientamento -->
+    <button id="livella-ios-btn" style="display:none"></button>
+
+    <button id="camera-close-btn" onclick="chiudiCameraModal()">&#x2715;</button>
+    <button id="camera-gallery-btn" onclick="apriGalleria()">&#x1F5BC; Galleria</button>
+    <button id="camera-shutter-btn" onclick="scattaFoto()"></button>
+  </div></body>
+</html>
