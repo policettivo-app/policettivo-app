@@ -1442,6 +1442,7 @@
       if (telefono) { const digits = telefono.replace(/[^0-9]/g, ''); if (digits.length < 6) { alert('Inserisci un numero di telefono valido (almeno 6 cifre).'); return } }
       const consenso = document.getElementById('edit-consenso-privacy').checked
       const consenso_ricerca = document.getElementById('edit-consenso-ricerca').checked
+      if (!consenso) { alert('ATTENZIONE: non hai confermato di aver raccolto il consenso firmato del paziente al trattamento dei suoi dati personali e sanitari.\n\nSpuntando la casella dichiari, sotto la tua responsabilita, di aver acquisito tale consenso dal paziente. Una dichiarazione non veritiera ricade sotto la tua esclusiva responsabilita.\n\nPer proseguire devi spuntare la casella.'); return }
       const updates = {
         nome, cognome, email, telefono,
         problema_principale: document.getElementById('edit-problema').value.trim() || null,
@@ -1467,6 +1468,17 @@
       btn.disabled = true; btn.textContent = 'Salvataggio...'
       const { error } = await _supabase.from('patients').update(updates).eq('id', patientId)
       if (error) { btn.disabled = false; btn.textContent = '✓ Salva'; alert('Errore: ' + error.message); return }
+      try {
+        await _supabase.from('consents').insert({
+          soggetto_tipo: 'professionista',
+          professional_id: _myProfId,
+          patient_id: patientId,
+          documento: 'dichiarazione_consenso_paziente',
+          versione: '1.0',
+          caselle: { consenso_privacy_firmato: true, consenso_ricerca: consenso_ricerca },
+          user_agent: navigator.userAgent
+        })
+      } catch (cErr) { console.warn('[consents] registrazione fallita:', cErr) }
       Object.assign(patient, updates)
       document.getElementById('ph-nome').textContent = nome + ' ' + cognome
       document.getElementById('ph-sub').textContent = updates.problema_principale || ''
