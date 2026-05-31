@@ -5,6 +5,12 @@
 -- professionista + RPC per registrare il consenso paziente (token-based,
 -- SECURITY DEFINER, stesso pattern di get_protocol_data).
 -- Titolare dati sanitari = professionista; PHYSIOMOOD = responsabile.
+--
+-- Valori 'documento' in uso:
+--   'informativa_paziente'           -> consenso del paziente (via consenso.html, RPC)
+--   'dichiarazione_consenso_paziente'-> dichiarazione del professionista di aver
+--                                       raccolto il consenso firmato del paziente
+--                                       (registrata da dashboard.html e paziente.html)
 -- =====================================================================
 
 CREATE TABLE IF NOT EXISTS public.consents (
