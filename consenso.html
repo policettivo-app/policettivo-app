@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Policettivo® — Consenso e Privacy</title>
+  <title>Policettivo - Consenso e Privacy</title>
   <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; color: #fff; display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -25,17 +26,18 @@
     .btn-accetta:disabled { background: #333; color: #666; cursor: not-allowed; }
     .btn-accetta:not(:disabled):hover { background: #e6bc00; }
     .note-legale { font-size: 10px; color: #444; margin-top: 14px; text-align: center; line-height: 1.5; }
+    .errore { font-size: 12px; color: #ff6b6b; margin-top: 12px; text-align: center; display: none; }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="logo">POLICETTIVO®</div>
+    <div class="logo">POLICETTIVO</div>
     <h1>Informativa e consenso</h1>
     <p class="subtitle">Prima di accedere al tuo protocollo, ti chiediamo di leggere e accettare le seguenti informazioni.</p>
 
     <div class="section">
       <div class="section-title">Cosa fa questa app</div>
-      <div class="section-text">L'app Policettivo® ti guida nell'esecuzione del protocollo posturale assegnato dal tuo professionista. Registra i tuoi progressi giornalieri (dolore, rigidità, equilibrio, energia) e li condivide con il professionista che ti segue.</div>
+      <div class="section-text">L'app Policettivo ti guida nell'esecuzione del protocollo posturale assegnato dal tuo professionista. Registra i tuoi progressi giornalieri (dolore, rigidita, equilibrio, energia) e li condivide con il professionista che ti segue.</div>
     </div>
 
     <div class="section">
@@ -49,8 +51,8 @@
     </div>
 
     <div class="section" style="background:#1a1000;border:1px solid #FFD008;border-radius:10px;padding:14px 16px">
-      <div class="section-title">🔐 Riservatezza del link personale</div>
-      <div class="section-text">Il link che hai ricevuto è strettamente personale e funge da password di accesso al tuo profilo. <strong style="color:#fff">Non condividerlo con nessuno.</strong> Chiunque ne sia in possesso potrà accedere ai tuoi dati. Il professionista e Policettivo® non si assumono alcuna responsabilità per perdita, fuga o furto di dati derivanti dalla condivisione volontaria o involontaria del link personale.</div>
+      <div class="section-title">Riservatezza del link personale</div>
+      <div class="section-text">Il link che hai ricevuto e strettamente personale e funge da password di accesso al tuo profilo. <strong style="color:#fff">Non condividerlo con nessuno.</strong> Chiunque ne sia in possesso potra accedere ai tuoi dati. Il professionista e Policettivo non si assumono alcuna responsabilita per perdita, fuga o furto di dati derivanti dalla condivisione volontaria o involontaria del link personale.</div>
     </div>
 
     <hr class="divider">
@@ -67,20 +69,26 @@
 
     <label class="checkbox-row">
       <input type="checkbox" id="check3" onchange="checkAll()">
-      <span class="checkbox-label">Accetto i <strong>Termini di utilizzo</strong> dell'app Policettivo®.</span>
+      <span class="checkbox-label">Accetto i <strong>Termini di utilizzo</strong> dell'app Policettivo.</span>
     </label>
 
     <label class="checkbox-row">
       <input type="checkbox" id="check4" onchange="checkAll()">
-      <span class="checkbox-label">Dichiaro di aver preso visione che il <strong>link personale ricevuto è riservato</strong> e non va condiviso. Sollevo il professionista e Policettivo® da responsabilità in caso di accesso non autorizzato derivante dalla condivisione del link.</span>
+      <span class="checkbox-label">Dichiaro di aver preso visione che il <strong>link personale ricevuto e riservato</strong> e non va condiviso. Sollevo il professionista e Policettivo da responsabilita in caso di accesso non autorizzato derivante dalla condivisione del link.</span>
     </label>
 
-    <button class="btn-accetta" id="btn-accetta" disabled onclick="accetta()">Accetto — Accedi al protocollo</button>
+    <button class="btn-accetta" id="btn-accetta" disabled onclick="accetta()">Accetto - Accedi al protocollo</button>
+    <div class="errore" id="errore">Si e verificato un errore nella registrazione del consenso. Riprova o contatta il tuo professionista.</div>
 
-    <div class="note-legale">Titolare del trattamento: il professionista Policettivo® che ti ha assegnato il protocollo. Puoi richiedere la cancellazione dei tuoi dati in qualsiasi momento contattandolo direttamente.</div>
+    <div class="note-legale">Titolare del trattamento dei dati sanitari: il professionista che ti ha assegnato il protocollo. Policettivo (PHYSIOMOOD srl) agisce come responsabile del trattamento. Puoi richiedere la cancellazione dei tuoi dati in qualsiasi momento contattando il tuo professionista.</div>
   </div>
 
   <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    const DOC_VERSIONE = '1.0'  // incrementare quando cambia l'informativa
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
 
@@ -92,13 +100,40 @@
       document.getElementById('btn-accetta').disabled = !ok
     }
 
-    function accetta() {
-      localStorage.setItem('policettivo_consenso_' + token, '1')
-      window.location.href = 'protocollo.html?token=' + token
-    }
+    async function accetta() {
+      const btn = document.getElementById('btn-accetta')
+      const err = document.getElementById('errore')
+      err.style.display = 'none'
+      btn.disabled = true
+      btn.textContent = 'Registrazione in corso...'
 
-    if (localStorage.getItem('policettivo_consenso_' + token)) {
-      window.location.href = 'protocollo.html?token=' + token
+      const caselle = {
+        dati_sanitari:   document.getElementById('check1').checked,
+        supervisione:    document.getElementById('check2').checked,
+        termini:         document.getElementById('check3').checked,
+        link_riservato:  document.getElementById('check4').checked
+      }
+
+      try {
+        const { data, error } = await _supabase.rpc('record_consent_paziente', {
+          p_token:      token,
+          p_documento:  'informativa_paziente',
+          p_versione:   DOC_VERSIONE,
+          p_caselle:    caselle,
+          p_user_agent: navigator.userAgent
+        })
+
+        if (error || !data) {
+          throw new Error(error ? error.message : 'Registrazione non riuscita')
+        }
+
+        // Consenso registrato nel DB con successo -> prosegui
+        window.location.href = 'protocollo.html?token=' + token
+      } catch (e) {
+        err.style.display = 'block'
+        btn.disabled = false
+        btn.textContent = 'Accetto - Accedi al protocollo'
+      }
     }
   </script>
 </body>
