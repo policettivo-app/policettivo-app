@@ -1,4 +1,5 @@
 import { checkAdminAuth, createServiceClient } from './_check-admin-auth.js'
+import { randomUUID } from 'node:crypto'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -16,6 +17,9 @@ export default async function handler(req, res) {
     case 'update-piano':       return handleUpdatePiano(svc, req, res)
     case 'update-profile':     return handleUpdateProfile(svc, req, res)
     case 'delete-user':        return handleDeleteUser(svc, req, res)
+    case 'list-invites':       return handleListInvites(svc, req, res)
+    case 'create-invite':      return handleCreateInvite(svc, req, res)
+    case 'delete-invite':      return handleDeleteInvite(svc, req, res)
     default:                   return res.status(400).json({ error: 'action sconosciuta: ' + action })
   }
 }
@@ -84,5 +88,38 @@ async function handleDeleteUser(svc, req, res) {
   const { error: delErr } = await svc.auth.admin.deleteUser(userId)
   if (delErr) return res.status(500).json({ error: 'Errore eliminazione auth: ' + delErr.message })
 
+  return res.status(200).json({ ok: true })
+}
+
+// ── list-invites ─────────────────────────────────────────────────────────────
+async function handleListInvites(svc, req, res) {
+  const { data, error } = await svc.from('invites')
+    .select('*')
+    .eq('usato', false)
+    .order('created_at', { ascending: false })
+  if (error) return res.status(500).json({ error: error.message })
+  return res.status(200).json({ inviti: data || [] })
+}
+
+// ── create-invite ────────────────────────────────────────────────────────────
+async function handleCreateInvite(svc, req, res) {
+  const { nome, email } = req.body
+  if (!nome || !String(nome).trim()) return res.status(400).json({ error: 'nome obbligatorio' })
+
+  const token = randomUUID()
+  const { data, error } = await svc.from('invites')
+    .insert({ nome: String(nome).trim(), email: email || null, token })
+    .select()
+    .single()
+  if (error) return res.status(500).json({ error: error.message })
+  return res.status(200).json({ invito: data })
+}
+
+// ── delete-invite ────────────────────────────────────────────────────────────
+async function handleDeleteInvite(svc, req, res) {
+  const { id } = req.body
+  if (!id) return res.status(400).json({ error: 'id obbligatorio' })
+  const { error } = await svc.from('invites').delete().eq('id', id)
+  if (error) return res.status(500).json({ error: error.message })
   return res.status(200).json({ ok: true })
 }

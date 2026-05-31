@@ -5,7 +5,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Admin</title>
-  <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -116,13 +115,6 @@
     .btn-panel-action.reset { background: #fff8e1; border-color: #ffe082; color: #7c5f00; }
     .btn-panel-action.reset:hover { background: #fff0a0; }
     .panel-actions-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f0; }
-    .logo-preview-box { border: 2px dashed #ddd; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 16px; background: #fafafa; }
-    .logo-preview-box img { max-width: 200px; max-height: 120px; object-fit: contain; display: block; margin: 0 auto 12px; }
-    .logo-placeholder { color: #bbb; font-size: 13px; margin-bottom: 8px; }
-    .logo-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
-    .btn-logo-upload { padding: 9px 20px; background: #FFD008; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; }
-    .btn-logo-remove { padding: 9px 20px; background: transparent; border: 1.5px solid #ffcdd2; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; color: #c62828; }
-    .logo-hint { font-size: 11px; color: #999; line-height: 1.5; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -136,7 +128,7 @@
     <button class="btn-logout" onclick="doLogout()">Esci</button>
   </nav>
 
-  <div class="main ds-page">
+  <div class="main">
     <div class="page-header">
       <h1>Pannello di controllo</h1>
       <p>Gestisci i professionisti autorizzati alla piattaforma Policettivo®</p>
@@ -149,15 +141,15 @@
       <div class="stat-card"><div class="stat-value" id="stat-sessioni">—</div><div class="stat-label">Sessioni totali</div></div>
     </div>
 
-    <div class="section ds-card">
+    <div class="section">
       <div class="section-header">
-        <div class="section-title ds-section-title-line">Genera invito</div>
+        <div class="section-title">Genera invito</div>
       </div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Inserisci nome e email del professionista da invitare. Verrà generato un link univoco da inviare.</p>
       <div class="invite-form">
         <input type="text" id="invite-nome" placeholder="Nome professionista">
         <input type="email" id="invite-email" placeholder="Email (opzionale)">
-        <button class="btn-primary ds-btn-primary" onclick="generaInvito()">Genera link invito</button>
+        <button class="btn-primary" onclick="generaInvito()">Genera link invito</button>
       </div>
       <div class="invite-link-box" id="invite-link-box">
         <strong>Link invito:</strong><br>
@@ -167,16 +159,16 @@
       </div>
     </div>
 
-    <div class="section ds-card">
+    <div class="section">
       <div class="section-header">
-        <div class="section-title ds-section-title-line">Inviti pendenti</div>
+        <div class="section-title">Inviti pendenti</div>
       </div>
       <div id="inviti-list"><div class="empty-state">Nessun invito pendente.</div></div>
     </div>
 
-    <div class="section ds-card">
+    <div class="section">
       <div class="section-header">
-        <div class="section-title ds-section-title-line">Professionisti registrati</div>
+        <div class="section-title">Professionisti registrati</div>
         <span id="prof-count" style="font-size:12px;color:#999"></span>
       </div>
       <div class="search-bar-admin">
@@ -186,9 +178,9 @@
       <div id="prof-pagination" class="admin-pagination"></div>
     </div>
 
-    <div class="section ds-card">
+    <div class="section">
       <div class="section-header">
-        <div class="section-title ds-section-title-line">📊 Statistiche professionisti</div>
+        <div class="section-title">📊 Statistiche professionisti</div>
         <div style="display:flex;align-items:center;gap:12px">
           <span id="stats-count" style="font-size:12px;color:#999"></span>
           <button class="btn-csv" onclick="esportaCSV()">📥 Esporta CSV</button>
@@ -238,14 +230,7 @@
     async function loadAll() {
       const { data: profs } = await _supabase.from('professionals').select('*, profiles(*)').order('created_at', { ascending: false })
       const { data: pazienti } = await _supabase.from('patients').select('id')
-      const adminToken_li = await getAdminToken()
-      const _rInv = await fetch('/api/admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken_li },
-        body: JSON.stringify({ action: 'list-invites' })
-      })
-      const _jInv = await _rInv.json()
-      const inviti = _jInv.inviti || []
+      const { data: inviti } = await _supabase.from('invites').select('*').eq('usato', false).order('created_at', { ascending: false })
       const { data: sessioni } = await _supabase.from('diary_entries').select('id')
 
       document.getElementById('stat-prof').textContent = profs ? profs.length : 0
@@ -408,7 +393,7 @@
       const rows = pageData.map(({ prof, numPazienti, numVisite, numSessioni, ultimaAttivita }) => {
         const nome = prof.profiles ? escHtml(((prof.profiles.nome || '') + ' ' + (prof.profiles.cognome || '')).trim()) : '—'
         const email = escHtml(prof.email || '—')
-        const telefono = escHtml(prof.telefono || '—')
+        const telefono = escHtml(prof.profiles?.telefono || '—')
         const citta = escHtml(prof.citta || '—')
         const dataReg = prof.created_at ? new Date(prof.created_at).toLocaleDateString('it-IT') : '—'
         const dot = getActivityDot(ultimaAttivita)
@@ -460,15 +445,7 @@
       const nome = document.getElementById('invite-nome').value.trim()
       if (!nome) { alert('Inserisci il nome del professionista'); return }
       const email = document.getElementById('invite-email').value.trim()
-      const adminToken_ci = await getAdminToken()
-      const _rCi = await fetch('/api/admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken_ci },
-        body: JSON.stringify({ action: 'create-invite', nome, email: email || null })
-      })
-      const _jCi = await _rCi.json()
-      const data = _jCi.invito
-      const error = _jCi.error ? { message: _jCi.error } : null
+      const { data, error } = await _supabase.from('invites').insert({ nome, email: email || null }).select().single()
       if (error) { alert('Errore: ' + error.message); return }
       lastInviteLink = 'https://policettivo-app.vercel.app/registrazione.html?token=' + data.token
       document.getElementById('invite-link-text').textContent = lastInviteLink
@@ -490,12 +467,7 @@
 
     async function eliminaInvito(id) {
       if (!confirm('Eliminare questo invito?')) return
-      const adminToken_di = await getAdminToken()
-      await fetch('/api/admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken_di },
-        body: JSON.stringify({ action: 'delete-invite', id })
-      })
+      await _supabase.from('invites').delete().eq('id', id)
       loadAll()
     }
 
@@ -574,10 +546,9 @@
 
       const [profsRes, emailsRes] = await Promise.all([
         _supabase.from('professionals').select('*, profiles(*)').order('created_at', { ascending: false }),
-        getAdminToken().then(tok => fetch('/api/admin', {
+        getAdminToken().then(tok => fetch('/api/admin-list-user-emails', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
-          body: JSON.stringify({ action: 'list-user-emails' })
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }
         }).then(r => r.json()).catch(() => ({ emails: {} })))
       ])
 
@@ -666,10 +637,10 @@
       if (!confirm('Attivare Piano Premium per questo professionista?')) return
       const dataScadenza = new Date(); dataScadenza.setFullYear(dataScadenza.getFullYear() + 1)
       const adminToken = await getAdminToken()
-      const res = await fetch('/api/admin', {
+      const res = await fetch('/api/admin-update-piano', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-        body: JSON.stringify({ action: 'update-piano', profId, piano: 'premium', premiumScadenza: dataScadenza.toISOString() })
+        body: JSON.stringify({ profId, piano: 'premium', premiumScadenza: dataScadenza.toISOString() })
       })
       const json = await res.json()
       if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
@@ -680,10 +651,10 @@
     async function revocaPremium(profId) {
       if (!confirm('Revocare il Piano Premium? Il professionista tornerà al piano Free.')) return
       const adminToken = await getAdminToken()
-      const res = await fetch('/api/admin', {
+      const res = await fetch('/api/admin-update-piano', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-        body: JSON.stringify({ action: 'update-piano', profId, piano: 'free', premiumScadenza: null })
+        body: JSON.stringify({ profId, piano: 'free', premiumScadenza: null })
       })
       const json = await res.json()
       if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
@@ -701,7 +672,7 @@
         const vals = [
           nome,
           prof.email || '',
-          prof.telefono || '',
+          prof.profiles?.telefono || '',
           prof.qualifica || '',
           prof.centro || '',
           prof.citta || '',
@@ -765,10 +736,7 @@
       document.getElementById('edit-qualifica').value      = prof.qualifica || ''
       document.getElementById('edit-centro').value         = prof.centro || ''
       document.getElementById('edit-citta').value          = prof.citta || ''
-      document.getElementById('edit-indirizzo').value      = prof.indirizzo || ''
-      document.getElementById('edit-telefono').value       = prof.telefono || ''
-      document.getElementById('edit-email-studio').value   = prof.email_studio || ''
-      document.getElementById('edit-piva').value           = prof.partita_iva || ''
+      document.getElementById('edit-telefono').value       = prof.profiles?.telefono || ''
       document.getElementById('p-scadenza').value       = prof.premium_scadenza ? prof.premium_scadenza.split('T')[0] : ''
       document.getElementById('edit-note').value = prof.note_admin || ''
 
@@ -790,21 +758,6 @@
       btnP.textContent       = isPremium ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
       btnP.style.background  = isPremium ? '#ffebee' : '#FFD008'
       btnP.style.color       = isPremium ? '#c62828' : '#000'
-
-      const logoImg = document.getElementById('prof-logo-preview')
-      const logoPlaceholder = document.getElementById('prof-logo-placeholder')
-      const logoRemoveBtn = document.getElementById('btn-remove-logo')
-      if (prof.logo_url) {
-        logoImg.src = prof.logo_url
-        logoImg.style.display = 'block'
-        logoPlaceholder.style.display = 'none'
-        logoRemoveBtn.style.display = 'inline-block'
-      } else {
-        logoImg.style.display = 'none'
-        logoImg.src = ''
-        logoPlaceholder.style.display = 'block'
-        logoRemoveBtn.style.display = 'none'
-      }
 
       switchTab('dati')
       document.getElementById('panel-overlay').classList.add('open')
@@ -845,69 +798,6 @@
       })
       if (error) { alert('Errore: ' + error.message); return }
       alert('Email di reset password inviata a ' + email + ' ✓')
-    }
-
-    async function uploadLogo(file) {
-      if (!file || !currentProfId) return
-      const allowed = ['image/png', 'image/jpeg', 'image/svg+xml']
-      if (!allowed.includes(file.type)) { alert('Formato non supportato. Usa PNG, JPG o SVG.'); return }
-      if (file.size > 2 * 1024 * 1024) { alert('File troppo grande. Massimo 2 MB.'); return }
-
-      const ext = file.name.split('.').pop().toLowerCase()
-      const path = 'logos/' + currentProfId + '/' + Date.now() + '.' + ext
-
-      // Rimuovi logo precedente dallo storage se presente
-      if (_panelProfData?.logo_url) {
-        const parts = _panelProfData.logo_url.split('/clinical-docs/')
-        if (parts[1]) await _supabase.storage.from('clinical-docs').remove([parts[1]]).catch(() => {})
-      }
-
-      const { error: upErr } = await _supabase.storage
-        .from('clinical-docs')
-        .upload(path, file, { contentType: file.type, upsert: true })
-      if (upErr) { alert('Errore upload: ' + upErr.message); return }
-
-      const { data: urlData } = _supabase.storage.from('clinical-docs').getPublicUrl(path)
-      const logoUrl = urlData.publicUrl
-
-      const { error: dbErr } = await _supabase
-        .from('professionals')
-        .update({ logo_url: logoUrl })
-        .eq('id', currentProfId)
-      if (dbErr) { alert('Errore salvataggio logo: ' + dbErr.message); return }
-
-      _panelProfData.logo_url = logoUrl
-      const logoImg = document.getElementById('prof-logo-preview')
-      logoImg.src = logoUrl
-      logoImg.style.display = 'block'
-      document.getElementById('prof-logo-placeholder').style.display = 'none'
-      document.getElementById('btn-remove-logo').style.display = 'inline-block'
-      document.getElementById('logo-file-input').value = ''
-      alert('Logo caricato ✓')
-    }
-
-    async function removeLogo() {
-      if (!currentProfId) return
-      if (!confirm('Rimuovere il logo di questo professionista?')) return
-
-      if (_panelProfData?.logo_url) {
-        const parts = _panelProfData.logo_url.split('/clinical-docs/')
-        if (parts[1]) await _supabase.storage.from('clinical-docs').remove([parts[1]]).catch(() => {})
-      }
-
-      const { error } = await _supabase
-        .from('professionals')
-        .update({ logo_url: null })
-        .eq('id', currentProfId)
-      if (error) { alert('Errore rimozione logo: ' + error.message); return }
-
-      _panelProfData.logo_url = null
-      const logoImg = document.getElementById('prof-logo-preview')
-      logoImg.style.display = 'none'
-      logoImg.src = ''
-      document.getElementById('prof-logo-placeholder').style.display = 'block'
-      document.getElementById('btn-remove-logo').style.display = 'none'
-      alert('Logo rimosso ✓')
     }
 
     async function caricaAttivita(profId) {
@@ -966,14 +856,14 @@
 
       // Step 2 — aggiorna profiles via API con service key (bypassa RLS)
       const adminToken = await getAdminToken()
-      const r1 = await fetch('/api/admin', {
+      const r1 = await fetch('/api/admin-update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
         body: JSON.stringify({
-          action:    'update-profile',
           profileId: prof.user_id,
           nome:      document.getElementById('edit-nome').value,
-          cognome:   document.getElementById('edit-cognome').value
+          cognome:   document.getElementById('edit-cognome').value,
+          telefono:  document.getElementById('edit-telefono').value
         })
       })
       const j1 = await r1.json()
@@ -983,14 +873,10 @@
       const { error: r2err } = await _supabase
         .from('professionals')
         .update({
-          qualifica:    document.getElementById('edit-qualifica').value,
-          centro:       document.getElementById('edit-centro').value,
-          citta:        document.getElementById('edit-citta').value,
-          indirizzo:    document.getElementById('edit-indirizzo').value,
-          telefono:     document.getElementById('edit-telefono').value,
-          email_studio: document.getElementById('edit-email-studio').value,
-          partita_iva:  document.getElementById('edit-piva').value,
-          note_admin:   document.getElementById('edit-note').value
+          qualifica:  document.getElementById('edit-qualifica').value,
+          centro:     document.getElementById('edit-centro').value,
+          citta:      document.getElementById('edit-citta').value,
+          note_admin: document.getElementById('edit-note').value
         })
         .eq('id', currentProfId)
 
@@ -1017,10 +903,10 @@
       const btn = document.getElementById('btn-elimina-pannello')
       if (btn) { btn.disabled = true; btn.textContent = 'Eliminazione...' }
 
-      const res = await fetch('/api/admin', {
+      const res = await fetch('/api/admin-delete-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ action: 'delete-user', profId: currentProfId, userId: profileId })
+        body: JSON.stringify({ profId: currentProfId, userId: profileId })
       })
       const json = await res.json()
 
@@ -1053,10 +939,10 @@
       }
 
       const adminToken = await getAdminToken()
-      const res = await fetch('/api/admin', {
+      const res = await fetch('/api/admin-update-piano', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-        body: JSON.stringify({ action: 'update-piano', profId: currentProfId, piano: newPiano, premiumScadenza })
+        body: JSON.stringify({ profId: currentProfId, piano: newPiano, premiumScadenza })
       })
       const json = await res.json()
       if (!res.ok) { alert('Errore: ' + (json.error || res.status)); return }
@@ -1106,7 +992,6 @@
       <div class="panel-tabs">
         <div class="panel-tab active" data-tab="dati" onclick="switchTab('dati')">Dati</div>
         <div class="panel-tab" data-tab="attivita" onclick="switchTab('attivita')">Attività</div>
-        <div class="panel-tab" data-tab="branding" onclick="switchTab('branding')">Branding</div>
         <div class="panel-tab" data-tab="note" onclick="switchTab('note')">Note admin</div>
       </div>
 
@@ -1129,14 +1014,8 @@
         </div>
         <label class="p-label">Città</label>
         <input class="p-input" id="edit-citta" type="text" placeholder="Milano">
-        <label class="p-label">Indirizzo</label>
-        <input class="p-input" id="edit-indirizzo" type="text" placeholder="Via Roma 1">
         <label class="p-label">Telefono</label>
-        <input class="p-input" id="edit-telefono" type="text" placeholder="Telefono">
-        <label class="p-label">Email studio</label>
-        <input class="p-input" id="edit-email-studio" type="text" placeholder="Email studio">
-        <label class="p-label">Partita IVA</label>
-        <input class="p-input" id="edit-piva" type="text" placeholder="Partita IVA">
+        <input class="p-input" id="edit-telefono" type="tel" placeholder="+39 333 1234567">
 
         <div class="piano-toggle-row">
           <div>
@@ -1152,21 +1031,6 @@
         <button class="btn-save" onclick="salvaProfessionista()">💾 Salva modifiche</button>
         <button class="btn-view-as" onclick="visualizzaComeProfessionista()">👁 Visualizza come questo professionista</button>
         <button id="btn-elimina-pannello" onclick="eliminaProfessionistaDalPannello()" style="width:100%;margin-top:8px;padding:12px;background:transparent;border:1.5px solid #ffcdd2;color:#c62828;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Elimina professionista</button>
-      </div>
-
-      <!-- TAB BRANDING -->
-      <div class="panel-section" id="tab-branding">
-        <p style="font-size:12px;color:#999;margin-bottom:16px">Logo personalizzato del professionista. Appare nell'intestazione dei PDF generati.</p>
-        <div class="logo-preview-box">
-          <img id="prof-logo-preview" src="" alt="Logo professionista" style="display:none">
-          <div class="logo-placeholder" id="prof-logo-placeholder">Nessun logo caricato</div>
-        </div>
-        <div class="logo-actions">
-          <button class="btn-logo-upload" onclick="document.getElementById('logo-file-input').click()">📁 Carica nuovo logo</button>
-          <button class="btn-logo-remove" id="btn-remove-logo" style="display:none" onclick="removeLogo()">🗑 Rimuovi logo</button>
-        </div>
-        <p class="logo-hint">PNG / JPG / SVG — max 2 MB — sfondo trasparente consigliato.<br>Il logo apparirà sui PDF visite e valutazioni posturali.</p>
-        <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="uploadLogo(this.files[0])">
       </div>
 
       <!-- TAB ATTIVITÀ -->
