@@ -1,7 +1,7 @@
 // AI UX utilities: banner + modal per limite analisi FREE
 
 ;(function () {
-  const LIMIT = 5
+  const LIMIT = 15
 
   function injectStyles() {
     if (document.getElementById('_ai-utils-style')) return
@@ -31,7 +31,7 @@
       <div id="ai-limit-box">
         <div id="ai-limit-icon">🤖</div>
         <div id="ai-limit-title">Analisi AI esaurite</div>
-        <div id="ai-limit-desc">Hai usato tutte le <strong style="color:#FFD008">5 analisi AI gratuite</strong>.<br>Passa a Premium per analisi illimitate su postura, referti e sedute.</div>
+        <div id="ai-limit-desc">Hai usato tutte le <strong style="color:#FFD008">' + LIMIT + ' analisi AI gratuite</strong>.<br>Passa a Premium per analisi illimitate su postura, referti e sedute.</div>
         <button id="ai-limit-cta" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
         <button id="ai-limit-close" onclick="document.getElementById('ai-limit-modal').classList.remove('open')">Non ora</button>
       </div>
@@ -65,9 +65,9 @@
       return
     }
     if (used === 0) {
-      el.textContent = '⭐ Stai usando Policettivo Free — Hai ancora 5 analisi AI gratuite per provare il sistema Policettivo®'
+      el.textContent = '⭐ Stai usando Policettivo Free — Hai ancora ' + LIMIT + ' analisi AI gratuite per provare il sistema Policettivo®'
     } else {
-      el.textContent = '⭐ Hai usato ' + used + '/5 analisi AI gratuite — Continua a testare il sistema Policettivo®'
+      el.textContent = '⭐ Hai usato ' + used + '/' + LIMIT + ' analisi AI gratuite — Continua a testare il sistema Policettivo®'
     }
     wrap.classList.add('visible')
   }
