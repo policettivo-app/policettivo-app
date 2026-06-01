@@ -807,12 +807,12 @@
           if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_aiUses)
           const aiBadge = document.getElementById('referto-ai-badge')
           if (aiBadge) {
-            const _rem = Math.max(0, 5 - _aiUses)
+            const _rem = Math.max(0, 15 - _aiUses)
             aiBadge.textContent = _rem + ' analisi AI disponibili'
             aiBadge.style.display = 'inline-block'
           }
           const _statAi = document.getElementById('stat-ai')
-          if (_statAi) _statAi.textContent = Math.max(0, 5 - _aiUses) + '/5'
+          if (_statAi) _statAi.textContent = Math.max(0, 15 - _aiUses) + '/15'
           if (_aiUses >= 5) {
             const badge = document.getElementById('piano-badge')
             if (badge) {
@@ -1345,7 +1345,7 @@
         if (json.ai_uses !== undefined) {
           if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
           const _ab = document.getElementById('referto-ai-badge')
-          if (_ab) { const _r = Math.max(0, 5 - json.ai_uses); _ab.textContent = _r + ' analisi AI disponibili' }
+          if (_ab) { const _r = Math.max(0, 15 - json.ai_uses); _ab.textContent = _r + ' analisi AI disponibili' }
         }
         let count = 0
         if (json.dati) count = compileFormFromReferto(json.dati)
