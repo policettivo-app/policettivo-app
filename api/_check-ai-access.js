@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
-const FREE_LIMIT = 5
+const FREE_LIMIT = 15
 
 export async function checkAIAccess(req) {
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
