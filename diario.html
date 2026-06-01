@@ -113,6 +113,7 @@ input.fi { min-height: unset; resize: none; }
         <input type="range" class="vas-sl" id="vas-fine" min="0" max="10" value="3" oninput="updateVas('fine',this.value)">
       </div>
     </div>
+    <div class="fg"><label class="fl">Data seduta</label><input type="date" class="fi" id="f-ds" min="2024-01-01" max="2099-12-31"></div>
     <div class="fg">
       <label class="fl">Protocollo eseguito</label>
       <select class="tpl-select" onchange="diarioTemplate('f-ps',this)"><option value="">⚡ Template rapido...</option></select>
@@ -197,6 +198,7 @@ function apriNuovaSeduta() {
   c.style.borderColor = '#ddd';
   c.textContent = '';
   var d = new Date();
+  document.getElementById('f-ds').value = d.toISOString().split('T')[0];
   d.setDate(d.getDate() + 7);
   document.getElementById('f-dp').value = d.toISOString().split('T')[0];
   document.getElementById('modal-seduta').classList.add('open');
@@ -397,7 +399,7 @@ async function salvaSeduta() {
   var ins = await _sb.from('therapy_sessions').insert({
     patient_id: pid,
     professional_id: profId,
-    data_seduta: new Date().toISOString(),
+    data_seduta: (function(){ var v = document.getElementById('f-ds').value; return v ? new Date(v + 'T12:00:00').toISOString() : new Date().toISOString(); })(),
     vas_inizio: vi,
     vas_fine: vf,
     protocollo_seduta: ps || null,
