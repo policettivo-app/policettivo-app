@@ -415,7 +415,7 @@
         const ultimaStr = ultimaAttivita ? ultimaAttivita.toLocaleDateString('it-IT') : '—'
         const isFav = adminFavorites.has(prof.id)
         const isPremium = (prof.piano || '').toLowerCase() === 'premium'
-        const aiUsesStr = isPremium ? '<span style="color:#aaa;font-size:11px">—</span>' : '<span style="font-size:11px;font-weight:700;color:' + ((prof.ai_uses||0) >= 12 ? '#c62828' : '#555') + '">' + (prof.ai_uses||0) + '/5</span>'
+        const aiUsesStr = isPremium ? '<span style="color:#aaa;font-size:11px">—</span>' : '<span style="font-size:11px;font-weight:700;color:' + ((prof.ai_uses||0) >= 12 ? '#c62828' : '#555') + '">' + (prof.ai_uses||0) + '/15</span>'
         return '<tr>' +
           '<td><button class="fav-btn ' + (isFav?'active':'') + '" onclick="toggleFavorite(\'' + prof.id + '\')">' + (isFav?'★':'☆') + '</button></td>' +
           '<td style="text-align:center;font-size:16px">' + dot + '</td>' +
