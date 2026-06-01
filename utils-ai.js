@@ -80,8 +80,13 @@
     const banner = document.getElementById('ai-uses-banner')
     if (!banner) return
     if (remaining === 0) {
+      banner.style.background = '#1a1a1a'
       banner.innerHTML = 'Analisi AI gratuite esaurite — <a href="upgrade.html">Passa a Premium</a> per analisi illimitate'
+    } else if (remaining <= 3) {
+      banner.style.background = '#c62828'
+      banner.innerHTML = '\u26A0\uFE0F Ultime <strong>' + remaining + '</strong> analisi AI gratuite — <a href="upgrade.html" style="color:#fff;text-decoration:underline">Passa a Premium</a> per non rimanere senza'
     } else {
+      banner.style.background = '#1a1a1a'
       banner.innerHTML = 'Analisi AI gratuite rimaste: <strong style="color:#FFD008">' + remaining + ' / ' + LIMIT + '</strong><a href="upgrade.html">Scopri Premium →</a>'
     }
     banner.style.display = 'block'
