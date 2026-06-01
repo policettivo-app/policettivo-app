@@ -265,8 +265,8 @@
       const piano = (prof.piano || 'free').toLowerCase()
       if (piano === 'premium') return '<span class="badge-premium">PREMIUM ⭐</span>'
       const uses = prof.ai_uses || 0
-      const rem = Math.max(0, 5 - uses)
-      return '<span class="badge-free">Free · ' + uses + '/5 AI</span>'
+      const rem = Math.max(0, 15 - uses)
+      return '<span class="badge-free">Free · ' + uses + '/15 AI</span>'
     }
 
     // ── Ordinamento: preferiti > ultima attività > pazienti > registrazione ──
@@ -415,7 +415,7 @@
         const ultimaStr = ultimaAttivita ? ultimaAttivita.toLocaleDateString('it-IT') : '—'
         const isFav = adminFavorites.has(prof.id)
         const isPremium = (prof.piano || '').toLowerCase() === 'premium'
-        const aiUsesStr = isPremium ? '<span style="color:#aaa;font-size:11px">—</span>' : '<span style="font-size:11px;font-weight:700;color:' + ((prof.ai_uses||0) >= 5 ? '#c62828' : '#555') + '">' + (prof.ai_uses||0) + '/5</span>'
+        const aiUsesStr = isPremium ? '<span style="color:#aaa;font-size:11px">—</span>' : '<span style="font-size:11px;font-weight:700;color:' + ((prof.ai_uses||0) >= 12 ? '#c62828' : '#555') + '">' + (prof.ai_uses||0) + '/5</span>'
         return '<tr>' +
           '<td><button class="fav-btn ' + (isFav?'active':'') + '" onclick="toggleFavorite(\'' + prof.id + '\')">' + (isFav?'★':'☆') + '</button></td>' +
           '<td style="text-align:center;font-size:16px">' + dot + '</td>' +
@@ -781,9 +781,9 @@
           aiUsesLbl.textContent = 'Analisi AI illimitate'
         } else {
           const uses = prof.ai_uses || 0
-          const rem = Math.max(0, 5 - uses)
-          aiUsesLbl.textContent = 'Analisi AI: ' + uses + '/5 usate · ' + rem + ' disponibili'
-          aiUsesLbl.style.color = uses >= 5 ? '#c62828' : '#888'
+          const rem = Math.max(0, 15 - uses)
+          aiUsesLbl.textContent = 'Analisi AI: ' + uses + '/15 usate · ' + rem + ' disponibili'
+          aiUsesLbl.style.color = uses >= 12 ? '#c62828' : '#888'
         }
       }
       const btnP = document.getElementById('btn-toggle-piano')
@@ -1068,7 +1068,7 @@
       // Aggiorna UI pannello
       document.getElementById('piano-label').textContent = 'Piano: ' + (nowPrem ? 'PREMIUM ⭐' : 'Free')
       const aiUsesLblT = document.getElementById('ai-uses-label')
-      if (aiUsesLblT) aiUsesLblT.textContent = nowPrem ? 'Analisi AI illimitate' : 'Analisi AI: ' + (_panelProfData?.ai_uses || 0) + '/5 usate'
+      if (aiUsesLblT) aiUsesLblT.textContent = nowPrem ? 'Analisi AI illimitate' : 'Analisi AI: ' + (_panelProfData?.ai_uses || 0) + '/15 usate'
       const btnP = document.getElementById('btn-toggle-piano')
       btnP.textContent      = nowPrem ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
       btnP.style.background = nowPrem ? '#ffebee' : '#FFD008'
