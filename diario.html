@@ -128,7 +128,38 @@ input.fi { min-height: unset; resize: none; }
         <div style="font-size:11px;color:#999;margin-top:2px">Apre Google Calendar con la prossima seduta</div>
       </div>
     </div>
-    <div class="fg"><label class="fl">Tecniche utilizzate</label><textarea class="fi" id="f-tec" rows="2" placeholder="Es. Mobilizzazione passiva..."></textarea></div>
+    <div class="fg"><label class="fl">Tecniche utilizzate</label>
+      <select class="tpl-select" onchange="diarioTerapia(this)">
+        <option value="">⚡ Aggiungi terapia...</option>
+        <optgroup label="Elettromedicali">
+          <option>Tecarterapia</option>
+          <option>Laserterapia</option>
+          <option>Laser ad alta potenza</option>
+          <option>Ultrasuonoterapia</option>
+          <option>Magnetoterapia</option>
+          <option>TENS</option>
+          <option>Elettrostimolazione</option>
+          <option>Ionoforesi</option>
+          <option>Onde d'urto focali</option>
+          <option>Onde d'urto radiali</option>
+          <option>Infrarossi</option>
+          <option>Crioterapia</option>
+          <option>Pressoterapia</option>
+        </optgroup>
+        <optgroup label="FKT / Terapia manuale">
+          <option>Terapia manuale</option>
+          <option>Massoterapia</option>
+          <option>Mobilizzazione articolare</option>
+          <option>Linfodrenaggio</option>
+          <option>Pompage</option>
+          <option>Esercizio terapeutico</option>
+          <option>Rieducazione posturale</option>
+          <option>Stretching</option>
+          <option>Rinforzo muscolare</option>
+          <option>Propriocezione</option>
+        </optgroup>
+      </select>
+      <textarea class="fi" id="f-tec" rows="2" placeholder="Es. Mobilizzazione passiva..."></textarea></div>
     <div class="fg"><label class="fl">Risposta del paziente</label><textarea class="fi" id="f-risp" rows="2" placeholder="Es. Buona risposta..."></textarea></div>
     <div class="fg"><label class="fl">Note cliniche</label><textarea class="fi" id="f-note" rows="3" placeholder="Osservazioni libere..."></textarea></div>
     <button class="btn-save" onclick="salvaSeduta()">Salva seduta</button>
@@ -226,6 +257,15 @@ function diarioTemplate(targetId, sel) {
     var ta = document.getElementById(targetId);
     ta.value = ta.value ? ta.value + '\n\n' + tpl.testo : tpl.testo;
   }
+  sel.value = '';
+}
+
+// ── TERAPIE (elettromedicali + FKT) ──────────────────────────────────────────
+function diarioTerapia(sel) {
+  var val = sel.value;
+  if (!val) return;
+  var ta = document.getElementById('f-tec');
+  ta.value = ta.value ? ta.value + ', ' + val : val;
   sel.value = '';
 }
 
