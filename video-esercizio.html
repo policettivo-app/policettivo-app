@@ -381,6 +381,15 @@
     async function caricaVideos() {
       const { data } = await _supabase.from('exercise_videos').select('*').eq('patient_id', patientId).order('created_at', { ascending: false })
       videosList = data || []
+      // Firma gli URL e conserva il path pulito per l'eliminazione
+      for (const v of videosList) {
+        if (typeof v.url === 'string' && v.url.includes('/videos/')) {
+          const path = v.url.split('/videos/')[1].split('?')[0]
+          v._storagePath = decodeURIComponent(path)
+          const { data: su } = await _supabase.storage.from('videos').createSignedUrl(v._storagePath, 7200)
+          if (su?.signedUrl) v.url = su.signedUrl
+        }
+      }
       renderVideos(videosList)
     }
 
@@ -413,9 +422,7 @@
       const v = videosList[index]
       if (!v || !confirm('Eliminare questo elemento? L\'operazione è irreversibile.')) return
       try {
-        const urlObj   = new URL(v.url)
-        const path     = decodeURIComponent(urlObj.pathname.split('/object/public/videos/')[1])
-        await _supabase.storage.from('videos').remove([path])
+        if (v._storagePath) await _supabase.storage.from('videos').remove([v._storagePath])
       } catch(e) { /* ignora errori storage, elimina comunque il record DB */ }
       await _supabase.from('exercise_videos').delete().eq('id', v.id)
       await caricaVideos()

@@ -232,6 +232,14 @@
         return
       }
       customVideos = data || []
+      // Firma gli URL video (7200s)
+      for (const v of customVideos) {
+        if (typeof v.url === 'string' && v.url.includes('/videos/')) {
+          const path = decodeURIComponent(v.url.split('/videos/')[1].split('?')[0])
+          const { data: su } = await _supabase.storage.from('videos').createSignedUrl(path, 7200)
+          if (su?.signedUrl) v.url = su.signedUrl
+        }
+      }
       renderCustomVideos()
     }
 
