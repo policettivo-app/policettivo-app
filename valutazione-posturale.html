@@ -2329,7 +2329,34 @@
     }, 2000)
   }
 
+  function aiDisclosureGate() {
+    return new Promise(resolve => {
+      if (localStorage.getItem('policettivo_ai_disclosure_ok') === '1') { resolve(); return }
+      let ov = document.getElementById('ai-disclosure-overlay')
+      if (!ov) {
+        ov = document.createElement('div')
+        ov.id = 'ai-disclosure-overlay'
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px'
+        ov.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:26px 24px;box-shadow:0 12px 40px rgba(0,0,0,0.25);font-family:Montserrat,sans-serif">'
+          + '<div style="font-size:30px;margin-bottom:10px">\u{1F916}</div>'
+          + '<div style="font-size:17px;font-weight:700;color:#1a1a1a;margin-bottom:10px">Funzione con Intelligenza Artificiale</div>'
+          + '<div style="font-size:13.5px;color:#555;line-height:1.6;margin-bottom:20px">Questa funzione utilizza sistemi di Intelligenza Artificiale come <strong>strumento di supporto</strong>. I contenuti generati vanno sempre <strong>verificati e validati</strong> dal professionista e <strong>non sostituiscono</strong> il giudizio clinico, che resta di sua esclusiva responsabilit\u00e0.</div>'
+          + '<button id="ai-disclosure-ok" style="width:100%;padding:13px;border:none;border-radius:10px;background:#FFD008;color:#1a1a1a;font-weight:700;font-size:14px;cursor:pointer;font-family:Montserrat,sans-serif">Ho capito, procedi</button>'
+          + '</div>'
+        document.body.appendChild(ov)
+      } else {
+        ov.style.display = 'flex'
+      }
+      document.getElementById('ai-disclosure-ok').onclick = () => {
+        localStorage.setItem('policettivo_ai_disclosure_ok', '1')
+        ov.style.display = 'none'
+        resolve()
+      }
+    })
+  }
+
   async function generaRelazioneVP() {
+    await aiDisclosureGate()
     if (!window.isPremium && vpAiUses >= 5) {
       if (window.policettivoHandleAI403) window.policettivoHandleAI403()
       return
