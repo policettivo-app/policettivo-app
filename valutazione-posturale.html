@@ -1308,10 +1308,15 @@
 
     photos    = {}
     fotoLibere = []
-    data.forEach(p => {
+    // Genera signed URL freschi (7200s) da storage_path per ogni foto
+    for (const p of data) {
+      if (p.storage_path) {
+        const { data: su } = await _sb.storage.from('clinical-docs').createSignedUrl(p.storage_path, 7200)
+        if (su?.signedUrl) p.url_pubblico = su.signedUrl
+      }
       if (p.tipo === 'libera') fotoLibere.push(p)
       else photos[p.tipo] = p
-    })
+    }
     PHOTO_SLOTS_FLAT.forEach(s => updatePhotoSlot(s.tipo))
     RAPID_EXTRA_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
     renderFotoLibere()
