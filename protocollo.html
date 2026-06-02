@@ -241,10 +241,10 @@
       protocolCustomVideos = pd.custom_videos || []
       // Video firmati server-side via endpoint (bucket privato)
       try {
-        const r = await fetch('/api/firma-video', {
+        const r = await fetch('/api/genera-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
+          body: JSON.stringify({ tipo: 'video', token })
         })
         const j = await r.json()
         if (j.videos) protocolCustomVideos = j.videos

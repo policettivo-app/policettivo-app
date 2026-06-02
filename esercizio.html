@@ -190,10 +190,10 @@
       })
       let customItems = []
       try {
-        const r = await fetch('/api/firma-video', {
+        const r = await fetch('/api/genera-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
+          body: JSON.stringify({ tipo: 'video', token })
         })
         const j = await r.json()
         customItems = (j.videos || []).map(function(v) {

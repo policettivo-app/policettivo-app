@@ -8,8 +8,9 @@ export default async function handler(req, res) {
 
   if (tipo === 'posturale') return handlePosturale(req, res)
   if (tipo === 'visita')    return handleVisita(req, res)
+  if (tipo === 'video')     return handleVideo(req, res)
 
-  return res.status(400).json({ error: 'Parametro tipo non valido (atteso: posturale | visita)' })
+  return res.status(400).json({ error: 'Parametro tipo non valido (atteso: posturale | visita | video)' })
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -427,4 +428,61 @@ Sii SINTETICO ma COMPLETO. Evidenzia pattern clinici emergenti.`
   } catch (_) {
     return null
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// VIDEO  (firma server-side per pagina paziente — accesso via token, no login)
+// ════════════════════════════════════════════════════════════════════════════
+
+async function handleVideo(req, res) {
+  const token = (req.body?.token || '').toString().trim()
+  if (!token) return res.status(400).json({ error: 'Token mancante' })
+
+  const svc = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+
+  const { data: patient } = await svc
+    .from('patients')
+    .select('id')
+    .eq('access_token', token)
+    .maybeSingle()
+  if (!patient) return res.status(404).json({ error: 'Paziente non trovato' })
+
+  let { data: proto } = await svc
+    .from('patient_protocols')
+    .select('id')
+    .eq('patient_id', patient.id)
+    .eq('stato', 'attivo')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!proto) {
+    const r = await svc
+      .from('patient_protocols')
+      .select('id')
+      .eq('patient_id', patient.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    proto = r.data
+  }
+  if (!proto) return res.status(200).json({ videos: [] })
+
+  const { data: videos } = await svc
+    .from('exercise_videos')
+    .select('id, titolo, url, tipo, descrizione, durata')
+    .eq('protocol_id', proto.id)
+    .order('created_at', { ascending: true })
+
+  const out = []
+  for (const v of (videos || [])) {
+    let url = v.url
+    if (typeof url === 'string' && url.includes('/videos/')) {
+      const path = decodeURIComponent(url.split('/videos/')[1].split('?')[0])
+      const { data: su } = await svc.storage.from('videos').createSignedUrl(path, 7200)
+      if (su?.signedUrl) url = su.signedUrl
+    }
+    out.push({ id: v.id, titolo: v.titolo, url, tipo: v.tipo, descrizione: v.descrizione, durata: v.durata })
+  }
+
+  return res.status(200).json({ videos: out })
 }
