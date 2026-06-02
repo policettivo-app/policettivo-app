@@ -188,15 +188,21 @@
         const def = EXERCISES_ELICOIDALI.find(function(e) { return e.id === eli.elicoidale_id }) || {}
         return { item_type: 'elicoidale', id: eli.id, elicoidale_id: eli.elicoidale_id, titolo: def.title || eli.elicoidale_id, descrizione: def.description || '', video_url: def.video_url || '', durata: eli.durata || def.default_duration || 60 }
       })
-      const customItems = []
-      for (const v of (pd.custom_videos || [])) {
-        let vurl = v.url
-        if (typeof vurl === 'string' && vurl.includes('/videos/')) {
-          const path = decodeURIComponent(vurl.split('/videos/')[1].split('?')[0])
-          const { data: su } = await _supabase.storage.from('videos').createSignedUrl(path, 7200)
-          if (su?.signedUrl) vurl = su.signedUrl
-        }
-        customItems.push({ item_type: 'custom_video', id: v.id, titolo: v.titolo, url: vurl, tipo: v.tipo, descrizione: v.descrizione, durata: v.durata || 60 })
+      let customItems = []
+      try {
+        const r = await fetch('/api/firma-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        })
+        const j = await r.json()
+        customItems = (j.videos || []).map(function(v) {
+          return { item_type: 'custom_video', id: v.id, titolo: v.titolo, url: v.url, tipo: v.tipo, descrizione: v.descrizione, durata: v.durata || 60 }
+        })
+      } catch(e) {
+        customItems = (pd.custom_videos || []).map(function(v) {
+          return { item_type: 'custom_video', id: v.id, titolo: v.titolo, url: v.url, tipo: v.tipo, descrizione: v.descrizione, durata: v.durata || 60 }
+        })
       }
       items = exercises.concat(eliItems).concat(customItems)
       if (items.length === 0) { finishSession(); return }
