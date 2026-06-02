@@ -2331,7 +2331,7 @@
 
   function aiDisclosureGate() {
     return new Promise(resolve => {
-      // controllo flag temporaneamente disattivato per test
+      if (localStorage.getItem('policettivo_ai_disclosure_ok') === '1') { resolve(); return }
       let ov = document.getElementById('ai-disclosure-overlay')
       if (!ov) {
         ov = document.createElement('div')
