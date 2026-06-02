@@ -467,6 +467,28 @@
       const { data } = await _supabase
         .from('visite').select('*').eq('patient_id', patientId).order('data_visita', { ascending: false })
       visite = data || []
+      // Rigenera signed URL freschi (7200s) per le foto, estraendo il path dall'URL salvato
+      for (const v of visite) {
+        if (!v.foto_url) continue
+        let fotos
+        try { fotos = JSON.parse(v.foto_url) } catch(e) { continue }
+        let changed = false
+        for (const k of Object.keys(fotos)) {
+          const entry = fotos[k]
+          if (!entry) continue
+          const u = typeof entry === 'object' ? entry.url : entry
+          if (typeof u === 'string' && u.includes('/clinical-docs/')) {
+            const path = u.split('/clinical-docs/')[1].split('?')[0]
+            const { data: su } = await _supabase.storage.from('clinical-docs').createSignedUrl(path, 7200)
+            if (su?.signedUrl) {
+              if (typeof entry === 'object') entry.url = su.signedUrl
+              else fotos[k] = su.signedUrl
+              changed = true
+            }
+          }
+        }
+        if (changed) v.foto_url = JSON.stringify(fotos)
+      }
       renderTimeline()
     }
 
