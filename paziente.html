@@ -2133,11 +2133,21 @@
         html += '<div class="doc-item-date">' + data + '</div>'
         html += '</div>'
         html += '<div class="doc-item-actions">'
-        html += '<button class="btn-doc-view" onclick="window.open(' + "'" + doc.file_url + "'" + ')">Apri</button>'
+        html += '<button class="btn-doc-view" onclick="apriDocumento(' + "'" + doc.file_url + "'" + ')">Apri</button>'
         html += '<button class="btn-doc-del" onclick="eliminaDocumento(' + "'" + doc.id + "','" + doc.file_url + "'" + ')">🗑</button>'
         html += '</div></div>'
       })
       lista.innerHTML = html
+    }
+
+    async function apriDocumento(fileUrl) {
+      if (!fileUrl) return
+      if (fileUrl.includes('/clinical-docs/')) {
+        const path = fileUrl.split('/clinical-docs/')[1].split('?')[0]
+        const { data: su, error } = await _supabase.storage.from('clinical-docs').createSignedUrl(path, 3600)
+        if (su?.signedUrl) { window.open(su.signedUrl, '_blank'); return }
+      }
+      window.open(fileUrl, '_blank')
     }
 
     async function eliminaDocumento(id, fileUrl) {
