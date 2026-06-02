@@ -2645,16 +2645,21 @@
     if (!visitId) return
     const { data } = await _sb.from('visit_photos').select('*').eq('visit_id', visitId).order('ordine')
     if (!data?.length) return
-    data.forEach(p => {
+    for (const p of data) {
       let slot = S3_SLOTS.find(s => s.tipo === p.tipo)
       if (!slot) {
         const mapKey = LEGACY_SLOT_MAP[p.tipo + ':' + p.ordine] || LEGACY_SLOT_MAP[p.tipo]
         if (mapKey) slot = S3_SLOTS.find(s => s.key === mapKey)
       }
-      if (!slot) return
-      step3Photos[slot.key] = { id: p.id, url: p.url_pubblico || '', storage_path: p.storage_path, b64: null }
+      if (!slot) continue
+      let signedUrl = p.url_pubblico || ''
+      if (p.storage_path) {
+        const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(p.storage_path, 7200)
+        if (su?.signedUrl) signedUrl = su.signedUrl
+      }
+      step3Photos[slot.key] = { id: p.id, url: signedUrl, storage_path: p.storage_path, b64: null }
       renderPhotoSlot(slot.key)
-    })
+    }
   }
 
   async function handleFotoUpload(slotKey, input) {
@@ -2922,9 +2927,16 @@
       .maybeSingle()
     if (!prevVisit) { el.textContent = 'Nessuna visita precedente trovata.'; return }
     const { data: prevPhotos } = await _sb.from('visit_photos')
-      .select('tipo, ordine, url_pubblico')
+      .select('tipo, ordine, url_pubblico, storage_path')
       .eq('visit_id', prevVisit.id)
     if (!prevPhotos?.length) { el.textContent = 'Nessuna foto nella visita precedente.'; return }
+    // Signed URL freschi per le foto precedenti
+    for (const pp of prevPhotos) {
+      if (pp.storage_path) {
+        const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(pp.storage_path, 7200)
+        if (su?.signedUrl) pp.url_pubblico = su.signedUrl
+      }
+    }
     const dtLabel = new Date(prevVisit.data_visita).toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
     let html = `<p style="font-size:11px;color:#999;margin-bottom:12px">Visita del ${dtLabel}</p><div class="s3-prev-grid">`
     S3_SLOTS.forEach(slot => {
