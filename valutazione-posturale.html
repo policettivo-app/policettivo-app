@@ -2331,8 +2331,7 @@
 
   function aiDisclosureGate() {
     return new Promise(resolve => {
-      alert('TEST: gate AI raggiunto')
-      if (localStorage.getItem('policettivo_ai_disclosure_ok_v2') === '1') { resolve(); return }
+      if (localStorage.getItem('policettivo_ai_disclosure_ok') === '1') { resolve(); return }
       let ov = document.getElementById('ai-disclosure-overlay')
       if (!ov) {
         ov = document.createElement('div')
@@ -2349,7 +2348,7 @@
         ov.style.display = 'flex'
       }
       document.getElementById('ai-disclosure-ok').onclick = () => {
-        localStorage.setItem('policettivo_ai_disclosure_ok_v2', '1')
+        localStorage.setItem('policettivo_ai_disclosure_ok', '1')
         ov.style.display = 'none'
         resolve()
       }
