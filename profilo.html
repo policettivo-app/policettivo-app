@@ -254,16 +254,16 @@
       const path = 'logos/' + profId + '/' + Date.now() + '.' + ext
 
       if (_profLogoUrl) {
-        const parts = _profLogoUrl.split('/clinical-docs/')
-        if (parts[1]) await _supabase.storage.from('clinical-docs').remove([parts[1]]).catch(() => {})
+        const parts = _profLogoUrl.split('/branding/')
+        if (parts[1]) await _supabase.storage.from('branding').remove([parts[1]]).catch(() => {})
       }
 
       const { error: upErr } = await _supabase.storage
-        .from('clinical-docs')
+        .from('branding')
         .upload(path, file, { contentType: file.type, upsert: true })
       if (upErr) { alert('Errore upload: ' + upErr.message); return }
 
-      const { data: urlData } = _supabase.storage.from('clinical-docs').getPublicUrl(path)
+      const { data: urlData } = _supabase.storage.from('branding').getPublicUrl(path)
       const logoUrl = urlData.publicUrl
 
       const { error: dbErr } = await _supabase
@@ -283,8 +283,8 @@
       if (!confirm('Rimuovere il logo?')) return
 
       if (_profLogoUrl) {
-        const parts = _profLogoUrl.split('/clinical-docs/')
-        if (parts[1]) await _supabase.storage.from('clinical-docs').remove([parts[1]]).catch(() => {})
+        const parts = _profLogoUrl.split('/branding/')
+        if (parts[1]) await _supabase.storage.from('branding').remove([parts[1]]).catch(() => {})
       }
 
       const { error } = await _supabase
