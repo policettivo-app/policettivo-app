@@ -2799,7 +2799,8 @@ ISTRUZIONI:
 
   // ====== PDF VALUTAZIONE POSTURALE ======
 
-  function showVPPDFOptionsModal() {
+  async function showVPPDFOptionsModal() {
+    await aiDisclosureGate()
     const radio = document.querySelector('input[name="vp-pdf-modalita"][value="singola"]')
     if (radio) radio.checked = true
     document.getElementById('vp-pdf-options-modal').classList.add('open')
