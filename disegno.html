@@ -107,10 +107,13 @@
       <button class="t-act" onclick="annulla()" title="Annulla ultima">↩ Annulla</button>
       <button class="t-act t-act-reset" onclick="cancellaRipristina()" title="Cancella tutto e ripristina">🗑 Reset</button>
       <button class="t-act t-act-save" onclick="salva()">💾 Salva</button>
+      <button class="t-act" onclick="analizzaPostura()" title="Analisi posturale AI (PRO)">✨ Analizza postura</button>
+      <button class="t-act" onclick="toggleCriteri()" title="Mostra/nascondi criteri di normalita">📐 Criteri</button>
       <button class="t-act t-act-export" onclick="esporta()">📤 Esporta</button>
     </div>
   </div>
 
+  <script src="utils-premium.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -132,6 +135,9 @@
     let color      = '#ffffff'
     let lines      = []
     let firstPoint = null
+    let idealLines = []      // criteri di normalita (overlay, NON salvati)
+    let criteriOn  = false   // toggle criteri di normalita
+    let userIsPremium = false
 
     // --- Coordinate normalization (0–1 range for device independence) ---
 
@@ -170,6 +176,12 @@
       const { data: { session } } = await _supabase.auth.getSession()
       console.log('[disegno] session:', session ? session.user.email : null)
       if (!session) { window.location.href = 'login.html'; return }
+
+      try {
+        const r = await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
+        userIsPremium = !!(r && r.isPremium)
+      } catch(e) { console.log('[disegno] check premium fallito:', e); userIsPremium = false }
+      console.log('[disegno] userIsPremium:', userIsPremium)
 
       const { data: p, error } = await _supabase
         .from('patients').select('*').eq('id', patientId).maybeSingle()
@@ -274,6 +286,12 @@
 
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
+      if (criteriOn) {
+        idealLines.forEach(l => {
+          if (l.type === 'point') { ctx.beginPath(); ctx.fillStyle = l.color; ctx.arc(l.x, l.y, l.r, 0, Math.PI*2); ctx.fill() }
+          else { ctx.beginPath(); ctx.strokeStyle = l.color; ctx.lineWidth = l.lw; ctx.lineCap = 'round'; ctx.moveTo(l.x1,l.y1); ctx.lineTo(l.x2,l.y2); ctx.stroke() }
+        })
+      }
       lines.forEach(l => {
         if (l.type === 'point') {
           ctx.beginPath()
@@ -334,6 +352,47 @@
 
     // --- Export: download composite PNG without saving to DB ---
 
+    // --- Analisi posturale AI (overlay) ---
+    async function analizzaPostura() {
+      if (!userIsPremium) {
+        alert('Funzione PRO. Disponibile con il piano Premium.')
+        return
+      }
+      if (!bgImg.naturalWidth) { alert('Foto non pronta.'); return }
+      const status = document.getElementById('nav-status')
+      status.textContent = 'Analizzo...'
+      let mod
+      try { mod = await import('./js/postural-overlay.js') }
+      catch(e) { status.textContent = ''; alert('Errore caricamento motore: ' + e.message); return }
+
+      const res = await mod.generateOverlay(bgImg, fotoSlot)
+      if (!res.ok) { status.textContent = ''; alert(res.message); return }
+
+      const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
+      const cw = canvas.width, ch = canvas.height
+      const imgA = nw / nh, wrapA = cw / ch
+      let drawW, drawH, ox, oy
+      if (imgA > wrapA) { drawW = cw; drawH = cw / imgA; oy = (ch - drawH) / 2; ox = 0 }
+      else { drawH = ch; drawW = ch * imgA; ox = (cw - drawW) / 2; oy = 0 }
+      const fx = drawW / nw, fy = drawH / nh
+      const conv = (l) => {
+        if (l.type === 'point') return { type:'point', x: ox + l.x*fx, y: oy + l.y*fy, color:l.color, r:l.r }
+        return { type:'line', x1: ox + l.x1*fx, y1: oy + l.y1*fy, x2: ox + l.x2*fx, y2: oy + l.y2*fy, color:l.color, lw:l.lw }
+      }
+
+      res.lines.forEach(l => lines.push(conv(l)))
+      idealLines = res.idealLines.map(conv)
+      redraw()
+      let msg = 'Analisi: ' + res.message
+      if (res.angles && res.angles.spalle != null) msg += ' (Spalle ' + res.angles.spalle + 'deg, Bacino ' + res.angles.bacino + 'deg)'
+      status.textContent = msg
+    }
+
+    function toggleCriteri() {
+      criteriOn = !criteriOn
+      redraw()
+    }
+
     function esporta() {
       if (!bgImg.naturalWidth) return
       const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
@@ -352,6 +411,18 @@
       off.width  = nw; off.height = nh
       const octx = off.getContext('2d')
       octx.drawImage(bgImg, 0, 0, nw, nh)
+
+      if (criteriOn) {
+        idealLines.forEach(l => {
+          if (l.type === 'point') {
+            octx.beginPath(); octx.fillStyle = l.color
+            octx.arc((l.x - ox) * sx, (l.y - oy) * sy, Math.max(6, l.r * sx), 0, Math.PI * 2); octx.fill()
+          } else {
+            octx.beginPath(); octx.strokeStyle = l.color; octx.lineWidth = Math.max(2, l.lw * sx); octx.lineCap = 'round'
+            octx.moveTo((l.x1 - ox) * sx, (l.y1 - oy) * sy); octx.lineTo((l.x2 - ox) * sx, (l.y2 - oy) * sy); octx.stroke()
+          }
+        })
+      }
 
       lines.forEach(l => {
         if (l.type === 'point') {
