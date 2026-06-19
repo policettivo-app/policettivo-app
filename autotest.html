@@ -10,7 +10,7 @@
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f1419; color: #fff;
          min-height: 100vh; display: flex; flex-direction: column; align-items: center;
          padding: 20px 24px 40px; text-align: center; }
-  .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 420px; margin: auto 0; }
+  .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 440px; margin: auto 0; }
   .screen.active { display: flex; }
   h1 { font-size: 22px; font-weight: 800; margin: 8px 0 14px; }
   .sub { font-size: 15px; color: #9aa5b1; margin: 0 0 20px; line-height: 1.5; }
@@ -28,12 +28,23 @@
                    display: flex; align-items: center; justify-content: center; margin: 18px 0;
                    font-size: 16px; color: #FFD008; animation: breathe 7s ease-in-out infinite; }
   @keyframes breathe { 0%,100% { transform: scale(0.78); } 50% { transform: scale(1.08); } }
-  /* schermata ponte */
   .bridge-box { background: #FFD008; color: #000; border-radius: 20px; padding: 26px 22px; margin: 20px 0; }
   .bridge-box .big { font-size: 22px; font-weight: 800; line-height: 1.35; }
   #touch-guard { position: fixed; inset: 0; z-index: 9999; display: none; background: transparent; }
   #touch-guard.active { display: block; }
-  .done-val { font-size: 15px; color: #9aa5b1; margin-top: 16px; }
+  /* confronto */
+  .headline { font-size: 19px; font-weight: 800; margin: 4px 0 18px; line-height: 1.4; }
+  .metric-card { background: #1a222c; border-radius: 18px; padding: 18px 16px 16px; margin-bottom: 16px; width: 100%; }
+  .metric-title { font-size: 13px; color: #9aa5b1; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .bars { display: flex; justify-content: center; align-items: flex-end; gap: 30px; height: 160px; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 80px; }
+  .bar { width: 64px; border-radius: 10px 10px 0 0; transition: height .8s ease; }
+  .bar-val { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .bar-lbl { font-size: 12px; color: #9aa5b1; margin-top: 8px; }
+  .delta { margin-top: 14px; font-size: 15px; font-weight: 700; }
+  .delta.good { color: #00e676; }
+  .delta.bad  { color: #ff5252; }
+  .delta.same { color: #9aa5b1; }
 </style>
 </head>
 <body>
@@ -41,23 +52,23 @@
   <!-- 1. INTRO -->
   <div class="screen active" id="s-intro">
     <h1>Autotest Stabilità</h1>
-    <img class="hero-img" id="img-petto" src="img/telefono-petto.png" alt="Telefono al centro del petto">
+    <img class="hero-img" src="img/telefono-petto.png" alt="Telefono al centro del petto">
     <p class="sub">Misura quanto il tuo corpo resta stabile, prima e dopo l'esercizio.<br>
        Tieni il telefono al centro del petto e segui la voce.</p>
     <button class="ghost-btn" onclick="ascoltaIntro()">🔊 Ascolta introduzione</button>
     <button class="big-btn" onclick="iniziaTest()">▶ Inizia il test</button>
   </div>
 
-  <!-- 2/4. SEQUENZA -->
+  <!-- SEQUENZA -->
   <div class="screen" id="s-seq">
     <div class="phase-label" id="seq-phase">—</div>
     <div class="phase-hint" id="seq-hint">Segui la voce</div>
-    <img class="hero-img wide" id="img-testa" src="img/posizioni-testa.png" alt="Posizioni della testa">
+    <img class="hero-img wide" src="img/posizioni-testa.png" alt="Posizioni della testa">
     <div class="countdown" id="seq-countdown"></div>
     <div class="progress" id="seq-progress"></div>
   </div>
 
-  <!-- 3. RESPIRI -->
+  <!-- RESPIRI -->
   <div class="screen" id="s-respiri">
     <div class="phase-label">Tecnica dei 3 Respiri</div>
     <div class="breath-circle">respira</div>
@@ -65,17 +76,36 @@
     <p class="sub">Esegui la tecnica sul cuscino.</p>
   </div>
 
-  <!-- 3b. PONTE -->
+  <!-- PONTE -->
   <div class="screen" id="s-bridge">
     <div class="bridge-box"><div class="big">Ora ripeti il test.<br>Resta fermo, telefono al petto.</div></div>
     <div class="countdown" id="bridge-countdown"></div>
   </div>
 
-  <!-- 5. DONE placeholder -->
+  <!-- CONFRONTO WOW -->
   <div class="screen" id="s-done">
-    <h1>Test completato ✓</h1>
-    <p class="sub">Valori raccolti (la schermata di confronto arriva al prossimo passo).</p>
-    <div class="done-val" id="done-summary">—</div>
+    <div class="headline" id="done-headline">Risultato</div>
+
+    <div class="metric-card">
+      <div class="metric-title">Oscillazione</div>
+      <div class="bars">
+        <div class="bar-col"><div class="bar-val" id="sw-pre-val">—</div><div class="bar" id="sw-pre-bar" style="background:#ff5252;height:20px"></div><div class="bar-lbl">Prima</div></div>
+        <div class="bar-col"><div class="bar-val" id="sw-post-val">—</div><div class="bar" id="sw-post-bar" style="background:#00e676;height:20px"></div><div class="bar-lbl">Dopo</div></div>
+      </div>
+      <div class="delta" id="sw-delta">—</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-title">Inclinazione (gradi)</div>
+      <div class="bars">
+        <div class="bar-col"><div class="bar-val" id="gr-pre-val">—</div><div class="bar" id="gr-pre-bar" style="background:#ff5252;height:20px"></div><div class="bar-lbl">Prima</div></div>
+        <div class="bar-col"><div class="bar-val" id="gr-post-val">—</div><div class="bar" id="gr-post-bar" style="background:#00e676;height:20px"></div><div class="bar-lbl">Dopo</div></div>
+      </div>
+      <div class="delta" id="gr-delta">—</div>
+    </div>
+
+    <p class="sub" style="font-size:13px;margin-top:6px">Indicazione di benessere, non una diagnosi medica.</p>
+    <button class="big-btn" onclick="tornaHome()">🏠 Torna alla home</button>
   </div>
 
   <div id="touch-guard"></div>
@@ -94,46 +124,37 @@
     let pre  = { destra:null, sinistra:null, fronte:null }
     let post = { destra:null, sinistra:null, fronte:null }
 
-    // --- audio: un solo oggetto Audio riutilizzato per lo sblocco ---
-    const AUDIO = {}
-    ;['intro','pronti','destra','sinistra','fronte','respiri','fine'].forEach(n => {
-      AUDIO[n] = new Audio('mp3/audio-' + n + '.mp3'); AUDIO[n].preload = 'auto'
-    })
+    // --- audio: UN SOLO lettore, cambia src (iOS-friendly) ---
+    const player = new Audio()
+    player.preload = 'auto'
     let audioSbloccato = false
-    // sblocco SILENZIOSO: riproduce a volume 0 un solo file cortissimo, poi lo ferma
+    let actx = null
     function sbloccaAudio() {
+      try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume() } catch(e){}
       if (audioSbloccato) return Promise.resolve()
       audioSbloccato = true
-      const a = AUDIO['pronti']
-      const prevVol = a.volume
-      a.volume = 0
-      return a.play().then(()=>{ a.pause(); a.currentTime = 0; a.volume = prevVol })
-                      .catch(()=>{ a.volume = prevVol })
-    }
-    function stopAllAudio() {
-      Object.values(AUDIO).forEach(a => { try { a.pause(); a.currentTime = 0 } catch(e){} })
+      player.src = 'mp3/audio-pronti.mp3'; player.muted = true
+      return player.play().then(()=>{ player.pause(); player.currentTime=0; player.muted=false })
+                          .catch(()=>{ player.muted=false })
     }
     function playAudio(name) {
       return new Promise((resolve) => {
-        stopAllAudio()
-        const a = AUDIO[name]
-        if (!a) return resolve()
-        a.currentTime = 0
-        let finished = false
-        const done = () => { if (finished) return; finished = true; a.removeEventListener('ended', done); resolve() }
-        a.addEventListener('ended', done)
-        a.play().catch(()=>done())
-        setTimeout(done, 9000) // fallback
+        try { player.pause() } catch(e){}
+        player.src = 'mp3/audio-' + name + '.mp3'
+        player.currentTime = 0
+        let done = false
+        const fin = () => { if (done) return; done = true; player.removeEventListener('ended', fin); resolve() }
+        player.addEventListener('ended', fin)
+        player.play().catch(()=>fin())
+        setTimeout(fin, 12000) // fallback generoso
       })
     }
 
-    // --- bip ---
-    let actx = null
     function bip(freq, durMs) {
       try {
         if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)()
-        const o = actx.createOscillator(), g = actx.createGain()
-        o.frequency.value = freq||880; o.type='sine'; o.connect(g); g.connect(actx.destination)
+        const o=actx.createOscillator(), g=actx.createGain()
+        o.frequency.value=freq||880; o.type='sine'; o.connect(g); g.connect(actx.destination)
         g.gain.setValueAtTime(0.25, actx.currentTime)
         g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + (durMs||200)/1000)
         o.start(); o.stop(actx.currentTime + (durMs||200)/1000)
@@ -146,12 +167,8 @@
 
     async function richiediPermessoSensori() {
       let okM=true, okO=true
-      if (typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function') {
-        try { okM=(await DeviceMotionEvent.requestPermission())==='granted' } catch(e){ okM=false }
-      }
-      if (typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function') {
-        try { okO=(await DeviceOrientationEvent.requestPermission())==='granted' } catch(e){ okO=false }
-      }
+      if (typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function') { try { okM=(await DeviceMotionEvent.requestPermission())==='granted' } catch(e){ okM=false } }
+      if (typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function') { try { okO=(await DeviceOrientationEvent.requestPermission())==='granted' } catch(e){ okO=false } }
       return okM && okO
     }
 
@@ -179,7 +196,7 @@
       mostra('s-seq')
       document.getElementById('seq-phase').textContent = label
       document.getElementById('seq-countdown').textContent = ''
-      await playAudio(audioName)
+      await playAudio(audioName)   // aspetta che la voce FINISCA
       bip(880, 200)
       const res = await misura(10000, (sec)=>{ document.getElementById('seq-countdown').textContent = sec>0?sec:'' })
       document.getElementById('seq-countdown').textContent = ''
@@ -198,27 +215,63 @@
     }
 
     function countdown(elId, sec) {
-      return new Promise((resolve)=>{
-        const el=document.getElementById(elId); let r=sec; el.textContent=r
-        const t=setInterval(()=>{ r--; el.textContent=r>0?r:''; if(r<=0){clearInterval(t);resolve()} },1000)
-      })
+      return new Promise((resolve)=>{ const el=document.getElementById(elId); let r=sec; el.textContent=r; const t=setInterval(()=>{ r--; el.textContent=r>0?r:''; if(r<=0){clearInterval(t);resolve()} },1000) })
     }
 
-    async function eseguiRespiri() {
-      mostra('s-respiri')
-      playAudio('respiri')
-      await countdown('resp-countdown', 42)
-    }
-
-    async function schermataPonte() {
-      mostra('s-bridge')
-      bip(660, 250)
-      await countdown('bridge-countdown', 10)
-    }
-
+    async function eseguiRespiri() { mostra('s-respiri'); playAudio('respiri'); await countdown('resp-countdown', 42) }
+    async function schermataPonte() { mostra('s-bridge'); bip(660,250); await countdown('bridge-countdown', 10) }
     function mostra(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active') }
-
     function ascoltaIntro(){ sbloccaAudio().then(()=>playAudio('intro')) }
+
+    // --- % miglioramento: riduzione = miglioramento ---
+    function pctMiglioramento(pre, post) {
+      if (pre <= 0) return 0
+      return Math.round((pre - post) / pre * 100)
+    }
+    function setBar(preId, postId, preBar, postBar, preVal, postVal, suffix) {
+      const maxv = Math.max(preVal, postVal, 0.1)
+      const maxPx = 150
+      document.getElementById(preId).textContent  = preVal + (suffix||'')
+      document.getElementById(postId).textContent = postVal + (suffix||'')
+      document.getElementById(preBar).style.height  = Math.max(18, preVal/maxv*maxPx) + 'px'
+      document.getElementById(postBar).style.height = Math.max(18, postVal/maxv*maxPx) + 'px'
+      // colore "dopo": verde se migliorato (piu basso), rosso se peggiorato
+      document.getElementById(postBar).style.background = (postVal < preVal) ? '#00e676' : (postVal > preVal ? '#ff8a3c' : '#9aa5b1')
+    }
+    function setDelta(elId, pct) {
+      const el = document.getElementById(elId)
+      if (pct > 2)      { el.className='delta good'; el.textContent = '↓ ' + pct + '% più stabile' }
+      else if (pct < -2){ el.className='delta bad';  el.textContent = '↑ ' + Math.abs(pct) + '% meno stabile' }
+      else              { el.className='delta same'; el.textContent = 'Stabile, invariato' }
+    }
+
+    function mostraConfronto(swayPre, swayPost, gradiPre, gradiPost) {
+      mostra('s-done')
+      setBar('sw-pre-val','sw-post-val','sw-pre-bar','sw-post-bar', swayPre, swayPost, '')
+      setBar('gr-pre-val','gr-post-val','gr-pre-bar','gr-post-bar', gradiPre, gradiPost, '°')
+      const pctSway  = pctMiglioramento(swayPre, swayPost)
+      const pctGradi = pctMiglioramento(gradiPre, gradiPost)
+      setDelta('sw-delta', pctSway)
+      setDelta('gr-delta', pctGradi)
+      const mediaP = Math.round((pctSway + pctGradi) / 2)
+      const h = document.getElementById('done-headline')
+      if (mediaP > 2)       h.innerHTML = 'Sei più stabile dopo i 3 Respiri 💪'
+      else if (mediaP < -2) h.innerHTML = 'Oggi la stabilità non è migliorata'
+      else                  h.innerHTML = 'Stabilità invariata'
+    }
+
+    async function salvaNelDiario(swayPre, swayPost, gradiPre, gradiPost) {
+      if (!token) return // salvataggio paziente via token; professionista lo gestiamo dopo
+      try {
+        await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
+          patient_protocol_id: protocol ? protocol.id : null,
+          data: new Date().toISOString().slice(0,10),
+          completato: true,
+          sway_pre: swayPre, sway_post: swayPost, gradi_pre: gradiPre, gradi_post: gradiPost,
+          autotest_dettaglio: { pre: pre, post: post }
+        }})
+      } catch(e){ console.log('[autotest] salvataggio:', e) }
+    }
 
     async function iniziaTest() {
       await sbloccaAudio()
@@ -234,16 +287,18 @@
       const swayPost = media(post.destra.sway, post.sinistra.sway, post.fronte.sway)
       const gradiPre = media(pre.destra.gradi, pre.sinistra.gradi, pre.fronte.gradi)
       const gradiPost= media(post.destra.gradi,post.sinistra.gradi,post.fronte.gradi)
-      mostra('s-done')
-      document.getElementById('done-summary').innerHTML =
-        'Oscillazione: ' + swayPre + ' → ' + swayPost + '<br>Gradi: ' + gradiPre + '° → ' + gradiPost + '°'
+      mostraConfronto(swayPre, swayPost, gradiPre, gradiPost)
+      salvaNelDiario(swayPre, swayPost, gradiPre, gradiPost)
+    }
+
+    function tornaHome() {
+      if (token) window.location.href = 'protocollo.html?token=' + token
+      else if (pid) window.location.href = 'paziente.html?id=' + pid
+      else window.location.reload()
     }
 
     async function init() {
-      if (token) {
-        try { const { data: pd } = await _supabase.rpc('get_protocol_data', { p_token: token })
-          if (pd && pd.patient) { patient=pd.patient; protocol=pd.protocol||null } } catch(e){ console.log('[autotest]',e) }
-      }
+      if (token) { try { const { data: pd } = await _supabase.rpc('get_protocol_data', { p_token: token }); if (pd && pd.patient) { patient=pd.patient; protocol=pd.protocol||null } } catch(e){ console.log('[autotest]',e) } }
       console.log('[autotest] token:', token, '| pid:', pid)
     }
     init()
