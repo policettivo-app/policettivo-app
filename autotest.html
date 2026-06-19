@@ -6,28 +6,31 @@
 <title>Autotest Stabilità — Policettivo</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; background: #0f1419; color: #fff;
-         min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-         padding: 24px; text-align: center; overflow: hidden; }
-  .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 420px; }
+  html, body { margin: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f1419; color: #fff;
+         min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+         padding: 20px 24px 40px; text-align: center; }
+  .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 420px; margin: auto 0; }
   .screen.active { display: flex; }
-  h1 { font-size: 22px; font-weight: 800; margin: 0 0 10px; }
-  .sub { font-size: 15px; color: #9aa5b1; margin: 0 0 22px; line-height: 1.5; }
-  .hero-img { width: 70%; max-width: 240px; border-radius: 16px; margin: 8px 0 20px; background: #fff; }
-  .hero-img.wide { width: 100%; max-width: 420px; }
+  h1 { font-size: 22px; font-weight: 800; margin: 8px 0 14px; }
+  .sub { font-size: 15px; color: #9aa5b1; margin: 0 0 20px; line-height: 1.5; }
+  .hero-img { width: 52%; max-width: 175px; border-radius: 16px; margin: 4px 0 18px; background: #fff; }
+  .hero-img.wide { width: 100%; max-width: 380px; }
   .big-btn { background: #FFD008; color: #000; border: none; border-radius: 16px; padding: 18px 32px;
              font-size: 17px; font-weight: 800; cursor: pointer; min-width: 240px; margin-top: 6px; }
   .ghost-btn { background: transparent; color: #FFD008; border: 1.5px solid #FFD008; border-radius: 14px;
                padding: 13px 24px; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 14px; min-width: 240px; }
   .countdown { font-size: 88px; font-weight: 800; color: #fff; margin: 10px 0; min-height: 96px; line-height: 1; }
-  .phase-label { font-size: 20px; font-weight: 700; color: #FFD008; margin-bottom: 6px; min-height: 26px; }
+  .phase-label { font-size: 22px; font-weight: 800; color: #FFD008; margin-bottom: 6px; min-height: 28px; }
   .phase-hint { font-size: 14px; color: #9aa5b1; margin-bottom: 10px; }
   .progress { font-size: 13px; color: #5a6572; margin-top: 18px; letter-spacing: 1px; }
-  .breath-circle { width: 160px; height: 160px; border-radius: 50%; border: 3px solid #FFD008;
-                   display: flex; align-items: center; justify-content: center; margin: 20px 0;
+  .breath-circle { width: 150px; height: 150px; border-radius: 50%; border: 3px solid #FFD008;
+                   display: flex; align-items: center; justify-content: center; margin: 18px 0;
                    font-size: 16px; color: #FFD008; animation: breathe 7s ease-in-out infinite; }
-  @keyframes breathe { 0%,100% { transform: scale(0.75); } 50% { transform: scale(1.1); } }
-  /* scudo anti-tocco durante la misura */
+  @keyframes breathe { 0%,100% { transform: scale(0.78); } 50% { transform: scale(1.08); } }
+  /* schermata ponte */
+  .bridge-box { background: #FFD008; color: #000; border-radius: 20px; padding: 26px 22px; margin: 20px 0; }
+  .bridge-box .big { font-size: 22px; font-weight: 800; line-height: 1.35; }
   #touch-guard { position: fixed; inset: 0; z-index: 9999; display: none; background: transparent; }
   #touch-guard.active { display: block; }
   .done-val { font-size: 15px; color: #9aa5b1; margin-top: 16px; }
@@ -35,7 +38,7 @@
 </head>
 <body>
 
-  <!-- SCHERMATA 1: INTRO -->
+  <!-- 1. INTRO -->
   <div class="screen active" id="s-intro">
     <h1>Autotest Stabilità</h1>
     <img class="hero-img" id="img-petto" src="img/telefono-petto.png" alt="Telefono al centro del petto">
@@ -45,7 +48,7 @@
     <button class="big-btn" onclick="iniziaTest()">▶ Inizia il test</button>
   </div>
 
-  <!-- SCHERMATA 2-4: SEQUENZA (riusata per PRIMA e DOPO) -->
+  <!-- 2/4. SEQUENZA -->
   <div class="screen" id="s-seq">
     <div class="phase-label" id="seq-phase">—</div>
     <div class="phase-hint" id="seq-hint">Segui la voce</div>
@@ -54,18 +57,24 @@
     <div class="progress" id="seq-progress"></div>
   </div>
 
-  <!-- SCHERMATA 3: RESPIRI -->
+  <!-- 3. RESPIRI -->
   <div class="screen" id="s-respiri">
     <div class="phase-label">Tecnica dei 3 Respiri</div>
-    <div class="breath-circle" id="breath">respira</div>
+    <div class="breath-circle">respira</div>
     <div class="countdown" id="resp-countdown"></div>
     <p class="sub">Esegui la tecnica sul cuscino.</p>
   </div>
 
-  <!-- SCHERMATA 5: DONE (placeholder, il confronto wow arriva nel blocco 3) -->
+  <!-- 3b. PONTE -->
+  <div class="screen" id="s-bridge">
+    <div class="bridge-box"><div class="big">Ora ripeti il test.<br>Resta fermo, telefono al petto.</div></div>
+    <div class="countdown" id="bridge-countdown"></div>
+  </div>
+
+  <!-- 5. DONE placeholder -->
   <div class="screen" id="s-done">
     <h1>Test completato ✓</h1>
-    <p class="sub">Ecco i tuoi valori (la schermata di confronto arriva al prossimo passo).</p>
+    <p class="sub">Valori raccolti (la schermata di confronto arriva al prossimo passo).</p>
     <div class="done-val" id="done-summary">—</div>
   </div>
 
@@ -82,90 +91,80 @@
     const pid    = params.get('id')
     let patient = null, protocol = null
 
-    // dati raccolti
     let pre  = { destra:null, sinistra:null, fronte:null }
     let post = { destra:null, sinistra:null, fronte:null }
 
-    // --- audio ---
+    // --- audio: un solo oggetto Audio riutilizzato per lo sblocco ---
     const AUDIO = {}
     ;['intro','pronti','destra','sinistra','fronte','respiri','fine'].forEach(n => {
-      AUDIO[n] = new Audio('mp3/audio-' + n + '.mp3')
-      AUDIO[n].preload = 'auto'
+      AUDIO[n] = new Audio('mp3/audio-' + n + '.mp3'); AUDIO[n].preload = 'auto'
     })
     let audioSbloccato = false
+    // sblocco SILENZIOSO: riproduce a volume 0 un solo file cortissimo, poi lo ferma
     function sbloccaAudio() {
-      if (audioSbloccato) return
-      Object.values(AUDIO).forEach(a => { a.play().then(()=>{a.pause();a.currentTime=0}).catch(()=>{}) })
+      if (audioSbloccato) return Promise.resolve()
       audioSbloccato = true
+      const a = AUDIO['pronti']
+      const prevVol = a.volume
+      a.volume = 0
+      return a.play().then(()=>{ a.pause(); a.currentTime = 0; a.volume = prevVol })
+                      .catch(()=>{ a.volume = prevVol })
+    }
+    function stopAllAudio() {
+      Object.values(AUDIO).forEach(a => { try { a.pause(); a.currentTime = 0 } catch(e){} })
     }
     function playAudio(name) {
       return new Promise((resolve) => {
+        stopAllAudio()
         const a = AUDIO[name]
         if (!a) return resolve()
         a.currentTime = 0
-        const done = () => { a.removeEventListener('ended', done); resolve() }
+        let finished = false
+        const done = () => { if (finished) return; finished = true; a.removeEventListener('ended', done); resolve() }
         a.addEventListener('ended', done)
-        a.play().catch(()=>resolve())
-        setTimeout(() => { done() }, 8000) // fallback se 'ended' non scatta
+        a.play().catch(()=>done())
+        setTimeout(done, 9000) // fallback
       })
     }
 
-    // --- bip via Web Audio ---
+    // --- bip ---
     let actx = null
     function bip(freq, durMs) {
       try {
         if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)()
         const o = actx.createOscillator(), g = actx.createGain()
-        o.frequency.value = freq || 880; o.type = 'sine'
-        o.connect(g); g.connect(actx.destination)
+        o.frequency.value = freq||880; o.type='sine'; o.connect(g); g.connect(actx.destination)
         g.gain.setValueAtTime(0.25, actx.currentTime)
         g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + (durMs||200)/1000)
         o.start(); o.stop(actx.currentTime + (durMs||200)/1000)
-      } catch(e) {}
+      } catch(e){}
     }
 
-    // --- statistica ---
-    function std(arr) {
-      if (!arr.length) return 0
-      const m = arr.reduce((a,b)=>a+b,0)/arr.length
-      return Math.sqrt(arr.reduce((a,b)=>a+(b-m)*(b-m),0)/arr.length)
-    }
+    function std(arr){ if(!arr.length) return 0; const m=arr.reduce((a,b)=>a+b,0)/arr.length; return Math.sqrt(arr.reduce((a,b)=>a+(b-m)*(b-m),0)/arr.length) }
     function round1(x){ return Math.round(x*10)/10 }
     function media(a,b,c){ return round1((a+b+c)/3) }
 
-    // --- permesso sensori ---
     async function richiediPermessoSensori() {
-      let okM = true, okO = true
-      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-        try { okM = (await DeviceMotionEvent.requestPermission()) === 'granted' } catch(e){ okM=false }
+      let okM=true, okO=true
+      if (typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function') {
+        try { okM=(await DeviceMotionEvent.requestPermission())==='granted' } catch(e){ okM=false }
       }
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try { okO = (await DeviceOrientationEvent.requestPermission()) === 'granted' } catch(e){ okO=false }
+      if (typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function') {
+        try { okO=(await DeviceOrientationEvent.requestPermission())==='granted' } catch(e){ okO=false }
       }
       return okM && okO
     }
 
-    // --- misura N ms -> {sway, gradi} con scudo anti-tocco ---
     function misura(durataMs, onTick) {
       return new Promise((resolve) => {
         const acc=[], beta=[], gamma=[]
-        function onMotion(e){
-          const a = e.acceleration && (e.acceleration.x!==null) ? e.acceleration : e.accelerationIncludingGravity
-          if (a) acc.push(Math.sqrt((a.x||0)**2+(a.y||0)**2+(a.z||0)**2))
-        }
-        function onOrient(e){
-          if (e.beta!=null) beta.push(e.beta)
-          if (e.gamma!=null) gamma.push(e.gamma)
-        }
+        function onMotion(e){ const a=e.acceleration&&(e.acceleration.x!==null)?e.acceleration:e.accelerationIncludingGravity; if(a) acc.push(Math.sqrt((a.x||0)**2+(a.y||0)**2+(a.z||0)**2)) }
+        function onOrient(e){ if(e.beta!=null) beta.push(e.beta); if(e.gamma!=null) gamma.push(e.gamma) }
         window.addEventListener('devicemotion', onMotion)
         window.addEventListener('deviceorientation', onOrient)
         document.getElementById('touch-guard').classList.add('active')
-
-        const start = Date.now()
-        const tick = setInterval(()=>{
-          const r = Math.ceil((durataMs-(Date.now()-start))/1000)
-          if (onTick) onTick(Math.max(0,r))
-        }, 200)
+        const start=Date.now()
+        const tick=setInterval(()=>{ const r=Math.ceil((durataMs-(Date.now()-start))/1000); if(onTick) onTick(Math.max(0,r)) }, 200)
         setTimeout(()=>{
           clearInterval(tick)
           window.removeEventListener('devicemotion', onMotion)
@@ -176,8 +175,7 @@
       })
     }
 
-    // --- una posizione: voce -> bip -> misura 10s ---
-    async function eseguiPosizione(audioName, label, target) {
+    async function eseguiPosizione(audioName, label) {
       mostra('s-seq')
       document.getElementById('seq-phase').textContent = label
       document.getElementById('seq-countdown').textContent = ''
@@ -185,77 +183,68 @@
       bip(880, 200)
       const res = await misura(10000, (sec)=>{ document.getElementById('seq-countdown').textContent = sec>0?sec:'' })
       document.getElementById('seq-countdown').textContent = ''
-      bip(440, 300) // bip di fine
-      target.destra // no-op
+      bip(440, 300)
       return res
     }
 
-    // --- sequenza completa (prima o dopo) ---
-    async function eseguiSequenza(store, etichettaFase) {
-      document.getElementById('seq-progress').textContent = etichettaFase
+    async function eseguiSequenza(store, etichetta) {
+      document.getElementById('seq-progress').textContent = etichetta
+      mostra('s-seq')
+      document.getElementById('seq-phase').textContent = 'Preparati'
       await playAudio('pronti')
-      store.destra   = await eseguiPosizione('destra',   'Testa a DESTRA', store)
-      store.sinistra = await eseguiPosizione('sinistra', 'Testa a SINISTRA', store)
-      store.fronte   = await eseguiPosizione('fronte',   'Guarda DAVANTI', store)
+      store.destra   = await eseguiPosizione('destra',   'Testa a DESTRA')
+      store.sinistra = await eseguiPosizione('sinistra', 'Testa a SINISTRA')
+      store.fronte   = await eseguiPosizione('fronte',   'Guarda DAVANTI')
     }
 
-    // --- respiri 42s ---
+    function countdown(elId, sec) {
+      return new Promise((resolve)=>{
+        const el=document.getElementById(elId); let r=sec; el.textContent=r
+        const t=setInterval(()=>{ r--; el.textContent=r>0?r:''; if(r<=0){clearInterval(t);resolve()} },1000)
+      })
+    }
+
     async function eseguiRespiri() {
       mostra('s-respiri')
       playAudio('respiri')
       await countdown('resp-countdown', 42)
     }
-    function countdown(elId, sec) {
-      return new Promise((resolve)=>{
-        const el = document.getElementById(elId)
-        let r = sec
-        el.textContent = r
-        const t = setInterval(()=>{
-          r--
-          el.textContent = r > 0 ? r : ''
-          if (r <= 0) { clearInterval(t); resolve() }
-        }, 1000)
-      })
+
+    async function schermataPonte() {
+      mostra('s-bridge')
+      bip(660, 250)
+      await countdown('bridge-countdown', 10)
     }
 
-    function mostra(id) {
-      document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'))
-      document.getElementById(id).classList.add('active')
-    }
+    function mostra(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active') }
 
-    // --- pulsanti ---
-    function ascoltaIntro() { sbloccaAudio(); playAudio('intro') }
+    function ascoltaIntro(){ sbloccaAudio().then(()=>playAudio('intro')) }
 
     async function iniziaTest() {
-      sbloccaAudio()
+      await sbloccaAudio()
       const ok = await richiediPermessoSensori()
-      if (!ok) { alert('Serve l\u2019accesso al sensore di movimento. Riprova e premi Consenti.'); return }
-
+      if (!ok) { alert('Serve l\\u2019accesso al sensore di movimento. Riprova e premi Consenti.'); return }
       await eseguiSequenza(pre, 'FASE PRIMA')
       await eseguiRespiri()
+      await schermataPonte()
       await eseguiSequenza(post, 'FASE DOPO')
       await playAudio('fine')
 
-      // medie (blocco 3 user le rendera' come confronto wow)
       const swayPre  = media(pre.destra.sway,  pre.sinistra.sway,  pre.fronte.sway)
       const swayPost = media(post.destra.sway, post.sinistra.sway, post.fronte.sway)
       const gradiPre = media(pre.destra.gradi, pre.sinistra.gradi, pre.fronte.gradi)
       const gradiPost= media(post.destra.gradi,post.sinistra.gradi,post.fronte.gradi)
-
       mostra('s-done')
       document.getElementById('done-summary').innerHTML =
         'Oscillazione: ' + swayPre + ' → ' + swayPost + '<br>Gradi: ' + gradiPre + '° → ' + gradiPost + '°'
     }
 
-    // --- init ---
     async function init() {
       if (token) {
-        try {
-          const { data: pd } = await _supabase.rpc('get_protocol_data', { p_token: token })
-          if (pd && pd.patient) { patient = pd.patient; protocol = pd.protocol || null }
-        } catch(e){ console.log('[autotest] init:', e) }
+        try { const { data: pd } = await _supabase.rpc('get_protocol_data', { p_token: token })
+          if (pd && pd.patient) { patient=pd.patient; protocol=pd.protocol||null } } catch(e){ console.log('[autotest]',e) }
       }
-      console.log('[autotest] token:', token, '| pid:', pid, '| patient:', patient?patient.nome:null)
+      console.log('[autotest] token:', token, '| pid:', pid)
     }
     init()
   </script>
