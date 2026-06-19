@@ -105,6 +105,7 @@
     const params = new URLSearchParams(location.search)
     const token = params.get('token')
     const pid    = params.get('id')
+    const isPro  = params.get('pro') === '1'   // test lanciato dal professionista
     let patient = null, protocol = null
 
     let pre  = { destra:null, sinistra:null, fronte:null }
@@ -281,7 +282,7 @@
           patient_protocol_id: protocol ? protocol.id : null,
           data: new Date().toISOString().slice(0,10), completato: true,
           sway_pre: swayPre, sway_post: swayPost, gradi_pre: gradiPre, gradi_post: gradiPost,
-          autotest_dettaglio: { pre: pre, post: post }
+          autotest_dettaglio: { pre: pre, post: post, eseguito_da: isPro ? 'professionista' : 'paziente' }
         }})
       } catch(e){ console.log('[autotest] salvataggio:', e) }
     }
