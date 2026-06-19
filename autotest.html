@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Autotest Stabilità — Policettivo</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; background: #0f1419; color: #fff;
+         min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+         padding: 24px; text-align: center; }
+  h1 { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
+  .sub { font-size: 14px; color: #9aa5b1; margin: 0 0 28px; max-width: 320px; }
+  .big-btn { background: #FFD008; color: #000; border: none; border-radius: 16px; padding: 18px 32px;
+             font-size: 17px; font-weight: 700; cursor: pointer; min-width: 220px; }
+  .big-btn:disabled { opacity: .4; }
+  .status { margin-top: 22px; font-size: 14px; color: #9aa5b1; min-height: 20px; }
+  .results { margin-top: 24px; display: none; gap: 16px; }
+  .results.visible { display: flex; }
+  .metric { background: #1a222c; border-radius: 14px; padding: 16px 22px; min-width: 110px; }
+  .metric-val { font-size: 30px; font-weight: 800; color: #FFD008; }
+  .metric-lbl { font-size: 12px; color: #9aa5b1; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+  .countdown { font-size: 64px; font-weight: 800; color: #fff; margin: 20px 0; min-height: 72px; }
+</style>
+</head>
+<body>
+  <h1>Autotest Stabilità</h1>
+  <p class="sub">Test di prova del sensore. Tieni il telefono fermo al centro del petto e premi il pulsante.</p>
+
+  <button class="big-btn" id="btn-start" onclick="avviaProva()">▶ Misura 10 secondi</button>
+
+  <div class="countdown" id="countdown"></div>
+  <div class="status" id="status"></div>
+
+  <div class="results" id="results">
+    <div class="metric"><div class="metric-val" id="val-sway">—</div><div class="metric-lbl">Oscillazione</div></div>
+    <div class="metric"><div class="metric-val" id="val-gradi">—</div><div class="metric-lbl">Gradi</div></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    const params = new URLSearchParams(location.search)
+    const token  = params.get('token')   // ingresso paziente
+    const pid     = params.get('id')      // ingresso professionista
+    let patient = null, protocol = null
+
+    // --- helper statistici ---
+    function std(arr) {
+      if (!arr.length) return 0
+      const m = arr.reduce((a,b)=>a+b,0) / arr.length
+      const v = arr.reduce((a,b)=>a+(b-m)*(b-m),0) / arr.length
+      return Math.sqrt(v)
+    }
+    function round1(x) { return Math.round(x*10)/10 }
+
+    // --- permesso sensori (iOS 13+ richiede tap) ---
+    async function richiediPermessoSensori() {
+      let okM = true, okO = true
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        try { okM = (await DeviceMotionEvent.requestPermission()) === 'granted' } catch(e) { okM = false }
+      }
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try { okO = (await DeviceOrientationEvent.requestPermission()) === 'granted' } catch(e) { okO = false }
+      }
+      return okM && okO
+    }
+
+    // --- misurazione per N millisecondi -> { sway, gradi, campioni } ---
+    function misura(durataMs, onTick) {
+      return new Promise((resolve) => {
+        const acc = [], beta = [], gamma = []
+        function onMotion(e) {
+          const a = e.acceleration && (e.acceleration.x !== null) ? e.acceleration : e.accelerationIncludingGravity
+          if (a) acc.push(Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2))
+        }
+        function onOrient(e) {
+          if (e.beta  !== null && e.beta  !== undefined) beta.push(e.beta)
+          if (e.gamma !== null && e.gamma !== undefined) gamma.push(e.gamma)
+        }
+        window.addEventListener('devicemotion', onMotion)
+        window.addEventListener('deviceorientation', onOrient)
+
+        const start = Date.now()
+        const tick = setInterval(() => {
+          const restante = Math.ceil((durataMs - (Date.now()-start)) / 1000)
+          if (onTick) onTick(Math.max(0, restante))
+        }, 200)
+
+        setTimeout(() => {
+          clearInterval(tick)
+          window.removeEventListener('devicemotion', onMotion)
+          window.removeEventListener('deviceorientation', onOrient)
+          const sway  = round1(std(acc))
+          const gradi = round1(Math.sqrt(std(beta)**2 + std(gamma)**2))
+          resolve({ sway, gradi, campioni: acc.length })
+        }, durataMs)
+      })
+    }
+
+    async function avviaProva() {
+      const btn = document.getElementById('btn-start')
+      const status = document.getElementById('status')
+      const cd = document.getElementById('countdown')
+      document.getElementById('results').classList.remove('visible')
+
+      status.textContent = 'Richiesta accesso al sensore...'
+      const ok = await richiediPermessoSensori()
+      if (!ok) { status.textContent = '⚠️ Permesso sensore negato o non disponibile su questo dispositivo.'; return }
+
+      btn.disabled = true
+      status.textContent = 'Stai fermo...'
+      const res = await misura(10000, (sec) => { cd.textContent = sec > 0 ? sec : '' })
+      cd.textContent = ''
+
+      document.getElementById('val-sway').textContent = res.sway
+      document.getElementById('val-gradi').textContent = res.gradi + '°'
+      document.getElementById('results').classList.add('visible')
+      status.textContent = 'Campioni raccolti: ' + res.campioni + (res.campioni === 0 ? ' — sensore non risponde!' : '')
+      btn.disabled = false
+    }
+
+    // init: carica dati paziente se c'e' token (per i blocchi successivi)
+    async function init() {
+      if (token) {
+        try {
+          const { data: pd } = await _supabase.rpc('get_protocol_data', { p_token: token })
+          if (pd && pd.patient) { patient = pd.patient; protocol = pd.protocol || null }
+        } catch(e) { console.log('[autotest] init token:', e) }
+      }
+      console.log('[autotest] token:', token, '| pid:', pid, '| patient:', patient ? patient.nome : null)
+    }
+    init()
+  </script>
+</body>
+</html>
