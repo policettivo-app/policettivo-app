@@ -5,37 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Autotest Stabilità — Policettivo</title>
 <style>
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; background: #0f1419; color: #fff;
          min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-         padding: 24px; text-align: center; }
-  h1 { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
-  .sub { font-size: 14px; color: #9aa5b1; margin: 0 0 28px; max-width: 320px; }
+         padding: 24px; text-align: center; overflow: hidden; }
+  .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 420px; }
+  .screen.active { display: flex; }
+  h1 { font-size: 22px; font-weight: 800; margin: 0 0 10px; }
+  .sub { font-size: 15px; color: #9aa5b1; margin: 0 0 22px; line-height: 1.5; }
+  .hero-img { width: 70%; max-width: 240px; border-radius: 16px; margin: 8px 0 20px; background: #fff; }
+  .hero-img.wide { width: 100%; max-width: 420px; }
   .big-btn { background: #FFD008; color: #000; border: none; border-radius: 16px; padding: 18px 32px;
-             font-size: 17px; font-weight: 700; cursor: pointer; min-width: 220px; }
-  .big-btn:disabled { opacity: .4; }
-  .status { margin-top: 22px; font-size: 14px; color: #9aa5b1; min-height: 20px; }
-  .results { margin-top: 24px; display: none; gap: 16px; }
-  .results.visible { display: flex; }
-  .metric { background: #1a222c; border-radius: 14px; padding: 16px 22px; min-width: 110px; }
-  .metric-val { font-size: 30px; font-weight: 800; color: #FFD008; }
-  .metric-lbl { font-size: 12px; color: #9aa5b1; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
-  .countdown { font-size: 64px; font-weight: 800; color: #fff; margin: 20px 0; min-height: 72px; }
+             font-size: 17px; font-weight: 800; cursor: pointer; min-width: 240px; margin-top: 6px; }
+  .ghost-btn { background: transparent; color: #FFD008; border: 1.5px solid #FFD008; border-radius: 14px;
+               padding: 13px 24px; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 14px; min-width: 240px; }
+  .countdown { font-size: 88px; font-weight: 800; color: #fff; margin: 10px 0; min-height: 96px; line-height: 1; }
+  .phase-label { font-size: 20px; font-weight: 700; color: #FFD008; margin-bottom: 6px; min-height: 26px; }
+  .phase-hint { font-size: 14px; color: #9aa5b1; margin-bottom: 10px; }
+  .progress { font-size: 13px; color: #5a6572; margin-top: 18px; letter-spacing: 1px; }
+  .breath-circle { width: 160px; height: 160px; border-radius: 50%; border: 3px solid #FFD008;
+                   display: flex; align-items: center; justify-content: center; margin: 20px 0;
+                   font-size: 16px; color: #FFD008; animation: breathe 7s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { transform: scale(0.75); } 50% { transform: scale(1.1); } }
+  /* scudo anti-tocco durante la misura */
+  #touch-guard { position: fixed; inset: 0; z-index: 9999; display: none; background: transparent; }
+  #touch-guard.active { display: block; }
+  .done-val { font-size: 15px; color: #9aa5b1; margin-top: 16px; }
 </style>
 </head>
 <body>
-  <h1>Autotest Stabilità</h1>
-  <p class="sub">Test di prova del sensore. Tieni il telefono fermo al centro del petto e premi il pulsante.</p>
 
-  <button class="big-btn" id="btn-start" onclick="avviaProva()">▶ Misura 10 secondi</button>
-
-  <div class="countdown" id="countdown"></div>
-  <div class="status" id="status"></div>
-
-  <div class="results" id="results">
-    <div class="metric"><div class="metric-val" id="val-sway">—</div><div class="metric-lbl">Oscillazione</div></div>
-    <div class="metric"><div class="metric-val" id="val-gradi">—</div><div class="metric-lbl">Gradi</div></div>
+  <!-- SCHERMATA 1: INTRO -->
+  <div class="screen active" id="s-intro">
+    <h1>Autotest Stabilità</h1>
+    <img class="hero-img" id="img-petto" src="img/telefono-petto.png" alt="Telefono al centro del petto">
+    <p class="sub">Misura quanto il tuo corpo resta stabile, prima e dopo l'esercizio.<br>
+       Tieni il telefono al centro del petto e segui la voce.</p>
+    <button class="ghost-btn" onclick="ascoltaIntro()">🔊 Ascolta introduzione</button>
+    <button class="big-btn" onclick="iniziaTest()">▶ Inizia il test</button>
   </div>
+
+  <!-- SCHERMATA 2-4: SEQUENZA (riusata per PRIMA e DOPO) -->
+  <div class="screen" id="s-seq">
+    <div class="phase-label" id="seq-phase">—</div>
+    <div class="phase-hint" id="seq-hint">Segui la voce</div>
+    <img class="hero-img wide" id="img-testa" src="img/posizioni-testa.png" alt="Posizioni della testa">
+    <div class="countdown" id="seq-countdown"></div>
+    <div class="progress" id="seq-progress"></div>
+  </div>
+
+  <!-- SCHERMATA 3: RESPIRI -->
+  <div class="screen" id="s-respiri">
+    <div class="phase-label">Tecnica dei 3 Respiri</div>
+    <div class="breath-circle" id="breath">respira</div>
+    <div class="countdown" id="resp-countdown"></div>
+    <p class="sub">Esegui la tecnica sul cuscino.</p>
+  </div>
+
+  <!-- SCHERMATA 5: DONE (placeholder, il confronto wow arriva nel blocco 3) -->
+  <div class="screen" id="s-done">
+    <h1>Test completato ✓</h1>
+    <p class="sub">Ecco i tuoi valori (la schermata di confronto arriva al prossimo passo).</p>
+    <div class="done-val" id="done-summary">—</div>
+  </div>
+
+  <div id="touch-guard"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -44,94 +78,184 @@
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
     const params = new URLSearchParams(location.search)
-    const token  = params.get('token')   // ingresso paziente
-    const pid     = params.get('id')      // ingresso professionista
+    const token = params.get('token')
+    const pid    = params.get('id')
     let patient = null, protocol = null
 
-    // --- helper statistici ---
+    // dati raccolti
+    let pre  = { destra:null, sinistra:null, fronte:null }
+    let post = { destra:null, sinistra:null, fronte:null }
+
+    // --- audio ---
+    const AUDIO = {}
+    ;['intro','pronti','destra','sinistra','fronte','respiri','fine'].forEach(n => {
+      AUDIO[n] = new Audio('mp3/audio-' + n + '.mp3')
+      AUDIO[n].preload = 'auto'
+    })
+    let audioSbloccato = false
+    function sbloccaAudio() {
+      if (audioSbloccato) return
+      Object.values(AUDIO).forEach(a => { a.play().then(()=>{a.pause();a.currentTime=0}).catch(()=>{}) })
+      audioSbloccato = true
+    }
+    function playAudio(name) {
+      return new Promise((resolve) => {
+        const a = AUDIO[name]
+        if (!a) return resolve()
+        a.currentTime = 0
+        const done = () => { a.removeEventListener('ended', done); resolve() }
+        a.addEventListener('ended', done)
+        a.play().catch(()=>resolve())
+        setTimeout(() => { done() }, 8000) // fallback se 'ended' non scatta
+      })
+    }
+
+    // --- bip via Web Audio ---
+    let actx = null
+    function bip(freq, durMs) {
+      try {
+        if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)()
+        const o = actx.createOscillator(), g = actx.createGain()
+        o.frequency.value = freq || 880; o.type = 'sine'
+        o.connect(g); g.connect(actx.destination)
+        g.gain.setValueAtTime(0.25, actx.currentTime)
+        g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + (durMs||200)/1000)
+        o.start(); o.stop(actx.currentTime + (durMs||200)/1000)
+      } catch(e) {}
+    }
+
+    // --- statistica ---
     function std(arr) {
       if (!arr.length) return 0
-      const m = arr.reduce((a,b)=>a+b,0) / arr.length
-      const v = arr.reduce((a,b)=>a+(b-m)*(b-m),0) / arr.length
-      return Math.sqrt(v)
+      const m = arr.reduce((a,b)=>a+b,0)/arr.length
+      return Math.sqrt(arr.reduce((a,b)=>a+(b-m)*(b-m),0)/arr.length)
     }
-    function round1(x) { return Math.round(x*10)/10 }
+    function round1(x){ return Math.round(x*10)/10 }
+    function media(a,b,c){ return round1((a+b+c)/3) }
 
-    // --- permesso sensori (iOS 13+ richiede tap) ---
+    // --- permesso sensori ---
     async function richiediPermessoSensori() {
       let okM = true, okO = true
       if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-        try { okM = (await DeviceMotionEvent.requestPermission()) === 'granted' } catch(e) { okM = false }
+        try { okM = (await DeviceMotionEvent.requestPermission()) === 'granted' } catch(e){ okM=false }
       }
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try { okO = (await DeviceOrientationEvent.requestPermission()) === 'granted' } catch(e) { okO = false }
+        try { okO = (await DeviceOrientationEvent.requestPermission()) === 'granted' } catch(e){ okO=false }
       }
       return okM && okO
     }
 
-    // --- misurazione per N millisecondi -> { sway, gradi, campioni } ---
+    // --- misura N ms -> {sway, gradi} con scudo anti-tocco ---
     function misura(durataMs, onTick) {
       return new Promise((resolve) => {
-        const acc = [], beta = [], gamma = []
-        function onMotion(e) {
-          const a = e.acceleration && (e.acceleration.x !== null) ? e.acceleration : e.accelerationIncludingGravity
-          if (a) acc.push(Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2))
+        const acc=[], beta=[], gamma=[]
+        function onMotion(e){
+          const a = e.acceleration && (e.acceleration.x!==null) ? e.acceleration : e.accelerationIncludingGravity
+          if (a) acc.push(Math.sqrt((a.x||0)**2+(a.y||0)**2+(a.z||0)**2))
         }
-        function onOrient(e) {
-          if (e.beta  !== null && e.beta  !== undefined) beta.push(e.beta)
-          if (e.gamma !== null && e.gamma !== undefined) gamma.push(e.gamma)
+        function onOrient(e){
+          if (e.beta!=null) beta.push(e.beta)
+          if (e.gamma!=null) gamma.push(e.gamma)
         }
         window.addEventListener('devicemotion', onMotion)
         window.addEventListener('deviceorientation', onOrient)
+        document.getElementById('touch-guard').classList.add('active')
 
         const start = Date.now()
-        const tick = setInterval(() => {
-          const restante = Math.ceil((durataMs - (Date.now()-start)) / 1000)
-          if (onTick) onTick(Math.max(0, restante))
+        const tick = setInterval(()=>{
+          const r = Math.ceil((durataMs-(Date.now()-start))/1000)
+          if (onTick) onTick(Math.max(0,r))
         }, 200)
-
-        setTimeout(() => {
+        setTimeout(()=>{
           clearInterval(tick)
           window.removeEventListener('devicemotion', onMotion)
           window.removeEventListener('deviceorientation', onOrient)
-          const sway  = round1(std(acc))
-          const gradi = round1(Math.sqrt(std(beta)**2 + std(gamma)**2))
-          resolve({ sway, gradi, campioni: acc.length })
+          document.getElementById('touch-guard').classList.remove('active')
+          resolve({ sway: round1(std(acc)), gradi: round1(Math.sqrt(std(beta)**2+std(gamma)**2)), campioni: acc.length })
         }, durataMs)
       })
     }
 
-    async function avviaProva() {
-      const btn = document.getElementById('btn-start')
-      const status = document.getElementById('status')
-      const cd = document.getElementById('countdown')
-      document.getElementById('results').classList.remove('visible')
-
-      status.textContent = 'Richiesta accesso al sensore...'
-      const ok = await richiediPermessoSensori()
-      if (!ok) { status.textContent = '⚠️ Permesso sensore negato o non disponibile su questo dispositivo.'; return }
-
-      btn.disabled = true
-      status.textContent = 'Stai fermo...'
-      const res = await misura(10000, (sec) => { cd.textContent = sec > 0 ? sec : '' })
-      cd.textContent = ''
-
-      document.getElementById('val-sway').textContent = res.sway
-      document.getElementById('val-gradi').textContent = res.gradi + '°'
-      document.getElementById('results').classList.add('visible')
-      status.textContent = 'Campioni raccolti: ' + res.campioni + (res.campioni === 0 ? ' — sensore non risponde!' : '')
-      btn.disabled = false
+    // --- una posizione: voce -> bip -> misura 10s ---
+    async function eseguiPosizione(audioName, label, target) {
+      mostra('s-seq')
+      document.getElementById('seq-phase').textContent = label
+      document.getElementById('seq-countdown').textContent = ''
+      await playAudio(audioName)
+      bip(880, 200)
+      const res = await misura(10000, (sec)=>{ document.getElementById('seq-countdown').textContent = sec>0?sec:'' })
+      document.getElementById('seq-countdown').textContent = ''
+      bip(440, 300) // bip di fine
+      target.destra // no-op
+      return res
     }
 
-    // init: carica dati paziente se c'e' token (per i blocchi successivi)
+    // --- sequenza completa (prima o dopo) ---
+    async function eseguiSequenza(store, etichettaFase) {
+      document.getElementById('seq-progress').textContent = etichettaFase
+      await playAudio('pronti')
+      store.destra   = await eseguiPosizione('destra',   'Testa a DESTRA', store)
+      store.sinistra = await eseguiPosizione('sinistra', 'Testa a SINISTRA', store)
+      store.fronte   = await eseguiPosizione('fronte',   'Guarda DAVANTI', store)
+    }
+
+    // --- respiri 42s ---
+    async function eseguiRespiri() {
+      mostra('s-respiri')
+      playAudio('respiri')
+      await countdown('resp-countdown', 42)
+    }
+    function countdown(elId, sec) {
+      return new Promise((resolve)=>{
+        const el = document.getElementById(elId)
+        let r = sec
+        el.textContent = r
+        const t = setInterval(()=>{
+          r--
+          el.textContent = r > 0 ? r : ''
+          if (r <= 0) { clearInterval(t); resolve() }
+        }, 1000)
+      })
+    }
+
+    function mostra(id) {
+      document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'))
+      document.getElementById(id).classList.add('active')
+    }
+
+    // --- pulsanti ---
+    function ascoltaIntro() { sbloccaAudio(); playAudio('intro') }
+
+    async function iniziaTest() {
+      sbloccaAudio()
+      const ok = await richiediPermessoSensori()
+      if (!ok) { alert('Serve l\u2019accesso al sensore di movimento. Riprova e premi Consenti.'); return }
+
+      await eseguiSequenza(pre, 'FASE PRIMA')
+      await eseguiRespiri()
+      await eseguiSequenza(post, 'FASE DOPO')
+      await playAudio('fine')
+
+      // medie (blocco 3 user le rendera' come confronto wow)
+      const swayPre  = media(pre.destra.sway,  pre.sinistra.sway,  pre.fronte.sway)
+      const swayPost = media(post.destra.sway, post.sinistra.sway, post.fronte.sway)
+      const gradiPre = media(pre.destra.gradi, pre.sinistra.gradi, pre.fronte.gradi)
+      const gradiPost= media(post.destra.gradi,post.sinistra.gradi,post.fronte.gradi)
+
+      mostra('s-done')
+      document.getElementById('done-summary').innerHTML =
+        'Oscillazione: ' + swayPre + ' → ' + swayPost + '<br>Gradi: ' + gradiPre + '° → ' + gradiPost + '°'
+    }
+
+    // --- init ---
     async function init() {
       if (token) {
         try {
           const { data: pd } = await _supabase.rpc('get_protocol_data', { p_token: token })
           if (pd && pd.patient) { patient = pd.patient; protocol = pd.protocol || null }
-        } catch(e) { console.log('[autotest] init token:', e) }
+        } catch(e){ console.log('[autotest] init:', e) }
       }
-      console.log('[autotest] token:', token, '| pid:', pid, '| patient:', patient ? patient.nome : null)
+      console.log('[autotest] token:', token, '| pid:', pid, '| patient:', patient?patient.nome:null)
     }
     init()
   </script>
