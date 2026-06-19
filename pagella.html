@@ -242,6 +242,13 @@
           '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">EQUILIBRIO</div><div style="font-size:18px;font-weight:700;color:' + valColor('equilibrio',eq) + '">' + eq + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
           '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">ENERGIA</div><div style="font-size:18px;font-weight:700;color:' + valColor('energia',en) + '">' + en + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
           '</div>' +
+          ((e.sway_pre != null || e.gradi_pre != null) ?
+            '<div style="background:#15203a;border:1px solid #2a3a5a;border-radius:8px;padding:10px 12px;margin-bottom:8px">' +
+            '<div style="font-size:10px;color:#7aa0d0;letter-spacing:.5px;margin-bottom:8px">\uD83C\uDFAF AUTOTEST STABILITA (PRIMA \u2192 DOPO)</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' +
+            '<div style="background:#1a2540;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#667;margin-bottom:2px">OSCILLAZIONE</div><div style="font-size:16px;font-weight:700;color:#fff">' + (e.sway_pre != null ? e.sway_pre : '-') + ' \u2192 ' + (e.sway_post != null ? e.sway_post : '-') + '</div></div>' +
+            '<div style="background:#1a2540;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#667;margin-bottom:2px">GRADI</div><div style="font-size:16px;font-weight:700;color:#fff">' + (e.gradi_pre != null ? e.gradi_pre + '\u00b0' : '-') + ' \u2192 ' + (e.gradi_post != null ? e.gradi_post + '\u00b0' : '-') + '</div></div>' +
+            '</div></div>' : '') +
           (e.note ? '<div style="background:#1a1a1a;border-left:3px solid #FFD008;border-radius:4px;padding:8px 12px;font-size:12px;color:#aaa;line-height:1.5">' + e.note + '</div>' : '')
         return '<div style="background:#1a1a1a;border-radius:12px;margin-bottom:8px;overflow:hidden">' +
           '<div onclick="toggleDetail(' + i + ')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">' +

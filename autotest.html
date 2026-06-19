@@ -146,6 +146,8 @@
       } catch(e){}
     }
 
+    function tic(){ try { bip(1200, 45) } catch(e){} }
+
     function std(arr){ if(!arr.length) return 0; const m=arr.reduce((a,b)=>a+b,0)/arr.length; return Math.sqrt(arr.reduce((a,b)=>a+(b-m)*(b-m),0)/arr.length) }
     function round1(x){ return Math.round(x*10)/10 }
     function media(a,b,c){ return round1((a+b+c)/3) }
@@ -164,7 +166,8 @@
         window.addEventListener('devicemotion', onMotion); window.addEventListener('deviceorientation', onOrient)
         document.getElementById('touch-guard').classList.add('active')
         const start=Date.now()
-        const tick=setInterval(()=>{ const r=Math.ceil((durataMs-(Date.now()-start))/1000); if(onTick) onTick(Math.max(0,r)) },200)
+        let lastSec=-1
+        const tick=setInterval(()=>{ const r=Math.ceil((durataMs-(Date.now()-start))/1000); if(onTick) onTick(Math.max(0,r)); if(r!==lastSec && r>0){ lastSec=r; tic() } },200)
         setTimeout(()=>{
           clearInterval(tick)
           window.removeEventListener('devicemotion', onMotion); window.removeEventListener('deviceorientation', onOrient)
@@ -206,7 +209,7 @@
       })
     }
     function countdown(elId, sec) {
-      return new Promise((resolve)=>{ const el=document.getElementById(elId); let r=sec; el.textContent=r; const t=setInterval(()=>{ r--; el.textContent=r>0?r:''; if(r<=0){clearInterval(t);resolve()} },1000) })
+      return new Promise((resolve)=>{ const el=document.getElementById(elId); let r=sec; el.textContent=r; const t=setInterval(()=>{ r--; el.textContent=r>0?r:''; if(r>0){tic()} if(r<=0){clearInterval(t);resolve()} },1000) })
     }
     let ponteTimer = null, ponteResolve = null
     function prontoDopo(){ if(ponteTimer){clearInterval(ponteTimer); ponteTimer=null} if(ponteResolve){const r=ponteResolve; ponteResolve=null; r()} }
