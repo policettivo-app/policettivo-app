@@ -83,6 +83,7 @@
   <div class="screen" id="s-bridge">
     <div class="bridge-box"><div class="big">Ora ripeti il test.<br>Resta fermo, telefono al petto.</div></div>
     <div class="countdown" id="bridge-countdown"></div>
+    <button class="big-btn" onclick="prontoDopo()">▶ Sono pronto, inizia</button>
   </div>
 
   <!-- CONFRONTO -->
@@ -204,7 +205,16 @@
     function countdown(elId, sec) {
       return new Promise((resolve)=>{ const el=document.getElementById(elId); let r=sec; el.textContent=r; const t=setInterval(()=>{ r--; el.textContent=r>0?r:''; if(r<=0){clearInterval(t);resolve()} },1000) })
     }
-    async function schermataPonte() { mostra('s-bridge'); bip(660,250); await countdown('bridge-countdown', 10) }
+    let ponteTimer = null, ponteResolve = null
+    function prontoDopo(){ if(ponteTimer){clearInterval(ponteTimer); ponteTimer=null} if(ponteResolve){const r=ponteResolve; ponteResolve=null; r()} }
+    function schermataPonte() {
+      mostra('s-bridge'); bip(660,250)
+      return new Promise((resolve)=>{
+        ponteResolve = resolve
+        let r=10; const el=document.getElementById('bridge-countdown'); el.textContent=r
+        ponteTimer=setInterval(()=>{ r--; el.textContent=r>0?r:''; if(r<=0){ prontoDopo() } },1000)
+      })
+    }
     function mostra(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active') }
     function ascoltaIntro(){ sbloccaAudio().then(()=>playAudio('intro')) }
 
