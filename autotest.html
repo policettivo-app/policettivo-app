@@ -102,7 +102,7 @@
     <div class="headline" id="done-headline">Risultato</div>
     <div id="pos-cards" style="width:100%"></div>
     <p class="disclaimer">Confronto tra il test svolto <b>prima</b> e <b>dopo</b> i 3 Respiri. Indicazione di benessere, non una diagnosi medica.</p>
-    <button class="ghost-btn" onclick="playAudio('spiegazione')">▶ Come leggere il risultato</button>
+    <button class="ghost-btn" onclick="toggleSpiegazione()">▶ Come leggere il risultato</button>
     <button class="big-btn" onclick="tornaHome()">🏠 Torna alla home</button>
   </div>
 
@@ -194,9 +194,11 @@
       await playAudio(audioName)
       // cuscinetto di assestamento: gira la testa e stabilizzati prima della misura
       document.getElementById('seq-hint').textContent = 'Trova la posizione e resta fermo'
+      document.getElementById('seq-countdown').style.color = '#ff5252'
       bip(520,180)
       await countdown('seq-countdown', 3)
       // via: ora misuro davvero
+      document.getElementById('seq-countdown').style.color = '#fff'
       document.getElementById('seq-hint').textContent = 'Sto misurando, resta fermo'
       bip(880,200)
       const res = await misura(10000, (sec)=>{ document.getElementById('seq-countdown').textContent = sec>0?sec:'' })
@@ -242,6 +244,14 @@
         ponteResolve = resolve
         // nessun timer automatico: la fase DOPO parte solo quando il paziente preme "Sono pronto"
       })
+    }
+    function toggleSpiegazione(){
+      // se sta suonando la spiegazione -> ferma; altrimenti -> avvia
+      if (player.src.indexOf('audio-spiegazione') !== -1 && !player.paused) {
+        try { player.pause() } catch(e){}
+      } else {
+        playAudio('spiegazione')
+      }
     }
     function mostra(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active') }
     function ascoltaIntro(){ sbloccaAudio().then(()=>playAudio('intro')) }
