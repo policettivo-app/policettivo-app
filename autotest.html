@@ -57,7 +57,9 @@
     <h1>Autotest Stabilità</h1>
     <img class="hero-img" src="img/telefono-petto.png" alt="Telefono al centro del petto">
     <p class="sub">Misura quanto il tuo corpo resta stabile, prima e dopo l'esercizio.<br>
-       Tieni il telefono al centro del petto e segui la voce.</p>
+       Tieni il telefono al centro del petto e segui la voce.<br>
+       <b>Piedi sulla croce</b> (salvo diversa indicazione del professionista).<br>
+       Scegli un punto dove poter guardare <b>lontano davanti, a destra e a sinistra</b>: le tre direzioni devono essere libere e simili tra loro. Un ostacolo vicino da un solo lato falsa il risultato.</p>
     <button class="ghost-btn" onclick="ascoltaIntro()">🔊 Ascolta introduzione</button>
     <button class="big-btn" onclick="iniziaTest()">▶ Inizia il test</button>
     <button class="ghost-btn" style="margin-top:14px;margin-bottom:0" onclick="tornaHome()">← Torna indietro</button>
@@ -221,7 +223,7 @@
     let ponteTimer = null, ponteResolve = null
     function prontoDopo(){ if(ponteTimer){clearInterval(ponteTimer); ponteTimer=null} if(ponteResolve){const r=ponteResolve; ponteResolve=null; r()} }
     async function schermataRiposo() {
-      mostra('s-riposo'); bip(660,250)
+      mostra('s-riposo'); bip(660,250); playAudio('riposo')
       await countdown('riposo-countdown', 30)
     }
 
