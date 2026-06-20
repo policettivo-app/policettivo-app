@@ -236,10 +236,10 @@
 
     function schermataPonte() {
       mostra('s-bridge'); bip(660,250)
+      document.getElementById('bridge-countdown').textContent = ''
       return new Promise((resolve)=>{
         ponteResolve = resolve
-        let r=10; const el=document.getElementById('bridge-countdown'); el.textContent=r
-        ponteTimer=setInterval(()=>{ r--; el.textContent=r>0?r:''; if(r<=0){ prontoDopo() } },1000)
+        // nessun timer automatico: la fase DOPO parte solo quando il paziente preme "Sono pronto"
       })
     }
     function mostra(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active') }
