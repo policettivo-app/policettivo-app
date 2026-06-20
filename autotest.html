@@ -102,6 +102,7 @@
     <div class="headline" id="done-headline">Risultato</div>
     <div id="pos-cards" style="width:100%"></div>
     <p class="disclaimer">Confronto tra il test svolto <b>prima</b> e <b>dopo</b> i 3 Respiri. Indicazione di benessere, non una diagnosi medica.</p>
+    <button class="ghost-btn" onclick="playAudio('spiegazione')">▶ Come leggere il risultato</button>
     <button class="big-btn" onclick="tornaHome()">🏠 Torna alla home</button>
   </div>
 
@@ -295,6 +296,8 @@
       else if (gPost < gPre - 0.3) h.textContent = 'Sei più stabile dopo i 3 Respiri 💪'
       else if (gPost > gPre + 0.3) h.textContent = 'Oggi la stabilità non è migliorata'
       else h.textContent = 'Stabilità costante 👍'
+      // audio guida alla lettura, una volta sola
+      if (!window._spiegazioneFatta) { window._spiegazioneFatta = true; setTimeout(()=>playAudio('spiegazione'), 600) }
     }
 
     async function salvaNelDiario() {
