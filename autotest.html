@@ -220,6 +220,11 @@
     }
     let ponteTimer = null, ponteResolve = null
     function prontoDopo(){ if(ponteTimer){clearInterval(ponteTimer); ponteTimer=null} if(ponteResolve){const r=ponteResolve; ponteResolve=null; r()} }
+    async function schermataRiposo() {
+      mostra('s-riposo'); bip(660,250)
+      await countdown('riposo-countdown', 30)
+    }
+
     function schermataPonte() {
       mostra('s-bridge'); bip(660,250)
       return new Promise((resolve)=>{
