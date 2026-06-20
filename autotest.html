@@ -191,9 +191,16 @@
       document.getElementById('seq-phase').textContent = label
       document.getElementById('seq-countdown').textContent = ''
       await playAudio(audioName)
+      // cuscinetto di assestamento: gira la testa e stabilizzati prima della misura
+      document.getElementById('seq-hint').textContent = 'Trova la posizione e resta fermo'
+      bip(520,180)
+      await countdown('seq-countdown', 3)
+      // via: ora misuro davvero
+      document.getElementById('seq-hint').textContent = 'Sto misurando, resta fermo'
       bip(880,200)
       const res = await misura(10000, (sec)=>{ document.getElementById('seq-countdown').textContent = sec>0?sec:'' })
       document.getElementById('seq-countdown').textContent = ''
+      document.getElementById('seq-hint').textContent = 'Segui la voce'
       bip(440,300)
       return res
     }
