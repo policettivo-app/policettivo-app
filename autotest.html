@@ -81,9 +81,16 @@
     <button class="big-btn" onclick="passaAlTest()">✓ Ho già fatto la tecnica, passa al test</button>
   </div>
 
+  <!-- RIPOSO (sceso dal cuscino) -->
+  <div class="screen" id="s-riposo">
+    <div class="phase-label">Riposo</div>
+    <div class="bridge-box" style="background:#1a222c;border:2px solid #FFD008"><div class="big" style="color:#fff">Scendi dal cuscino.<br>Resta fermo e rilassato.</div></div>
+    <div class="countdown" id="riposo-countdown"></div>
+  </div>
+
   <!-- PONTE -->
   <div class="screen" id="s-bridge">
-    <div class="bridge-box"><div class="big">Ora ripeti il test.<br>Resta fermo, telefono al petto.</div></div>
+    <div class="bridge-box"><div class="big">Risali sul cuscino.<br>Telefono al petto, resta fermo.</div></div>
     <div class="countdown" id="bridge-countdown"></div>
     <button class="big-btn" onclick="prontoDopo()">▶ Sono pronto, inizia</button>
   </div>
@@ -298,6 +305,7 @@
       if (!ok) { alert('Serve accesso al sensore di movimento. Riprova e premi Consenti.'); return }
       await eseguiSequenza(pre, 'FASE PRIMA')
       await eseguiRespiri()
+      await schermataRiposo()
       await schermataPonte()
       await eseguiSequenza(post, 'FASE DOPO')
       await playAudio('fine')
