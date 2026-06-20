@@ -92,9 +92,13 @@
   </nav>
   <div class="main">
     <div class="ios-banner" id="ios-banner">
-      <p style="font-size:13px;color:#FFD008;margin-bottom:8px;font-weight:600">Salva l'app sulla Home</p>
-      <p style="font-size:12px;color:#aaa;line-height:1.6">1. Tocca <strong style="color:#fff">Condividi</strong> in basso<br>2. Tocca <strong style="color:#fff">Aggiungi alla schermata Home</strong><br>3. Tocca <strong style="color:#fff">Aggiungi</strong></p>
-      <button onclick="document.getElementById('ios-banner').style.display='none';localStorage.setItem('ios_banner_dismissed','1')" style="margin-top:10px;background:transparent;border:1px solid #FFD008;color:#FFD008;padding:6px 14px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">Ho capito</button>
+      <p style="font-size:14px;color:#FFD008;margin-bottom:6px;font-weight:700">📲 Aggiungi Policettivo alla Home</p>
+      <p style="font-size:12px;color:#ccc;line-height:1.5;margin-bottom:10px">Così ritrovi i tuoi esercizi e l'autotest con un tocco, senza cercare il link ogni volta.</p>
+      <p style="font-size:12px;color:#aaa;line-height:1.6">1. Tocca <strong style="color:#fff">Condividi</strong> in basso (il quadrato con la freccia ⬆️)<br>2. Tocca <strong style="color:#fff">Aggiungi alla schermata Home</strong><br>3. Tocca <strong style="color:#fff">Aggiungi</strong></p>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
+        <button onclick="document.getElementById('ios-banner').style.display='none'" style="background:#FFD008;border:none;color:#000;padding:8px 16px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer">Più tardi</button>
+        <button onclick="document.getElementById('ios-banner').style.display='none';localStorage.setItem('ios_banner_never','1')" style="background:transparent;border:none;color:#777;padding:8px 4px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer;text-decoration:underline">Non mostrare più</button>
+      </div>
     </div>
     <div class="install-banner" id="install-banner">
       <p style="font-size:13px;color:#FFD008;margin-bottom:10px">Aggiungi Policettivo alla schermata Home!</p>
@@ -218,7 +222,7 @@
       if (!token) { showNoToken(); return }
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
       const isStandalone = window.navigator.standalone === true
-      if (isIOS && !isStandalone && !localStorage.getItem('ios_banner_dismissed')) {
+      if (isIOS && !isStandalone && !localStorage.getItem('ios_banner_never')) {
         document.getElementById('ios-banner').style.display = 'block'
       }
 
