@@ -87,7 +87,7 @@
       const email = document.getElementById('reset-email').value.trim()
       if (!email) { alert('Inserisci la tua email.'); return }
       const { error } = await _supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://policettivo-app.vercel.app/login.html'
+        redirectTo: 'https://app.policettivo.it/reset-password.html'
       })
       const msg = document.getElementById('reset-msg')
       if (error) {

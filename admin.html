@@ -841,7 +841,7 @@
       if (!email) { alert('Email non disponibile per questo professionista.'); return }
       if (!confirm('Inviare email di reset password a:\n' + email + '\n\nIl professionista riceverà un link per impostare una nuova password.')) return
       const { error } = await _supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://policettivo-app.vercel.app/dashboard.html'
+        redirectTo: 'https://app.policettivo.it/reset-password.html'
       })
       if (error) { alert('Errore: ' + error.message); return }
       alert('Email di reset password inviata a ' + email + ' ✓')
