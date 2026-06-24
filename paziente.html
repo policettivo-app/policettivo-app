@@ -2695,31 +2695,62 @@
       grid.innerHTML = ''
       empty.style.display = 'none'
       try {
+        // 0) foto iniziali (prima/dopo cuscini + posturale) salvate in patients.foto_url come JSON base64
+        const fotoIniziali = []
+        const SLOT_LABELS = {
+          'prima-sx': 'Prima cuscini · Sinistro',
+          'prima-dx': 'Prima cuscini · Destro',
+          'dopo-sx': 'Dopo cuscini · Sinistro',
+          'dopo-dx': 'Dopo cuscini · Destro',
+          'frontale': 'Posturale · Frontale',
+          'posteriore': 'Posturale · Posteriore',
+          'podo-sotto': 'Piede · Da sotto',
+          'podo-dietro': 'Piede · Da dietro'
+        }
+        const SLOT_ORDER = ['prima-sx','prima-dx','dopo-sx','dopo-dx','frontale','posteriore','podo-sotto','podo-dietro']
+        try {
+          const iniz = JSON.parse(patient.foto_url || '{}')
+          SLOT_ORDER.forEach(slot => {
+            if (iniz[slot]) {
+              fotoIniziali.push({
+                _url: iniz[slot],
+                _data: patient.created_at || patient.data_creazione || null,
+                _iniziale: true,
+                tipo: 'iniziale',
+                titolo: SLOT_LABELS[slot] || slot,
+                note: ''
+              })
+            }
+          })
+        } catch (e) {}
+
         // 1) visite del paziente
         const { data: visite } = await _supabase
           .from('visits').select('id, data_visita').eq('patient_id', patientId)
         const visitIds = (visite || []).map(v => v.id)
         const dataByVisit = {}
         ;(visite || []).forEach(v => { dataByVisit[v.id] = v.data_visita })
-        if (visitIds.length === 0) {
-          loading.style.display = 'none'; empty.style.display = 'block'; return
-        }
-        // 2) foto di quelle visite
-        const { data: foto } = await _supabase
-          .from('visit_photos').select('*').in('visit_id', visitIds)
-        if (!foto || foto.length === 0) {
-          loading.style.display = 'none'; empty.style.display = 'block'; return
-        }
-        // 3) signed URL freschi da storage_path (sicuro, no url pubblico)
-        for (const f of foto) {
-          f._data = f.data_scatto || dataByVisit[f.visit_id] || null
-          if (f.storage_path) {
-            const { data: su } = await _supabase.storage.from('clinical-docs').createSignedUrl(f.storage_path, 7200)
-            if (su && su.signedUrl) f._url = su.signedUrl
+
+        // 2) foto delle visite (visit_photos)
+        let fotoVisite = []
+        if (visitIds.length > 0) {
+          const { data: foto } = await _supabase
+            .from('visit_photos').select('*').in('visit_id', visitIds)
+          // 3) signed URL freschi da storage_path (sicuro, no url pubblico)
+          for (const f of (foto || [])) {
+            f._data = f.data_scatto || dataByVisit[f.visit_id] || null
+            if (f.storage_path) {
+              const { data: su } = await _supabase.storage.from('clinical-docs').createSignedUrl(f.storage_path, 7200)
+              if (su && su.signedUrl) f._url = su.signedUrl
+            }
           }
+          fotoVisite = (foto || []).filter(f => f._url)
         }
-        _allFoto = foto.filter(f => f._url)
+
+        // 4) iniziali in cima (più importanti), poi foto visite
+        _allFoto = fotoIniziali.concat(fotoVisite)
         loading.style.display = 'none'
+        if (_allFoto.length === 0) { empty.style.display = 'block'; return }
         renderFoto()
       } catch (e) {
         loading.textContent = 'Errore caricamento foto.'
@@ -2740,6 +2771,9 @@
         })
       }
       list.sort((a, b) => {
+        // foto iniziali sempre in cima
+        if (a._iniziale && !b._iniziale) return -1
+        if (!a._iniziale && b._iniziale) return 1
         const da = a._data || '', db = b._data || ''
         return order === 'data_asc' ? (da < db ? -1 : 1) : (da > db ? -1 : 1)
       })
