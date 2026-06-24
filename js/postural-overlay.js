@@ -154,13 +154,25 @@ function _buildFrontal(lms,W,H){
 function _buildSagittal(lms,W,H){
   const ear=_pt(lms,LM.ear,W,H), sh=_pt(lms,LM.shoulderL,W,H);
   const hip=_pt(lms,LM.hipL,W,H), knee=_pt(lms,LM.kneeL,W,H), ankle=_pt(lms,LM.ankleL,W,H);
+  const txt=Math.max(13, W*0.018);
+  // angolo di anteposizione rispetto alla verticale (caviglia = filo a piombo)
+  // _devFromHoriz misura rispetto all'orizzontale -> per la verticale: 90 - dev
+  const _devFromVert = (a,b) => +(90 - _devFromHoriz(a,b)).toFixed(1);
+  const antCapo  = _devFromVert(ankle, ear);   // caviglia->orecchio vs verticale
+  const antSpalla= _devFromVert(ankle, sh);    // caviglia->spalla vs verticale
+
   const lines=[];
   lines.push({type:'line',x1:ankle.x,y1:0,x2:ankle.x,y2:H,color:COL.piombo,lw:2.5});
   _chain([ear,sh,hip,knee,ankle], 6, COL.spine, 3).forEach(p=>lines.push(p));
   [ear,sh,hip,knee,ankle].forEach(p=>lines.push({type:'point',x:p.x,y:p.y,color:COL.punto,r:5}));
-  // SAGITTALE: niente catena verde (la verticale perfetta non e' la normalita' fisiologica)
+
+  // anteposizione capo: scritta accanto all'orecchio
+  lines.push({type:'text',x:ear.x+14,y:ear.y,color:COL.txt,text:'Capo '+antCapo+'°',size:txt,align:'left'});
+  // anteposizione spalla: scritta accanto alla spalla
+  lines.push({type:'text',x:sh.x+14,y:sh.y,color:COL.txt,text:'Spalla '+antSpalla+'°',size:txt,align:'left'});
+
   const ideal=_grid(W,H,ankle.x);
-  return { lines, idealLines:ideal, angles:{} };
+  return { lines, idealLines:ideal, angles:{ anteposizioneCapo:antCapo, anteposizioneSpalla:antSpalla } };
 }
 
 export async function generateOverlay(imgEl, viewKey){
