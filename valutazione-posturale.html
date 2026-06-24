@@ -2714,17 +2714,9 @@ ISTRUZIONI:
 
   // FIX 7: Toggle draw mode
   function toggleDraw() {
-    drawActive = !drawActive
-    lbCanvas.classList.toggle('active', drawActive)
-    document.getElementById('lb-drawtool').classList.toggle('active', drawActive)
-    document.getElementById('lb-draw-btn').classList.toggle('active', drawActive)
-    if (drawActive) {
-      syncCanvas()
-      redrawCanvas()
-    } else {
-      lbFpDot.style.display = 'none'
-      dtFirst = null
-    }
+    // Apre l'editor completo (overlay AI + disegno + export) su disegno.html
+    if (!patientId || !lbPhotoId) { showToast('Foto non pronta.'); return }
+    window.location.href = 'disegno.html?id=' + patientId + '&vp=' + lbPhotoId
   }
 
   function syncCanvas() {

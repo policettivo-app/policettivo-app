@@ -123,6 +123,8 @@
     const params    = new URLSearchParams(location.search)
     const patientId = params.get('id')
     const fotoSlot  = params.get('foto')
+    const vpId      = params.get('vp')   // id record visit_photos (foto di visita)
+    let _vpRecord   = null               // record visit_photos caricato
 
     const canvas = document.getElementById('draw-canvas')
     const ctx    = canvas.getContext('2d')
@@ -171,7 +173,7 @@
 
     async function init() {
       console.log('[disegno] patientId:', patientId, '| fotoSlot:', fotoSlot)
-      if (!patientId || !fotoSlot) { alert('Parametri URL mancanti'); return }
+      if (!patientId || (!fotoSlot && !vpId)) { alert('Parametri URL mancanti'); return }
 
       const { data: { session } } = await _supabase.auth.getSession()
       console.log('[disegno] session:', session ? session.user.email : null)
@@ -189,23 +191,43 @@
       if (error || !p) { alert('Paziente non trovato: ' + (error ? error.message : 'nessun dato')); return }
       patient = p
 
-      const slotLabel = fotoSlot.replace(/-/g, ' ')
-      document.getElementById('nav-title').textContent =
-        p.nome + ' ' + p.cognome + ' — ' + slotLabel
+      let src = null
+      let savedAnnot = null
+      let labelTxt = ''
 
-      let urls = {}
-      try { urls = JSON.parse(p.foto_url || '{}') } catch(e) {}
-      const src = urls[fotoSlot]
-      if (!src) { alert('Foto non trovata per slot: ' + fotoSlot); tornaPaziente(); return }
+      if (vpId) {
+        // FOTO DI VISITA: carica da visit_photos + Storage (signed URL)
+        const { data: vp, error: vpErr } = await _supabase
+          .from('visit_photos').select('*').eq('id', vpId).maybeSingle()
+        if (vpErr || !vp) { alert('Foto di visita non trovata.'); tornaPaziente(); return }
+        _vpRecord = vp
+        if (vp.storage_path) {
+          const { data: su } = await _supabase.storage.from('clinical-docs').createSignedUrl(vp.storage_path, 7200)
+          src = su && su.signedUrl ? su.signedUrl : null
+        }
+        if (!src) { alert('Immagine non disponibile.'); tornaPaziente(); return }
+        labelTxt = (vp.tipo || 'foto').replace(/_/g, ' ')
+        savedAnnot = vp.annotazioni || null
+      } else {
+        // FOTO INIZIALE PAZIENTE: da patients.foto_url
+        let urls = {}
+        try { urls = JSON.parse(p.foto_url || '{}') } catch(e) {}
+        src = urls[fotoSlot]
+        if (!src) { alert('Foto non trovata per slot: ' + fotoSlot); tornaPaziente(); return }
+        labelTxt = fotoSlot.replace(/-/g, ' ')
+        let annotazioni = {}
+        try { annotazioni = JSON.parse(p.foto_annotazioni || '{}') } catch(e) {}
+        savedAnnot = annotazioni[fotoSlot] || null
+      }
+
+      document.getElementById('nav-title').textContent =
+        p.nome + ' ' + p.cognome + ' — ' + labelTxt
 
       bgImg.onload = () => {
         syncCanvas()
-        let annotazioni = {}
-        try { annotazioni = JSON.parse(p.foto_annotazioni || '{}') } catch(e) {}
-        const saved = annotazioni[fotoSlot]
-        if (saved) {
-          const arr = Array.isArray(saved) ? saved : (saved.lines || [])
-          if (arr.length > 0) lines = linesFromJSON(saved)
+        if (savedAnnot) {
+          const arr = Array.isArray(savedAnnot) ? savedAnnot : (savedAnnot.lines || [])
+          if (arr.length > 0) lines = linesFromJSON(savedAnnot)
         }
         redraw()
       }
@@ -332,6 +354,14 @@
       status.textContent = '⏳ Salvo...'
 
       let annotazioni = {}
+      if (vpId) {
+        // salva su visit_photos.annotazioni (jsonb)
+        const { error: e1 } = await _supabase
+          .from('visit_photos').update({ annotazioni: linesToJSON() }).eq('id', vpId)
+        const st = document.getElementById('nav-status')
+        if (st) st.textContent = e1 ? 'Errore salvataggio' : 'Salvato'
+        return
+      }
       try { annotazioni = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) {}
       annotazioni[fotoSlot] = linesToJSON()
       patient.foto_annotazioni = JSON.stringify(annotazioni)
