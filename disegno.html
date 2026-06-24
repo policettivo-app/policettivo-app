@@ -299,11 +299,12 @@
           ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2)
           ctx.fill()
         } else if (l.type === 'text') {
-          ctx.font = '700 ' + (l.size || 15) + 'px Montserrat, sans-serif'
+          ctx.font = '600 ' + (l.size || 14) + "px 'Montserrat', sans-serif"
           ctx.textAlign = l.align || 'left'
           ctx.textBaseline = 'middle'
-          ctx.lineWidth = 3
-          ctx.strokeStyle = 'rgba(0,0,0,0.75)'
+          ctx.lineWidth = 2.5
+          ctx.lineJoin = 'round'
+          ctx.strokeStyle = 'rgba(0,0,0,0.55)'
           ctx.strokeText(l.text, l.x, l.y)
           ctx.fillStyle = l.color
           ctx.fillText(l.text, l.x, l.y)
@@ -441,12 +442,13 @@
           octx.arc((l.x - ox) * sx, (l.y - oy) * sy, Math.max(6, l.r * sx), 0, Math.PI * 2)
           octx.fill()
         } else if (l.type === 'text') {
-          const fs = Math.max(13, (l.size || 15) * sx)
-          octx.font = '700 ' + fs + 'px Montserrat, sans-serif'
+          const fs = Math.max(13, (l.size || 14) * sx)
+          octx.font = '600 ' + fs + "px 'Montserrat', sans-serif"
           octx.textAlign = l.align || 'left'
           octx.textBaseline = 'middle'
-          octx.lineWidth = Math.max(3, 3 * sx)
-          octx.strokeStyle = 'rgba(0,0,0,0.75)'
+          octx.lineWidth = Math.max(2, 2.5 * sx)
+          octx.lineJoin = 'round'
+          octx.strokeStyle = 'rgba(0,0,0,0.55)'
           octx.strokeText(l.text, (l.x - ox) * sx, (l.y - oy) * sy)
           octx.fillStyle = l.color
           octx.fillText(l.text, (l.x - ox) * sx, (l.y - oy) * sy)

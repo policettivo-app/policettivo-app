@@ -18,6 +18,7 @@ const COL = {
   gridBold:   'rgba(140,140,140,0.70)',
   axis:       'rgba(0,230,118,0.95)',
   axisSoft:   'rgba(0,230,118,0.50)',
+  txt:        '#ffffff',
 };
 
 let _landmarker = null;
@@ -125,21 +126,21 @@ function _buildFrontal(lms,W,H){
 
   // linea capo (occhi) + gradi
   lines.push({type:'line',x1:eL.x,y1:eL.y,x2:eR.x,y2:eR.y,color:_colByDev(devCapo),lw:3});
-  lines.push({type:'text',x:Math.max(eL.x,eR.x)+10,y:_mid(eL,eR).y,color:_colByDev(devCapo),text:'Capo '+devCapo+'°',size:txt,align:'left'});
+  lines.push({type:'text',x:Math.max(eL.x,eR.x)+12,y:_mid(eL,eR).y,color:COL.txt,text:'Capo '+devCapo+'°',size:txt,align:'left'});
 
   // linea spalle + gradi
   lines.push({type:'line',x1:sL.x,y1:sL.y,x2:sR.x,y2:sR.y,color:_colByDev(devSpalle),lw:3.5});
-  lines.push({type:'text',x:Math.max(sL.x,sR.x)+10,y:_mid(sL,sR).y,color:_colByDev(devSpalle),text:'Spalle '+devSpalle+'°',size:txt,align:'left'});
+  lines.push({type:'text',x:Math.max(sL.x,sR.x)+12,y:_mid(sL,sR).y,color:COL.txt,text:'Spalle '+devSpalle+'°',size:txt,align:'left'});
 
   // linea bacino + gradi
   lines.push({type:'line',x1:hL.x,y1:hL.y,x2:hR.x,y2:hR.y,color:_colByDev(devBacino),lw:3.5});
-  lines.push({type:'text',x:Math.max(hL.x,hR.x)+10,y:_mid(hL,hR).y,color:_colByDev(devBacino),text:'Bacino '+devBacino+'°',size:txt,align:'left'});
+  lines.push({type:'text',x:Math.max(hL.x,hR.x)+12,y:_mid(hL,hR).y,color:COL.txt,text:'Bacino '+devBacino+'°',size:txt,align:'left'});
 
   // valgo/varo ginocchia (scostamento da 180°)
   const devGinSx=+(Math.abs(180-angGinSx)).toFixed(1);
   const devGinDx=+(Math.abs(180-angGinDx)).toFixed(1);
-  lines.push({type:'text',x:kL.x-12,y:kL.y,color:_colByDev(devGinSx),text:devGinSx+'°',size:txt*0.9,align:'right'});
-  lines.push({type:'text',x:kR.x+12,y:kR.y,color:_colByDev(devGinDx),text:devGinDx+'°',size:txt*0.9,align:'left'});
+  lines.push({type:'text',x:kL.x-14,y:kL.y,color:COL.txt,text:devGinSx+'°',size:txt*0.85,align:'right'});
+  lines.push({type:'text',x:kR.x+14,y:kR.y,color:COL.txt,text:devGinDx+'°',size:txt*0.85,align:'left'});
 
   // ---- IDEALE ----
   const ideal=_grid(W,H,footX);
