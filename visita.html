@@ -454,6 +454,9 @@
     .s3-slot-type { position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.7); color: #FFD008; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 3px; letter-spacing: 0.3px; }
     .s3-slot-del { width: 26px; height: 26px; border-radius: 50%; background: rgba(220,38,38,0.9); border: none; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; display: none; align-items: center; justify-content: center; }
     .s3-slot.has-photo:hover .s3-slot-del { display: flex; }
+    .s3-slot-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 2px; padding: 4px; background: linear-gradient(transparent, rgba(0,0,0,0.55)); justify-content: flex-end; z-index: 3; }
+    .s3-bar-btn { background: rgba(255,255,255,0.92); border: none; border-radius: 6px; width: 24px; height: 24px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .s3-bar-btn:active { opacity: .65; }
     .s3-slot-libr { position: absolute; top: 4px; right: 4px; z-index: 3; background: rgba(255,255,255,0.92); border: none; border-radius: 7px; width: 26px; height: 26px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     #libreria-foto-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 950; align-items: center; justify-content: center; padding: 20px; }
     #libreria-foto-modal.open { display: flex; }
@@ -2558,11 +2561,17 @@
       el.onclick = () => { document.getElementById('s3-inp-' + slotKey)?.click() }
     } else {
       el.className = 's3-slot has-photo'
-      el.onclick = e => { if (!e.target.closest('.s3-slot-del')) openLightbox(photo.url) }
+      el.onclick = e => { if (!e.target.closest('.s3-bar-btn') && !e.target.closest('.s3-slot-del')) openLightbox(photo.url) }
       el.innerHTML =
         '<img src="' + escH(photo.url) + '" alt="' + shortLabel + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
         '<span class="s3-slot-type">' + shortLabel + '</span>' +
-        '<div class="s3-slot-overlay"><button class="s3-slot-del" onclick="event.stopPropagation();removeVisitPhoto(\'' + slotKey + '\')" title="Rimuovi">✕</button></div>' +
+        '<div class="s3-slot-bar">' +
+          '<button class="s3-bar-btn" onclick="event.stopPropagation();openLightbox(\'' + escH(photo.url) + '\')" title="Schermo intero">⛶</button>' +
+          '<button class="s3-bar-btn" onclick="event.stopPropagation();annotaFotoVisita(\'' + slotKey + '\')" title="Annota">✏️</button>' +
+          '<button class="s3-bar-btn" onclick="event.stopPropagation();apriLibreriaFoto(\'' + slotKey + '\')" title="Scegli da foto del paziente">🗂</button>' +
+          '<button class="s3-bar-btn" onclick="event.stopPropagation();document.getElementById(\'s3-inp-' + slotKey + '\')?.click()" title="Sostituisci">🔄</button>' +
+          '<button class="s3-bar-btn" style="color:#ff6b6b" onclick="event.stopPropagation();removeVisitPhoto(\'' + slotKey + '\')" title="Elimina">✕</button>' +
+        '</div>' +
         '<div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
     }
     updateFotoCount()
@@ -2820,6 +2829,13 @@
     step3Photos[slotKey] = null
     renderPhotoSlot(slotKey)
     updateTabStates()
+  }
+
+  function annotaFotoVisita(slotKey) {
+    const photo = step3Photos[slotKey]
+    if (!photo || !photo.id) { showToast('Foto non pronta.'); return }
+    if (!patientId) { showToast('Paziente non disponibile.'); return }
+    window.location.href = 'disegno.html?id=' + patientId + '&vp=' + photo.id
   }
 
   function openLightbox(url) {
