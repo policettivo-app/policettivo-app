@@ -192,6 +192,7 @@
     /* ── UPLOAD MENU ─────────────────────────────────────────── */
     #upload-menu-modal { display: none; position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,.55); align-items: flex-end; justify-content: center; }
     #upload-menu-modal.open { display: flex; }
+    #perm-webcam-modal.open { display: flex !important; }
     #libreria-foto-modal.open { display: flex !important; }
     .um-card { background: #fff; width: 100%; max-width: 480px; border-radius: 16px 16px 0 0; padding: 20px 16px 44px; display: flex; flex-direction: column; gap: 10px; }
     .um-title { font-size: 15px; font-weight: 800; margin: 0 0 6px; text-align: center; }
@@ -1003,6 +1004,23 @@
   </div>
 </div>
 
+<div id="perm-webcam-modal" onclick="if(event.target===this)chiudiPermessoWebcam()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:960;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:24px;text-align:left">
+    <div style="font-size:18px;font-weight:800;margin-bottom:10px">Fotocamera non autorizzata</div>
+    <div style="font-size:14px;color:#444;line-height:1.5;margin-bottom:16px">
+      Il browser ha bloccato la fotocamera per questo sito. Puoi caricare comunque una foto dalla galleria, oppure riattivarla cosi:
+      <ol style="margin:10px 0 0 18px;padding:0;color:#555">
+        <li>Tocca <b>AA</b> a sinistra dell'indirizzo</li>
+        <li><b>Impostazioni sito web</b></li>
+        <li><b>Fotocamera</b> &rarr; <b>Consenti</b></li>
+        <li>Ricarica la pagina</li>
+      </ol>
+    </div>
+    <button onclick="permWebcamUsaFile()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#FFD008;color:#000;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;margin-bottom:8px">🖼️ Scegli una foto dalla galleria</button>
+    <button onclick="chiudiPermessoWebcam()" style="width:100%;padding:11px;border:none;border-radius:10px;background:#f0f0f0;color:#666;font-weight:700;cursor:pointer;font-family:inherit">Chiudi</button>
+  </div>
+</div>
+
 <div id="libreria-foto-modal" onclick="if(event.target===this)chiudiLibreriaFotoModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:950;align-items:center;justify-content:center;padding:20px">
   <div style="background:#fff;border-radius:16px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;padding:20px">
     <div style="font-size:16px;font-weight:800;margin-bottom:14px">Scegli una foto gia in cartella</div>
@@ -1132,6 +1150,7 @@
 
   // Upload menu state
   let umTipo = null
+  let _permTipo = null, _permIsReplace = false
   let umIsReplace = false
   let umCallback = null
   let pendingFileCallback = null
@@ -1943,13 +1962,30 @@
       console.error('[webcam] getUserMedia error:', err)
       closeWebcamModal()
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        showToast('Permesso webcam negato. Usa il file picker o autorizza nelle impostazioni.')
+        mostraPermessoWebcamNegato(wcTipo, wcIsReplace)
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        showToast('Nessuna webcam rilevata. Usa il file picker.')
+        showToast('Nessuna fotocamera rilevata. Usa "Scegli da galleria / file".')
       } else {
-        showToast('Webcam non disponibile: ' + err.message)
+        showToast('Fotocamera non disponibile: ' + err.message)
       }
     }
+  }
+
+  // ── Popup guidato quando il permesso fotocamera e negato ───
+  function mostraPermessoWebcamNegato(tipo, isReplace) {
+    _permTipo = tipo
+    _permIsReplace = !!isReplace
+    document.getElementById('perm-webcam-modal').classList.add('open')
+  }
+  function chiudiPermessoWebcam() {
+    document.getElementById('perm-webcam-modal').classList.remove('open')
+  }
+  function permWebcamUsaFile() {
+    chiudiPermessoWebcam()
+    if (_permIsReplace) { replaceSlotTipo = _permTipo } else { activeSlotTipo = _permTipo }
+    const inp = document.getElementById('photo-file-input')
+    inp.value = ''
+    inp.click()
   }
 
   function closeWebcamModal() {
