@@ -243,6 +243,8 @@
     }
 
     function tornaPaziente() {
+      // da visita: torna alla pagina precedente (la visita). Da scheda paziente: vai al paziente
+      if (vpId && history.length > 1) { history.back(); return }
       window.location.href = 'paziente.html?id=' + patientId
     }
 
