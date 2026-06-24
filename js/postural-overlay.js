@@ -51,6 +51,7 @@ function classifyView(viewKey) {
   if (k.includes('podoscopio')) return 'podoscopio';
   // prima valutazione CEP: foto piano scapolare sx/dx = sagittali
   if (k.includes('prima-sx') || k.includes('prima-dx') || k.includes('prima_sx') || k.includes('prima_dx')) return 'sagittale';
+  if (k.includes('dopo-sx') || k.includes('dopo-dx') || k.includes('dopo_sx') || k.includes('dopo_dx')) return 'sagittale';
   if (k.includes('sagittale') || k.includes('sag')) return 'sagittale';
   if (k.includes('frontale'))   return 'frontale';
   if (k.includes('posteriore')) return 'posteriore';
