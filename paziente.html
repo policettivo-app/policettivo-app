@@ -914,6 +914,7 @@
         <div class="cn-tabs">
           <button class="cn-tab active" id="cn-btn-docs" onclick="clinicalNotesSwitchTab('docs')">Documenti</button>
           <button class="cn-tab" id="cn-btn-relazione" onclick="clinicalNotesSwitchTab('relazione')">Relazione clinica</button>
+          <button class="cn-tab" id="cn-btn-foto" onclick="clinicalNotesSwitchTab('foto')">📷 Foto</button>
           <button class="cn-tab" id="cn-btn-sintesi" onclick="clinicalNotesSwitchTab('sintesi')">🧠 Sintesi AI</button>
         </div>
 
@@ -967,6 +968,22 @@
             <div class="ai-report-title">Analisi AI - <span id="ai-report-date"></span></div>
             <div class="ai-report-content" id="ai-report-content"></div>
           </div>
+        </div>
+
+        <!-- TAB: Foto -->
+        <div id="cn-tab-foto" style="display:none">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+            <input type="text" id="foto-search" placeholder="🔍 Cerca per tipo, data, nota..." oninput="renderFoto()"
+              style="flex:1;min-width:180px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px">
+            <select id="foto-order" onchange="renderFoto()"
+              style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;cursor:pointer">
+              <option value="data_desc">Data ↓ (recenti)</option>
+              <option value="data_asc">Data ↑ (vecchie)</option>
+            </select>
+          </div>
+          <div id="foto-loading" style="color:#888;font-size:13px;padding:20px 0">Caricamento foto…</div>
+          <div id="foto-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px"></div>
+          <div id="foto-empty" style="display:none;color:#888;font-size:14px;padding:30px 0;text-align:center">Nessuna foto ancora per questo paziente.</div>
         </div>
 
         <!-- TAB: Sintesi AI -->
@@ -2665,20 +2682,101 @@
       return clinicalNotesState.profId
     }
 
+    // ── FOTO PAZIENTE (cartella clinica) ─────────────────────────────────
+    let _fotoLoaded = false
+    let _allFoto = []
+
+    async function caricaFoto() {
+      _fotoLoaded = true
+      const loading = document.getElementById('foto-loading')
+      const grid = document.getElementById('foto-grid')
+      const empty = document.getElementById('foto-empty')
+      loading.style.display = 'block'
+      grid.innerHTML = ''
+      empty.style.display = 'none'
+      try {
+        // 1) visite del paziente
+        const { data: visite } = await _supabase
+          .from('visits').select('id, data_visita').eq('patient_id', patientId)
+        const visitIds = (visite || []).map(v => v.id)
+        const dataByVisit = {}
+        ;(visite || []).forEach(v => { dataByVisit[v.id] = v.data_visita })
+        if (visitIds.length === 0) {
+          loading.style.display = 'none'; empty.style.display = 'block'; return
+        }
+        // 2) foto di quelle visite
+        const { data: foto } = await _supabase
+          .from('visit_photos').select('*').in('visit_id', visitIds)
+        if (!foto || foto.length === 0) {
+          loading.style.display = 'none'; empty.style.display = 'block'; return
+        }
+        // 3) signed URL freschi da storage_path (sicuro, no url pubblico)
+        for (const f of foto) {
+          f._data = f.data_scatto || dataByVisit[f.visit_id] || null
+          if (f.storage_path) {
+            const { data: su } = await _supabase.storage.from('clinical-docs').createSignedUrl(f.storage_path, 7200)
+            if (su && su.signedUrl) f._url = su.signedUrl
+          }
+        }
+        _allFoto = foto.filter(f => f._url)
+        loading.style.display = 'none'
+        renderFoto()
+      } catch (e) {
+        loading.textContent = 'Errore caricamento foto.'
+      }
+    }
+
+    function renderFoto() {
+      const grid = document.getElementById('foto-grid')
+      const empty = document.getElementById('foto-empty')
+      if (!grid) return
+      const q = (document.getElementById('foto-search').value || '').toLowerCase().trim()
+      const order = document.getElementById('foto-order').value
+      let list = _allFoto.slice()
+      if (q) {
+        list = list.filter(f => {
+          const hay = ((f.tipo || '') + ' ' + (f.titolo || '') + ' ' + (f.descrizione || '') + ' ' + (f.note || '') + ' ' + (f._data || '')).toLowerCase()
+          return hay.indexOf(q) !== -1
+        })
+      }
+      list.sort((a, b) => {
+        const da = a._data || '', db = b._data || ''
+        return order === 'data_asc' ? (da < db ? -1 : 1) : (da > db ? -1 : 1)
+      })
+      if (list.length === 0) { grid.innerHTML = ''; empty.style.display = 'block'; return }
+      empty.style.display = 'none'
+      grid.innerHTML = list.map(f => {
+        const d = f._data ? new Date(f._data).toLocaleDateString('it-IT') : ''
+        const label = (f.tipo && f.tipo !== 'libera') ? f.tipo : (f.titolo || 'Foto')
+        return '<div style="border:1px solid #eee;border-radius:10px;overflow:hidden;background:#fff;cursor:pointer" onclick="window.open(\'' + f._url + '\',\'_blank\')">' +
+          '<img src="' + f._url + '" style="width:100%;height:120px;object-fit:cover;display:block" loading="lazy">' +
+          '<div style="padding:7px 9px"><div style="font-size:12px;font-weight:700;color:#000;text-transform:capitalize">' + label + '</div>' +
+          '<div style="font-size:11px;color:#999">' + d + '</div></div></div>'
+      }).join('')
+    }
+
     function clinicalNotesSwitchTab(tab) {
       const docTab = document.getElementById('cn-tab-docs')
       const relTab = document.getElementById('cn-tab-relazione')
       const sinTab = document.getElementById('cn-tab-sintesi')
+      const fotoTab = document.getElementById('cn-tab-foto')
       const btnDocs = document.getElementById('cn-btn-docs')
       const btnRel = document.getElementById('cn-btn-relazione')
       const btnSin = document.getElementById('cn-btn-sintesi')
+      const btnFoto = document.getElementById('cn-btn-foto')
       docTab.style.display = 'none'
       relTab.style.display = 'none'
       sinTab.style.display = 'none'
+      fotoTab.style.display = 'none'
       btnDocs.classList.remove('active')
       btnRel.classList.remove('active')
       btnSin.classList.remove('active')
-      if (tab === 'docs') {
+      btnFoto.classList.remove('active')
+      if (tab === 'foto') {
+        fotoTab.style.display = 'block'
+        btnFoto.classList.add('active')
+        if (!_fotoLoaded) caricaFoto()
+      } else if (tab === 'docs') {
         docTab.style.display = 'block'
         btnDocs.classList.add('active')
       } else if (tab === 'sintesi') {
