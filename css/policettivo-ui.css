@@ -1,0 +1,63 @@
+/* ============================================================
+   POLICETTIVO UI — stili condivisi (additivi, prefisso pol-)
+   Modifichi qui = cambia in tutta l'app.
+   ============================================================ */
+
+:root{
+  --pol-yellow:#FFC400;
+  --pol-yellow-d:#E0AC00;
+  --pol-ink:#1a1a1a;
+  --pol-red:#e24b4a;
+  --pol-radius:10px;
+}
+
+/* ---- Barra azioni foto (standard unico, 4 punti foto) ---- */
+/* Lo slot foto che la contiene DEVE avere position:relative */
+
+.pol-foto-actions{
+  position:absolute; left:6px; right:6px; bottom:6px;
+  display:flex; gap:6px; align-items:stretch; z-index:3;
+}
+.pol-foto-actions button,
+.pol-fa-full{
+  font-family:inherit; cursor:pointer; border:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* Azione primaria: Annota (overlay AI + disegno) */
+.pol-fa-annota{
+  flex:1; display:flex; align-items:center; justify-content:center; gap:7px;
+  padding:10px 8px; background:var(--pol-yellow); color:var(--pol-ink);
+  border-radius:var(--pol-radius); font-size:13px; font-weight:700; line-height:1;
+}
+.pol-fa-annota svg{ width:18px; height:18px; }
+
+/* Azioni secondarie icona */
+.pol-fa-icon,
+.pol-fa-elimina{
+  width:42px; display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,0.94); border-radius:var(--pol-radius);
+}
+.pol-fa-icon svg,
+.pol-fa-elimina svg{ width:19px; height:19px; }
+.pol-fa-icon{ color:var(--pol-ink); }
+.pol-fa-elimina{ color:var(--pol-red); }
+
+/* Schermo intero: badge in alto a destra (la foto stessa apre il fullscreen) */
+.pol-fa-full{
+  position:absolute; top:6px; right:6px; z-index:3;
+  width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.55); color:#fff; border-radius:8px;
+}
+.pol-fa-full svg{ width:17px; height:17px; }
+
+.pol-foto-actions button:active,
+.pol-fa-full:active{ transform:scale(0.96); }
+
+/* Slot vuoto: bottone libreria coerente (stesso stile icona) */
+.pol-fa-libr-empty{
+  position:absolute; top:6px; right:6px; z-index:3;
+  width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.55); color:#fff; border:none; border-radius:8px; cursor:pointer;
+}
+.pol-fa-libr-empty svg{ width:17px; height:17px; }
