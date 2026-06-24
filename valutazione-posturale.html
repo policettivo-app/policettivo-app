@@ -1016,8 +1016,8 @@
         <li>Ricarica la pagina</li>
       </ol>
     </div>
-    <button onclick="permWebcamUsaFile()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#FFD008;color:#000;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;margin-bottom:8px">🖼️ Scegli una foto dalla galleria</button>
-    <button onclick="chiudiPermessoWebcam()" style="width:100%;padding:11px;border:none;border-radius:10px;background:#f0f0f0;color:#666;font-weight:700;cursor:pointer;font-family:inherit">Chiudi</button>
+    <button onclick="permWebcamRiprova()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#FFD008;color:#000;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;margin-bottom:10px">🔄 Riprova con la fotocamera</button>
+    <button onclick="permWebcamUsaFile()" style="width:100%;padding:9px;border:none;border-radius:9px;background:transparent;color:#999;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline">Oppure scegli una foto dalla galleria</button>
   </div>
 </div>
 
@@ -1979,6 +1979,10 @@
   }
   function chiudiPermessoWebcam() {
     document.getElementById('perm-webcam-modal').classList.remove('open')
+  }
+  function permWebcamRiprova() {
+    chiudiPermessoWebcam()
+    openWebcamModal(_permTipo, _permIsReplace, null)
   }
   function permWebcamUsaFile() {
     chiudiPermessoWebcam()
