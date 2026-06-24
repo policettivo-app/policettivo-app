@@ -298,6 +298,15 @@
           ctx.fillStyle = l.color
           ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2)
           ctx.fill()
+        } else if (l.type === 'text') {
+          ctx.font = '700 ' + (l.size || 15) + 'px Montserrat, sans-serif'
+          ctx.textAlign = l.align || 'left'
+          ctx.textBaseline = 'middle'
+          ctx.lineWidth = 3
+          ctx.strokeStyle = 'rgba(0,0,0,0.75)'
+          ctx.strokeText(l.text, l.x, l.y)
+          ctx.fillStyle = l.color
+          ctx.fillText(l.text, l.x, l.y)
         } else {
           ctx.beginPath()
           ctx.strokeStyle = l.color
@@ -377,6 +386,7 @@
       const fx = drawW / nw, fy = drawH / nh
       const conv = (l) => {
         if (l.type === 'point') return { type:'point', x: ox + l.x*fx, y: oy + l.y*fy, color:l.color, r:l.r }
+        if (l.type === 'text')  return { type:'text', x: ox + l.x*fx, y: oy + l.y*fy, color:l.color, text:l.text, size:l.size, align:l.align }
         return { type:'line', x1: ox + l.x1*fx, y1: oy + l.y1*fy, x2: ox + l.x2*fx, y2: oy + l.y2*fy, color:l.color, lw:l.lw }
       }
 
@@ -430,6 +440,16 @@
           octx.fillStyle = l.color
           octx.arc((l.x - ox) * sx, (l.y - oy) * sy, Math.max(6, l.r * sx), 0, Math.PI * 2)
           octx.fill()
+        } else if (l.type === 'text') {
+          const fs = Math.max(13, (l.size || 15) * sx)
+          octx.font = '700 ' + fs + 'px Montserrat, sans-serif'
+          octx.textAlign = l.align || 'left'
+          octx.textBaseline = 'middle'
+          octx.lineWidth = Math.max(3, 3 * sx)
+          octx.strokeStyle = 'rgba(0,0,0,0.75)'
+          octx.strokeText(l.text, (l.x - ox) * sx, (l.y - oy) * sy)
+          octx.fillStyle = l.color
+          octx.fillText(l.text, (l.x - ox) * sx, (l.y - oy) * sy)
         } else {
           octx.beginPath()
           octx.strokeStyle = l.color
