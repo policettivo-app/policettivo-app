@@ -1571,11 +1571,21 @@
         grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999">Nessuna foto disponibile in cartella.</div>'
         return
       }
-      grid.innerHTML = _allFoto.map((f, i) => {
+      // ordina per data (recenti prima); le iniziali senza data restano in coda
+      const ordinate = _allFoto.map((f, i) => ({ f, i })).sort((a, b) => {
+        const da = a.f._data || '', db = b.f._data || ''
+        if (!da && !db) return 0
+        if (!da) return 1
+        if (!db) return -1
+        return da > db ? -1 : 1
+      })
+      grid.innerHTML = ordinate.map(({ f, i }) => {
         const label = f.titolo || f.tipo || 'Foto'
+        const d = f._data ? new Date(f._data).toLocaleDateString('it-IT') : ''
+        const dataLine = d ? '<div style="font-size:10px;color:#999;font-weight:600">' + d + '</div>' : ''
         return '<div style="border:1.5px solid #eee;border-radius:10px;overflow:hidden;cursor:pointer;background:#fff" onclick="scegliFotoLibreria(' + i + ')">' +
           '<img src="' + f._url + '" style="width:100%;height:110px;object-fit:cover;display:block" loading="lazy">' +
-          '<div style="padding:6px 8px;font-size:11px;font-weight:700;color:#000;text-transform:capitalize">' + label + '</div></div>'
+          '<div style="padding:6px 8px"><div style="font-size:11px;font-weight:700;color:#000;text-transform:capitalize">' + label + '</div>' + dataLine + '</div></div>'
       }).join('')
     }
 
