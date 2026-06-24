@@ -454,6 +454,9 @@
     .s3-slot-type { position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.7); color: #FFD008; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 3px; letter-spacing: 0.3px; }
     .s3-slot-del { width: 26px; height: 26px; border-radius: 50%; background: rgba(220,38,38,0.9); border: none; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; display: none; align-items: center; justify-content: center; }
     .s3-slot.has-photo:hover .s3-slot-del { display: flex; }
+    .s3-slot-libr { position: absolute; top: 4px; right: 4px; z-index: 3; background: rgba(255,255,255,0.92); border: none; border-radius: 7px; width: 26px; height: 26px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    #libreria-foto-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 950; align-items: center; justify-content: center; padding: 20px; }
+    #libreria-foto-modal.open { display: flex; }
     .s3-slot-up { display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.85); align-items: center; justify-content: center; }
     .s3-slot.uploading .s3-slot-up { display: flex; }
     .s3-slot-spinner { width: 20px; height: 20px; border: 2.5px solid #ddd; border-top-color: #000; border-radius: 50%; animation: s3spin 0.7s linear infinite; }
@@ -2549,7 +2552,9 @@
     const shortLabel = slotKey.endsWith('_post') ? 'POST 3R' : 'PRE'
     if (!photo) {
       el.className = 's3-slot'
-      el.innerHTML = '<span class="s3-slot-icon">📸</span><span class="s3-slot-lbl">' + shortLabel + '</span><div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
+      el.innerHTML = '<span class="s3-slot-icon">📸</span><span class="s3-slot-lbl">' + shortLabel + '</span>' +
+        '<button class="s3-slot-libr" onclick="event.stopPropagation();apriLibreriaFoto(\'' + slotKey + '\')" title="Scegli da foto del paziente">🗂</button>' +
+        '<div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
       el.onclick = () => { document.getElementById('s3-inp-' + slotKey)?.click() }
     } else {
       el.className = 's3-slot has-photo'
@@ -2659,6 +2664,78 @@
       }
       step3Photos[slot.key] = { id: p.id, url: signedUrl, storage_path: p.storage_path, b64: null }
       renderPhotoSlot(slot.key)
+    }
+  }
+
+  // ── Scegli da foto gia in cartella del paziente ────────────
+  let _librSlotKey = null
+  async function apriLibreriaFoto(slotKey) {
+    _librSlotKey = slotKey
+    const ov = document.getElementById('libreria-foto-modal')
+    const grid = document.getElementById('libreria-foto-grid')
+    ov.classList.add('open')
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999">Caricamento…</div>'
+    try {
+      const lista = await caricaFotoPaziente()
+      if (!lista.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999">Nessuna foto disponibile in cartella.</div>'
+        return
+      }
+      window._librFoto = lista
+      grid.innerHTML = lista.map((ft, i) => {
+        const d = ft.data ? new Date(ft.data).toLocaleDateString('it-IT') : ''
+        const dl = d ? '<div style="font-size:10px;color:#999;font-weight:600">' + d + '</div>' : ''
+        return '<div style="border:1.5px solid #eee;border-radius:10px;overflow:hidden;cursor:pointer;background:#fff" onclick="scegliFotoLibreria(' + i + ')">' +
+          '<img src="' + ft.url + '" style="width:100%;height:110px;object-fit:cover;display:block" loading="lazy">' +
+          '<div style="padding:6px 8px"><div style="font-size:11px;font-weight:700;color:#000;text-transform:capitalize">' + (ft.label || 'Foto') + '</div>' + dl + '</div></div>'
+      }).join('')
+    } catch(e) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#d32f2f">Errore nel caricare le foto.</div>'
+    }
+  }
+  function chiudiLibreriaFoto() {
+    document.getElementById('libreria-foto-modal').classList.remove('open')
+  }
+  async function caricaFotoPaziente() {
+    const out = []
+    try {
+      const { data: pat } = await _sb.from('patients').select('foto_url, created_at').eq('id', patientId).maybeSingle()
+      const LBL = { 'prima-sx':'Prima cuscini · Sx','prima-dx':'Prima cuscini · Dx','dopo-sx':'Dopo cuscini · Sx','dopo-dx':'Dopo cuscini · Dx','frontale':'Posturale · Frontale','posteriore':'Posturale · Posteriore','podo-sotto':'Piede · Da sotto','podo-dietro':'Piede · Da dietro' }
+      const iniz = JSON.parse(pat?.foto_url || '{}')
+      Object.keys(LBL).forEach(slot => { if (iniz[slot]) out.push({ url: iniz[slot], label: LBL[slot] || slot, data: pat?.created_at || null }) })
+    } catch(e) {}
+    try {
+      const { data: visite } = await _sb.from('visits').select('id, data_visita').eq('patient_id', patientId)
+      const ids = (visite || []).map(v => v.id)
+      const dataBy = {}; (visite || []).forEach(v => dataBy[v.id] = v.data_visita)
+      if (ids.length) {
+        const { data: fts } = await _sb.from('visit_photos').select('*').in('visit_id', ids)
+        for (const p of (fts || [])) {
+          if (!p.storage_path) continue
+          const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(p.storage_path, 7200)
+          if (su && su.signedUrl) out.push({ url: su.signedUrl, label: (p.tipo || 'Foto').replace(/_/g,' '), data: p.data_scatto || dataBy[p.visit_id] || null })
+        }
+      }
+    } catch(e) {}
+    return out
+  }
+  async function scegliFotoLibreria(idx) {
+    const ft = (window._librFoto || [])[idx]
+    if (!ft || !_librSlotKey) return
+    const slotKey = _librSlotKey
+    const grid = document.getElementById('libreria-foto-grid')
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999">Carico la foto…</div>'
+    try {
+      const resp = await fetch(ft.url)
+      const blob = await resp.blob()
+      const dataUrl = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob) })
+      chiudiLibreriaFoto()
+      const el = document.getElementById('s3-slot-' + slotKey)
+      if (el) el.classList.add('uploading')
+      await uploadVisitPhoto(slotKey, blob, dataUrl)
+      if (el) el.classList.remove('uploading')
+    } catch(e) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#d32f2f">Errore nel caricare la foto.</div>'
     }
   }
 
@@ -3572,7 +3649,14 @@ ISTRUZIONI:
         body { margin: 0; background: #fff; }
         @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
       </style>
-    </head><body>${content}</body></html>`)
+    </head><body>${content}<div id="libreria-foto-modal" onclick="if(event.target===this)chiudiLibreriaFoto()">
+  <div style="background:#fff;border-radius:16px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;padding:20px">
+    <div style="font-size:16px;font-weight:800;margin-bottom:14px">Scegli una foto gia in cartella</div>
+    <div id="libreria-foto-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>
+    <button onclick="chiudiLibreriaFoto()" style="margin-top:16px;width:100%;padding:11px;border:none;border-radius:10px;background:#f0f0f0;font-weight:700;cursor:pointer;font-family:inherit">Annulla</button>
+  </div>
+</div>
+</body></html>`)
     w.document.close()
     w.focus()
     setTimeout(() => { w.print() }, 400)
