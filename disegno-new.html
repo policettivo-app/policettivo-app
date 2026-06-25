@@ -92,6 +92,23 @@
   .toolbar{ height:auto !important; min-height:80px; flex-wrap:wrap; row-gap:6px; padding-top:6px; padding-bottom:6px; }
   .t-actions{ display:flex !important; flex-wrap:wrap; gap:4px; justify-content:flex-end; }
   .t-act{ flex:0 0 auto; }
+
+  /* --- contrasto toolbar (piu' leggibile su sfondo nero) --- */
+  .t-act{ background:#2c2c2c; border-color:#555; color:#f2f2f2; font-weight:700; font-size:11px; }
+  .t-btn{ background:#262626; border-color:#4a4a4a; color:#e8e8e8; }
+  .c-dot{ border-color:#666; }
+  .t-act-save{ background:#FFD008; color:#000; border-color:#FFD008; }
+  .t-act-export{ background:#1a1500; color:#FFD008; border-color:#FFD008; }
+  .t-act-reset{ color:#ff6b68; border-color:#5a2a2a; background:#241414; }
+  #pol-obs-btn{ background:#3a3320; color:#FFD008; border-color:#FFD008; }
+
+  /* --- pannello Osserva: laterale a sinistra su desktop, bottom-sheet su mobile --- */
+  @media (min-width:820px){
+    #pol-obs-panel{ left:0; right:auto; top:52px; bottom:90px; width:380px; transform:translateX(-105%); }
+    #pol-obs-panel.open{ transform:translateX(0); }
+    .pol-obs-inner{ height:100%; max-height:none; border-radius:0 16px 16px 0; box-shadow:10px 0 40px rgba(0,0,0,.55); padding:16px 18px; }
+    #pol-obs-backdrop, #pol-obs-backdrop.open{ display:none !important; }
+  }
   </style>
 </head>
 <body>
