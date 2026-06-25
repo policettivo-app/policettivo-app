@@ -1,8 +1,9 @@
 /* ============================================================
    POLICETTIVO — barra azioni foto (helper condiviso)
    policettivoFotoBar(opts) restituisce l'HTML standard della barra.
-   Ogni settore passa le SUE funzioni reali (stringhe di azione onclick).
-   Icone SVG inline: nessuna dipendenza esterna, coerenti ovunque.
+   Cestino ISOLATO in alto a sinistra (anti-clic accidentale).
+   Schermo intero in alto a destra. In basso: Annota + Libreria + Sostituisci.
+   Icone SVG inline: nessuna dipendenza esterna.
    ============================================================ */
 (function (w) {
   'use strict';
@@ -23,23 +24,25 @@
            ' onclick="event.stopPropagation();' + action + '">' + svg + txt + '</button>';
   }
 
-  /* Slot PIENO: badge fullscreen (alto-dx) + barra (Annota, Libreria, Sostituisci, Elimina) */
+  /* Slot PIENO */
   function policettivoFotoBar(o) {
     o = o || {};
+    var trash = o.onElimina
+      ? btn('pol-fa-trash', o.onElimina, SVG.elim, '', 'aria-label="Elimina foto" title="Elimina"')
+      : '';
     var full = o.onIntero
       ? btn('pol-fa-full', o.onIntero, SVG.full, '', 'aria-label="Schermo intero" title="Schermo intero"')
       : '';
     var bar =
       '<div class="pol-foto-actions">' +
-        btn('pol-fa-annota', o.onAnnota, SVG.annota, 'Annota', 'aria-label="Annota e overlay AI"') +
+        btn('pol-fa-annota', o.onAnnota, SVG.annota, 'Annota', 'aria-label="Annota"') +
         btn('pol-fa-icon', o.onLibreria, SVG.libr, '', 'aria-label="Scegli da libreria" title="Libreria"') +
         btn('pol-fa-icon', o.onSostituisci, SVG.sost, '', 'aria-label="Sostituisci foto" title="Sostituisci"') +
-        btn('pol-fa-elimina', o.onElimina, SVG.elim, '', 'aria-label="Elimina foto" title="Elimina"') +
       '</div>';
-    return full + bar;
+    return trash + full + bar;
   }
 
-  /* Slot VUOTO: solo badge libreria (alto-dx), coerente con lo stile */
+  /* Slot VUOTO: badge libreria in alto a destra */
   function policettivoFotoBarVuoto(o) {
     o = o || {};
     return o.onLibreria

@@ -12,6 +12,7 @@
   <script src="utils-premium.js"></script>
   <script src="utils-ai.js"></script>
   <script src="js/foto-actions.js"></script>
+  <script src="js/foto-paziente.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
@@ -745,18 +746,6 @@
       <div id="visite-list"><div class="visite-loading">Caricamento…</div></div>
     </div>
 
-    <!-- VALUTAZIONE CLINICA (carosello) -->
-    <div class="section ds-card pol-stack" id="sez-carosello">
-      <div class="section-title-plain ds-section-title-line" style="margin-bottom:14px">Valutazione clinica</div>
-      <div class="pol-cartabs">
-        <button class="pol-cartab active" data-tab="sagittale" onclick="polCaroselloTab('sagittale')">Sagittale</button>
-        <button class="pol-cartab" data-tab="frontale" onclick="polCaroselloTab('frontale')">Frontale</button>
-        <button class="pol-cartab" data-tab="podoscopia" onclick="polCaroselloTab('podoscopia')">Podoscopia</button>
-        <button class="pol-cartab" data-tab="confronto" onclick="polCaroselloTab('confronto')">Confronto</button>
-      </div>
-      <div class="pol-cartrack" id="pol-carosello-track"></div>
-    </div>
-
     <!-- FOTO SAGITTALI -->
     <div class="section ds-card">
       <div class="section-title-plain ds-section-title-line">Foto posturali — Piano sagittale</div>
@@ -1403,7 +1392,6 @@
         try {
           const urls = JSON.parse(patient.foto_url)
           Object.keys(urls).forEach(k => { if (urls[k]) showFotoPreview(k, urls[k]) })
-          if (window.polRenderCarosello) window.polRenderCarosello()
         } catch(e) {}
       }
       try {
@@ -1632,7 +1620,6 @@
         patient.foto_url = JSON.stringify(urls)
         await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
         _fotoLoaded = false  // forza ricarica scheda Foto con la nuova
-        if (window.polRenderCarosello) window.polRenderCarosello()
         chiudiFotoLibreriaModal()
       } catch(e) {
         grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#d32f2f">Errore nel caricare la foto.</div>'
@@ -1775,16 +1762,20 @@
         urls[slot] = dataUrl
         patient.foto_url = JSON.stringify(urls)
         await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
-        if (window.polRenderCarosello) window.polRenderCarosello()
       })
     }
 
     function showFotoPreview(slot, src) {
       const el = document.getElementById('slot-' + slot); if (!el) return
       el.classList.add('has-photo'); el.onclick = null
-      el.innerHTML = '<img src="' + src + '" alt="foto">' +
-        '<div class="foto-draw-btn" onclick="event.stopPropagation();window.location.href=\'disegno.html?id=' + patientId + '&foto=' + slot + '\'">✏️</div>' +
-        '<div class="foto-overlay" onclick="triggerInput(\'' + slot + '\')">Cambia</div>' +
+      var _bar = window.policettivoFotoBar ? window.policettivoFotoBar({
+        onIntero: "polFotoIntero('" + slot + "')",
+        onAnnota: "window.location.href='disegno.html?id=" + patientId + "&foto=" + slot + "'",
+        onLibreria: "polFotoLibreria('" + slot + "')",
+        onSostituisci: "triggerInput('" + slot + "')",
+        onElimina: "polFotoElimina('" + slot + "')"
+      }) : ''
+      el.innerHTML = '<img src="' + src + '" alt="foto">' + _bar +
         '<input type="file" id="input-' + slot + '" accept="image/*" style="display:none" onchange="handleFoto(\'' + slot + '\',this)">'
       if (slot === 'prima-sx' || slot === 'prima-dx') avviaAIHintPrima()
     }
@@ -3905,47 +3896,5 @@ Campi:
   </div>
 </div>
 
-  <div class="pol-lightbox" id="pol-lightbox" onclick="polChiudiLightbox()">
-    <button class="pol-lightbox-x" onclick="event.stopPropagation();polChiudiLightbox()" aria-label="Chiudi">&times;</button>
-    <img id="pol-lightbox-img" src="" alt="Foto a schermo intero">
-  </div>
-  <script>
-  (function(){
-    var TABS = {
-      sagittale: [['prima-sx','Sagittale Prima Sx'],['prima-dx','Sagittale Prima Dx'],['dopo-sx','Sagittale Dopo Sx'],['dopo-dx','Sagittale Dopo Dx']],
-      frontale: [['frontale','Frontale'],['posteriore','Posteriore']],
-      podoscopia: [['podo-sotto','Podoscopia sotto'],['podo-dietro','Podoscopia dietro']],
-      confronto: [['prima-sx','Prima'],['dopo-sx','Dopo']]
-    };
-    var _tab='sagittale';
-    function urls(){ try { return JSON.parse((typeof patient!=='undefined'&&patient?patient.foto_url:'{}')||'{}'); } catch(e){ return {}; } }
-    function pid(){ return (typeof patientId!=='undefined'&&patientId)?patientId:''; }
-    window.polCaroselloTab=function(t){ _tab=t; var b=document.querySelectorAll('.pol-cartab'); for(var i=0;i<b.length;i++){ b[i].classList.toggle('active', b[i].getAttribute('data-tab')===t); } window.polRenderCarosello(); };
-    window.polRenderCarosello=function(){
-      var track=document.getElementById('pol-carosello-track'); if(!track) return;
-      var u=urls(); var slots=TABS[_tab]||[];
-      track.innerHTML=slots.map(function(sl){
-        var slot=sl[0], label=sl[1], src=u[slot];
-        if(src){
-          var bar=window.policettivoFotoBar({onIntero:"polFotoIntero('"+slot+"')",onAnnota:"window.location.href='disegno.html?id="+pid()+"&foto="+slot+"'",onLibreria:"polFotoLibreria('"+slot+"')",onSostituisci:"triggerInput('"+slot+"')",onElimina:"polFotoElimina('"+slot+"')"});
-          return '<div class="pol-carcard"><div class="pol-carimg" onclick="polFotoIntero(\''+slot+'\')"><img src="'+src+'" alt="'+label+'">'+bar+'</div><div class="pol-carlbl">'+label+'</div></div>';
-        }
-        var bv=window.policettivoFotoBarVuoto({onLibreria:"polFotoLibreria('"+slot+"')"});
-        return '<div class="pol-carcard"><div class="pol-carimg pol-carempty" onclick="triggerInput(\''+slot+'\')"><span class="pol-caradd">+</span><span class="pol-carhint">Aggiungi foto</span>'+bv+'</div><div class="pol-carlbl">'+label+'</div></div>';
-      }).join('');
-    };
-    window.polFotoIntero=function(slot){ var u=urls(); var src=u[slot]; if(!src) return; document.getElementById('pol-lightbox-img').src=src; document.getElementById('pol-lightbox').classList.add('open'); };
-    window.polChiudiLightbox=function(){ document.getElementById('pol-lightbox').classList.remove('open'); };
-    window.polFotoLibreria=function(slot){ if(window._polSetSlot) window._polSetSlot(slot); if(window.fotoSourceLibreria) window.fotoSourceLibreria(); };
-    window.polFotoElimina=function(slot){
-      if(!confirm('Eliminare questa foto?')) return;
-      var u=urls(); delete u[slot];
-      if(typeof patient!=='undefined' && patient){ patient.foto_url=JSON.stringify(u); if(typeof _supabase!=='undefined' && _supabase){ _supabase.from('patients').update({foto_url:patient.foto_url}).eq('id',pid()); } }
-      var el=document.getElementById('slot-'+slot);
-      if(el){ el.classList.remove('has-photo'); el.onclick=function(){ triggerInput(slot); }; el.innerHTML='<div class="foto-label">'+slot+'</div><div class="foto-icon">&#128247;</div><div class="foto-hint">Tocca per foto</div><input type="file" id="input-'+slot+'" accept="image/*" style="display:none" onchange="handleFoto(\''+slot+'\',this)">'; }
-      window.polRenderCarosello();
-    };
-  })();
-  </script>
 </body>
 </html>
