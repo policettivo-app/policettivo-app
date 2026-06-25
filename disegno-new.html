@@ -87,6 +87,11 @@
   .pol-chip.active{ background:#FFD008; border-color:#FFD008; color:#000; }
   #pol-note{ width:100%; min-height:70px; border:1.5px solid #e3e3e0; border-radius:10px; padding:10px; font-family:inherit; font-size:13px; resize:vertical; box-sizing:border-box; margin-top:8px; }
   .pol-obs-save{ width:100%; margin-top:12px; background:#FFD008; color:#000; border:none; border-radius:10px; padding:13px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  #pol-obs-backdrop{ position:fixed; inset:0; z-index:99998; background:rgba(0,0,0,.18); display:none; }
+  #pol-obs-backdrop.open{ display:block; }
+  .toolbar{ height:auto !important; min-height:80px; flex-wrap:wrap; row-gap:6px; padding-top:6px; padding-bottom:6px; }
+  .t-actions{ display:flex !important; flex-wrap:wrap; gap:4px; justify-content:flex-end; }
+  .t-act{ flex:0 0 auto; }
   </style>
 </head>
 <body>
@@ -129,6 +134,7 @@
     </div>
   </div>
 
+  <div id="pol-obs-backdrop" onclick="polToggleObs()"></div>
   <div id="pol-obs-panel">
     <div class="pol-obs-inner">
       <div class="pol-obs-head">
@@ -142,7 +148,7 @@
   </div>
   <script>
   window._polObs = [];
-  window.polToggleObs = function(){ var p=document.getElementById('pol-obs-panel'); if(p) p.classList.toggle('open'); };
+  window.polToggleObs = function(){ var p=document.getElementById('pol-obs-panel'); var b=document.getElementById('pol-obs-backdrop'); if(p) p.classList.toggle('open'); if(b) b.classList.toggle('open'); };
   window.polToggleObsChip = function(el){ var v=el.getAttribute('data-v'); var i=window._polObs.indexOf(v); if(i>=0){ window._polObs.splice(i,1); el.classList.remove('active'); } else { window._polObs.push(v); el.classList.add('active'); } };
   function _polEsc(x){ return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
   window.polRenderObs = function(tipo){
