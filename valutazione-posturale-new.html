@@ -570,11 +570,15 @@
   .lb-obs-inner{ background:#fff; border-radius:18px 18px 0 0; padding:14px 16px calc(16px + env(safe-area-inset-bottom)); max-height:62vh; overflow-y:auto; box-shadow:0 -6px 24px rgba(0,0,0,0.35); }
   .lb-obs-title{ font-size:12px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
   .lb-obs-chips{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
+  .lb-obs-chips{ display:block; margin-bottom:12px; }
+  .lb-obs-grp{ font-size:10px; font-weight:800; color:#1a1a1a; text-transform:uppercase; letter-spacing:.4px; margin:12px 0 6px; padding-bottom:3px; border-bottom:1.5px solid #FFD008; }
+  .lb-obs-row{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:6px; }
   .lb-obs-note{ width:100%; min-height:70px; border:1.5px solid #e3e3e0; border-radius:10px; padding:10px; font-family:inherit; font-size:13px; resize:vertical; box-sizing:border-box; }
   .lb-obs-save{ width:100%; margin-top:12px; background:#FFD008; color:#000; border:none; border-radius:10px; padding:13px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
   </style>
   <link rel="stylesheet" href="css/policettivo-ui.css">
   <script src="js/foto-actions.js"></script>
+  <script src="js/osservazioni.js"></script>
   <style>.photo-slot.filled{ position:relative; }</style>
 </head>
 <body class="page-postural-standalone">
@@ -912,16 +916,7 @@
   <div id="lb-obs-panel">
     <div class="lb-obs-inner">
       <div class="lb-obs-title">Osservazioni</div>
-      <div class="lb-obs-chips" id="lb-obs-chips">
-        <span class="chip" data-v="Iperlordosi lombare" onclick="toggleObsChip('Iperlordosi lombare',this)">Iperlordosi lombare</span>
-        <span class="chip" data-v="Cifosi dorsale" onclick="toggleObsChip('Cifosi dorsale',this)">Cifosi dorsale</span>
-        <span class="chip" data-v="Antepulsione capo" onclick="toggleObsChip('Antepulsione capo',this)">Antepulsione capo</span>
-        <span class="chip" data-v="Spalla dx alta" onclick="toggleObsChip('Spalla dx alta',this)">Spalla dx alta</span>
-        <span class="chip" data-v="Spalla sx alta" onclick="toggleObsChip('Spalla sx alta',this)">Spalla sx alta</span>
-        <span class="chip" data-v="Asimmetria bacino" onclick="toggleObsChip('Asimmetria bacino',this)">Asimmetria bacino</span>
-        <span class="chip" data-v="Protrazione spalle" onclick="toggleObsChip('Protrazione spalle',this)">Protrazione spalle</span>
-        <span class="chip" data-v="Atteggiamento scoliotico" onclick="toggleObsChip('Atteggiamento scoliotico',this)">Atteg. scoliotico</span>
-      </div>
+      <div class="lb-obs-chips" id="lb-obs-chips"></div>
       <textarea id="lb-note" class="lb-obs-note" placeholder="Note libere su questa foto..."></textarea>
       <button class="lb-obs-save" onclick="dtSalva()">Salva osservazioni e note</button>
     </div>
@@ -2704,6 +2699,7 @@ ISTRUZIONI:
 
     requestAnimationFrame(() => {
       syncCanvas()
+      if (window.renderObsForTipo) window.renderObsForTipo(tipo)
       if (pendingAnn) {
         dtLines = linesFromJSON(pendingAnn)
         if (window.restoreObs) window.restoreObs(pendingAnn)
@@ -3683,7 +3679,21 @@ ISTRUZIONI:
   <script>
   window._lbObs = [];
   window.toggleObsPanel = function(){ var p=document.getElementById('lb-obs-panel'); if(p) p.classList.toggle('open'); };
-  window.toggleObsChip = function(v, el){ var i=window._lbObs.indexOf(v); if(i>=0){ window._lbObs.splice(i,1); el.classList.remove('active'); } else { window._lbObs.push(v); el.classList.add('active'); } };
+  window.toggleObsChipEl = function(el){ var v=el.getAttribute('data-v'); var i=window._lbObs.indexOf(v); if(i>=0){ window._lbObs.splice(i,1); el.classList.remove('active'); } else { window._lbObs.push(v); el.classList.add('active'); } };
+  function _ossEsc(x){ return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+  window.renderObsForTipo = function(tipo){
+    var box=document.getElementById('lb-obs-chips'); if(!box) return;
+    var groups=(window.ossGruppiPerTipo? window.ossGruppiPerTipo(tipo): null);
+    if(!groups){ box.innerHTML=''; return; }
+    var html='';
+    for(var g=0; g<groups.length; g++){
+      html+='<div class="lb-obs-grp">'+_ossEsc(groups[g].g)+'</div><div class="lb-obs-row">';
+      var its=groups[g].items||[];
+      for(var i=0;i<its.length;i++){ var v=_ossEsc(its[i]); html+='<span class="chip" data-v="'+v+'" onclick="toggleObsChipEl(this)">'+v+'</span>'; }
+      html+='</div>';
+    }
+    box.innerHTML=html;
+  };
   window.restoreObs = function(ann){
     window._lbObs = (ann && Array.isArray(ann.osservazioni)) ? ann.osservazioni.slice() : [];
     var chips=document.querySelectorAll('#lb-obs-chips .chip');
