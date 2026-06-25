@@ -57,3 +57,23 @@
   .pol-act-ico{ font-size:20px; }
   .pol-act-lbl{ font-size:10px; }
 }
+
+/* ---- Carosello valutazione clinica ---- */
+.pol-cartabs{ display:flex; gap:6px; overflow-x:auto; padding:2px 0 12px; -webkit-overflow-scrolling:touch; }
+.pol-cartab{ flex:0 0 auto; padding:8px 16px; border-radius:20px; border:1.5px solid #e6e6e3; background:#fff; font-family:inherit; font-size:13px; font-weight:600; color:#555; cursor:pointer; white-space:nowrap; }
+.pol-cartab.active{ background:var(--pol-yellow); border-color:var(--pol-yellow); color:var(--pol-ink); font-weight:700; }
+.pol-cartrack{ display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; padding:2px 2px 6px; -webkit-overflow-scrolling:touch; }
+.pol-carcard{ flex:0 0 auto; scroll-snap-align:start; width:240px; }
+.pol-carimg{ position:relative; width:100%; aspect-ratio:3/4; background:#111; border-radius:14px; overflow:hidden; cursor:pointer; }
+.pol-carimg img{ width:100%; height:100%; object-fit:contain; background:#111; display:block; }
+.pol-carlbl{ text-align:center; font-size:12px; font-weight:600; color:#555; margin-top:8px; }
+.pol-carempty{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background:#fafafa; border:2px dashed #ddd; color:#bbb; }
+.pol-caradd{ font-size:38px; line-height:1; color:#ccc; }
+.pol-carhint{ font-size:12px; color:#bbb; }
+@media(max-width:480px){ .pol-carcard{ width:76vw; max-width:300px; } }
+
+/* ---- Lightbox foto a schermo intero ---- */
+.pol-lightbox{ position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:99999; display:none; align-items:center; justify-content:center; padding:18px; }
+.pol-lightbox.open{ display:flex; }
+.pol-lightbox img{ max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; }
+.pol-lightbox-x{ position:absolute; top:16px; right:16px; width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.16); color:#fff; border:none; font-size:26px; line-height:1; cursor:pointer; }
