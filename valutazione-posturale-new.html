@@ -573,6 +573,9 @@
   .lb-obs-note{ width:100%; min-height:70px; border:1.5px solid #e3e3e0; border-radius:10px; padding:10px; font-family:inherit; font-size:13px; resize:vertical; box-sizing:border-box; }
   .lb-obs-save{ width:100%; margin-top:12px; background:#FFD008; color:#000; border:none; border-radius:10px; padding:13px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
   </style>
+  <link rel="stylesheet" href="css/policettivo-ui.css">
+  <script src="js/foto-actions.js"></script>
+  <style>.photo-slot.filled{ position:relative; }</style>
 </head>
 <body class="page-postural-standalone">
 
@@ -1680,13 +1683,12 @@
       const dateStr = p.data_scatto ? new Date(p.data_scatto).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit' }) : ''
       slot.innerHTML =
         '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
-        '<div class="slot-bottom-bar">' +
-          '<span class="slot-date-mini">' + (dateStr ? '📅 ' + dateStr : '') + '</span>' +
-          '<button class="slot-btn-mini" onclick="event.stopPropagation();openVpFullscreen(\'' + p.url_pubblico + '\')" title="Schermo intero">⛶</button>' +
-          '<button class="slot-btn-mini" onclick="event.stopPropagation();showLightbox(\'' + tipo + '\')" title="Annota">✏️</button>' +
-          '<button class="slot-btn-mini" onclick="event.stopPropagation();replacePhoto(\'' + tipo + '\')" title="Sostituisci">🔄</button>' +
-          '<button class="slot-btn-mini" style="color:#e53935" onclick="event.stopPropagation();removePhoto(\'' + tipo + '\')" title="Elimina">✕</button>' +
-        '</div>'
+        (window.policettivoFotoBar ? window.policettivoFotoBar({
+          onIntero: "openVpFullscreen('" + p.url_pubblico + "')",
+          onAnnota: "showLightbox('" + tipo + "')",
+          onSostituisci: "replacePhoto('" + tipo + "')",
+          onElimina: "removePhoto('" + tipo + "')"
+        }) : '')
       if (dateEl) dateEl.textContent = p.data_scatto ? formatDateForDisplay(p.data_scatto) : ''
       if (noteRow) {
         noteRow.classList.add('visible')
