@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/policettivo-ui.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="utils-premium.js"></script>
+  <script src="js/osservazioni.js"></script>
   <script src="utils-ai.js"></script>
   <script src="js/foto-actions.js"></script>
   <script src="js/foto-paziente.js"></script>
@@ -2529,7 +2530,9 @@
 
     async function avviaAnalisiAI() {
       if (!window.isPremium && _pazAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
-      if (documentiCaricati.length === 0) { alert('Nessun documento da analizzare.'); return }
+      let _ossTxt = ''
+      try { if (window.polRaccogliOsservazioniVisite) _ossTxt = await window.polRaccogliOsservazioniVisite(_supabase, patientId) } catch(e) {}
+      if (documentiCaricati.length === 0 && !_ossTxt) { alert('Nessun documento o osservazione da analizzare.'); return }
       const loading = document.getElementById('ai-loading')
       const reportBox = document.getElementById('ai-report-box')
       reportBox.classList.remove('visible')
@@ -2542,7 +2545,7 @@
       const nomePaz = patient.nome + ' ' + patient.cognome
       const problema = patient.problema_principale || 'non specificato'
       const note = patient.note_cliniche || 'nessuna'
-      const prompt = 'Sei un assistente per fisioterapisti. Analizza brevemente i documenti del paziente ' + nomePaz + ' (problema: ' + problema + '). Documenti: ' + elencoDoc + '. Rispondi in max 300 parole con: RED FLAG (elenco puntato), CONDIZIONI DA RISPETTARE (elenco puntato), ORDINE DI INTERVENTO (3 fasi max). Niente intro, niente conclusioni, solo i punti essenziali.'
+      const prompt = 'Sei un assistente per fisioterapisti. Redigi una sintesi clinica globale del paziente ' + nomePaz + ' (problema: ' + problema + ').' + (elencoDoc ? ' Documenti clinici: ' + elencoDoc : '') + (_ossTxt ? '\n\n' + _ossTxt : '') + '\n\nRispondi in max 350 parole con: RED FLAG (elenco puntato), CONDIZIONI DA RISPETTARE (elenco puntato), QUADRO POSTURALE (sintesi delle osservazioni rilevate dal fisioterapista, se presenti), ORDINE DI INTERVENTO (3 fasi max). Niente intro, niente conclusioni, solo i punti essenziali.'
       try {
         const { data: { session: _aiSDoc } } = await _supabase.auth.getSession()
         const response = await fetch('/api/ai-analisi', {
