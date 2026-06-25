@@ -2921,10 +2921,10 @@
       const noteClinica = patient?.note_cliniche || ''
 
       const [visitRes, seduteRes, noteRes, protocolloRes] = await Promise.all([
-        _supabase.from('visite').select('data_visita,motivo,diagnosi,trattamento,note,vas_score').eq('patient_id', pid).order('data_visita', { ascending: false }).limit(8),
-        _supabase.from('therapy_sessions').select('data_seduta,tecniche,intensita,note,protocollo_prossima,vas_pre,vas_post').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(8),
+        _supabase.from('visits').select('data_visita,tipo,motivo_visita,diagnosi_funzionale,note_osservazionali,vas_inizio,vas_fine').eq('patient_id', pid).order('data_visita', { ascending: false }).limit(8),
+        _supabase.from('therapy_sessions').select('data_seduta,protocollo_seduta,note_cliniche,vas_inizio,vas_fine').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(8),
         _supabase.from('clinical_notes').select('created_at,title,content').eq('patient_id', pid).order('created_at', { ascending: false }).limit(5),
-        _supabase.from('patient_protocols').select('nome,descrizione,obiettivi,created_at').eq('patient_id', pid).order('created_at', { ascending: false }).limit(1)
+        _supabase.from('patient_protocols').select('*').eq('patient_id', pid).order('created_at', { ascending: false }).limit(1)
       ])
 
       const docsSection = documentiCaricati?.length
@@ -2933,13 +2933,17 @@
 
       const obsMap = { 'scapolare-prima': 'Scapolare anteriore', 'scapolare-dopo': 'Scapolare posteriore', 'piede-morfologia': 'Morfologia piede', 'piede-asse': 'Asse piede', 'rotazione-sup': 'Rotazione superiore', 'inclinazione-capo': 'Inclinazione capo' }
       const obsLines = Object.entries(obsSelections || {}).filter(([,v]) => v).map(([k,v]) => `- ${obsMap[k]||k}: ${v}`)
-      const obsSection = obsLines.length ? obsLines.join('\n') : 'Nessuna osservazione posturale.'
+      let ossFotoTxt = ''
+      try { if (window.polRaccogliOsservazioniVisite) ossFotoTxt = (await window.polRaccogliOsservazioniVisite(_supabase, pid)) || '' } catch(e) {}
+      let obsSection = obsLines.join('\n')
+      if (ossFotoTxt) obsSection += (obsSection ? '\n\n' : '') + ossFotoTxt
+      if (!obsSection) obsSection = 'Nessuna osservazione posturale.'
 
       const proto = protocolloRes.data?.[0]
-      const protoSection = proto ? `${proto.nome || 'protocollo'}: ${proto.descrizione || ''} | Obiettivi: ${proto.obiettivi || 'n.d.'}` : 'Nessun protocollo attivo.'
+      const protoSection = proto ? `Protocollo dal ${(proto.created_at||'').slice(0,10) || 'n.d.'}: ${proto.configurazione_generale || 'configurazione non dettagliata'}` : 'Nessun protocollo attivo.'
 
-      const visitLines = visitRes.data?.map(v => `- ${v.data_visita}: motivo=${v.motivo||'—'}, diagnosi=${v.diagnosi||'—'}, trattamento=${v.trattamento||'—'}, VAS=${v.vas_score??'n.d.'}, note=${v.note||'—'}`) || []
-      const seduteLines = seduteRes.data?.map(s => `- ${s.data_seduta}: tecniche=${s.tecniche||'—'}, VAS prima=${s.vas_pre??'n.d.'} → dopo=${s.vas_post??'n.d.'}, note=${s.note||'—'}`) || []
+      const visitLines = visitRes.data?.map(v => `- ${v.data_visita}: tipo=${v.tipo||'—'}, motivo=${v.motivo_visita||'—'}, diagnosi=${v.diagnosi_funzionale||'—'}, VAS=${v.vas_inizio??'n.d.'}→${v.vas_fine??'n.d.'}, note=${v.note_osservazionali||'—'}`) || []
+      const seduteLines = seduteRes.data?.map(s => `- ${s.data_seduta}: protocollo=${s.protocollo_seduta||'—'}, VAS prima=${s.vas_inizio??'n.d.'} → dopo=${s.vas_fine??'n.d.'}, note=${s.note_cliniche||'—'}`) || []
       const noteLines = noteRes.data?.map(n => `- ${n.created_at?.slice(0,10)}: [${n.title||'senza titolo'}] ${n.content||'—'}`) || []
 
       const schemaJSON = `{"problema_principale":"...","elementi_documentali":"...","osservazioni_cliniche":"...","protocollo_attivo":"...","criticita":"...","evoluzione_clinica":"...","nota_finale":"..."}`
