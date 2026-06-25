@@ -214,6 +214,9 @@
     let firstPoint = null
     let idealLines = []      // criteri di normalita (overlay, NON salvati)
     let criteriOn  = false   // toggle criteri di normalita
+    let posturaLines = []    // overlay analisi postura (repere/etichette), NON salvato
+    let posturaOn    = false // toggle analisi postura
+    let _posturaMsg  = ''    // testo stato dell'ultima analisi
     let userIsPremium = false
 
     // --- Coordinate normalization (0–1 range for device independence) ---
@@ -387,6 +390,23 @@
       fpDot.style.display = 'none'
     }
 
+    function _drawList(list) {
+      list.forEach(l => {
+        if (l.type === 'point') {
+          ctx.beginPath(); ctx.fillStyle = l.color; ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2); ctx.fill()
+        } else if (l.type === 'text') {
+          ctx.font = '600 ' + (l.size || 14) + "px 'Montserrat', sans-serif"
+          ctx.textAlign = l.align || 'left'; ctx.textBaseline = 'middle'
+          ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.55)'
+          ctx.strokeText(l.text, l.x, l.y)
+          ctx.fillStyle = l.color; ctx.fillText(l.text, l.x, l.y)
+        } else {
+          ctx.beginPath(); ctx.strokeStyle = l.color; ctx.lineWidth = l.lw; ctx.lineCap = 'round'
+          ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke()
+        }
+      })
+    }
+
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       if (criteriOn) {
@@ -395,32 +415,8 @@
           else { ctx.beginPath(); ctx.strokeStyle = l.color; ctx.lineWidth = l.lw; ctx.lineCap = 'round'; ctx.moveTo(l.x1,l.y1); ctx.lineTo(l.x2,l.y2); ctx.stroke() }
         })
       }
-      lines.forEach(l => {
-        if (l.type === 'point') {
-          ctx.beginPath()
-          ctx.fillStyle = l.color
-          ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2)
-          ctx.fill()
-        } else if (l.type === 'text') {
-          ctx.font = '600 ' + (l.size || 14) + "px 'Montserrat', sans-serif"
-          ctx.textAlign = l.align || 'left'
-          ctx.textBaseline = 'middle'
-          ctx.lineWidth = 2.5
-          ctx.lineJoin = 'round'
-          ctx.strokeStyle = 'rgba(0,0,0,0.55)'
-          ctx.strokeText(l.text, l.x, l.y)
-          ctx.fillStyle = l.color
-          ctx.fillText(l.text, l.x, l.y)
-        } else {
-          ctx.beginPath()
-          ctx.strokeStyle = l.color
-          ctx.lineWidth   = l.lw
-          ctx.lineCap     = 'round'
-          ctx.moveTo(l.x1, l.y1)
-          ctx.lineTo(l.x2, l.y2)
-          ctx.stroke()
-        }
-      })
+      if (posturaOn) _drawList(posturaLines)   // overlay analisi (non salvato)
+      _drawList(lines)                          // disegno manuale (salvato)
     }
 
     function annulla() {
@@ -461,6 +457,8 @@
 
     async function cancellaRipristina() {
       lines = []
+      posturaLines = []; posturaOn = false; criteriOn = false; idealLines = []; _posturaMsg = ''
+      document.getElementById('nav-status').textContent = ''
       resetFirst()
       redraw()
 
@@ -503,24 +501,27 @@
       return { lines: res.lines.map(conv), idealLines: res.idealLines.map(conv), angles: res.angles, message: res.message }
     }
 
-    // --- ANALIZZA POSTURA: repere + filo a piombo + etichette (NON tocca i criteri) ---
+    // --- ANALIZZA POSTURA: layer separato a toggle (repere/etichette), MAI salvato ---
     async function analizzaPostura() {
-      const r = await _runOverlay()
-      if (!r) return
-      r.lines.forEach(l => lines.push(l))
-      idealLines = r.idealLines
+      if (posturaLines.length === 0) {
+        const r = await _runOverlay()
+        if (!r) return
+        posturaLines = r.lines
+        if (idealLines.length === 0) idealLines = r.idealLines   // cache per Criteri
+        _posturaMsg = 'Analisi: ' + r.message + ((r.angles && r.angles.spalle != null) ? ' (Spalle ' + r.angles.spalle + 'deg, Bacino ' + r.angles.bacino + 'deg)' : '')
+      }
+      posturaOn = !posturaOn
+      document.getElementById('nav-status').textContent = posturaOn ? _posturaMsg : ''
       redraw()
-      let msg = 'Analisi: ' + r.message
-      if (r.angles && r.angles.spalle != null) msg += ' (Spalle ' + r.angles.spalle + 'deg, Bacino ' + r.angles.bacino + 'deg)'
-      document.getElementById('nav-status').textContent = msg
     }
 
-    // --- CRITERI: mostra SOLO la griglia/assi di normalita, indipendente da Analizza postura ---
+    // --- CRITERI: mostra SOLO la griglia/assi di normalita (toggle indipendente) ---
     async function toggleCriteri() {
       if (!criteriOn && idealLines.length === 0) {
         const r = await _runOverlay()
         if (!r) return
-        idealLines = r.idealLines        // solo i criteri, NESSUN repere/etichetta
+        idealLines = r.idealLines
+        if (posturaLines.length === 0) posturaLines = r.lines   // cache per Analizza postura
         document.getElementById('nav-status').textContent = ''
       }
       criteriOn = !criteriOn
@@ -558,7 +559,7 @@
         })
       }
 
-      lines.forEach(l => {
+      const _exp = (l) => {
         if (l.type === 'point') {
           octx.beginPath()
           octx.fillStyle = l.color
@@ -592,7 +593,9 @@
           }
           octx.stroke()
         }
-      })
+      }
+      if (posturaOn) posturaLines.forEach(_exp)
+      lines.forEach(_exp)
 
       const nomePaziente = patient ? (patient.nome + '-' + patient.cognome).replace(/\s+/g, '-') : 'paziente'
       const filename = nomePaziente + '-' + fotoSlot + '.png'
