@@ -514,7 +514,12 @@
       status.textContent = msg
     }
 
-    function toggleCriteri() {
+    async function toggleCriteri() {
+      // I criteri di normalita esistono solo dopo l'analisi: se mancano, eseguila ora.
+      if (!criteriOn && idealLines.length === 0) {
+        await analizzaPostura()
+        if (idealLines.length === 0) return   // analisi non riuscita o annullata
+      }
       criteriOn = !criteriOn
       redraw()
     }
