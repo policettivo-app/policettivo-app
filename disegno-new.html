@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Disegno Posturale — Policettivo</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: #000; font-family: 'Montserrat', sans-serif; overflow: hidden; height: 100dvh; user-select: none; -webkit-user-select: none; }
+
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 52px;
+      background: #000; border-bottom: 1px solid #1a1a1a;
+      display: flex; align-items: center; padding: 0 16px; z-index: 100; gap: 12px;
+    }
+    .btn-back { background: none; border: none; color: #FFD008; font-family: 'Montserrat',sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; flex-shrink: 0; }
+    .nav-title { color: #fff; font-size: 12px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nav-status { color: #aaa; font-size: 11px; flex-shrink: 0; }
+
+    #canvas-wrap {
+      position: fixed; top: 52px; left: 0; right: 0; bottom: 88px;
+      background: #000; overflow: hidden;
+    }
+    #bg-img {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: contain; display: block; pointer-events: none;
+    }
+    #draw-canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      touch-action: none; cursor: crosshair;
+    }
+    #fp-dot {
+      position: absolute; width: 16px; height: 16px; border-radius: 50%;
+      background: #FFD008; box-shadow: 0 0 10px #FFD008, 0 0 20px #FFD00866;
+      transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 5;
+    }
+
+    .toolbar {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 88px;
+      background: #111; border-top: 1px solid #222;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 8px; gap: 5px;
+    }
+    .t-group { display: flex; align-items: center; gap: 4px; }
+    .t-btn {
+      background: #1a1a1a; border: 1.5px solid #2a2a2a; color: #bbb;
+      border-radius: 8px; padding: 10px 10px; font-size: 16px; cursor: pointer;
+      font-family: 'Montserrat',sans-serif; transition: all 0.12s; line-height: 1;
+      min-width: 40px; text-align: center;
+    }
+    .t-btn.active { border-color: #FFD008; color: #FFD008; background: #1a1500; }
+    .t-btn:active { opacity: 0.7; }
+    .c-dot {
+      width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+      border: 2px solid #333; flex-shrink: 0; transition: transform 0.12s;
+    }
+    .c-dot.active { border-color: #FFD008; transform: scale(1.15); }
+    .t-actions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+      flex-shrink: 0;
+    }
+    .t-act {
+      background: #1a1a1a; border: 1.5px solid #2a2a2a; color: #bbb;
+      border-radius: 7px; padding: 5px 4px; font-family: 'Montserrat',sans-serif;
+      font-size: 10px; font-weight: 600; cursor: pointer; text-align: center;
+      line-height: 1.4; white-space: nowrap;
+    }
+    .t-act:active { opacity: 0.7; }
+    .t-act-save { background: #FFD008; color: #000; border-color: #FFD008; }
+    .t-act-export { background: #1a1500; color: #FFD008; border-color: #FFD008; }
+    .t-act-reset { color: #e53935; border-color: #3a1a1a; background: #1a1010; }
+    .divider { width: 1px; height: 36px; background: #2a2a2a; flex-shrink: 0; }
+  </style>
+  <script src="js/osservazioni.js"></script>
+  <style>
+  #pol-obs-panel{ position:fixed; left:0; right:0; bottom:0; z-index:99999; transform:translateY(100%); transition:transform .25s ease; }
+  #pol-obs-panel.open{ transform:translateY(0); }
+  .pol-obs-inner{ background:#fff; color:#1a1a1a; border-radius:18px 18px 0 0; padding:14px 16px calc(16px + env(safe-area-inset-bottom)); max-height:66vh; overflow-y:auto; box-shadow:0 -8px 30px rgba(0,0,0,.5); }
+  .pol-obs-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .pol-obs-h{ font-size:12px; font-weight:800; color:#999; text-transform:uppercase; letter-spacing:.5px; }
+  .pol-obs-x{ background:none; border:none; font-size:18px; cursor:pointer; color:#666; }
+  .pol-obs-grp{ font-size:10px; font-weight:800; color:#1a1a1a; text-transform:uppercase; letter-spacing:.4px; margin:12px 0 6px; padding-bottom:3px; border-bottom:1.5px solid #FFD008; }
+  .pol-obs-row{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:6px; }
+  .pol-chip{ padding:6px 13px; border-radius:20px; border:1.5px solid #ddd; font-size:12px; font-weight:600; background:#fafafa; color:#333; cursor:pointer; user-select:none; }
+  .pol-chip.active{ background:#FFD008; border-color:#FFD008; color:#000; }
+  #pol-note{ width:100%; min-height:70px; border:1.5px solid #e3e3e0; border-radius:10px; padding:10px; font-family:inherit; font-size:13px; resize:vertical; box-sizing:border-box; margin-top:8px; }
+  .pol-obs-save{ width:100%; margin-top:12px; background:#FFD008; color:#000; border:none; border-radius:10px; padding:13px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <button class="btn-back" onclick="tornaPaziente()">← Torna</button>
+    <span class="nav-title" id="nav-title">Disegno Posturale</span>
+    <span class="nav-status" id="nav-status"></span>
+  </div>
+
+  <div id="canvas-wrap">
+    <img id="bg-img" alt="foto posturale">
+    <canvas id="draw-canvas"></canvas>
+    <div id="fp-dot"></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="t-group">
+      <button class="t-btn active" id="btn-h" onclick="setMode('h')" title="Orizzontale">━</button>
+      <button class="t-btn" id="btn-v" onclick="setMode('v')" title="Verticale">┃</button>
+      <button class="t-btn" id="btn-f" onclick="setMode('f')" title="Libera">╱</button>
+      <button class="t-btn" id="btn-p" onclick="setMode('p')" title="Punto">●</button>
+    </div>
+    <div class="divider"></div>
+    <div class="t-group">
+      <div class="c-dot active" id="c-white"  style="background:#fff"     onclick="setColor('#ffffff')"></div>
+      <div class="c-dot"        id="c-yellow" style="background:#FFD008"  onclick="setColor('#FFD008')"></div>
+      <div class="c-dot"        id="c-green"  style="background:#00C853"  onclick="setColor('#00C853')"></div>
+      <div class="c-dot"        id="c-red"    style="background:#e53935"  onclick="setColor('#e53935')"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="t-actions">
+      <button class="t-act" onclick="annulla()" title="Annulla ultima">↩ Annulla</button>
+      <button class="t-act t-act-reset" onclick="cancellaRipristina()" title="Cancella tutto e ripristina">🗑 Reset</button>
+      <button class="t-act t-act-save" onclick="salva()">💾 Salva</button>
+      <button class="t-act" onclick="analizzaPostura()" title="Analisi posturale AI (PRO)">✨ Analizza postura</button>
+      <button class="t-act" onclick="toggleCriteri()" title="Mostra/nascondi criteri di normalita">📐 Criteri</button>
+      <button class="t-act" id="pol-obs-btn" onclick="polToggleObs()" title="Osservazioni e note">📝 Osserva</button>
+      <button class="t-act t-act-export" onclick="esporta()">📤 Esporta</button>
+    </div>
+  </div>
+
+  <div id="pol-obs-panel">
+    <div class="pol-obs-inner">
+      <div class="pol-obs-head">
+        <span class="pol-obs-h">Osservazioni</span>
+        <button class="pol-obs-x" onclick="polToggleObs()">✕</button>
+      </div>
+      <div id="pol-obs-chips"></div>
+      <textarea id="pol-note" placeholder="Note libere su questa foto..."></textarea>
+      <button class="pol-obs-save" onclick="salva(); polToggleObs()">Salva osservazioni e note</button>
+    </div>
+  </div>
+  <script>
+  window._polObs = [];
+  window.polToggleObs = function(){ var p=document.getElementById('pol-obs-panel'); if(p) p.classList.toggle('open'); };
+  window.polToggleObsChip = function(el){ var v=el.getAttribute('data-v'); var i=window._polObs.indexOf(v); if(i>=0){ window._polObs.splice(i,1); el.classList.remove('active'); } else { window._polObs.push(v); el.classList.add('active'); } };
+  function _polEsc(x){ return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+  window.polRenderObs = function(tipo){
+    var box=document.getElementById('pol-obs-chips'); if(!box) return;
+    var groups=(window.ossGruppiPerTipo? window.ossGruppiPerTipo(tipo): null);
+    if(!groups){ box.innerHTML=''; return; }
+    var html='';
+    for(var g=0; g<groups.length; g++){
+      html+='<div class="pol-obs-grp">'+_polEsc(groups[g].g)+'</div><div class="pol-obs-row">';
+      var its=groups[g].items||[];
+      for(var i=0;i<its.length;i++){ var v=_polEsc(its[i]); html+='<span class="pol-chip" data-v="'+v+'" onclick="polToggleObsChip(this)">'+v+'</span>'; }
+      html+='</div>';
+    }
+    box.innerHTML=html;
+  };
+  window.polRestoreObs = function(ann){
+    window._polObs = (ann && Array.isArray(ann.osservazioni)) ? ann.osservazioni.slice() : [];
+    var chips=document.querySelectorAll('#pol-obs-chips .pol-chip');
+    for(var i=0;i<chips.length;i++){ var v=chips[i].getAttribute('data-v'); chips[i].classList.toggle('active', window._polObs.indexOf(v)>=0); }
+    var nt=document.getElementById('pol-note'); if(nt) nt.value=(ann && ann.note)?ann.note:'';
+  };
+  </script>
+  <script src="utils-premium.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    const params    = new URLSearchParams(location.search)
+    const patientId = params.get('id')
+    const fotoSlot  = params.get('foto')
+    const vpId      = params.get('vp')   // id record visit_photos (foto di visita)
+    let _vpRecord   = null               // record visit_photos caricato
+
+    const canvas = document.getElementById('draw-canvas')
+    const ctx    = canvas.getContext('2d')
+    const bgImg  = document.getElementById('bg-img')
+    const fpDot  = document.getElementById('fp-dot')
+    const wrap   = document.getElementById('canvas-wrap')
+
+    let patient    = null
+    let mode       = 'h'
+    let color      = '#ffffff'
+    let lines      = []
+    let firstPoint = null
+    let idealLines = []      // criteri di normalita (overlay, NON salvati)
+    let criteriOn  = false   // toggle criteri di normalita
+    let userIsPremium = false
+
+    // --- Coordinate normalization (0–1 range for device independence) ---
+
+    function linesToJSON() {
+      const cw = canvas.width, ch = canvas.height
+      return {
+        cw, ch,
+        lines: lines.map(l => {
+          if (l.type === 'point') {
+            return { type: 'point', nx: l.x / cw, ny: l.y / ch, color: l.color, r: l.r }
+          } else {
+            return { type: 'line', lt: l.lt, nx1: l.x1/cw, ny1: l.y1/ch, nx2: l.x2/cw, ny2: l.y2/ch, color: l.color, lw: l.lw }
+          }
+        })
+      }
+    }
+
+    function linesFromJSON(stored) {
+      const cw = canvas.width, ch = canvas.height
+      const arr = Array.isArray(stored) ? stored : (stored.lines || [])
+      return arr.map(l => {
+        if (l.type === 'point') {
+          return { type: 'point', x: l.nx * cw, y: l.ny * ch, color: l.color, r: l.r }
+        } else {
+          return { type: 'line', lt: l.lt, x1: l.nx1*cw, y1: l.ny1*ch, x2: l.nx2*cw, y2: l.ny2*ch, color: l.color, lw: l.lw }
+        }
+      })
+    }
+
+    // --- Init ---
+
+    async function init() {
+      console.log('[disegno] patientId:', patientId, '| fotoSlot:', fotoSlot)
+      if (!patientId || (!fotoSlot && !vpId)) { alert('Parametri URL mancanti'); return }
+
+      const { data: { session } } = await _supabase.auth.getSession()
+      console.log('[disegno] session:', session ? session.user.email : null)
+      if (!session) { window.location.href = 'login.html'; return }
+
+      try {
+        const r = await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
+        userIsPremium = !!(r && r.isPremium)
+      } catch(e) { console.log('[disegno] check premium fallito:', e); userIsPremium = false }
+      console.log('[disegno] userIsPremium:', userIsPremium)
+
+      const { data: p, error } = await _supabase
+        .from('patients').select('*').eq('id', patientId).maybeSingle()
+      console.log('[disegno] query result — data:', p, '| error:', error)
+      if (error || !p) { alert('Paziente non trovato: ' + (error ? error.message : 'nessun dato')); return }
+      patient = p
+
+      let src = null
+      let savedAnnot = null
+      let labelTxt = ''
+
+      if (vpId) {
+        // FOTO DI VISITA: carica da visit_photos + Storage (signed URL)
+        const { data: vp, error: vpErr } = await _supabase
+          .from('visit_photos').select('*').eq('id', vpId).maybeSingle()
+        if (vpErr || !vp) { alert('Foto di visita non trovata.'); tornaPaziente(); return }
+        _vpRecord = vp
+        if (vp.storage_path) {
+          const { data: su } = await _supabase.storage.from('clinical-docs').createSignedUrl(vp.storage_path, 7200)
+          src = su && su.signedUrl ? su.signedUrl : null
+        }
+        if (!src) { alert('Immagine non disponibile.'); tornaPaziente(); return }
+        labelTxt = (vp.tipo || 'foto').replace(/_/g, ' ')
+        savedAnnot = vp.annotazioni || null
+      } else {
+        // FOTO INIZIALE PAZIENTE: da patients.foto_url
+        let urls = {}
+        try { urls = JSON.parse(p.foto_url || '{}') } catch(e) {}
+        src = urls[fotoSlot]
+        if (!src) { alert('Foto non trovata per slot: ' + fotoSlot); tornaPaziente(); return }
+        labelTxt = fotoSlot.replace(/-/g, ' ')
+        let annotazioni = {}
+        try { annotazioni = JSON.parse(p.foto_annotazioni || '{}') } catch(e) {}
+        savedAnnot = annotazioni[fotoSlot] || null
+      }
+
+      document.getElementById('nav-title').textContent =
+        p.nome + ' ' + p.cognome + ' — ' + labelTxt
+
+      bgImg.onload = () => {
+        syncCanvas()
+        if (savedAnnot) {
+          const arr = Array.isArray(savedAnnot) ? savedAnnot : (savedAnnot.lines || [])
+          if (arr.length > 0) lines = linesFromJSON(savedAnnot)
+        }
+        redraw()
+        if (vpId && window.polRenderObs) { window.polRenderObs(_vpRecord ? _vpRecord.tipo : ''); window.polRestoreObs(savedAnnot) }
+        var _ob=document.getElementById('pol-obs-btn'); if(_ob) _ob.style.display = vpId ? '' : 'none'
+      }
+      // foto di visita = signed URL cross-origin: serve crossOrigin per far leggere l'immagine a MediaPipe/canvas
+      if (vpId) bgImg.crossOrigin = 'anonymous'
+      bgImg.src = src
+    }
+
+    function syncCanvas() {
+      const r = wrap.getBoundingClientRect()
+      canvas.width  = r.width
+      canvas.height = r.height
+    }
+
+    function tornaPaziente() {
+      // da visita: torna alla pagina precedente (la visita). Da scheda paziente: vai al paziente
+      if (vpId && history.length > 1) { history.back(); return }
+      window.location.href = 'paziente.html?id=' + patientId
+    }
+
+    function setMode(m) {
+      mode = m
+      resetFirst()
+      ;['h', 'v', 'f', 'p'].forEach(k =>
+        document.getElementById('btn-' + k).classList.toggle('active', k === m))
+    }
+
+    function setColor(c) {
+      color = c
+      resetFirst()
+      const map = { '#ffffff': 'c-white', '#FFD008': 'c-yellow', '#00C853': 'c-green', '#e53935': 'c-red' }
+      Object.values(map).forEach(id => document.getElementById(id).classList.remove('active'))
+      if (map[c]) document.getElementById(map[c]).classList.add('active')
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect()
+      const src  = e.changedTouches ? e.changedTouches[0] : (e.touches ? e.touches[0] : e)
+      return {
+        x: (src.clientX - rect.left) * (canvas.width  / rect.width),
+        y: (src.clientY - rect.top)  * (canvas.height / rect.height)
+      }
+    }
+
+    function handleTap(e) {
+      e.preventDefault()
+      const pos = getPos(e)
+
+      if (mode === 'p') {
+        lines.push({ type: 'point', x: pos.x, y: pos.y, color, r: 8 })
+        redraw()
+        return
+      }
+
+      if (!firstPoint) {
+        firstPoint = pos
+        const cRect = canvas.getBoundingClientRect()
+        const wRect = wrap.getBoundingClientRect()
+        fpDot.style.left = (cRect.left - wRect.left + pos.x * (cRect.width  / canvas.width))  + 'px'
+        fpDot.style.top  = (cRect.top  - wRect.top  + pos.y * (cRect.height / canvas.height)) + 'px'
+        fpDot.style.display = 'block'
+      } else {
+        const p1 = firstPoint
+        let lt, x1, y1, x2, y2
+        if (mode === 'h') {
+          lt = 'h'; x1 = 0; y1 = p1.y; x2 = canvas.width;  y2 = p1.y
+        } else if (mode === 'v') {
+          lt = 'v'; x1 = p1.x; y1 = 0; x2 = p1.x; y2 = canvas.height
+        } else {
+          lt = 'f'; x1 = p1.x; y1 = p1.y; x2 = pos.x; y2 = pos.y
+        }
+        lines.push({ type: 'line', lt, x1, y1, x2, y2, color, lw: 2.5 })
+        resetFirst()
+        redraw()
+      }
+    }
+
+    function resetFirst() {
+      firstPoint = null
+      fpDot.style.display = 'none'
+    }
+
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      if (criteriOn) {
+        idealLines.forEach(l => {
+          if (l.type === 'point') { ctx.beginPath(); ctx.fillStyle = l.color; ctx.arc(l.x, l.y, l.r, 0, Math.PI*2); ctx.fill() }
+          else { ctx.beginPath(); ctx.strokeStyle = l.color; ctx.lineWidth = l.lw; ctx.lineCap = 'round'; ctx.moveTo(l.x1,l.y1); ctx.lineTo(l.x2,l.y2); ctx.stroke() }
+        })
+      }
+      lines.forEach(l => {
+        if (l.type === 'point') {
+          ctx.beginPath()
+          ctx.fillStyle = l.color
+          ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2)
+          ctx.fill()
+        } else if (l.type === 'text') {
+          ctx.font = '600 ' + (l.size || 14) + "px 'Montserrat', sans-serif"
+          ctx.textAlign = l.align || 'left'
+          ctx.textBaseline = 'middle'
+          ctx.lineWidth = 2.5
+          ctx.lineJoin = 'round'
+          ctx.strokeStyle = 'rgba(0,0,0,0.55)'
+          ctx.strokeText(l.text, l.x, l.y)
+          ctx.fillStyle = l.color
+          ctx.fillText(l.text, l.x, l.y)
+        } else {
+          ctx.beginPath()
+          ctx.strokeStyle = l.color
+          ctx.lineWidth   = l.lw
+          ctx.lineCap     = 'round'
+          ctx.moveTo(l.x1, l.y1)
+          ctx.lineTo(l.x2, l.y2)
+          ctx.stroke()
+        }
+      })
+    }
+
+    function annulla() {
+      if (lines.length) { lines.pop(); resetFirst(); redraw() }
+    }
+
+    // --- Save (JSON only, never overwrites original photo) ---
+
+    async function salva() {
+      if (!patient) return
+      const status = document.getElementById('nav-status')
+      status.textContent = '⏳ Salvo...'
+
+      let annotazioni = {}
+      if (vpId) {
+        // salva su visit_photos.annotazioni (jsonb)
+        const _ann = linesToJSON()
+        _ann.osservazioni = (window._polObs || []).slice()
+        var _pn = document.getElementById('pol-note'); _ann.note = _pn ? _pn.value : ''
+        const { error: e1 } = await _supabase
+          .from('visit_photos').update({ annotazioni: _ann }).eq('id', vpId)
+        const st = document.getElementById('nav-status')
+        if (st) st.textContent = e1 ? 'Errore salvataggio' : 'Salvato'
+        return
+      }
+      try { annotazioni = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) {}
+      annotazioni[fotoSlot] = linesToJSON()
+      patient.foto_annotazioni = JSON.stringify(annotazioni)
+
+      const { error } = await _supabase
+        .from('patients').update({ foto_annotazioni: patient.foto_annotazioni }).eq('id', patientId)
+
+      status.textContent = error ? '❌ Errore' : '✓ Salvato'
+      setTimeout(() => { status.textContent = '' }, 2500)
+    }
+
+    // --- Reset: clear canvas AND delete saved annotations from DB ---
+
+    async function cancellaRipristina() {
+      lines = []
+      resetFirst()
+      redraw()
+
+      if (!patient) return
+      let annotazioni = {}
+      try { annotazioni = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) {}
+      delete annotazioni[fotoSlot]
+      patient.foto_annotazioni = JSON.stringify(annotazioni)
+
+      await _supabase
+        .from('patients').update({ foto_annotazioni: patient.foto_annotazioni }).eq('id', patientId)
+    }
+
+    // --- Export: download composite PNG without saving to DB ---
+
+    // --- Analisi posturale AI (overlay) ---
+    async function analizzaPostura() {
+      if (!userIsPremium) {
+        alert('Funzione PRO. Disponibile con il piano Premium.')
+        return
+      }
+      if (!bgImg.naturalWidth) { alert('Foto non pronta.'); return }
+      const status = document.getElementById('nav-status')
+      status.textContent = 'Analizzo...'
+      let mod
+      try { mod = await import('./js/postural-overlay.js') }
+      catch(e) { status.textContent = ''; alert('Errore caricamento motore: ' + e.message); return }
+
+      const viewKey = vpId && _vpRecord ? _vpRecord.tipo : fotoSlot
+      const res = await mod.generateOverlay(bgImg, viewKey)
+      if (!res.ok) { status.textContent = ''; alert(res.message); return }
+
+      const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
+      const cw = canvas.width, ch = canvas.height
+      const imgA = nw / nh, wrapA = cw / ch
+      let drawW, drawH, ox, oy
+      if (imgA > wrapA) { drawW = cw; drawH = cw / imgA; oy = (ch - drawH) / 2; ox = 0 }
+      else { drawH = ch; drawW = ch * imgA; ox = (cw - drawW) / 2; oy = 0 }
+      const fx = drawW / nw, fy = drawH / nh
+      const conv = (l) => {
+        if (l.type === 'point') return { type:'point', x: ox + l.x*fx, y: oy + l.y*fy, color:l.color, r:l.r }
+        if (l.type === 'text')  return { type:'text', x: ox + l.x*fx, y: oy + l.y*fy, color:l.color, text:l.text, size:l.size, align:l.align }
+        return { type:'line', x1: ox + l.x1*fx, y1: oy + l.y1*fy, x2: ox + l.x2*fx, y2: oy + l.y2*fy, color:l.color, lw:l.lw }
+      }
+
+      res.lines.forEach(l => lines.push(conv(l)))
+      idealLines = res.idealLines.map(conv)
+      redraw()
+      let msg = 'Analisi: ' + res.message
+      if (res.angles && res.angles.spalle != null) msg += ' (Spalle ' + res.angles.spalle + 'deg, Bacino ' + res.angles.bacino + 'deg)'
+      status.textContent = msg
+    }
+
+    function toggleCriteri() {
+      criteriOn = !criteriOn
+      redraw()
+    }
+
+    function esporta() {
+      if (!bgImg.naturalWidth) return
+      const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
+      const cw = canvas.width,       ch = canvas.height
+
+      const imgA = nw / nh, wrapA = cw / ch
+      let drawW, drawH, ox, oy
+      if (imgA > wrapA) {
+        drawW = cw; oy = (ch - (drawH = cw / imgA)) / 2; ox = 0
+      } else {
+        drawH = ch; ox = (cw - (drawW = ch * imgA)) / 2; oy = 0
+      }
+      const sx = nw / drawW, sy = nh / drawH
+
+      const off  = document.createElement('canvas')
+      off.width  = nw; off.height = nh
+      const octx = off.getContext('2d')
+      octx.drawImage(bgImg, 0, 0, nw, nh)
+
+      if (criteriOn) {
+        idealLines.forEach(l => {
+          if (l.type === 'point') {
+            octx.beginPath(); octx.fillStyle = l.color
+            octx.arc((l.x - ox) * sx, (l.y - oy) * sy, Math.max(6, l.r * sx), 0, Math.PI * 2); octx.fill()
+          } else {
+            octx.beginPath(); octx.strokeStyle = l.color; octx.lineWidth = Math.max(2, l.lw * sx); octx.lineCap = 'round'
+            octx.moveTo((l.x1 - ox) * sx, (l.y1 - oy) * sy); octx.lineTo((l.x2 - ox) * sx, (l.y2 - oy) * sy); octx.stroke()
+          }
+        })
+      }
+
+      lines.forEach(l => {
+        if (l.type === 'point') {
+          octx.beginPath()
+          octx.fillStyle = l.color
+          octx.arc((l.x - ox) * sx, (l.y - oy) * sy, Math.max(6, l.r * sx), 0, Math.PI * 2)
+          octx.fill()
+        } else if (l.type === 'text') {
+          const fs = Math.max(13, (l.size || 14) * sx)
+          octx.font = '600 ' + fs + "px 'Montserrat', sans-serif"
+          octx.textAlign = l.align || 'left'
+          octx.textBaseline = 'middle'
+          octx.lineWidth = Math.max(2, 2.5 * sx)
+          octx.lineJoin = 'round'
+          octx.strokeStyle = 'rgba(0,0,0,0.55)'
+          octx.strokeText(l.text, (l.x - ox) * sx, (l.y - oy) * sy)
+          octx.fillStyle = l.color
+          octx.fillText(l.text, (l.x - ox) * sx, (l.y - oy) * sy)
+        } else {
+          octx.beginPath()
+          octx.strokeStyle = l.color
+          octx.lineWidth   = Math.max(3, l.lw * sx)
+          octx.lineCap     = 'round'
+          if (l.lt === 'h') {
+            octx.moveTo(0,  (l.y1 - oy) * sy)
+            octx.lineTo(nw, (l.y1 - oy) * sy)
+          } else if (l.lt === 'v') {
+            octx.moveTo((l.x1 - ox) * sx, 0)
+            octx.lineTo((l.x1 - ox) * sx, nh)
+          } else {
+            octx.moveTo((l.x1 - ox) * sx, (l.y1 - oy) * sy)
+            octx.lineTo((l.x2 - ox) * sx, (l.y2 - oy) * sy)
+          }
+          octx.stroke()
+        }
+      })
+
+      const nomePaziente = patient ? (patient.nome + '-' + patient.cognome).replace(/\s+/g, '-') : 'paziente'
+      const filename = nomePaziente + '-' + fotoSlot + '.png'
+
+      off.toBlob(blob => {
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = filename
+        link.href = url
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+      }, 'image/png')
+    }
+
+    canvas.addEventListener('touchstart', handleTap, { passive: false })
+    canvas.addEventListener('click', handleTap)
+    window.addEventListener('resize', () => {
+      const saved = linesToJSON()
+      syncCanvas()
+      lines = linesFromJSON(saved)
+      redraw()
+    })
+
+    init()
+  </script>
+
+</body>
+</html>
