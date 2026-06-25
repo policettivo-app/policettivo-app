@@ -476,23 +476,18 @@
 
     // --- Export: download composite PNG without saving to DB ---
 
-    // --- Analisi posturale AI (overlay) ---
-    async function analizzaPostura() {
-      if (!userIsPremium) {
-        alert('Funzione PRO. Disponibile con il piano Premium.')
-        return
-      }
-      if (!bgImg.naturalWidth) { alert('Foto non pronta.'); return }
+    // --- Motore overlay condiviso: ritorna {lines, idealLines, angles, message} in coord. canvas, o null ---
+    async function _runOverlay() {
+      if (!userIsPremium) { alert('Funzione PRO. Disponibile con il piano Premium.'); return null }
+      if (!bgImg.naturalWidth) { alert('Foto non pronta.'); return null }
       const status = document.getElementById('nav-status')
       status.textContent = 'Analizzo...'
       let mod
       try { mod = await import('./js/postural-overlay.js') }
-      catch(e) { status.textContent = ''; alert('Errore caricamento motore: ' + e.message); return }
-
+      catch(e) { status.textContent = ''; alert('Errore caricamento motore: ' + e.message); return null }
       const viewKey = vpId && _vpRecord ? _vpRecord.tipo : fotoSlot
       const res = await mod.generateOverlay(bgImg, viewKey)
-      if (!res.ok) { status.textContent = ''; alert(res.message); return }
-
+      if (!res.ok) { status.textContent = ''; alert(res.message); return null }
       const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
       const cw = canvas.width, ch = canvas.height
       const imgA = nw / nh, wrapA = cw / ch
@@ -505,20 +500,28 @@
         if (l.type === 'text')  return { type:'text', x: ox + l.x*fx, y: oy + l.y*fy, color:l.color, text:l.text, size:l.size, align:l.align }
         return { type:'line', x1: ox + l.x1*fx, y1: oy + l.y1*fy, x2: ox + l.x2*fx, y2: oy + l.y2*fy, color:l.color, lw:l.lw }
       }
-
-      res.lines.forEach(l => lines.push(conv(l)))
-      idealLines = res.idealLines.map(conv)
-      redraw()
-      let msg = 'Analisi: ' + res.message
-      if (res.angles && res.angles.spalle != null) msg += ' (Spalle ' + res.angles.spalle + 'deg, Bacino ' + res.angles.bacino + 'deg)'
-      status.textContent = msg
+      return { lines: res.lines.map(conv), idealLines: res.idealLines.map(conv), angles: res.angles, message: res.message }
     }
 
+    // --- ANALIZZA POSTURA: repere + filo a piombo + etichette (NON tocca i criteri) ---
+    async function analizzaPostura() {
+      const r = await _runOverlay()
+      if (!r) return
+      r.lines.forEach(l => lines.push(l))
+      idealLines = r.idealLines
+      redraw()
+      let msg = 'Analisi: ' + r.message
+      if (r.angles && r.angles.spalle != null) msg += ' (Spalle ' + r.angles.spalle + 'deg, Bacino ' + r.angles.bacino + 'deg)'
+      document.getElementById('nav-status').textContent = msg
+    }
+
+    // --- CRITERI: mostra SOLO la griglia/assi di normalita, indipendente da Analizza postura ---
     async function toggleCriteri() {
-      // I criteri di normalita esistono solo dopo l'analisi: se mancano, eseguila ora.
       if (!criteriOn && idealLines.length === 0) {
-        await analizzaPostura()
-        if (idealLines.length === 0) return   // analisi non riuscita o annullata
+        const r = await _runOverlay()
+        if (!r) return
+        idealLines = r.idealLines        // solo i criteri, NESSUN repere/etichetta
+        document.getElementById('nav-status').textContent = ''
       }
       criteriOn = !criteriOn
       redraw()
