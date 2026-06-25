@@ -74,4 +74,44 @@
   w.OSS_PIANI = OSS_PIANI;
   w.ossPianoForTipo = ossPianoForTipo;
   w.ossGruppiPerTipo = function (tipo) { return OSS_PIANI[ossPianoForTipo(tipo)] || OSS_PIANI.generale; };
+
+  // Etichetta leggibile del piano per il testo AI
+  var PIANO_LABEL = {
+    frontale_ant: 'Frontale anteriore', frontale_post: 'Frontale posteriore',
+    sagittale_sx: 'Sagittale sinistro', sagittale_dx: 'Sagittale destro',
+    podoscopia: 'Podoscopia', capo: 'Capo', stomato: 'Stomatognatico',
+    occhi: 'Occhi', generale: 'Generale'
+  };
+
+  // Raccoglie TUTTE le osservazioni+note delle foto del paziente e le formatta per il prompt AI.
+  // Ritorna stringa vuota se non c'è nulla.
+  w.polRaccogliOsservazioniVisite = async function (supabase, patientId) {
+    try {
+      if (!supabase || !patientId) return '';
+      var vr = await supabase.from('visits').select('id, tipo, data_visita').eq('patient_id', patientId);
+      var visits = vr && vr.data;
+      if (!visits || !visits.length) return '';
+      var ids = visits.map(function (v) { return v.id; });
+      var pr = await supabase.from('visit_photos').select('visit_id, tipo, annotazioni').in('visit_id', ids);
+      var photos = pr && pr.data;
+      if (!photos || !photos.length) return '';
+      var righe = [];
+      for (var i = 0; i < photos.length; i++) {
+        var ph = photos[i];
+        var ann = ph.annotazioni;
+        if (typeof ann === 'string') { try { ann = JSON.parse(ann); } catch (e) { ann = null; } }
+        if (!ann) continue;
+        var oss = Array.isArray(ann.osservazioni) ? ann.osservazioni : [];
+        var note = ann.note || '';
+        if (!oss.length && !note) continue;
+        var piano = PIANO_LABEL[ossPianoForTipo(ph.tipo)] || (ph.tipo || '').replace(/_/g, ' ');
+        var parts = [];
+        if (oss.length) parts.push(oss.join(', '));
+        if (note) parts.push('Note: ' + note);
+        righe.push('- ' + piano + ' (' + (ph.tipo || '').replace(/_/g, ' ') + '): ' + parts.join('. '));
+      }
+      if (!righe.length) return '';
+      return 'OSSERVAZIONI POSTURALI RILEVATE DAL FISIOTERAPISTA (annotate sulle foto):\n' + righe.join('\n');
+    } catch (e) { return ''; }
+  };
 })(window);
