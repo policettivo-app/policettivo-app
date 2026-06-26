@@ -7,9 +7,14 @@
   <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="policettivo-globals.css">
+  <link rel="stylesheet" href="css/policettivo-ui.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="utils-premium.js"></script>
+  <script src="js/osservazioni.js"></script>
   <script src="utils-ai.js"></script>
+  <script src="js/foto-actions.js"></script>
+  <script src="js/foto-paziente.js"></script>
+  <script src="js/hub.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
@@ -584,18 +589,21 @@
   </div>
 
   <div class="main ds-page">
-    <div class="patient-header ds-card">
-      <div>
-        <div class="patient-name" id="ph-nome">Caricamento...</div>
-        <div class="patient-sub" id="ph-sub"></div>
+    <div class="patient-header ds-card pol-stack">
+      <div class="pol-phead-id">
+        <div class="pol-phead-idleft">
+          <span class="pol-badge-cfg cep" id="ph-config">CEP</span>
+          <span class="pol-phead-name" id="ph-nome">Caricamento...</span>
+          <span class="patient-sub" id="ph-sub" style="display:none"></span>
+        </div>
+        <button class="pol-phead-chev" onclick="document.getElementById('sez-anagrafica')?.scrollIntoView({behavior:'smooth',block:'start'})" aria-label="Dettagli paziente">&rsaquo;</button>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div id="ph-config"></div>
-        <button onclick="window.location.href='diario.html?pid=' + patientId" style="background:#fff;border:1.5px solid #ddd;color:#000;padding:8px 16px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">📋 Diario Sedute</button>
-        <button onclick="apptOpen()" style="background:#fff;border:1.5px solid #ddd;color:#000;padding:8px 16px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">📅 Appuntamento</button>
-        <button onclick="window.location.href='lettera-ai.html?paziente=' + patientId" style="background:#fff;border:1.5px solid #FFD008;color:#000;padding:8px 16px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">✨ Lettera AI</button>
-        <button onclick="vaiAutotestPro()" style="background:#fff;border:1.5px solid #FFD008;color:#000;padding:8px 16px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">🎯 Autotest</button>
-        <button class="btn-nuova-visita" onclick="openTipoVisitaPaz()">➕ Nuova visita</button>
+      <div class="pol-phead-grid">
+        <button class="pol-act" onclick="window.location.href='diario.html?pid=' + patientId"><span class="pol-act-ico">📋</span><span class="pol-act-lbl">Diario</span></button>
+        <button class="pol-act" onclick="apptOpen()"><span class="pol-act-ico">📅</span><span class="pol-act-lbl">Appunt.</span></button>
+        <button class="pol-act pol-act-ai" onclick="vaiAutotestPro()"><span class="pol-act-ico">🎯</span><span class="pol-act-lbl">Autotest</span></button>
+        <button class="pol-act pol-act-dark" onclick="window.location.href='lettera-ai.html?paziente=' + patientId"><span class="pol-act-ico">✨</span><span class="pol-act-lbl">Lettera AI</span></button>
+        <button class="pol-act pol-act-primary" onclick="openTipoVisitaPaz()"><span class="pol-act-ico">➕</span><span class="pol-act-lbl">Visita</span></button>
       </div>
     </div>
 
@@ -611,14 +619,13 @@
     </div>
 
     <!-- DATI ANAGRAFICI -->
-    <div class="section ds-card">
+    <div class="section ds-card" id="sez-anagrafica">
       <div class="section-header">
         <div class="section-title ds-section-title-line">Dati anagrafici</div>
         <div class="qa-group">
           <button class="btn-qa" onclick="toggleCartella(true)">📁 Cartella</button>
           <button class="btn-qa" onclick="apriComposizionePDF()">📄 PDF</button>
           <button class="btn-qa" onclick="document.getElementById('section-monitoraggio').scrollIntoView({behavior:'smooth',block:'start'})">📊 Monitoraggio</button>
-          <button class="btn-qa" onclick="apptOpen()">📅 Appuntamento</button>
           <button class="btn-edit" onclick="toggleModifica()">✏️ Modifica</button>
         </div>
       </div>
@@ -1379,9 +1386,9 @@
       if (patient.configurazione_default) {
         selectedConfig = patient.configurazione_default
         updateConfigUI()
-        document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + selectedConfig.toLowerCase() + '">' + selectedConfig + '</span>'
+        var _c=document.getElementById('ph-config'); _c.textContent=selectedConfig; _c.classList.remove('cep')
       } else {
-        document.getElementById('ph-config').innerHTML = '<span class="badge badge-none">Config. da definire</span>'
+        var _c=document.getElementById('ph-config'); _c.textContent='CEP'; _c.classList.add('cep')
       }
       if (patient.foto_url) {
         try {
@@ -1531,6 +1538,7 @@
     }
 
     let _fotoSourceSlot = null
+    window._polSetSlot = function(s){ _fotoSourceSlot = s }
 
     function triggerInput(id) {
       _fotoSourceSlot = id
@@ -1762,9 +1770,14 @@
     function showFotoPreview(slot, src) {
       const el = document.getElementById('slot-' + slot); if (!el) return
       el.classList.add('has-photo'); el.onclick = null
-      el.innerHTML = '<img src="' + src + '" alt="foto">' +
-        '<div class="foto-draw-btn" onclick="event.stopPropagation();window.location.href=\'disegno.html?id=' + patientId + '&foto=' + slot + '\'">✏️</div>' +
-        '<div class="foto-overlay" onclick="triggerInput(\'' + slot + '\')">Cambia</div>' +
+      var _bar = window.policettivoFotoBar ? window.policettivoFotoBar({
+        onIntero: "polFotoIntero('" + slot + "')",
+        onAnnota: "window.location.href='disegno.html?id=" + patientId + "&foto=" + slot + "'",
+        onLibreria: "polFotoLibreria('" + slot + "')",
+        onSostituisci: "triggerInput('" + slot + "')",
+        onElimina: "polFotoElimina('" + slot + "')"
+      }) : ''
+      el.innerHTML = '<img src="' + src + '" alt="foto">' + _bar +
         '<input type="file" id="input-' + slot + '" accept="image/*" style="display:none" onchange="handleFoto(\'' + slot + '\',this)">'
       if (slot === 'prima-sx' || slot === 'prima-dx') avviaAIHintPrima()
     }
@@ -1896,7 +1909,7 @@
 
     async function selectConfig(val) {
       selectedConfig = val; updateConfigUI()
-      document.getElementById('ph-config').innerHTML = '<span class="badge badge-' + val.toLowerCase() + '">' + val + '</span>'
+      var _c2=document.getElementById('ph-config'); _c2.textContent=val; _c2.classList.remove('cep')
       const ind = document.getElementById('saving-config'); ind.style.display = 'block'
       await _supabase.from('patients').update({ configurazione_default: val }).eq('id', patientId)
       setTimeout(() => { ind.style.display = 'none' }, 2000)
@@ -2517,7 +2530,9 @@
 
     async function avviaAnalisiAI() {
       if (!window.isPremium && _pazAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
-      if (documentiCaricati.length === 0) { alert('Nessun documento da analizzare.'); return }
+      let _ossTxt = ''
+      try { if (window.polRaccogliOsservazioniVisite) _ossTxt = await window.polRaccogliOsservazioniVisite(_supabase, patientId) } catch(e) {}
+      if (documentiCaricati.length === 0 && !_ossTxt) { alert('Nessun documento o osservazione da analizzare.'); return }
       const loading = document.getElementById('ai-loading')
       const reportBox = document.getElementById('ai-report-box')
       reportBox.classList.remove('visible')
@@ -2530,7 +2545,7 @@
       const nomePaz = patient.nome + ' ' + patient.cognome
       const problema = patient.problema_principale || 'non specificato'
       const note = patient.note_cliniche || 'nessuna'
-      const prompt = 'Sei un assistente per fisioterapisti. Analizza brevemente i documenti del paziente ' + nomePaz + ' (problema: ' + problema + '). Documenti: ' + elencoDoc + '. Rispondi in max 300 parole con: RED FLAG (elenco puntato), CONDIZIONI DA RISPETTARE (elenco puntato), ORDINE DI INTERVENTO (3 fasi max). Niente intro, niente conclusioni, solo i punti essenziali.'
+      const prompt = 'Sei un assistente per fisioterapisti. Redigi una sintesi clinica globale del paziente ' + nomePaz + ' (problema: ' + problema + ').' + (elencoDoc ? ' Documenti clinici: ' + elencoDoc : '') + (_ossTxt ? '\n\n' + _ossTxt : '') + '\n\nRispondi in max 350 parole con: RED FLAG (elenco puntato), CONDIZIONI DA RISPETTARE (elenco puntato), QUADRO POSTURALE (sintesi delle osservazioni rilevate dal fisioterapista, se presenti), ORDINE DI INTERVENTO (3 fasi max). Niente intro, niente conclusioni, solo i punti essenziali.'
       try {
         const { data: { session: _aiSDoc } } = await _supabase.auth.getSession()
         const response = await fetch('/api/ai-analisi', {
@@ -2906,10 +2921,10 @@
       const noteClinica = patient?.note_cliniche || ''
 
       const [visitRes, seduteRes, noteRes, protocolloRes] = await Promise.all([
-        _supabase.from('visite').select('data_visita,motivo,diagnosi,trattamento,note,vas_score').eq('patient_id', pid).order('data_visita', { ascending: false }).limit(8),
-        _supabase.from('therapy_sessions').select('data_seduta,tecniche,intensita,note,protocollo_prossima,vas_pre,vas_post').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(8),
+        _supabase.from('visits').select('data_visita,tipo,motivo_visita,diagnosi_funzionale,note_osservazionali,vas_inizio,vas_fine').eq('patient_id', pid).order('data_visita', { ascending: false }).limit(8),
+        _supabase.from('therapy_sessions').select('data_seduta,protocollo_seduta,note_cliniche,vas_inizio,vas_fine').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(8),
         _supabase.from('clinical_notes').select('created_at,title,content').eq('patient_id', pid).order('created_at', { ascending: false }).limit(5),
-        _supabase.from('patient_protocols').select('nome,descrizione,obiettivi,created_at').eq('patient_id', pid).order('created_at', { ascending: false }).limit(1)
+        _supabase.from('patient_protocols').select('*').eq('patient_id', pid).order('created_at', { ascending: false }).limit(1)
       ])
 
       const docsSection = documentiCaricati?.length
@@ -2918,13 +2933,17 @@
 
       const obsMap = { 'scapolare-prima': 'Scapolare anteriore', 'scapolare-dopo': 'Scapolare posteriore', 'piede-morfologia': 'Morfologia piede', 'piede-asse': 'Asse piede', 'rotazione-sup': 'Rotazione superiore', 'inclinazione-capo': 'Inclinazione capo' }
       const obsLines = Object.entries(obsSelections || {}).filter(([,v]) => v).map(([k,v]) => `- ${obsMap[k]||k}: ${v}`)
-      const obsSection = obsLines.length ? obsLines.join('\n') : 'Nessuna osservazione posturale.'
+      let ossFotoTxt = ''
+      try { if (window.polRaccogliOsservazioniVisite) ossFotoTxt = (await window.polRaccogliOsservazioniVisite(_supabase, pid)) || '' } catch(e) {}
+      let obsSection = obsLines.join('\n')
+      if (ossFotoTxt) obsSection += (obsSection ? '\n\n' : '') + ossFotoTxt
+      if (!obsSection) obsSection = 'Nessuna osservazione posturale.'
 
       const proto = protocolloRes.data?.[0]
-      const protoSection = proto ? `${proto.nome || 'protocollo'}: ${proto.descrizione || ''} | Obiettivi: ${proto.obiettivi || 'n.d.'}` : 'Nessun protocollo attivo.'
+      const protoSection = proto ? `Protocollo dal ${(proto.created_at||'').slice(0,10) || 'n.d.'}: ${proto.configurazione_generale || 'configurazione non dettagliata'}` : 'Nessun protocollo attivo.'
 
-      const visitLines = visitRes.data?.map(v => `- ${v.data_visita}: motivo=${v.motivo||'—'}, diagnosi=${v.diagnosi||'—'}, trattamento=${v.trattamento||'—'}, VAS=${v.vas_score??'n.d.'}, note=${v.note||'—'}`) || []
-      const seduteLines = seduteRes.data?.map(s => `- ${s.data_seduta}: tecniche=${s.tecniche||'—'}, VAS prima=${s.vas_pre??'n.d.'} → dopo=${s.vas_post??'n.d.'}, note=${s.note||'—'}`) || []
+      const visitLines = visitRes.data?.map(v => `- ${v.data_visita}: tipo=${v.tipo||'—'}, motivo=${v.motivo_visita||'—'}, diagnosi=${v.diagnosi_funzionale||'—'}, VAS=${v.vas_inizio??'n.d.'}→${v.vas_fine??'n.d.'}, note=${v.note_osservazionali||'—'}`) || []
+      const seduteLines = seduteRes.data?.map(s => `- ${s.data_seduta}: protocollo=${s.protocollo_seduta||'—'}, VAS prima=${s.vas_inizio??'n.d.'} → dopo=${s.vas_fine??'n.d.'}, note=${s.note_cliniche||'—'}`) || []
       const noteLines = noteRes.data?.map(n => `- ${n.created_at?.slice(0,10)}: [${n.title||'senza titolo'}] ${n.content||'—'}`) || []
 
       const schemaJSON = `{"problema_principale":"...","elementi_documentali":"...","osservazioni_cliniche":"...","protocollo_attivo":"...","criticita":"...","evoluzione_clinica":"...","nota_finale":"..."}`
@@ -3706,13 +3725,12 @@ Campi:
   </script>
 
   <!-- BARRA AZIONI RAPIDE FISSA -->
-  <div style="position:fixed;bottom:0;left:0;right:0;background:#000;padding:12px 16px;display:flex;gap:8px;justify-content:center;z-index:999;box-shadow:0 -2px 12px rgba(0,0,0,0.3)">
-    <button onclick="window.location.href='monitoraggio.html?id='+patientId" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📊<span>Monitoraggio</span></button>
-    <button onclick="window.location.href='diario.html?pid='+patientId" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📋<span>Diario Sedute</span></button>
-    <button onclick="window.location.href='visite.html?id='+patientId" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📅<span>Visite</span></button>
-    <button onclick="window.location.href='assegna-protocollo.html?id='+patientId" style="flex:1;max-width:120px;background:#FFD008;border:none;color:#000;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">➕<span>Protocollo</span></button>
-    <button onclick="toggleCartella(true)" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">📁<span>Cartella</span></button>
-    <button onclick="apriModaleAIP()" style="flex:1;max-width:120px;background:#1a1a1a;border:1px solid #333;color:#fff;padding:10px 6px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">🤖<span>AI</span></button>
+  <div class="pol-bottombar">
+    <button class="pol-bnav" onclick="window.location.href='monitoraggio.html?id='+patientId"><span class="ico">📊</span><span>Monitoraggio</span></button>
+    <button class="pol-bnav" onclick="window.location.href='diario.html?pid='+patientId"><span class="ico">📋</span><span>Diario</span></button>
+    <button class="pol-hub-fab" onclick="polApriHub()" aria-label="Azioni rapide">+</button>
+    <button class="pol-bnav" onclick="window.location.href='visite.html?id='+patientId"><span class="ico">📅</span><span>Visite</span></button>
+    <button class="pol-bnav" onclick="toggleCartella(true)"><span class="ico">📁</span><span>Cartella</span></button>
   </div>
 
   <!-- Popup scelta sorgente foto -->
@@ -3885,5 +3903,20 @@ Campi:
   </div>
 </div>
 
+  <div class="pol-hub" id="pol-hub">
+    <div class="pol-hub-bg" onclick="polChiudiHub()"></div>
+    <div class="pol-hub-sheet">
+      <div class="pol-hub-handle"></div>
+      <div class="pol-hub-title">Azioni rapide</div>
+      <div class="pol-hub-grid">
+        <button class="pol-hub-btn" onclick="polChiudiHub();openTipoVisitaPaz()"><span class="ico">➕</span><span class="lbl">Nuova visita</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='assegna-protocollo.html?id='+patientId"><span class="ico">📋</span><span class="lbl">Protocollo</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();apptOpen()"><span class="ico">📅</span><span class="lbl">Appuntamento</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='lettera-ai.html?paziente='+patientId"><span class="ico">✨</span><span class="lbl">Lettera AI</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();vaiAutotestPro()"><span class="ico">🎯</span><span class="lbl">Autotest</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();apriModaleAIP()"><span class="ico">🤖</span><span class="lbl">Analisi AI</span></button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

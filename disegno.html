@@ -73,6 +73,43 @@
     .t-act-reset { color: #e53935; border-color: #3a1a1a; background: #1a1010; }
     .divider { width: 1px; height: 36px; background: #2a2a2a; flex-shrink: 0; }
   </style>
+  <script src="js/osservazioni.js"></script>
+  <style>
+  #pol-obs-panel{ position:fixed; left:0; right:0; bottom:0; z-index:99999; transform:translateY(100%); transition:transform .25s ease; }
+  #pol-obs-panel.open{ transform:translateY(0); }
+  .pol-obs-inner{ background:#fff; color:#1a1a1a; border-radius:18px 18px 0 0; padding:14px 16px calc(16px + env(safe-area-inset-bottom)); max-height:66vh; overflow-y:auto; box-shadow:0 -8px 30px rgba(0,0,0,.5); }
+  .pol-obs-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .pol-obs-h{ font-size:12px; font-weight:800; color:#999; text-transform:uppercase; letter-spacing:.5px; }
+  .pol-obs-x{ background:none; border:none; font-size:18px; cursor:pointer; color:#666; }
+  .pol-obs-grp{ font-size:10px; font-weight:800; color:#1a1a1a; text-transform:uppercase; letter-spacing:.4px; margin:12px 0 6px; padding-bottom:3px; border-bottom:1.5px solid #FFD008; }
+  .pol-obs-row{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:6px; }
+  .pol-chip{ padding:6px 13px; border-radius:20px; border:1.5px solid #ddd; font-size:12px; font-weight:600; background:#fafafa; color:#333; cursor:pointer; user-select:none; }
+  .pol-chip.active{ background:#FFD008; border-color:#FFD008; color:#000; }
+  #pol-note{ width:100%; min-height:70px; border:1.5px solid #e3e3e0; border-radius:10px; padding:10px; font-family:inherit; font-size:13px; resize:vertical; box-sizing:border-box; margin-top:8px; }
+  .pol-obs-save{ width:100%; margin-top:12px; background:#FFD008; color:#000; border:none; border-radius:10px; padding:13px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  #pol-obs-backdrop{ position:fixed; inset:0; z-index:99998; background:rgba(0,0,0,.18); display:none; }
+  #pol-obs-backdrop.open{ display:block; }
+  .toolbar{ height:auto !important; min-height:80px; flex-wrap:wrap; row-gap:6px; padding-top:6px; padding-bottom:6px; }
+  .t-actions{ display:flex !important; flex-wrap:wrap; gap:4px; justify-content:flex-end; }
+  .t-act{ flex:0 0 auto; }
+
+  /* --- contrasto toolbar (piu' leggibile su sfondo nero) --- */
+  .t-act{ background:#2c2c2c; border-color:#555; color:#f2f2f2; font-weight:700; font-size:11px; }
+  .t-btn{ background:#262626; border-color:#4a4a4a; color:#e8e8e8; }
+  .c-dot{ border-color:#666; }
+  .t-act-save{ background:#FFD008; color:#000; border-color:#FFD008; }
+  .t-act-export{ background:#1a1500; color:#FFD008; border-color:#FFD008; }
+  .t-act-reset{ color:#ff6b68; border-color:#5a2a2a; background:#241414; }
+  #pol-obs-btn{ background:#3a3320; color:#FFD008; border-color:#FFD008; }
+
+  /* --- pannello Osserva: laterale a sinistra su desktop, bottom-sheet su mobile --- */
+  @media (min-width:820px){
+    #pol-obs-panel{ left:0; right:auto; top:52px; bottom:90px; width:380px; transform:translateX(-105%); }
+    #pol-obs-panel.open{ transform:translateX(0); }
+    .pol-obs-inner{ height:100%; max-height:none; border-radius:0 16px 16px 0; box-shadow:10px 0 40px rgba(0,0,0,.55); padding:16px 18px; }
+    #pol-obs-backdrop, #pol-obs-backdrop.open{ display:none !important; }
+  }
+  </style>
 </head>
 <body>
 
@@ -109,10 +146,48 @@
       <button class="t-act t-act-save" onclick="salva()">💾 Salva</button>
       <button class="t-act" onclick="analizzaPostura()" title="Analisi posturale AI (PRO)">✨ Analizza postura</button>
       <button class="t-act" onclick="toggleCriteri()" title="Mostra/nascondi criteri di normalita">📐 Criteri</button>
+      <button class="t-act" id="pol-obs-btn" onclick="polToggleObs()" title="Osservazioni e note">📝 Osserva</button>
       <button class="t-act t-act-export" onclick="esporta()">📤 Esporta</button>
     </div>
   </div>
 
+  <div id="pol-obs-backdrop" onclick="polToggleObs()"></div>
+  <div id="pol-obs-panel">
+    <div class="pol-obs-inner">
+      <div class="pol-obs-head">
+        <span class="pol-obs-h">Osservazioni</span>
+        <button class="pol-obs-x" onclick="polToggleObs()">✕</button>
+      </div>
+      <div id="pol-obs-chips"></div>
+      <textarea id="pol-note" placeholder="Note libere su questa foto..."></textarea>
+      <button class="pol-obs-save" onclick="salva(); polToggleObs()">Salva osservazioni e note</button>
+    </div>
+  </div>
+  <script>
+  window._polObs = [];
+  window.polToggleObs = function(){ var p=document.getElementById('pol-obs-panel'); var b=document.getElementById('pol-obs-backdrop'); if(p) p.classList.toggle('open'); if(b) b.classList.toggle('open'); };
+  window.polToggleObsChip = function(el){ var v=el.getAttribute('data-v'); var i=window._polObs.indexOf(v); if(i>=0){ window._polObs.splice(i,1); el.classList.remove('active'); } else { window._polObs.push(v); el.classList.add('active'); } };
+  function _polEsc(x){ return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+  window.polRenderObs = function(tipo){
+    var box=document.getElementById('pol-obs-chips'); if(!box) return;
+    var groups=(window.ossGruppiPerTipo? window.ossGruppiPerTipo(tipo): null);
+    if(!groups){ box.innerHTML=''; return; }
+    var html='';
+    for(var g=0; g<groups.length; g++){
+      html+='<div class="pol-obs-grp">'+_polEsc(groups[g].g)+'</div><div class="pol-obs-row">';
+      var its=groups[g].items||[];
+      for(var i=0;i<its.length;i++){ var v=_polEsc(its[i]); html+='<span class="pol-chip" data-v="'+v+'" onclick="polToggleObsChip(this)">'+v+'</span>'; }
+      html+='</div>';
+    }
+    box.innerHTML=html;
+  };
+  window.polRestoreObs = function(ann){
+    window._polObs = (ann && Array.isArray(ann.osservazioni)) ? ann.osservazioni.slice() : [];
+    var chips=document.querySelectorAll('#pol-obs-chips .pol-chip');
+    for(var i=0;i<chips.length;i++){ var v=chips[i].getAttribute('data-v'); chips[i].classList.toggle('active', window._polObs.indexOf(v)>=0); }
+    var nt=document.getElementById('pol-note'); if(nt) nt.value=(ann && ann.note)?ann.note:'';
+  };
+  </script>
   <script src="utils-premium.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -139,6 +214,9 @@
     let firstPoint = null
     let idealLines = []      // criteri di normalita (overlay, NON salvati)
     let criteriOn  = false   // toggle criteri di normalita
+    let posturaLines = []    // overlay analisi postura (repere/etichette), NON salvato
+    let posturaOn    = false // toggle analisi postura
+    let _posturaMsg  = ''    // testo stato dell'ultima analisi
     let userIsPremium = false
 
     // --- Coordinate normalization (0–1 range for device independence) ---
@@ -230,6 +308,8 @@
           if (arr.length > 0) lines = linesFromJSON(savedAnnot)
         }
         redraw()
+        if (vpId && window.polRenderObs) { window.polRenderObs(_vpRecord ? _vpRecord.tipo : ''); window.polRestoreObs(savedAnnot) }
+        var _ob=document.getElementById('pol-obs-btn'); if(_ob) _ob.style.display = vpId ? '' : 'none'
       }
       // foto di visita = signed URL cross-origin: serve crossOrigin per far leggere l'immagine a MediaPipe/canvas
       if (vpId) bgImg.crossOrigin = 'anonymous'
@@ -310,6 +390,23 @@
       fpDot.style.display = 'none'
     }
 
+    function _drawList(list) {
+      list.forEach(l => {
+        if (l.type === 'point') {
+          ctx.beginPath(); ctx.fillStyle = l.color; ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2); ctx.fill()
+        } else if (l.type === 'text') {
+          ctx.font = '600 ' + (l.size || 14) + "px 'Montserrat', sans-serif"
+          ctx.textAlign = l.align || 'left'; ctx.textBaseline = 'middle'
+          ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.55)'
+          ctx.strokeText(l.text, l.x, l.y)
+          ctx.fillStyle = l.color; ctx.fillText(l.text, l.x, l.y)
+        } else {
+          ctx.beginPath(); ctx.strokeStyle = l.color; ctx.lineWidth = l.lw; ctx.lineCap = 'round'
+          ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke()
+        }
+      })
+    }
+
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       if (criteriOn) {
@@ -318,32 +415,8 @@
           else { ctx.beginPath(); ctx.strokeStyle = l.color; ctx.lineWidth = l.lw; ctx.lineCap = 'round'; ctx.moveTo(l.x1,l.y1); ctx.lineTo(l.x2,l.y2); ctx.stroke() }
         })
       }
-      lines.forEach(l => {
-        if (l.type === 'point') {
-          ctx.beginPath()
-          ctx.fillStyle = l.color
-          ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2)
-          ctx.fill()
-        } else if (l.type === 'text') {
-          ctx.font = '600 ' + (l.size || 14) + "px 'Montserrat', sans-serif"
-          ctx.textAlign = l.align || 'left'
-          ctx.textBaseline = 'middle'
-          ctx.lineWidth = 2.5
-          ctx.lineJoin = 'round'
-          ctx.strokeStyle = 'rgba(0,0,0,0.55)'
-          ctx.strokeText(l.text, l.x, l.y)
-          ctx.fillStyle = l.color
-          ctx.fillText(l.text, l.x, l.y)
-        } else {
-          ctx.beginPath()
-          ctx.strokeStyle = l.color
-          ctx.lineWidth   = l.lw
-          ctx.lineCap     = 'round'
-          ctx.moveTo(l.x1, l.y1)
-          ctx.lineTo(l.x2, l.y2)
-          ctx.stroke()
-        }
-      })
+      if (posturaOn) _drawList(posturaLines)   // overlay analisi (non salvato)
+      _drawList(lines)                          // disegno manuale (salvato)
     }
 
     function annulla() {
@@ -360,8 +433,11 @@
       let annotazioni = {}
       if (vpId) {
         // salva su visit_photos.annotazioni (jsonb)
+        const _ann = linesToJSON()
+        _ann.osservazioni = (window._polObs || []).slice()
+        var _pn = document.getElementById('pol-note'); _ann.note = _pn ? _pn.value : ''
         const { error: e1 } = await _supabase
-          .from('visit_photos').update({ annotazioni: linesToJSON() }).eq('id', vpId)
+          .from('visit_photos').update({ annotazioni: _ann }).eq('id', vpId)
         const st = document.getElementById('nav-status')
         if (st) st.textContent = e1 ? 'Errore salvataggio' : 'Salvato'
         return
@@ -381,6 +457,8 @@
 
     async function cancellaRipristina() {
       lines = []
+      posturaLines = []; posturaOn = false; criteriOn = false; idealLines = []; _posturaMsg = ''
+      document.getElementById('nav-status').textContent = ''
       resetFirst()
       redraw()
 
@@ -396,23 +474,18 @@
 
     // --- Export: download composite PNG without saving to DB ---
 
-    // --- Analisi posturale AI (overlay) ---
-    async function analizzaPostura() {
-      if (!userIsPremium) {
-        alert('Funzione PRO. Disponibile con il piano Premium.')
-        return
-      }
-      if (!bgImg.naturalWidth) { alert('Foto non pronta.'); return }
+    // --- Motore overlay condiviso: ritorna {lines, idealLines, angles, message} in coord. canvas, o null ---
+    async function _runOverlay() {
+      if (!userIsPremium) { alert('Funzione PRO. Disponibile con il piano Premium.'); return null }
+      if (!bgImg.naturalWidth) { alert('Foto non pronta.'); return null }
       const status = document.getElementById('nav-status')
       status.textContent = 'Analizzo...'
       let mod
       try { mod = await import('./js/postural-overlay.js') }
-      catch(e) { status.textContent = ''; alert('Errore caricamento motore: ' + e.message); return }
-
+      catch(e) { status.textContent = ''; alert('Errore caricamento motore: ' + e.message); return null }
       const viewKey = vpId && _vpRecord ? _vpRecord.tipo : fotoSlot
       const res = await mod.generateOverlay(bgImg, viewKey)
-      if (!res.ok) { status.textContent = ''; alert(res.message); return }
-
+      if (!res.ok) { status.textContent = ''; alert(res.message); return null }
       const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
       const cw = canvas.width, ch = canvas.height
       const imgA = nw / nh, wrapA = cw / ch
@@ -425,16 +498,32 @@
         if (l.type === 'text')  return { type:'text', x: ox + l.x*fx, y: oy + l.y*fy, color:l.color, text:l.text, size:l.size, align:l.align }
         return { type:'line', x1: ox + l.x1*fx, y1: oy + l.y1*fy, x2: ox + l.x2*fx, y2: oy + l.y2*fy, color:l.color, lw:l.lw }
       }
-
-      res.lines.forEach(l => lines.push(conv(l)))
-      idealLines = res.idealLines.map(conv)
-      redraw()
-      let msg = 'Analisi: ' + res.message
-      if (res.angles && res.angles.spalle != null) msg += ' (Spalle ' + res.angles.spalle + 'deg, Bacino ' + res.angles.bacino + 'deg)'
-      status.textContent = msg
+      return { lines: res.lines.map(conv), idealLines: res.idealLines.map(conv), angles: res.angles, message: res.message }
     }
 
-    function toggleCriteri() {
+    // --- ANALIZZA POSTURA: layer separato a toggle (repere/etichette), MAI salvato ---
+    async function analizzaPostura() {
+      if (posturaLines.length === 0) {
+        const r = await _runOverlay()
+        if (!r) return
+        posturaLines = r.lines
+        if (idealLines.length === 0) idealLines = r.idealLines   // cache per Criteri
+        _posturaMsg = 'Analisi: ' + r.message + ((r.angles && r.angles.spalle != null) ? ' (Spalle ' + r.angles.spalle + 'deg, Bacino ' + r.angles.bacino + 'deg)' : '')
+      }
+      posturaOn = !posturaOn
+      document.getElementById('nav-status').textContent = posturaOn ? _posturaMsg : ''
+      redraw()
+    }
+
+    // --- CRITERI: mostra SOLO la griglia/assi di normalita (toggle indipendente) ---
+    async function toggleCriteri() {
+      if (!criteriOn && idealLines.length === 0) {
+        const r = await _runOverlay()
+        if (!r) return
+        idealLines = r.idealLines
+        if (posturaLines.length === 0) posturaLines = r.lines   // cache per Analizza postura
+        document.getElementById('nav-status').textContent = ''
+      }
       criteriOn = !criteriOn
       redraw()
     }
@@ -470,7 +559,7 @@
         })
       }
 
-      lines.forEach(l => {
+      const _exp = (l) => {
         if (l.type === 'point') {
           octx.beginPath()
           octx.fillStyle = l.color
@@ -504,7 +593,9 @@
           }
           octx.stroke()
         }
-      })
+      }
+      if (posturaOn) posturaLines.forEach(_exp)
+      lines.forEach(_exp)
 
       const nomePaziente = patient ? (patient.nome + '-' + patient.cognome).replace(/\s+/g, '-') : 'paziente'
       const filename = nomePaziente + '-' + fotoSlot + '.png'

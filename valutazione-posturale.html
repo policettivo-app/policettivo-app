@@ -564,6 +564,22 @@
     }
 
   </style>
+  <style>
+  #lb-obs-panel{ position:fixed; left:0; right:0; bottom:0; z-index:100001; transform:translateY(100%); transition:transform .25s ease; }
+  #lb-obs-panel.open{ transform:translateY(0); }
+  .lb-obs-inner{ background:#fff; border-radius:18px 18px 0 0; padding:14px 16px calc(16px + env(safe-area-inset-bottom)); max-height:62vh; overflow-y:auto; box-shadow:0 -6px 24px rgba(0,0,0,0.35); }
+  .lb-obs-title{ font-size:12px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
+  .lb-obs-chips{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
+  .lb-obs-chips{ display:block; margin-bottom:12px; }
+  .lb-obs-grp{ font-size:10px; font-weight:800; color:#1a1a1a; text-transform:uppercase; letter-spacing:.4px; margin:12px 0 6px; padding-bottom:3px; border-bottom:1.5px solid #FFD008; }
+  .lb-obs-row{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:6px; }
+  .lb-obs-note{ width:100%; min-height:70px; border:1.5px solid #e3e3e0; border-radius:10px; padding:10px; font-family:inherit; font-size:13px; resize:vertical; box-sizing:border-box; }
+  .lb-obs-save{ width:100%; margin-top:12px; background:#FFD008; color:#000; border:none; border-radius:10px; padding:13px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  </style>
+  <link rel="stylesheet" href="css/policettivo-ui.css">
+  <script src="js/foto-actions.js"></script>
+  <script src="js/osservazioni.js"></script>
+  <style>.photo-slot.filled{ position:relative; }</style>
 </head>
 <body class="page-postural-standalone">
 
@@ -895,6 +911,14 @@
     <button id="lb-close-btn" onclick="closeLightbox()">✕</button>
     <button class="lb-btn" id="lb-grid-btn" onclick="toggleGrid()">▦ Griglia</button>
     <button class="lb-btn" id="lb-draw-btn" onclick="toggleDraw()">✏️ Annota</button>
+  </div>
+  <div id="lb-obs-panel">
+    <div class="lb-obs-inner">
+      <div class="lb-obs-title">Osservazioni</div>
+      <div class="lb-obs-chips" id="lb-obs-chips"></div>
+      <textarea id="lb-note" class="lb-obs-note" placeholder="Note libere su questa foto..."></textarea>
+      <button class="lb-obs-save" onclick="dtSalva()">Salva osservazioni e note</button>
+    </div>
   </div>
   <!-- Image + canvas layers -->
   <div id="lb-img-wrap">
@@ -1349,6 +1373,45 @@
     PHOTO_SLOTS_FLAT.forEach(s => updatePhotoSlot(s.tipo))
     RAPID_EXTRA_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
     renderFotoLibere()
+    polSyncNoteRapide()
+  }
+
+  // Sincronizza le osservazioni flaggate in Annota dentro le Note rapide del piano (non distruttivo)
+  function polSyncNoteRapide() {
+    const MARK = '— Osservazioni (da Annota) —'
+    const PLANES = {
+      note_sagittale: ['sagittale_sx_pre','sagittale_sx_post','sagittale_dx_pre','sagittale_dx_post'],
+      note_frontale: ['frontale_pre','frontale_post'],
+      note_posteriore: ['posteriore_pre','posteriore_post'],
+      note_podoscopio_sotto: ['podoscopio_sotto_pre','podoscopio_sotto_post'],
+      note_podoscopio_dietro: ['podoscopio_dietro_pre','podoscopio_dietro_post']
+    }
+    let changed = false
+    for (const field in PLANES) {
+      const el = document.getElementById('note-piano-' + field)
+      if (!el) continue
+      const lines = []
+      for (const tipo of PLANES[field]) {
+        const p = photos[tipo]
+        if (!p || !p.annotazioni) continue
+        let ann = p.annotazioni
+        if (typeof ann === 'string') { try { ann = JSON.parse(ann) } catch (e) { ann = null } }
+        if (!ann) continue
+        const oss = Array.isArray(ann.osservazioni) ? ann.osservazioni : []
+        const note = (ann.note || '').trim()
+        if (!oss.length && !note) continue
+        const pp = tipo.endsWith('_post') ? ' (POST 3R)' : ''
+        if (oss.length) lines.push('• ' + oss.join(', ') + pp)
+        if (note) lines.push('• ' + note + pp)
+      }
+      const cur = el.value
+      const idx = cur.indexOf(MARK)
+      const manual = (idx >= 0 ? cur.slice(0, idx) : cur).replace(/\s+$/, '')
+      const auto = lines.join('\n')
+      const next = auto ? (manual ? manual + '\n\n' : '') + MARK + '\n' + auto : manual
+      if (next !== cur) { el.value = next; changed = true }
+    }
+    if (changed && typeof scheduleSave === 'function') scheduleSave()
   }
 
   // buildPhotoGrid: 3 gruppi semantici (sagittale full-width, frontale+posteriore 2-col, podoscopio 2-col)
@@ -1368,7 +1431,7 @@
       if (plane) sagRow.appendChild(buildCarousel(plane))
     })
     gSag.appendChild(sagRow)
-    gSag.appendChild(buildScapolareBlock())
+    // chip Piano Scapolare rimossi: la valutazione fine si fa entrando in Annota
     gSag.appendChild(buildPlaneNoteSection(sagSec.sectionKey, sagSec.noteField, sagSec.obsPiano))
     grid.appendChild(gSag)
 
@@ -1407,29 +1470,7 @@
       const plane = PHOTO_PLANES.find(p => p.plane === sec.planes[0])
       if (plane) col.appendChild(buildCarousel(plane))
       col.appendChild(buildPlaneNoteSection(sec.sectionKey, sec.noteField, sec.obsPiano))
-      if (key === 'podoscopio_sotto') {
-        const c = document.createElement('div')
-        c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
-          '<div class="chip-label ds-chip-label">Arco plantare</div>' +
-          '<div class="chip-row ds-chip-row">' +
-            '<span class="chip" data-g="arco" data-v="piatto" onclick="setExcl(\'arco\',\'piatto\')">Piatto</span>' +
-            '<span class="chip" data-g="arco" data-v="cavo" onclick="setExcl(\'arco\',\'cavo\')">Cavo</span>' +
-            '<span class="chip" data-g="arco" data-v="normale" onclick="setExcl(\'arco\',\'normale\')">Normale</span>' +
-          '</div>'
-        col.appendChild(c)
-      }
-      if (key === 'podoscopio_dietro') {
-        const c = document.createElement('div')
-        c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
-          '<div class="chip-label ds-chip-label">Assetto podalico</div>' +
-          '<div class="chip-row ds-chip-row">' +
-            '<span class="chip" data-g="assetto" data-v="valgo" onclick="setExcl(\'assetto\',\'valgo\')">Valgo</span>' +
-            '<span class="chip" data-g="assetto" data-v="varo" onclick="setExcl(\'assetto\',\'varo\')">Varo</span>' +
-            '<span class="chip" data-g="assetto" data-v="normale" onclick="setExcl(\'assetto\',\'normale\')">Normale</span>' +
-            '<span class="chip" data-g="assetto" data-v="misto" onclick="setExcl(\'assetto\',\'misto\')">Misto</span>' +
-          '</div>'
-        col.appendChild(c)
-      }
+      // chip Arco plantare / Assetto podalico rimossi: valutazione fine in Annota
       podRow.appendChild(col)
     })
     gPod.appendChild(podRow)
@@ -1564,19 +1605,6 @@
 
     wrap.appendChild(carousel)
 
-    // Note brevi per slot (fuori dal carousel, sotto)
-    const noteRowPre = document.createElement('div')
-    noteRowPre.className = 'photo-slot-note-row'
-    noteRowPre.id = 'note-row-' + plane.pre.tipo
-    noteRowPre.innerHTML = '<input type="text" id="note-' + plane.pre.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota PRE…" oninput="scheduleNoteSave(\'' + plane.pre.tipo + '\')">'
-    wrap.appendChild(noteRowPre)
-
-    const noteRowPost = document.createElement('div')
-    noteRowPost.className = 'photo-slot-note-row'
-    noteRowPost.id = 'note-row-' + plane.post.tipo
-    noteRowPost.innerHTML = '<input type="text" id="note-' + plane.post.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota POST 3R…" oninput="scheduleNoteSave(\'' + plane.post.tipo + '\')">'
-    wrap.appendChild(noteRowPost)
-
     return wrap
   }
 
@@ -1621,15 +1649,27 @@
     return wrap
   }
 
+  function polInfoNote() {
+    if (document.getElementById('pol-note-info')) return
+    const ov = document.createElement('div')
+    ov.id = 'pol-note-info'
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px'
+    ov.onclick = (e) => { if (e.target === ov) ov.remove() }
+    ov.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:360px;padding:20px 22px;box-shadow:0 12px 40px rgba(0,0,0,.3)">' +
+        '<div style="font-weight:800;font-size:15px;margin-bottom:8px;color:#1a1a1a">Note rapide</div>' +
+        '<div style="font-size:13.5px;line-height:1.55;color:#444">Per una valutazione completa, apri la foto e premi <b>Annota</b>: l&#236; puoi disegnare, usare l&#39;analisi AI e annotare tutte le osservazioni nel dettaglio. Qui sono solo appunti rapidi.</div>' +
+        '<button onclick="document.getElementById(&#39;pol-note-info&#39;).remove()" style="margin-top:16px;width:100%;background:#FFD008;border:none;border-radius:9px;padding:11px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer">Ho capito</button>' +
+      '</div>'
+    document.body.appendChild(ov)
+  }
+
   function buildPlaneNoteSection(sectionKey, noteField, obsPiano) {
     const wrap = document.createElement('div')
     wrap.className = 'plane-note-section'
     wrap.innerHTML =
-      '<div class="plane-note-label">📝 Note ' + sectionKey.replace(/_/g,' ') + '</div>' +
-      '<button class="obs-trigger-btn ds-observation-trigger" onclick="toggleObsDropdown(\'' + obsPiano + '\')">' +
-        '+ Aggiungi osservazione <span>▼</span>' +
-      '</button>' +
-      '<div class="obs-dropdown-panel" id="obs-panel-' + obsPiano + '"></div>' +
+      '<div class="plane-note-label">📝 Note rapide — ' + sectionKey.replace(/_/g,' ') +
+        ' <span onclick="polInfoNote()" title="Informazioni" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#1a1a1a;color:#FFD008;font-size:11px;font-weight:800;margin-left:5px;vertical-align:middle;text-transform:none">i</span></div>' +
       '<textarea class="vp-textarea ds-textarea" id="note-piano-' + noteField + '" rows="3" maxlength="2000"' +
         ' placeholder="Osservazioni libere sul piano ' + sectionKey.replace(/_/g,' ') + '…"' +
         ' oninput="scheduleSave()"></textarea>'
@@ -1653,13 +1693,12 @@
       const dateStr = p.data_scatto ? new Date(p.data_scatto).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit' }) : ''
       slot.innerHTML =
         '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
-        '<div class="slot-bottom-bar">' +
-          '<span class="slot-date-mini">' + (dateStr ? '📅 ' + dateStr : '') + '</span>' +
-          '<button class="slot-btn-mini" onclick="event.stopPropagation();openVpFullscreen(\'' + p.url_pubblico + '\')" title="Schermo intero">⛶</button>' +
-          '<button class="slot-btn-mini" onclick="event.stopPropagation();showLightbox(\'' + tipo + '\')" title="Annota">✏️</button>' +
-          '<button class="slot-btn-mini" onclick="event.stopPropagation();replacePhoto(\'' + tipo + '\')" title="Sostituisci">🔄</button>' +
-          '<button class="slot-btn-mini" style="color:#e53935" onclick="event.stopPropagation();removePhoto(\'' + tipo + '\')" title="Elimina">✕</button>' +
-        '</div>'
+        (window.policettivoFotoBar ? window.policettivoFotoBar({
+          onIntero: "openVpFullscreen('" + p.url_pubblico + "')",
+          onAnnota: "location.href='disegno.html?id=" + patientId + "&vp=" + p.id + "'",
+          onSostituisci: "replacePhoto('" + tipo + "')",
+          onElimina: "removePhoto('" + tipo + "')"
+        }) : '')
       if (dateEl) dateEl.textContent = p.data_scatto ? formatDateForDisplay(p.data_scatto) : ''
       if (noteRow) {
         noteRow.classList.add('visible')
@@ -2675,15 +2714,18 @@ ISTRUZIONI:
 
     requestAnimationFrame(() => {
       syncCanvas()
+      if (window.renderObsForTipo) window.renderObsForTipo(tipo)
       if (pendingAnn) {
         dtLines = linesFromJSON(pendingAnn)
+        if (window.restoreObs) window.restoreObs(pendingAnn)
         pendingAnn = null
         redrawCanvas()
-      }
+      } else { if (window.restoreObs) window.restoreObs(null) }
     })
   }
 
   function closeLightbox() {
+    var _op=document.getElementById('lb-obs-panel'); if(_op) _op.classList.remove('open')
     document.getElementById('lightbox').classList.remove('open')
     document.getElementById('lb-img').src = ''
     lbOpen = false; lbTipo = null; lbPhotoId = null; lbPhotoUrl = null
@@ -2826,10 +2868,14 @@ ISTRUZIONI:
     dtLines = []; dtFirst = null; lbFpDot.style.display = 'none'; redrawCanvas()
     if (lbPhotoId) await _sb.from('visit_photos').update({ annotazioni: null }).eq('id', lbPhotoId)
     if (lbTipo && photos[lbTipo]) photos[lbTipo].annotazioni = null
+    window._lbObs = []; var _nt2 = document.getElementById('lb-note'); if (_nt2) _nt2.value = ''
+    if (window.restoreObs) window.restoreObs(null)
   }
   async function dtSalva() {
     if (!lbPhotoId) return
     const ann = linesToJSON()
+    ann.osservazioni = (window._lbObs || []).slice()
+    var _nt = document.getElementById('lb-note'); ann.note = _nt ? _nt.value : ''
     const { error } = await _sb.from('visit_photos').update({ annotazioni: ann }).eq('id', lbPhotoId)
     if (error) { showToast('Errore salvataggio annotazioni'); return }
     if (lbTipo && photos[lbTipo]) photos[lbTipo].annotazioni = ann
@@ -3645,5 +3691,30 @@ ISTRUZIONI:
     <button class="rapid-fase-cancel" onclick="document.getElementById('rapid-fase-modal').classList.remove('open')">Annulla</button>
   </div>
 </div>
+  <script>
+  window._lbObs = [];
+  window.toggleObsPanel = function(){ var p=document.getElementById('lb-obs-panel'); if(p) p.classList.toggle('open'); };
+  window.toggleObsChipEl = function(el){ var v=el.getAttribute('data-v'); var i=window._lbObs.indexOf(v); if(i>=0){ window._lbObs.splice(i,1); el.classList.remove('active'); } else { window._lbObs.push(v); el.classList.add('active'); } };
+  function _ossEsc(x){ return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+  window.renderObsForTipo = function(tipo){
+    var box=document.getElementById('lb-obs-chips'); if(!box) return;
+    var groups=(window.ossGruppiPerTipo? window.ossGruppiPerTipo(tipo): null);
+    if(!groups){ box.innerHTML=''; return; }
+    var html='';
+    for(var g=0; g<groups.length; g++){
+      html+='<div class="lb-obs-grp">'+_ossEsc(groups[g].g)+'</div><div class="lb-obs-row">';
+      var its=groups[g].items||[];
+      for(var i=0;i<its.length;i++){ var v=_ossEsc(its[i]); html+='<span class="chip" data-v="'+v+'" onclick="toggleObsChipEl(this)">'+v+'</span>'; }
+      html+='</div>';
+    }
+    box.innerHTML=html;
+  };
+  window.restoreObs = function(ann){
+    window._lbObs = (ann && Array.isArray(ann.osservazioni)) ? ann.osservazioni.slice() : [];
+    var chips=document.querySelectorAll('#lb-obs-chips .chip');
+    for(var i=0;i<chips.length;i++){ var v=chips[i].getAttribute('data-v'); chips[i].classList.toggle('active', window._lbObs.indexOf(v)>=0); }
+    var nt=document.getElementById('lb-note'); if(nt) nt.value=(ann && ann.note)?ann.note:'';
+  };
+  </script>
 </body>
 </html>
