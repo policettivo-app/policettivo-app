@@ -1926,16 +1926,33 @@
       navigator.clipboard.writeText(link).then(() => alert('Link copiato!'))
     }
 
+    function _waNumero(raw){
+      let d=(raw||'').replace(/[^0-9+]/g,'')
+      if(d.charAt(0)==='+') d=d.slice(1)
+      else if(d.slice(0,2)==='00') d=d.slice(2)
+      d=d.replace(/[^0-9]/g,'')
+      if(d.length===10 && d.charAt(0)==='3') d='39'+d
+      else if(d.length<11 && d.slice(0,2)!=='39') d='39'+d
+      return d
+    }
+    function _waOpen(num, testo){
+      const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+      const t=encodeURIComponent(testo)
+      const url=isMobile ? ('https://wa.me/'+num+'?text='+t) : ('https://web.whatsapp.com/send?phone='+num+'&text='+t)
+      window.open(url, '_blank')
+    }
     function scriviPaziente() {
       if (!patient.telefono) { alert('Numero di telefono non inserito per questo paziente.'); return }
-      const tel = patient.telefono.replace(/[^0-9+]/g, '')
-      const msg = 'Ciao ' + patient.nome + ', ti scrivo riguardo al tuo percorso Policettivo.'
-      window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg))
+      const num = _waNumero(patient.telefono)
+      if (num.length < 8) { alert('Numero di telefono non valido in anagrafica.'); return }
+      _waOpen(num, 'Ciao ' + patient.nome + ', ti scrivo riguardo al tuo percorso Policettivo.')
     }
     function inviaWhatsApp() {
+      if (!patient.telefono) { alert('Numero di telefono non inserito. Aggiungilo in anagrafica per inviare il link via WhatsApp.'); return }
+      const num = _waNumero(patient.telefono)
+      if (num.length < 8) { alert('Numero di telefono non valido in anagrafica.'); return }
       const link = window.location.origin + '/consenso.html?token=' + patient.access_token
-      const testo = 'Ciao ' + patient.nome + ', ecco il tuo protocollo Policettivo®. Aprilo da qui: ' + link
-      window.open('https://wa.me/?text=' + encodeURIComponent(testo))
+      _waOpen(num, 'Ciao ' + patient.nome + ', ecco il tuo protocollo Policettivo®. Aprilo da qui: ' + link)
     }
 
     async function toggleStorico() {
