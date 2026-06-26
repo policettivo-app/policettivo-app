@@ -2764,24 +2764,33 @@
 
   function compressImage(file) {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onerror = () => reject(new Error('Lettura file fallita'))
-      reader.onload = e => {
-        const img = new Image()
-        img.onerror = () => reject(new Error('Immagine non valida'))
-        img.onload = () => {
-          let w = img.width, h = img.height
-          const MAX = 1600
-          if (w > MAX || h > MAX) { const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r) }
-          const canvas = document.createElement('canvas')
-          canvas.width = w; canvas.height = h
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.80)
-          canvas.toBlob(blob => resolve({ blob, dataUrl }), 'image/jpeg', 0.80)
-        }
-        img.src = e.target.result
+      const MAX = 1600
+      const render = (source, sw, sh) => {
+        let w = sw, h = sh
+        if (w > MAX || h > MAX) { const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r) }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d').drawImage(source, 0, 0, w, h)
+        if (source.close) source.close()
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.80)
+        canvas.toBlob(blob => resolve({ blob, dataUrl }), 'image/jpeg', 0.80)
       }
-      reader.readAsDataURL(file)
+      const fallback = () => {
+        const reader = new FileReader()
+        reader.onerror = () => reject(new Error('Lettura file fallita'))
+        reader.onload = e => {
+          const img = new Image()
+          img.onerror = () => reject(new Error('Immagine non valida'))
+          img.onload = () => render(img, img.width, img.height)
+          img.src = e.target.result
+        }
+        reader.readAsDataURL(file)
+      }
+      if (window.createImageBitmap) {
+        createImageBitmap(file, { imageOrientation: 'from-image' })
+          .then(bmp => render(bmp, bmp.width, bmp.height))
+          .catch(fallback)
+      } else { fallback() }
     })
   }
 
