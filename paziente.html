@@ -1739,20 +1739,29 @@
     }
 
     function resizeImage(file, maxW, maxH, cb) {
-      const reader = new FileReader()
-      reader.onload = e => {
-        const img = new Image()
-        img.onload = () => {
-          let w = img.width, h = img.height
-          if (w > maxW || h > maxH) { const r = Math.min(maxW/w, maxH/h); w = Math.round(w*r); h = Math.round(h*r) }
-          const canvas = document.createElement('canvas')
-          canvas.width = w; canvas.height = h
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-          cb(canvas.toDataURL('image/jpeg', 0.82))
-        }
-        img.src = e.target.result
+      const render = (source, sw, sh) => {
+        let w = sw, h = sh
+        if (w > maxW || h > maxH) { const r = Math.min(maxW/w, maxH/h); w = Math.round(w*r); h = Math.round(h*r) }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d').drawImage(source, 0, 0, w, h)
+        if (source.close) source.close()
+        cb(canvas.toDataURL('image/jpeg', 0.82))
       }
-      reader.readAsDataURL(file)
+      const fallback = () => {
+        const reader = new FileReader()
+        reader.onload = e => {
+          const img = new Image()
+          img.onload = () => render(img, img.width, img.height)
+          img.src = e.target.result
+        }
+        reader.readAsDataURL(file)
+      }
+      if (window.createImageBitmap) {
+        createImageBitmap(file, { imageOrientation: 'from-image' })
+          .then(bmp => render(bmp, bmp.width, bmp.height))
+          .catch(fallback)
+      } else { fallback() }
     }
 
     async function handleFoto(slot, input) {
