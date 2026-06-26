@@ -1373,6 +1373,45 @@
     PHOTO_SLOTS_FLAT.forEach(s => updatePhotoSlot(s.tipo))
     RAPID_EXTRA_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
     renderFotoLibere()
+    polSyncNoteRapide()
+  }
+
+  // Sincronizza le osservazioni flaggate in Annota dentro le Note rapide del piano (non distruttivo)
+  function polSyncNoteRapide() {
+    const MARK = '— Osservazioni (da Annota) —'
+    const PLANES = {
+      note_sagittale: ['sagittale_sx_pre','sagittale_sx_post','sagittale_dx_pre','sagittale_dx_post'],
+      note_frontale: ['frontale_pre','frontale_post'],
+      note_posteriore: ['posteriore_pre','posteriore_post'],
+      note_podoscopio_sotto: ['podoscopio_sotto_pre','podoscopio_sotto_post'],
+      note_podoscopio_dietro: ['podoscopio_dietro_pre','podoscopio_dietro_post']
+    }
+    let changed = false
+    for (const field in PLANES) {
+      const el = document.getElementById('note-piano-' + field)
+      if (!el) continue
+      const lines = []
+      for (const tipo of PLANES[field]) {
+        const p = photos[tipo]
+        if (!p || !p.annotazioni) continue
+        let ann = p.annotazioni
+        if (typeof ann === 'string') { try { ann = JSON.parse(ann) } catch (e) { ann = null } }
+        if (!ann) continue
+        const oss = Array.isArray(ann.osservazioni) ? ann.osservazioni : []
+        const note = (ann.note || '').trim()
+        if (!oss.length && !note) continue
+        const pp = tipo.endsWith('_post') ? ' (POST 3R)' : ''
+        if (oss.length) lines.push('• ' + oss.join(', ') + pp)
+        if (note) lines.push('• ' + note + pp)
+      }
+      const cur = el.value
+      const idx = cur.indexOf(MARK)
+      const manual = (idx >= 0 ? cur.slice(0, idx) : cur).replace(/\s+$/, '')
+      const auto = lines.join('\n')
+      const next = auto ? (manual ? manual + '\n\n' : '') + MARK + '\n' + auto : manual
+      if (next !== cur) { el.value = next; changed = true }
+    }
+    if (changed && typeof scheduleSave === 'function') scheduleSave()
   }
 
   // buildPhotoGrid: 3 gruppi semantici (sagittale full-width, frontale+posteriore 2-col, podoscopio 2-col)
