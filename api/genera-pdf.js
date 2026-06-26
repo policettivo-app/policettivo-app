@@ -59,7 +59,7 @@ async function handlePosturale(req, res) {
        .eq('id', visit.patient_id)
        .maybeSingle(),
     svc.from('visit_photos')
-       .select('id, tipo, url_pubblico, note, ordine')
+       .select('id, tipo, url_pubblico, storage_path, note, ordine')
        .eq('visit_id', visit_id)
        .order('ordine', { ascending: true })
   ])
@@ -99,7 +99,7 @@ async function handlePosturale(req, res) {
     visit_data:   visit,
     patient:      patient      || {},
     professional,
-    photos:       photos       || [],
+    photos:       await signPhotoUrls(svc, photos),
     ai_relazione
   })
 }
@@ -137,7 +137,7 @@ async function handleVisita(req, res) {
        .eq('id', professional_id)
        .maybeSingle(),
     svc.from('visit_photos')
-       .select('id, tipo, url_pubblico, note, ordine')
+       .select('id, tipo, url_pubblico, storage_path, note, ordine')
        .eq('visit_id', visit_id)
        .order('ordine', { ascending: true })
   ])
@@ -196,7 +196,7 @@ async function handleVisita(req, res) {
     visit_data:   visit,
     patient:      patient      || {},
     professional,
-    photos:       photos       || [],
+    photos:       await signPhotoUrls(svc, photos),
     ai_relazione
   })
 }
@@ -204,6 +204,17 @@ async function handleVisita(req, res) {
 // ════════════════════════════════════════════════════════════════════════════
 // HELPERS
 // ════════════════════════════════════════════════════════════════════════════
+
+async function signPhotoUrls(svc, photos) {
+  if (!Array.isArray(photos)) return []
+  return Promise.all(photos.map(async (p) => {
+    if (p.storage_path) {
+      const { data: su } = await svc.storage.from('clinical-docs').createSignedUrl(p.storage_path, 7200)
+      if (su && su.signedUrl) return { ...p, url_pubblico: su.signedUrl }
+    }
+    return p
+  }))
+}
 
 async function callClaude(systemPrompt, userPrompt, maxTokens = 1100) {
   const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
