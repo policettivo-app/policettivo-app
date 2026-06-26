@@ -78,6 +78,40 @@ export default async function handler(req, res) {
         (prima?.vas_riposo != null && ultima?.vas_fine != null) && 'VAS: ' + prima.vas_riposo + '/10 iniziale, ' + ultima.vas_fine + '/10 finale'
       ].filter(Boolean).join('\n')
     }
+
+    // Osservazioni posturali annotate sulle foto (solo se richiesto dal flag)
+    if (includi?.posturale) try {
+      const { data: _vids } = await svc.from('visits').select('id').eq('patient_id', patient_id)
+      const _ids = (_vids || []).map(v => v.id)
+      if (_ids.length) {
+        const { data: _vph } = await svc.from('visit_photos').select('tipo, annotazioni').in('visit_id', _ids)
+        const _righe = []
+        for (const ph of (_vph || [])) {
+          let ann = ph.annotazioni
+          if (typeof ann === 'string') { try { ann = JSON.parse(ann) } catch (e) { ann = null } }
+          if (!ann) continue
+          const oss = Array.isArray(ann.osservazioni) ? ann.osservazioni : []
+          const note = ann.note || ''
+          if (!oss.length && !note) continue
+          const lbl = (ph.tipo || '').replace(/_/g, ' ')
+          const parts = []
+          if (oss.length) parts.push(oss.join(', '))
+          if (note) parts.push('Note: ' + note)
+          _righe.push('- ' + lbl + ': ' + parts.join('. '))
+        }
+        if (_righe.length) datiPaziente += '\n\n[OSSERVAZIONI POSTURALI (annotate sulle foto)]\n' + _righe.join('\n')
+      }
+      // Note rapide per piano (testo scritto nella valutazione posturale)
+      const { data: _vn } = await svc.from('visits')
+        .select('note_sagittale, note_frontale, note_posteriore, note_podoscopio_sotto, note_podoscopio_dietro')
+        .eq('patient_id', patient_id)
+      const _noteRows = []
+      for (const v of (_vn || [])) {
+        const _m = [['Sagittale', v.note_sagittale], ['Frontale', v.note_frontale], ['Posteriore', v.note_posteriore], ['Podoscopio (sotto)', v.note_podoscopio_sotto], ['Podoscopio (dietro)', v.note_podoscopio_dietro]]
+        for (const [lbl, val] of _m) if (val && String(val).trim()) _noteRows.push('- ' + lbl + ': ' + String(val).trim())
+      }
+      if (_noteRows.length) datiPaziente += '\n\n[NOTE POSTURALI PER PIANO]\n' + _noteRows.join('\n')
+    } catch (e) {}
   }
 
   const nomePaz = patient ? [patient.nome, patient.cognome].filter(Boolean).join(' ') : ''
