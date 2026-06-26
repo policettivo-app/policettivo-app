@@ -3282,12 +3282,24 @@ Campi:
       if (chkDocs && documentiCaricati?.length) {
         var tipoL = { lastra: 'Lastra', referto: 'Referto', visita: 'Visita', esame: 'Esame', altro: 'Documento' }
         html += '<div class="sec-hdr">Documenti (' + documentiCaricati.length + ')</div>'
+        var docSigned = {}
+        for (var di = 0; di < documentiCaricati.length; di++) {
+          var _u = documentiCaricati[di].file_url || ''
+          if (_u.includes('/clinical-docs/')) {
+            try {
+              var _p = _u.split('/clinical-docs/')[1].split('?')[0]
+              var { data: _su } = await _supabase.storage.from('clinical-docs').createSignedUrl(_p, 7200)
+              if (_su && _su.signedUrl) docSigned[documentiCaricati[di].id] = _su.signedUrl
+            } catch (e) {}
+          }
+        }
         documentiCaricati.forEach(function(doc) {
           var data = new Date(doc.created_at).toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+          var fu = docSigned[doc.id] || doc.file_url
           html += '<div class="doc-card"><div class="doc-lbl">' + (tipoL[doc.tipo]||doc.tipo||'') + ' — ' + data + '</div>'
           html += '<div class="doc-title">' + esc(doc.descrizione||'') + '</div>'
-          if (doc.file_type?.startsWith('image/')) html += '<img src="' + doc.file_url + '" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:6px">'
-          else html += '<a href="' + doc.file_url + '" target="_blank" style="font-size:12px;color:#1565c0">Apri documento</a>'
+          if (doc.file_type?.startsWith('image/')) html += '<img src="' + fu + '" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:6px">'
+          else html += '<a href="' + fu + '" target="_blank" style="font-size:12px;color:#1565c0">Apri documento</a>'
           html += '</div>'
         })
       }
