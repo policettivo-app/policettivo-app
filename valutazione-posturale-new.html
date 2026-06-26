@@ -1392,7 +1392,7 @@
       if (plane) sagRow.appendChild(buildCarousel(plane))
     })
     gSag.appendChild(sagRow)
-    gSag.appendChild(buildScapolareBlock())
+    // chip Piano Scapolare rimossi: la valutazione fine si fa entrando in Annota
     gSag.appendChild(buildPlaneNoteSection(sagSec.sectionKey, sagSec.noteField, sagSec.obsPiano))
     grid.appendChild(gSag)
 
@@ -1431,29 +1431,7 @@
       const plane = PHOTO_PLANES.find(p => p.plane === sec.planes[0])
       if (plane) col.appendChild(buildCarousel(plane))
       col.appendChild(buildPlaneNoteSection(sec.sectionKey, sec.noteField, sec.obsPiano))
-      if (key === 'podoscopio_sotto') {
-        const c = document.createElement('div')
-        c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
-          '<div class="chip-label ds-chip-label">Arco plantare</div>' +
-          '<div class="chip-row ds-chip-row">' +
-            '<span class="chip" data-g="arco" data-v="piatto" onclick="setExcl(\'arco\',\'piatto\')">Piatto</span>' +
-            '<span class="chip" data-g="arco" data-v="cavo" onclick="setExcl(\'arco\',\'cavo\')">Cavo</span>' +
-            '<span class="chip" data-g="arco" data-v="normale" onclick="setExcl(\'arco\',\'normale\')">Normale</span>' +
-          '</div>'
-        col.appendChild(c)
-      }
-      if (key === 'podoscopio_dietro') {
-        const c = document.createElement('div')
-        c.innerHTML = '<hr class="vp-divider" style="margin-top:14px">' +
-          '<div class="chip-label ds-chip-label">Assetto podalico</div>' +
-          '<div class="chip-row ds-chip-row">' +
-            '<span class="chip" data-g="assetto" data-v="valgo" onclick="setExcl(\'assetto\',\'valgo\')">Valgo</span>' +
-            '<span class="chip" data-g="assetto" data-v="varo" onclick="setExcl(\'assetto\',\'varo\')">Varo</span>' +
-            '<span class="chip" data-g="assetto" data-v="normale" onclick="setExcl(\'assetto\',\'normale\')">Normale</span>' +
-            '<span class="chip" data-g="assetto" data-v="misto" onclick="setExcl(\'assetto\',\'misto\')">Misto</span>' +
-          '</div>'
-        col.appendChild(c)
-      }
+      // chip Arco plantare / Assetto podalico rimossi: valutazione fine in Annota
       podRow.appendChild(col)
     })
     gPod.appendChild(podRow)
@@ -1588,19 +1566,6 @@
 
     wrap.appendChild(carousel)
 
-    // Note brevi per slot (fuori dal carousel, sotto)
-    const noteRowPre = document.createElement('div')
-    noteRowPre.className = 'photo-slot-note-row'
-    noteRowPre.id = 'note-row-' + plane.pre.tipo
-    noteRowPre.innerHTML = '<input type="text" id="note-' + plane.pre.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota PRE…" oninput="scheduleNoteSave(\'' + plane.pre.tipo + '\')">'
-    wrap.appendChild(noteRowPre)
-
-    const noteRowPost = document.createElement('div')
-    noteRowPost.className = 'photo-slot-note-row'
-    noteRowPost.id = 'note-row-' + plane.post.tipo
-    noteRowPost.innerHTML = '<input type="text" id="note-' + plane.post.tipo + '" class="photo-note-input" maxlength="80" placeholder="Nota POST 3R…" oninput="scheduleNoteSave(\'' + plane.post.tipo + '\')">'
-    wrap.appendChild(noteRowPost)
-
     return wrap
   }
 
@@ -1645,11 +1610,27 @@
     return wrap
   }
 
+  function polInfoNote() {
+    if (document.getElementById('pol-note-info')) return
+    const ov = document.createElement('div')
+    ov.id = 'pol-note-info'
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px'
+    ov.onclick = (e) => { if (e.target === ov) ov.remove() }
+    ov.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:360px;padding:20px 22px;box-shadow:0 12px 40px rgba(0,0,0,.3)">' +
+        '<div style="font-weight:800;font-size:15px;margin-bottom:8px;color:#1a1a1a">Note rapide</div>' +
+        '<div style="font-size:13.5px;line-height:1.55;color:#444">Per una valutazione completa, apri la foto e premi <b>Annota</b>: l&#236; puoi disegnare, usare l&#39;analisi AI e annotare tutte le osservazioni nel dettaglio. Qui sono solo appunti rapidi.</div>' +
+        '<button onclick="document.getElementById(&#39;pol-note-info&#39;).remove()" style="margin-top:16px;width:100%;background:#FFD008;border:none;border-radius:9px;padding:11px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer">Ho capito</button>' +
+      '</div>'
+    document.body.appendChild(ov)
+  }
+
   function buildPlaneNoteSection(sectionKey, noteField, obsPiano) {
     const wrap = document.createElement('div')
     wrap.className = 'plane-note-section'
     wrap.innerHTML =
-      '<div class="plane-note-label">📝 Note ' + sectionKey.replace(/_/g,' ') + '</div>' +
+      '<div class="plane-note-label">📝 Note rapide — ' + sectionKey.replace(/_/g,' ') +
+        ' <span onclick="polInfoNote()" title="Informazioni" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#1a1a1a;color:#FFD008;font-size:11px;font-weight:800;margin-left:5px;vertical-align:middle;text-transform:none">i</span></div>' +
       '<textarea class="vp-textarea ds-textarea" id="note-piano-' + noteField + '" rows="3" maxlength="2000"' +
         ' placeholder="Osservazioni libere sul piano ' + sectionKey.replace(/_/g,' ') + '…"' +
         ' oninput="scheduleSave()"></textarea>'
