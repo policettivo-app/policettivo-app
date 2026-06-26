@@ -249,6 +249,7 @@
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
       document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token }
       const btnRapida = document.getElementById('btn-rapida'); if(btnRapida) btnRapida.style.display = 'block'
+      try { const { data: _pc } = await _supabase.rpc('get_professional_contact', { p_token: token }); window.__profTel = (_pc && _pc.telefono) ? _pc.telefono : '' } catch(e) { window.__profTel = '' }
 
       // 2. Protocollo (attivo o più recente come fallback)
       if (!pd.protocol) { showNoProtocol(); return }
@@ -450,9 +451,23 @@
       loadSmile()
     }
 
+    function _waNum(raw){
+      let d=(raw||'').replace(/[^0-9+]/g,'')
+      if(d.charAt(0)==='+') d=d.slice(1)
+      else if(d.slice(0,2)==='00') d=d.slice(2)
+      d=d.replace(/[^0-9]/g,'')
+      if(d.length===10 && d.charAt(0)==='3') d='39'+d
+      else if(d.length<11 && d.slice(0,2)!=='39') d='39'+d
+      return d
+    }
     function contattaProfessionista() {
+      const num = _waNum(window.__profTel || '')
+      if (num.length < 8) { alert('Il tuo professionista non ha ancora impostato un numero WhatsApp.'); return }
       const msg = 'Ciao, sono ' + patient.nome + ' ' + patient.cognome + '. Ti scrivo dall app Policettivo.'
-      window.open('https://wa.me/?text=' + encodeURIComponent(msg))
+      const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+      const t=encodeURIComponent(msg)
+      const url=isMobile ? ('https://wa.me/'+num+'?text='+t) : ('https://web.whatsapp.com/send?phone='+num+'&text='+t)
+      window.open(url, '_blank')
     }
 
     function showError(msg) {
