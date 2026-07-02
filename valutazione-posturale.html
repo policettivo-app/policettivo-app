@@ -1929,12 +1929,13 @@
           if (!p.storage_path) continue
           const { data: su } = await _sb.storage.from('clinical-docs').createSignedUrl(p.storage_path, 7200)
           if (su && su.signedUrl) {
-            out.push({ url: su.signedUrl, label: (p.tipo || 'Foto').replace(/_/g,' '), data: p.data_scatto || dataBy[p.visit_id] || null })
+            out.push({ url: su.signedUrl, storage_path: p.storage_path, label: (p.tipo || 'Foto').replace(/_/g,' '), data: p.data_scatto || dataBy[p.visit_id] || null })
           }
         }
       }
     } catch (e) {}
-    return out
+    const _seen = new Set()
+    return out.filter(o => { const k = o.storage_path || o.url; if (_seen.has(k)) return false; _seen.add(k); return true })
   }
 
   async function scegliFotoLibreria(idx) {
@@ -1943,14 +1944,54 @@
     const grid = document.getElementById('libreria-foto-grid')
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999">Carico la foto…</div>'
     try {
-      const resp = await fetch(ft.url)
-      const blob = await resp.blob()
-      const file = new File([blob], 'libreria.jpg', { type: blob.type || 'image/jpeg' })
-      chiudiLibreriaFotoModal()
-      await uploadPhoto(file, _librTipo, _librIsReplace)
+      if (ft.storage_path) {
+        chiudiLibreriaFotoModal()
+        await referenceLibraryPhoto(ft.storage_path, _librTipo, _librIsReplace)
+      } else {
+        const resp = await fetch(ft.url)
+        const blob = await resp.blob()
+        const file = new File([blob], 'libreria.jpg', { type: blob.type || 'image/jpeg' })
+        chiudiLibreriaFotoModal()
+        await uploadPhoto(file, _librTipo, _librIsReplace)
+      }
       _librTipo = null; _librIsReplace = false
     } catch (e) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#d32f2f">Errore nel caricare la foto.</div>'
+    }
+  }
+
+  async function referenceLibraryPhoto(storage_path, tipo, isReplace) {
+    if (!visitId || visitId === 'null') { showToast('Errore: visita non ancora creata. Ricarica la pagina.'); return }
+    setIndicator('saving', '')
+    try {
+      const data_scatto = new Date().toISOString()
+      const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(storage_path)
+      const pubUrl = urlData.publicUrl
+      let dbErr, saved
+      if (isReplace && photos[tipo]?.id) {
+        const r = await _sb.from('visit_photos')
+          .update({ storage_path, url_pubblico: pubUrl, data_scatto })
+          .eq('id', photos[tipo].id)
+          .select().maybeSingle()
+        saved = r.data; dbErr = r.error
+      } else {
+        const ordine = PHOTO_SLOTS_FLAT.find(s => s.tipo === tipo)?.ordine ?? 99
+        const r = await _sb.from('visit_photos')
+          .insert({ visit_id: visitId, tipo, storage_path, url_pubblico: pubUrl, ordine, data_scatto })
+          .select().maybeSingle()
+        saved = r.data; dbErr = r.error
+      }
+      if (dbErr) { showToast('Errore salvataggio foto: ' + dbErr.message); setIndicator('error', ''); return }
+      saved = saved || { storage_path, url_pubblico: pubUrl, data_scatto }
+      const { data: su } = await _sb.storage.from('clinical-docs').createSignedUrl(storage_path, 7200)
+      if (su && su.signedUrl) saved.url_pubblico = su.signedUrl
+      photos[tipo] = saved
+      updatePhotoSlot(tipo)
+      setIndicator('saved', '')
+    } catch (e) {
+      console.error('[reference] exception:', e)
+      showToast('Errore: ' + e.message)
+      setIndicator('error', '')
     }
   }
 
