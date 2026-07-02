@@ -309,6 +309,7 @@
         }
         redraw()
         if (vpId && window.polRenderObs) { window.polRenderObs(_vpRecord ? _vpRecord.tipo : ''); window.polRestoreObs(savedAnnot) }
+        if (params.get('osserva') === '1') { setTimeout(function(){ if (window.polToggleObs) window.polToggleObs() }, 250) }
         var _ob=document.getElementById('pol-obs-btn'); if(_ob) _ob.style.display = vpId ? '' : 'none'
       }
       // foto di visita = signed URL cross-origin: serve crossOrigin per far leggere l'immagine a MediaPipe/canvas
