@@ -1891,13 +1891,7 @@
         return
       }
       window._librFoto = lista
-      grid.innerHTML = lista.map((ft, i) => {
-        const d = ft.data ? new Date(ft.data).toLocaleDateString('it-IT') : ''
-        const dataLine = d ? '<div style="font-size:10px;color:#999;font-weight:600">' + d + '</div>' : ''
-        return '<div style="border:1.5px solid #eee;border-radius:10px;overflow:hidden;cursor:pointer;background:#fff" onclick="scegliFotoLibreria(' + i + ')">' +
-          '<img src="' + ft.url + '" style="width:100%;height:110px;object-fit:cover;display:block" loading="lazy">' +
-          '<div style="padding:6px 8px"><div style="font-size:11px;font-weight:700;color:#000;text-transform:capitalize">' + (ft.label || 'Foto') + '</div>' + dataLine + '</div></div>'
-      }).join('')
+      grid.innerHTML = _libGridHTML(lista)
     } catch (e) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#d32f2f">Errore nel caricare le foto.</div>'
     }
@@ -1915,7 +1909,7 @@
       const LBL = { 'prima-sx':'Prima cuscini · Sx','prima-dx':'Prima cuscini · Dx','dopo-sx':'Dopo cuscini · Sx','dopo-dx':'Dopo cuscini · Dx','frontale':'Posturale · Frontale','posteriore':'Posturale · Posteriore','podo-sotto':'Piede · Da sotto','podo-dietro':'Piede · Da dietro' }
       const iniz = JSON.parse(pat?.foto_url || '{}')
       Object.keys(LBL).forEach(slot => {
-        if (iniz[slot]) out.push({ url: iniz[slot], label: LBL[slot] || slot, data: pat?.created_at || null })
+        if (iniz[slot]) out.push({ url: iniz[slot], label: LBL[slot] || slot, data: pat?.created_at || null, source: 'base64', slot })
       })
     } catch (e) {}
     // 2) foto delle visite del paziente (visit_photos) — signed URL al volo
@@ -1929,13 +1923,51 @@
           if (!p.storage_path) continue
           const { data: su } = await _sb.storage.from('clinical-docs').createSignedUrl(p.storage_path, 7200)
           if (su && su.signedUrl) {
-            out.push({ url: su.signedUrl, storage_path: p.storage_path, label: (p.tipo || 'Foto').replace(/_/g,' '), data: p.data_scatto || dataBy[p.visit_id] || null })
+            out.push({ url: su.signedUrl, storage_path: p.storage_path, id: p.id, source: 'visit', label: (p.tipo || 'Foto').replace(/_/g,' '), data: p.data_scatto || dataBy[p.visit_id] || null })
           }
         }
       }
     } catch (e) {}
     const _seen = new Set()
     return out.filter(o => { const k = o.storage_path || o.url; if (_seen.has(k)) return false; _seen.add(k); return true })
+  }
+
+  function _libGridHTML(lista) {
+    return lista.map((ft, i) => {
+      const d = ft.data ? new Date(ft.data).toLocaleDateString('it-IT') : ''
+      const dataLine = d ? '<div style="font-size:10px;color:#999;font-weight:600">' + d + '</div>' : ''
+      return '<div style="position:relative;border:1.5px solid #eee;border-radius:10px;overflow:hidden;cursor:pointer;background:#fff" onclick="scegliFotoLibreria(' + i + ')">' +
+        '<button type="button" title="Elimina" onclick="event.stopPropagation();eliminaFotoLibreria(' + i + ')" style="position:absolute;top:5px;left:5px;z-index:2;width:26px;height:26px;border:none;border-radius:7px;background:rgba(211,47,47,.92);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/><path d="M10 11v6M14 11v6"/></svg></button>' +
+        '<img src="' + ft.url + '" style="width:100%;height:110px;object-fit:cover;display:block" loading="lazy">' +
+        '<div style="padding:6px 8px"><div style="font-size:11px;font-weight:700;color:#000;text-transform:capitalize">' + (ft.label || 'Foto') + '</div>' + dataLine + '</div></div>'
+    }).join('')
+  }
+
+  async function eliminaFotoLibreria(i) {
+    const ft = (window._librFoto || [])[i]
+    if (!ft) return
+    if (!confirm('Eliminare questa foto dalla libreria? Operazione non annullabile.')) return
+    const grid = document.getElementById('libreria-foto-grid')
+    try {
+      if (ft.source === 'visit' && ft.id) {
+        await _sb.from('visit_photos').delete().eq('id', ft.id)
+        if (ft.storage_path) {
+          const { data: others } = await _sb.from('visit_photos').select('id').eq('storage_path', ft.storage_path).limit(1)
+          if (!others || !others.length) await _sb.storage.from('clinical-docs').remove([ft.storage_path])
+        }
+      } else if (ft.source === 'base64' && ft.slot) {
+        const { data: pat } = await _sb.from('patients').select('foto_url').eq('id', patientId).maybeSingle()
+        let obj = {}; try { obj = JSON.parse((pat && pat.foto_url) || '{}') } catch (e) {}
+        delete obj[ft.slot]
+        await _sb.from('patients').update({ foto_url: JSON.stringify(obj) }).eq('id', patientId)
+      }
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999">Aggiorno…</div>'
+      const lista = await caricaFotoPaziente()
+      window._librFoto = lista
+      grid.innerHTML = lista.length ? _libGridHTML(lista) : '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#999">Nessuna foto disponibile in cartella.</div>'
+    } catch (e) {
+      showToast('Errore eliminazione: ' + (e.message || e))
+    }
   }
 
   async function scegliFotoLibreria(idx) {
