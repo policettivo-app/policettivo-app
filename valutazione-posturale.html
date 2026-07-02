@@ -386,6 +386,13 @@
       background: rgba(0,0,0,.45); padding: 2px 7px; border-radius: 4px;
       font-family: 'Montserrat', monospace; pointer-events: none;
     }
+    /* ── RIFERIMENTO FISSO (mirino distanza) ─────────────────── */
+    #wc-ref { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+    #wc-ref .r-v { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(255,208,8,.55); transform: translateX(-50%); }
+    #wc-ref .r-h { position: absolute; left: 0; right: 0; top: 75%; height: 2px; background: rgba(255,208,8,.55); }
+    #wc-ref .r-cross { position: absolute; left: 50%; top: 75%; width: 34px; height: 34px; transform: translate(-50%,-50%); }
+    #wc-ref .r-cross::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(255,208,8,.95); transform: translateY(-50%); }
+    #wc-ref .r-cross::after  { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(255,208,8,.95); transform: translateX(-50%); }
 
     /* ── PP LAYOUT (3 gruppi semantici, 2-col su desktop) ────── */
     .pp-group { margin-bottom: 8px; }
@@ -1065,6 +1072,7 @@
   <div id="wc-video-wrap">
     <video id="wc-video" autoplay playsinline muted></video>
     <div id="wc-grid-overlay"></div>
+    <div id="wc-ref"><div class="r-v"></div><div class="r-h"></div><div class="r-cross"></div></div>
     <img id="wc-preview-img" alt="">
     <!-- Livella overlay cross-style -->
     <div id="wc-livella">
