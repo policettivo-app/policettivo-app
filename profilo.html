@@ -59,6 +59,32 @@
     .logo-hint { font-size: 11px; color: #bbb; line-height: 1.6; margin-top: 10px; text-align: center; }
 
     .read-only-note { font-size: 11px; color: #bbb; margin-top: 4px; }
+
+    /* Listino prezzi */
+    .lst-empty { color: #bbb; font-size: 13px; padding: 16px; text-align: center; background: #fafafa; border: 1.5px dashed #eee; border-radius: 10px; }
+    .lst-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+    .lst-item { background: #fafafa; border: 1.5px solid #eee; border-radius: 10px; padding: 8px 10px; }
+    .lst-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .lst-color-swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #ddd; cursor: pointer; padding: 0; flex: none; }
+    .lst-color-swatch:hover { box-shadow: 0 0 0 1.5px #FFD008; }
+    .lst-input { padding: 8px 10px; border: 1.5px solid #ddd; border-radius: 7px; font-family: inherit; font-size: 13px; color: #000; outline: none; background: #fff; box-sizing: border-box; }
+    .lst-input:focus { border-color: #FFD008; }
+    .lst-code { width: 84px; text-transform: uppercase; }
+    .lst-desc { flex: 1 1 220px; min-width: 130px; }
+    .lst-price { width: 110px; }
+    .lst-btn-del { width: 32px; height: 32px; border: none; background: transparent; color: #a15a5a; font-size: 15px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 0; flex: none; }
+    .lst-btn-del:hover { background: #fee2e2; color: #7f1d1d; }
+    .lst-palette { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 4px 4px; border-top: 1px dashed #eee; margin-top: 8px; }
+    .lst-color-dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #ddd; cursor: pointer; padding: 0; transition: transform 0.1s; }
+    .lst-color-dot:hover { transform: scale(1.12); }
+    .lst-color-dot.on { box-shadow: 0 0 0 2px #000; }
+    .lst-add-btn { padding: 9px 16px; background: #FFD008; color: #000; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .lst-add-btn:hover { background: #e6bc00; }
+    .lst-status { font-size: 12px; color: #999; margin-left: 12px; min-height: 16px; display: inline-block; }
+    .lst-status.ok  { color: #4CAF50; }
+    .lst-status.err { color: #e53935; }
+    .lst-actions-row { display: flex; align-items: center; gap: 4px; margin-top: 12px; flex-wrap: wrap; }
+    .lst-hint { font-size: 12px; color: #999; margin-bottom: 14px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -158,6 +184,19 @@
       <p class="logo-hint">PNG / JPG / SVG — max 2 MB — sfondo trasparente consigliato</p>
       <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="caricaLogo(this.files[0])">
     </div>
+
+    <!-- LISTINO PREZZI -->
+    <div class="card">
+      <div class="card-title">Listino prezzi</div>
+      <p class="lst-hint">Definisci le voci del tuo listino (es. A · Terapia manuale · € 60). Ogni voce può avere un colore per identificarla nella futura contabile del paziente.</p>
+      <div class="lst-list" id="listino-list">
+        <div class="lst-empty">Nessuna voce nel listino. Aggiungi la prima con il pulsante qui sotto.</div>
+      </div>
+      <div class="lst-actions-row">
+        <button type="button" class="lst-add-btn" onclick="listinoAdd()">+ Aggiungi voce</button>
+        <span class="lst-status" id="lst-status"></span>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -167,6 +206,150 @@
 
     let profId = null
     let _profLogoUrl = null
+
+    // ─── LISTINO PREZZI ──────────────────────────────────────────
+    // Salvato su professionals.listino (jsonb array).
+    // Palette: 11 colori Google Calendar.
+    const LISTINO_COLORS = [
+      { name: 'Tomato',    hex: '#D50000' },
+      { name: 'Flamingo',  hex: '#E67C73' },
+      { name: 'Tangerine', hex: '#F4511E' },
+      { name: 'Banana',    hex: '#F6BF26' },
+      { name: 'Sage',      hex: '#33B679' },
+      { name: 'Basil',     hex: '#0B8043' },
+      { name: 'Peacock',   hex: '#039BE5' },
+      { name: 'Blueberry', hex: '#3F51B5' },
+      { name: 'Lavender',  hex: '#7986CB' },
+      { name: 'Grape',     hex: '#8E24AA' },
+      { name: 'Graphite',  hex: '#616161' }
+    ]
+    let listinoState = []
+    let _listinoSaveTimer = null
+    let _listinoOpenPalette = -1   // indice della riga con palette aperta, -1 se nessuna
+
+    function _lstEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+    // Accetta null / non-array / voci malformate senza rompersi
+    function listinoNormalize(raw) {
+      if (!Array.isArray(raw)) return []
+      return raw.filter(function(v){ return v && typeof v === 'object' }).map(function(v){
+        const prezzoRaw = v.prezzo
+        let prezzo = null
+        if (prezzoRaw === '' || prezzoRaw == null) prezzo = null
+        else if (typeof prezzoRaw === 'number' && isFinite(prezzoRaw)) prezzo = prezzoRaw
+        else { const n = Number(prezzoRaw); prezzo = isFinite(n) ? n : null }
+        return {
+          codice:      typeof v.codice === 'string' ? v.codice : (v.codice != null ? String(v.codice) : ''),
+          descrizione: typeof v.descrizione === 'string' ? v.descrizione : (v.descrizione != null ? String(v.descrizione) : ''),
+          prezzo:      prezzo,
+          colore:      (typeof v.colore === 'string' && v.colore) ? v.colore : LISTINO_COLORS[LISTINO_COLORS.length - 1].hex
+        }
+      })
+    }
+
+    function listinoRender() {
+      const box = document.getElementById('listino-list'); if (!box) return
+      if (!listinoState.length) {
+        box.innerHTML = '<div class="lst-empty">Nessuna voce nel listino. Aggiungi la prima con il pulsante qui sotto.</div>'
+        return
+      }
+      box.innerHTML = listinoState.map(function(v, i){
+        const paletteHtml = (_listinoOpenPalette === i)
+          ? '<div class="lst-palette">' + LISTINO_COLORS.map(function(c){
+              const on = (String(v.colore || '').toLowerCase() === c.hex.toLowerCase())
+              return '<button type="button" class="lst-color-dot' + (on ? ' on' : '') + '" title="' + _lstEsc(c.name) + '" style="background:' + c.hex + '" onclick="listinoSelectColor(' + i + ', \'' + c.hex + '\')"></button>'
+            }).join('') + '</div>'
+          : ''
+        const prezzoVal = (v.prezzo != null && isFinite(v.prezzo)) ? v.prezzo : ''
+        return '<div class="lst-item" data-idx="' + i + '">' +
+                 '<div class="lst-row">' +
+                   '<button type="button" class="lst-color-swatch" style="background:' + _lstEsc(v.colore || '#616161') + '" title="Cambia colore" aria-label="Cambia colore" onclick="listinoTogglePalette(' + i + ')"></button>' +
+                   '<input class="lst-input lst-code" type="text" maxlength="6" placeholder="Cod." value="' + _lstEsc(v.codice) + '" oninput="listinoUpdate(' + i + ',\'codice\',this.value)">' +
+                   '<input class="lst-input lst-desc" type="text" placeholder="Descrizione (es. Terapia manuale)" value="' + _lstEsc(v.descrizione) + '" oninput="listinoUpdate(' + i + ',\'descrizione\',this.value)">' +
+                   '<input class="lst-input lst-price" type="number" step="0.01" min="0" placeholder="€ 0,00" value="' + _lstEsc(prezzoVal) + '" oninput="listinoUpdate(' + i + ',\'prezzo\',this.value)">' +
+                   '<button type="button" class="lst-btn-del" title="Elimina voce" aria-label="Elimina voce" onclick="listinoRemove(' + i + ')">🗑</button>' +
+                 '</div>' +
+                 paletteHtml +
+               '</div>'
+      }).join('')
+    }
+
+    function listinoTogglePalette(i) {
+      _listinoOpenPalette = (_listinoOpenPalette === i) ? -1 : i
+      listinoRender()
+    }
+
+    // Aggiornamento inline: non rerenderizza (per preservare il focus)
+    function listinoUpdate(i, field, value) {
+      const v = listinoState[i]; if (!v) return
+      if (field === 'prezzo') {
+        if (value === '' || value == null) v.prezzo = null
+        else { const n = Number(value); v.prezzo = isFinite(n) ? n : null }
+      } else if (field === 'codice' || field === 'descrizione') {
+        v[field] = String(value == null ? '' : value)
+      }
+      listinoSaveDebounced()
+    }
+
+    function listinoSelectColor(i, hex) {
+      const v = listinoState[i]; if (!v) return
+      v.colore = hex
+      _listinoOpenPalette = -1
+      listinoRender()
+      listinoSaveDebounced()
+    }
+
+    function listinoAdd() {
+      listinoState.push({ codice: '', descrizione: '', prezzo: null, colore: LISTINO_COLORS[0].hex })
+      _listinoOpenPalette = -1
+      listinoRender()
+      listinoSaveDebounced()
+    }
+
+    function listinoRemove(i) {
+      const v = listinoState[i]; if (!v) return
+      const label = String(v.codice || v.descrizione || '').trim() || 'questa voce'
+      if (!confirm('Eliminare "' + label + '" dal listino?')) return
+      listinoState.splice(i, 1)
+      if (_listinoOpenPalette === i) _listinoOpenPalette = -1
+      else if (_listinoOpenPalette > i) _listinoOpenPalette--
+      listinoRender()
+      listinoSaveDebounced()
+    }
+
+    function listinoSaveDebounced() {
+      clearTimeout(_listinoSaveTimer)
+      const statusEl = document.getElementById('lst-status')
+      if (statusEl) { statusEl.textContent = 'Modificato…'; statusEl.className = 'lst-status' }
+      _listinoSaveTimer = setTimeout(listinoSaveNow, 700)
+    }
+
+    async function listinoSaveNow() {
+      if (!profId) return
+      const statusEl = document.getElementById('lst-status')
+      const payload = listinoState.map(function(v){
+        return {
+          codice:      String(v.codice || '').trim(),
+          descrizione: String(v.descrizione || '').trim(),
+          prezzo:      (typeof v.prezzo === 'number' && isFinite(v.prezzo)) ? v.prezzo : null,
+          colore:      typeof v.colore === 'string' ? v.colore : LISTINO_COLORS[LISTINO_COLORS.length - 1].hex
+        }
+      })
+      if (statusEl) { statusEl.textContent = 'Salvataggio…'; statusEl.className = 'lst-status' }
+      try {
+        const { error } = await _supabase.from('professionals').update({ listino: payload }).eq('id', profId)
+        if (error) {
+          console.error('[listino] save error:', error)
+          if (statusEl) { statusEl.textContent = 'Errore salvataggio'; statusEl.className = 'lst-status err' }
+          return
+        }
+        if (statusEl) { statusEl.textContent = '✓ Salvato'; statusEl.className = 'lst-status ok' }
+        setTimeout(function(){ if (statusEl && statusEl.textContent === '✓ Salvato') statusEl.textContent = '' }, 2500)
+      } catch(e) {
+        console.error('[listino] save exception:', e)
+        if (statusEl) { statusEl.textContent = 'Errore'; statusEl.className = 'lst-status err' }
+      }
+    }
 
     async function init() {
       const { data: { session } } = await _supabase.auth.getSession()
@@ -192,6 +375,9 @@
       document.getElementById('field-telefono').value  = prof.telefono            || ''
       document.getElementById('edit-email-studio').value = prof.email_studio      || ''
       document.getElementById('edit-piva').value       = prof.partita_iva         || ''
+
+      listinoState = listinoNormalize(prof.listino)
+      listinoRender()
 
       _renderLogo()
       document.body.style.visibility = 'visible'
