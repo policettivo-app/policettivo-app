@@ -34,8 +34,12 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 
 /* Lista sedute */
 .rows { background: #fff; border-radius: 14px; border: 1px solid #eee; overflow: hidden; }
-.row { display: grid; grid-template-columns: 100px 1fr 100px 90px 34px; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.row { display: grid; grid-template-columns: 28px 100px 1fr 100px 90px 34px; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
 .row:last-child { border-bottom: none; }
+.row-check { display: flex; align-items: center; justify-content: center; }
+.row-check input { width: 18px; height: 18px; accent-color: #FFD008; cursor: pointer; }
+.rows-header { display: grid; grid-template-columns: 28px 100px 1fr 100px 90px 34px; gap: 12px; align-items: center; padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #f0f0f0; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .3px; }
+.rows-header .row-check input { width: 18px; height: 18px; }
 .row-date { font-weight: 700; color: #333; }
 .row-desc { display: flex; align-items: center; gap: 10px; color: #333; min-width: 0; }
 .row-desc-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -67,9 +71,40 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 .btn-export { background: #000; color: #FFD008; border: none; border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: .3px; }
 .btn-export:hover { background: #1a1a1a; }
 .btn-export:disabled { opacity: .5; cursor: not-allowed; }
+.btn-batch { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: .3px; }
+.btn-batch:hover { background: #e6bc00; }
+.btn-batch:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Sezione Pagamenti / acconti */
+.pag-section { background: #fff; border-radius: 14px; border: 1px solid #eee; padding: 16px 18px; margin-top: 16px; }
+.pag-title { font-size: 13px; font-weight: 800; color: #000; letter-spacing: .3px; margin-bottom: 4px; }
+.pag-hint { font-size: 11px; color: #999; margin-bottom: 12px; line-height: 1.4; }
+.pag-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px dashed #eee; }
+.pag-form .pag-field { display: flex; flex-direction: column; gap: 4px; }
+.pag-form .pag-field label { font-size: 11px; font-weight: 700; color: #555; }
+.pag-form .pag-input { border: 1.5px solid #ddd; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13px; color: #000; outline: none; background: #fff; }
+.pag-form .pag-input:focus { border-color: #FFD008; }
+.pag-form .pag-nota { min-width: 220px; flex: 1; }
+.pag-form .btn-pag-add { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 9px 16px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: .3px; }
+.pag-form .btn-pag-add:hover { background: #e6bc00; }
+.pag-list { display: flex; flex-direction: column; gap: 8px; }
+.pag-item { display: grid; grid-template-columns: 110px 110px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1.5px solid #f0f0f0; border-radius: 10px; background: #fafafa; font-size: 13px; }
+.pag-item.editing { background: #fffdf0; border-color: #FFD008; }
+.pag-item-date { font-weight: 700; color: #333; }
+.pag-item-amount { font-weight: 800; color: #2e7d32; font-variant-numeric: tabular-nums; }
+.pag-item-nota { color: #555; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pag-item-nota[data-empty="1"] { color: #bbb; font-style: italic; }
+.pag-item-actions { display: flex; gap: 6px; }
+.pag-item .btn-pag-mini { border: none; background: transparent; color: #999; font-size: 14px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.pag-item .btn-pag-mini:hover { background: #f0f0f0; color: #000; }
+.pag-item .btn-pag-mini.del:hover { background: #ffebee; color: #c62828; }
+.pag-item-edit-form { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 4px 4px; align-items: end; border-top: 1px dashed #FFD008; margin-top: 6px; }
+.pag-item-edit-form .edit-input { border: 1.5px solid #FFD008; border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 13px; color: #000; outline: none; background: #fff; }
+.pag-item-edit-form .pag-edit-actions { display: flex; gap: 8px; margin-left: auto; }
+.pag-empty { text-align: center; padding: 20px; color: #bbb; font-size: 13px; font-style: italic; }
 
 /* Row in edit mode */
-.row.editing { grid-template-columns: 100px 1fr 100px 90px 34px; background: #fffdf0; }
+.row.editing { grid-template-columns: 28px 100px 1fr 100px 90px 34px; background: #fffdf0; }
 .row-edit-form { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 4px 4px; align-items: end; }
 .row-edit-form .edit-field { display: flex; flex-direction: column; gap: 4px; }
 .row-edit-form .edit-field label { font-size: 11px; font-weight: 700; color: #555; }
@@ -90,16 +125,27 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 .total-card.paid   .total-val { color: #2e7d32; }
 .total-card.unpaid { background: #fff8e1; border-color: #ffe082; }
 .total-card.unpaid .total-val { color: #b28900; }
+.total-card.residuo { background: #fff3e0; border-color: #ffb74d; }
+.total-card.residuo .total-val { color: #d84315; }
+.total-card.residuo.zero { background: #f1f8e9; border-color: #c5e1a5; }
+.total-card.residuo.zero .total-val { color: #2e7d32; }
 
 @media (max-width: 640px) {
-  .row { grid-template-columns: 1fr auto 34px; gap: 8px; }
-  .row-date { grid-column: 1 / 2; font-size: 12px; }
-  .row-cost { grid-column: 2 / 3; font-size: 14px; }
-  .row-edit { grid-column: 3 / 4; }
+  .row { grid-template-columns: 28px 1fr auto 34px; gap: 8px; }
+  .rows-header { grid-template-columns: 28px 1fr auto 34px; gap: 8px; }
+  .row-check { grid-column: 1 / 2; }
+  .row-date { grid-column: 2 / 3; font-size: 12px; }
+  .row-cost { grid-column: 3 / 4; font-size: 14px; }
+  .row-edit { grid-column: 4 / 5; }
   .row-desc { grid-column: 1 / -1; margin-top: 2px; }
   .row-status { grid-column: 1 / -1; text-align: left; margin-top: 2px; }
-  .row.editing { grid-template-columns: 1fr auto 34px; }
+  .row.editing { grid-template-columns: 28px 1fr auto 34px; }
   .totals { grid-template-columns: 1fr; }
+  .pag-item { grid-template-columns: 1fr auto; gap: 6px; }
+  .pag-item-date { grid-column: 1 / 2; font-size: 12px; }
+  .pag-item-amount { grid-column: 2 / 3; }
+  .pag-item-nota { grid-column: 1 / -1; }
+  .pag-item-actions { grid-column: 1 / -1; justify-content: flex-end; }
 }
 </style>
 </head>
@@ -130,27 +176,62 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
   <div class="actions-bar">
     <span class="actions-title" id="actions-title">Sedute con costo</span>
     <div class="actions-right">
+      <button type="button" class="btn-batch" id="btn-batch-saldo" onclick="segnaSaldateSelezionate()" disabled>✓ Segna saldate le selezionate</button>
       <button type="button" class="btn-export" id="btn-pdf" onclick="esportaPDF()">🖨 Esporta PDF</button>
       <button type="button" class="btn-export" id="btn-csv" onclick="esportaCSV()">📊 Esporta CSV</button>
     </div>
   </div>
 
-  <div class="rows" id="rows">
-    <div class="empty-state">Caricamento…</div>
+  <div class="rows">
+    <div class="rows-header" id="rows-header" hidden>
+      <div class="row-check"><input type="checkbox" id="sel-all" onchange="toggleSelezionaTutto(this)" title="Seleziona tutte le sedute visibili"></div>
+      <div>Data</div>
+      <div>Descrizione</div>
+      <div style="text-align:right">Costo</div>
+      <div style="text-align:center">Stato</div>
+      <div></div>
+    </div>
+    <div id="rows">
+      <div class="empty-state">Caricamento…</div>
+    </div>
+  </div>
+
+  <!-- PAGAMENTI / ACCONTI -->
+  <div class="pag-section">
+    <div class="pag-title">💰 Pagamenti / acconti</div>
+    <div class="pag-hint">Registra qui i versamenti effettuati dal paziente (contanti, POS, bonifico…). Il periodo filtrato si applica anche ai pagamenti.</div>
+    <div class="pag-form">
+      <div class="pag-field">
+        <label for="pag-importo">Importo (€)</label>
+        <input type="number" step="0.01" min="0" class="pag-input" id="pag-importo" placeholder="Es. 60,00">
+      </div>
+      <div class="pag-field">
+        <label for="pag-data">Data</label>
+        <input type="date" class="pag-input" id="pag-data">
+      </div>
+      <div class="pag-field pag-nota">
+        <label for="pag-nota">Nota (opzionale)</label>
+        <input type="text" class="pag-input" id="pag-nota" placeholder="Es. Contanti, acconto seduta del 10/06…">
+      </div>
+      <button type="button" class="btn-pag-add" onclick="aggiungiPagamento()">➕ Aggiungi versamento</button>
+    </div>
+    <div class="pag-list" id="pag-list">
+      <div class="pag-empty">Nessun versamento registrato.</div>
+    </div>
   </div>
 
   <div class="totals">
     <div class="total-card">
-      <div class="total-lbl">Totale periodo</div>
-      <div class="total-val" id="tot-periodo">— €</div>
+      <div class="total-lbl">Dovuto (periodo)</div>
+      <div class="total-val" id="tot-dovuto">— €</div>
     </div>
     <div class="total-card paid">
-      <div class="total-lbl">Totale saldato</div>
-      <div class="total-val" id="tot-saldato">— €</div>
+      <div class="total-lbl">Versato (periodo)</div>
+      <div class="total-val" id="tot-versato">— €</div>
     </div>
-    <div class="total-card unpaid">
-      <div class="total-lbl">Da saldare</div>
-      <div class="total-val" id="tot-dasaldare">— €</div>
+    <div class="total-card residuo" id="tot-residuo-card">
+      <div class="total-lbl">Residuo</div>
+      <div class="total-val" id="tot-residuo">— €</div>
     </div>
   </div>
 </div>
@@ -164,8 +245,12 @@ var pid = new URLSearchParams(window.location.search).get('pid');
 var patient = null;
 var _listino = [];          // listino personale del pro corrente
 var _sedute = [];           // tutte le sedute con costo (dal DB)
+var _pagamenti = [];        // patient_payments per patient_id + professional_id
+var _professionalId = null; // id professionista corrente (per insert su patient_payments)
 var _editingId = null;      // id seduta in edit costo/descrizione
 var _saldoEditingId = null; // id seduta in edit "segna saldato"
+var _selected = Object.create(null); // { id_seduta: true } — sedute selezionate per batch
+var _pagEditingId = null;   // id pagamento in edit
 
 function _esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -273,7 +358,13 @@ function renderRighe(){
     box.innerHTML = '<div class="empty-state">Nessuna seduta con costo nel periodo selezionato.</div>';
     return;
   }
+  // Mostra l'header con "seleziona tutto" quando c'è almeno una riga
+  var hdr = document.getElementById('rows-header'); if (hdr) hdr.hidden = false;
   var html = '';
+  function _cbHtml(sid) {
+    var checked = _selected[sid] ? ' checked' : '';
+    return '<div class="row-check"><input type="checkbox" data-sid="' + _esc(sid) + '" onchange="toggleSelezioneRiga(\'' + _esc(sid) + '\', this)"' + checked + '></div>';
+  }
   for (var i = 0; i < lista.length; i++) {
     var s = lista[i];
     var col = (typeof s.colore === 'string' && s.colore) ? s.colore : '#ccc';
@@ -285,6 +376,7 @@ function renderRighe(){
       var currentDesc = s.costo_descrizione ? String(s.costo_descrizione) : '';
       var currentCost = (s.costo != null && isFinite(Number(s.costo))) ? Number(s.costo) : '';
       html += '<div class="row editing" data-id="' + _esc(s.id) + '">' +
+                _cbHtml(s.id) +
                 '<div class="row-date">' + _fmtDate(s.data_seduta) + '</div>' +
                 '<div class="row-desc"><span class="row-color-dot" style="background:' + _esc(col) + '"></span><div class="row-desc-text">' + _descHtml(s) + '</div></div>' +
                 '<div class="row-cost">' + _fmtEur(s.costo) + '</div>' +
@@ -306,6 +398,7 @@ function renderRighe(){
                         : ((s.costo != null && isFinite(Number(s.costo))) ? Number(s.costo) : '');
       var preData = s.saldato_data ? String(s.saldato_data).substring(0,10) : (new Date()).toISOString().substring(0,10);
       html += '<div class="row editing" data-id="' + _esc(s.id) + '">' +
+                _cbHtml(s.id) +
                 '<div class="row-date">' + _fmtDate(s.data_seduta) + '</div>' +
                 '<div class="row-desc"><span class="row-color-dot" style="background:' + _esc(col) + '"></span><div class="row-desc-text">' + _descHtml(s) + '</div></div>' +
                 '<div class="row-cost">' + _fmtEur(s.costo) + '</div>' +
@@ -322,6 +415,7 @@ function renderRighe(){
               '</div>';
     } else {
       html += '<div class="row" data-id="' + _esc(s.id) + '">' +
+                _cbHtml(s.id) +
                 '<div class="row-date">' + _fmtDate(s.data_seduta) + '</div>' +
                 '<div class="row-desc"><span class="row-color-dot" style="background:' + _esc(col) + '"></span><div class="row-desc-text">' + _descHtml(s) + '</div></div>' +
                 '<div class="row-cost">' + _fmtEur(s.costo) + '</div>' +
@@ -331,31 +425,55 @@ function renderRighe(){
     }
   }
   box.innerHTML = html;
+  _updateSelectAllBox();
+  _updateBatchBtn();
+}
+
+// Somma dei pagamenti nel periodo filtrato
+function _pagPerPeriodo(){
+  var daStr = document.getElementById('f-da').value;
+  var aStr  = document.getElementById('f-a').value;
+  var da = daStr ? new Date(daStr + 'T00:00:00') : null;
+  var a  = aStr  ? new Date(aStr  + 'T23:59:59') : null;
+  return _pagamenti.filter(function(p){
+    if (!p || p.importo == null) return false;
+    if (!p.data) return true;
+    var d = new Date(p.data + 'T00:00:00');
+    if (da && d < da) return false;
+    if (a  && d > a ) return false;
+    return true;
+  });
 }
 
 function renderTotali(){
   var lista = _sedutePerPeriodo();
-  var totPeriodo = 0, totSaldato = 0;
+  var dovuto = 0;
   for (var i = 0; i < lista.length; i++) {
     var s = lista[i];
     var c = Number(s.costo);
-    if (!isFinite(c)) continue;
-    totPeriodo += c;
-    if (s.saldato) totSaldato += _importoSaldato(s);
+    if (isFinite(c)) dovuto += c;
   }
-  var totDaSaldare = totPeriodo - totSaldato;
-  if (totDaSaldare < 0) totDaSaldare = 0;
-  document.getElementById('tot-periodo').textContent   = _fmtEur(totPeriodo);
-  document.getElementById('tot-saldato').textContent   = _fmtEur(totSaldato);
-  document.getElementById('tot-dasaldare').textContent = _fmtEur(totDaSaldare);
+  var pagLista = _pagPerPeriodo();
+  var versato = 0;
+  for (var j = 0; j < pagLista.length; j++) {
+    var v = Number(pagLista[j].importo);
+    if (isFinite(v)) versato += v;
+  }
+  var residuo = dovuto - versato;
+  document.getElementById('tot-dovuto').textContent  = _fmtEur(dovuto);
+  document.getElementById('tot-versato').textContent = _fmtEur(versato);
+  document.getElementById('tot-residuo').textContent = _fmtEur(residuo);
+  var card = document.getElementById('tot-residuo-card');
+  if (card) card.classList.toggle('zero', residuo <= 0.005);
 }
 
-function applicaFiltri(){ renderRighe(); renderTotali(); }
+function applicaFiltri(){ renderRighe(); renderPagamenti(); renderTotali(); }
 function resetFiltri(){
   document.getElementById('f-da').value = '';
   document.getElementById('f-a').value  = '';
   _editingId = null;
   _saldoEditingId = null;
+  _pagEditingId = null;
   applicaFiltri();
 }
 
@@ -451,6 +569,219 @@ async function rimuoviSaldo(id){
   }
 }
 
+// ── SELEZIONE MULTIPLA + BATCH SALDO ──────────────────
+function _updateBatchBtn(){
+  var btn = document.getElementById('btn-batch-saldo'); if (!btn) return;
+  var n = 0;
+  Object.keys(_selected).forEach(function(k){ if (_selected[k]) n++ });
+  btn.disabled = (n === 0);
+  btn.textContent = n > 0
+    ? '✓ Segna saldate le selezionate (' + n + ')'
+    : '✓ Segna saldate le selezionate';
+}
+function _updateSelectAllBox(){
+  var sa = document.getElementById('sel-all'); if (!sa) return;
+  var lista = _sedutePerPeriodo();
+  if (!lista.length) { sa.checked = false; sa.indeterminate = false; return; }
+  var visibleIds = lista.map(function(s){ return s.id });
+  var allSel = visibleIds.every(function(id){ return !!_selected[id] });
+  var anySel = visibleIds.some(function(id){ return !!_selected[id] });
+  sa.checked = allSel;
+  sa.indeterminate = anySel && !allSel;
+}
+function toggleSelezioneRiga(id, cb){
+  if (cb.checked) _selected[id] = true;
+  else delete _selected[id];
+  _updateSelectAllBox();
+  _updateBatchBtn();
+}
+function toggleSelezionaTutto(cb){
+  var lista = _sedutePerPeriodo();
+  var check = !!cb.checked;
+  for (var i = 0; i < lista.length; i++) {
+    if (check) _selected[lista[i].id] = true;
+    else delete _selected[lista[i].id];
+  }
+  renderRighe();
+}
+
+async function segnaSaldateSelezionate(){
+  var lista = _sedutePerPeriodo();
+  var visibleById = {};
+  for (var i = 0; i < lista.length; i++) visibleById[lista[i].id] = lista[i];
+  var ids = Object.keys(_selected).filter(function(k){ return _selected[k] && visibleById[k] && !visibleById[k].saldato });
+  if (!ids.length) { alert('Nessuna seduta selezionata (o già saldate).'); return; }
+  if (!confirm('Segnare come saldate ' + ids.length + ' sedut' + (ids.length === 1 ? 'a' : 'e') + '?\nImporto = costo della riga · Data = oggi.')) return;
+  var today = (new Date()).toISOString().substring(0,10);
+  var btn = document.getElementById('btn-batch-saldo'); if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvataggio…'; }
+  try {
+    await Promise.all(ids.map(function(id){
+      var s = visibleById[id];
+      var imp = (s.costo != null && isFinite(Number(s.costo))) ? Number(s.costo) : null;
+      if (imp == null) return Promise.resolve(); // skip senza costo valido
+      return _sb.from('therapy_sessions')
+        .update({ saldato: true, saldato_importo: imp, saldato_data: today })
+        .eq('id', id)
+        .then(function(res){
+          if (res.error) { console.error('[contabile] batch saldo error id=' + id, res.error); return; }
+          // Aggiorna in memoria
+          for (var k = 0; k < _sedute.length; k++) {
+            if (_sedute[k].id === id) {
+              _sedute[k].saldato = true;
+              _sedute[k].saldato_importo = imp;
+              _sedute[k].saldato_data = today;
+              break;
+            }
+          }
+        });
+    }));
+    // Pulisce selezioni delle righe ora saldate
+    ids.forEach(function(id){ delete _selected[id]; });
+    renderRighe();
+    renderTotali();
+  } catch(e) {
+    console.error('[contabile] batch saldo exception:', e);
+    alert('Errore nel salvataggio batch.');
+  }
+}
+
+// ── PAGAMENTI / ACCONTI (patient_payments) ─────────────
+function renderPagamenti(){
+  var box = document.getElementById('pag-list'); if (!box) return;
+  var lista = _pagPerPeriodo();
+  if (!lista.length) {
+    box.innerHTML = '<div class="pag-empty">Nessun versamento nel periodo selezionato.</div>';
+    return;
+  }
+  // ordina per data desc
+  lista.sort(function(a,b){ return String(b.data||'').localeCompare(String(a.data||'')); });
+  var html = '';
+  for (var i = 0; i < lista.length; i++) {
+    var p = lista[i];
+    var isEdit = (_pagEditingId === p.id);
+    var dataStr = p.data ? _fmtDate(p.data + 'T00:00:00') : '—';
+    var nota = p.nota ? String(p.nota) : '';
+    if (isEdit) {
+      var preImp = (p.importo != null && isFinite(Number(p.importo))) ? Number(p.importo) : '';
+      var preData = p.data ? String(p.data).substring(0,10) : (new Date()).toISOString().substring(0,10);
+      var preNota = nota;
+      html += '<div class="pag-item editing" data-id="' + _esc(p.id) + '">' +
+                '<div class="pag-item-date">' + _esc(dataStr) + '</div>' +
+                '<div class="pag-item-amount">' + _fmtEur(p.importo) + '</div>' +
+                '<div class="pag-item-nota"' + (nota ? '' : ' data-empty="1"') + '>' + _esc(nota || 'senza nota') + '</div>' +
+                '<div class="pag-item-actions">' +
+                  '<button class="btn-pag-mini" title="Annulla" onclick="annullaEditPagamento()">✕</button>' +
+                '</div>' +
+                '<div class="pag-item-edit-form">' +
+                  '<div class="pag-field"><label>Importo (€)</label><input type="number" step="0.01" min="0" class="edit-input" id="pag-e-importo" value="' + _esc(preImp) + '"></div>' +
+                  '<div class="pag-field"><label>Data</label><input type="date" class="edit-input" id="pag-e-data" value="' + _esc(preData) + '"></div>' +
+                  '<div class="pag-field" style="flex:1;min-width:180px"><label>Nota</label><input type="text" class="edit-input" id="pag-e-nota" value="' + _esc(preNota) + '" placeholder="Es. Contanti…"></div>' +
+                  '<div class="pag-edit-actions">' +
+                    '<button class="btn-cancel" style="border:1.5px solid #ddd;background:transparent;border-radius:7px;padding:8px 14px;font-family:inherit;font-size:12px;font-weight:600;color:#555;cursor:pointer" onclick="annullaEditPagamento()">Annulla</button>' +
+                    '<button class="btn-save" style="background:#FFD008;color:#000;border:none;border-radius:7px;padding:8px 14px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer" onclick="salvaEditPagamento(\'' + _esc(p.id) + '\')">💾 Salva</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+    } else {
+      html += '<div class="pag-item" data-id="' + _esc(p.id) + '">' +
+                '<div class="pag-item-date">' + _esc(dataStr) + '</div>' +
+                '<div class="pag-item-amount">' + _fmtEur(p.importo) + '</div>' +
+                '<div class="pag-item-nota"' + (nota ? '' : ' data-empty="1"') + '>' + _esc(nota || 'senza nota') + '</div>' +
+                '<div class="pag-item-actions">' +
+                  '<button class="btn-pag-mini" title="Modifica" onclick="apriEditPagamento(\'' + _esc(p.id) + '\')">✏️</button>' +
+                  '<button class="btn-pag-mini del" title="Elimina" onclick="eliminaPagamento(\'' + _esc(p.id) + '\')">🗑</button>' +
+                '</div>' +
+              '</div>';
+    }
+  }
+  box.innerHTML = html;
+}
+
+async function aggiungiPagamento(){
+  if (!_professionalId) { alert('Profilo professionista non caricato.'); return; }
+  var impRaw = document.getElementById('pag-importo').value;
+  var dataRaw = document.getElementById('pag-data').value;
+  var notaRaw = document.getElementById('pag-nota').value;
+  var imp = null;
+  if (impRaw !== '' && impRaw != null) { var n = Number(impRaw); imp = isFinite(n) && n > 0 ? n : null; }
+  if (imp == null) { alert('Inserisci un importo valido (> 0).'); return; }
+  if (!dataRaw) { alert('Inserisci la data del versamento.'); return; }
+  var nota = String(notaRaw || '').trim() || null;
+  var payload = { patient_id: pid, professional_id: _professionalId, importo: imp, data: dataRaw, nota: nota };
+  try {
+    var res = await _sb.from('patient_payments').insert(payload).select('*').maybeSingle();
+    if (res.error) {
+      console.error('[contabile] insert patient_payments error:', res.error);
+      alert('Errore nel salvataggio del versamento: ' + (res.error.message || ''));
+      return;
+    }
+    if (res.data) _pagamenti.push(res.data);
+    // Reset form (data resta a oggi come default)
+    document.getElementById('pag-importo').value = '';
+    document.getElementById('pag-nota').value = '';
+    document.getElementById('pag-data').value = (new Date()).toISOString().substring(0,10);
+    renderPagamenti();
+    renderTotali();
+  } catch(e) {
+    console.error('[contabile] aggiungiPagamento exception:', e);
+    alert('Errore nel salvataggio.');
+  }
+}
+
+function apriEditPagamento(id){ _pagEditingId = id; renderPagamenti(); }
+function annullaEditPagamento(){ _pagEditingId = null; renderPagamenti(); }
+
+async function salvaEditPagamento(id){
+  var impRaw = document.getElementById('pag-e-importo').value;
+  var dataRaw = document.getElementById('pag-e-data').value;
+  var notaRaw = document.getElementById('pag-e-nota').value;
+  var imp = null;
+  if (impRaw !== '' && impRaw != null) { var n = Number(impRaw); imp = isFinite(n) && n > 0 ? n : null; }
+  if (imp == null) { alert('Importo non valido.'); return; }
+  if (!dataRaw) { alert('Data obbligatoria.'); return; }
+  var nota = String(notaRaw || '').trim() || null;
+  var payload = { importo: imp, data: dataRaw, nota: nota };
+  try {
+    var res = await _sb.from('patient_payments').update(payload).eq('id', id);
+    if (res.error) {
+      alert('Errore salvataggio: ' + (res.error.message || ''));
+      return;
+    }
+    for (var i = 0; i < _pagamenti.length; i++) {
+      if (_pagamenti[i].id === id) {
+        _pagamenti[i].importo = imp;
+        _pagamenti[i].data = dataRaw;
+        _pagamenti[i].nota = nota;
+        break;
+      }
+    }
+    _pagEditingId = null;
+    renderPagamenti();
+    renderTotali();
+  } catch(e) {
+    console.error('[contabile] salvaEditPagamento exception:', e);
+    alert('Errore salvataggio.');
+  }
+}
+
+async function eliminaPagamento(id){
+  if (!confirm('Eliminare questo versamento? Operazione non annullabile.')) return;
+  try {
+    var res = await _sb.from('patient_payments').delete().eq('id', id);
+    if (res.error) {
+      alert('Errore eliminazione: ' + (res.error.message || ''));
+      return;
+    }
+    _pagamenti = _pagamenti.filter(function(p){ return p.id !== id });
+    if (_pagEditingId === id) _pagEditingId = null;
+    renderPagamenti();
+    renderTotali();
+  } catch(e) {
+    console.error('[contabile] eliminaPagamento exception:', e);
+    alert('Errore eliminazione.');
+  }
+}
+
 // ── EXPORT ──────────────────────────────────────────
 // Testo piatto della descrizione (per PDF/CSV) — no HTML
 function _descTxt(s){
@@ -476,20 +807,20 @@ function _labelPeriodo(){
 
 function esportaPDF(){
   var lista = _sedutePerPeriodo();
+  var pagLista = _pagPerPeriodo().slice().sort(function(a,b){ return String(a.data||'').localeCompare(String(b.data||'')); });
   var nomePaz = ((patient && patient.nome) || '') + ' ' + ((patient && patient.cognome) || '');
   nomePaz = nomePaz.trim() || 'Paziente';
   var periodo = _labelPeriodo();
   var oggi = new Date().toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' });
 
-  var totPeriodo = 0, totSaldato = 0;
+  var dovuto = 0;
   var righeHtml = '';
   for (var i = 0; i < lista.length; i++) {
     var s = lista[i];
     var c = Number(s.costo); if (!isFinite(c)) continue;
-    totPeriodo += c;
+    dovuto += c;
     var isPaid = !!s.saldato;
     var impPaid = isPaid ? _importoSaldato(s) : 0;
-    totSaldato += impPaid;
     var stato = isPaid
       ? '✓ Saldato · ' + _fmtEur(impPaid) + (s.saldato_data ? ' · ' + _fmtDate(s.saldato_data) : '')
       : 'In attesa';
@@ -500,7 +831,20 @@ function esportaPDF(){
                    '<td>' + stato + '</td>' +
                  '</tr>';
   }
-  var totDaSaldare = totPeriodo - totSaldato; if (totDaSaldare < 0) totDaSaldare = 0;
+  var versato = 0;
+  var pagHtml = '';
+  for (var k = 0; k < pagLista.length; k++) {
+    var p = pagLista[k];
+    var imp = Number(p.importo); if (isFinite(imp)) versato += imp;
+    pagHtml += '<tr>' +
+                 '<td>' + (p.data ? _fmtDate(p.data + 'T00:00:00') : '') + '</td>' +
+                 '<td>' + _esc(p.nota || '—') + '</td>' +
+                 '<td class="num">' + _fmtEur(p.importo) + '</td>' +
+               '</tr>';
+  }
+  var residuo = dovuto - versato;
+  var residuoCls = residuo <= 0.005 ? 'paid' : 'unpaid';
+  var residuoLbl = residuo <= 0.005 ? 'Residuo (saldo raggiunto)' : 'Residuo';
 
   var win = window.open('', '_blank');
   if (!win) { alert('Il browser ha bloccato il popup PDF. Consenti i popup per esportare.'); return; }
@@ -510,6 +854,7 @@ function esportaPDF(){
   h += '.logo{font-weight:800;letter-spacing:2px;color:#000;font-size:12px;margin-bottom:12px}';
   h += 'h1{font-size:22px;margin:0 0 4px}';
   h += '.sub{color:#666;font-size:12px;margin-bottom:22px}';
+  h += 'h2{font-size:14px;margin:26px 0 8px;padding-bottom:4px;border-bottom:2px solid #FFD008;letter-spacing:.3px}';
   h += 'table{width:100%;border-collapse:collapse;font-size:12px}';
   h += 'th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eee;vertical-align:top}';
   h += 'th{background:#f7f7f7;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#555}';
@@ -519,20 +864,25 @@ function esportaPDF(){
   h += '.tc .l{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}';
   h += '.tc .v{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}';
   h += '.tc.paid{background:#f1f8e9;border-color:#c5e1a5} .tc.paid .v{color:#2e7d32}';
-  h += '.tc.unpaid{background:#fff8e1;border-color:#ffe082} .tc.unpaid .v{color:#b28900}';
+  h += '.tc.unpaid{background:#fff3e0;border-color:#ffb74d} .tc.unpaid .v{color:#d84315}';
   h += '.foot{margin-top:32px;font-size:10px;color:#bbb;border-top:1px solid #eee;padding-top:12px}';
   h += '@media print{button{display:none}body{margin:12mm}}';
   h += '</style></head><body>';
   h += '<div class="logo">POLICETTIVO®</div>';
   h += '<h1>Contabile paziente</h1>';
   h += '<div class="sub">' + _esc(nomePaz) + ' — Periodo: ' + _esc(periodo) + ' — Generato il ' + _esc(oggi) + '</div>';
+  h += '<h2>Sedute con costo</h2>';
   h += '<table><thead><tr><th>Data</th><th>Descrizione</th><th class="num">Costo</th><th>Stato</th></tr></thead><tbody>';
   h += righeHtml || '<tr><td colspan="4" style="text-align:center;color:#888;padding:24px">Nessuna seduta nel periodo selezionato.</td></tr>';
   h += '</tbody></table>';
+  h += '<h2>Pagamenti / acconti</h2>';
+  h += '<table><thead><tr><th>Data</th><th>Nota</th><th class="num">Importo</th></tr></thead><tbody>';
+  h += pagHtml || '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px">Nessun versamento nel periodo selezionato.</td></tr>';
+  h += '</tbody></table>';
   h += '<div class="totals">' +
-         '<div class="tc"><div class="l">Totale periodo</div><div class="v">' + _fmtEur(totPeriodo) + '</div></div>' +
-         '<div class="tc paid"><div class="l">Totale saldato</div><div class="v">' + _fmtEur(totSaldato) + '</div></div>' +
-         '<div class="tc unpaid"><div class="l">Da saldare</div><div class="v">' + _fmtEur(totDaSaldare) + '</div></div>' +
+         '<div class="tc"><div class="l">Dovuto</div><div class="v">' + _fmtEur(dovuto) + '</div></div>' +
+         '<div class="tc paid"><div class="l">Versato</div><div class="v">' + _fmtEur(versato) + '</div></div>' +
+         '<div class="tc ' + residuoCls + '"><div class="l">' + _esc(residuoLbl) + '</div><div class="v">' + _fmtEur(residuo) + '</div></div>' +
        '</div>';
   h += '<div class="foot">Generato con Policettivo® Contabile</div>';
   h += '<button onclick="window.print()" style="margin-top:24px;background:#FFD008;border:none;border-radius:8px;padding:12px 24px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;cursor:pointer">🖨 Stampa / Salva PDF</button>';
@@ -547,27 +897,57 @@ function _csvField(v){
   if (/[",;\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
   return s;
 }
+function _fmtNumCsv(n){
+  if (n == null || !isFinite(Number(n))) return '';
+  return Number(n).toFixed(2).replace('.', ',');
+}
 function esportaCSV(){
   var lista = _sedutePerPeriodo();
+  var pagLista = _pagPerPeriodo().slice().sort(function(a,b){ return String(a.data||'').localeCompare(String(b.data||'')); });
   var nomePaz = ((patient && patient.nome) || '') + ' ' + ((patient && patient.cognome) || '');
   nomePaz = nomePaz.trim().replace(/\s+/g, '_') || 'paziente';
   var lines = [];
+  // ── Sezione 1: Sedute ──
+  lines.push('# SEDUTE');
   lines.push(['Data', 'Descrizione', 'Costo', 'Saldato', 'Importo saldato', 'Data saldo'].map(_csvField).join(';'));
+  var dovuto = 0;
   for (var i = 0; i < lista.length; i++) {
     var s = lista[i];
-    var costo = (s.costo != null && isFinite(Number(s.costo))) ? Number(s.costo).toFixed(2).replace('.', ',') : '';
+    var c = Number(s.costo); if (isFinite(c)) dovuto += c;
     var isPaid = !!s.saldato;
-    var imp = isPaid ? Number(_importoSaldato(s)).toFixed(2).replace('.', ',') : '';
+    var imp = isPaid ? _fmtNumCsv(_importoSaldato(s)) : '';
     var dataSaldo = s.saldato_data ? _fmtDate(s.saldato_data) : '';
     lines.push([
       _fmtDate(s.data_seduta),
       _descTxt(s),
-      costo,
+      _fmtNumCsv(s.costo),
       isPaid ? 'sì' : 'no',
       imp,
       dataSaldo
     ].map(_csvField).join(';'));
   }
+  // ── Sezione 2: Pagamenti ──
+  lines.push('');
+  lines.push('# PAGAMENTI / ACCONTI');
+  lines.push(['Data', 'Nota', 'Importo'].map(_csvField).join(';'));
+  var versato = 0;
+  for (var k = 0; k < pagLista.length; k++) {
+    var p = pagLista[k];
+    var pi = Number(p.importo); if (isFinite(pi)) versato += pi;
+    lines.push([
+      p.data ? _fmtDate(p.data + 'T00:00:00') : '',
+      p.nota || '',
+      _fmtNumCsv(p.importo)
+    ].map(_csvField).join(';'));
+  }
+  // ── Sezione 3: Totali ──
+  var residuo = dovuto - versato;
+  lines.push('');
+  lines.push('# TOTALI (periodo filtrato)');
+  lines.push(['Dovuto', _fmtNumCsv(dovuto)].map(_csvField).join(';'));
+  lines.push(['Versato', _fmtNumCsv(versato)].map(_csvField).join(';'));
+  lines.push(['Residuo', _fmtNumCsv(residuo)].map(_csvField).join(';'));
+
   var csv = '﻿' + lines.join('\r\n') + '\r\n';
   var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   var oggi = new Date().toISOString().substring(0,10);
@@ -590,15 +970,28 @@ async function init(){
   patient = pres.data;
   document.getElementById('pname').textContent = (patient.nome || '') + ' ' + (patient.cognome || '');
 
-  // Listino personale del pro (per lookup descrizione ricca)
+  // Professionista + listino personale (per lookup descrizione ricca e per insert su patient_payments)
   try {
-    var profRes = await _sb.from('professionals').select('listino').eq('user_id', sess.data.session.user.id).maybeSingle();
-    if (profRes && profRes.data && Array.isArray(profRes.data.listino)) _listino = profRes.data.listino;
-  } catch(e) { console.error('[contabile] fetch listino error:', e); }
+    var profRes = await _sb.from('professionals').select('id, listino').eq('user_id', sess.data.session.user.id).maybeSingle();
+    if (profRes && profRes.data) {
+      _professionalId = profRes.data.id || null;
+      if (Array.isArray(profRes.data.listino)) _listino = profRes.data.listino;
+    }
+  } catch(e) { console.error('[contabile] fetch professionals error:', e); }
 
   // Sedute con costo (RLS filtra al pro corrente automaticamente)
   var sres = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false });
   if (sres && sres.data) _sedute = sres.data;
+
+  // Pagamenti / acconti del paziente per il pro corrente (RLS filtra ai propri)
+  try {
+    var pres2 = await _sb.from('patient_payments').select('*').eq('patient_id', pid).order('data', { ascending: false });
+    if (pres2 && pres2.data) _pagamenti = pres2.data;
+  } catch(e) { console.error('[contabile] fetch patient_payments error:', e); }
+
+  // Data del form pagamento pre-compilata a oggi
+  var pagDataEl = document.getElementById('pag-data');
+  if (pagDataEl) pagDataEl.value = (new Date()).toISOString().substring(0,10);
 
   applicaFiltri();
 }
