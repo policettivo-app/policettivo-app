@@ -574,7 +574,11 @@
   <style>
   #lb-obs-panel{ position:fixed; left:0; right:0; bottom:0; z-index:100001; transform:translateY(100%); transition:transform .25s ease; }
   #lb-obs-panel.open{ transform:translateY(0); }
-  .lb-obs-inner{ background:#fff; border-radius:18px 18px 0 0; padding:14px 16px calc(16px + env(safe-area-inset-bottom)); max-height:62vh; overflow-y:auto; box-shadow:0 -6px 24px rgba(0,0,0,0.35); }
+  .lb-obs-inner{ position:relative; background:#fff; border-radius:18px 18px 0 0; padding:14px 16px calc(16px + env(safe-area-inset-bottom)); max-height:62vh; overflow-y:auto; box-shadow:0 -6px 24px rgba(0,0,0,0.35); }
+  .lb-obs-handle{ display:block; width:44px; height:5px; margin:2px auto 10px; background:#d0d0cc; border-radius:999px; cursor:pointer; }
+  .lb-obs-handle:hover{ background:#b8b8b3; }
+  .lb-obs-close{ position:absolute; top:8px; right:10px; width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; padding:0; border:none; background:transparent; color:#666; font-size:20px; line-height:1; cursor:pointer; border-radius:8px; }
+  .lb-obs-close:hover{ background:#f2f2f0; color:#000; }
   .lb-obs-title{ font-size:12px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
   .lb-obs-chips{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
   .lb-obs-chips{ display:block; margin-bottom:12px; }
@@ -956,6 +960,8 @@
   </div>
   <div id="lb-obs-panel">
     <div class="lb-obs-inner">
+      <div class="lb-obs-handle" role="button" tabindex="0" aria-label="Chiudi pannello osservazioni" onclick="chiudiObsPanel()"></div>
+      <button type="button" class="lb-obs-close" aria-label="Chiudi pannello osservazioni" onclick="chiudiObsPanel()">✕</button>
       <div class="lb-obs-title">Osservazioni</div>
       <div class="lb-obs-chips" id="lb-obs-chips"></div>
       <textarea id="lb-note" class="lb-obs-note" placeholder="Note libere su questa foto..."></textarea>
@@ -2915,6 +2921,9 @@ ISTRUZIONI:
     showLightbox(tipo)
     requestAnimationFrame(function(){ requestAnimationFrame(function(){ var p=document.getElementById('lb-obs-panel'); if(p) p.classList.add('open') }) })
   }
+  function chiudiObsPanel() {
+    var p = document.getElementById('lb-obs-panel'); if (p) p.classList.remove('open')
+  }
 
   function closeLightbox() {
     var _op=document.getElementById('lb-obs-panel'); if(_op) _op.classList.remove('open')
@@ -3072,6 +3081,7 @@ ISTRUZIONI:
     if (error) { showToast('Errore salvataggio annotazioni'); return }
     if (lbTipo && photos[lbTipo]) photos[lbTipo].annotazioni = ann
     showToast('✏️ Annotazioni salvate')
+    chiudiObsPanel()
   }
   function dtExport() {
     const bgImg = document.getElementById('lb-img')
