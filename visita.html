@@ -2286,6 +2286,172 @@
     scheduleSave()
   }
 
+  // ====== NOTA IN CARTELLA CLINICA (auto-generata alla conclusione visita) ======
+  // Alla conclusione della visita, crea o aggiorna una nota strutturata dentro
+  // clinical_notes (stessa tabella del tab "Relazione clinica" di paziente.html).
+  // Upsert per non duplicare: usa marker " [#<visitId>]" come suffisso del titolo.
+  function _visNotaTitle(dataVisitaIso) {
+    const dt = dataVisitaIso ? new Date(dataVisitaIso) : new Date()
+    const s = isNaN(dt.getTime())
+      ? new Date().toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+      : dt.toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+    return 'Visita fisioterapica — ' + s + ' [#' + visitId + ']'
+  }
+
+  function _visNotaContent(d) {
+    const lines = []
+    const push = function(l){ lines.push(l) }
+    const isEmpty = function(v){ return v === null || v === undefined || v === '' }
+    const dt = d.data_visita ? new Date(d.data_visita) : new Date()
+    const dtStr = isNaN(dt.getTime())
+      ? new Date().toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+      : dt.toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+    push('🩺 VISITA FISIOTERAPICA — ' + dtStr)
+
+    // ── Anamnesi ──
+    const ana = []
+    if (!isEmpty(d.motivo_visita))       ana.push('• Motivo: ' + d.motivo_visita)
+    if (!isEmpty(d.storia_clinica))      ana.push('• Storia clinica: ' + d.storia_clinica)
+    const dur = d.durata_sintomi ? String(d.durata_sintomi).replace(/_/g,' ') : ''
+    const ins = d.insorgenza     ? String(d.insorgenza).replace(/_/g,' ')     : ''
+    if (dur || ins) {
+      const parts = []
+      if (dur) parts.push('Durata: ' + dur)
+      if (ins) parts.push('Insorgenza: ' + ins)
+      ana.push('• ' + parts.join(' · '))
+    }
+    if (!isEmpty(d.obiettivi_paziente))  ana.push('• Obiettivi: ' + d.obiettivi_paziente)
+    if (!isEmpty(d.diagnosi_funzionale)) ana.push('• Diagnosi funzionale: ' + d.diagnosi_funzionale)
+    if (ana.length) { push(''); push('━━━ ANAMNESI ━━━'); ana.forEach(push) }
+
+    // ── Red flag (dati in memoria) ──
+    const rfNotaTrim = ((typeof rfNota === 'string') ? rfNota : '').trim()
+    const rfList = Array.isArray(rfVoci) ? rfVoci : []
+    if (rfList.length || rfNotaTrim) {
+      push(''); push('━━━ 🚩 RED FLAG (screening) ━━━')
+      rfList.forEach(function(v){ push('• ' + v) })
+      if (rfNotaTrim) push('• Nota libera: ' + rfNotaTrim)
+    }
+
+    // ── Body chart (distretti + punti liberi, dati in memoria) ──
+    const bcMap = (typeof bodyChartState === 'object' && bodyChartState) ? bodyChartState : {}
+    const bcPts = Array.isArray(bodyChartPoints) ? bodyChartPoints : []
+    const dKeys = Object.keys(bcMap)
+    if (dKeys.length || bcPts.length) {
+      push(''); push('━━━ 🩹 SEDE DEL DOLORE (body chart) ━━━')
+      if (dKeys.length) {
+        push('Distretti:')
+        BODY_CHART_IDS.filter(function(id){ return dKeys.indexOf(id) >= 0 }).forEach(function(id){
+          const n = String(bcMap[id] || '').trim()
+          push('• ' + bcLabelOf(id) + (n ? ': ' + n : ''))
+        })
+      }
+      if (bcPts.length) {
+        push('Punti liberi:')
+        bcPts.forEach(function(p){
+          const vLbl = p.view === 'back' ? 'vista posteriore' : 'vista frontale'
+          const n = String(p.nota || '').trim()
+          push('• 📍 ' + vLbl + ' (x ' + p.x + '%, y ' + p.y + '%)' + (n ? ': ' + n : ''))
+        })
+      }
+    }
+
+    // ── Valutazione ──
+    const val = []
+    const hasVas = d.vas_riposo != null || d.vas_movimento != null || d.vas_picco_settimanale != null
+    if (hasVas) {
+      const parts = []
+      if (d.vas_riposo != null)            parts.push('riposo ' + d.vas_riposo + '/10')
+      if (d.vas_movimento != null)         parts.push('movimento ' + d.vas_movimento + '/10')
+      if (d.vas_picco_settimanale != null) parts.push('picco settimanale ' + d.vas_picco_settimanale + '/10')
+      val.push('• VAS: ' + parts.join(' · '))
+    }
+    if (!isEmpty(d.note_valutazione)) val.push('• Note valutazione: ' + d.note_valutazione)
+    if (val.length) { push(''); push('━━━ 📊 VALUTAZIONE ━━━'); val.forEach(push) }
+
+    // ── Postura ──
+    const post = []
+    if (!isEmpty(d.note_posturali))          post.push('• Note posturali: ' + d.note_posturali)
+    if (!isEmpty(d.note_sagittale))          post.push('• Piano sagittale: ' + d.note_sagittale)
+    if (!isEmpty(d.note_frontale))           post.push('• Piano frontale: ' + d.note_frontale)
+    if (!isEmpty(d.note_posteriore))         post.push('• Piano posteriore: ' + d.note_posteriore)
+    if (!isEmpty(d.note_podoscopio_sotto))   post.push('• Podoscopio (sotto): ' + d.note_podoscopio_sotto)
+    if (!isEmpty(d.note_podoscopio_dietro))  post.push('• Podoscopio (dietro): ' + d.note_podoscopio_dietro)
+    if (_importPosturaleData && _importPosturaleData.id) {
+      const pd = _importPosturaleData.data_visita
+        ? new Date(_importPosturaleData.data_visita).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
+        : ''
+      post.push('• Riferimento valutazione posturale collegata: sì' + (pd ? ' (' + pd + ')' : ''))
+    }
+    if (post.length) { push(''); push('━━━ 🧍 POSTURA ━━━'); post.forEach(push) }
+
+    // ── Trattamento ──
+    const trt = []
+    if (!isEmpty(d.tecniche_trattamento)) trt.push('• Tecniche: ' + d.tecniche_trattamento)
+    if (d.tempo_trattamento_minuti != null) trt.push('• Durata: ' + d.tempo_trattamento_minuti + ' min')
+    const preVas = d.vas_inizio, postVas = d.vas_fine
+    if (preVas != null || postVas != null) {
+      const parts = []
+      if (preVas != null)  parts.push('pre ' + preVas + '/10')
+      if (postVas != null) parts.push('post ' + postVas + '/10')
+      let deltaStr = ''
+      if (preVas != null && postVas != null) {
+        const delta = postVas - preVas
+        deltaStr = ' (Δ ' + (delta > 0 ? '+' : '') + delta + ')'
+      }
+      trt.push('• VAS trattamento: ' + parts.join(' · ') + deltaStr)
+    }
+    if (!isEmpty(d.risposta_paziente)) trt.push('• Risposta paziente: ' + d.risposta_paziente)
+    if (trt.length) { push(''); push('━━━ 🎯 TRATTAMENTO ━━━'); trt.forEach(push) }
+
+    // ── Esito / Conclusioni ──
+    const out = []
+    if (!isEmpty(d.miglioramenti))         out.push('• Miglioramenti: ' + d.miglioramenti)
+    if (!isEmpty(d.note_finali))           out.push('• Note finali: ' + d.note_finali)
+    if (!isEmpty(d.indicazioni_paziente))  out.push('• Indicazioni: ' + d.indicazioni_paziente)
+    if (d.prossima_visita_at) {
+      const pv = new Date(d.prossima_visita_at)
+      if (!isNaN(pv.getTime())) {
+        out.push('• Prossima visita: ' + pv.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' }))
+      }
+    }
+    if (!isEmpty(d.relazione_ai)) out.push('• Relazione (AI): ' + d.relazione_ai)
+    if (out.length) { push(''); push('━━━ ✅ ESITO / CONCLUSIONI ━━━'); out.forEach(push) }
+
+    return lines.join('\n')
+  }
+
+  async function syncNotaCartellaVisita() {
+    if (!visitId || !patientId || !professionalId) return
+    try {
+      const d = collectFormData()
+      const title = _visNotaTitle(d.data_visita)
+      const content = _visNotaContent(d)
+      const marker = ' [#' + visitId + ']'
+      // Cerca eventuale nota esistente con lo stesso marker per questo paziente.
+      // Il filtro RLS su professional_id (già in DB) garantisce che vediamo solo le nostre.
+      const { data: existing, error: qErr } = await _sb.from('clinical_notes')
+        .select('id')
+        .eq('patient_id', patientId)
+        .like('title', '%' + marker)
+        .limit(1)
+        .maybeSingle()
+      if (qErr) { console.warn('[visita] syncNotaCartellaVisita SELECT warn:', qErr); }
+      if (existing && existing.id) {
+        const { error: uErr } = await _sb.from('clinical_notes')
+          .update({ title: title, content: content, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+        if (uErr) console.error('[visita] syncNotaCartellaVisita UPDATE error:', uErr)
+      } else {
+        const { error: iErr } = await _sb.from('clinical_notes')
+          .insert({ patient_id: patientId, professional_id: professionalId, title: title, content: content })
+        if (iErr) console.error('[visita] syncNotaCartellaVisita INSERT error:', iErr)
+      }
+    } catch (e) {
+      console.error('[visita] syncNotaCartellaVisita exception:', e)
+    }
+  }
+
   // ====== SAVE & NAVIGATE ======
   async function salvaETornaVisita() {
     const btn = document.getElementById('btn-salva-torna')
@@ -2293,6 +2459,9 @@
     if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Salvando...' }
     clearTimeout(saveTimer)
     await actualSave()
+    // Sincronizza (o crea) la nota strutturata in cartella clinica.
+    // Errori qui vengono loggati ma non bloccano il flusso di ritorno al paziente.
+    await syncNotaCartellaVisita()
     showToast('💾 Salvato')
     setTimeout(() => {
       window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
