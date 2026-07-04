@@ -36,7 +36,7 @@
       : '';
     var bar =
       '<div class="pol-foto-actions">' +
-        btn('pol-fa-annota', o.onAnnota, SVG.annota, 'Annota', 'aria-label="Annota"') +
+        btn('pol-fa-annota', o.onAnnota, SVG.annota, 'Nota rapida', 'aria-label="Nota rapida"') +
         btn('pol-fa-annota', o.onOsserva, SVG.osserva, 'Osserva', 'aria-label="Osserva"') +
         btn('pol-fa-icon', o.onLibreria, SVG.libr, '', 'aria-label="Scegli da libreria" title="Libreria"') +
         btn('pol-fa-icon', o.onSostituisci, SVG.sost, '', 'aria-label="Sostituisci foto" title="Sostituisci"') +
