@@ -489,6 +489,8 @@
     .rf-banner-title{ font-weight:800; font-size:13px; margin-bottom:6px; color:#991b1b; letter-spacing:.2px; }
     .rf-banner-list{ margin:0; padding-left:18px; font-size:13px; line-height:1.45; color:#7f1d1d; }
     .rf-banner-list li{ margin:0 0 2px; }
+    .rf-banner-nota{ margin-top:6px; padding-top:6px; border-top:1px dashed rgba(220,38,38,.35); font-size:13px; color:#7f1d1d; line-height:1.45; }
+    .rf-banner-nota-lbl{ font-weight:800; margin-right:4px; }
   </style>
 </head>
 <body>
@@ -1388,14 +1390,41 @@
     }
 
     function _rfEscape(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+    // Normalizza red_flags in { voci:string[], nota:string }.
+    // Retro-compat: se è array, lo tratta come { voci: array, nota: "" }.
+    function _rfNormalize(raw){
+      if (Array.isArray(raw)) return { voci: raw.filter(function(x){ return typeof x === 'string' && x.trim() }), nota: '' }
+      if (raw && typeof raw === 'object') {
+        const voci = Array.isArray(raw.voci) ? raw.voci.filter(function(x){ return typeof x === 'string' && x.trim() }) : []
+        const nota = typeof raw.nota === 'string' ? raw.nota : ''
+        return { voci: voci, nota: nota }
+      }
+      return { voci: [], nota: '' }
+    }
     function renderRedFlagsBanner(rf) {
       const banner = document.getElementById('pz-rf-banner')
       const list   = document.getElementById('pz-rf-list')
       if (!banner || !list) return
-      const arr = Array.isArray(rf) ? rf.filter(function(x){ return typeof x === 'string' && x.trim() }) : []
-      if (!arr.length) { banner.hidden = true; list.innerHTML = ''; return }
+      const n = _rfNormalize(rf)
+      const notaTrim = (n.nota || '').trim()
+      if (!n.voci.length && !notaTrim) { banner.hidden = true; list.innerHTML = ''; return }
       banner.hidden = false
-      list.innerHTML = arr.map(function(l){ return '<li>' + _rfEscape(l) + '</li>' }).join('')
+      list.innerHTML = n.voci.map(function(l){ return '<li>' + _rfEscape(l) + '</li>' }).join('')
+      // Nota libera come blocco distinto sotto la lista, per non confonderla con le voci codificate.
+      let notaEl = document.getElementById('pz-rf-nota')
+      if (!notaEl) {
+        notaEl = document.createElement('div')
+        notaEl.id = 'pz-rf-nota'
+        notaEl.className = 'rf-banner-nota'
+        list.parentNode.appendChild(notaEl)
+      }
+      if (notaTrim) {
+        notaEl.hidden = false
+        notaEl.innerHTML = '<span class="rf-banner-nota-lbl">Nota:</span>' + _rfEscape(notaTrim)
+      } else {
+        notaEl.hidden = true
+        notaEl.innerHTML = ''
+      }
     }
 
     function renderPatient() {
