@@ -1726,22 +1726,40 @@
     return wrap
   }
 
-  // Mantiene la posizione di scroll tornando da disegno.html
+  // Mantiene la posizione tornando da disegno.html: centra la foto (slot) su cui si stava lavorando.
   try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual' } catch(e){}
-  function polNavDisegno(u){ try{ sessionStorage.setItem('vpScrollY', String(window.scrollY)) }catch(e){}; location.href = u }
+  function polNavDisegno(u, slotTipo){
+    try{
+      sessionStorage.setItem('vpScrollY', String(window.scrollY))
+      if(slotTipo) sessionStorage.setItem('vpFocusSlot', String(slotTipo))
+    }catch(e){}
+    location.href = u
+  }
   function polRestoreScroll(){
     try {
-      var y = sessionStorage.getItem('vpScrollY'); if (y === null) return
+      var focus = sessionStorage.getItem('vpFocusSlot')
+      var y     = sessionStorage.getItem('vpScrollY')
+      if (focus === null && y === null) return
       var yy = parseInt(y) || 0, tries = 0, MAX_TRIES = 120  // ~4s: attende async loadPhotos()
       ;(function go(){
+        var el = focus ? document.getElementById('slot-' + focus) : null
+        if (el && el.offsetParent !== null) {
+          try { el.scrollIntoView({ block:'center', inline:'nearest' }) }
+          catch(e){ window.scrollTo(0, yy) }
+          sessionStorage.removeItem('vpScrollY')
+          sessionStorage.removeItem('vpFocusSlot')
+          return
+        }
+        // Fallback / attesa: usa la Y salvata finché lo slot non è pronto
         var vh = window.innerHeight || 0
         var reachable = Math.max(0, (document.documentElement.scrollHeight || 0) - vh)
         var target = Math.min(yy, reachable)
         window.scrollTo(0, target)
+        var slotStillMissing = !!focus && !el
         var stillTooShort = reachable < yy - 4
         var notThereYet = Math.abs(window.scrollY - target) > 4
-        if (++tries < MAX_TRIES && (stillTooShort || notThereYet)) setTimeout(go, 35)
-        else sessionStorage.removeItem('vpScrollY')
+        if (++tries < MAX_TRIES && (slotStillMissing || stillTooShort || notThereYet)) setTimeout(go, 35)
+        else { sessionStorage.removeItem('vpScrollY'); sessionStorage.removeItem('vpFocusSlot') }
       })()
     } catch(e){}
   }
@@ -1766,7 +1784,7 @@
         (window.policettivoFotoBar ? window.policettivoFotoBar({
           onIntero: "openVpFullscreen('" + p.url_pubblico + "')",
           onAnnota: "apriOsservazioni('" + tipo + "')",
-          onOsserva: "polNavDisegno('disegno.html?id=" + patientId + "&vp=" + p.id + "')",
+          onOsserva: "polNavDisegno('disegno.html?id=" + patientId + "&vp=" + p.id + "', '" + tipo + "')",
           onSostituisci: "replacePhoto('" + tipo + "')",
           onElimina: "removePhoto('" + tipo + "')"
         }) : '')
