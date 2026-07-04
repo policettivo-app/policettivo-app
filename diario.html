@@ -20,7 +20,7 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; 
 .btn-new { background: #000; color: #FFD008; border: none; border-radius: 12px; padding: 14px 24px; font-family: Montserrat,sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; margin-bottom: 24px; }
 .session-item { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 12px; border: 1px solid #eee; cursor: pointer; transition: all 0.2s; }
 .session-item:hover { border-color: #FFD008; }
-.sih { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.sih { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .sid { font-size: 14px; font-weight: 700; }
 .vas-pills { display: flex; gap: 8px; }
 .vp { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
@@ -89,9 +89,9 @@ input.fi { min-height: unset; resize: none; }
 .cst-mode { display: block; }
 .cst-mode[hidden] { display: none; }
 .cst-hint { font-size: 11px; color: #999; line-height: 1.4; margin-top: 6px; }
-.cst-badge { position: absolute; top: 10px; right: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1.5px solid #ddd; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; color: #222; }
+.cst-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1.5px solid #ddd; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; color: #222; white-space: nowrap; flex: none; }
 .cst-badge-dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; flex: none; }
-.session-item { position: relative; }
+.sih-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .cst-detail { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border: 1.5px solid #ddd; border-radius: 999px; background: #fff; font-size: 13px; font-weight: 700; color: #222; }
 .cst-detail-dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; flex: none; }
 .cst-detail-desc { font-weight: 400; color: #666; font-size: 12px; margin-left: 4px; }
@@ -576,8 +576,7 @@ async function caricaSedute() {
     var prev = (x.protocollo_seduta || x.note_cliniche || x.tecniche || '-').substring(0, 80);
     var encoded = encodeURIComponent(JSON.stringify(x));
     html += '<div class="session-item" onclick="apriDet(this)" data-session="' + encoded.replace(/"/g, '&quot;') + '">';
-    html += cstBadgeHtml(x);
-    html += '<div class="sih"><div class="sid">' + d + '</div>';
+    html += '<div class="sih"><div class="sih-left"><div class="sid">' + d + '</div>' + cstBadgeHtml(x) + '</div>';
     html += '<div class="vas-pills"><span class="vp vps">i:' + (x.vas_inizio != null ? x.vas_inizio : '-') + '</span>';
     html += '<span class="vp vpe">f:' + (x.vas_fine != null ? x.vas_fine : '-') + '</span></div></div>';
     html += '<div class="sip">' + prev + '</div></div>';
