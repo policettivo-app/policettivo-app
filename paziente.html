@@ -388,11 +388,13 @@
     .hub-card-title { font-size: 15px; font-weight: 700; line-height: 1.2; }
     .hub-card.hub-cartella .hub-card-title { font-size: 13px; }
     .hub-card-desc { font-size: 11px; opacity: 0.65; line-height: 1.4; }
-    .cn-note-card { background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
+    .cn-note-card { position: relative; background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 42px 14px 16px; cursor: pointer; transition: border-color 0.15s; }
     .cn-note-card:hover { border-color: #FFD008; }
     .cn-note-card-title { font-weight: 700; font-size: 13px; color: #000; margin-bottom: 4px; }
     .cn-note-card-preview { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
     .cn-note-card-meta { font-size: 11px; color: #bbb; }
+    .cn-note-card-del { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: #a15a5a; font-size: 14px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 0; }
+    .cn-note-card-del:hover { background: #fee2e2; color: #7f1d1d; }
     .cn-empty { text-align: center; padding: 32px 16px; color: #bbb; font-size: 13px; }
     .cn-status { font-size: 11px; color: #999; height: 16px; display: inline-block; }
     .cn-status.saved { color: #4CAF50; }
@@ -3438,6 +3440,11 @@ Campi:
       return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     }
 
+    // Nasconde il marker upsert (es. " [#<uuid>]") dal titolo mostrato in cronologia.
+    // Il valore salvato nel DB e in data-title della card resta intatto per non
+    // rompere l'upsert dalla visita.
+    function _cnStripMarker(t) { return String(t || '').replace(/\s*\[#[^\]]+\]\s*$/, '').trim() }
+
     function clinicalNotesRender(notes) {
       const list = document.getElementById('cn-note-list')
       if (!notes.length) {
@@ -3446,7 +3453,8 @@ Campi:
       }
       list.innerHTML = notes.map(function(n) {
         const isAI = (n.content || '').startsWith('[SINTESI_AI_V1]')
-        const title = n.title || 'Senza titolo'
+        const rawTitle = n.title || 'Senza titolo'
+        const displayTitle = _cnStripMarker(rawTitle) || 'Senza titolo'
         const rawPreview = isAI
           ? (function() { try { return JSON.parse(n.content.replace('[SINTESI_AI_V1]\n','')).problema_principale || '' } catch(e) { return '' } })()
           : n.content || ''
@@ -3460,12 +3468,37 @@ Campi:
         const clickHandler = isAI
           ? 'onclick="csAIOpenFromRelazione(\'' + n.id + '\')"'
           : 'onclick="clinicalNotesEditFormFromEl(this)"'
+        const delBtn = '<button type="button" class="cn-note-card-del" title="Elimina nota" aria-label="Elimina nota" onclick="clinicalNotesDelete(event, \'' + n.id + '\')">🗑</button>'
         return '<div class="cn-note-card" ' + dataAttr + ' ' + clickHandler + '>' +
-          '<div class="cn-note-card-title">' + clinicalNotesEscHtml(title) + badgeAI + '</div>' +
+          delBtn +
+          '<div class="cn-note-card-title">' + clinicalNotesEscHtml(displayTitle) + badgeAI + '</div>' +
           '<div class="cn-note-card-preview">' + clinicalNotesEscHtml(preview) + '</div>' +
           '<div class="cn-note-card-meta">Modificato: ' + date + '</div>' +
           '</div>'
       }).join('')
+    }
+
+    // Elimina una nota dalla stessa tabella clinical_notes usata dal resto del tab.
+    // Ferma il bubble per non aprire l'editor della card cliccata.
+    async function clinicalNotesDelete(ev, id) {
+      if (ev) { ev.stopPropagation(); ev.preventDefault() }
+      if (!id) return
+      if (!confirm('Eliminare questa nota? Operazione non annullabile.')) return
+      try {
+        const { error } = await _supabase.from('clinical_notes').delete().eq('id', id)
+        if (error) {
+          console.error('[clinicalNotes] DELETE error:', error)
+          alert('Errore eliminazione nota: ' + (error.message || error.code || 'sconosciuto'))
+          return
+        }
+        // Se stavo modificando proprio quella nota, chiudo l'editor senza salvare.
+        if (clinicalNotesState.editingId === id) clinicalNotesCancel()
+        clinicalNotesState.loaded = false
+        await clinicalNotesInit()
+      } catch(e) {
+        console.error('[clinicalNotes] DELETE exception:', e)
+        alert('Errore eliminazione nota.')
+      }
     }
 
     function clinicalNotesEditFormFromEl(el) {
