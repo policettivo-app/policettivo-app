@@ -51,8 +51,22 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 .status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .2px; }
 .status-pill.paid   { background: #e8f5e9; color: #2e7d32; }
 .status-pill.unpaid { background: #fff8e1; color: #b28900; }
+.status-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.status-detail { font-size: 10px; color: #666; text-align: center; font-weight: 600; line-height: 1.35; }
+.status-detail-imp { color: #2e7d32; font-weight: 700; }
+.btn-saldo { background: transparent; border: 1px solid #ddd; border-radius: 999px; padding: 3px 10px; font-family: inherit; font-size: 11px; font-weight: 700; color: #555; cursor: pointer; letter-spacing: .2px; }
+.btn-saldo:hover { border-color: #FFD008; color: #000; background: #fffdf0; }
+.btn-saldo.undo:hover { border-color: #c62828; color: #c62828; background: #ffebee; }
 
 .empty-state { padding: 40px 20px; text-align: center; color: #999; font-size: 13px; }
+
+/* Actions bar sopra la lista (Export) */
+.actions-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.actions-bar .actions-title { font-size: 12px; color: #666; font-weight: 600; }
+.actions-bar .actions-right { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-export { background: #000; color: #FFD008; border: none; border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; letter-spacing: .3px; }
+.btn-export:hover { background: #1a1a1a; }
+.btn-export:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Row in edit mode */
 .row.editing { grid-template-columns: 100px 1fr 100px 90px 34px; background: #fffdf0; }
@@ -113,6 +127,14 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
     </div>
   </div>
 
+  <div class="actions-bar">
+    <span class="actions-title" id="actions-title">Sedute con costo</span>
+    <div class="actions-right">
+      <button type="button" class="btn-export" id="btn-pdf" onclick="esportaPDF()">🖨 Esporta PDF</button>
+      <button type="button" class="btn-export" id="btn-csv" onclick="esportaCSV()">📊 Esporta CSV</button>
+    </div>
+  </div>
+
   <div class="rows" id="rows">
     <div class="empty-state">Caricamento…</div>
   </div>
@@ -142,7 +164,8 @@ var pid = new URLSearchParams(window.location.search).get('pid');
 var patient = null;
 var _listino = [];          // listino personale del pro corrente
 var _sedute = [];           // tutte le sedute con costo (dal DB)
-var _editingId = null;      // id della seduta in edit mode
+var _editingId = null;      // id seduta in edit costo/descrizione
+var _saldoEditingId = null; // id seduta in edit "segna saldato"
 
 function _esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -214,6 +237,35 @@ function _sedutePerPeriodo(){
   });
 }
 
+// Importo "effettivo" saldato per una riga (usa saldato_importo se presente, altrimenti costo)
+function _importoSaldato(s){
+  if (!s || !s.saldato) return 0;
+  var imp = Number(s.saldato_importo);
+  if (isFinite(imp)) return imp;
+  var c = Number(s.costo);
+  return isFinite(c) ? c : 0;
+}
+
+function _statusCellHtml(s){
+  var isPaid = !!s.saldato;
+  if (isPaid) {
+    var imp  = _importoSaldato(s);
+    var data = s.saldato_data ? _fmtDate(s.saldato_data) : '';
+    return '<div class="status-actions">' +
+             '<span class="status-pill paid">✓ Saldato</span>' +
+             '<div class="status-detail">' +
+               '<span class="status-detail-imp">' + _fmtEur(imp) + '</span>' +
+               (data ? '<br>' + _esc(data) : '') +
+             '</div>' +
+             '<button class="btn-saldo undo" onclick="rimuoviSaldo(\'' + _esc(s.id) + '\')">↩ Segna da saldare</button>' +
+           '</div>';
+  }
+  return '<div class="status-actions">' +
+           '<span class="status-pill unpaid">In attesa</span>' +
+           '<button class="btn-saldo" onclick="apriSaldo(\'' + _esc(s.id) + '\')">✓ Segna saldato</button>' +
+         '</div>';
+}
+
 function renderRighe(){
   var box = document.getElementById('rows'); if (!box) return;
   var lista = _sedutePerPeriodo();
@@ -225,11 +277,9 @@ function renderRighe(){
   for (var i = 0; i < lista.length; i++) {
     var s = lista[i];
     var col = (typeof s.colore === 'string' && s.colore) ? s.colore : '#ccc';
-    var isPaid = !!s.saldato;
-    var statusHtml = isPaid
-      ? '<span class="status-pill paid">✓ Saldato</span>'
-      : '<span class="status-pill unpaid">In attesa</span>';
+    var statusHtml = _statusCellHtml(s);
     var isEditing = (_editingId === s.id);
+    var isSaldoEditing = (_saldoEditingId === s.id);
     if (isEditing) {
       // Row + form inline di modifica costo/descrizione
       var currentDesc = s.costo_descrizione ? String(s.costo_descrizione) : '';
@@ -249,6 +299,27 @@ function renderRighe(){
                   '</div>' +
                 '</div>' +
               '</div>';
+    } else if (isSaldoEditing) {
+      // Row + form inline "Segna saldato"
+      var preImporto = (s.saldato_importo != null && isFinite(Number(s.saldato_importo)))
+                        ? Number(s.saldato_importo)
+                        : ((s.costo != null && isFinite(Number(s.costo))) ? Number(s.costo) : '');
+      var preData = s.saldato_data ? String(s.saldato_data).substring(0,10) : (new Date()).toISOString().substring(0,10);
+      html += '<div class="row editing" data-id="' + _esc(s.id) + '">' +
+                '<div class="row-date">' + _fmtDate(s.data_seduta) + '</div>' +
+                '<div class="row-desc"><span class="row-color-dot" style="background:' + _esc(col) + '"></span><div class="row-desc-text">' + _descHtml(s) + '</div></div>' +
+                '<div class="row-cost">' + _fmtEur(s.costo) + '</div>' +
+                '<div class="row-status">' + statusHtml + '</div>' +
+                '<button class="row-edit" title="Chiudi" onclick="annullaSaldo()">✕</button>' +
+                '<div class="row-edit-form">' +
+                  '<div class="edit-field"><label>Importo saldato (€)</label><input type="number" step="0.01" min="0" class="edit-input" id="saldo-importo" value="' + _esc(preImporto) + '"></div>' +
+                  '<div class="edit-field"><label>Data saldo</label><input type="date" class="edit-input" id="saldo-data" value="' + _esc(preData) + '"></div>' +
+                  '<div class="edit-actions">' +
+                    '<button class="btn-cancel" onclick="annullaSaldo()">Annulla</button>' +
+                    '<button class="btn-save" onclick="confermaSaldo(\'' + _esc(s.id) + '\')">✓ Conferma saldato</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
     } else {
       html += '<div class="row" data-id="' + _esc(s.id) + '">' +
                 '<div class="row-date">' + _fmtDate(s.data_seduta) + '</div>' +
@@ -264,15 +335,16 @@ function renderRighe(){
 
 function renderTotali(){
   var lista = _sedutePerPeriodo();
-  var totPeriodo = 0, totSaldato = 0, totDaSaldare = 0;
+  var totPeriodo = 0, totSaldato = 0;
   for (var i = 0; i < lista.length; i++) {
     var s = lista[i];
     var c = Number(s.costo);
     if (!isFinite(c)) continue;
     totPeriodo += c;
-    if (s.saldato) totSaldato += c;
-    else totDaSaldare += c;
+    if (s.saldato) totSaldato += _importoSaldato(s);
   }
+  var totDaSaldare = totPeriodo - totSaldato;
+  if (totDaSaldare < 0) totDaSaldare = 0;
   document.getElementById('tot-periodo').textContent   = _fmtEur(totPeriodo);
   document.getElementById('tot-saldato').textContent   = _fmtEur(totSaldato);
   document.getElementById('tot-dasaldare').textContent = _fmtEur(totDaSaldare);
@@ -283,10 +355,11 @@ function resetFiltri(){
   document.getElementById('f-da').value = '';
   document.getElementById('f-a').value  = '';
   _editingId = null;
+  _saldoEditingId = null;
   applicaFiltri();
 }
 
-function apriModifica(id){ _editingId = id; renderRighe(); }
+function apriModifica(id){ _saldoEditingId = null; _editingId = id; renderRighe(); }
 function annullaModifica(){ _editingId = null; renderRighe(); }
 
 async function salvaModifica(id){
@@ -302,7 +375,6 @@ async function salvaModifica(id){
       alert('Errore salvataggio: ' + (res.error.message || ''));
       return;
     }
-    // Aggiorna in memoria
     for (var i = 0; i < _sedute.length; i++) {
       if (_sedute[i].id === id) {
         _sedute[i].costo = costo;
@@ -317,6 +389,194 @@ async function salvaModifica(id){
     console.error('[contabile] salvaModifica exception:', e);
     alert('Errore salvataggio.');
   }
+}
+
+// ── SALDO PER RIGA ──────────────────────────────────
+function apriSaldo(id){ _editingId = null; _saldoEditingId = id; renderRighe(); }
+function annullaSaldo(){ _saldoEditingId = null; renderRighe(); }
+
+async function confermaSaldo(id){
+  var impRaw  = document.getElementById('saldo-importo').value;
+  var dataRaw = document.getElementById('saldo-data').value;
+  var imp = null;
+  if (impRaw !== '' && impRaw != null) { var m = Number(impRaw); imp = isFinite(m) ? m : null; }
+  if (imp == null) { alert('Importo saldato non valido.'); return; }
+  if (!dataRaw) { alert('Data saldo obbligatoria.'); return; }
+  var payload = { saldato: true, saldato_importo: imp, saldato_data: dataRaw };
+  try {
+    var res = await _sb.from('therapy_sessions').update(payload).eq('id', id);
+    if (res.error) {
+      alert('Errore salvataggio: ' + (res.error.message || ''));
+      return;
+    }
+    for (var i = 0; i < _sedute.length; i++) {
+      if (_sedute[i].id === id) {
+        _sedute[i].saldato = true;
+        _sedute[i].saldato_importo = imp;
+        _sedute[i].saldato_data = dataRaw;
+        break;
+      }
+    }
+    _saldoEditingId = null;
+    renderRighe();
+    renderTotali();
+  } catch(e) {
+    console.error('[contabile] confermaSaldo exception:', e);
+    alert('Errore salvataggio.');
+  }
+}
+
+async function rimuoviSaldo(id){
+  if (!confirm('Rimettere questa seduta tra "da saldare"?\nL\'importo e la data saldo saranno cancellati.')) return;
+  var payload = { saldato: false, saldato_importo: null, saldato_data: null };
+  try {
+    var res = await _sb.from('therapy_sessions').update(payload).eq('id', id);
+    if (res.error) {
+      alert('Errore salvataggio: ' + (res.error.message || ''));
+      return;
+    }
+    for (var i = 0; i < _sedute.length; i++) {
+      if (_sedute[i].id === id) {
+        _sedute[i].saldato = false;
+        _sedute[i].saldato_importo = null;
+        _sedute[i].saldato_data = null;
+        break;
+      }
+    }
+    renderRighe();
+    renderTotali();
+  } catch(e) {
+    console.error('[contabile] rimuoviSaldo exception:', e);
+    alert('Errore.');
+  }
+}
+
+// ── EXPORT ──────────────────────────────────────────
+// Testo piatto della descrizione (per PDF/CSV) — no HTML
+function _descTxt(s){
+  if (s.voce_listino) {
+    var v = _voceListinoPerCodice(s.voce_listino);
+    var head = v ? (v.codice + ' · ' + (v.descrizione || '')) : (s.voce_listino + ' (voce non più nel listino)');
+    if (s.costo_descrizione) head += ' — ' + s.costo_descrizione;
+    return head;
+  }
+  if (s.costo_descrizione) return String(s.costo_descrizione);
+  if (s.tecniche) return String(s.tecniche);
+  return '';
+}
+
+function _labelPeriodo(){
+  var da = document.getElementById('f-da').value;
+  var a  = document.getElementById('f-a').value;
+  if (!da && !a) return 'Tutto lo storico';
+  var pd = da ? _fmtDate(da + 'T00:00:00') : '—';
+  var pa = a  ? _fmtDate(a  + 'T00:00:00') : '—';
+  return 'Dal ' + pd + ' al ' + pa;
+}
+
+function esportaPDF(){
+  var lista = _sedutePerPeriodo();
+  var nomePaz = ((patient && patient.nome) || '') + ' ' + ((patient && patient.cognome) || '');
+  nomePaz = nomePaz.trim() || 'Paziente';
+  var periodo = _labelPeriodo();
+  var oggi = new Date().toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' });
+
+  var totPeriodo = 0, totSaldato = 0;
+  var righeHtml = '';
+  for (var i = 0; i < lista.length; i++) {
+    var s = lista[i];
+    var c = Number(s.costo); if (!isFinite(c)) continue;
+    totPeriodo += c;
+    var isPaid = !!s.saldato;
+    var impPaid = isPaid ? _importoSaldato(s) : 0;
+    totSaldato += impPaid;
+    var stato = isPaid
+      ? '✓ Saldato · ' + _fmtEur(impPaid) + (s.saldato_data ? ' · ' + _fmtDate(s.saldato_data) : '')
+      : 'In attesa';
+    righeHtml += '<tr>' +
+                   '<td>' + _fmtDate(s.data_seduta) + '</td>' +
+                   '<td>' + _esc(_descTxt(s)) + '</td>' +
+                   '<td class="num">' + _fmtEur(s.costo) + '</td>' +
+                   '<td>' + stato + '</td>' +
+                 '</tr>';
+  }
+  var totDaSaldare = totPeriodo - totSaldato; if (totDaSaldare < 0) totDaSaldare = 0;
+
+  var win = window.open('', '_blank');
+  if (!win) { alert('Il browser ha bloccato il popup PDF. Consenti i popup per esportare.'); return; }
+  var h = '';
+  h += '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Contabile — ' + _esc(nomePaz) + '</title><style>';
+  h += 'body{font-family:Montserrat,Arial,sans-serif;max-width:820px;margin:32px auto;padding:0 24px;color:#000;font-size:13px}';
+  h += '.logo{font-weight:800;letter-spacing:2px;color:#000;font-size:12px;margin-bottom:12px}';
+  h += 'h1{font-size:22px;margin:0 0 4px}';
+  h += '.sub{color:#666;font-size:12px;margin-bottom:22px}';
+  h += 'table{width:100%;border-collapse:collapse;font-size:12px}';
+  h += 'th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eee;vertical-align:top}';
+  h += 'th{background:#f7f7f7;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#555}';
+  h += '.num{text-align:right;font-variant-numeric:tabular-nums}';
+  h += '.totals{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:24px}';
+  h += '.tc{padding:12px 16px;border:1px solid #eee;border-radius:8px}';
+  h += '.tc .l{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}';
+  h += '.tc .v{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}';
+  h += '.tc.paid{background:#f1f8e9;border-color:#c5e1a5} .tc.paid .v{color:#2e7d32}';
+  h += '.tc.unpaid{background:#fff8e1;border-color:#ffe082} .tc.unpaid .v{color:#b28900}';
+  h += '.foot{margin-top:32px;font-size:10px;color:#bbb;border-top:1px solid #eee;padding-top:12px}';
+  h += '@media print{button{display:none}body{margin:12mm}}';
+  h += '</style></head><body>';
+  h += '<div class="logo">POLICETTIVO®</div>';
+  h += '<h1>Contabile paziente</h1>';
+  h += '<div class="sub">' + _esc(nomePaz) + ' — Periodo: ' + _esc(periodo) + ' — Generato il ' + _esc(oggi) + '</div>';
+  h += '<table><thead><tr><th>Data</th><th>Descrizione</th><th class="num">Costo</th><th>Stato</th></tr></thead><tbody>';
+  h += righeHtml || '<tr><td colspan="4" style="text-align:center;color:#888;padding:24px">Nessuna seduta nel periodo selezionato.</td></tr>';
+  h += '</tbody></table>';
+  h += '<div class="totals">' +
+         '<div class="tc"><div class="l">Totale periodo</div><div class="v">' + _fmtEur(totPeriodo) + '</div></div>' +
+         '<div class="tc paid"><div class="l">Totale saldato</div><div class="v">' + _fmtEur(totSaldato) + '</div></div>' +
+         '<div class="tc unpaid"><div class="l">Da saldare</div><div class="v">' + _fmtEur(totDaSaldare) + '</div></div>' +
+       '</div>';
+  h += '<div class="foot">Generato con Policettivo® Contabile</div>';
+  h += '<button onclick="window.print()" style="margin-top:24px;background:#FFD008;border:none;border-radius:8px;padding:12px 24px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;cursor:pointer">🖨 Stampa / Salva PDF</button>';
+  h += '</body></html>';
+  win.document.write(h); win.document.close();
+}
+
+// CSV con BOM UTF-8 per compatibilità Excel/Numbers/Google Sheets
+function _csvField(v){
+  if (v == null) return '';
+  var s = String(v);
+  if (/[",;\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function esportaCSV(){
+  var lista = _sedutePerPeriodo();
+  var nomePaz = ((patient && patient.nome) || '') + ' ' + ((patient && patient.cognome) || '');
+  nomePaz = nomePaz.trim().replace(/\s+/g, '_') || 'paziente';
+  var lines = [];
+  lines.push(['Data', 'Descrizione', 'Costo', 'Saldato', 'Importo saldato', 'Data saldo'].map(_csvField).join(';'));
+  for (var i = 0; i < lista.length; i++) {
+    var s = lista[i];
+    var costo = (s.costo != null && isFinite(Number(s.costo))) ? Number(s.costo).toFixed(2).replace('.', ',') : '';
+    var isPaid = !!s.saldato;
+    var imp = isPaid ? Number(_importoSaldato(s)).toFixed(2).replace('.', ',') : '';
+    var dataSaldo = s.saldato_data ? _fmtDate(s.saldato_data) : '';
+    lines.push([
+      _fmtDate(s.data_seduta),
+      _descTxt(s),
+      costo,
+      isPaid ? 'sì' : 'no',
+      imp,
+      dataSaldo
+    ].map(_csvField).join(';'));
+  }
+  var csv = '﻿' + lines.join('\r\n') + '\r\n';
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  var oggi = new Date().toISOString().substring(0,10);
+  var fname = 'contabile_' + nomePaz + '_' + oggi + '.csv';
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 200);
 }
 
 async function init(){
