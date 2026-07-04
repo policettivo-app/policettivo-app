@@ -482,6 +482,13 @@
     .foto-source-btn-file { background: #1a1a1a; color: #fff; }
     .foto-source-btn-cancel { background: transparent; color: #777; border: 1.5px solid #ddd; }
     .foto-source-btn:hover { opacity: .88; }
+
+    /* ── Red Flags banner ─────────────────────── */
+    .rf-banner{ background:#fef2f2; border:2px solid #dc2626; border-left-width:6px; color:#7f1d1d; border-radius:12px; padding:12px 14px; margin:0 0 12px; }
+    .rf-banner[hidden]{ display:none; }
+    .rf-banner-title{ font-weight:800; font-size:13px; margin-bottom:6px; color:#991b1b; letter-spacing:.2px; }
+    .rf-banner-list{ margin:0; padding-left:18px; font-size:13px; line-height:1.45; color:#7f1d1d; }
+    .rf-banner-list li{ margin:0 0 2px; }
   </style>
 </head>
 <body>
@@ -592,6 +599,11 @@
   </div>
 
   <div class="main ds-page">
+    <!-- Banner Red Flags: visibile solo se il paziente ha red flag attive -->
+    <div id="pz-rf-banner" class="rf-banner" role="alert" hidden>
+      <div class="rf-banner-title">🚩 Red Flag attive — screening di sicurezza</div>
+      <ul class="rf-banner-list" id="pz-rf-list"></ul>
+    </div>
     <div class="patient-header ds-card pol-stack">
       <div class="pol-phead-id">
         <div class="pol-phead-idleft">
@@ -1375,12 +1387,24 @@
       loadVisite()
     }
 
+    function _rfEscape(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+    function renderRedFlagsBanner(rf) {
+      const banner = document.getElementById('pz-rf-banner')
+      const list   = document.getElementById('pz-rf-list')
+      if (!banner || !list) return
+      const arr = Array.isArray(rf) ? rf.filter(function(x){ return typeof x === 'string' && x.trim() }) : []
+      if (!arr.length) { banner.hidden = true; list.innerHTML = ''; return }
+      banner.hidden = false
+      list.innerHTML = arr.map(function(l){ return '<li>' + _rfEscape(l) + '</li>' }).join('')
+    }
+
     function renderPatient() {
       document.getElementById('ph-nome').textContent = patient.nome + ' ' + patient.cognome
       document.getElementById('ph-sub').textContent = patient.problema_principale || ''
       document.getElementById('info-email').textContent = patient.email || '—'
       document.getElementById('info-tel').textContent = patient.telefono || '—'
       document.getElementById('info-problema').textContent = patient.problema_principale || '—'
+      renderRedFlagsBanner(patient.red_flags)
       if (patient.note_cliniche) {
         const nb = document.getElementById('info-note')
         nb.textContent = patient.note_cliniche
