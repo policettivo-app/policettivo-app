@@ -587,6 +587,19 @@
   <script src="js/foto-actions.js"></script>
   <script src="js/osservazioni.js"></script>
   <style>.photo-slot.filled{ position:relative; }</style>
+  <style>
+    /* VAS slider — traccia colorata da giallo (0) a rosso (10) mentre si trascina */
+    #f-vas{ -webkit-appearance:none; appearance:none; height:10px; border-radius:999px;
+            background:#eee; outline:none; padding:0; margin:0; }
+    #f-vas::-webkit-slider-runnable-track{ height:10px; border-radius:999px; background:transparent; }
+    #f-vas::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:22px; height:22px;
+            border-radius:50%; background:var(--vas-thumb,#FFD008); border:2px solid #111;
+            margin-top:-6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+    #f-vas::-moz-range-track{ height:10px; border-radius:999px; background:transparent; }
+    #f-vas::-moz-range-thumb{ width:22px; height:22px; border-radius:50%;
+            background:var(--vas-thumb,#FFD008); border:2px solid #111; cursor:pointer;
+            box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  </style>
 </head>
 <body class="page-postural-standalone">
 
@@ -617,7 +630,7 @@
 
     <div class="chip-label ds-chip-label">Dolore percepito (VAS 0–10)</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-      <input type="range" id="f-vas" min="0" max="10" value="0" step="1" style="flex:1;accent-color:#FFD008" oninput="vasUpd(this.value)">
+      <input type="range" id="f-vas" min="0" max="10" value="0" step="1" style="flex:1" oninput="vasUpd(this.value)">
       <span id="f-vas-val" style="font-weight:800;font-size:18px;min-width:26px;text-align:center;color:#000">0</span>
       <button type="button" onclick="apriSedeDolore()" style="background:#111;color:#FFD008;border:none;border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">+ Sede</button>
     </div>
@@ -1309,6 +1322,7 @@
 
     buildPhotoGrid()
     buildExtraPhotos()
+    try { vasUpd(document.getElementById('f-vas')?.value || 0) } catch(e) {}
 
     if (pidParam && !visitId) await createVisit()
     else await loadVisit()
@@ -1347,7 +1361,7 @@
     if (v.configurazione_suggerita) setConfig(v.configurazione_suggerita, false)
 
     fSet('f-sintesi-posturale', v.note_osservazionali)
-    if (typeof v.vas === 'number') { var _ve=document.getElementById('f-vas'); if(_ve){ _ve.value=v.vas; var _vv=document.getElementById('f-vas-val'); if(_vv) _vv.textContent=v.vas } }
+    if (typeof v.vas === 'number') { var _ve=document.getElementById('f-vas'); if(_ve){ _ve.value=v.vas; try{ vasUpd(v.vas) }catch(e){} } }
     if (v.vas_sede) { window._vasSede = String(v.vas_sede).split(',').map(function(x){return x.trim()}).filter(Boolean); renderVasSede() }
     if (v.tipo_disfunzione)   restoreExcl('disfunzione', v.tipo_disfunzione)
     if (v.standard_posizione) restoreExcl('standard',    v.standard_posizione)
@@ -1408,6 +1422,7 @@
     RAPID_EXTRA_SLOTS.forEach(s => updatePhotoSlot(s.tipo))
     renderFotoLibere()
     polSyncNoteRapide()
+    try { polRestoreScroll() } catch(e) {}
   }
 
   // Sincronizza le osservazioni flaggate in Annota dentro le Note rapide del piano (non distruttivo)
@@ -1717,8 +1732,17 @@
   function polRestoreScroll(){
     try {
       var y = sessionStorage.getItem('vpScrollY'); if (y === null) return
-      var yy = parseInt(y) || 0, tries = 0
-      ;(function go(){ window.scrollTo(0, yy); if (++tries < 20 && Math.abs(window.scrollY - yy) > 4) requestAnimationFrame(go); else sessionStorage.removeItem('vpScrollY') })()
+      var yy = parseInt(y) || 0, tries = 0, MAX_TRIES = 120  // ~4s: attende async loadPhotos()
+      ;(function go(){
+        var vh = window.innerHeight || 0
+        var reachable = Math.max(0, (document.documentElement.scrollHeight || 0) - vh)
+        var target = Math.min(yy, reachable)
+        window.scrollTo(0, target)
+        var stillTooShort = reachable < yy - 4
+        var notThereYet = Math.abs(window.scrollY - target) > 4
+        if (++tries < MAX_TRIES && (stillTooShort || notThereYet)) setTimeout(go, 35)
+        else sessionStorage.removeItem('vpScrollY')
+      })()
     } catch(e){}
   }
   window.addEventListener('pageshow', polRestoreScroll)
@@ -1741,8 +1765,8 @@
         '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
         (window.policettivoFotoBar ? window.policettivoFotoBar({
           onIntero: "openVpFullscreen('" + p.url_pubblico + "')",
-          onAnnota: "polNavDisegno('disegno.html?id=" + patientId + "&vp=" + p.id + "')",
-          onOsserva: "polNavDisegno('disegno.html?id=" + patientId + "&vp=" + p.id + "&osserva=1')",
+          onAnnota: "apriOsservazioni('" + tipo + "')",
+          onOsserva: "polNavDisegno('disegno.html?id=" + patientId + "&vp=" + p.id + "')",
           onSostituisci: "replacePhoto('" + tipo + "')",
           onElimina: "removePhoto('" + tipo + "')"
         }) : '')
@@ -2514,7 +2538,20 @@
   }
   window._vasSede = window._vasSede || []
   var _SEDI = ['Cervicale','Dorsale','Lombare','Sacro-iliaca','Spalla dx','Spalla sx','Anca dx','Anca sx','Ginocchio dx','Ginocchio sx','Caviglia/piede dx','Caviglia/piede sx','Capo/ATM']
-  function vasUpd(v){ var e=document.getElementById('f-vas-val'); if(e) e.textContent=v; scheduleSave() }
+  function vasUpd(v){
+    var e=document.getElementById('f-vas-val'); if(e) e.textContent=v;
+    var r=document.getElementById('f-vas');
+    if(r){
+      var t=Math.max(0,Math.min(1,(+v)/10));
+      var col='hsl('+Math.round(48-48*t)+','+Math.round(100-10*t)+'%,'+Math.round(52-4*t)+'%)';
+      var pct=(t*100).toFixed(1)+'%';
+      r.style.background='linear-gradient(90deg,'+col+' 0%,'+col+' '+pct+',#eee '+pct+',#eee 100%)';
+      r.style.setProperty('--vas-thumb', col);
+      r.style.accentColor=col;
+      if(e) e.style.color=col;
+    }
+    scheduleSave()
+  }
   function renderVasSede(){ var box=document.getElementById('f-vas-sede-tags'); if(!box) return; box.innerHTML=(window._vasSede||[]).map(function(z){ return '<span class="chip active" style="cursor:default">'+z+'</span>' }).join('') }
   function apriSedeDolore(){ var box=document.getElementById('sede-chips'); if(box) box.innerHTML=_SEDI.map(function(z){ var on=(window._vasSede||[]).indexOf(z)>=0; return '<span class="chip'+(on?' active':'')+'" onclick="toggleSede(this)" data-v="'+z+'">'+z+'</span>' }).join(''); var m=document.getElementById('sede-modal'); if(m) m.style.display='flex' }
   function chiudiSedeDolore(){ var m=document.getElementById('sede-modal'); if(m) m.style.display='none' }
@@ -2854,6 +2891,11 @@ ISTRUZIONI:
         redrawCanvas()
       } else { if (window.restoreObs) window.restoreObs(null) }
     })
+  }
+
+  function apriOsservazioni(tipo) {
+    showLightbox(tipo)
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ var p=document.getElementById('lb-obs-panel'); if(p) p.classList.add('open') }) })
   }
 
   function closeLightbox() {
