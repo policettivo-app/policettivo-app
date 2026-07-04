@@ -840,6 +840,11 @@
     .rf-item{ display:flex; align-items:center; gap:10px; background:#fff; border:1.5px solid #fecaca; border-radius:8px; padding:10px 12px; cursor:pointer; font-size:13.5px; color:#111; }
     .rf-item input{ accent-color:#dc2626; width:18px; height:18px; flex:none; cursor:pointer; }
     .rf-item.on{ background:#fee2e2; border-color:#dc2626; }
+    .rf-nota-label{ display:block; margin:10px 0 4px; font-size:12px; font-weight:700; color:#991b1b; letter-spacing:.2px; }
+    .rf-nota{ width:100%; box-sizing:border-box; background:#fff; border:1.5px solid #fecaca; border-radius:8px; padding:10px 12px; font-family:inherit; font-size:13.5px; color:#111; resize:vertical; }
+    .rf-nota:focus{ outline:none; border-color:#dc2626; box-shadow:0 0 0 3px rgba(220,38,38,.15); }
+    .rf-banner-nota{ margin-top:6px; padding-top:6px; border-top:1px dashed rgba(220,38,38,.35); font-size:13px; color:#7f1d1d; line-height:1.45; }
+    .rf-banner-nota-lbl{ font-weight:800; margin-right:4px; }
   </style>
 </head>
 <body>
@@ -973,6 +978,8 @@
       <div class="rf-section-title">🚩 Red Flag (screening di sicurezza)</div>
       <div class="rf-section-help">Se selezioni una o più voci, il paziente sarà segnalato con banner rosso in visita e nella sua scheda. Le voci selezionate si salvano sul paziente.</div>
       <div class="rf-list" id="rf-checklist"></div>
+      <label class="rf-nota-label" for="rf-nota">Altra red flag (nota libera)</label>
+      <textarea class="rf-nota" id="rf-nota" rows="2" placeholder="Aggiungi eventuali segnali di allarme non elencati sopra…" oninput="onRedFlagNota(this)"></textarea>
     </div>
 
     <div class="step-footer">
@@ -1709,6 +1716,8 @@
   }
 
   // ====== RED FLAGS (screening di sicurezza, salvate su patients.red_flags) ======
+  // Formato in DB: { voci: string[], nota: string }.
+  // Retro-compatibilità: se il valore letto è un array, viene trattato come { voci: array, nota: "" }.
   const RED_FLAGS_LIST = [
     'Storia oncologica',
     'Calo ponderale inspiegato',
@@ -1720,15 +1729,27 @@
     'Uso prolungato di cortisonici',
     'Dolore non modificabile con il movimento/riposo'
   ]
-  let redFlagsState = []
+  let rfVoci = []
+  let rfNota = ''
   let rfSaveTimer = null
 
   function rfEscape(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 
+  // Normalizza qualsiasi valore in { voci:string[], nota:string }
+  function rfNormalize(raw) {
+    if (Array.isArray(raw)) return { voci: raw.filter(function(x){ return typeof x === 'string' && x.trim() }), nota: '' }
+    if (raw && typeof raw === 'object') {
+      const voci = Array.isArray(raw.voci) ? raw.voci.filter(function(x){ return typeof x === 'string' && x.trim() }) : []
+      const nota = typeof raw.nota === 'string' ? raw.nota : ''
+      return { voci: voci, nota: nota }
+    }
+    return { voci: [], nota: '' }
+  }
+
   function renderRedFlagsChecklist() {
     const box = document.getElementById('rf-checklist'); if (!box) return
     box.innerHTML = RED_FLAGS_LIST.map(function(label, i){
-      const on = redFlagsState.indexOf(label) >= 0
+      const on = rfVoci.indexOf(label) >= 0
       const id = 'rf-cb-' + i
       return '<label class="rf-item' + (on ? ' on' : '') + '" for="' + id + '">' +
                '<input type="checkbox" id="' + id + '" data-rf="' + rfEscape(label) + '"' +
@@ -1738,12 +1759,23 @@
     }).join('')
   }
 
+  function renderRedFlagsNota() {
+    const ta = document.getElementById('rf-nota'); if (!ta) return
+    if (ta.value !== rfNota) ta.value = rfNota
+  }
+
   function toggleRedFlag(cb) {
     const label = cb.getAttribute('data-rf') || ''
-    const i = redFlagsState.indexOf(label)
-    if (cb.checked && i < 0) redFlagsState.push(label)
-    else if (!cb.checked && i >= 0) redFlagsState.splice(i, 1)
+    const i = rfVoci.indexOf(label)
+    if (cb.checked && i < 0) rfVoci.push(label)
+    else if (!cb.checked && i >= 0) rfVoci.splice(i, 1)
     const wrap = cb.closest('.rf-item'); if (wrap) wrap.classList.toggle('on', cb.checked)
+    renderRedFlagsBanner()
+    scheduleSaveRedFlags()
+  }
+
+  function onRedFlagNota(ta) {
+    rfNota = ta.value || ''
     renderRedFlagsBanner()
     scheduleSaveRedFlags()
   }
@@ -1751,9 +1783,27 @@
   function renderRedFlagsBanner() {
     const b = document.getElementById('rf-banner'); if (!b) return
     const list = document.getElementById('rf-banner-list'); if (!list) return
-    if (!redFlagsState.length) { b.hidden = true; list.innerHTML = ''; return }
+    const notaTrim = (rfNota || '').trim()
+    if (!rfVoci.length && !notaTrim) { b.hidden = true; list.innerHTML = ''; return }
     b.hidden = false
-    list.innerHTML = redFlagsState.map(function(l){ return '<li>' + rfEscape(l) + '</li>' }).join('')
+    let html = rfVoci.map(function(l){ return '<li>' + rfEscape(l) + '</li>' }).join('')
+    // La nota libera non è un <li>: la rendo come blocco separato sotto la lista
+    // per distinguerla visivamente dalle voci codificate.
+    let notaEl = document.getElementById('rf-banner-nota')
+    if (!notaEl) {
+      notaEl = document.createElement('div')
+      notaEl.id = 'rf-banner-nota'
+      notaEl.className = 'rf-banner-nota'
+      list.parentNode.appendChild(notaEl)
+    }
+    list.innerHTML = html
+    if (notaTrim) {
+      notaEl.hidden = false
+      notaEl.innerHTML = '<span class="rf-banner-nota-lbl">Nota:</span>' + rfEscape(notaTrim)
+    } else {
+      notaEl.hidden = true
+      notaEl.innerHTML = ''
+    }
   }
 
   function scheduleSaveRedFlags() {
@@ -1762,18 +1812,25 @@
   }
   async function saveRedFlagsNow() {
     if (!patientId) return
+    const payload = { voci: rfVoci.slice(), nota: (rfNota || '').trim() }
     try {
-      const { error } = await _sb.from('patients').update({ red_flags: redFlagsState }).eq('id', patientId)
+      const { error } = await _sb.from('patients').update({ red_flags: payload }).eq('id', patientId)
       if (error) console.error('[visita] red_flags save error:', error)
     } catch(e) { console.error('[visita] red_flags save exception:', e) }
   }
   async function loadRedFlagsForPatient() {
-    if (!patientId) { redFlagsState = []; renderRedFlagsChecklist(); renderRedFlagsBanner(); return }
+    if (!patientId) {
+      rfVoci = []; rfNota = ''
+      renderRedFlagsChecklist(); renderRedFlagsNota(); renderRedFlagsBanner()
+      return
+    }
     try {
       const { data } = await _sb.from('patients').select('red_flags').eq('id', patientId).maybeSingle()
-      redFlagsState = Array.isArray(data && data.red_flags) ? data.red_flags.slice() : []
-    } catch(e) { redFlagsState = [] }
+      const n = rfNormalize(data && data.red_flags)
+      rfVoci = n.voci; rfNota = n.nota
+    } catch(e) { rfVoci = []; rfNota = '' }
     renderRedFlagsChecklist()
+    renderRedFlagsNota()
     renderRedFlagsBanner()
   }
 
