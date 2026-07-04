@@ -3512,10 +3512,13 @@ Campi:
       statusEl.textContent = 'Modificato...'
       statusEl.className = 'cn-status saving'
       if (clinicalNotesState.timer) clearTimeout(clinicalNotesState.timer)
-      clinicalNotesState.timer = setTimeout(clinicalNotesSave, 3000)
+      // Autosave silenzioso: salva senza chiudere l'editor né ricaricare la lista,
+      // così l'utente continua a scrivere senza perdere il focus.
+      clinicalNotesState.timer = setTimeout(function(){ clinicalNotesSave({ closeAfter: false }) }, 3000)
     }
 
-    async function clinicalNotesSave() {
+    async function clinicalNotesSave(opts) {
+      const closeAfter = !(opts && opts.closeAfter === false)
       if (clinicalNotesState.timer) { clearTimeout(clinicalNotesState.timer); clinicalNotesState.timer = null }
       const title = document.getElementById('cn-title').value.trim()
       const content = document.getElementById('cn-content').value.trim()
@@ -3555,9 +3558,15 @@ Campi:
         statusEl.textContent = 'Errore nel salvataggio.'
         return
       }
-      clinicalNotesState.loaded = false
-      clinicalNotesCancel()
-      await clinicalNotesInit()
+      if (closeAfter) {
+        clinicalNotesState.loaded = false
+        clinicalNotesCancel()
+        await clinicalNotesInit()
+      } else {
+        // Autosave: feedback discreto, editor resta aperto per continuare a scrivere.
+        statusEl.textContent = 'Salvato'
+        statusEl.className = 'cn-status'
+      }
     }
     // ── TEMPLATE RAPIDI NOTE CLINICHE ────────────────────────────────────────
     const CN_TEMPLATES = [
