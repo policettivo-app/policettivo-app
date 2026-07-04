@@ -117,14 +117,15 @@ tr.delete-row td { color: #ffb3b3; }
     <thead>
       <tr>
         <th style="width:140px">Data / ora</th>
-        <th style="width:90px">Operazione</th>
-        <th style="width:160px">Tabella</th>
+        <th style="width:110px">Operazione</th>
+        <th style="width:150px">Tabella</th>
         <th style="width:200px">Paziente</th>
+        <th style="width:180px">Operatore</th>
         <th>Modifica</th>
       </tr>
     </thead>
     <tbody id="rows-tbody">
-      <tr><td colspan="5" class="empty">Caricamento…</td></tr>
+      <tr><td colspan="6" class="empty">Caricamento…</td></tr>
     </tbody>
   </table>
   <div class="info">Registro immodificabile — nessuna cella è editabile. Massimo 5000 eventi caricati.</div>
@@ -156,32 +157,47 @@ function _fmtEur(n){
   return Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
 
-// Legge un JSON da un audit_log entry provando più nomi comuni
-function _dataJson(e, keys){
-  for (var i = 0; i < keys.length; i++) {
-    var v = e[keys[i]];
-    if (v != null) {
-      if (typeof v === 'string') { try { return JSON.parse(v); } catch(_) { /* fall through */ } }
-      if (typeof v === 'object')  return v;
-    }
-  }
+// Normalizza un valore jsonb → oggetto JS (accetta oggetto o stringa JSON)
+function _asObj(v){
+  if (v == null) return null;
+  if (typeof v === 'object') return v;
+  if (typeof v === 'string') { try { return JSON.parse(v); } catch(_) { return null; } }
   return null;
 }
-function _opOf(e){    return String(e.operation || e.op || e.action || '').toUpperCase(); }
-function _tableOf(e){ return String(e.table_name || e.tbl || e.entity || e.t || ''); }
-function _tsOf(e){    return e.ts || e.timestamp || e.created_at || e.at || null; }
+
+// Colonne reali di audit_log: ts, actor, tabella, operazione, record_id, patient_id, prima, dopo
+function _opOf(e){    return String(e && e.operazione != null ? e.operazione : '').toUpperCase(); }
+function _tableOf(e){ return String(e && e.tabella != null ? e.tabella : ''); }
+function _tsOf(e){    return e ? e.ts : null; }
+function _actorOf(e){ return e && e.actor != null ? String(e.actor) : ''; }
+function _primaOf(e){ return _asObj(e && e.prima); }
+function _dopoOf(e){  return _asObj(e && e.dopo); }
 function _pazIdOf(e){
-  if (e.patient_id) return e.patient_id;
-  var before = _dataJson(e, ['before','old_data','row_before','old','data_before']);
-  var after  = _dataJson(e, ['after','new_data','row_after','new','data_after']);
-  return (after && after.patient_id) || (before && before.patient_id) || null;
+  if (e && e.patient_id) return e.patient_id;
+  var dopo  = _dopoOf(e);
+  var prima = _primaOf(e);
+  return (dopo && dopo.patient_id) || (prima && prima.patient_id) || null;
+}
+
+// Traduzioni IT
+function _opLabel(op){
+  if (op === 'INSERT') return 'Creato';
+  if (op === 'UPDATE') return 'Modificato';
+  if (op === 'DELETE') return 'Eliminato';
+  return op || '—';
+}
+function _tableLabel(tbl){
+  if (tbl === 'therapy_sessions') return 'Seduta';
+  if (tbl === 'patient_payments') return 'Pagamento/acconto';
+  return tbl || '—';
 }
 
 function _nomePaz(pid){
   if (!pid) return '—';
   var p = _patientsMap[pid];
-  if (!p) return '(' + String(pid).substring(0,8) + '…)';
-  return ((p.cognome || '') + ' ' + (p.nome || '')).trim() || '—';
+  if (!p) return String(pid);
+  var full = ((p.cognome || '') + ' ' + (p.nome || '')).trim();
+  return full || String(pid);
 }
 
 // ── Password gate ──
@@ -239,7 +255,7 @@ function logout(){
 // ── Caricamento dati ──
 async function caricaDati(){
   var tbody = document.getElementById('rows-tbody');
-  tbody.innerHTML = '<tr><td colspan="5" class="empty">Caricamento registro…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" class="empty">Caricamento registro…</td></tr>';
   try {
     // Pazienti (per filtro e per resolve del nome)
     var pres = await _sb.from('patients').select('id, nome, cognome').order('cognome');
@@ -263,7 +279,7 @@ async function caricaDati(){
       lres = await _sb.from('audit_log').select('*').limit(5000);
     }
     if (lres && lres.error) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty">Errore lettura audit_log: ' + _esc(lres.error.message || '') + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">Errore lettura audit_log: ' + _esc(lres.error.message || '') + '</td></tr>';
       return;
     }
     _entries = (lres && lres.data) ? lres.data : [];
@@ -276,7 +292,7 @@ async function caricaDati(){
     applicaFiltri();
   } catch(e) {
     console.error('[controllo] load error:', e);
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">Errore caricamento dati.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Errore caricamento dati.</td></tr>';
   }
 }
 
@@ -303,18 +319,32 @@ function _applyFilters(){
 }
 
 // ── Diff rendering ──
+// Traduce valori di comodo per la lettura umana ("Saldato: no → sì", ecc.)
+function _boolLabel(v){
+  if (v === true || v === 't' || v === 'true' || v === 1 || v === '1') return 'sì';
+  if (v === false || v === 'f' || v === 'false' || v === 0 || v === '0') return 'no';
+  return v == null ? '—' : String(v);
+}
+
 function _renderDiff(e){
   var op = _opOf(e);
   var tbl = _tableOf(e);
-  var before = _dataJson(e, ['before','old_data','row_before','old','data_before']) || {};
-  var after  = _dataJson(e, ['after','new_data','row_after','new','data_after']) || {};
+  var prima = _primaOf(e) || {};
+  var dopo  = _dopoOf(e)  || {};
   var parts = [];
   var isDecreased = false;
 
-  function pushField(lbl, bval, aval, isMoney){
+  // fmt: kind = 'money' | 'bool' | 'text'
+  function fmt(v, kind){
+    if (kind === 'money') return _fmtEur(v);
+    if (kind === 'bool')  return _boolLabel(v);
+    return (v == null || v === '') ? '—' : String(v);
+  }
+
+  function pushField(lbl, bval, aval, kind){
     if (bval == null && aval == null) return;
-    var b = isMoney ? _fmtEur(bval) : (bval == null ? '—' : String(bval));
-    var a = isMoney ? _fmtEur(aval) : (aval == null ? '—' : String(aval));
+    var b = fmt(bval, kind);
+    var a = fmt(aval, kind);
     if (op === 'INSERT') {
       parts.push('<div><span class="diff-lbl">' + _esc(lbl) + ':</span><span class="diff-after">' + _esc(a) + '</span></div>');
     } else if (op === 'DELETE') {
@@ -322,32 +352,35 @@ function _renderDiff(e){
     } else { // UPDATE
       if (String(bval) === String(aval)) return; // nessun cambio → salta
       var flag = '';
-      if (isMoney) {
+      if (kind === 'money') {
         var nb = Number(bval), na = Number(aval);
-        if (isFinite(nb) && isFinite(na) && na < nb) { isDecreased = true; flag = ' <span class="diff-flag-decrease">↓ diminuito</span>'; }
+        if (isFinite(nb) && isFinite(na) && na < nb) {
+          isDecreased = true;
+          flag = ' <span class="diff-flag-decrease">↓ diminuito</span>';
+        }
       }
       parts.push('<div><span class="diff-lbl">' + _esc(lbl) + ':</span><span class="diff-before">' + _esc(b) + '</span><span class="diff-arrow">→</span><span class="diff-after">' + _esc(a) + '</span>' + flag + '</div>');
     }
   }
 
   if (tbl === 'therapy_sessions') {
-    pushField('Costo',           before.costo,            after.costo,            true);
-    pushField('Saldato',         before.saldato,          after.saldato,          false);
-    pushField('Importo saldato', before.saldato_importo,  after.saldato_importo,  true);
-    pushField('Data saldo',      before.saldato_data,     after.saldato_data,     false);
+    pushField('Costo',           prima.costo,            dopo.costo,            'money');
+    pushField('Saldato',         prima.saldato,          dopo.saldato,          'bool');
+    pushField('Importo saldato', prima.saldato_importo,  dopo.saldato_importo,  'money');
+    pushField('Data saldo',      prima.saldato_data,     dopo.saldato_data,     'text');
   } else if (tbl === 'patient_payments') {
-    pushField('Importo', before.importo, after.importo, true);
-    pushField('Data',    before.data,    after.data,    false);
-    pushField('Nota',    before.nota,    after.nota,    false);
+    pushField('Importo', prima.importo, dopo.importo, 'money');
+    pushField('Data',    prima.data,    dopo.data,    'text');
+    pushField('Nota',    prima.nota,    dopo.nota,    'text');
   } else {
-    // Fallback generico: mostra tutte le differenze economiche prima
+    // Fallback generico: mostra tutte le differenze, con detection auto dei campi monetari
     var keys = {};
-    Object.keys(before).forEach(function(k){ keys[k] = true; });
-    Object.keys(after).forEach(function(k){ keys[k] = true; });
+    Object.keys(prima).forEach(function(k){ keys[k] = true; });
+    Object.keys(dopo).forEach(function(k){ keys[k] = true; });
     Object.keys(keys).forEach(function(k){
-      if (String(before[k]) !== String(after[k])) {
-        var isMoney = /(costo|importo|prezzo|saldat.*importo|totale)/i.test(k);
-        pushField(k, before[k], after[k], isMoney);
+      if (String(prima[k]) !== String(dopo[k])) {
+        var kind = /(costo|importo|prezzo|saldat.*importo|totale)/i.test(k) ? 'money' : 'text';
+        pushField(k, prima[k], dopo[k], kind);
       }
     });
   }
@@ -362,15 +395,16 @@ function renderTabella(){
   var count = document.getElementById('count');
   count.textContent = lista.length + ' event' + (lista.length === 1 ? 'o' : 'i');
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">Nessun evento con i filtri correnti.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Nessun evento con i filtri correnti.</td></tr>';
     return;
   }
   var html = '';
   for (var i = 0; i < lista.length; i++) {
     var e = lista[i];
-    var op = _opOf(e) || 'XX';
+    var op = _opOf(e);
     var tbl = _tableOf(e);
     var pid = _pazIdOf(e);
+    var actor = _actorOf(e);
     var d = _renderDiff(e);
     var rowCls = '';
     if (op === 'DELETE') rowCls = 'delete-row';
@@ -378,9 +412,10 @@ function renderTabella(){
     var opCls = /^(INSERT|UPDATE|DELETE)$/.test(op) ? op : 'XX';
     html += '<tr class="' + rowCls + '">' +
               '<td class="mono">' + _esc(_fmtTs(_tsOf(e))) + '</td>' +
-              '<td><span class="op-pill op-' + opCls + '">' + _esc(op) + '</span></td>' +
-              '<td class="mono">' + _esc(tbl || '—') + '</td>' +
+              '<td><span class="op-pill op-' + opCls + '">' + _esc(_opLabel(op)) + '</span></td>' +
+              '<td>' + _esc(_tableLabel(tbl)) + '</td>' +
               '<td>' + _esc(_nomePaz(pid)) + '</td>' +
+              '<td class="mono meta">' + _esc(actor || '—') + '</td>' +
               '<td class="diff">' + d.html + '</td>' +
             '</tr>';
   }
