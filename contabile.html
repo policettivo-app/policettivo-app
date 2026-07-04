@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contabile paziente — Policettivo®</title>
+<link rel="stylesheet" href="css/design-system.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; color: #1d1d1f; padding: 0; }
+
+.topbar { background: #000; padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.topbar .back-btn { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: inherit; font-size: 12px; cursor: pointer; }
+.topbar .back-btn:hover { border-color: #888; }
+.topbar h1 { color: #fff; font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+.topbar .pname { color: #FFD008; font-size: 13px; font-weight: 600; margin-left: auto; }
+
+.container { max-width: 900px; margin: 20px auto; padding: 0 16px 60px; }
+
+/* Filtri periodo */
+.filters { background: #fff; border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; border: 1px solid #eee; }
+.filters-title { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+.filters-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.filter-field { display: flex; flex-direction: column; gap: 4px; }
+.filter-field label { font-size: 11px; font-weight: 700; color: #555; letter-spacing: .3px; }
+.filter-input { border: 1.5px solid #ddd; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13px; color: #000; outline: none; background: #fff; }
+.filter-input:focus { border-color: #FFD008; }
+.filter-btn { background: transparent; border: 1.5px solid #ddd; border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 12px; font-weight: 600; color: #555; cursor: pointer; }
+.filter-btn:hover { border-color: #FFD008; color: #000; }
+.filter-btn.primary { background: #FFD008; border-color: #FFD008; color: #000; font-weight: 700; }
+.filter-btn.primary:hover { background: #e6bc00; }
+
+/* Lista sedute */
+.rows { background: #fff; border-radius: 14px; border: 1px solid #eee; overflow: hidden; }
+.row { display: grid; grid-template-columns: 100px 1fr 100px 90px 34px; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.row:last-child { border-bottom: none; }
+.row-date { font-weight: 700; color: #333; }
+.row-desc { display: flex; align-items: center; gap: 10px; color: #333; min-width: 0; }
+.row-desc-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.row-desc-code { font-weight: 700; color: #000; font-size: 12px; letter-spacing: .3px; }
+.row-desc-full { color: #333; }
+.row-desc-nota { color: #777; font-size: 12px; margin-top: 2px; }
+.row-color-dot { width: 12px; height: 12px; border-radius: 50%; background: #ccc; flex: none; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #ddd; }
+.row-cost { font-weight: 800; color: #000; text-align: right; font-variant-numeric: tabular-nums; }
+.row-status { text-align: center; }
+.row-edit { background: transparent; border: none; color: #999; font-size: 14px; cursor: pointer; padding: 4px; border-radius: 6px; }
+.row-edit:hover { background: #f5f5f5; color: #000; }
+
+.status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .2px; }
+.status-pill.paid   { background: #e8f5e9; color: #2e7d32; }
+.status-pill.unpaid { background: #fff8e1; color: #b28900; }
+
+.empty-state { padding: 40px 20px; text-align: center; color: #999; font-size: 13px; }
+
+/* Row in edit mode */
+.row.editing { grid-template-columns: 100px 1fr 100px 90px 34px; background: #fffdf0; }
+.row-edit-form { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 4px 4px; align-items: end; }
+.row-edit-form .edit-field { display: flex; flex-direction: column; gap: 4px; }
+.row-edit-form .edit-field label { font-size: 11px; font-weight: 700; color: #555; }
+.row-edit-form .edit-input { border: 1.5px solid #FFD008; border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 13px; color: #000; outline: none; background: #fff; }
+.row-edit-form .edit-input.wide { min-width: 220px; }
+.row-edit-form .edit-actions { display: flex; gap: 8px; margin-left: auto; }
+.row-edit-form .btn-save { background: #FFD008; color: #000; border: none; border-radius: 7px; padding: 8px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.row-edit-form .btn-save:hover { background: #e6bc00; }
+.row-edit-form .btn-cancel { background: transparent; border: 1.5px solid #ddd; border-radius: 7px; padding: 8px 14px; font-family: inherit; font-size: 12px; font-weight: 600; color: #555; cursor: pointer; }
+.row-edit-form .btn-cancel:hover { border-color: #bbb; color: #000; }
+
+/* Totali */
+.totals { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 20px; }
+.total-card { background: #fff; border-radius: 12px; padding: 14px 18px; border: 1px solid #eee; }
+.total-lbl { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.total-val { font-size: 22px; font-weight: 800; color: #000; font-variant-numeric: tabular-nums; }
+.total-card.paid   { background: #f1f8e9; border-color: #c5e1a5; }
+.total-card.paid   .total-val { color: #2e7d32; }
+.total-card.unpaid { background: #fff8e1; border-color: #ffe082; }
+.total-card.unpaid .total-val { color: #b28900; }
+
+@media (max-width: 640px) {
+  .row { grid-template-columns: 1fr auto 34px; gap: 8px; }
+  .row-date { grid-column: 1 / 2; font-size: 12px; }
+  .row-cost { grid-column: 2 / 3; font-size: 14px; }
+  .row-edit { grid-column: 3 / 4; }
+  .row-desc { grid-column: 1 / -1; margin-top: 2px; }
+  .row-status { grid-column: 1 / -1; text-align: left; margin-top: 2px; }
+  .row.editing { grid-template-columns: 1fr auto 34px; }
+  .totals { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <button class="back-btn" onclick="tornaAlPaziente()">← Indietro</button>
+  <h1>💶 Contabile</h1>
+  <span class="pname" id="pname">…</span>
+</div>
+
+<div class="container">
+
+  <div class="filters">
+    <div class="filters-title">Filtro periodo</div>
+    <div class="filters-row">
+      <div class="filter-field">
+        <label for="f-da">Da</label>
+        <input type="date" id="f-da" class="filter-input" onchange="applicaFiltri()">
+      </div>
+      <div class="filter-field">
+        <label for="f-a">A</label>
+        <input type="date" id="f-a" class="filter-input" onchange="applicaFiltri()">
+      </div>
+      <button type="button" class="filter-btn" onclick="resetFiltri()">Tutto lo storico</button>
+    </div>
+  </div>
+
+  <div class="rows" id="rows">
+    <div class="empty-state">Caricamento…</div>
+  </div>
+
+  <div class="totals">
+    <div class="total-card">
+      <div class="total-lbl">Totale periodo</div>
+      <div class="total-val" id="tot-periodo">— €</div>
+    </div>
+    <div class="total-card paid">
+      <div class="total-lbl">Totale saldato</div>
+      <div class="total-val" id="tot-saldato">— €</div>
+    </div>
+    <div class="total-card unpaid">
+      <div class="total-lbl">Da saldare</div>
+      <div class="total-val" id="tot-dasaldare">— €</div>
+    </div>
+  </div>
+</div>
+
+<script>
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var _sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+var pid = new URLSearchParams(window.location.search).get('pid');
+var patient = null;
+var _listino = [];          // listino personale del pro corrente
+var _sedute = [];           // tutte le sedute con costo (dal DB)
+var _editingId = null;      // id della seduta in edit mode
+
+function _esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function tornaAlPaziente() {
+  if (pid) window.location.href = 'paziente.html?id=' + pid;
+  else window.location.href = 'dashboard.html';
+}
+
+function _fmtEur(n){
+  if (n == null || !isFinite(Number(n))) return '—';
+  var v = Number(n);
+  return v.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function _fmtDate(iso){
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+// Lookup della descrizione ricca dal listino a partire dal codice
+function _voceListinoPerCodice(codice) {
+  if (!codice) return null;
+  var c = String(codice).trim();
+  for (var i = 0; i < _listino.length; i++) {
+    var v = _listino[i];
+    if (v && String(v.codice || '').trim() === c) return v;
+  }
+  return null;
+}
+
+// Costruisce l'HTML della descrizione: se voce_listino → codice + testo listino + nota;
+// altrimenti: costo_descrizione o tecniche come fallback.
+function _descHtml(s){
+  var parts = [];
+  if (s.voce_listino) {
+    var v = _voceListinoPerCodice(s.voce_listino);
+    if (v) {
+      parts.push('<span class="row-desc-code">' + _esc(v.codice) + '</span>');
+      parts.push('<span class="row-desc-full">' + _esc(v.descrizione || '') + '</span>');
+    } else {
+      parts.push('<span class="row-desc-code">' + _esc(s.voce_listino) + '</span>');
+      parts.push('<span class="row-desc-full" style="color:#999">(voce non più nel listino)</span>');
+    }
+    if (s.costo_descrizione) parts.push('<div class="row-desc-nota">' + _esc(s.costo_descrizione) + '</div>');
+  } else if (s.costo_descrizione) {
+    parts.push('<span class="row-desc-full">' + _esc(s.costo_descrizione) + '</span>');
+  } else if (s.tecniche) {
+    parts.push('<span class="row-desc-full" style="color:#777">' + _esc(s.tecniche) + '</span>');
+  } else {
+    parts.push('<span class="row-desc-full" style="color:#bbb">— senza descrizione —</span>');
+  }
+  return parts.join(' ');
+}
+
+function _sedutePerPeriodo(){
+  var daStr = document.getElementById('f-da').value;
+  var aStr  = document.getElementById('f-a').value;
+  var da = daStr ? new Date(daStr + 'T00:00:00') : null;
+  var a  = aStr  ? new Date(aStr  + 'T23:59:59') : null;
+  return _sedute.filter(function(s){
+    if (s.costo == null || !isFinite(Number(s.costo))) return false;
+    if (!s.data_seduta) return true;
+    var d = new Date(s.data_seduta);
+    if (da && d < da) return false;
+    if (a  && d > a ) return false;
+    return true;
+  });
+}
+
+function renderRighe(){
+  var box = document.getElementById('rows'); if (!box) return;
+  var lista = _sedutePerPeriodo();
+  if (!lista.length) {
+    box.innerHTML = '<div class="empty-state">Nessuna seduta con costo nel periodo selezionato.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < lista.length; i++) {
+    var s = lista[i];
+    var col = (typeof s.colore === 'string' && s.colore) ? s.colore : '#ccc';
+    var isPaid = !!s.saldato;
+    var statusHtml = isPaid
+      ? '<span class="status-pill paid">✓ Saldato</span>'
+      : '<span class="status-pill unpaid">In attesa</span>';
+    var isEditing = (_editingId === s.id);
+    if (isEditing) {
+      // Row + form inline di modifica costo/descrizione
+      var currentDesc = s.costo_descrizione ? String(s.costo_descrizione) : '';
+      var currentCost = (s.costo != null && isFinite(Number(s.costo))) ? Number(s.costo) : '';
+      html += '<div class="row editing" data-id="' + _esc(s.id) + '">' +
+                '<div class="row-date">' + _fmtDate(s.data_seduta) + '</div>' +
+                '<div class="row-desc"><span class="row-color-dot" style="background:' + _esc(col) + '"></span><div class="row-desc-text">' + _descHtml(s) + '</div></div>' +
+                '<div class="row-cost">' + _fmtEur(s.costo) + '</div>' +
+                '<div class="row-status">' + statusHtml + '</div>' +
+                '<button class="row-edit" title="Chiudi" onclick="annullaModifica()">✕</button>' +
+                '<div class="row-edit-form">' +
+                  '<div class="edit-field"><label>Costo (€)</label><input type="number" step="0.01" min="0" class="edit-input" id="edit-costo" value="' + _esc(currentCost) + '"></div>' +
+                  '<div class="edit-field" style="flex:1"><label>Descrizione / nota</label><input type="text" class="edit-input wide" id="edit-desc" value="' + _esc(currentDesc) + '" placeholder="Nota o descrizione..."></div>' +
+                  '<div class="edit-actions">' +
+                    '<button class="btn-cancel" onclick="annullaModifica()">Annulla</button>' +
+                    '<button class="btn-save" onclick="salvaModifica(\'' + _esc(s.id) + '\')">💾 Salva</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+    } else {
+      html += '<div class="row" data-id="' + _esc(s.id) + '">' +
+                '<div class="row-date">' + _fmtDate(s.data_seduta) + '</div>' +
+                '<div class="row-desc"><span class="row-color-dot" style="background:' + _esc(col) + '"></span><div class="row-desc-text">' + _descHtml(s) + '</div></div>' +
+                '<div class="row-cost">' + _fmtEur(s.costo) + '</div>' +
+                '<div class="row-status">' + statusHtml + '</div>' +
+                '<button class="row-edit" title="Modifica costo/descrizione" onclick="apriModifica(\'' + _esc(s.id) + '\')">✏️</button>' +
+              '</div>';
+    }
+  }
+  box.innerHTML = html;
+}
+
+function renderTotali(){
+  var lista = _sedutePerPeriodo();
+  var totPeriodo = 0, totSaldato = 0, totDaSaldare = 0;
+  for (var i = 0; i < lista.length; i++) {
+    var s = lista[i];
+    var c = Number(s.costo);
+    if (!isFinite(c)) continue;
+    totPeriodo += c;
+    if (s.saldato) totSaldato += c;
+    else totDaSaldare += c;
+  }
+  document.getElementById('tot-periodo').textContent   = _fmtEur(totPeriodo);
+  document.getElementById('tot-saldato').textContent   = _fmtEur(totSaldato);
+  document.getElementById('tot-dasaldare').textContent = _fmtEur(totDaSaldare);
+}
+
+function applicaFiltri(){ renderRighe(); renderTotali(); }
+function resetFiltri(){
+  document.getElementById('f-da').value = '';
+  document.getElementById('f-a').value  = '';
+  _editingId = null;
+  applicaFiltri();
+}
+
+function apriModifica(id){ _editingId = id; renderRighe(); }
+function annullaModifica(){ _editingId = null; renderRighe(); }
+
+async function salvaModifica(id){
+  var costoRaw = document.getElementById('edit-costo').value;
+  var descRaw  = document.getElementById('edit-desc').value;
+  var costo = null;
+  if (costoRaw !== '' && costoRaw != null) { var n = Number(costoRaw); costo = isFinite(n) ? n : null; }
+  var desc = String(descRaw || '').trim();
+  var payload = { costo: costo, costo_descrizione: desc || null };
+  try {
+    var res = await _sb.from('therapy_sessions').update(payload).eq('id', id);
+    if (res.error) {
+      alert('Errore salvataggio: ' + (res.error.message || ''));
+      return;
+    }
+    // Aggiorna in memoria
+    for (var i = 0; i < _sedute.length; i++) {
+      if (_sedute[i].id === id) {
+        _sedute[i].costo = costo;
+        _sedute[i].costo_descrizione = desc || null;
+        break;
+      }
+    }
+    _editingId = null;
+    renderRighe();
+    renderTotali();
+  } catch(e) {
+    console.error('[contabile] salvaModifica exception:', e);
+    alert('Errore salvataggio.');
+  }
+}
+
+async function init(){
+  if (!pid) { window.location.href = 'dashboard.html'; return; }
+  var sess = await _sb.auth.getSession();
+  if (!sess || !sess.data || !sess.data.session) { window.location.href = 'login.html'; return; }
+
+  // Paziente
+  var pres = await _sb.from('patients').select('nome, cognome').eq('id', pid).maybeSingle();
+  if (!pres || !pres.data) { window.location.href = 'dashboard.html'; return; }
+  patient = pres.data;
+  document.getElementById('pname').textContent = (patient.nome || '') + ' ' + (patient.cognome || '');
+
+  // Listino personale del pro (per lookup descrizione ricca)
+  try {
+    var profRes = await _sb.from('professionals').select('listino').eq('user_id', sess.data.session.user.id).maybeSingle();
+    if (profRes && profRes.data && Array.isArray(profRes.data.listino)) _listino = profRes.data.listino;
+  } catch(e) { console.error('[contabile] fetch listino error:', e); }
+
+  // Sedute con costo (RLS filtra al pro corrente automaticamente)
+  var sres = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false });
+  if (sres && sres.data) _sedute = sres.data;
+
+  applicaFiltri();
+}
+
+init();
+</script>
+</body>
+</html>
