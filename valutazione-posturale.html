@@ -613,21 +613,43 @@
 
   <!-- A: OSSERVAZIONE -->
   <section class="vp-section ds-section">
-    <div class="vp-sec-title ds-section-title"><span class="vp-sec-badge ds-section-badge">A</span> Osservazione iniziale</div>
-    <div class="chip-label ds-chip-label">Elementi rilevati — tocca per aggiungere</div>
-    <div class="chip-row ds-chip-row">
-      <span class="chip ds-chip append-chip" onclick="appendObs('Iperlordosi lombare')">Iperlordosi lombare</span>
-      <span class="chip ds-chip append-chip" onclick="appendObs('Cifosi dorsale')">Cifosi dorsale</span>
-      <span class="chip ds-chip append-chip" onclick="appendObs('Antepulsione capo')">Antepulsione capo</span>
-      <span class="chip ds-chip append-chip" onclick="appendObs('Spalla dx alta')">Spalla dx alta</span>
-      <span class="chip ds-chip append-chip" onclick="appendObs('Spalla sx alta')">Spalla sx alta</span>
-      <span class="chip ds-chip append-chip" onclick="appendObs('Asimmetria bacino')">Asimmetria bacino</span>
-      <span class="chip ds-chip append-chip" onclick="appendObs('Protrazione spalle')">Protrazione spalle</span>
-      <span class="chip ds-chip append-chip" onclick="appendObs('Atteggiamento scoliotico')">Atteg. scoliotico</span>
+    <div class="vp-sec-title ds-section-title"><span class="vp-sec-badge ds-section-badge">A</span> Inquadramento posturale</div>
+
+    <div class="chip-label ds-chip-label">Dolore percepito (VAS 0–10)</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <input type="range" id="f-vas" min="0" max="10" value="0" step="1" style="flex:1;accent-color:#FFD008" oninput="vasUpd(this.value)">
+      <span id="f-vas-val" style="font-weight:800;font-size:18px;min-width:26px;text-align:center;color:#000">0</span>
+      <button type="button" onclick="apriSedeDolore()" style="background:#111;color:#FFD008;border:none;border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">+ Sede</button>
     </div>
-    <textarea class="vp-textarea ds-textarea" id="f-note-osservazionali" rows="4"
-      placeholder="Note osservazionali libere…" oninput="scheduleSave()"></textarea>
+    <div id="f-vas-sede-tags" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px"></div>
+
+    <div class="chip-label ds-chip-label">Tipo di disfunzione posturale</div>
+    <div class="chip-row ds-chip-row" style="margin-bottom:14px">
+      <span class="chip" data-g="disfunzione" data-v="Ascendente"  onclick="setExcl('disfunzione','Ascendente')">Ascendente</span>
+      <span class="chip" data-g="disfunzione" data-v="Discendente" onclick="setExcl('disfunzione','Discendente')">Discendente</span>
+      <span class="chip" data-g="disfunzione" data-v="Mista"       onclick="setExcl('disfunzione','Mista')">Mista</span>
+      <span class="chip" data-g="disfunzione" data-v="Nei limiti"  onclick="setExcl('disfunzione','Nei limiti')">Nei limiti</span>
+    </div>
+
+    <div class="chip-label ds-chip-label">Standard di posizione (Racc. 1)</div>
+    <div class="chip-row ds-chip-row" style="margin-bottom:14px">
+      <span class="chip" data-g="standard" data-v="Talloni 15 cm, punte allineate" onclick="setExcl('standard','Talloni 15 cm, punte allineate')">Talloni 15 cm · punte allineate</span>
+      <span class="chip" data-g="standard" data-v="Talloni uniti, punte a 30 gradi" onclick="setExcl('standard','Talloni uniti, punte a 30 gradi')">Talloni uniti · punte 30&deg;</span>
+    </div>
+
+    <div class="chip-label ds-chip-label">Sintesi posturale</div>
+    <textarea class="vp-textarea ds-textarea" id="f-sintesi-posturale" rows="3"
+      placeholder="Es. Atteggiamento in equilibrio nei limiti fisiologici / Faulty posture con prevalente componente…" oninput="scheduleSave()"></textarea>
   </section>
+
+  <!-- Popup Sede del dolore -->
+  <div id="sede-modal" onclick="if(event.target===this)chiudiSedeDolore()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100050;align-items:flex-end;justify-content:center">
+    <div style="background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:520px;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:70vh;overflow-y:auto">
+      <div style="font-size:12px;font-weight:800;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Sede del dolore</div>
+      <div id="sede-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      <button type="button" onclick="chiudiSedeDolore()" style="width:100%;margin-top:16px;background:#FFD008;color:#000;border:none;border-radius:10px;padding:13px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">Fatto</button>
+    </div>
+  </div>
 
   <!-- B: FOTO POSTURALI -->
   <section class="vp-section ds-section">
@@ -1324,7 +1346,11 @@
     if (v.monopodalico_sx)          restoreExcl('mono-sx', v.monopodalico_sx)
     if (v.configurazione_suggerita) setConfig(v.configurazione_suggerita, false)
 
-    fSet('f-note-osservazionali', v.note_osservazionali)
+    fSet('f-sintesi-posturale', v.note_osservazionali)
+    if (typeof v.vas === 'number') { var _ve=document.getElementById('f-vas'); if(_ve){ _ve.value=v.vas; var _vv=document.getElementById('f-vas-val'); if(_vv) _vv.textContent=v.vas } }
+    if (v.vas_sede) { window._vasSede = String(v.vas_sede).split(',').map(function(x){return x.trim()}).filter(Boolean); renderVasSede() }
+    if (v.tipo_disfunzione)   restoreExcl('disfunzione', v.tipo_disfunzione)
+    if (v.standard_posizione) restoreExcl('standard',    v.standard_posizione)
     fSet('f-monopodalico-note',   v.monopodalico_note)
     fSet('f-note-finali',         v.note_finali)
     if (v.relazione_ai) {
@@ -2486,6 +2512,14 @@
       ta.value = lines.filter(l => l !== bullet).join('\n')
     }
   }
+  window._vasSede = window._vasSede || []
+  var _SEDI = ['Cervicale','Dorsale','Lombare','Sacro-iliaca','Spalla dx','Spalla sx','Anca dx','Anca sx','Ginocchio dx','Ginocchio sx','Caviglia/piede dx','Caviglia/piede sx','Capo/ATM']
+  function vasUpd(v){ var e=document.getElementById('f-vas-val'); if(e) e.textContent=v; scheduleSave() }
+  function renderVasSede(){ var box=document.getElementById('f-vas-sede-tags'); if(!box) return; box.innerHTML=(window._vasSede||[]).map(function(z){ return '<span class="chip active" style="cursor:default">'+z+'</span>' }).join('') }
+  function apriSedeDolore(){ var box=document.getElementById('sede-chips'); if(box) box.innerHTML=_SEDI.map(function(z){ var on=(window._vasSede||[]).indexOf(z)>=0; return '<span class="chip'+(on?' active':'')+'" onclick="toggleSede(this)" data-v="'+z+'">'+z+'</span>' }).join(''); var m=document.getElementById('sede-modal'); if(m) m.style.display='flex' }
+  function chiudiSedeDolore(){ var m=document.getElementById('sede-modal'); if(m) m.style.display='none' }
+  function toggleSede(el){ var z=el.getAttribute('data-v'); var i=window._vasSede.indexOf(z); if(i>=0){ window._vasSede.splice(i,1); el.classList.remove('active') } else { window._vasSede.push(z); el.classList.add('active') } renderVasSede(); scheduleSave() }
+
   function setExcl(group, val) {
     const prev = chipState[group]
     chipState[group] = prev === val ? null : val
@@ -2562,7 +2596,11 @@
   function collectFormData() {
     return {
       data_visita:              document.getElementById('hdr-date-input').value || null,
-      note_osservazionali:      document.getElementById('f-note-osservazionali').value.trim() || null,
+      note_osservazionali:      document.getElementById('f-sintesi-posturale')?.value.trim() || null,
+      vas:                      (function(){ var e=document.getElementById('f-vas'); return e ? parseInt(e.value) : null })(),
+      vas_sede:                 (window._vasSede && window._vasSede.length) ? window._vasSede.join(', ') : null,
+      tipo_disfunzione:         chipState['disfunzione'] || null,
+      standard_posizione:       chipState['standard'] || null,
       arco_plantare:            chipState['arco']    || null,
       assetto_podalico:         chipState['assetto'] || null,
       monopodalico_dx:          chipState['mono-dx'] || null,
@@ -2634,7 +2672,7 @@
     const nomePaz = document.getElementById('hdr-patient-name')?.textContent || 'n.d.'
     const contesto = {
       paziente: nomePaz,
-      note_osservazionali: document.getElementById('f-note-osservazionali')?.value.trim() || '',
+      note_osservazionali: document.getElementById('f-sintesi-posturale')?.value.trim() || '',
       arco_plantare: chipState['arco'] || '',
       assetto_podalico: chipState['assetto'] || '',
       monopodalico_dx: chipState['mono-dx'] || '',
