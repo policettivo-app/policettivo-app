@@ -351,6 +351,15 @@
     .csai-saved-card-date { font-size: 11px; color: #aaa; margin-bottom: 4px; }
     .csai-saved-card-preview { font-size: 12px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .csai-saved-empty { color: #bbb; font-size: 13px; text-align: center; padding: 20px 0; }
+    /* Pannello opzioni "Cosa vuoi includere nella sintesi?" */
+    .csai-opt-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
+    .csai-opt { display: flex; align-items: center; gap: 10px; background: #fff; border: 1.5px solid #eee; border-radius: 8px; padding: 10px 12px; cursor: pointer; font-size: 13px; color: #222; }
+    .csai-opt input { accent-color: #FFD008; width: 18px; height: 18px; flex: none; cursor: pointer; }
+    .csai-opt.on { background: #fffdf0; border-color: #FFD008; }
+    .csai-opt-focus-lbl { display: block; font-size: 12px; font-weight: 700; color: #555; margin: 14px 0 4px; }
+    .csai-opt-focus { width: 100%; box-sizing: border-box; border: 1.5px solid #ddd; border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 13px; color: #222; resize: vertical; }
+    .csai-opt-focus:focus { outline: none; border-color: #FFD008; }
+    .csai-opt-actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap; }
     /* PDF Composizione Modal */
     .pdf-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1100; }
     .pdf-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: #fff; border-radius: 16px; padding: 28px 28px 24px; width: min(480px, 92vw); z-index: 1101; box-shadow: 0 16px 48px rgba(0,0,0,0.2); }
@@ -1018,8 +1027,26 @@
           <div class="csai-panel">
             <div id="csai-intro-state">
               <p class="csai-intro">L'Assistente Clinico AI analizza documenti, osservazioni posturali, protocollo attivo, visite e sedute per generare una sintesi strutturata. Il testo è modificabile e stampabile in PDF.</p>
-              <button class="csai-btn" id="csai-avvia-btn" onclick="csAIAvvia()">🧠 Genera Assistente Clinico AI</button>
+              <button class="csai-btn" id="csai-avvia-btn" onclick="csAIApriOpzioni()">🧠 Genera Assistente Clinico AI</button>
               <div class="csai-loading" id="csai-loading">⏳ Analisi in corso...</div>
+            </div>
+            <!-- Pannello opzioni: cosa includere -->
+            <div id="csai-options-state" style="display:none">
+              <p class="csai-intro" style="margin-bottom:6px"><b>Cosa vuoi includere nella sintesi?</b><br>Deseleziona ciò che non serve. Aggiungi (opzionalmente) un focus per orientare l'analisi.</p>
+              <div class="csai-opt-list">
+                <label class="csai-opt on" for="csai-opt-anamnesi"><input type="checkbox" id="csai-opt-anamnesi" checked onchange="_csAIOptToggle(this)"> Anamnesi e red flag</label>
+                <label class="csai-opt on" for="csai-opt-body-chart"><input type="checkbox" id="csai-opt-body-chart" checked onchange="_csAIOptToggle(this)"> Body chart / sede del dolore</label>
+                <label class="csai-opt on" for="csai-opt-valutazioni-ft"><input type="checkbox" id="csai-opt-valutazioni-ft" checked onchange="_csAIOptToggle(this)"> Valutazioni fisioterapiche</label>
+                <label class="csai-opt on" for="csai-opt-valutazioni-post"><input type="checkbox" id="csai-opt-valutazioni-post" checked onchange="_csAIOptToggle(this)"> Valutazioni posturali</label>
+                <label class="csai-opt on" for="csai-opt-trattamenti"><input type="checkbox" id="csai-opt-trattamenti" checked onchange="_csAIOptToggle(this)"> Trattamenti e sedute</label>
+                <label class="csai-opt on" for="csai-opt-documenti"><input type="checkbox" id="csai-opt-documenti" checked onchange="_csAIOptToggle(this)"> Documenti / referti</label>
+              </div>
+              <label class="csai-opt-focus-lbl" for="csai-focus">Focus o richieste particolari (opzionale)</label>
+              <textarea class="csai-opt-focus" id="csai-focus" rows="2" placeholder="Es. focus rachide lombare e rientro allo sport…"></textarea>
+              <div class="csai-opt-actions">
+                <button class="csai-btn" onclick="csAIGeneraSintesi()">🧠 Genera sintesi</button>
+                <button class="csai-action-btn" onclick="csAIAnnullaOpzioni()">✕ Annulla</button>
+              </div>
             </div>
             <div class="csai-report" id="csai-report">
               <div class="csai-section">
@@ -2985,18 +3012,114 @@
       }
     }
 
-    async function csAIAvvia() {
-      if (!window.isPremium && _pazAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
+    // Gate Premium (stretto): la Sintesi AI è riservata a Premium.
+    // Se non lo è, mostra la modale upgrade (helper globale già presente).
+    function _csAIRequirePremium() {
+      if (window.isPremium) return true
+      if (window.policettivoHandleAI403) window.policettivoHandleAI403()
+      else if (document.getElementById('premium-overlay')) document.getElementById('premium-overlay').classList.add('visible')
+      return false
+    }
+
+    // Toggle visivo della card checkbox (opzione)
+    function _csAIOptToggle(cb) {
+      const wrap = cb.closest('.csai-opt')
+      if (wrap) wrap.classList.toggle('on', cb.checked)
+    }
+
+    // Apre il pannello "Cosa vuoi includere nella sintesi?"
+    function csAIApriOpzioni() {
+      if (!_csAIRequirePremium()) return
+      document.getElementById('csai-intro-state').style.display = 'none'
+      document.getElementById('csai-options-state').style.display = 'block'
+      document.getElementById('csai-report').style.display = 'none'
+    }
+
+    // Annulla: torna allo stato intro
+    function csAIAnnullaOpzioni() {
+      document.getElementById('csai-options-state').style.display = 'none'
+      document.getElementById('csai-intro-state').style.display = 'block'
+    }
+
+    // Alias di retro-compat per eventuali call site esistenti
+    async function csAIAvvia() { csAIApriOpzioni() }
+
+    // ── Helpers di normalizzazione ─────────────────────────────────────
+    // Red flags: gestisce sia array (legacy) sia {voci,nota} (nuovo)
+    function _csAIRedFlags(raw) {
+      if (Array.isArray(raw)) return { voci: raw.filter(function(x){ return typeof x === 'string' && x.trim() }), nota: '' }
+      if (raw && typeof raw === 'object') {
+        return {
+          voci: Array.isArray(raw.voci) ? raw.voci.filter(function(x){ return typeof x === 'string' && x.trim() }) : [],
+          nota: typeof raw.nota === 'string' ? raw.nota : ''
+        }
+      }
+      return { voci: [], nota: '' }
+    }
+    // Body chart: gestisce sia mappa piatta (legacy) sia {distretti,punti} (nuovo)
+    function _csAIBodyChart(raw) {
+      let obj = raw
+      if (typeof obj === 'string') { try { obj = JSON.parse(obj) } catch(e) { obj = null } }
+      const out = { distretti: {}, punti: [] }
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return out
+      const hasNew = Object.prototype.hasOwnProperty.call(obj, 'distretti') || Object.prototype.hasOwnProperty.call(obj, 'punti')
+      if (hasNew) {
+        if (obj.distretti && typeof obj.distretti === 'object' && !Array.isArray(obj.distretti)) {
+          Object.keys(obj.distretti).forEach(function(k){ out.distretti[k] = typeof obj.distretti[k] === 'string' ? obj.distretti[k] : '' })
+        }
+        if (Array.isArray(obj.punti)) obj.punti.forEach(function(p){ if (p && typeof p === 'object') out.punti.push(p) })
+      } else {
+        Object.keys(obj).forEach(function(k){ out.distretti[k] = typeof obj[k] === 'string' ? obj[k] : '' })
+      }
+      return out
+    }
+    function _csAIFmtBc(bc) {
+      const parts = []
+      const dKeys = Object.keys(bc.distretti)
+      if (dKeys.length) {
+        dKeys.forEach(function(k){
+          const n = (bc.distretti[k] || '').trim()
+          parts.push('  · ' + k.replace(/_/g,' ') + (n ? ': ' + n : ''))
+        })
+      }
+      if (bc.punti.length) {
+        bc.punti.forEach(function(p){
+          const v = p.view === 'back' ? 'posteriore' : 'frontale'
+          const n = String(p.nota || '').trim()
+          parts.push('  · punto libero (' + v + ' x' + p.x + '% y' + p.y + '%)' + (n ? ': ' + n : ''))
+        })
+      }
+      return parts.length ? parts.join('\n') : '  · nessun distretto/punto segnalato'
+    }
+
+    async function csAIGeneraSintesi() {
+      // Gate Premium stretto: doppia verifica (già fatta all'apertura pannello opzioni)
+      if (!_csAIRequirePremium()) return
+
+      // Legge le opzioni scelte dall'utente
+      const opts = {
+        anamnesi:            document.getElementById('csai-opt-anamnesi').checked,
+        body_chart:          document.getElementById('csai-opt-body-chart').checked,
+        valutazioni_ft:      document.getElementById('csai-opt-valutazioni-ft').checked,
+        valutazioni_post:    document.getElementById('csai-opt-valutazioni-post').checked,
+        trattamenti_sedute:  document.getElementById('csai-opt-trattamenti').checked,
+        documenti_referti:   document.getElementById('csai-opt-documenti').checked,
+        focus:               (document.getElementById('csai-focus').value || '').trim()
+      }
+
       const btn = document.getElementById('csai-avvia-btn')
       const loading = document.getElementById('csai-loading')
       const introState = document.getElementById('csai-intro-state')
+      const optionsState = document.getElementById('csai-options-state')
       const report = document.getElementById('csai-report')
-      btn.disabled = true
+      if (btn) btn.disabled = true
+      if (optionsState) optionsState.style.display = 'none'
+      if (introState) introState.style.display = 'block'
       loading.style.display = 'block'
       report.style.display = 'none'
 
       const { data: { session } } = await _supabase.auth.getSession()
-      if (!session) { loading.style.display = 'none'; btn.disabled = false; return }
+      if (!session) { loading.style.display = 'none'; if (btn) btn.disabled = false; return }
 
       const pid = patient?.id
       const nome = ((patient?.nome || '') + ' ' + (patient?.cognome || '')).trim()
@@ -3004,79 +3127,200 @@
       const diagnosi = patient?.problema_principale || patient?.diagnosi || 'n.d.'
       const noteClinica = patient?.note_cliniche || ''
 
+      // Select arricchito su visits: include body_chart, campi trattamento/valutazione,
+      // note piani posturali e configurazione posturale
+      const VISITS_COLS = [
+        'id','data_visita','tipo','motivo_visita','storia_clinica','diagnosi_funzionale',
+        'durata_sintomi','insorgenza','obiettivi_paziente','note_osservazionali','note_valutazione',
+        'vas_riposo','vas_movimento','vas_picco_settimanale','vas_inizio','vas_fine',
+        'tecniche_trattamento','tempo_trattamento_minuti','risposta_paziente',
+        'miglioramenti','note_finali','indicazioni_paziente',
+        'note_posturali','note_sagittale','note_frontale','note_posteriore',
+        'note_podoscopio_sotto','note_podoscopio_dietro','note_scapolare_pre','note_scapolare_post',
+        'configurazione_suggerita','tipo_disfunzione','standard_posizione',
+        'body_chart'
+      ].join(',')
+
       const [visitRes, seduteRes, noteRes, protocolloRes] = await Promise.all([
-        _supabase.from('visits').select('data_visita,tipo,motivo_visita,diagnosi_funzionale,note_osservazionali,vas_inizio,vas_fine').eq('patient_id', pid).order('data_visita', { ascending: false }).limit(8),
+        _supabase.from('visits').select(VISITS_COLS).eq('patient_id', pid).order('data_visita', { ascending: false }).limit(10),
         _supabase.from('therapy_sessions').select('data_seduta,protocollo_seduta,note_cliniche,vas_inizio,vas_fine').eq('patient_id', pid).order('data_seduta', { ascending: false }).limit(8),
         _supabase.from('clinical_notes').select('created_at,title,content').eq('patient_id', pid).order('created_at', { ascending: false }).limit(5),
         _supabase.from('patient_protocols').select('*').eq('patient_id', pid).order('created_at', { ascending: false }).limit(1)
       ])
 
-      const docsSection = documentiCaricati?.length
-        ? documentiCaricati.map(d => `- ${d.tipo || 'documento'}: ${d.descrizione || 'senza descrizione'} (${d.created_at?.slice(0,10) || ''})`).join('\n')
-        : 'Nessun documento caricato.'
+      const allVisits = visitRes.data || []
+      const visitsFt  = allVisits.filter(function(v){ return (v.tipo || '') !== 'posturale' })
+      const visitsPos = allVisits.filter(function(v){ return (v.tipo || '') === 'posturale' })
 
-      const obsMap = { 'scapolare-prima': 'Scapolare anteriore', 'scapolare-dopo': 'Scapolare posteriore', 'piede-morfologia': 'Morfologia piede', 'piede-asse': 'Asse piede', 'rotazione-sup': 'Rotazione superiore', 'inclinazione-capo': 'Inclinazione capo' }
-      const obsLines = Object.entries(obsSelections || {}).filter(([,v]) => v).map(([k,v]) => `- ${obsMap[k]||k}: ${v}`)
-      let ossFotoTxt = ''
-      try { if (window.polRaccogliOsservazioniVisite) ossFotoTxt = (await window.polRaccogliOsservazioniVisite(_supabase, pid)) || '' } catch(e) {}
-      let obsSection = obsLines.join('\n')
-      if (ossFotoTxt) obsSection += (obsSection ? '\n\n' : '') + ossFotoTxt
-      if (!obsSection) obsSection = 'Nessuna osservazione posturale.'
+      // ─── Costruzione sezioni prompt condizionali ───
+      const bodyParts = []
+      bodyParts.push('PAZIENTE: ' + nome + ', ' + eta)
+      bodyParts.push('PROBLEMA PRINCIPALE: ' + diagnosi)
+      if (noteClinica) bodyParts.push('NOTE CLINICHE IN CARTELLA: ' + noteClinica)
 
-      const proto = protocolloRes.data?.[0]
-      const protoSection = proto ? `Protocollo dal ${(proto.created_at||'').slice(0,10) || 'n.d.'}: ${proto.configurazione_generale || 'configurazione non dettagliata'}` : 'Nessun protocollo attivo.'
+      // 1) Anamnesi + red flag
+      if (opts.anamnesi) {
+        const rf = _csAIRedFlags(patient?.red_flags)
+        const lines = []
+        lines.push('\n== ANAMNESI E RED FLAG ==')
+        const anamnesiV = visitsFt.slice(0, 5).map(function(v){
+          const p = []
+          if (v.data_visita) p.push('data=' + v.data_visita.slice(0,10))
+          if (v.motivo_visita)      p.push('motivo=' + v.motivo_visita)
+          if (v.storia_clinica)     p.push('storia=' + v.storia_clinica)
+          if (v.durata_sintomi)     p.push('durata=' + v.durata_sintomi)
+          if (v.insorgenza)         p.push('insorgenza=' + v.insorgenza)
+          if (v.obiettivi_paziente) p.push('obiettivi=' + v.obiettivi_paziente)
+          if (v.diagnosi_funzionale)p.push('diagnosi_funz=' + v.diagnosi_funzionale)
+          return p.length ? '- ' + p.join(' | ') : ''
+        }).filter(Boolean)
+        lines.push(anamnesiV.length ? anamnesiV.join('\n') : '- (nessuna anamnesi registrata nelle ultime visite)')
+        lines.push('Red flag paziente: voci=[' + (rf.voci.length ? rf.voci.join('; ') : 'nessuna') + ']' + (rf.nota ? ' | nota="' + rf.nota + '"' : ''))
+        bodyParts.push(lines.join('\n'))
+      }
 
-      const visitLines = visitRes.data?.map(v => `- ${v.data_visita}: tipo=${v.tipo||'—'}, motivo=${v.motivo_visita||'—'}, diagnosi=${v.diagnosi_funzionale||'—'}, VAS=${v.vas_inizio??'n.d.'}→${v.vas_fine??'n.d.'}, note=${v.note_osservazionali||'—'}`) || []
-      const seduteLines = seduteRes.data?.map(s => `- ${s.data_seduta}: protocollo=${s.protocollo_seduta||'—'}, VAS prima=${s.vas_inizio??'n.d.'} → dopo=${s.vas_fine??'n.d.'}, note=${s.note_cliniche||'—'}`) || []
-      const noteLines = noteRes.data?.map(n => `- ${n.created_at?.slice(0,10)}: [${n.title||'senza titolo'}] ${n.content||'—'}`) || []
+      // 2) Body chart / sede del dolore
+      if (opts.body_chart) {
+        const lines = ['\n== BODY CHART / SEDE DEL DOLORE ==']
+        const bcLines = visitsFt.slice(0, 5).map(function(v){
+          const bc = _csAIBodyChart(v.body_chart)
+          const date = v.data_visita ? v.data_visita.slice(0,10) : 'senza data'
+          return '- Visita ' + date + ':\n' + _csAIFmtBc(bc)
+        })
+        lines.push(bcLines.length ? bcLines.join('\n') : '- (nessuna visita fisioterapica recente)')
+        bodyParts.push(lines.join('\n'))
+      }
 
-      const schemaJSON = `{"problema_principale":"...","elementi_documentali":"...","osservazioni_cliniche":"...","protocollo_attivo":"...","criticita":"...","evoluzione_clinica":"...","nota_finale":"..."}`
+      // 3) Valutazioni fisioterapiche
+      if (opts.valutazioni_ft) {
+        const lines = ['\n== VALUTAZIONI FISIOTERAPICHE (max 5) ==']
+        const evV = visitsFt.slice(0, 5).map(function(v){
+          const p = []
+          if (v.data_visita) p.push('data=' + v.data_visita.slice(0,10))
+          const vas = []
+          if (v.vas_riposo != null)            vas.push('riposo=' + v.vas_riposo)
+          if (v.vas_movimento != null)         vas.push('movimento=' + v.vas_movimento)
+          if (v.vas_picco_settimanale != null) vas.push('picco=' + v.vas_picco_settimanale)
+          if (vas.length) p.push('VAS(' + vas.join(', ') + ')')
+          if (v.note_valutazione) p.push('note=' + v.note_valutazione)
+          return p.length ? '- ' + p.join(' | ') : ''
+        }).filter(Boolean)
+        lines.push(evV.length ? evV.join('\n') : '- (nessuna valutazione FT registrata)')
+        bodyParts.push(lines.join('\n'))
+      }
 
-      const prompt = `Sei un assistente clinico AI per fisioterapisti e osteopati. Analizza i dati clinici e produci una sintesi strutturata IN ITALIANO.
+      // 4) Valutazioni posturali (visite tipo=posturale + osservazioni foto)
+      if (opts.valutazioni_post) {
+        const lines = ['\n== VALUTAZIONI POSTURALI ==']
+        const posLines = visitsPos.slice(0, 5).map(function(v){
+          const p = []
+          if (v.data_visita)              p.push('data=' + v.data_visita.slice(0,10))
+          if (v.vas_riposo != null)       p.push('VAS=' + v.vas_riposo)
+          if (v.tipo_disfunzione)         p.push('disfunzione=' + v.tipo_disfunzione)
+          if (v.standard_posizione)       p.push('standard=' + v.standard_posizione)
+          if (v.configurazione_suggerita) p.push('config=' + v.configurazione_suggerita)
+          if (v.note_osservazionali)      p.push('sintesi=' + v.note_osservazionali)
+          const piani = []
+          if (v.note_sagittale)           piani.push('sag=' + v.note_sagittale)
+          if (v.note_frontale)            piani.push('front=' + v.note_frontale)
+          if (v.note_posteriore)          piani.push('post=' + v.note_posteriore)
+          if (v.note_podoscopio_sotto)    piani.push('podo_sotto=' + v.note_podoscopio_sotto)
+          if (v.note_podoscopio_dietro)   piani.push('podo_dietro=' + v.note_podoscopio_dietro)
+          if (piani.length) p.push('piani{' + piani.join(' ; ') + '}')
+          return p.length ? '- ' + p.join(' | ') : ''
+        }).filter(Boolean)
+        lines.push(posLines.length ? posLines.join('\n') : '- (nessuna valutazione posturale registrata)')
 
-PAZIENTE: ${nome}, ${eta}
-PROBLEMA PRINCIPALE: ${diagnosi}
-NOTE CLINICHE IN CARTELLA: ${noteClinica || 'nessuna'}
+        // Osservazioni chip locali + osservazioni foto raccolte da tutte le visite del paziente
+        const obsMap = { 'scapolare-prima': 'Scapolare anteriore', 'scapolare-dopo': 'Scapolare posteriore', 'piede-morfologia': 'Morfologia piede', 'piede-asse': 'Asse piede', 'rotazione-sup': 'Rotazione superiore', 'inclinazione-capo': 'Inclinazione capo' }
+        const obsChip = Object.entries(obsSelections || {}).filter(function(kv){ return kv[1] }).map(function(kv){ return '- ' + (obsMap[kv[0]] || kv[0]) + ': ' + kv[1] })
+        let ossFotoTxt = ''
+        try { if (window.polRaccogliOsservazioniVisite) ossFotoTxt = (await window.polRaccogliOsservazioniVisite(_supabase, pid)) || '' } catch(e) {}
+        if (obsChip.length) { lines.push('Osservazioni chip:'); lines.push(obsChip.join('\n')) }
+        if (ossFotoTxt) { lines.push('Osservazioni foto (visit_photos):'); lines.push(ossFotoTxt) }
 
-DOCUMENTI ALLEGATI:
-${docsSection}
+        bodyParts.push(lines.join('\n'))
+      }
 
-OSSERVAZIONI POSTURALI:
-${obsSection}
+      // 5) Trattamenti e sedute
+      if (opts.trattamenti_sedute) {
+        const lines = ['\n== TRATTAMENTI E SEDUTE ==']
+        const trtV = visitsFt.slice(0, 5).map(function(v){
+          const p = []
+          if (v.data_visita) p.push('visita=' + v.data_visita.slice(0,10))
+          if (v.tecniche_trattamento) p.push('tecniche=' + v.tecniche_trattamento)
+          if (v.tempo_trattamento_minuti != null) p.push('durata=' + v.tempo_trattamento_minuti + ' min')
+          const preV = v.vas_inizio, postV = v.vas_fine
+          if (preV != null || postV != null) {
+            const parts = []
+            if (preV != null)  parts.push('pre=' + preV)
+            if (postV != null) parts.push('post=' + postV)
+            if (preV != null && postV != null) parts.push('Δ=' + (postV - preV))
+            p.push('VAS(' + parts.join(', ') + ')')
+          }
+          if (v.risposta_paziente) p.push('risposta=' + v.risposta_paziente)
+          if (v.miglioramenti)     p.push('miglioramenti=' + v.miglioramenti)
+          if (v.note_finali)       p.push('note_finali=' + v.note_finali)
+          if (v.indicazioni_paziente) p.push('indicazioni=' + v.indicazioni_paziente)
+          return p.length ? '- ' + p.join(' | ') : ''
+        }).filter(Boolean)
+        lines.push('Trattamenti da visite (max 5):')
+        lines.push(trtV.length ? trtV.join('\n') : '- (nessuna visita con dati di trattamento)')
 
-PROTOCOLLO ATTIVO:
-${protoSection}
+        const seduteLines = (seduteRes.data || []).map(function(s){
+          return '- ' + s.data_seduta + ': protocollo=' + (s.protocollo_seduta || '—') + ', VAS pre=' + (s.vas_inizio != null ? s.vas_inizio : 'n.d.') + ' → post=' + (s.vas_fine != null ? s.vas_fine : 'n.d.') + ', note=' + (s.note_cliniche || '—')
+        })
+        lines.push('Sedute terapeutiche (max 8):')
+        lines.push(seduteLines.length ? seduteLines.join('\n') : '- (nessuna seduta registrata)')
 
-ULTIME VISITE (max 8):
-${visitLines.length ? visitLines.join('\n') : 'Nessuna visita registrata.'}
+        const proto = protocolloRes.data && protocolloRes.data[0]
+        const protoLine = proto
+          ? 'Protocollo attivo dal ' + ((proto.created_at || '').slice(0,10) || 'n.d.') + ': ' + (proto.configurazione_generale || 'configurazione non dettagliata')
+          : 'Nessun protocollo attivo.'
+        lines.push('Protocollo: ' + protoLine)
+        bodyParts.push(lines.join('\n'))
+      }
 
-ULTIME SEDUTE TERAPEUTICHE (max 8):
-${seduteLines.length ? seduteLines.join('\n') : 'Nessuna seduta registrata.'}
+      // 6) Documenti / referti + note clinica
+      if (opts.documenti_referti) {
+        const lines = ['\n== DOCUMENTI / REFERTI E NOTE CARTELLA ==']
+        const docsSection = documentiCaricati && documentiCaricati.length
+          ? documentiCaricati.map(function(d){ return '- ' + (d.tipo || 'documento') + ': ' + (d.descrizione || 'senza descrizione') + ' (' + (d.created_at ? d.created_at.slice(0,10) : '') + ')' }).join('\n')
+          : '- (nessun documento caricato)'
+        lines.push('Documenti allegati:'); lines.push(docsSection)
+        const noteLines = (noteRes.data || []).map(function(n){ return '- ' + (n.created_at ? n.created_at.slice(0,10) : '') + ' [' + (n.title || 'senza titolo') + '] ' + (n.content || '—') })
+        lines.push('Note cartella (max 5):'); lines.push(noteLines.length ? noteLines.join('\n') : '- (nessuna nota)')
+        bodyParts.push(lines.join('\n'))
+      }
 
-NOTE CLINICHE:
-${noteLines.length ? noteLines.join('\n') : 'Nessuna nota.'}
+      if (opts.focus) {
+        bodyParts.push('\n== FOCUS RICHIESTO DAL PROFESSIONISTA ==\n' + opts.focus)
+      }
 
-Rispondi SOLO con un oggetto JSON valido con questa struttura (ogni campo max 80 parole, linguaggio professionale, niente diagnosi mediche, non inventare dati):
-${schemaJSON}
+      const schemaJSON = '{"problema_principale":"...","elementi_documentali":"...","osservazioni_cliniche":"...","protocollo_attivo":"...","criticita":"...","evoluzione_clinica":"...","nota_finale":"..."}'
 
-Campi:
-- problema_principale: quadro clinico principale, sintomi dominanti
-- elementi_documentali: elementi rilevanti da documenti allegati; se nessuno scrivi "Nessun documento caricato."
-- osservazioni_cliniche: analisi posturale registrata; se nessuna scrivi "Nessuna osservazione registrata."
-- protocollo_attivo: descrizione del protocollo terapeutico attivo e obiettivi
-- criticita: segnali di attenzione, plateau, peggioramenti; se tutto ok scrivi "Nessuna criticità rilevata."
-- evoluzione_clinica: trend del VAS, risposta ai trattamenti, progressi nel tempo
-- nota_finale: impressione globale sul percorso, max 2 righe`
+      const prompt = 'Sei un assistente clinico AI per fisioterapisti e osteopati. Analizza SOLO i dati clinici forniti qui sotto (le sezioni assenti non sono state richieste dal professionista) e produci una sintesi strutturata IN ITALIANO.\n\n' +
+        bodyParts.join('\n') +
+        '\n\nRispondi SOLO con un oggetto JSON valido con questa struttura (ogni campo max 80 parole, linguaggio professionale, niente diagnosi mediche, non inventare dati e non riportare dati non presenti):\n' +
+        schemaJSON +
+        '\n\nCampi:\n' +
+        '- problema_principale: quadro clinico principale, sintomi dominanti\n' +
+        '- elementi_documentali: elementi rilevanti da documenti/note in cartella; se non richiesti/assenti scrivi "Non incluso o non disponibile."\n' +
+        '- osservazioni_cliniche: sintesi delle valutazioni FT e posturali (body chart, VAS, piani, ecc.) tenendo conto delle sezioni selezionate\n' +
+        '- protocollo_attivo: descrizione del protocollo terapeutico attivo e obiettivi; se assente scrivi "Nessun protocollo attivo."\n' +
+        '- criticita: segnali di attenzione (red flag, plateau, peggioramenti). Se ci sono red flag ATTIVE evidenziale.\n' +
+        '- evoluzione_clinica: trend del VAS, risposta ai trattamenti, progressi nel tempo\n' +
+        '- nota_finale: impressione globale sul percorso, max 2 righe; se è stato indicato un FOCUS, orienta qui la sintesi'
 
       try {
         const resp = await fetch('/api/ai-analisi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-          body: JSON.stringify({ prompt, max_tokens: 1500 })
+          body: JSON.stringify({ prompt: prompt, max_tokens: 1800 })
         })
         if (resp.status === 403) {
           loading.style.display = 'none'
-          btn.disabled = false
+          if (btn) btn.disabled = false
           if (window.policettivoHandleAI403) window.policettivoHandleAI403()
           return
         }
@@ -3090,7 +3334,7 @@ Campi:
         } catch(e) {}
 
         const keys = ['problema_principale','elementi_documentali','osservazioni_cliniche','protocollo_attivo','criticita','evoluzione_clinica','nota_finale']
-        keys.forEach((key, i) => {
+        keys.forEach(function(key, i){
           const el = document.getElementById('csai-s' + (i+1))
           if (el) el.textContent = sections[key] || (json.testo ? json.testo : '—')
         })
@@ -3104,7 +3348,7 @@ Campi:
         report.style.display = 'block'
       }
       loading.style.display = 'none'
-      btn.disabled = false
+      if (btn) btn.disabled = false
     }
 
     function csAIToggleEdit() {
@@ -3151,8 +3395,10 @@ Campi:
 
     function csAIReset() {
       const introState = document.getElementById('csai-intro-state')
+      const optionsState = document.getElementById('csai-options-state')
       const report = document.getElementById('csai-report')
       introState.style.display = 'block'
+      if (optionsState) optionsState.style.display = 'none'
       report.style.display = 'none'
       document.getElementById('csai-avvia-btn').disabled = false
       document.getElementById('csai-loading').style.display = 'none'
