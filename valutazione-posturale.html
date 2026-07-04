@@ -1685,6 +1685,18 @@
     return wrap
   }
 
+  // Mantiene la posizione di scroll tornando da disegno.html
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual' } catch(e){}
+  function polNavDisegno(u){ try{ sessionStorage.setItem('vpScrollY', String(window.scrollY)) }catch(e){}; location.href = u }
+  function polRestoreScroll(){
+    try {
+      var y = sessionStorage.getItem('vpScrollY'); if (y === null) return
+      var yy = parseInt(y) || 0, tries = 0
+      ;(function go(){ window.scrollTo(0, yy); if (++tries < 20 && Math.abs(window.scrollY - yy) > 4) requestAnimationFrame(go); else sessionStorage.removeItem('vpScrollY') })()
+    } catch(e){}
+  }
+  window.addEventListener('pageshow', polRestoreScroll)
+
   function updatePhotoSlot(tipo) {
     const slot = document.getElementById('slot-' + tipo)
     if (!slot) return
@@ -1703,8 +1715,8 @@
         '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
         (window.policettivoFotoBar ? window.policettivoFotoBar({
           onIntero: "openVpFullscreen('" + p.url_pubblico + "')",
-          onAnnota: "location.href='disegno.html?id=" + patientId + "&vp=" + p.id + "'",
-          onOsserva: "location.href='disegno.html?id=" + patientId + "&vp=" + p.id + "&osserva=1'",
+          onAnnota: "polNavDisegno('disegno.html?id=" + patientId + "&vp=" + p.id + "')",
+          onOsserva: "polNavDisegno('disegno.html?id=" + patientId + "&vp=" + p.id + "&osserva=1')",
           onSostituisci: "replacePhoto('" + tipo + "')",
           onElimina: "removePhoto('" + tipo + "')"
         }) : '')
