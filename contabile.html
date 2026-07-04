@@ -258,7 +258,10 @@ var patient = null;
 var _listino = [];          // listino personale del pro corrente
 var _sedute = [];           // tutte le sedute con costo (dal DB)
 var _pagamenti = [];        // patient_payments per patient_id + professional_id
-var _professionalId = null; // id professionista corrente (per insert su patient_payments)
+// NOTA: la tabella patient_payments ha una RLS che confronta professional_id
+// con auth.uid() (l'id dell'utente autenticato). Non con professionals.id!
+// Per questo cachiamo direttamente session.user.id (== auth.uid()).
+var _authUserId = null;     // auth.uid() — professional_id per patient_payments
 var _editingId = null;      // id seduta in edit costo/descrizione
 var _saldoEditingId = null; // id seduta in edit "segna saldato"
 var _selected = Object.create(null); // { id_seduta: true } — sedute selezionate per batch
@@ -743,7 +746,14 @@ function renderPagamenti(){
 }
 
 async function aggiungiPagamento(){
-  if (!_professionalId) { alert('Profilo professionista non caricato.'); return; }
+  // Difesa: se init non ha ancora impostato _authUserId, ricavalo ora dalla sessione
+  if (!_authUserId) {
+    try {
+      var sessNow = await _sb.auth.getSession();
+      if (sessNow && sessNow.data && sessNow.data.session) _authUserId = sessNow.data.session.user.id;
+    } catch(e) {}
+  }
+  if (!_authUserId) { alert('Sessione non valida. Riprova ad accedere.'); return; }
   var impRaw = document.getElementById('pag-importo').value;
   var dataRaw = document.getElementById('pag-data').value;
   var notaRaw = document.getElementById('pag-nota').value;
@@ -752,7 +762,8 @@ async function aggiungiPagamento(){
   if (imp == null) { alert('Inserisci un importo valido (> 0).'); return; }
   if (!dataRaw) { alert('Inserisci la data del versamento.'); return; }
   var nota = String(notaRaw || '').trim() || null;
-  var payload = { patient_id: pid, professional_id: _professionalId, importo: imp, data: dataRaw, nota: nota };
+  // patient_payments.RLS: professional_id DEVE essere auth.uid()
+  var payload = { patient_id: pid, professional_id: _authUserId, importo: imp, data: dataRaw, nota: nota };
   try {
     var res = await _sb.from('patient_payments').insert(payload).select('*').maybeSingle();
     if (res.error) {
@@ -1023,20 +1034,20 @@ async function init(){
   var sess = await _sb.auth.getSession();
   if (!sess || !sess.data || !sess.data.session) { window.location.href = 'login.html'; return; }
 
+  // auth.uid() → usato come professional_id per patient_payments (RLS lo confronta con auth.uid())
+  _authUserId = sess.data.session.user.id;
+
   // Paziente
   var pres = await _sb.from('patients').select('nome, cognome').eq('id', pid).maybeSingle();
   if (!pres || !pres.data) { window.location.href = 'dashboard.html'; return; }
   patient = pres.data;
   document.getElementById('pname').textContent = (patient.nome || '') + ' ' + (patient.cognome || '');
 
-  // Professionista + listino personale (per lookup descrizione ricca e per insert su patient_payments)
+  // Listino personale del professionista (per lookup descrizione ricca sulle righe)
   try {
-    var profRes = await _sb.from('professionals').select('id, listino').eq('user_id', sess.data.session.user.id).maybeSingle();
-    if (profRes && profRes.data) {
-      _professionalId = profRes.data.id || null;
-      if (Array.isArray(profRes.data.listino)) _listino = profRes.data.listino;
-    }
-  } catch(e) { console.error('[contabile] fetch professionals error:', e); }
+    var profRes = await _sb.from('professionals').select('listino').eq('user_id', sess.data.session.user.id).maybeSingle();
+    if (profRes && profRes.data && Array.isArray(profRes.data.listino)) _listino = profRes.data.listino;
+  } catch(e) { console.error('[contabile] fetch listino error:', e); }
 
   // Sedute con costo (RLS filtra al pro corrente automaticamente)
   var sres = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false });
