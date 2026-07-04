@@ -117,7 +117,7 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 .row-edit-form .btn-cancel:hover { border-color: #bbb; color: #000; }
 
 /* Totali */
-.totals { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 20px; }
+.totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
 .total-card { background: #fff; border-radius: 12px; padding: 14px 18px; border: 1px solid #eee; }
 .total-lbl { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
 .total-val { font-size: 22px; font-weight: 800; color: #000; font-variant-numeric: tabular-nums; }
@@ -129,6 +129,14 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 .total-card.residuo .total-val { color: #d84315; }
 .total-card.residuo.zero { background: #f1f8e9; border-color: #c5e1a5; }
 .total-card.residuo.zero .total-val { color: #2e7d32; }
+.total-card.storico { background: #f3f4f6; border-color: #d1d5db; border-width: 2px; }
+.total-card.storico .total-lbl { color: #4b5563; }
+.total-card.storico .total-val { color: #111; }
+.total-card.storico.debt { background: #fdecec; border-color: #ef9a9a; }
+.total-card.storico.debt .total-val { color: #c62828; }
+.total-card.storico.paid { background: #e8f5e9; border-color: #a5d6a7; }
+.total-card.storico.paid .total-val { color: #2e7d32; }
+@media (max-width: 900px) { .totals { grid-template-columns: 1fr 1fr; } }
 
 @media (max-width: 640px) {
   .row { grid-template-columns: 28px 1fr auto 34px; gap: 8px; }
@@ -230,8 +238,12 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
       <div class="total-val" id="tot-versato">— €</div>
     </div>
     <div class="total-card residuo" id="tot-residuo-card">
-      <div class="total-lbl">Residuo</div>
+      <div class="total-lbl">Residuo (periodo)</div>
       <div class="total-val" id="tot-residuo">— €</div>
+    </div>
+    <div class="total-card storico" id="tot-saldo-storico-card">
+      <div class="total-lbl">Saldo paziente (storico)</div>
+      <div class="total-val" id="tot-saldo-storico">— €</div>
     </div>
   </div>
 </div>
@@ -445,7 +457,28 @@ function _pagPerPeriodo(){
   });
 }
 
+// Somma di TUTTI i costi sedute con costo valorizzato (ignora filtro periodo)
+function _totCostiStorico(){
+  var t = 0;
+  for (var i = 0; i < _sedute.length; i++) {
+    var s = _sedute[i];
+    var c = Number(s.costo);
+    if (isFinite(c)) t += c;
+  }
+  return t;
+}
+// Somma di TUTTI i pagamenti (ignora filtro periodo)
+function _totPagamentiStorico(){
+  var t = 0;
+  for (var i = 0; i < _pagamenti.length; i++) {
+    var v = Number(_pagamenti[i].importo);
+    if (isFinite(v)) t += v;
+  }
+  return t;
+}
+
 function renderTotali(){
+  // ── Periodo filtrato ──
   var lista = _sedutePerPeriodo();
   var dovuto = 0;
   for (var i = 0; i < lista.length; i++) {
@@ -465,6 +498,18 @@ function renderTotali(){
   document.getElementById('tot-residuo').textContent = _fmtEur(residuo);
   var card = document.getElementById('tot-residuo-card');
   if (card) card.classList.toggle('zero', residuo <= 0.005);
+
+  // ── Storico completo (ignora filtro periodo) ──
+  var saldoStorico = _totCostiStorico() - _totPagamentiStorico();
+  document.getElementById('tot-saldo-storico').textContent = _fmtEur(saldoStorico);
+  var storicoCard = document.getElementById('tot-saldo-storico-card');
+  if (storicoCard) {
+    // debt = residuo positivo (paziente deve); paid = saldato o credito
+    var isDebt = saldoStorico > 0.005;
+    var isPaid = saldoStorico <= 0.005; // include ≈ 0 e crediti (importo versato > dovuto)
+    storicoCard.classList.toggle('debt', isDebt);
+    storicoCard.classList.toggle('paid', isPaid);
+  }
 }
 
 function applicaFiltri(){ renderRighe(); renderPagamenti(); renderTotali(); }
@@ -844,7 +889,14 @@ function esportaPDF(){
   }
   var residuo = dovuto - versato;
   var residuoCls = residuo <= 0.005 ? 'paid' : 'unpaid';
-  var residuoLbl = residuo <= 0.005 ? 'Residuo (saldo raggiunto)' : 'Residuo';
+  var residuoLbl = residuo <= 0.005 ? 'Residuo periodo (saldo raggiunto)' : 'Residuo (periodo)';
+
+  // Saldo storico: ignora il filtro periodo, considera TUTTE le sedute con costo e TUTTI i pagamenti
+  var saldoStorico = _totCostiStorico() - _totPagamentiStorico();
+  var storicoCls = (saldoStorico > 0.005) ? 'debt' : 'okpaid';
+  var storicoLbl = (saldoStorico > 0.005)
+    ? 'Saldo paziente (storico)'
+    : (saldoStorico < -0.005 ? 'Saldo paziente (credito storico)' : 'Saldo paziente (storico saldato)');
 
   var win = window.open('', '_blank');
   if (!win) { alert('Il browser ha bloccato il popup PDF. Consenti i popup per esportare.'); return; }
@@ -859,14 +911,16 @@ function esportaPDF(){
   h += 'th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eee;vertical-align:top}';
   h += 'th{background:#f7f7f7;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#555}';
   h += '.num{text-align:right;font-variant-numeric:tabular-nums}';
-  h += '.totals{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:24px}';
-  h += '.tc{padding:12px 16px;border:1px solid #eee;border-radius:8px}';
+  h += '.totals{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:24px}';
+  h += '.tc{padding:12px 14px;border:1px solid #eee;border-radius:8px}';
   h += '.tc .l{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}';
-  h += '.tc .v{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}';
+  h += '.tc .v{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}';
   h += '.tc.paid{background:#f1f8e9;border-color:#c5e1a5} .tc.paid .v{color:#2e7d32}';
   h += '.tc.unpaid{background:#fff3e0;border-color:#ffb74d} .tc.unpaid .v{color:#d84315}';
+  h += '.tc.debt{background:#fdecec;border-color:#ef9a9a;border-width:2px} .tc.debt .v{color:#c62828}';
+  h += '.tc.okpaid{background:#e8f5e9;border-color:#a5d6a7;border-width:2px} .tc.okpaid .v{color:#2e7d32}';
   h += '.foot{margin-top:32px;font-size:10px;color:#bbb;border-top:1px solid #eee;padding-top:12px}';
-  h += '@media print{button{display:none}body{margin:12mm}}';
+  h += '@media print{button{display:none}body{margin:12mm} .totals{grid-template-columns:repeat(2,1fr)}}';
   h += '</style></head><body>';
   h += '<div class="logo">POLICETTIVO®</div>';
   h += '<h1>Contabile paziente</h1>';
@@ -880,9 +934,10 @@ function esportaPDF(){
   h += pagHtml || '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px">Nessun versamento nel periodo selezionato.</td></tr>';
   h += '</tbody></table>';
   h += '<div class="totals">' +
-         '<div class="tc"><div class="l">Dovuto</div><div class="v">' + _fmtEur(dovuto) + '</div></div>' +
-         '<div class="tc paid"><div class="l">Versato</div><div class="v">' + _fmtEur(versato) + '</div></div>' +
+         '<div class="tc"><div class="l">Dovuto (periodo)</div><div class="v">' + _fmtEur(dovuto) + '</div></div>' +
+         '<div class="tc paid"><div class="l">Versato (periodo)</div><div class="v">' + _fmtEur(versato) + '</div></div>' +
          '<div class="tc ' + residuoCls + '"><div class="l">' + _esc(residuoLbl) + '</div><div class="v">' + _fmtEur(residuo) + '</div></div>' +
+         '<div class="tc ' + storicoCls + '"><div class="l">' + _esc(storicoLbl) + '</div><div class="v">' + _fmtEur(saldoStorico) + '</div></div>' +
        '</div>';
   h += '<div class="foot">Generato con Policettivo® Contabile</div>';
   h += '<button onclick="window.print()" style="margin-top:24px;background:#FFD008;border:none;border-radius:8px;padding:12px 24px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;cursor:pointer">🖨 Stampa / Salva PDF</button>';
@@ -942,11 +997,15 @@ function esportaCSV(){
   }
   // ── Sezione 3: Totali ──
   var residuo = dovuto - versato;
+  var saldoStorico = _totCostiStorico() - _totPagamentiStorico();
   lines.push('');
   lines.push('# TOTALI (periodo filtrato)');
-  lines.push(['Dovuto', _fmtNumCsv(dovuto)].map(_csvField).join(';'));
-  lines.push(['Versato', _fmtNumCsv(versato)].map(_csvField).join(';'));
-  lines.push(['Residuo', _fmtNumCsv(residuo)].map(_csvField).join(';'));
+  lines.push(['Dovuto (periodo)',  _fmtNumCsv(dovuto)].map(_csvField).join(';'));
+  lines.push(['Versato (periodo)', _fmtNumCsv(versato)].map(_csvField).join(';'));
+  lines.push(['Residuo (periodo)', _fmtNumCsv(residuo)].map(_csvField).join(';'));
+  lines.push('');
+  lines.push('# SALDO PAZIENTE (storico — ignora il filtro periodo)');
+  lines.push(['Saldo paziente storico', _fmtNumCsv(saldoStorico)].map(_csvField).join(';'));
 
   var csv = '﻿' + lines.join('\r\n') + '\r\n';
   var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
