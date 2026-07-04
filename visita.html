@@ -826,6 +826,20 @@
       font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
     }
     .btn-modal-confirm-yellow:hover { background: #f5c800; }
+
+    /* ── Red Flags (screening di sicurezza) ─────────────────────── */
+    .rf-banner{ background:#fef2f2; border:2px solid #dc2626; border-left-width:6px; color:#7f1d1d; border-radius:12px; padding:12px 14px; margin:10px 14px 4px; }
+    .rf-banner[hidden]{ display:none; }
+    .rf-banner-title{ font-weight:800; font-size:13px; margin-bottom:6px; color:#991b1b; letter-spacing:.2px; }
+    .rf-banner-list{ margin:0; padding-left:18px; font-size:13px; line-height:1.45; color:#7f1d1d; }
+    .rf-banner-list li{ margin:0 0 2px; }
+    .rf-section{ border:1.5px solid #fecaca; background:#fff5f5; border-radius:10px; padding:12px; }
+    .rf-section-title{ color:#991b1b; font-weight:800; font-size:13px; margin-bottom:4px; letter-spacing:.2px; }
+    .rf-section-help{ font-size:12px; color:#7f1d1d; margin-bottom:10px; line-height:1.4; }
+    .rf-list{ display:flex; flex-direction:column; gap:6px; }
+    .rf-item{ display:flex; align-items:center; gap:10px; background:#fff; border:1.5px solid #fecaca; border-radius:8px; padding:10px 12px; cursor:pointer; font-size:13.5px; color:#111; }
+    .rf-item input{ accent-color:#dc2626; width:18px; height:18px; flex:none; cursor:pointer; }
+    .rf-item.on{ background:#fee2e2; border-color:#dc2626; }
   </style>
 </head>
 <body>
@@ -888,6 +902,12 @@
 <!-- ====== CONTENT ====== -->
 <main class="visita-main">
 
+  <!-- Banner Red Flags (visibile solo se il paziente ha red flag attive) -->
+  <div id="rf-banner" class="rf-banner" role="alert" hidden>
+    <div class="rf-banner-title">🚩 Red Flag attive — screening di sicurezza</div>
+    <ul class="rf-banner-list" id="rf-banner-list"></ul>
+  </div>
+
   <!-- ====== STEP 1: ANAMNESI ====== -->
   <div id="step-1" class="step-content active">
 
@@ -947,6 +967,12 @@
         placeholder="Diagnosi fisioterapica (non medica)…"
         oninput="scheduleSave()"></textarea>
       <div class="field-note">💡 Questo campo verrà duplicato nella prossima visita</div>
+    </div>
+
+    <div class="field-group rf-section">
+      <div class="rf-section-title">🚩 Red Flag (screening di sicurezza)</div>
+      <div class="rf-section-help">Se selezioni una o più voci, il paziente sarà segnalato con banner rosso in visita e nella sua scheda. Le voci selezionate si salvano sul paziente.</div>
+      <div class="rf-list" id="rf-checklist"></div>
     </div>
 
     <div class="step-footer">
@@ -1566,6 +1592,7 @@
     loadVisitPhotos()
     loadPreviousVasForCompare()
     checkImportPosturale()
+    loadRedFlagsForPatient()
 
     updateTabStates()
     setIndicator('idle')
@@ -1679,6 +1706,75 @@
     const p = n => String(n).padStart(2, '0')
     return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) +
            'T' + p(d.getHours()) + ':' + p(d.getMinutes())
+  }
+
+  // ====== RED FLAGS (screening di sicurezza, salvate su patients.red_flags) ======
+  const RED_FLAGS_LIST = [
+    'Storia oncologica',
+    'Calo ponderale inspiegato',
+    'Dolore notturno non meccanico',
+    'Febbre/malessere sistemico',
+    'Deficit neurologici progressivi',
+    'Disturbi sfinterici o sospetta cauda equina',
+    'Trauma recente significativo',
+    'Uso prolungato di cortisonici',
+    'Dolore non modificabile con il movimento/riposo'
+  ]
+  let redFlagsState = []
+  let rfSaveTimer = null
+
+  function rfEscape(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+  function renderRedFlagsChecklist() {
+    const box = document.getElementById('rf-checklist'); if (!box) return
+    box.innerHTML = RED_FLAGS_LIST.map(function(label, i){
+      const on = redFlagsState.indexOf(label) >= 0
+      const id = 'rf-cb-' + i
+      return '<label class="rf-item' + (on ? ' on' : '') + '" for="' + id + '">' +
+               '<input type="checkbox" id="' + id + '" data-rf="' + rfEscape(label) + '"' +
+                 (on ? ' checked' : '') + ' onchange="toggleRedFlag(this)">' +
+               '<span>' + rfEscape(label) + '</span>' +
+             '</label>'
+    }).join('')
+  }
+
+  function toggleRedFlag(cb) {
+    const label = cb.getAttribute('data-rf') || ''
+    const i = redFlagsState.indexOf(label)
+    if (cb.checked && i < 0) redFlagsState.push(label)
+    else if (!cb.checked && i >= 0) redFlagsState.splice(i, 1)
+    const wrap = cb.closest('.rf-item'); if (wrap) wrap.classList.toggle('on', cb.checked)
+    renderRedFlagsBanner()
+    scheduleSaveRedFlags()
+  }
+
+  function renderRedFlagsBanner() {
+    const b = document.getElementById('rf-banner'); if (!b) return
+    const list = document.getElementById('rf-banner-list'); if (!list) return
+    if (!redFlagsState.length) { b.hidden = true; list.innerHTML = ''; return }
+    b.hidden = false
+    list.innerHTML = redFlagsState.map(function(l){ return '<li>' + rfEscape(l) + '</li>' }).join('')
+  }
+
+  function scheduleSaveRedFlags() {
+    clearTimeout(rfSaveTimer)
+    rfSaveTimer = setTimeout(saveRedFlagsNow, 800)
+  }
+  async function saveRedFlagsNow() {
+    if (!patientId) return
+    try {
+      const { error } = await _sb.from('patients').update({ red_flags: redFlagsState }).eq('id', patientId)
+      if (error) console.error('[visita] red_flags save error:', error)
+    } catch(e) { console.error('[visita] red_flags save exception:', e) }
+  }
+  async function loadRedFlagsForPatient() {
+    if (!patientId) { redFlagsState = []; renderRedFlagsChecklist(); renderRedFlagsBanner(); return }
+    try {
+      const { data } = await _sb.from('patients').select('red_flags').eq('id', patientId).maybeSingle()
+      redFlagsState = Array.isArray(data && data.red_flags) ? data.red_flags.slice() : []
+    } catch(e) { redFlagsState = [] }
+    renderRedFlagsChecklist()
+    renderRedFlagsBanner()
   }
 
   // ====== AUTOSAVE ======
