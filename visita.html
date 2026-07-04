@@ -845,6 +845,28 @@
     .rf-nota:focus{ outline:none; border-color:#dc2626; box-shadow:0 0 0 3px rgba(220,38,38,.15); }
     .rf-banner-nota{ margin-top:6px; padding-top:6px; border-top:1px dashed rgba(220,38,38,.35); font-size:13px; color:#7f1d1d; line-height:1.45; }
     .rf-banner-nota-lbl{ font-weight:800; margin-right:4px; }
+
+    /* ── Body chart (mappa del dolore) ─────────────────────── */
+    .bc-section{ background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:14px; }
+    .bc-title{ font-size:13px; font-weight:800; margin-bottom:4px; color:#111; letter-spacing:.2px; }
+    .bc-help{ font-size:12px; color:#666; margin-bottom:12px; line-height:1.4; }
+    .bc-charts{ display:flex; gap:10px; justify-content:center; margin-bottom:12px; }
+    .bc-chart{ flex:1 1 0; min-width:0; max-width:190px; }
+    .bc-chart-label{ text-align:center; font-size:10px; font-weight:800; color:#555; text-transform:uppercase; letter-spacing:.6px; margin-bottom:6px; }
+    .bc-svg{ width:100%; height:auto; display:block; user-select:none; -webkit-user-select:none; touch-action:manipulation; }
+    .bc-body{ fill:#f4f4f5; stroke:#94a3b8; stroke-width:1.2; stroke-linejoin:round; }
+    .bc-hotspot{ fill:rgba(220,38,38,.08); stroke:rgba(220,38,38,.35); stroke-width:.9; stroke-dasharray:2 2; cursor:pointer; transition:fill .12s, stroke .12s; }
+    .bc-hotspot:hover{ fill:rgba(220,38,38,.2); }
+    .bc-hotspot.active{ fill:rgba(220,38,38,.55); stroke:#991b1b; stroke-width:1.4; stroke-dasharray:none; }
+    .bc-active{ display:flex; flex-direction:column; gap:8px; }
+    .bc-empty{ font-size:12px; color:#888; font-style:italic; text-align:center; padding:6px 0; }
+    .bc-item{ border:1.5px solid #fecaca; background:#fef2f2; border-radius:10px; padding:10px 12px; }
+    .bc-item-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; gap:8px; }
+    .bc-item-label{ font-weight:800; color:#991b1b; font-size:13px; }
+    .bc-item-x{ width:26px; height:26px; border:none; background:transparent; color:#7f1d1d; font-size:20px; line-height:1; cursor:pointer; border-radius:6px; padding:0; }
+    .bc-item-x:hover{ background:#fee2e2; }
+    .bc-item-note{ width:100%; box-sizing:border-box; background:#fff; border:1.5px solid #fecaca; border-radius:8px; padding:8px 10px; font-family:inherit; font-size:13px; color:#111; resize:vertical; min-height:44px; }
+    .bc-item-note:focus{ outline:none; border-color:#dc2626; box-shadow:0 0 0 2px rgba(220,38,38,.15); }
   </style>
 </head>
 <body>
@@ -980,6 +1002,65 @@
       <div class="rf-list" id="rf-checklist"></div>
       <label class="rf-nota-label" for="rf-nota">Altra red flag (nota libera)</label>
       <textarea class="rf-nota" id="rf-nota" rows="2" placeholder="Aggiungi eventuali segnali di allarme non elencati sopra…" oninput="onRedFlagNota(this)"></textarea>
+    </div>
+
+    <div class="field-group bc-section">
+      <div class="bc-title">🩹 Body chart (mappa del dolore)</div>
+      <div class="bc-help">Tocca un'area del corpo per segnalare un distretto coinvolto. Aggiungi una nota per ogni distretto attivo. Nota: sulla vista frontale, il lato destro del paziente è a sinistra di chi guarda.</div>
+      <div class="bc-charts">
+        <div class="bc-chart">
+          <div class="bc-chart-label">Vista frontale</div>
+          <svg class="bc-svg" viewBox="0 0 120 300" preserveAspectRatio="xMidYMid meet" aria-label="Silhouette vista frontale">
+            <!-- Silhouette -->
+            <circle class="bc-body" cx="60" cy="24" r="16"/>
+            <rect   class="bc-body" x="54" y="38" width="12" height="8" rx="2"/>
+            <path   class="bc-body" d="M40,46 L80,46 L88,150 L32,150 Z"/>
+            <path   class="bc-body" d="M40,50 L22,105 L26,150 L34,150 Z"/>
+            <path   class="bc-body" d="M80,50 L98,105 L94,150 L86,150 Z"/>
+            <circle class="bc-body" cx="24" cy="153" r="6"/>
+            <circle class="bc-body" cx="96" cy="153" r="6"/>
+            <path   class="bc-body" d="M40,150 L44,265 L54,265 L58,150 Z"/>
+            <path   class="bc-body" d="M62,150 L66,265 L76,265 L80,150 Z"/>
+            <ellipse class="bc-body" cx="49" cy="272" rx="9" ry="5"/>
+            <ellipse class="bc-body" cx="71" cy="272" rx="9" ry="5"/>
+            <!-- Hotspots (dx paziente = viewer left) -->
+            <ellipse class="bc-hotspot" data-bc="spalla_dx"    cx="38" cy="55"  rx="10" ry="8"  onclick="bcToggle('spalla_dx')"><title>Spalla dx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="spalla_sx"    cx="82" cy="55"  rx="10" ry="8"  onclick="bcToggle('spalla_sx')"><title>Spalla sx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="gomito_dx"    cx="27" cy="105" rx="8"  ry="8"  onclick="bcToggle('gomito_dx')"><title>Gomito dx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="gomito_sx"    cx="93" cy="105" rx="8"  ry="8"  onclick="bcToggle('gomito_sx')"><title>Gomito sx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="polso_dx"     cx="23" cy="150" rx="9"  ry="8"  onclick="bcToggle('polso_dx')"><title>Polso/mano dx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="polso_sx"     cx="97" cy="150" rx="9"  ry="8"  onclick="bcToggle('polso_sx')"><title>Polso/mano sx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="anca_dx"      cx="49" cy="155" rx="10" ry="8"  onclick="bcToggle('anca_dx')"><title>Anca dx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="anca_sx"      cx="71" cy="155" rx="10" ry="8"  onclick="bcToggle('anca_sx')"><title>Anca sx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="ginocchio_dx" cx="49" cy="205" rx="9"  ry="9"  onclick="bcToggle('ginocchio_dx')"><title>Ginocchio dx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="ginocchio_sx" cx="71" cy="205" rx="9"  ry="9"  onclick="bcToggle('ginocchio_sx')"><title>Ginocchio sx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="caviglia_dx"  cx="49" cy="260" rx="9"  ry="8"  onclick="bcToggle('caviglia_dx')"><title>Caviglia/piede dx</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="caviglia_sx"  cx="71" cy="260" rx="9"  ry="8"  onclick="bcToggle('caviglia_sx')"><title>Caviglia/piede sx</title></ellipse>
+          </svg>
+        </div>
+        <div class="bc-chart">
+          <div class="bc-chart-label">Vista posteriore</div>
+          <svg class="bc-svg" viewBox="0 0 120 300" preserveAspectRatio="xMidYMid meet" aria-label="Silhouette vista posteriore">
+            <!-- Silhouette (identica al fronte, semplificata) -->
+            <circle class="bc-body" cx="60" cy="24" r="16"/>
+            <rect   class="bc-body" x="54" y="38" width="12" height="8" rx="2"/>
+            <path   class="bc-body" d="M40,46 L80,46 L88,150 L32,150 Z"/>
+            <path   class="bc-body" d="M40,50 L22,105 L26,150 L34,150 Z"/>
+            <path   class="bc-body" d="M80,50 L98,105 L94,150 L86,150 Z"/>
+            <circle class="bc-body" cx="24" cy="153" r="6"/>
+            <circle class="bc-body" cx="96" cy="153" r="6"/>
+            <path   class="bc-body" d="M40,150 L44,265 L54,265 L58,150 Z"/>
+            <path   class="bc-body" d="M62,150 L66,265 L76,265 L80,150 Z"/>
+            <ellipse class="bc-body" cx="49" cy="272" rx="9" ry="5"/>
+            <ellipse class="bc-body" cx="71" cy="272" rx="9" ry="5"/>
+            <!-- Hotspots colonna -->
+            <ellipse class="bc-hotspot" data-bc="cervicale" cx="60" cy="46"  rx="13" ry="8"  onclick="bcToggle('cervicale')"><title>Cervicale</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="dorsale"   cx="60" cy="85"  rx="22" ry="18" onclick="bcToggle('dorsale')"><title>Dorsale</title></ellipse>
+            <ellipse class="bc-hotspot" data-bc="lombare"   cx="60" cy="130" rx="22" ry="14" onclick="bcToggle('lombare')"><title>Lombare</title></ellipse>
+          </svg>
+        </div>
+      </div>
+      <div class="bc-active" id="bc-active-list"></div>
     </div>
 
     <div class="step-footer">
@@ -1638,6 +1719,9 @@
     if (v.durata_sintomi) { chipState.durata_sintomi = v.durata_sintomi; restoreExclusive('chips-durata', v.durata_sintomi) }
     if (v.insorgenza)     { chipState.insorgenza     = v.insorgenza;     restoreExclusive('chips-insorgenza', v.insorgenza) }
 
+    // Step 1 body chart
+    bcRestore(v.body_chart)
+
     // Step 2
     populateVas(v)
     if (v.test_ortopedici) populateTestOrtopedici(v.test_ortopedici)
@@ -1834,6 +1918,98 @@
     renderRedFlagsBanner()
   }
 
+  // ====== BODY CHART (mappa del dolore, salvata su visits.body_chart) ======
+  // Formato in DB: { distretto_id: "nota", ... }.
+  // La presenza della chiave indica che il distretto è coinvolto; il valore è la nota (anche vuota).
+  const BODY_CHART_DISTRETTI = [
+    { id: 'cervicale',    label: 'Cervicale' },
+    { id: 'dorsale',      label: 'Dorsale' },
+    { id: 'lombare',      label: 'Lombare' },
+    { id: 'spalla_dx',    label: 'Spalla dx' },
+    { id: 'spalla_sx',    label: 'Spalla sx' },
+    { id: 'gomito_dx',    label: 'Gomito dx' },
+    { id: 'gomito_sx',    label: 'Gomito sx' },
+    { id: 'polso_dx',     label: 'Polso/mano dx' },
+    { id: 'polso_sx',     label: 'Polso/mano sx' },
+    { id: 'anca_dx',      label: 'Anca dx' },
+    { id: 'anca_sx',      label: 'Anca sx' },
+    { id: 'ginocchio_dx', label: 'Ginocchio dx' },
+    { id: 'ginocchio_sx', label: 'Ginocchio sx' },
+    { id: 'caviglia_dx',  label: 'Caviglia/piede dx' },
+    { id: 'caviglia_sx',  label: 'Caviglia/piede sx' }
+  ]
+  const BODY_CHART_IDS = BODY_CHART_DISTRETTI.map(function(d){ return d.id })
+  let bodyChartState = {}
+
+  function bcEscape(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+  function bcLabelOf(id){ const d = BODY_CHART_DISTRETTI.find(function(x){ return x.id === id }); return d ? d.label : id }
+
+  function bcRefreshHotspot(id){
+    document.querySelectorAll('.bc-hotspot[data-bc="' + id + '"]').forEach(function(el){
+      el.classList.toggle('active', Object.prototype.hasOwnProperty.call(bodyChartState, id))
+    })
+  }
+  function bcRefreshAllHotspots(){ BODY_CHART_IDS.forEach(bcRefreshHotspot) }
+
+  function bcRenderList(){
+    const box = document.getElementById('bc-active-list'); if (!box) return
+    const keys = Object.keys(bodyChartState)
+    if (!keys.length) {
+      box.innerHTML = '<div class="bc-empty">Nessun distretto selezionato. Tocca la silhouette per segnalare un\'area.</div>'
+      return
+    }
+    // Mantengo l'ordine coerente con la lista di riferimento
+    const ordered = BODY_CHART_IDS.filter(function(id){ return keys.indexOf(id) >= 0 })
+    box.innerHTML = ordered.map(function(id){
+      const val = bodyChartState[id] || ''
+      return '<div class="bc-item" data-bc-item="' + bcEscape(id) + '">' +
+               '<div class="bc-item-head">' +
+                 '<span class="bc-item-label">' + bcEscape(bcLabelOf(id)) + '</span>' +
+                 '<button type="button" class="bc-item-x" aria-label="Rimuovi ' + bcEscape(bcLabelOf(id)) + '" onclick="bcToggle(\'' + bcEscape(id) + '\')">×</button>' +
+               '</div>' +
+               '<textarea class="bc-item-note" rows="2" placeholder="Nota per ' + bcEscape(bcLabelOf(id)) + '…" oninput="bcSetNote(\'' + bcEscape(id) + '\', this.value)">' + bcEscape(val) + '</textarea>' +
+             '</div>'
+    }).join('')
+  }
+
+  function bcToggle(id){
+    if (BODY_CHART_IDS.indexOf(id) < 0) return
+    if (Object.prototype.hasOwnProperty.call(bodyChartState, id)) delete bodyChartState[id]
+    else bodyChartState[id] = ''
+    bcRefreshHotspot(id)
+    bcRenderList()
+    scheduleSave()
+  }
+
+  function bcSetNote(id, val){
+    if (!Object.prototype.hasOwnProperty.call(bodyChartState, id)) return
+    bodyChartState[id] = String(val || '')
+    scheduleSave()
+  }
+
+  function bcRestore(raw){
+    bodyChartState = {}
+    let obj = raw
+    if (typeof obj === 'string') { try { obj = JSON.parse(obj) } catch(e) { obj = null } }
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      Object.keys(obj).forEach(function(k){
+        if (BODY_CHART_IDS.indexOf(k) >= 0) {
+          bodyChartState[k] = typeof obj[k] === 'string' ? obj[k] : ''
+        }
+      })
+    }
+    bcRefreshAllHotspots()
+    bcRenderList()
+  }
+
+  function bodyChartToJson(){
+    const keys = Object.keys(bodyChartState)
+    if (!keys.length) return null
+    const out = {}
+    keys.forEach(function(k){ out[k] = String(bodyChartState[k] || '') })
+    return out
+  }
+
   // ====== AUTOSAVE ======
   function scheduleSave() {
     clearTimeout(saveTimer)
@@ -1877,6 +2053,7 @@
       insorgenza:           chipState.insorgenza     || null,
       obiettivi_paziente:   document.getElementById('f-obiettivi').value.trim() || null,
       diagnosi_funzionale:  document.getElementById('f-diagnosi').value.trim()  || null,
+      body_chart:           bodyChartToJson(),
       // Step 2
       vas_riposo:            vasState.riposo,
       vas_movimento:         vasState.movimento,
