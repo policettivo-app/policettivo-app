@@ -858,6 +858,9 @@
     .bc-hotspot{ fill:rgba(220,38,38,.08); stroke:rgba(220,38,38,.35); stroke-width:.9; stroke-dasharray:2 2; cursor:pointer; transition:fill .12s, stroke .12s; }
     .bc-hotspot:hover{ fill:rgba(220,38,38,.2); }
     .bc-hotspot.active{ fill:rgba(220,38,38,.55); stroke:#991b1b; stroke-width:1.4; stroke-dasharray:none; }
+    .bc-point{ fill:#dc2626; stroke:#fff; stroke-width:1.6; cursor:pointer; transition:fill .12s, r .12s; }
+    .bc-point:hover{ fill:#991b1b; }
+    .bc-svg{ cursor:crosshair; }
     .bc-active{ display:flex; flex-direction:column; gap:8px; }
     .bc-empty{ font-size:12px; color:#888; font-style:italic; text-align:center; padding:6px 0; }
     .bc-item{ border:1.5px solid #fecaca; background:#fef2f2; border-radius:10px; padding:10px 12px; }
@@ -1006,11 +1009,11 @@
 
     <div class="field-group bc-section">
       <div class="bc-title">🩹 Body chart (mappa del dolore)</div>
-      <div class="bc-help">Tocca un'area del corpo per segnalare un distretto coinvolto. Aggiungi una nota per ogni distretto attivo. Nota: sulla vista frontale, il lato destro del paziente è a sinistra di chi guarda.</div>
+      <div class="bc-help">Tocca un'area cliccabile per segnalare un distretto oppure tocca un punto libero della silhouette per aggiungere un pallino nel punto esatto. Tap sul pallino per rimuoverlo. Nota: sulla vista frontale, il lato destro del paziente è a sinistra di chi guarda.</div>
       <div class="bc-charts">
         <div class="bc-chart">
           <div class="bc-chart-label">Vista frontale</div>
-          <svg class="bc-svg" viewBox="0 0 120 300" preserveAspectRatio="xMidYMid meet" aria-label="Silhouette vista frontale">
+          <svg class="bc-svg" viewBox="0 0 120 300" preserveAspectRatio="xMidYMid meet" aria-label="Silhouette vista frontale" onclick="bcSvgClick(event, 'front')">
             <!-- Silhouette -->
             <circle class="bc-body" cx="60" cy="24" r="16"/>
             <rect   class="bc-body" x="54" y="38" width="12" height="8" rx="2"/>
@@ -1036,11 +1039,13 @@
             <ellipse class="bc-hotspot" data-bc="ginocchio_sx" cx="71" cy="205" rx="9"  ry="9"  onclick="bcToggle('ginocchio_sx')"><title>Ginocchio sx</title></ellipse>
             <ellipse class="bc-hotspot" data-bc="caviglia_dx"  cx="49" cy="260" rx="9"  ry="8"  onclick="bcToggle('caviglia_dx')"><title>Caviglia/piede dx</title></ellipse>
             <ellipse class="bc-hotspot" data-bc="caviglia_sx"  cx="71" cy="260" rx="9"  ry="8"  onclick="bcToggle('caviglia_sx')"><title>Caviglia/piede sx</title></ellipse>
+            <!-- Punti liberi (frontale): riempiti dinamicamente da bcRenderPoints -->
+            <g id="bc-points-front"></g>
           </svg>
         </div>
         <div class="bc-chart">
           <div class="bc-chart-label">Vista posteriore</div>
-          <svg class="bc-svg" viewBox="0 0 120 300" preserveAspectRatio="xMidYMid meet" aria-label="Silhouette vista posteriore">
+          <svg class="bc-svg" viewBox="0 0 120 300" preserveAspectRatio="xMidYMid meet" aria-label="Silhouette vista posteriore" onclick="bcSvgClick(event, 'back')">
             <!-- Silhouette (identica al fronte, semplificata) -->
             <circle class="bc-body" cx="60" cy="24" r="16"/>
             <rect   class="bc-body" x="54" y="38" width="12" height="8" rx="2"/>
@@ -1057,6 +1062,8 @@
             <ellipse class="bc-hotspot" data-bc="cervicale" cx="60" cy="46"  rx="13" ry="8"  onclick="bcToggle('cervicale')"><title>Cervicale</title></ellipse>
             <ellipse class="bc-hotspot" data-bc="dorsale"   cx="60" cy="85"  rx="22" ry="18" onclick="bcToggle('dorsale')"><title>Dorsale</title></ellipse>
             <ellipse class="bc-hotspot" data-bc="lombare"   cx="60" cy="130" rx="22" ry="14" onclick="bcToggle('lombare')"><title>Lombare</title></ellipse>
+            <!-- Punti liberi (posteriore): riempiti dinamicamente da bcRenderPoints -->
+            <g id="bc-points-back"></g>
           </svg>
         </div>
       </div>
@@ -1939,10 +1946,14 @@
     { id: 'caviglia_sx',  label: 'Caviglia/piede sx' }
   ]
   const BODY_CHART_IDS = BODY_CHART_DISTRETTI.map(function(d){ return d.id })
+  // Distretti: mappa id → nota
   let bodyChartState = {}
+  // Punti liberi: array di { id, view:'front'|'back', x, y (percentuali 0-100 del viewBox), nota }
+  let bodyChartPoints = []
 
   function bcEscape(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
   function bcLabelOf(id){ const d = BODY_CHART_DISTRETTI.find(function(x){ return x.id === id }); return d ? d.label : id }
+  function bcMakePointId(){ return 'p_' + Date.now().toString(36) + '_' + Math.floor(Math.random()*1e6).toString(36) }
 
   function bcRefreshHotspot(id){
     document.querySelectorAll('.bc-hotspot[data-bc="' + id + '"]').forEach(function(el){
@@ -1951,16 +1962,32 @@
   }
   function bcRefreshAllHotspots(){ BODY_CHART_IDS.forEach(bcRefreshHotspot) }
 
+  // Rende i punti liberi come <circle> dentro i due <g id="bc-points-front|back">.
+  // Coordinate salvate in % del viewBox → posizione consistente a qualsiasi dimensione a schermo.
+  function bcRenderPoints(){
+    const VB_W = 120, VB_H = 300
+    ;['front','back'].forEach(function(view){
+      const g = document.getElementById('bc-points-' + view); if (!g) return
+      const items = bodyChartPoints.filter(function(p){ return p.view === view })
+      g.innerHTML = items.map(function(p){
+        const cx = (p.x / 100) * VB_W
+        const cy = (p.y / 100) * VB_H
+        return '<circle class="bc-point" data-bc-pid="' + bcEscape(p.id) + '" cx="' + cx.toFixed(2) + '" cy="' + cy.toFixed(2) + '" r="4.5" onclick="bcRemovePoint(\'' + bcEscape(p.id) + '\')"><title>Rimuovi punto</title></circle>'
+      }).join('')
+    })
+  }
+
   function bcRenderList(){
     const box = document.getElementById('bc-active-list'); if (!box) return
     const keys = Object.keys(bodyChartState)
-    if (!keys.length) {
-      box.innerHTML = '<div class="bc-empty">Nessun distretto selezionato. Tocca la silhouette per segnalare un\'area.</div>'
+    const pts = bodyChartPoints
+    if (!keys.length && !pts.length) {
+      box.innerHTML = '<div class="bc-empty">Nessun distretto selezionato. Tocca la silhouette per segnalare un\'area o un punto libero.</div>'
       return
     }
     // Mantengo l'ordine coerente con la lista di riferimento
     const ordered = BODY_CHART_IDS.filter(function(id){ return keys.indexOf(id) >= 0 })
-    box.innerHTML = ordered.map(function(id){
+    let html = ordered.map(function(id){
       const val = bodyChartState[id] || ''
       return '<div class="bc-item" data-bc-item="' + bcEscape(id) + '">' +
                '<div class="bc-item-head">' +
@@ -1970,6 +1997,17 @@
                '<textarea class="bc-item-note" rows="2" placeholder="Nota per ' + bcEscape(bcLabelOf(id)) + '…" oninput="bcSetNote(\'' + bcEscape(id) + '\', this.value)">' + bcEscape(val) + '</textarea>' +
              '</div>'
     }).join('')
+    html += pts.map(function(p){
+      const viewLabel = p.view === 'back' ? 'posteriore' : 'frontale'
+      return '<div class="bc-item bc-item-point" data-bc-item="' + bcEscape(p.id) + '">' +
+               '<div class="bc-item-head">' +
+                 '<span class="bc-item-label">📍 Punto libero (vista ' + viewLabel + ')</span>' +
+                 '<button type="button" class="bc-item-x" aria-label="Rimuovi punto libero" onclick="bcRemovePoint(\'' + bcEscape(p.id) + '\')">×</button>' +
+               '</div>' +
+               '<textarea class="bc-item-note" rows="2" placeholder="Nota per questo punto…" oninput="bcSetPointNote(\'' + bcEscape(p.id) + '\', this.value)">' + bcEscape(p.nota || '') + '</textarea>' +
+             '</div>'
+    }).join('')
+    box.innerHTML = html
   }
 
   function bcToggle(id){
@@ -1987,27 +2025,103 @@
     scheduleSave()
   }
 
+  // Tap su SVG: se il target è un hotspot o un punto esistente, l'handler dedicato ha già agito.
+  // Altrimenti calcola coord in viewBox → percentuali → aggiunge un punto libero.
+  function bcSvgClick(evt, view){
+    const t = evt.target
+    if (t && t.closest) {
+      if (t.closest('.bc-hotspot')) return
+      if (t.closest('.bc-point'))   return
+    }
+    const svg = evt.currentTarget; if (!svg || !svg.viewBox) return
+    const rect = svg.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+    const vb = svg.viewBox.baseVal
+    const cx = evt.clientX - rect.left
+    const cy = evt.clientY - rect.top
+    const xVb = (cx / rect.width)  * vb.width
+    const yVb = (cy / rect.height) * vb.height
+    const xp = Math.max(0, Math.min(100, +(xVb / vb.width  * 100).toFixed(2)))
+    const yp = Math.max(0, Math.min(100, +(yVb / vb.height * 100).toFixed(2)))
+    bcAddPoint(view, xp, yp)
+  }
+
+  function bcAddPoint(view, x, y){
+    const v = (view === 'back') ? 'back' : 'front'
+    bodyChartPoints.push({ id: bcMakePointId(), view: v, x: x, y: y, nota: '' })
+    bcRenderPoints()
+    bcRenderList()
+    scheduleSave()
+  }
+
+  function bcRemovePoint(pid){
+    const i = bodyChartPoints.findIndex(function(p){ return p.id === pid })
+    if (i < 0) return
+    bodyChartPoints.splice(i, 1)
+    bcRenderPoints()
+    bcRenderList()
+    scheduleSave()
+  }
+
+  function bcSetPointNote(pid, val){
+    const p = bodyChartPoints.find(function(x){ return x.id === pid })
+    if (!p) return
+    p.nota = String(val || '')
+    scheduleSave()
+  }
+
+  // Formato in DB (nuovo): { distretti: { id: "nota" }, punti: [ {id,view,x,y,nota}, ... ] }.
+  // Retro-compat: se body_chart è una mappa piatta (id → nota) senza chiavi "distretti"/"punti",
+  // viene letto come solo distretti; nulla si perde.
   function bcRestore(raw){
     bodyChartState = {}
+    bodyChartPoints = []
     let obj = raw
     if (typeof obj === 'string') { try { obj = JSON.parse(obj) } catch(e) { obj = null } }
     if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-      Object.keys(obj).forEach(function(k){
-        if (BODY_CHART_IDS.indexOf(k) >= 0) {
-          bodyChartState[k] = typeof obj[k] === 'string' ? obj[k] : ''
+      const hasNewShape = Object.prototype.hasOwnProperty.call(obj, 'distretti') || Object.prototype.hasOwnProperty.call(obj, 'punti')
+      if (hasNewShape) {
+        const d = obj.distretti
+        if (d && typeof d === 'object' && !Array.isArray(d)) {
+          Object.keys(d).forEach(function(k){
+            if (BODY_CHART_IDS.indexOf(k) >= 0) bodyChartState[k] = typeof d[k] === 'string' ? d[k] : ''
+          })
         }
-      })
+        if (Array.isArray(obj.punti)) {
+          obj.punti.forEach(function(p){
+            if (!p || typeof p !== 'object') return
+            const x = Number(p.x), y = Number(p.y)
+            if (!isFinite(x) || !isFinite(y)) return
+            bodyChartPoints.push({
+              id: (typeof p.id === 'string' && p.id) ? p.id : bcMakePointId(),
+              view: (p.view === 'back') ? 'back' : 'front',
+              x: Math.max(0, Math.min(100, x)),
+              y: Math.max(0, Math.min(100, y)),
+              nota: typeof p.nota === 'string' ? p.nota : ''
+            })
+          })
+        }
+      } else {
+        // Formato vecchio: mappa piatta id → nota
+        Object.keys(obj).forEach(function(k){
+          if (BODY_CHART_IDS.indexOf(k) >= 0) bodyChartState[k] = typeof obj[k] === 'string' ? obj[k] : ''
+        })
+      }
     }
     bcRefreshAllHotspots()
+    bcRenderPoints()
     bcRenderList()
   }
 
   function bodyChartToJson(){
-    const keys = Object.keys(bodyChartState)
-    if (!keys.length) return null
-    const out = {}
-    keys.forEach(function(k){ out[k] = String(bodyChartState[k] || '') })
-    return out
+    const dKeys = Object.keys(bodyChartState)
+    if (!dKeys.length && !bodyChartPoints.length) return null
+    const distretti = {}
+    dKeys.forEach(function(k){ distretti[k] = String(bodyChartState[k] || '') })
+    const punti = bodyChartPoints.map(function(p){
+      return { id: p.id, view: p.view, x: p.x, y: p.y, nota: String(p.nota || '') }
+    })
+    return { distretti: distretti, punti: punti }
   }
 
   // ====== AUTOSAVE ======
