@@ -969,7 +969,7 @@
     </div>
   </div>
   <!-- Image + canvas layers -->
-  <div id="lb-img-wrap">
+  <div id="lb-img-wrap" onclick="toggleObsPanelFromTap(event)">
     <img id="lb-img" src="" alt="foto posturale">
     <div id="lb-grid"></div>
     <canvas id="lb-canvas"></canvas>
@@ -2917,12 +2917,27 @@ ISTRUZIONI:
     })
   }
 
+  function mostraObsPanel() {
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      var p = document.getElementById('lb-obs-panel'); if (p) p.classList.add('open')
+    }) })
+  }
   function apriOsservazioni(tipo) {
     showLightbox(tipo)
-    requestAnimationFrame(function(){ requestAnimationFrame(function(){ var p=document.getElementById('lb-obs-panel'); if(p) p.classList.add('open') }) })
+    mostraObsPanel()
   }
   function chiudiObsPanel() {
     var p = document.getElementById('lb-obs-panel'); if (p) p.classList.remove('open')
+  }
+  // Tap sulla foto nel visore → toggle del pannello osservazioni.
+  // Non tocca il disegno: se drawActive è true, il tap è ignorato.
+  // Le chip osservazioni sono già state popolate da showLightbox (renderObsForTipo),
+  // quindi la riapertura mostra dati coerenti con la foto corrente.
+  function toggleObsPanelFromTap(e) {
+    if (typeof drawActive !== 'undefined' && drawActive) return
+    var p = document.getElementById('lb-obs-panel'); if (!p) return
+    if (p.classList.contains('open')) chiudiObsPanel()
+    else mostraObsPanel()
   }
 
   function closeLightbox() {
