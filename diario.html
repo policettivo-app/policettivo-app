@@ -80,6 +80,22 @@ input.fi { min-height: unset; resize: none; }
 .tpl-select { width:100%; padding:8px 12px; border:1.5px solid #ddd; border-radius:8px; font-family:Montserrat,sans-serif; font-size:13px; color:#555; background:#fafafa; cursor:pointer; margin-bottom:8px; }
 .tpl-select:focus { outline:none; border-color:#FFD008; }
 
+/* ── Costo seduta (listino o manuale) ─────────────── */
+.cst-block { border: 1.5px solid #eee; border-radius: 10px; padding: 12px 12px 10px; background: #fafafa; margin-bottom: 12px; }
+.cst-title { font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+.cst-tabs { display: inline-flex; gap: 6px; background: #eee; border-radius: 8px; padding: 3px; margin-bottom: 10px; }
+.cst-tab { background: transparent; border: none; padding: 6px 12px; font-family: Montserrat, sans-serif; font-size: 12px; font-weight: 600; color: #666; cursor: pointer; border-radius: 6px; }
+.cst-tab.cst-tab-active { background: #FFD008; color: #000; }
+.cst-mode { display: block; }
+.cst-mode[hidden] { display: none; }
+.cst-hint { font-size: 11px; color: #999; line-height: 1.4; margin-top: 6px; }
+.cst-badge { position: absolute; top: 10px; right: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1.5px solid #ddd; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; color: #222; }
+.cst-badge-dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; flex: none; }
+.session-item { position: relative; }
+.cst-detail { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border: 1.5px solid #ddd; border-radius: 999px; background: #fff; font-size: 13px; font-weight: 700; color: #222; }
+.cst-detail-dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; flex: none; }
+.cst-detail-desc { font-weight: 400; color: #666; font-size: 12px; margin-left: 4px; }
+
 /* ── Red Flags banner (solo lettura, dai dati del paziente) ─────────────── */
 .rf-banner{ background:#fef2f2; border:2px solid #dc2626; border-left-width:6px; color:#7f1d1d; border-radius:12px; padding:12px 14px; margin:0 0 12px; }
 .rf-banner[hidden]{ display:none; }
@@ -170,6 +186,22 @@ input.fi { min-height: unset; resize: none; }
       </select>
       <textarea class="fi" id="f-tec" rows="2" placeholder="Es. Mobilizzazione passiva..."></textarea></div>
     <div class="fg"><label class="fl">Note cliniche</label><textarea class="fi" id="f-note" rows="3" placeholder="Osservazioni libere..."></textarea></div>
+    <!-- Costo seduta -->
+    <div class="cst-block">
+      <div class="cst-title">💶 Costo seduta</div>
+      <div class="cst-tabs">
+        <button type="button" class="cst-tab cst-tab-active" id="cst-tab-list" onclick="cstSetMode('','listino')">Dal listino</button>
+        <button type="button" class="cst-tab" id="cst-tab-man" onclick="cstSetMode('','manuale')">A mano</button>
+      </div>
+      <div class="cst-mode" id="cst-mode-list">
+        <select class="fi" id="f-cst-listino"><option value="">— Seleziona una voce del tuo listino —</option></select>
+        <div class="cst-hint" id="cst-listino-hint">Se il tuo listino è vuoto, aggiungi voci in "Il mio profilo" → Listino prezzi.</div>
+      </div>
+      <div class="cst-mode" id="cst-mode-man" hidden>
+        <input class="fi" type="number" step="0.01" min="0" id="f-cst-importo" placeholder="Importo (€)">
+        <input class="fi" type="text" id="f-cst-desc" placeholder="Descrizione / motivo (opzionale)" style="margin-top:6px">
+      </div>
+    </div>
     <div class="det-toggle" onclick="this.nextElementSibling.classList.toggle('open'); this.textContent = this.nextElementSibling.classList.contains('open') ? '\u2212 Nascondi dettagli' : '\u002B Aggiungi dettagli'">+ Aggiungi dettagli</div>
     <div class="det-extra">
       <div class="fg"><label class="fl">Protocollo prossima seduta</label><textarea class="fi" id="f-pp" rows="2" placeholder="Es. Aggiungere schema-3..."></textarea></div>
@@ -215,6 +247,152 @@ var protAtt = null;
 var calON = false;
 var sedutaId = null;
 var detSeduta = null;
+// Cache del listino/profId del professionista corrente (letto in init)
+var _diarioListino = [];
+var _diarioProfId = null;
+
+// ── COSTO SEDUTA (namespace: cst) ─────────────────────────────────
+// UI a due modalità: "listino" (voce dal listino personale del pro)
+// oppure "manuale" (importo + descrizione). Un solo modo per seduta.
+// Payload salvato: { costo, voce_listino, costo_descrizione, colore }.
+// Funzioni parametrizzate con `prefix` per convivere in 2 istanze:
+//   - '' → modal "Nuova seduta"
+//   - 'det-' → form di modifica dentro il modal dettaglio
+function _cstEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function _cstGet(prefix, id){ return document.getElementById(prefix + id); }
+
+function cstPopolaListinoSelect(prefix, voci){
+  var sel = _cstGet(prefix, 'f-cst-listino'); if (!sel) return;
+  var opts = '<option value="">— Seleziona una voce del tuo listino —</option>';
+  (voci || []).forEach(function(v, i){
+    var codice = String(v.codice || '').trim();
+    var desc   = String(v.descrizione || 'senza descrizione').trim();
+    var prezzo = (typeof v.prezzo === 'number' && isFinite(v.prezzo)) ? v.prezzo : null;
+    var label  = (codice ? codice + ' · ' : '') + desc + (prezzo != null ? ' · ' + prezzo + ' €' : '');
+    opts += '<option value="' + i + '">' + _cstEsc(label) + '</option>';
+  });
+  sel.innerHTML = opts;
+  var hint = _cstGet(prefix, 'cst-listino-hint');
+  if (hint) hint.style.display = (voci && voci.length) ? 'none' : 'block';
+}
+
+function cstSetMode(prefix, mode){
+  var tabL = _cstGet(prefix, 'cst-tab-list');
+  var tabM = _cstGet(prefix, 'cst-tab-man');
+  var boxL = _cstGet(prefix, 'cst-mode-list');
+  var boxM = _cstGet(prefix, 'cst-mode-man');
+  if (!tabL || !tabM || !boxL || !boxM) return;
+  var m = (mode === 'manuale') ? 'manuale' : 'listino';
+  tabL.classList.toggle('cst-tab-active', m === 'listino');
+  tabM.classList.toggle('cst-tab-active', m === 'manuale');
+  boxL.hidden = (m !== 'listino');
+  boxM.hidden = (m !== 'manuale');
+  // Modalità mutuamente esclusiva: azzero i campi dell'altra
+  if (m === 'listino') {
+    var imp = _cstGet(prefix, 'f-cst-importo'); if (imp) imp.value = '';
+    var desc = _cstGet(prefix, 'f-cst-desc'); if (desc) desc.value = '';
+  } else {
+    var sel = _cstGet(prefix, 'f-cst-listino'); if (sel) sel.value = '';
+  }
+}
+
+function cstReset(prefix){
+  cstSetMode(prefix, 'listino');
+  var sel = _cstGet(prefix, 'f-cst-listino'); if (sel) sel.value = '';
+  var imp = _cstGet(prefix, 'f-cst-importo'); if (imp) imp.value = '';
+  var desc = _cstGet(prefix, 'f-cst-desc'); if (desc) desc.value = '';
+}
+
+// Popola il pannello con i dati di una seduta esistente (per il form modifica)
+function cstPopolaConSeduta(prefix, s){
+  cstReset(prefix);
+  if (!s) return;
+  // Priorità: voce_listino se ancora presente nel listino
+  if (s.voce_listino) {
+    var idx = _diarioListino.findIndex(function(v){ return String(v.codice || '').trim() === String(s.voce_listino).trim(); });
+    if (idx >= 0) {
+      cstSetMode(prefix, 'listino');
+      var sel = _cstGet(prefix, 'f-cst-listino'); if (sel) sel.value = String(idx);
+      return;
+    }
+    // Voce rimossa dal listino: fallback in modalità manuale con l'importo salvato
+    cstSetMode(prefix, 'manuale');
+    var imp = _cstGet(prefix, 'f-cst-importo'); if (imp && s.costo != null) imp.value = s.costo;
+    var desc = _cstGet(prefix, 'f-cst-desc'); if (desc) desc.value = String(s.costo_descrizione || '');
+    return;
+  }
+  if (s.costo != null || s.costo_descrizione) {
+    cstSetMode(prefix, 'manuale');
+    var imp2 = _cstGet(prefix, 'f-cst-importo'); if (imp2 && s.costo != null) imp2.value = s.costo;
+    var desc2 = _cstGet(prefix, 'f-cst-desc'); if (desc2) desc2.value = String(s.costo_descrizione || '');
+  }
+}
+
+// Legge lo stato del pannello e restituisce il payload da salvare.
+// Un solo modo: se listino selezionato → costo/voce/colore da lì; costo_descrizione null.
+// Se manuale → costo/costo_descrizione da lì; voce_listino/colore null.
+// Se nulla è compilato → tutti null (nessun costo per la seduta).
+function cstBuildPayload(prefix){
+  var tabM = _cstGet(prefix, 'cst-tab-man');
+  var mode = (tabM && tabM.classList.contains('cst-tab-active')) ? 'manuale' : 'listino';
+  if (mode === 'listino') {
+    var sel = _cstGet(prefix, 'f-cst-listino');
+    var idxStr = sel ? sel.value : '';
+    if (idxStr !== '' && idxStr != null) {
+      var v = _diarioListino[Number(idxStr)];
+      if (v) {
+        var prezzo = (typeof v.prezzo === 'number' && isFinite(v.prezzo)) ? v.prezzo : (v.prezzo != null ? Number(v.prezzo) : null);
+        return {
+          costo:             (prezzo != null && isFinite(prezzo)) ? prezzo : null,
+          voce_listino:      String(v.codice || '').trim() || null,
+          costo_descrizione: null,
+          colore:            (typeof v.colore === 'string' && v.colore) ? v.colore : null
+        };
+      }
+    }
+    return { costo: null, voce_listino: null, costo_descrizione: null, colore: null };
+  }
+  // manuale
+  var imp = _cstGet(prefix, 'f-cst-importo');
+  var descEl = _cstGet(prefix, 'f-cst-desc');
+  var raw = imp ? imp.value : '';
+  var costo = null;
+  if (raw !== '' && raw != null) { var n = Number(raw); costo = isFinite(n) ? n : null; }
+  var descTxt = descEl ? String(descEl.value || '').trim() : '';
+  return {
+    costo:             costo,
+    voce_listino:      null,
+    costo_descrizione: descTxt || null,
+    colore:            null
+  };
+}
+
+// Badge costo per la card lista sedute (in alto a destra)
+function cstBadgeHtml(x){
+  if (!x || x.costo == null || !isFinite(Number(x.costo))) return '';
+  var col = (typeof x.colore === 'string' && x.colore) ? x.colore : '#ccc';
+  var val = Number(x.costo);
+  return '<div class="cst-badge" style="border-color:' + _cstEsc(col) + '">' +
+           '<span class="cst-badge-dot" style="background:' + _cstEsc(col) + '"></span>' +
+           _cstEsc(val) + ' €' +
+         '</div>';
+}
+
+// Riga costo per il dettaglio (dentro apriDet)
+function cstDetailHtml(x){
+  if (!x || x.costo == null || !isFinite(Number(x.costo))) return '';
+  var col = (typeof x.colore === 'string' && x.colore) ? x.colore : '#ccc';
+  var val = Number(x.costo);
+  var labelExtra = '';
+  if (x.voce_listino) labelExtra = '<span class="cst-detail-desc">Listino: ' + _cstEsc(x.voce_listino) + '</span>';
+  else if (x.costo_descrizione) labelExtra = '<span class="cst-detail-desc">' + _cstEsc(x.costo_descrizione) + '</span>';
+  return '<div class="det-sec"><div class="det-lbl">Costo seduta</div>' +
+         '<div class="cst-detail" style="border-color:' + _cstEsc(col) + '">' +
+           '<span class="cst-detail-dot" style="background:' + _cstEsc(col) + '"></span>' +
+           _cstEsc(val) + ' €' + labelExtra +
+         '</div></div>';
+}
 
 function torna() {
   window.location.href = 'paziente.html?id=' + pid;
@@ -253,6 +431,9 @@ function apriNuovaSeduta() {
   document.getElementById('f-ds').value = d.toISOString().split('T')[0];
   d.setDate(d.getDate() + 7);
   document.getElementById('f-dp').value = d.toISOString().split('T')[0];
+  // Reset e popolamento pannello costo
+  cstPopolaListinoSelect('', _diarioListino);
+  cstReset('');
   document.getElementById('modal-seduta').classList.add('open');
 }
 
@@ -364,6 +545,14 @@ async function init() {
   patient = res.data;
   renderRedFlagsBanner(patient.red_flags);
   document.getElementById('pname').textContent = patient.nome + ' ' + patient.cognome;
+  // Professionista + listino personale (cachato per uso nel form costo seduta)
+  try {
+    var profRes = await _sb.from('professionals').select('id, listino').eq('user_id', sess.data.session.user.id).maybeSingle();
+    if (profRes && profRes.data) {
+      _diarioProfId  = profRes.data.id || null;
+      _diarioListino = Array.isArray(profRes.data.listino) ? profRes.data.listino : [];
+    }
+  } catch(e) { console.error('[diario] fetch professionals error:', e); }
   var pr = await _sb.from('patient_protocols').select('*, patient_protocol_exercises(*, exercises(nome))').eq('patient_id', pid).eq('stato', 'attivo').order('created_at', { ascending: false }).limit(1);
   if (pr.data && pr.data.length > 0) protAtt = pr.data[0];
   // Popola select template
@@ -387,6 +576,7 @@ async function caricaSedute() {
     var prev = (x.protocollo_seduta || x.note_cliniche || x.tecniche || '-').substring(0, 80);
     var encoded = encodeURIComponent(JSON.stringify(x));
     html += '<div class="session-item" onclick="apriDet(this)" data-session="' + encoded.replace(/"/g, '&quot;') + '">';
+    html += cstBadgeHtml(x);
     html += '<div class="sih"><div class="sid">' + d + '</div>';
     html += '<div class="vas-pills"><span class="vp vps">i:' + (x.vas_inizio != null ? x.vas_inizio : '-') + '</span>';
     html += '<span class="vp vpe">f:' + (x.vas_fine != null ? x.vas_fine : '-') + '</span></div></div>';
@@ -406,6 +596,7 @@ function apriDet(el) {
     '<span class="vp vps">VAS i:' + (s.vas_inizio != null ? s.vas_inizio : '-') + '</span>' +
     '<span class="vp vpe">VAS f:' + (s.vas_fine != null ? s.vas_fine : '-') + '</span>';
   var body = '';
+  body += cstDetailHtml(s);
   if (s.protocollo_seduta) body += '<div class="det-sec"><div class="det-lbl">Protocollo eseguito</div><div class="det-val">' + s.protocollo_seduta + '</div></div>';
   if (s.protocollo_prossima) body += '<div class="det-sec"><div class="det-lbl">Prossima seduta</div><div class="det-val">' + s.protocollo_prossima + '</div></div>';
   if (s.tecniche) body += '<div class="det-sec"><div class="det-lbl">Tecniche</div><div class="det-val">' + s.tecniche + '</div></div>';
@@ -493,9 +684,17 @@ async function salvaSeduta() {
   var tec = document.getElementById('f-tec').value.trim();
   var risp = document.getElementById('f-risp').value.trim();
   var note = document.getElementById('f-note').value.trim();
-  var sess = await _sb.auth.getSession();
-  var profRes = await _sb.from('professionals').select('id').eq('user_id', sess.data.session.user.id).maybeSingle();
-  var profId = profRes.data ? profRes.data.id : null;
+  var profId = _diarioProfId;
+  if (!profId) {
+    // Fallback difensivo: se init non è ancora terminato, provo a leggere ora
+    var sessNow = await _sb.auth.getSession();
+    if (sessNow && sessNow.data && sessNow.data.session) {
+      var profRes = await _sb.from('professionals').select('id').eq('user_id', sessNow.data.session.user.id).maybeSingle();
+      profId = profRes && profRes.data ? profRes.data.id : null;
+      if (profId) _diarioProfId = profId;
+    }
+  }
+  var costoP = cstBuildPayload('');
   var ins = await _sb.from('therapy_sessions').insert({
     patient_id: pid,
     professional_id: profId,
@@ -506,7 +705,11 @@ async function salvaSeduta() {
     protocollo_prossima: pp || null,
     tecniche: tec || null,
     risposta_paziente: risp || null,
-    note_cliniche: note || null
+    note_cliniche: note || null,
+    costo:             costoP.costo,
+    voce_listino:      costoP.voce_listino,
+    costo_descrizione: costoP.costo_descrizione,
+    colore:            costoP.colore
   });
   if (ins.error) { alert('Errore: ' + ins.error.message); return; }
   if (calON && dp) {
@@ -543,6 +746,7 @@ function diarioEscHtml(s) {
 
 function diarioRenderBody(s) {
   var body = '';
+  body += cstDetailHtml(s);
   if (s.protocollo_seduta)  body += '<div class="det-sec"><div class="det-lbl">Protocollo eseguito</div><div class="det-val">' + diarioEscHtml(s.protocollo_seduta) + '</div></div>';
   if (s.protocollo_prossima) body += '<div class="det-sec"><div class="det-lbl">Prossima seduta</div><div class="det-val">' + diarioEscHtml(s.protocollo_prossima) + '</div></div>';
   if (s.tecniche)            body += '<div class="det-sec"><div class="det-lbl">Tecniche</div><div class="det-val">' + diarioEscHtml(s.tecniche) + '</div></div>';
@@ -558,7 +762,25 @@ function diarioModifica() {
   var html = '';
   html += '<div class="det-sec"><div class="det-lbl">Protocollo eseguito</div><textarea class="det-edit-ta" id="det-edit-ps" rows="3"></textarea></div>';
   html += '<div class="det-sec"><div class="det-lbl">Prossima seduta</div><textarea class="det-edit-ta" id="det-edit-pp" rows="2"></textarea></div>';
-  html += '<div class="det-sec" style="border-bottom:none"><div class="det-lbl">Note cliniche</div><textarea class="det-edit-ta" id="det-edit-nc" rows="3"></textarea></div>';
+  html += '<div class="det-sec"><div class="det-lbl">Note cliniche</div><textarea class="det-edit-ta" id="det-edit-nc" rows="3"></textarea></div>';
+  // Pannello costo (prefix "det-" per non collidere con quello del modal Nuova seduta)
+  html += '<div class="det-sec" style="border-bottom:none">' +
+            '<div class="det-lbl">💶 Costo seduta</div>' +
+            '<div class="cst-block" style="margin-bottom:0">' +
+              '<div class="cst-tabs">' +
+                '<button type="button" class="cst-tab cst-tab-active" id="det-cst-tab-list" onclick="cstSetMode(\'det-\',\'listino\')">Dal listino</button>' +
+                '<button type="button" class="cst-tab" id="det-cst-tab-man" onclick="cstSetMode(\'det-\',\'manuale\')">A mano</button>' +
+              '</div>' +
+              '<div class="cst-mode" id="det-cst-mode-list">' +
+                '<select class="fi" id="det-f-cst-listino"><option value="">— Seleziona una voce del tuo listino —</option></select>' +
+                '<div class="cst-hint" id="det-cst-listino-hint">Se il tuo listino è vuoto, aggiungi voci in "Il mio profilo".</div>' +
+              '</div>' +
+              '<div class="cst-mode" id="det-cst-mode-man" hidden>' +
+                '<input class="fi" type="number" step="0.01" min="0" id="det-f-cst-importo" placeholder="Importo (€)">' +
+                '<input class="fi" type="text" id="det-f-cst-desc" placeholder="Descrizione / motivo (opzionale)" style="margin-top:6px">' +
+              '</div>' +
+            '</div>' +
+          '</div>';
   html += '<div style="display:flex;gap:8px;margin-top:16px">';
   html += '<button onclick="diarioCancellaModifica()" style="flex:1;background:transparent;border:1.5px solid #ddd;border-radius:8px;padding:10px;font-family:Montserrat,sans-serif;font-size:13px;cursor:pointer;color:#666">Annulla</button>';
   html += '<button onclick="diarioSalvaModifica()" class="btn-det-save">Salva modifiche</button>';
@@ -567,6 +789,9 @@ function diarioModifica() {
   document.getElementById('det-edit-ps').value = detSeduta.protocollo_seduta || '';
   document.getElementById('det-edit-pp').value = detSeduta.protocollo_prossima || '';
   document.getElementById('det-edit-nc').value = detSeduta.note_cliniche || '';
+  // Popola il pannello costo con i valori della seduta corrente
+  cstPopolaListinoSelect('det-', _diarioListino);
+  cstPopolaConSeduta('det-', detSeduta);
   document.getElementById('det-edit-ps').focus();
 }
 
@@ -580,21 +805,30 @@ async function diarioSalvaModifica() {
   var ps = document.getElementById('det-edit-ps').value.trim();
   var pp = document.getElementById('det-edit-pp').value.trim();
   var nc = document.getElementById('det-edit-nc').value.trim();
+  var costoP = cstBuildPayload('det-');
   var saveBtn = document.querySelector('#det-body .btn-det-save');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Salvataggio...'; }
   var res = await _sb.from('therapy_sessions').update({
     protocollo_seduta:  ps || null,
     protocollo_prossima: pp || null,
-    note_cliniche:      nc || null
+    note_cliniche:      nc || null,
+    costo:              costoP.costo,
+    voce_listino:       costoP.voce_listino,
+    costo_descrizione:  costoP.costo_descrizione,
+    colore:             costoP.colore
   }).eq('id', sedutaId);
   if (res.error) {
     alert('Errore salvataggio: ' + res.error.message);
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salva modifiche'; }
     return;
   }
-  detSeduta.protocollo_seduta  = ps || null;
-  detSeduta.protocollo_prossima = pp || null;
-  detSeduta.note_cliniche      = nc || null;
+  detSeduta.protocollo_seduta   = ps || null;
+  detSeduta.protocollo_prossima  = pp || null;
+  detSeduta.note_cliniche       = nc || null;
+  detSeduta.costo               = costoP.costo;
+  detSeduta.voce_listino        = costoP.voce_listino;
+  detSeduta.costo_descrizione   = costoP.costo_descrizione;
+  detSeduta.colore              = costoP.colore;
   diarioRenderBody(detSeduta);
   caricaSedute();
 }
