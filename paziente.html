@@ -346,10 +346,12 @@
     .csai-save-status.err { color: #e53935; }
     .csai-saved-section { margin-top: 28px; border-top: 2px solid #f0f0f0; padding-top: 20px; }
     .csai-saved-title { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 12px; }
-    .csai-saved-card { background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; cursor: pointer; margin-bottom: 8px; transition: border-color 0.15s; }
+    .csai-saved-card { position: relative; background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 42px 14px 16px; cursor: pointer; margin-bottom: 8px; transition: border-color 0.15s; }
     .csai-saved-card:hover { border-color: #FFD008; }
     .csai-saved-card-date { font-size: 11px; color: #aaa; margin-bottom: 4px; }
     .csai-saved-card-preview { font-size: 12px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .csai-saved-card-del { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: #a15a5a; font-size: 14px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 0; }
+    .csai-saved-card-del:hover { background: #fee2e2; color: #7f1d1d; }
     .csai-saved-empty { color: #bbb; font-size: 13px; text-align: center; padding: 20px 0; }
     /* Pannello opzioni "Cosa vuoi includere nella sintesi?" */
     .csai-opt-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
@@ -3096,6 +3098,11 @@
       // Gate Premium stretto: doppia verifica (già fatta all'apertura pannello opzioni)
       if (!_csAIRequirePremium()) return
 
+      // Ogni generazione è una NUOVA sintesi in cronologia (INSERT).
+      // Se l'utente stava editando una salvata e poi rigenera, non aggiorniamo quella:
+      // creiamo una nuova entry, così la storia clinica resta tracciata.
+      _csaiCurrentSavedId = null
+
       // Legge le opzioni scelte dall'utente
       const opts = {
         anamnesi:            document.getElementById('csai-opt-anamnesi').checked,
@@ -3341,6 +3348,9 @@
 
         introState.style.display = 'none'
         report.style.display = 'block'
+        // Auto-save: persistiamo subito la sintesi in cartella per non farla sparire
+        // al refresh. Non blocca la UI: eventuali errori vengono loggati.
+        try { await csAISave({ auto: true }) } catch(e) { console.error('[csAI] auto-save error:', e) }
       } catch (e) {
         const el = document.getElementById('csai-s1')
         if (el) el.textContent = '❌ Errore nella generazione. Riprova.'
@@ -3405,12 +3415,19 @@
       document.getElementById('csai-note-prof').value = ''
       ;['csai-s1','csai-s2','csai-s3','csai-s4','csai-s5','csai-s6','csai-s7'].forEach(id => { const el = document.getElementById(id); if (el) { el.contentEditable = 'false'; el.textContent = '' } })
       document.getElementById('csai-edit-btn').textContent = '✏️ Modifica'
+      // La prossima generazione crea una NUOVA sintesi in cronologia
+      _csaiCurrentSavedId = null
     }
 
     // ── Sintesi AI — Salvataggio persistente ─────────────────────────────────
 
     var _csaiSavedLoaded = false
     var _cnNoteDataMap = {}
+    // Id della sintesi salvata attualmente aperta nel report.
+    // - null → un save farà INSERT (nuova nota)
+    // - "<uuid>" → un save farà UPDATE della stessa nota (edit di una sintesi
+    //   già in cronologia, senza duplicati)
+    var _csaiCurrentSavedId = null
 
     function csAIOpenFromRelazione(id) {
       clinicalNotesSwitchTab('sintesi')
@@ -3423,7 +3440,8 @@
 
     var _csaiPendingOpen = null
 
-    async function csAISave() {
+    async function csAISave(opts) {
+      const auto = !!(opts && opts.auto)
       const btn = document.getElementById('csai-save-btn')
       const statusEl = document.getElementById('csai-save-status')
       const ids = ['csai-s1','csai-s2','csai-s3','csai-s4','csai-s5','csai-s6','csai-s7']
@@ -3432,36 +3450,78 @@
       keys.forEach(function(k, i) { const el = document.getElementById(ids[i]); sections[k] = el ? el.textContent.trim() : '' })
       sections.note_professionista = document.getElementById('csai-note-prof')?.value || ''
       if (!sections.problema_principale && !sections.nota_finale) return
-      btn.disabled = true
-      statusEl.textContent = 'Salvataggio...'
-      statusEl.className = 'csai-save-status'
+      if (!auto && btn) btn.disabled = true
+      if (statusEl) {
+        statusEl.textContent = auto ? '🔄 Salvataggio automatico in cartella…' : 'Salvataggio...'
+        statusEl.className = 'csai-save-status'
+      }
       const profId = await clinicalNotesGetProfId()
       if (!profId) {
-        statusEl.textContent = 'Errore: profilo non trovato.'
-        statusEl.className = 'csai-save-status err'
-        btn.disabled = false
+        if (statusEl) { statusEl.textContent = 'Errore: profilo non trovato.'; statusEl.className = 'csai-save-status err' }
+        if (btn) btn.disabled = false
         return
       }
       const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
-      const { error } = await _supabase.from('clinical_notes').insert({
-        patient_id: patientId,
-        professional_id: profId,
-        title: '🧠 Sintesi AI — ' + oggi,
-        content: '[SINTESI_AI_V1]\n' + JSON.stringify(sections)
-      })
+      const title = '🧠 Sintesi AI — ' + oggi
+      const content = '[SINTESI_AI_V1]\n' + JSON.stringify(sections)
+      let error
+      if (_csaiCurrentSavedId) {
+        // Sto editando una sintesi già in cronologia → UPDATE (niente duplicati)
+        const res = await _supabase.from('clinical_notes')
+          .update({ title: title, content: content, updated_at: new Date().toISOString() })
+          .eq('id', _csaiCurrentSavedId)
+        error = res.error
+      } else {
+        // Nuova sintesi → INSERT e memorizzo l'id per gli edit successivi
+        const res = await _supabase.from('clinical_notes')
+          .insert({ patient_id: patientId, professional_id: profId, title: title, content: content })
+          .select('id')
+          .maybeSingle()
+        error = res.error
+        if (!error && res.data) _csaiCurrentSavedId = res.data.id
+      }
       if (error) {
-        statusEl.textContent = 'Errore nel salvataggio.'
-        statusEl.className = 'csai-save-status err'
-        btn.disabled = false
+        console.error('[csAI] save error:', error)
+        if (statusEl) { statusEl.textContent = 'Errore nel salvataggio.'; statusEl.className = 'csai-save-status err' }
+        if (btn) btn.disabled = false
         return
       }
-      statusEl.textContent = '✓ Sintesi salvata in cartella'
-      statusEl.className = 'csai-save-status ok'
-      btn.disabled = false
+      if (statusEl) {
+        statusEl.textContent = auto ? '✓ Sintesi salvata automaticamente in cartella' : '✓ Sintesi salvata in cartella'
+        statusEl.className = 'csai-save-status ok'
+      }
+      if (btn) btn.disabled = false
       _csaiSavedLoaded = false
       csAILoadSaved()
       if (clinicalNotesState.loaded) { clinicalNotesState.loaded = false; clinicalNotesInit() }
-      setTimeout(function() { statusEl.textContent = ''; statusEl.className = 'csai-save-status' }, 3500)
+      setTimeout(function() { if (statusEl) { statusEl.textContent = ''; statusEl.className = 'csai-save-status' } }, 3500)
+    }
+
+    // Elimina una sintesi salvata (stessa tabella clinical_notes).
+    // Chiamato dal cestino sulle card in "Sintesi salvate in cartella".
+    async function csAIDeleteSaved(id, ev) {
+      if (ev) { ev.stopPropagation(); ev.preventDefault() }
+      if (!id) return
+      if (!confirm('Eliminare questa sintesi salvata? Operazione non annullabile.')) return
+      try {
+        const { error } = await _supabase.from('clinical_notes').delete().eq('id', id)
+        if (error) {
+          console.error('[csAI] deleteSaved error:', error)
+          alert('Errore eliminazione sintesi: ' + (error.message || error.code || 'sconosciuto'))
+          return
+        }
+        // Se stavo modificando proprio quella sintesi, torno allo stato intro senza contenuto stale.
+        if (_csaiCurrentSavedId === id) {
+          _csaiCurrentSavedId = null
+          if (typeof csAIReset === 'function') csAIReset()
+        }
+        _csaiSavedLoaded = false
+        await csAILoadSaved()
+        if (clinicalNotesState.loaded) { clinicalNotesState.loaded = false; clinicalNotesInit() }
+      } catch(e) {
+        console.error('[csAI] deleteSaved exception:', e)
+        alert('Errore eliminazione sintesi.')
+      }
     }
 
     async function csAILoadSaved() {
@@ -3492,6 +3552,7 @@
         var d = new Date(n.updated_at)
         var date = d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
         return '<div class="csai-saved-card" onclick="csAIOpenSaved(\'' + n.id + '\')" data-id="' + n.id + '">' +
+          '<button type="button" class="csai-saved-card-del" title="Elimina sintesi" aria-label="Elimina sintesi" onclick="csAIDeleteSaved(\'' + n.id + '\', event)">🗑</button>' +
           '<div class="csai-saved-card-date">📅 ' + date + '</div>' +
           '<div class="csai-saved-card-preview">' + esc(preview) + '</div>' +
           '</div>'
@@ -3517,6 +3578,10 @@
       keys.forEach(function(k, i) { var el = document.getElementById(eIds[i]); if (el) { el.textContent = sections[k] || '—'; el.contentEditable = 'false' } })
       var noteProf = document.getElementById('csai-note-prof')
       if (noteProf) noteProf.value = sections.note_professionista || ''
+      // Traccia l'id della sintesi aperta: eventuali edit + Salva faranno UPDATE
+      // sullo stesso record invece di creare un duplicato.
+      _csaiCurrentSavedId = id
+      var opt = document.getElementById('csai-options-state'); if (opt) opt.style.display = 'none'
       document.getElementById('csai-intro-state').style.display = 'none'
       document.getElementById('csai-report').style.display = 'block'
       document.getElementById('csai-loading').style.display = 'none'
