@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Controllo — Policettivo®</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Pagina isolata, non collegata al resto dell'app — stile "console admin" scuro. */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; padding: 20px; }
+
+/* ── GATE PASSWORD ─────────────────────────────────────────── */
+#gate { max-width: 420px; margin: 18vh auto 0; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 36px 32px; }
+#gate h1 { font-size: 20px; margin-bottom: 8px; font-weight: 700; color: #f0f6fc; letter-spacing: .2px; }
+#gate p { color: #7d8590; font-size: 13px; margin-bottom: 24px; line-height: 1.5; }
+#gate input { width: 100%; padding: 11px 14px; background: #0d1117; border: 1.5px solid #30363d; border-radius: 8px; color: #f0f6fc; font-family: 'Consolas','SF Mono', monospace; font-size: 14px; outline: none; }
+#gate input:focus { border-color: #58a6ff; }
+#gate button { width: 100%; margin-top: 14px; padding: 11px; background: #238636; color: #fff; border: none; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; letter-spacing: .3px; }
+#gate button:hover { background: #2ea043; }
+#gate button:disabled { opacity: .5; cursor: not-allowed; }
+#gate .err { color: #f85149; font-size: 12px; margin-top: 12px; text-align: center; min-height: 16px; }
+#gate .ok { color: #7ee7a1; font-size: 12px; margin-top: 12px; text-align: center; min-height: 16px; }
+#gate .hint { color: #7d8590; font-size: 11px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #21262d; line-height: 1.5; }
+
+/* ── APP ────────────────────────────────────────────────── */
+#app { display: none; max-width: 1400px; margin: 0 auto; }
+.hdr { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #30363d; flex-wrap: wrap; }
+.hdr h1 { font-size: 18px; color: #f0f6fc; letter-spacing: .2px; }
+.hdr .right { display: flex; gap: 10px; align-items: center; }
+.badge { background: #f85149; color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 4px; letter-spacing: .5px; font-weight: 700; text-transform: uppercase; }
+.badge-info { background: #1f6feb; }
+.btn-out { background: transparent; border: 1.5px solid #30363d; color: #7d8590; padding: 5px 12px; border-radius: 6px; font-family: inherit; font-size: 11px; cursor: pointer; }
+.btn-out:hover { border-color: #f85149; color: #f85149; }
+
+.filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 16px; padding: 14px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; }
+.filters label { display: block; font-size: 10px; color: #7d8590; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .5px; font-weight: 700; }
+.filters input, .filters select { padding: 6px 10px; background: #0d1117; border: 1.5px solid #30363d; border-radius: 6px; color: #f0f6fc; font-family: inherit; font-size: 13px; outline: none; min-width: 140px; }
+.filters input:focus, .filters select:focus { border-color: #58a6ff; }
+.filters .btn { padding: 6px 14px; background: transparent; border: 1.5px solid #30363d; border-radius: 6px; color: #7d8590; font-family: inherit; font-size: 12px; cursor: pointer; }
+.filters .btn:hover { border-color: #58a6ff; color: #58a6ff; }
+.filters .count { margin-left: auto; color: #7d8590; font-size: 12px; font-family: 'Consolas','SF Mono', monospace; }
+
+table { width: 100%; border-collapse: collapse; background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
+th { background: #21262d; text-align: left; padding: 10px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #7d8590; font-weight: 700; border-bottom: 1px solid #30363d; white-space: nowrap; }
+td { padding: 10px 12px; font-size: 13px; color: #e6edf3; border-bottom: 1px solid #21262d; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+
+.op-pill { display: inline-block; padding: 2px 8px; font-size: 10px; font-weight: 700; border-radius: 4px; letter-spacing: .3px; text-transform: uppercase; }
+.op-INSERT { background: #143a1e; color: #7ee7a1; }
+.op-UPDATE { background: #14294d; color: #79c0ff; }
+.op-DELETE { background: #4c1418; color: #ff8080; }
+.op-XX { background: #21262d; color: #7d8590; }
+
+tr.delete-row { background: rgba(248, 81, 73, 0.10); }
+tr.decreased-row { background: rgba(248, 81, 73, 0.06); }
+tr.delete-row td { color: #ffb3b3; }
+
+.diff { font-family: 'Consolas','SF Mono', monospace; font-size: 12px; line-height: 1.7; }
+.diff div { margin-bottom: 2px; }
+.diff-lbl { color: #7d8590; margin-right: 4px; }
+.diff-before { color: #ff8080; text-decoration: line-through; text-decoration-color: #7d3a3a; }
+.diff-after { color: #7ee7a1; margin-left: 6px; }
+.diff-arrow { color: #7d8590; margin: 0 4px; }
+.diff-flag-decrease { color: #ff8080; margin-left: 8px; font-weight: 700; font-size: 11px; }
+.mono { font-family: 'Consolas','SF Mono', monospace; font-size: 12px; }
+.meta { color: #7d8590; font-size: 11px; }
+.empty { text-align: center; padding: 40px 20px; color: #7d8590; font-size: 13px; }
+.info { font-size: 11px; color: #7d8590; margin-top: 16px; text-align: right; font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- ── GATE PASSWORD ── -->
+<div id="gate">
+  <h1>🔒 Controllo economico</h1>
+  <p>Area riservata al titolare. Inserisci la password di controllo per accedere al registro delle modifiche.</p>
+  <form onsubmit="event.preventDefault(); tentaAccesso();" autocomplete="off">
+    <input type="password" id="pwd" placeholder="Password" autocomplete="new-password" autofocus>
+    <button type="submit" id="btn-gate">Accedi</button>
+    <div class="err" id="gate-err"></div>
+  </form>
+  <div class="hint">Il registro è immodificabile. Ogni modifica economica (sedute, pagamenti) resta tracciata con timestamp e valori prima/dopo. Sola lettura.</div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+  <div class="hdr">
+    <h1>🔒 Controllo economico — registro modifiche</h1>
+    <div class="right">
+      <span class="badge">SOLA LETTURA</span>
+      <button type="button" class="btn-out" onclick="logout()">Esci</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div>
+      <label for="f-paz">Paziente</label>
+      <select id="f-paz" onchange="applicaFiltri()">
+        <option value="">— Tutti —</option>
+      </select>
+    </div>
+    <div>
+      <label for="f-da">Da</label>
+      <input type="date" id="f-da" onchange="applicaFiltri()">
+    </div>
+    <div>
+      <label for="f-a">A</label>
+      <input type="date" id="f-a" onchange="applicaFiltri()">
+    </div>
+    <button type="button" class="btn" onclick="resetFiltri()">Reset filtri</button>
+    <div class="count" id="count">—</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:140px">Data / ora</th>
+        <th style="width:90px">Operazione</th>
+        <th style="width:160px">Tabella</th>
+        <th style="width:200px">Paziente</th>
+        <th>Modifica</th>
+      </tr>
+    </thead>
+    <tbody id="rows-tbody">
+      <tr><td colspan="5" class="empty">Caricamento…</td></tr>
+    </tbody>
+  </table>
+  <div class="info">Registro immodificabile — nessuna cella è editabile. Massimo 5000 eventi caricati.</div>
+</div>
+
+<script>
+// ── Config Supabase (uguale al resto dell'app) ──
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var _sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+// ── Stato ──
+var _entries = [];       // audit_log entries caricate
+var _patientsMap = {};   // patient_id → { nome, cognome }
+
+// ── Utility ──
+function _esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function _fmtTs(ts){
+  if (!ts) return '';
+  var d = new Date(ts);
+  if (isNaN(d.getTime())) return String(ts);
+  return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' ' +
+         d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+function _fmtEur(n){
+  if (n == null || !isFinite(Number(n))) return String(n == null ? '—' : n);
+  return Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+// Legge un JSON da un audit_log entry provando più nomi comuni
+function _dataJson(e, keys){
+  for (var i = 0; i < keys.length; i++) {
+    var v = e[keys[i]];
+    if (v != null) {
+      if (typeof v === 'string') { try { return JSON.parse(v); } catch(_) { /* fall through */ } }
+      if (typeof v === 'object')  return v;
+    }
+  }
+  return null;
+}
+function _opOf(e){    return String(e.operation || e.op || e.action || '').toUpperCase(); }
+function _tableOf(e){ return String(e.table_name || e.tbl || e.entity || e.t || ''); }
+function _tsOf(e){    return e.ts || e.timestamp || e.created_at || e.at || null; }
+function _pazIdOf(e){
+  if (e.patient_id) return e.patient_id;
+  var before = _dataJson(e, ['before','old_data','row_before','old','data_before']);
+  var after  = _dataJson(e, ['after','new_data','row_after','new','data_after']);
+  return (after && after.patient_id) || (before && before.patient_id) || null;
+}
+
+function _nomePaz(pid){
+  if (!pid) return '—';
+  var p = _patientsMap[pid];
+  if (!p) return '(' + String(pid).substring(0,8) + '…)';
+  return ((p.cognome || '') + ' ' + (p.nome || '')).trim() || '—';
+}
+
+// ── Password gate ──
+async function tentaAccesso(){
+  var pwd = document.getElementById('pwd').value;
+  var errEl = document.getElementById('gate-err');
+  var btn = document.getElementById('btn-gate');
+  if (!pwd) { errEl.textContent = 'Inserisci la password.'; return; }
+  errEl.textContent = 'Verifica in corso…';
+  errEl.className = 'err';
+  btn.disabled = true;
+  try {
+    var res = await _sb.from('app_config').select('valore').eq('chiave', 'audit_password').maybeSingle();
+    if (res && res.error) {
+      // Se RLS blocca la lettura di app_config, non riveliamo il motivo esatto.
+      console.error('[controllo] app_config read error:', res.error);
+      errEl.textContent = '❌ Accesso negato';
+      btn.disabled = false;
+      return;
+    }
+    if (!res || !res.data || res.data.valore == null) {
+      errEl.textContent = 'Password di controllo non configurata sul server.';
+      btn.disabled = false;
+      return;
+    }
+    if (String(pwd) !== String(res.data.valore)) {
+      errEl.textContent = '❌ Accesso negato';
+      btn.disabled = false;
+      // Non nascondere il campo, permetti nuovi tentativi
+      document.getElementById('pwd').select();
+      return;
+    }
+    // Accesso ok
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    await caricaDati();
+  } catch(e) {
+    console.error('[controllo] password check exception:', e);
+    errEl.textContent = 'Errore verifica. Riprova.';
+    btn.disabled = false;
+  }
+}
+
+function logout(){
+  // Torna al gate (client-side reset). Il gate password rimane il barrier.
+  document.getElementById('pwd').value = '';
+  document.getElementById('gate-err').textContent = '';
+  document.getElementById('btn-gate').disabled = false;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('gate').style.display = 'block';
+  _entries = []; _patientsMap = {};
+  document.getElementById('pwd').focus();
+}
+
+// ── Caricamento dati ──
+async function caricaDati(){
+  var tbody = document.getElementById('rows-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="empty">Caricamento registro…</td></tr>';
+  try {
+    // Pazienti (per filtro e per resolve del nome)
+    var pres = await _sb.from('patients').select('id, nome, cognome').order('cognome');
+    if (pres && pres.error) console.warn('[controllo] patients read warn:', pres.error);
+    if (pres && pres.data) {
+      var sel = document.getElementById('f-paz');
+      pres.data.forEach(function(p){
+        _patientsMap[p.id] = { nome: p.nome || '', cognome: p.cognome || '' };
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = ((p.cognome || '') + ' ' + (p.nome || '')).trim();
+        sel.appendChild(opt);
+      });
+    }
+
+    // Audit log (ordine desc). Provo prima con `ts`, altrimenti con created_at come fallback.
+    var lres = await _sb.from('audit_log').select('*').order('ts', { ascending: false }).limit(5000);
+    if (lres && lres.error) {
+      // Riprovo senza order (schema alternativo)
+      console.warn('[controllo] audit_log with order(ts) failed, retrying:', lres.error);
+      lres = await _sb.from('audit_log').select('*').limit(5000);
+    }
+    if (lres && lres.error) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Errore lettura audit_log: ' + _esc(lres.error.message || '') + '</td></tr>';
+      return;
+    }
+    _entries = (lres && lres.data) ? lres.data : [];
+    // Ordina in memoria per sicurezza (desc su ts effettivo)
+    _entries.sort(function(a, b){
+      var ta = new Date(_tsOf(a) || 0).getTime();
+      var tb = new Date(_tsOf(b) || 0).getTime();
+      return tb - ta;
+    });
+    applicaFiltri();
+  } catch(e) {
+    console.error('[controllo] load error:', e);
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Errore caricamento dati.</td></tr>';
+  }
+}
+
+// ── Filtri ──
+function _applyFilters(){
+  var paz = document.getElementById('f-paz').value;
+  var daStr = document.getElementById('f-da').value;
+  var aStr  = document.getElementById('f-a').value;
+  var da = daStr ? new Date(daStr + 'T00:00:00') : null;
+  var a  = aStr  ? new Date(aStr  + 'T23:59:59') : null;
+  return _entries.filter(function(e){
+    var ts = _tsOf(e);
+    if (ts) {
+      var d = new Date(ts);
+      if (da && d < da) return false;
+      if (a  && d > a ) return false;
+    }
+    if (paz) {
+      var pid = _pazIdOf(e);
+      if (String(pid || '') !== String(paz)) return false;
+    }
+    return true;
+  });
+}
+
+// ── Diff rendering ──
+function _renderDiff(e){
+  var op = _opOf(e);
+  var tbl = _tableOf(e);
+  var before = _dataJson(e, ['before','old_data','row_before','old','data_before']) || {};
+  var after  = _dataJson(e, ['after','new_data','row_after','new','data_after']) || {};
+  var parts = [];
+  var isDecreased = false;
+
+  function pushField(lbl, bval, aval, isMoney){
+    if (bval == null && aval == null) return;
+    var b = isMoney ? _fmtEur(bval) : (bval == null ? '—' : String(bval));
+    var a = isMoney ? _fmtEur(aval) : (aval == null ? '—' : String(aval));
+    if (op === 'INSERT') {
+      parts.push('<div><span class="diff-lbl">' + _esc(lbl) + ':</span><span class="diff-after">' + _esc(a) + '</span></div>');
+    } else if (op === 'DELETE') {
+      parts.push('<div><span class="diff-lbl">' + _esc(lbl) + ':</span><span class="diff-before">' + _esc(b) + '</span></div>');
+    } else { // UPDATE
+      if (String(bval) === String(aval)) return; // nessun cambio → salta
+      var flag = '';
+      if (isMoney) {
+        var nb = Number(bval), na = Number(aval);
+        if (isFinite(nb) && isFinite(na) && na < nb) { isDecreased = true; flag = ' <span class="diff-flag-decrease">↓ diminuito</span>'; }
+      }
+      parts.push('<div><span class="diff-lbl">' + _esc(lbl) + ':</span><span class="diff-before">' + _esc(b) + '</span><span class="diff-arrow">→</span><span class="diff-after">' + _esc(a) + '</span>' + flag + '</div>');
+    }
+  }
+
+  if (tbl === 'therapy_sessions') {
+    pushField('Costo',           before.costo,            after.costo,            true);
+    pushField('Saldato',         before.saldato,          after.saldato,          false);
+    pushField('Importo saldato', before.saldato_importo,  after.saldato_importo,  true);
+    pushField('Data saldo',      before.saldato_data,     after.saldato_data,     false);
+  } else if (tbl === 'patient_payments') {
+    pushField('Importo', before.importo, after.importo, true);
+    pushField('Data',    before.data,    after.data,    false);
+    pushField('Nota',    before.nota,    after.nota,    false);
+  } else {
+    // Fallback generico: mostra tutte le differenze economiche prima
+    var keys = {};
+    Object.keys(before).forEach(function(k){ keys[k] = true; });
+    Object.keys(after).forEach(function(k){ keys[k] = true; });
+    Object.keys(keys).forEach(function(k){
+      if (String(before[k]) !== String(after[k])) {
+        var isMoney = /(costo|importo|prezzo|saldat.*importo|totale)/i.test(k);
+        pushField(k, before[k], after[k], isMoney);
+      }
+    });
+  }
+
+  return { html: parts.join('') || '<span class="meta">—</span>', decreased: isDecreased };
+}
+
+// ── Rendering tabella ──
+function renderTabella(){
+  var lista = _applyFilters();
+  var tbody = document.getElementById('rows-tbody');
+  var count = document.getElementById('count');
+  count.textContent = lista.length + ' event' + (lista.length === 1 ? 'o' : 'i');
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Nessun evento con i filtri correnti.</td></tr>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < lista.length; i++) {
+    var e = lista[i];
+    var op = _opOf(e) || 'XX';
+    var tbl = _tableOf(e);
+    var pid = _pazIdOf(e);
+    var d = _renderDiff(e);
+    var rowCls = '';
+    if (op === 'DELETE') rowCls = 'delete-row';
+    else if (op === 'UPDATE' && d.decreased) rowCls = 'decreased-row';
+    var opCls = /^(INSERT|UPDATE|DELETE)$/.test(op) ? op : 'XX';
+    html += '<tr class="' + rowCls + '">' +
+              '<td class="mono">' + _esc(_fmtTs(_tsOf(e))) + '</td>' +
+              '<td><span class="op-pill op-' + opCls + '">' + _esc(op) + '</span></td>' +
+              '<td class="mono">' + _esc(tbl || '—') + '</td>' +
+              '<td>' + _esc(_nomePaz(pid)) + '</td>' +
+              '<td class="diff">' + d.html + '</td>' +
+            '</tr>';
+  }
+  tbody.innerHTML = html;
+}
+
+function applicaFiltri(){ renderTabella(); }
+function resetFiltri(){
+  document.getElementById('f-paz').value = '';
+  document.getElementById('f-da').value = '';
+  document.getElementById('f-a').value = '';
+  applicaFiltri();
+}
+</script>
+</body>
+</html>
