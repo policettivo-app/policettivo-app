@@ -126,10 +126,11 @@ async function handleDeleteInvite(svc, req, res) {
 }
 
 // ── professionalStats ────────────────────────────────────────────────────────
-// Conta pazienti attivi / sedute (therapy_sessions) / visite di un professionista
-// e ritorna le ultime N di ciascuno con il nome del paziente associato.
-// Necessario lato server: le RLS filtrano queste letture per il professionista
-// loggato, quindi dal browser (admin) restituirebbero 0 per gli altri.
+// Conta pazienti attivi / sedute (therapy_sessions) / visite (visits) di un
+// professionista e ritorna le ultime N di ciascuno con il nome del paziente
+// associato. Necessario lato server: le RLS filtrano queste letture per il
+// professionista loggato, quindi dal browser (admin) restituirebbero 0 per
+// gli altri.
 async function handleProfessionalStats(svc, req, res) {
   const { profId } = req.body
   if (!profId) return res.status(400).json({ error: 'profId obbligatorio' })
@@ -152,28 +153,27 @@ async function handleProfessionalStats(svc, req, res) {
   if (patIds.length > 0) {
     const [sRes, vRes] = await Promise.all([
       svc.from('therapy_sessions')
-        .select('id, patient_id, data_seduta, created_at')
+        .select('id, patient_id, data_seduta')
         .in('patient_id', patIds),
-      svc.from('visite')
-        .select('id, patient_id, created_at, tipo')
+      svc.from('visits')
+        .select('id, patient_id, data_visita')
         .in('patient_id', patIds)
     ])
     if (sRes.error) return res.status(500).json({ error: 'therapy_sessions: ' + sRes.error.message })
-    if (vRes.error) return res.status(500).json({ error: 'visite: ' + vRes.error.message })
+    if (vRes.error) return res.status(500).json({ error: 'visits: ' + vRes.error.message })
     sessioni = sRes.data || []
     visite   = vRes.data || []
   }
 
-  const sessKey = s => s.data_seduta || s.created_at || ''
   const ultimeSedute = [...sessioni]
-    .sort((a, b) => String(sessKey(b)).localeCompare(String(sessKey(a))))
+    .sort((a, b) => String(b.data_seduta || '').localeCompare(String(a.data_seduta || '')))
     .slice(0, 10)
-    .map(s => ({ id: s.id, patient_id: s.patient_id, data: sessKey(s), patient_name: patNames[s.patient_id] || '' }))
+    .map(s => ({ id: s.id, patient_id: s.patient_id, data: s.data_seduta || '', patient_name: patNames[s.patient_id] || '' }))
 
   const ultimeVisite = [...visite]
-    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .sort((a, b) => String(b.data_visita || '').localeCompare(String(a.data_visita || '')))
     .slice(0, 5)
-    .map(v => ({ id: v.id, patient_id: v.patient_id, data: v.created_at, tipo: v.tipo || '', patient_name: patNames[v.patient_id] || '' }))
+    .map(v => ({ id: v.id, patient_id: v.patient_id, data: v.data_visita || '', patient_name: patNames[v.patient_id] || '' }))
 
   const ultimiPazienti = allPats.slice(0, 10).map(p => ({
     id: p.id,
