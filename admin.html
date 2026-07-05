@@ -518,34 +518,40 @@
       renderProfessionistiFiltered(); renderStatsFiltered()
     }
 
+    async function _deleteProfessionalViaApi(profId, userId) {
+      const token = await getAdminToken()
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ action: 'delete-user', profId, userId })
+      })
+      let json = {}
+      try { json = await res.json() } catch (_) {}
+      return { ok: res.ok, status: res.status, error: json?.error || null }
+    }
+
     async function eliminaProfessionista(id) {
-      if (!confirm('Eliminare definitivamente questo professionista e tutti i suoi dati? Operazione irreversibile.')) return
-      const { data: prof } = await _supabase.from('professionals').select('user_id').eq('id', id).maybeSingle()
-      if (prof && prof.user_id) {
-        const { data: pats } = await _supabase.from('patients').select('id').eq('professional_id', id)
-        if (pats && pats.length > 0) {
-          const patIds = pats.map(p => p.id)
-          for (const pid of patIds) {
-            const { data: pp } = await _supabase.from('patient_protocols').select('id').eq('patient_id', pid)
-            if (pp && pp.length > 0) {
-              for (const prot of pp) {
-                await _supabase.from('patient_protocol_exercises').delete().eq('patient_protocol_id', prot.id)
-              }
-              await _supabase.from('patient_protocols').delete().eq('patient_id', pid)
-            }
-            await _supabase.from('diary_entries').delete().eq('patient_id', pid)
-          }
-          await _supabase.from('patients').delete().eq('professional_id', id)
-        }
-        await _supabase.from('professionals').delete().eq('id', id)
-        await _supabase.from('profiles').delete().eq('id', prof.user_id)
-      } else {
-        await _supabase.from('professionals').delete().eq('id', id)
+      const p = allProfessionisti.find(x => x.id === id)
+      const nome = p ? ((p.profiles?.nome || '') + ' ' + (p.profiles?.cognome || '')).trim() || (p.email || 'professionista') : 'professionista'
+      const userId = p?.user_id
+      if (!userId) { alert('Errore: user_id non trovato sul record professionals di ' + nome + '.'); return }
+
+      const ok1 = confirm('Eliminare ' + nome + '?\n\nQuesta azione eliminerà tutti i dati del professionista: pazienti, sedute, protocolli, visite.')
+      if (!ok1) return
+      const ok2 = confirm('⚠️ CONFERMA FINALE\n\nStai per eliminare definitivamente ' + nome + ' e tutti i suoi dati. Operazione irreversibile.\n\nProcedere?')
+      if (!ok2) return
+
+      const { ok, status, error } = await _deleteProfessionalViaApi(id, userId)
+      if (!ok) {
+        alert('Errore eliminazione: ' + (error || status))
+        return
       }
-      allProfessionisti = allProfessionisti.filter(p => p.id !== id)
+
+      allProfessionisti = allProfessionisti.filter(x => x.id !== id)
       _statsCache = _statsCache.filter(s => s.prof.id !== id)
-      document.getElementById('stat-prof').textContent = allProfessionisti.length
-      alert('Professionista eliminato con successo.')
+      const statEl = document.getElementById('stat-prof')
+      if (statEl) statEl.textContent = allProfessionisti.length
+      alert(nome + ' eliminato con successo.')
       renderProfessionistiFiltered(); renderStatsFiltered()
     }
 
@@ -1013,19 +1019,13 @@
       const profileId = _panelProfData.user_id
       if (!profileId) { alert('Errore: user_id non trovato sul record professionals.'); return }
 
-      const token = await getAdminToken()
       const btn = document.getElementById('btn-elimina-pannello')
       if (btn) { btn.disabled = true; btn.textContent = 'Eliminazione...' }
 
-      const res = await fetch('/api/admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ action: 'delete-user', profId: currentProfId, userId: profileId })
-      })
-      const json = await res.json()
+      const { ok, status, error } = await _deleteProfessionalViaApi(currentProfId, profileId)
 
-      if (!res.ok) {
-        alert('Errore eliminazione: ' + (json.error || res.status))
+      if (!ok) {
+        alert('Errore eliminazione: ' + (error || status))
         if (btn) { btn.disabled = false; btn.textContent = '🗑 Elimina professionista' }
         return
       }
