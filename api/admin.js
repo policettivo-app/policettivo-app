@@ -20,6 +20,7 @@ export default async function handler(req, res) {
     case 'list-invites':       return handleListInvites(svc, req, res)
     case 'create-invite':      return handleCreateInvite(svc, req, res)
     case 'delete-invite':      return handleDeleteInvite(svc, req, res)
+    case 'professionalStats':  return handleProfessionalStats(svc, req, res)
     default:                   return res.status(400).json({ error: 'action sconosciuta: ' + action })
   }
 }
@@ -122,4 +123,72 @@ async function handleDeleteInvite(svc, req, res) {
   const { error } = await svc.from('invites').delete().eq('id', id)
   if (error) return res.status(500).json({ error: error.message })
   return res.status(200).json({ ok: true })
+}
+
+// ── professionalStats ────────────────────────────────────────────────────────
+// Conta pazienti attivi / sedute (therapy_sessions) / visite di un professionista
+// e ritorna le ultime N di ciascuno con il nome del paziente associato.
+// Necessario lato server: le RLS filtrano queste letture per il professionista
+// loggato, quindi dal browser (admin) restituirebbero 0 per gli altri.
+async function handleProfessionalStats(svc, req, res) {
+  const { profId } = req.body
+  if (!profId) return res.status(400).json({ error: 'profId obbligatorio' })
+
+  const { data: pats, error: patErr } = await svc
+    .from('patients')
+    .select('id, nome, cognome, created_at')
+    .eq('professional_id', profId)
+    .eq('stato', 'attivo')
+    .order('created_at', { ascending: false })
+  if (patErr) return res.status(500).json({ error: 'patients: ' + patErr.message })
+
+  const allPats = pats || []
+  const patIds  = allPats.map(p => p.id)
+  const patNames = {}
+  allPats.forEach(p => { patNames[p.id] = ((p.nome || '') + ' ' + (p.cognome || '')).trim() })
+
+  let sessioni = []
+  let visite   = []
+  if (patIds.length > 0) {
+    const [sRes, vRes] = await Promise.all([
+      svc.from('therapy_sessions')
+        .select('id, patient_id, data_seduta, created_at')
+        .in('patient_id', patIds),
+      svc.from('visite')
+        .select('id, patient_id, created_at, tipo')
+        .in('patient_id', patIds)
+    ])
+    if (sRes.error) return res.status(500).json({ error: 'therapy_sessions: ' + sRes.error.message })
+    if (vRes.error) return res.status(500).json({ error: 'visite: ' + vRes.error.message })
+    sessioni = sRes.data || []
+    visite   = vRes.data || []
+  }
+
+  const sessKey = s => s.data_seduta || s.created_at || ''
+  const ultimeSedute = [...sessioni]
+    .sort((a, b) => String(sessKey(b)).localeCompare(String(sessKey(a))))
+    .slice(0, 10)
+    .map(s => ({ id: s.id, patient_id: s.patient_id, data: sessKey(s), patient_name: patNames[s.patient_id] || '' }))
+
+  const ultimeVisite = [...visite]
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .slice(0, 5)
+    .map(v => ({ id: v.id, patient_id: v.patient_id, data: v.created_at, tipo: v.tipo || '', patient_name: patNames[v.patient_id] || '' }))
+
+  const ultimiPazienti = allPats.slice(0, 10).map(p => ({
+    id: p.id,
+    nome: patNames[p.id] || '',
+    created_at: p.created_at
+  }))
+
+  return res.status(200).json({
+    totals: {
+      pazienti: allPats.length,
+      sessioni: sessioni.length,
+      visite:   visite.length
+    },
+    ultimiPazienti,
+    ultimeSedute,
+    ultimeVisite
+  })
 }

@@ -920,30 +920,30 @@
       const actEl = document.getElementById('tab-attivita')
       actEl.innerHTML = '<div class="empty-state">Caricamento...</div>'
 
-      const cached = _statsCache.find(s => s.prof.id === profId)
-
-      const { data: pats } = await _supabase
-        .from('patients').select('id,nome,cognome,created_at')
-        .eq('professional_id', profId)
-        .order('created_at', { ascending: false }).limit(10)
-
-      const patIds = (pats || []).map(p => p.id)
-      const patMap = {}
-      ;(pats || []).forEach(p => { patMap[p.id] = escHtml((p.nome || '') + ' ' + (p.cognome || '')) })
-
-      let sessioni = [], visite = []
-      if (patIds.length > 0) {
-        const [sR, vR] = await Promise.all([
-          _supabase.from('diary_entries').select('id,patient_id,created_at').in('patient_id', patIds).order('created_at', { ascending: false }).limit(10),
-          _supabase.from('visite').select('id,patient_id,created_at,tipo').in('patient_id', patIds).order('created_at', { ascending: false }).limit(5)
-        ])
-        sessioni = sR.data || []
-        visite   = vR.data || []
+      const token = await getAdminToken()
+      let res, json
+      try {
+        res = await fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ action: 'professionalStats', profId })
+        })
+        json = await res.json()
+      } catch (e) {
+        actEl.innerHTML = '<div class="empty-state" style="color:#c62828">Errore di rete: ' + escHtml(e.message || String(e)) + '</div>'
+        return
+      }
+      if (!res.ok) {
+        actEl.innerHTML = '<div class="empty-state" style="color:#c62828">Errore: ' + escHtml(json?.error || res.status) + '</div>'
+        return
       }
 
-      const totP = cached?.numPazienti ?? (pats?.length ?? 0)
-      const totS = cached?.numSessioni ?? 0
-      const totV = cached?.numVisite   ?? 0
+      const totP = json.totals?.pazienti ?? 0
+      const totS = json.totals?.sessioni ?? 0
+      const totV = json.totals?.visite   ?? 0
+      const ultimiPazienti = json.ultimiPazienti || []
+      const ultimeSedute   = json.ultimeSedute   || []
+      const ultimeVisite   = json.ultimeVisite   || []
 
       const fmtDate = d => d ? new Date(d).toLocaleDateString('it-IT') : '—'
 
@@ -954,11 +954,11 @@
           <div class="act-count-box"><div class="act-count-num">${totV}</div><div class="act-count-lbl">Visite</div></div>
         </div>
         <div class="act-section-title">👥 Ultimi pazienti aggiunti</div>
-        ${pats && pats.length ? pats.map(p => `<div class="act-item"><div>${patMap[p.id]}</div><div class="act-item-date">${fmtDate(p.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessun paziente.</div>'}
+        ${ultimiPazienti.length ? ultimiPazienti.map(p => `<div class="act-item"><div>${escHtml(p.nome || '—')}</div><div class="act-item-date">${fmtDate(p.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessun paziente.</div>'}
         <div class="act-section-title">📋 Ultime sedute registrate</div>
-        ${sessioni.length ? sessioni.map(s => `<div class="act-item"><div>${patMap[s.patient_id] || '—'}</div><div class="act-item-date">${fmtDate(s.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessuna seduta.</div>'}
+        ${ultimeSedute.length ? ultimeSedute.map(s => `<div class="act-item"><div>${escHtml(s.patient_name || '—')}</div><div class="act-item-date">${fmtDate(s.data)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessuna seduta.</div>'}
         <div class="act-section-title">📅 Ultime visite di controllo</div>
-        ${visite.length ? visite.map(v => `<div class="act-item"><div>${patMap[v.patient_id] || '—'}${v.tipo ? ' — ' + escHtml(v.tipo) : ''}</div><div class="act-item-date">${fmtDate(v.created_at)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessuna visita.</div>'}`
+        ${ultimeVisite.length ? ultimeVisite.map(v => `<div class="act-item"><div>${escHtml(v.patient_name || '—')}${v.tipo ? ' — ' + escHtml(v.tipo) : ''}</div><div class="act-item-date">${fmtDate(v.data)}</div></div>`).join('') : '<div style="color:#aaa;font-size:13px">Nessuna visita.</div>'}`
     }
 
     async function salvaProfessionista() {
