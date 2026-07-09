@@ -553,10 +553,6 @@
         <div class="acc-head" onclick="toggleAcc(this)"><span>4 — Consensi e note</span><span class="acc-toggle">▾</span></div>
         <div class="acc-body">
           <label class="acc-check-row">
-            <input type="checkbox" id="f-consenso-privacy">
-            <span>Consenso privacy firmato</span>
-          </label>
-          <label class="acc-check-row" style="margin-top:10px">
             <input type="checkbox" id="f-consenso-ricerca">
             <span>Consenso ricerca scientifica
               <button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('modal-ricerca-info').style.display='flex'" style="background:none;border:none;font-size:14px;cursor:pointer;padding:0 2px;vertical-align:middle;line-height:1" title="Informativa GDPR">ℹ️</button>
@@ -1038,7 +1034,7 @@
       const textIds = ['f-nome','f-cognome','f-email','f-telefono','f-data-nascita','f-codice-fiscale','f-indirizzo','f-citta','f-cap','f-professione','f-sport-praticato','f-allergie','f-farmaci','f-patologie','f-interventi','f-medico-curante','f-specialista','f-problema','f-note']
       textIds.forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
       ;['f-sesso','f-mano-dominante','f-attivita-sportiva'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
-      const cb = document.getElementById('f-consenso-privacy'); if (cb) cb.checked = false
+      const cbRic = document.getElementById('f-consenso-ricerca'); if (cbRic) cbRic.checked = false
       document.querySelectorAll('#modal-box .acc-chip.active').forEach(c => c.classList.remove('active'))
       const sr = document.getElementById('f-sport-row'); if (sr) sr.style.display = 'none'
       document.getElementById('referto-loading').style.display = 'none'
@@ -1133,15 +1129,11 @@
       }
 
       try {
-        const consenso = document.getElementById('f-consenso-privacy').checked
         const consenso_ricerca = document.getElementById('f-consenso-ricerca').checked
 
-        // Blocco obbligatorio: il consenso privacy firmato e' una dichiarazione necessaria
-        if (!consenso) {
-          ripristinaBottone()
-          alert('ATTENZIONE: non hai confermato di aver raccolto il consenso firmato del paziente al trattamento dei suoi dati personali e sanitari.\n\nSpuntando la casella dichiari, sotto la tua responsabilita, di aver acquisito tale consenso dal paziente. Una dichiarazione non veritiera ricade sotto la tua esclusiva responsabilita.\n\nPer proseguire devi spuntare la casella.')
-          return
-        }
+        // Il consenso al trattamento non e' piu' una dichiarazione del professionista:
+        // dopo la creazione, il paziente firmera' direttamente via consenso-paziente.html
+        // (Blocco 3 — nuovo flusso firma tablet / cartaceo).
         const payload = {
           professional_id: currentProfessionalId,
           nome, cognome,
@@ -1163,8 +1155,6 @@
           interventi_chirurgici: document.getElementById('f-interventi').value.trim() || null,
           medico_curante: document.getElementById('f-medico-curante').value.trim() || null,
           specialista_inviante: document.getElementById('f-specialista').value.trim() || null,
-          consenso_privacy: consenso,
-          consenso_privacy_data: consenso ? new Date().toISOString() : null,
           consenso_ricerca,
           consenso_ricerca_data: consenso_ricerca ? new Date().toISOString() : null,
           problema_principale: document.getElementById('f-problema').value.trim() || null,
@@ -1190,25 +1180,12 @@
         }
 
         if (inserted) {
-          // Registra la dichiarazione del professionista nello storico consensi (immutabile)
-          try {
-            await _supabase.from('consents').insert({
-              soggetto_tipo: 'professionista',
-              professional_id: currentProfessionalId,
-              patient_id: inserted.id,
-              documento: 'dichiarazione_consenso_paziente',
-              versione: '1.0',
-              caselle: { consenso_privacy_firmato: true, consenso_ricerca: consenso_ricerca },
-              user_agent: navigator.userAgent
-            })
-          } catch (cErr) { console.warn('[consents] registrazione dichiarazione fallita:', cErr) }
-
           trackRecentPatient(inserted.id)
-          window.location.href = 'paziente.html?id=' + inserted.id
+          mostraModalConsensoNewPaz(inserted.id)
         } else {
           const { data: nuovo } = await _supabase.from('patients').select('id').eq('professional_id', currentProfessionalId).order('created_at', { ascending: false }).limit(1).maybeSingle()
           if (nuovo) {
-            window.location.href = 'paziente.html?id=' + nuovo.id
+            mostraModalConsensoNewPaz(nuovo.id)
           } else {
             closeModal(); loadPatients(); loadStats()
             ripristinaBottone()
@@ -1221,6 +1198,30 @@
       }
     }
     function goToPatient(id) { trackRecentPatient(id); window.location.href = 'paziente.html?id=' + id }
+
+    // ── Modal "Consenso da raccogliere" (dopo la creazione di un nuovo paziente) ──
+    let _cnpPatientId = null
+    function mostraModalConsensoNewPaz(patientId) {
+      if (!patientId) return
+      _cnpPatientId = patientId
+      // Chiude il modal Nuovo paziente sottostante (con reset campi)
+      try { closeModal() } catch (e) {}
+      document.getElementById('cnp-overlay').classList.add('open')
+    }
+    function cnpRaccogliOra() {
+      const id = _cnpPatientId
+      _cnpPatientId = null
+      document.getElementById('cnp-overlay').classList.remove('open')
+      if (id) window.location.href = 'consenso-paziente.html?pid=' + id
+    }
+    function cnpPiuTardi() {
+      const id = _cnpPatientId
+      _cnpPatientId = null
+      document.getElementById('cnp-overlay').classList.remove('open')
+      // Redirect comunque alla scheda del paziente appena creato: sulla scheda
+      // resta visibile il pallino sul pulsante Consenso come promemoria.
+      if (id) window.location.href = 'paziente.html?id=' + id
+    }
     async function eliminaPaziente(id, nome) {
       if (!confirm('Eliminare ' + nome + '? Operazione irreversibile.')) return
       await _supabase.from('diary_entries').delete().eq('patient_id', id)
@@ -1643,6 +1644,40 @@
         <button class="dup-btn dup-btn-existing" onclick="dupGoExisting()">Apri scheda esistente</button>
         <button class="dup-btn dup-btn-new" onclick="dupContinueNew()">Continua e crea nuovo</button>
         <button class="dup-btn dup-btn-cancel" onclick="dupCancel()">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .cnp-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9500; align-items:center; justify-content:center; padding:20px; }
+    .cnp-overlay.open { display:flex; }
+    .cnp-box { background:#fff; border-radius:16px; width:min(480px,100%); overflow:hidden; font-family:'Montserrat',sans-serif; box-shadow:0 12px 40px rgba(0,0,0,0.35); }
+    .cnp-head { background:#000; color:#fff; padding:20px 24px; border-bottom:3px solid #FFD008; }
+    .cnp-head-title { font-size:16px; font-weight:700; letter-spacing:0.2px; }
+    .cnp-head-sub { font-size:11px; color:#FFD008; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+    .cnp-body { padding:22px 24px; }
+    .cnp-body p { font-size:13px; color:#333; line-height:1.55; margin:0; }
+    .cnp-body p + p { margin-top:10px; }
+    .cnp-body strong { color:#000; }
+    .cnp-actions { display:flex; gap:10px; padding:0 24px 22px; flex-wrap:wrap; }
+    .cnp-btn-primary { flex:1; min-width:180px; background:#FFD008; color:#000; border:none; padding:13px 18px; border-radius:10px; font-family:'Montserrat',sans-serif; font-size:13px; font-weight:700; cursor:pointer; }
+    .cnp-btn-primary:hover { background:#e6bc00; }
+    .cnp-btn-ghost { background:transparent; border:1.5px solid #ddd; color:#666; padding:13px 18px; border-radius:10px; font-family:'Montserrat',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
+    .cnp-btn-ghost:hover { border-color:#999; color:#000; }
+  </style>
+  <div id="cnp-overlay" class="cnp-overlay" role="dialog" aria-labelledby="cnp-title">
+    <div class="cnp-box" onclick="event.stopPropagation()">
+      <div class="cnp-head">
+        <div class="cnp-head-sub">Nuovo paziente</div>
+        <div class="cnp-head-title" id="cnp-title">✅ Paziente creato — Consenso da raccogliere</div>
+      </div>
+      <div class="cnp-body">
+        <p>I moduli da firmare sono <strong>due</strong>: <strong>consenso informato al trattamento</strong> (necessario) e <strong>consenso all'uso di foto e video</strong> (facoltativo).</p>
+        <p>L'<strong>informativa privacy</strong> è in presa visione.</p>
+      </div>
+      <div class="cnp-actions">
+        <button type="button" class="cnp-btn-primary" onclick="cnpRaccogliOra()">📝 Raccogli consenso ora</button>
+        <button type="button" class="cnp-btn-ghost" onclick="cnpPiuTardi()">Più tardi</button>
       </div>
     </div>
   </div>
