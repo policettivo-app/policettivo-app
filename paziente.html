@@ -507,6 +507,12 @@
     .rf-banner-list li{ margin:0 0 2px; }
     .rf-banner-nota{ margin-top:6px; padding-top:6px; border-top:1px dashed rgba(220,38,38,.35); font-size:13px; color:#7f1d1d; line-height:1.45; }
     .rf-banner-nota-lbl{ font-weight:800; margin-right:4px; }
+    .fv-banner{ background:#fff8e6; border:2px solid #e8a900; border-left-width:6px; color:#7a5b00; border-radius:12px; padding:12px 14px; margin:0 0 12px; display:flex; align-items:center; gap:12px; }
+    .fv-banner[hidden]{ display:none; }
+    .fv-banner-title{ font-weight:800; font-size:13px; color:#7a5b00; letter-spacing:.2px; }
+    .fv-banner-sub{ font-size:12px; color:#8a6900; margin-top:2px; }
+    .fv-banner-action{ margin-left:auto; background:transparent; border:1.5px solid #e8a900; color:#7a5b00; padding:6px 12px; border-radius:6px; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; }
+    .fv-banner-action:hover{ background:#e8a900; color:#000; }
   </style>
 </head>
 <body>
@@ -621,6 +627,14 @@
     <div id="pz-rf-banner" class="rf-banner" role="alert" hidden>
       <div class="rf-banner-title">🚩 Red Flag attive — screening di sicurezza</div>
       <ul class="rf-banner-list" id="pz-rf-list"></ul>
+    </div>
+    <!-- Banner Consenso foto/video non prestato (rifiuto o revoca come ultima riga) -->
+    <div id="pz-fv-banner" class="fv-banner" role="alert" hidden>
+      <div>
+        <div class="fv-banner-title">⚠️ Consenso foto/video non prestato</div>
+        <div class="fv-banner-sub" id="pz-fv-banner-sub">Non acquisire immagini di questo paziente.</div>
+      </div>
+      <button type="button" class="fv-banner-action" onclick="apriConsenso()">Gestisci consenso</button>
     </div>
     <div class="patient-header ds-card pol-stack">
       <div class="pol-phead-id">
@@ -1434,16 +1448,39 @@
     async function aggiornaBadgeConsenso() {
       if (!patientId) return
       try {
-        const { count, error } = await _supabase
+        // Pallino "manca consenso" sul pulsante: nessuna riga in consensi
+        const { count } = await _supabase
           .from('consensi')
           .select('id', { count: 'exact', head: true })
           .eq('patient_id', patientId)
-        if (error) return
         const btn = document.getElementById('btn-consenso')
-        if (!btn) return
-        if (!count || count === 0) btn.classList.add('needs-consent')
-        else btn.classList.remove('needs-consent')
-      } catch (e) { /* silenzioso: il badge e' solo indicativo */ }
+        if (btn) {
+          if (!count || count === 0) btn.classList.add('needs-consent')
+          else btn.classList.remove('needs-consent')
+        }
+
+        // Banner "consenso foto/video non prestato": ultima riga foto/video e' rifiuto o revoca
+        const { data: fvLast } = await _supabase
+          .from('consensi')
+          .select('evento, created_at')
+          .eq('patient_id', patientId)
+          .eq('documento_tipo', 'consenso_foto_video')
+          .order('created_at', { ascending: false })
+          .limit(1)
+        const banner = document.getElementById('pz-fv-banner')
+        const sub    = document.getElementById('pz-fv-banner-sub')
+        if (banner) {
+          const last = (fvLast && fvLast[0]) || null
+          const nonPrestato = last && (last.evento === 'rifiuto' || last.evento === 'revoca')
+          if (nonPrestato) {
+            const dt = new Date(last.created_at).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
+            if (sub) sub.textContent = 'Non acquisire immagini di questo paziente. Ultimo evento: ' + last.evento + ' del ' + dt + '.'
+            banner.hidden = false
+          } else {
+            banner.hidden = true
+          }
+        }
+      } catch (e) { /* silenzioso: badge/banner sono solo indicativi */ }
     }
 
     function _rfEscape(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
