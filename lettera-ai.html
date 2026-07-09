@@ -459,9 +459,13 @@
 </body>
 </html>`
 
+        const { data: { session } } = await _supabase.auth.getSession()
         const resp = await fetch('/api/pdf-render', {
           method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (session ? session.access_token : '')
+          },
           body:    JSON.stringify({ html: fullHtml, filename: 'documento.pdf' }),
         })
 

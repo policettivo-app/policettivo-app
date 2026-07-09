@@ -3129,9 +3129,13 @@ ISTRUZIONI:
       const fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}body{margin:0;background:#fff}</style></head><body>' + previewBody.innerHTML + '</body></html>'
       if (templateEl) { templateEl.style.transform = savedTransform; previewBody.style.height = savedHeight }
 
+      const { data: { session } } = await _sb.auth.getSession()
       const resp = await fetch('/api/pdf-render', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (session ? session.access_token : '')
+        },
         body: JSON.stringify({ html: fullHtml, filename: _vpPdfState.filename })
       })
       if (!resp.ok) {
@@ -3638,9 +3642,13 @@ ISTRUZIONI:
 
     showToast('⏳ Generazione PDF...')
     try {
+      const { data: { session } } = await _sb.auth.getSession()
       const resp = await fetch('/api/pdf-render', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (session ? session.access_token : '')
+        },
         body: JSON.stringify({ html: fullHtml, filename: 'confronto_posturale.pdf' })
       })
       if (!resp.ok) {
