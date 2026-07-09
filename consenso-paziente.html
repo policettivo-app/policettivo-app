@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Policettivo® — Consenso Paziente</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="policettivo-globals.css">
+  <link rel="stylesheet" href="css/policettivo-ui.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/consenso-titolare.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-back:hover { border-color: #FFD008; color: #FFD008; }
+
+    .main { max-width: 780px; margin: 0 auto; padding: 28px 20px 40px; }
+    .patient-header { background: #fff; border-radius: 16px; padding: 22px 26px; border: 1px solid #eee; margin-bottom: 22px; display: flex; align-items: center; gap: 16px; }
+    .patient-avatar { width: 44px; height: 44px; border-radius: 50%; background: #FFD008; color: #000; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+    .patient-name { font-size: 20px; font-weight: 700; color: #000; }
+    .patient-sub { font-size: 12px; color: #888; margin-top: 2px; }
+
+    .section { background: #fff; border-radius: 16px; padding: 26px 28px; border: 1px solid #eee; margin-bottom: 22px; }
+    .section-title { font-size: 13px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 7px; display: inline-block; margin-bottom: 18px; }
+    .section-hint { font-size: 12px; color: #888; margin-bottom: 16px; line-height: 1.5; }
+
+    /* ── 3 CTA grosse (stile hub-card di paziente.html) ── */
+    .cta-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 640px) { .cta-grid { grid-template-columns: 1fr 1fr 1fr; } }
+    .cta-card {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+      border-radius: 14px; padding: 22px 20px; cursor: pointer;
+      border: none; font-family: 'Montserrat', sans-serif;
+      text-align: left; transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08); min-height: 140px;
+    }
+    .cta-card:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(0,0,0,0.14); }
+    .cta-card:active { transform: translateY(0); }
+    .cta-card.primary  { background: #FFD008; color: #000; }
+    .cta-card.dark     { background: #1d1d1f; color: #fff; }
+    .cta-card.ghost    { background: #f7f7f7; color: #666; border: 1.5px solid #eee; }
+    .cta-icon  { font-size: 30px; line-height: 1; }
+    .cta-title { font-size: 16px; font-weight: 700; line-height: 1.2; }
+    .cta-desc  { font-size: 12px; opacity: 0.7; line-height: 1.4; }
+
+    /* ── Lista consensi ── */
+    .cons-list { display: flex; flex-direction: column; gap: 10px; }
+    .cons-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #fafafa; border: 1px solid #eee; border-radius: 10px; }
+    .cons-row-ico { font-size: 20px; flex-shrink: 0; }
+    .cons-row-info { flex: 1; min-width: 0; }
+    .cons-row-title { font-size: 13px; font-weight: 700; color: #000; }
+    .cons-row-meta { font-size: 11px; color: #888; margin-top: 2px; }
+    .cons-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-cons-view { background: transparent; border: 1.5px solid #ddd; color: #666; padding: 5px 11px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .btn-cons-view:hover { border-color: #FFD008; color: #000; }
+    .cons-empty { font-size: 12px; color: #999; padding: 10px 0; text-align: center; }
+
+    .badge-evt { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge-firma        { background: #000; color: #FFD008; }
+    .badge-cartaceo     { background: #eee; color: #666; }
+    .badge-presa_visione{ background: #FFF8CC; color: #997a00; }
+    .badge-rifiuto      { background: #ffe4e4; color: #b32a2a; }
+    .badge-revoca       { background: #f5d6d6; color: #8a1c1c; }
+    .badge-mancante     { background: #f0f0f0; color: #999; }
+
+    /* ── Stato attuale (per documento_tipo) ── */
+    .stato-list { display: flex; flex-direction: column; gap: 10px; }
+    .stato-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #fafafa; border: 1px solid #eee; border-radius: 10px; }
+    .stato-row-info { flex: 1; min-width: 0; }
+    .stato-row-tipo { font-size: 13px; font-weight: 700; color: #000; }
+    .stato-row-meta { font-size: 11px; color: #888; margin-top: 3px; }
+    .stato-row-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+    .btn-stato { background: transparent; border: 1.5px solid #ddd; color: #666; padding: 6px 12px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-stato:hover { border-color: #FFD008; color: #000; }
+    .btn-stato-primary { background: #FFD008; color: #000; border-color: #FFD008; }
+    .btn-stato-primary:hover { background: #e6bc00; border-color: #e6bc00; }
+    .btn-stato-danger { border-color: #d9a4a4; color: #8a1c1c; }
+    .btn-stato-danger:hover { border-color: #b32a2a; color: #b32a2a; }
+    .stato-row.warn { background: #fff4f4; border-color: #ffd6d6; }
+    .stato-row.ok   { background: #f5faf3; border-color: #d5e8d1; }
+
+    .btn-firma-refuse { background: transparent; border: 1.5px solid #d9a4a4; color: #8a1c1c; padding: 12px 18px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-firma-refuse:hover { background: #fff4f4; border-color: #b32a2a; color: #b32a2a; }
+    .firma-refuse-note { font-size: 11px; color: #b32a2a; margin-top: 8px; text-align: center; }
+
+    /* ── View firma tablet (fullscreen verticale) ── */
+    .view-firma { display: none; background: #fff; border-radius: 16px; border: 1px solid #eee; overflow: hidden; }
+    .view-firma.open { display: block; }
+    .firma-head { background: #000; color: #fff; padding: 18px 22px; }
+    .firma-titolare { font-size: 11px; color: #FFD008; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; word-wrap: break-word; }
+    .firma-titolo { font-size: 17px; font-weight: 700; }
+    .firma-versione { font-size: 11px; color: #999; margin-top: 4px; }
+    .firma-step-badge { display: inline-block; background: #FFD008; color: #000; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+    .firma-body { padding: 20px 22px; }
+    .firma-testo { max-height: 40vh; overflow-y: auto; background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 16px; font-size: 13px; color: #333; line-height: 1.65; white-space: pre-wrap; }
+    .firma-testo::-webkit-scrollbar { width: 8px; }
+    .firma-testo::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+    .firma-check { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0; cursor: pointer; }
+    .firma-check input { margin-top: 2px; width: 18px; height: 18px; accent-color: #FFD008; cursor: pointer; flex-shrink: 0; }
+    .firma-check-label { font-size: 13px; color: #333; line-height: 1.5; }
+
+    .firma-canvas-wrap { border: 2px dashed #ccc; border-radius: 12px; background: #fafafa; padding: 8px; position: relative; }
+    .firma-canvas { display: block; width: 100%; height: 200px; background: #fff; border-radius: 8px; touch-action: none; cursor: crosshair; }
+    .firma-canvas-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; color: #bbb; pointer-events: none; }
+    .firma-canvas-hint.hidden { display: none; }
+    .firma-actions { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+    .btn-firma-clear { background: transparent; border: 1.5px solid #ddd; color: #666; padding: 8px 16px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-firma-clear:hover { border-color: #FFD008; color: #000; }
+    .btn-firma-confirm { background: #FFD008; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn-firma-confirm:disabled { background: #eee; color: #aaa; cursor: not-allowed; }
+    .btn-firma-back { background: transparent; border: none; color: #888; font-size: 12px; cursor: pointer; text-decoration: underline; }
+
+    /* ── View cartaceo ── */
+    .view-cartaceo { display: none; }
+    .view-cartaceo.open { display: block; }
+    .cart-choice-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+    .cart-choice { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #fafafa; border: 1.5px solid #eee; border-radius: 10px; cursor: pointer; }
+    .cart-choice input { width: 18px; height: 18px; accent-color: #FFD008; cursor: pointer; }
+    .cart-choice-label { font-size: 13px; font-weight: 600; color: #000; }
+    .cart-attach-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #fffbe6; border: 1.5px solid #FFD008; border-radius: 10px; margin-bottom: 14px; font-size: 12px; color: #333; }
+    .cart-attach-row input[type=file] { display: none; }
+    .btn-cart-attach { background: transparent; border: 1.5px solid #FFD008; color: #000; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .cart-attach-filename { font-size: 11px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cart-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-cart-save { background: #FFD008; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn-cart-save:disabled { background: #eee; color: #aaa; cursor: not-allowed; }
+
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #000; color: #fff; padding: 12px 22px; border-radius: 10px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity 0.2s, transform 0.2s; z-index: 3000; pointer-events: none; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+
+    /* ── Overlay progress ── */
+    .progress-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 4000; align-items: center; justify-content: center; }
+    .progress-overlay.open { display: flex; }
+    .progress-box { background: #fff; border-radius: 14px; padding: 24px 28px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
+    .progress-spinner { width: 32px; height: 32px; border: 3px solid #eee; border-top-color: #FFD008; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-text { font-size: 13px; color: #333; font-weight: 600; }
+
+    .warn { color: #b26b00; font-size: 12px; padding: 8px 12px; background: #fff8dc; border: 1px solid #FFD008; border-radius: 8px; margin-bottom: 12px; }
+
+    @media print { body { background: #fff; } .navbar, .patient-header, .section, .view-firma, .view-cartaceo { display: none !important; } }
+  </style>
+</head>
+<body>
+  <!-- ── NAVBAR ── -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO</span>
+      <span class="navbar-title">Consenso paziente</span>
+    </div>
+    <button class="btn-back" onclick="tornaPaziente()">← Torna al paziente</button>
+  </nav>
+
+  <main class="main">
+    <!-- ── Patient header ── -->
+    <div class="patient-header">
+      <div class="patient-avatar" id="ph-avatar">?</div>
+      <div>
+        <div class="patient-name" id="ph-nome">Caricamento…</div>
+        <div class="patient-sub"  id="ph-sub"></div>
+      </div>
+    </div>
+
+    <!-- ── VISTA HOME: 3 CTA + lista consensi ── -->
+    <div id="view-home">
+      <div class="section">
+        <div class="section-title">Raccolta consenso</div>
+        <div class="section-hint">Scegli come raccogliere il consenso del paziente. Il PDF firmato viene generato in automatico e archiviato nella cartella clinica.</div>
+        <div id="titolare-warn" class="warn" style="display:none">Completa i dati studio (centro, indirizzo, P.IVA, email) in Profilo per far comparire l'intestazione Titolare nei PDF.</div>
+        <div class="cta-grid">
+          <button class="cta-card primary" onclick="apriFlussoFirma()">
+            <span class="cta-icon">🖊️</span>
+            <span class="cta-title">Firma sul tablet</span>
+            <span class="cta-desc">Il paziente firma con il dito. Genero e archivio il PDF.</span>
+          </button>
+          <button class="cta-card dark" onclick="apriFlussoCartaceo()">
+            <span class="cta-icon">📄</span>
+            <span class="cta-title">Già firmato su carta</span>
+            <span class="cta-desc">Registro il consenso cartaceo. Puoi allegare la scansione.</span>
+          </button>
+          <button class="cta-card ghost" onclick="tornaPaziente()">
+            <span class="cta-icon">⏭️</span>
+            <span class="cta-title">Salta per ora</span>
+            <span class="cta-desc">Il promemoria resta acceso finché non registri il consenso.</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Stato attuale</div>
+        <div class="section-hint">Per ciascun documento è mostrato l'esito più recente. Un nuovo consenso o una revoca sovrascrivono lo stato ma non cancellano lo storico.</div>
+        <div id="stato-list" class="stato-list"><div class="cons-empty">Caricamento…</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Storico consensi</div>
+        <div class="section-hint">Registro cronologico immutabile: ogni firma, presa visione, rifiuto, cartaceo o revoca è una riga nuova.</div>
+        <div id="cons-list" class="cons-list"><div class="cons-empty">Caricamento…</div></div>
+      </div>
+    </div>
+
+    <!-- ── VISTA FIRMA (tablet) ── -->
+    <div id="view-firma" class="view-firma section" style="padding:0;margin-bottom:22px">
+      <div class="firma-head">
+        <div class="firma-step-badge" id="firma-step-badge">Step 1 di 3</div>
+        <div class="firma-titolare" id="firma-titolare">Titolare del trattamento: —</div>
+        <div class="firma-titolo"   id="firma-titolo">—</div>
+        <div class="firma-versione" id="firma-versione">v—</div>
+      </div>
+      <div class="firma-body">
+        <div class="firma-testo" id="firma-testo">…</div>
+
+        <label class="firma-check">
+          <input type="checkbox" id="firma-check" onchange="firmaAggiornaConferma()">
+          <span class="firma-check-label" id="firma-check-label">Ho letto e compreso il documento.</span>
+        </label>
+
+        <div id="firma-canvas-block">
+          <div class="firma-canvas-wrap">
+            <canvas id="firma-canvas" class="firma-canvas"></canvas>
+            <div id="firma-canvas-hint" class="firma-canvas-hint">Firma qui col dito o pennino</div>
+          </div>
+          <div class="firma-actions">
+            <button class="btn-firma-clear" onclick="firmaCancella()">🗑️ Cancella firma</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button class="btn-firma-back" onclick="firmaEsci()">Annulla</button>
+              <button class="btn-firma-confirm" id="firma-confirm" onclick="firmaConferma()" disabled>Conferma firma →</button>
+            </div>
+          </div>
+          <div id="firma-refuse-block" style="display:none; margin-top:16px; padding-top:14px; border-top:1px dashed #eee; text-align:center;">
+            <div style="font-size:12px; color:#666; margin-bottom:8px;">Il consenso foto/video è facoltativo. Se il paziente non desidera concederlo:</div>
+            <button class="btn-firma-refuse" onclick="firmaRifiuta()">Non acconsento a foto/video</button>
+            <div class="firma-refuse-note">La scelta viene registrata nel registro consensi e si prosegue.</div>
+          </div>
+        </div>
+
+        <div id="firma-presa-block" style="display:none">
+          <div class="firma-actions">
+            <button class="btn-firma-back" onclick="firmaEsci()">Annulla</button>
+            <button class="btn-firma-confirm" id="firma-presa-btn" onclick="firmaConfermaPresaVisione()" disabled>Continua →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VISTA CARTACEO ── -->
+    <div id="view-cartaceo" class="view-cartaceo section">
+      <div class="section-title">Consenso cartaceo</div>
+      <div class="section-hint">Seleziona i documenti che il paziente ha firmato su carta. Puoi allegare (opzionale) una foto o scansione.</div>
+      <div class="cart-choice-list" id="cart-choice-list"></div>
+      <div class="cart-attach-row">
+        <span style="font-size:16px">📎</span>
+        <span style="flex:1">Allega scansione/foto <em style="color:#888;font-size:11px">(opzionale)</em></span>
+        <label class="btn-cart-attach">
+          Scegli file
+          <input type="file" id="cart-file" accept="image/*,application/pdf" onchange="cartFileScelto()">
+        </label>
+        <span class="cart-attach-filename" id="cart-file-name"></span>
+      </div>
+      <div class="cart-actions">
+        <button class="btn-firma-back" onclick="cartEsci()" style="padding:10px 14px">Annulla</button>
+        <button class="btn-cart-save" id="cart-save-btn" onclick="cartSalva()">Registra come cartaceo</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Progress overlay ── -->
+  <div class="progress-overlay" id="progress-overlay">
+    <div class="progress-box">
+      <div class="progress-spinner"></div>
+      <div class="progress-text" id="progress-text">Elaborazione…</div>
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div id="toast"></div>
+
+  <script>
+    // ── Config ──
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    const params = new URLSearchParams(window.location.search)
+    const patientId = params.get('pid')
+
+    // ── Stato ──
+    let _prof = null           // profilo studio (nome, cognome, centro, indirizzo, ...)
+    let _profId = null
+    let _patient = null
+    let _versioni = {}         // { informativa_privacy: {id, versione, titolo, contenuto}, ... }
+    let _titolareStr = ''
+
+    // Firma flow
+    const FIRMA_ORDER_FULL = ['informativa_privacy', 'consenso_informato', 'consenso_foto_video']
+    let _firmaSeq = FIRMA_ORDER_FULL.slice()   // sequenza attiva (puo' essere ridotta a 1 tipo)
+    let _firmaIdx = 0
+    let _firmaCtx = null
+    let _firmaHasStrokes = false
+    let _firmaDrawing = false
+    let _firmaLast = null
+
+    // Stato corrente (ultima riga per documento_tipo)
+    let _statoCorrente = {}    // { tipo: { evento, created_at, versione, versione_id, pdf_storage_path } }
+    let _consensiAll  = []     // storico completo (desc)
+
+    // Cartaceo
+    let _cartFile = null
+
+    // Etichette condivise
+    const LABEL_TIPO = {
+      informativa_privacy: 'Informativa privacy',
+      consenso_informato:  'Consenso trattamento',
+      consenso_foto_video: 'Consenso foto/video'
+    }
+    const LABEL_EVT = {
+      firma:         'firmato',
+      cartaceo:      'cartaceo',
+      presa_visione: 'presa visione',
+      rifiuto:       'rifiutato',
+      revoca:        'revocato'
+    }
+    // Un consenso e' "attivo" (prestato) se ultima riga e' firma/cartaceo/presa_visione
+    const EVT_ATTIVO = { firma: true, cartaceo: true, presa_visione: true }
+
+    // ── Escape HTML ──
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+    // ── Toast / progress ──
+    function toast(msg) {
+      const t = document.getElementById('toast')
+      t.textContent = msg
+      t.classList.add('show')
+      setTimeout(function(){ t.classList.remove('show') }, 2400)
+    }
+    function progress(on, text) {
+      const o = document.getElementById('progress-overlay')
+      if (on) {
+        document.getElementById('progress-text').textContent = text || 'Elaborazione…'
+        o.classList.add('open')
+      } else o.classList.remove('open')
+    }
+
+    function tornaPaziente() {
+      if (patientId) window.location.href = 'paziente.html?id=' + patientId
+      else window.location.href = 'dashboard.html'
+    }
+
+    // ── SHA-256 ──
+    async function sha256Hex(buffer) {
+      const hash = await crypto.subtle.digest('SHA-256', buffer)
+      const bytes = new Uint8Array(hash)
+      let out = ''
+      for (let i = 0; i < bytes.length; i++) out += bytes[i].toString(16).padStart(2, '0')
+      return out
+    }
+
+    // ── INIT ──
+    async function init() {
+      if (!patientId) { alert('URL non valido: manca ?pid='); window.location.href = 'dashboard.html'; return }
+      const { data: { session } } = await _sb.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+
+      const { data: prof } = await _sb
+        .from('professionals')
+        .select('id, nome, cognome, centro, indirizzo, citta, partita_iva, email_studio')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+      if (!prof) { alert('Profilo professionista non trovato.'); window.location.href = 'dashboard.html'; return }
+      _prof = prof
+      _profId = prof.id
+
+      const { data: pat, error: patErr } = await _sb
+        .from('patients')
+        .select('id, nome, cognome, data_nascita, codice_fiscale')
+        .eq('id', patientId)
+        .maybeSingle()
+      if (patErr || !pat) { alert('Paziente non trovato.'); window.location.href = 'dashboard.html'; return }
+      _patient = pat
+
+      renderPatientHeader()
+
+      _titolareStr = (typeof window.buildTitolareBlock === 'function') ? window.buildTitolareBlock(prof) : ''
+      if (!_titolareStr) document.getElementById('titolare-warn').style.display = 'block'
+
+      await caricaVersioniAttive()
+      await caricaConsensiEsistenti()
+    }
+
+    function renderPatientHeader() {
+      const iniz = ((_patient.nome || '?')[0] + (_patient.cognome || '')[0] || '?').toUpperCase()
+      document.getElementById('ph-avatar').textContent = iniz
+      document.getElementById('ph-nome').textContent = (_patient.nome || '') + ' ' + (_patient.cognome || '')
+      const sub = []
+      if (_patient.data_nascita) {
+        try {
+          const eta = Math.floor((Date.now() - new Date(_patient.data_nascita)) / (365.25 * 24 * 3600 * 1000))
+          if (isFinite(eta)) sub.push(eta + ' anni')
+        } catch(e) {}
+      }
+      if (_patient.codice_fiscale) sub.push('CF ' + _patient.codice_fiscale)
+      document.getElementById('ph-sub').textContent = sub.join(' · ')
+    }
+
+    // ── Versioni attive (prof se esiste, altrimenti globale) ──
+    async function caricaVersioniAttive() {
+      const tipi = FIRMA_ORDER_FULL
+      const { data, error } = await _sb
+        .from('documenti_versioni')
+        .select('id, professional_id, tipo, versione, titolo, contenuto, attiva, created_at')
+        .in('tipo', tipi)
+        .or('professional_id.eq.' + _profId + ',professional_id.is.null')
+        .order('created_at', { ascending: false })
+      if (error) { console.error('[versioni] error', error); toast('Errore caricamento versioni: ' + error.message); return }
+      _versioni = {}
+      tipi.forEach(function(t){
+        const rows = (data || []).filter(function(r){ return r.tipo === t })
+        const activeProf   = rows.find(function(r){ return r.professional_id === _profId && r.attiva === true })
+        const activeGlobal = rows.find(function(r){ return r.professional_id == null && r.attiva === true })
+        _versioni[t] = activeProf || activeGlobal || null
+      })
+    }
+
+    // ── Consensi esistenti (sola lettura) ──
+    async function caricaConsensiEsistenti() {
+      const box = document.getElementById('cons-list')
+      box.innerHTML = '<div class="cons-empty">Caricamento…</div>'
+      const { data, error } = await _sb
+        .from('consensi')
+        .select('id, documento_tipo, documento_versione_id, evento, pdf_storage_path, created_at, meta')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
+      if (error) {
+        console.error('[consensi] error', error)
+        box.innerHTML = '<div class="cons-empty">Errore caricamento: ' + esc(error.message) + '</div>'
+        document.getElementById('stato-list').innerHTML = '<div class="cons-empty">Errore caricamento</div>'
+        return
+      }
+      _consensiAll = data || []
+
+      // Stato corrente per tipo = ultima riga (data e' desc, prendo la prima trovata)
+      _statoCorrente = {}
+      _consensiAll.forEach(function(r){
+        if (!_statoCorrente[r.documento_tipo]) _statoCorrente[r.documento_tipo] = r
+      })
+      renderStatoCorrente()
+
+      if (!_consensiAll.length) {
+        box.innerHTML = '<div class="cons-empty">Nessun consenso registrato per questo paziente.</div>'
+        return
+      }
+      const iconEvt = { firma: '🖊️', cartaceo: '📄', presa_visione: '👁️', rifiuto: '🚫', revoca: '⛔' }
+      box.innerHTML = _consensiAll.map(function(r){
+        const dt = new Date(r.created_at).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+        const tipoLab = LABEL_TIPO[r.documento_tipo] || r.documento_tipo || '—'
+        const evt = r.evento || '—'
+        const evtLab = LABEL_EVT[evt] || evt.replace('_', ' ')
+        const badge = '<span class="badge-evt badge-' + esc(evt) + '">' + esc(evtLab) + '</span>'
+        const dl = r.pdf_storage_path
+          ? '<button class="btn-cons-view" onclick="scaricaPdf(\'' + esc(r.pdf_storage_path) + '\')">📥 PDF</button>'
+          : ''
+        return '<div class="cons-row">' +
+                 '<div class="cons-row-ico">' + (iconEvt[evt] || '📎') + '</div>' +
+                 '<div class="cons-row-info">' +
+                   '<div class="cons-row-title">' + esc(tipoLab) + ' ' + badge + '</div>' +
+                   '<div class="cons-row-meta">' + esc(dt) + '</div>' +
+                 '</div>' +
+                 '<div class="cons-row-actions">' + dl + '</div>' +
+               '</div>'
+      }).join('')
+    }
+
+    // Rende lo "Stato attuale" per ciascun documento_tipo (ultima riga).
+    function renderStatoCorrente() {
+      const box = document.getElementById('stato-list')
+      if (!box) return
+      box.innerHTML = FIRMA_ORDER_FULL.map(function(tipo){
+        const r = _statoCorrente[tipo]
+        const evt = r ? r.evento : null
+        const evtLab = evt ? (LABEL_EVT[evt] || evt) : 'non registrato'
+        const badge = '<span class="badge-evt badge-' + (evt || 'mancante') + '">' + esc(evtLab) + '</span>'
+        const dt = r ? new Date(r.created_at).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : ''
+        const meta = r ? ('Ultimo aggiornamento: ' + dt + (r.meta && r.meta.versione ? ' — v' + esc(r.meta.versione) : '')) : 'Nessun evento registrato'
+
+        const isAttivo = evt && EVT_ATTIVO[evt]
+        const rowClass = 'stato-row' +
+          (tipo === 'consenso_foto_video' && !isAttivo ? ' warn' : '') +
+          (tipo === 'consenso_informato' && isAttivo ? ' ok' : '')
+
+        // Azioni: revoca se attivo; per foto/video se manca/rifiutato/revocato mostra "Acquisisci ora"
+        const actions = []
+        if (isAttivo) {
+          actions.push('<button class="btn-stato btn-stato-danger" onclick="revocaConsenso(\'' + tipo + '\')">Revoca</button>')
+        }
+        if (tipo === 'consenso_foto_video' && !isAttivo) {
+          actions.push('<button class="btn-stato btn-stato-primary" onclick="apriFlussoFirmaSolo(\'consenso_foto_video\')">🖊️ Acquisisci ora</button>')
+        }
+        if (tipo === 'consenso_informato' && !isAttivo) {
+          actions.push('<button class="btn-stato btn-stato-primary" onclick="apriFlussoFirmaSolo(\'consenso_informato\')">🖊️ Acquisisci ora</button>')
+        }
+
+        return '<div class="' + rowClass + '">' +
+                 '<div class="stato-row-info">' +
+                   '<div class="stato-row-tipo">' + esc(LABEL_TIPO[tipo] || tipo) + ' ' + badge + '</div>' +
+                   '<div class="stato-row-meta">' + esc(meta) + '</div>' +
+                 '</div>' +
+                 '<div class="stato-row-actions">' + actions.join('') + '</div>' +
+               '</div>'
+      }).join('')
+    }
+
+    // Revoca: NUOVA riga append-only con evento='revoca'. Non tocca lo storico.
+    async function revocaConsenso(tipo) {
+      const attuale = _statoCorrente[tipo]
+      if (!attuale) return
+      const label = LABEL_TIPO[tipo] || tipo
+      if (!confirm('Revocare il "' + label + '"?\n\nVerrà scritta una nuova riga di revoca. Lo storico dei consensi precedenti resta intatto.')) return
+      progress(true, 'Registrazione revoca…')
+      const { error } = await _sb.from('consensi').insert({
+        patient_id: patientId,
+        professional_id: _profId,
+        visit_id: null,
+        documento_tipo: tipo,
+        documento_versione_id: attuale.documento_versione_id || null,
+        evento: 'revoca',
+        firma_png: null,
+        pdf_storage_path: null,
+        pdf_hash: null,
+        ip: null,
+        user_agent: navigator.userAgent,
+        meta: {
+          nome_paziente: (_patient.nome || '') + ' ' + (_patient.cognome || ''),
+          revoca_di_consenso_id: attuale.id,
+          revoca_di_evento: attuale.evento,
+          revoca_di_created_at: attuale.created_at
+        }
+      })
+      progress(false)
+      if (error) { alert('Errore revoca: ' + error.message); return }
+      toast('Revoca registrata')
+      await caricaConsensiEsistenti()
+    }
+
+    async function scaricaPdf(storagePath) {
+      try {
+        const { data, error } = await _sb.storage.from('clinical-docs').createSignedUrl(storagePath, 3600)
+        if (error || !data) { toast('PDF non disponibile'); return }
+        window.open(data.signedUrl, '_blank')
+      } catch(e) { toast('Errore apertura PDF') }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  FLUSSO FIRMA TABLET
+    // ══════════════════════════════════════════════════════════════
+    function apriFlussoFirma() {
+      // Verifica versioni disponibili
+      const mancanti = FIRMA_ORDER_FULL.filter(function(t){ return !_versioni[t] })
+      if (mancanti.length) {
+        alert('Manca la versione attiva per: ' + mancanti.map(function(t){ return LABEL_TIPO[t] || t }).join(', ') + '.\nApri il tuo Profilo → Documenti privacy per crearle.')
+        return
+      }
+      _firmaSeq = FIRMA_ORDER_FULL.slice()
+      _firmaIdx = 0
+      document.getElementById('view-home').style.display = 'none'
+      document.getElementById('view-firma').classList.add('open')
+      mostraDocCorrente()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    // Firma di un singolo documento (es. "Acquisisci consenso foto/video ora")
+    function apriFlussoFirmaSolo(tipo) {
+      if (!_versioni[tipo]) {
+        alert('Manca la versione attiva per: ' + (LABEL_TIPO[tipo] || tipo) + '. Apri Profilo → Documenti privacy.')
+        return
+      }
+      _firmaSeq = [tipo]
+      _firmaIdx = 0
+      document.getElementById('view-home').style.display = 'none'
+      document.getElementById('view-firma').classList.add('open')
+      mostraDocCorrente()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    function firmaEsci() {
+      if (_firmaHasStrokes && !confirm('Annullare la firma in corso? La firma non verrà salvata.')) return
+      document.getElementById('view-firma').classList.remove('open')
+      document.getElementById('view-home').style.display = ''
+      firmaCancella()
+    }
+
+    function mostraDocCorrente() {
+      const tipo = _firmaSeq[_firmaIdx]
+      const v = _versioni[tipo]
+      const label = LABEL_TIPO[tipo] || tipo
+      document.getElementById('firma-step-badge').textContent = 'Step ' + (_firmaIdx + 1) + ' di ' + _firmaSeq.length
+      document.getElementById('firma-titolare').textContent = _titolareStr || 'Titolare del trattamento: (compila i dati studio in Profilo)'
+      document.getElementById('firma-titolo').textContent = v.titolo || label
+      document.getElementById('firma-versione').textContent = 'v' + (v.versione || '?')
+      document.getElementById('firma-testo').textContent = v.contenuto || '(contenuto vuoto)'
+      document.getElementById('firma-check').checked = false
+
+      // Il primo step (informativa) e' solo presa visione: niente canvas
+      const isPresaVisione = (tipo === 'informativa_privacy')
+      const isFotoVideo    = (tipo === 'consenso_foto_video')
+      document.getElementById('firma-canvas-block').style.display = isPresaVisione ? 'none' : ''
+      document.getElementById('firma-presa-block').style.display = isPresaVisione ? '' : 'none'
+      document.getElementById('firma-refuse-block').style.display = isFotoVideo ? '' : 'none'
+      document.getElementById('firma-check-label').textContent = isPresaVisione
+        ? 'Il paziente dichiara di aver letto e compreso l\'informativa privacy.'
+        : 'Il paziente dichiara di aver letto e compreso il documento.'
+
+      if (!isPresaVisione) initCanvas()
+      firmaAggiornaConferma()
+    }
+
+    // ── Canvas firma ──
+    function initCanvas() {
+      const c = document.getElementById('firma-canvas')
+      const dpr = window.devicePixelRatio || 1
+      const rect = c.getBoundingClientRect()
+      c.width  = Math.floor(rect.width  * dpr)
+      c.height = Math.floor(rect.height * dpr)
+      _firmaCtx = c.getContext('2d')
+      _firmaCtx.scale(dpr, dpr)
+      _firmaCtx.lineCap = 'round'
+      _firmaCtx.lineJoin = 'round'
+      _firmaCtx.strokeStyle = '#000'
+      _firmaCtx.lineWidth = 2.2
+      _firmaHasStrokes = false
+      document.getElementById('firma-canvas-hint').classList.remove('hidden')
+
+      c.onpointerdown = firmaStart
+      c.onpointermove = firmaMove
+      c.onpointerup   = firmaEnd
+      c.onpointercancel = firmaEnd
+      c.onpointerleave  = function(e){ if (_firmaDrawing) firmaEnd(e) }
+    }
+    function firmaPos(e) {
+      const c = document.getElementById('firma-canvas')
+      const rect = c.getBoundingClientRect()
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    }
+    function firmaStart(e) {
+      e.preventDefault()
+      const c = document.getElementById('firma-canvas')
+      try { c.setPointerCapture(e.pointerId) } catch(_) {}
+      _firmaDrawing = true
+      _firmaLast = firmaPos(e)
+      document.getElementById('firma-canvas-hint').classList.add('hidden')
+    }
+    function firmaMove(e) {
+      if (!_firmaDrawing) return
+      e.preventDefault()
+      const p = firmaPos(e)
+      _firmaCtx.beginPath()
+      _firmaCtx.moveTo(_firmaLast.x, _firmaLast.y)
+      _firmaCtx.lineTo(p.x, p.y)
+      _firmaCtx.stroke()
+      _firmaLast = p
+      _firmaHasStrokes = true
+      firmaAggiornaConferma()
+    }
+    function firmaEnd(e) {
+      _firmaDrawing = false
+      _firmaLast = null
+    }
+    function firmaCancella() {
+      const c = document.getElementById('firma-canvas')
+      if (!c || !_firmaCtx) return
+      _firmaCtx.clearRect(0, 0, c.width, c.height)
+      _firmaHasStrokes = false
+      document.getElementById('firma-canvas-hint').classList.remove('hidden')
+      firmaAggiornaConferma()
+    }
+
+    function firmaAggiornaConferma() {
+      const tipo = _firmaSeq[_firmaIdx]
+      const isPresa = (tipo === 'informativa_privacy')
+      const checked = document.getElementById('firma-check').checked
+      if (isPresa) {
+        document.getElementById('firma-presa-btn').disabled = !checked
+      } else {
+        document.getElementById('firma-confirm').disabled = !(checked && _firmaHasStrokes)
+      }
+    }
+
+    async function firmaConfermaPresaVisione() {
+      const tipo = _firmaSeq[_firmaIdx]
+      const v = _versioni[tipo]
+      progress(true, 'Registrazione presa visione…')
+      const { error } = await _sb.from('consensi').insert({
+        patient_id: patientId,
+        professional_id: _profId,
+        visit_id: null,
+        documento_tipo: tipo,
+        documento_versione_id: v.id,
+        evento: 'presa_visione',
+        firma_png: null,
+        pdf_storage_path: null,
+        pdf_hash: null,
+        ip: null,
+        user_agent: navigator.userAgent,
+        meta: {
+          nome_paziente: (_patient.nome || '') + ' ' + (_patient.cognome || ''),
+          versione: v.versione || null,
+          titolo:   v.titolo || null
+        }
+      })
+      progress(false)
+      if (error) { alert('Errore salvataggio: ' + error.message); return }
+      _firmaIdx++
+      if (_firmaIdx >= _firmaSeq.length) {
+        finishFlussoFirma()
+      } else {
+        mostraDocCorrente()
+      }
+    }
+
+    // Rifiuto del consenso foto/video (facoltativo per GDPR)
+    async function firmaRifiuta() {
+      const tipo = _firmaSeq[_firmaIdx]
+      if (tipo !== 'consenso_foto_video') return
+      if (!confirm('Registrare il rifiuto del consenso foto/video? La scelta verrà scritta nel registro e si prosegue.')) return
+      const v = _versioni[tipo]
+      progress(true, 'Registrazione rifiuto…')
+      const { error } = await _sb.from('consensi').insert({
+        patient_id: patientId,
+        professional_id: _profId,
+        visit_id: null,
+        documento_tipo: tipo,
+        documento_versione_id: v ? v.id : null,
+        evento: 'rifiuto',
+        firma_png: null,
+        pdf_storage_path: null,
+        pdf_hash: null,
+        ip: null,
+        user_agent: navigator.userAgent,
+        meta: {
+          nome_paziente: (_patient.nome || '') + ' ' + (_patient.cognome || ''),
+          versione: v ? v.versione : null,
+          titolo:   v ? v.titolo   : null
+        }
+      })
+      progress(false)
+      if (error) { alert('Errore salvataggio: ' + error.message); return }
+      firmaCancella()
+      _firmaIdx++
+      if (_firmaIdx >= _firmaSeq.length) {
+        finishFlussoFirma()
+      } else {
+        mostraDocCorrente()
+      }
+    }
+
+    async function firmaConferma() {
+      const tipo = _firmaSeq[_firmaIdx]
+      const v = _versioni[tipo]
+      if (!_firmaHasStrokes) { toast('Firma vuota'); return }
+
+      const canvas = document.getElementById('firma-canvas')
+      const firmaDataUrl = canvas.toDataURL('image/png')
+
+      const label = LABEL_TIPO[tipo] || tipo
+
+      const nomePaz = (_patient.nome || '') + ' ' + (_patient.cognome || '')
+      const dataOra = new Date().toLocaleString('it-IT', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
+      const html = buildPdfHtml({
+        titolareStr: _titolareStr,
+        titoloDoc:   v.titolo || label,
+        versione:    v.versione || '',
+        contenuto:   v.contenuto || '',
+        nomePaz:     nomePaz,
+        cfPaz:       _patient.codice_fiscale || '',
+        patientId:   patientId,
+        professionalId: _profId,
+        professionalName: [(_prof && _prof.nome) || '', (_prof && _prof.cognome) || ''].filter(Boolean).join(' '),
+        dataOra:     dataOra,
+        firmaDataUrl: firmaDataUrl
+      })
+
+      try {
+        progress(true, 'Generazione PDF…')
+        const resp = await fetch('/api/pdf-render', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ html: html, filename: 'consenso.pdf' })
+        })
+        if (!resp.ok) {
+          const err = await resp.json().catch(function(){ return {} })
+          throw new Error(err.error || ('HTTP ' + resp.status))
+        }
+        const pdfBlob = await resp.blob()
+        const pdfBuf  = await pdfBlob.arrayBuffer()
+        const pdfHash = await sha256Hex(pdfBuf)
+
+        progress(true, 'Caricamento nel bucket…')
+        const ts   = Date.now()
+        const path = 'consensi/' + patientId + '/' + tipo + '_' + ts + '.pdf'
+        const { error: upErr } = await _sb.storage
+          .from('clinical-docs')
+          .upload(path, pdfBuf, { contentType: 'application/pdf', upsert: false })
+        if (upErr) throw upErr
+
+        // URL pubblico (bucket privato -> serve signed url per la visualizzazione, ma il campo file_url in clinical_documents accetta url pubblica generica)
+        const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
+        const fileUrl = (urlData && urlData.publicUrl) || null
+
+        progress(true, 'Registrazione consenso…')
+        const { error: insErr } = await _sb.from('consensi').insert({
+          patient_id: patientId,
+          professional_id: _profId,
+          visit_id: null,
+          documento_tipo: tipo,
+          documento_versione_id: v.id,
+          evento: 'firma',
+          firma_png: firmaDataUrl,
+          pdf_storage_path: path,
+          pdf_hash: pdfHash,
+          ip: null,
+          user_agent: navigator.userAgent,
+          meta: {
+            nome_paziente: nomePaz,
+            versione: v.versione || null,
+            titolo:   v.titolo || null,
+            filename: 'consenso_' + tipo + '_' + ts + '.pdf'
+          }
+        })
+        if (insErr) throw insErr
+
+        // Registrazione anche in clinical_documents (cartella clinica)
+        const clientToken = (crypto.randomUUID && crypto.randomUUID()) || (String(Date.now()) + Math.random())
+        const { error: cdErr } = await _sb.from('clinical_documents').insert({
+          patient_id: patientId,
+          professional_id: _profId,
+          tipo: 'consenso',
+          descrizione: label + ' (v' + (v.versione || '?') + ')',
+          file_url: fileUrl,
+          file_type: 'application/pdf',
+          file_hash: pdfHash,
+          client_token: clientToken
+        })
+        if (cdErr && cdErr.code !== '23505') console.warn('[clinical_documents] insert non bloccante:', cdErr)
+
+        progress(false)
+        firmaCancella()
+        _firmaIdx++
+        if (_firmaIdx >= _firmaSeq.length) {
+          finishFlussoFirma()
+        } else {
+          mostraDocCorrente()
+        }
+      } catch(e) {
+        progress(false)
+        console.error('[firma]', e)
+        alert('Errore: ' + (e && e.message ? e.message : 'sconosciuto'))
+      }
+    }
+
+    function finishFlussoFirma() {
+      document.getElementById('view-firma').classList.remove('open')
+      document.getElementById('view-home').style.display = ''
+      toast('✅ Consensi registrati')
+      caricaConsensiEsistenti()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    // ── Template HTML del PDF ──
+    function buildPdfHtml(o) {
+      const safe = function(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+      const contenutoHtml = safe(o.contenuto).replace(/\n/g, '<br>')
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + safe(o.titoloDoc) + '</title>' +
+        '<style>' +
+        '*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}' +
+        'body{margin:0;background:#fff;font-family:"Helvetica","Arial",sans-serif;color:#000}' +
+        '.page{max-width:720px;margin:0 auto;padding:32px 40px}' +
+        '.hdr{border-bottom:2px solid #FFD008;padding-bottom:14px;margin-bottom:20px}' +
+        '.hdr .titolare{font-size:11px;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:0.6px}' +
+        '.hdr .titolo{font-size:20px;font-weight:700;margin-top:6px}' +
+        '.hdr .ver{font-size:11px;color:#666;margin-top:2px}' +
+        '.paz{background:#fafafa;border-left:3px solid #FFD008;padding:10px 14px;margin:18px 0;font-size:12px}' +
+        '.paz b{color:#000}' +
+        '.contenuto{font-size:13px;line-height:1.7;color:#222;white-space:normal}' +
+        '.firma-box{margin-top:34px;padding:18px 22px;border:1px solid #ddd;border-radius:8px;background:#fff}' +
+        '.firma-lbl{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px}' +
+        '.firma-img{max-width:340px;max-height:120px;display:block}' +
+        '.meta{margin-top:26px;font-size:10px;color:#555;line-height:1.6}' +
+        '.meta b{color:#000}' +
+        '.foot{margin-top:30px;padding-top:12px;border-top:1px solid #eee;font-size:9px;color:#999;text-align:center}' +
+        '</style></head><body><div class="page">' +
+        '<div class="hdr">' +
+          '<div class="titolare">' + safe(o.titolareStr || 'Titolare del trattamento') + '</div>' +
+          '<div class="titolo">' + safe(o.titoloDoc) + '</div>' +
+          '<div class="ver">Versione ' + safe(o.versione) + '</div>' +
+        '</div>' +
+        '<div class="paz">' +
+          '<b>Paziente:</b> ' + safe(o.nomePaz) +
+          (o.cfPaz ? ' — CF <b>' + safe(o.cfPaz) + '</b>' : '') +
+        '</div>' +
+        '<div class="contenuto">' + contenutoHtml + '</div>' +
+        '<div class="firma-box">' +
+          '<div class="firma-lbl">Firma del paziente</div>' +
+          '<img class="firma-img" src="' + o.firmaDataUrl + '" alt="firma">' +
+        '</div>' +
+        '<div class="meta">' +
+          '<b>Data e ora firma:</b> ' + safe(o.dataOra) + '<br>' +
+          '<b>ID paziente:</b> ' + safe(o.patientId) + '<br>' +
+          '<b>ID professionista:</b> ' + safe(o.professionalId) +
+          (o.professionalName ? ' — ' + safe(o.professionalName) : '') +
+        '</div>' +
+        '<div class="foot">Documento generato da Policettivo® — versione ' + safe(o.versione) + '</div>' +
+        '</div></body></html>'
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  FLUSSO CARTACEO
+    // ══════════════════════════════════════════════════════════════
+    function apriFlussoCartaceo() {
+      const mancanti = ['consenso_informato', 'consenso_foto_video'].filter(function(t){ return !_versioni[t] })
+      if (mancanti.length) {
+        alert('Manca la versione attiva per: ' + mancanti.join(', ') + '.\nApri il tuo Profilo → Documenti privacy per crearle.')
+        return
+      }
+      _cartFile = null
+      document.getElementById('cart-file-name').textContent = ''
+      document.getElementById('cart-file').value = ''
+      document.getElementById('view-home').style.display = 'none'
+      document.getElementById('view-cartaceo').classList.add('open')
+      // Popolo le opzioni (checkbox pre-selezionate per default)
+      const cont = document.getElementById('cart-choice-list')
+      const labels = {
+        consenso_informato:  'Consenso informato',
+        consenso_foto_video: 'Consenso foto/video'
+      }
+      cont.innerHTML = Object.keys(labels).map(function(t){
+        const v = _versioni[t]
+        return '<label class="cart-choice">' +
+                 '<input type="checkbox" data-tipo="' + t + '" checked>' +
+                 '<span class="cart-choice-label">' + labels[t] + (v ? ' <em style="color:#888;font-weight:400;font-size:11px">(v' + esc(v.versione || '?') + ')</em>' : '') + '</span>' +
+               '</label>'
+      }).join('')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    function cartEsci() {
+      document.getElementById('view-cartaceo').classList.remove('open')
+      document.getElementById('view-home').style.display = ''
+    }
+
+    function cartFileScelto() {
+      const inp = document.getElementById('cart-file')
+      _cartFile = (inp.files && inp.files[0]) || null
+      document.getElementById('cart-file-name').textContent = _cartFile ? _cartFile.name : ''
+    }
+
+    async function cartSalva() {
+      const chosen = Array.from(document.querySelectorAll('#cart-choice-list input[type=checkbox]'))
+        .filter(function(el){ return el.checked })
+        .map(function(el){ return el.getAttribute('data-tipo') })
+      if (!chosen.length) { toast('Seleziona almeno un documento'); return }
+
+      const btn = document.getElementById('cart-save-btn')
+      btn.disabled = true
+
+      try {
+        // Se e' stato allegato un file: caricalo una sola volta in clinical_documents
+        // e riusa lo stesso storage_path per tutti i consensi selezionati.
+        let attachPath = null
+        let attachUrl  = null
+        let attachHash = null
+        let attachType = null
+
+        if (_cartFile) {
+          progress(true, 'Caricamento allegato…')
+          const buf = await _cartFile.arrayBuffer()
+          attachHash = await sha256Hex(buf)
+          attachType = _cartFile.type || 'application/octet-stream'
+          const ext  = (_cartFile.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '')
+          const ts   = Date.now()
+          attachPath = 'consensi/' + patientId + '/cartaceo_' + ts + '.' + ext
+          const { error: upErr } = await _sb.storage
+            .from('clinical-docs')
+            .upload(attachPath, buf, { contentType: attachType, upsert: false })
+          if (upErr) throw upErr
+          const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(attachPath)
+          attachUrl = (urlData && urlData.publicUrl) || null
+
+          const clientToken = (crypto.randomUUID && crypto.randomUUID()) || (String(Date.now()) + Math.random())
+          const { error: cdErr } = await _sb.from('clinical_documents').insert({
+            patient_id: patientId,
+            professional_id: _profId,
+            tipo: 'consenso',
+            descrizione: 'Consenso cartaceo (scansione)',
+            file_url: attachUrl,
+            file_type: attachType,
+            file_hash: attachHash,
+            client_token: clientToken
+          })
+          if (cdErr && cdErr.code !== '23505') console.warn('[clinical_documents] scansione insert non bloccante:', cdErr)
+        }
+
+        progress(true, 'Registrazione consenso cartaceo…')
+        const nomePaz = (_patient.nome || '') + ' ' + (_patient.cognome || '')
+        for (let i = 0; i < chosen.length; i++) {
+          const tipo = chosen[i]
+          const v = _versioni[tipo]
+          const { error } = await _sb.from('consensi').insert({
+            patient_id: patientId,
+            professional_id: _profId,
+            visit_id: null,
+            documento_tipo: tipo,
+            documento_versione_id: v ? v.id : null,
+            evento: 'cartaceo',
+            firma_png: null,
+            pdf_storage_path: attachPath,
+            pdf_hash: attachHash,
+            ip: null,
+            user_agent: navigator.userAgent,
+            meta: {
+              nome_paziente: nomePaz,
+              versione: v ? v.versione : null,
+              titolo:   v ? v.titolo   : null,
+              allegato: attachPath || null,
+              data_firma_cartacea: new Date().toISOString().slice(0, 10)
+            }
+          })
+          if (error) throw error
+        }
+
+        progress(false)
+        cartEsci()
+        toast('✅ Consenso cartaceo registrato')
+        caricaConsensiEsistenti()
+      } catch(e) {
+        progress(false)
+        console.error('[cartaceo]', e)
+        alert('Errore: ' + (e && e.message ? e.message : 'sconosciuto'))
+      } finally {
+        btn.disabled = false
+      }
+    }
+
+    // ── Bootstrap ──
+    init().catch(function(e){ console.error('[init]', e); alert('Errore inizializzazione: ' + (e && e.message ? e.message : 'sconosciuto')) })
+  </script>
+</body>
+</html>
