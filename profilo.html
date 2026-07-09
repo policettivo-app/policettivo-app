@@ -123,6 +123,11 @@
     .doc-modal-save { padding: 11px 24px; background: #FFD008; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; }
     .doc-modal-save:hover { background: #e6bc00; }
     .doc-modal-save:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* Box intestazione titolare (auto-generata nel modal) */
+    .doc-titolare-box { background: #f5f5f7; border: 1.5px solid #e5e5e7; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #333; line-height: 1.5; word-wrap: break-word; }
+    .doc-titolare-box.warn { background: #FFF9E5; border-color: #FFE49A; color: #7a5a00; }
+    .doc-titolare-hint { font-size: 11px; color: #999; margin-top: 4px; font-style: italic; }
   </style>
 </head>
 <body>
@@ -251,6 +256,9 @@
     <div class="doc-modal-box">
       <div class="doc-modal-title" id="doc-modal-title">Modifica documento</div>
       <div class="doc-modal-sub" id="doc-modal-sub"></div>
+      <label class="doc-modal-label">Intestazione (auto-generata)</label>
+      <div class="doc-titolare-box" id="doc-modal-titolare">—</div>
+      <div class="doc-titolare-hint">Generata automaticamente dai dati studio del tuo profilo. Modifica i dati studio per aggiornarla — appare sempre in cima al documento mostrato al paziente.</div>
       <label class="doc-modal-label">Titolo</label>
       <input type="text" class="doc-modal-input" id="doc-modal-titolo" maxlength="200">
       <label class="doc-modal-label">Contenuto</label>
@@ -269,6 +277,7 @@
 
     let profId = null
     let _profLogoUrl = null
+    let _profStudio = { centro: '', indirizzo: '', citta: '', partita_iva: '', email_studio: '' }
 
     // ─── LISTINO PREZZI ──────────────────────────────────────────
     // Salvato su professionals.listino (jsonb array).
@@ -428,6 +437,13 @@
 
       profId = prof.id
       _profLogoUrl = prof.logo_url || null
+      _profStudio = {
+        centro:       prof.centro       || '',
+        indirizzo:    prof.indirizzo    || '',
+        citta:        prof.citta        || '',
+        partita_iva:  prof.partita_iva  || '',
+        email_studio: prof.email_studio || ''
+      }
 
       document.getElementById('field-nome').value      = prof.profiles?.nome     || ''
       document.getElementById('field-cognome').value   = prof.profiles?.cognome  || ''
@@ -460,6 +476,25 @@
     let _docSaving = false
 
     function _docEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+    // Compone la riga "Titolare del trattamento: ..." dai dati studio del professionista.
+    // Salta i campi vuoti. Se tutti vuoti restituisce '' (il chiamante mostra un avviso).
+    function buildTitolareBlock(prof) {
+      if (!prof) return ''
+      const centro    = String(prof.centro       || '').trim()
+      const indirizzo = String(prof.indirizzo    || '').trim()
+      const citta     = String(prof.citta        || '').trim()
+      const piva      = String(prof.partita_iva  || '').trim()
+      const email     = String(prof.email_studio || '').trim()
+      const parts = []
+      if (centro) parts.push(centro)
+      const addr = [indirizzo, citta].filter(Boolean).join(', ')
+      if (addr) parts.push(addr)
+      if (piva) parts.push('P.IVA ' + piva)
+      if (email) parts.push(email)
+      if (!parts.length) return ''
+      return 'Titolare del trattamento: ' + parts.join(' — ')
+    }
 
     function _docFormatDate(iso) {
       if (!iso) return ''
@@ -563,6 +598,18 @@
       document.getElementById('doc-modal-title').textContent = 'Modifica: ' + t.label
       const nextVer = _docNextVersione(a ? a.versione : '1.0')
       document.getElementById('doc-modal-sub').textContent = 'Verrà creata la nuova versione v' + nextVer + '. Le versioni precedenti restano nello storico.'
+
+      // Intestazione titolare (auto-generata dai dati studio)
+      const titolareBox = document.getElementById('doc-modal-titolare')
+      const titolare = buildTitolareBlock(_profStudio)
+      if (titolare) {
+        titolareBox.textContent = titolare
+        titolareBox.classList.remove('warn')
+      } else {
+        titolareBox.textContent = 'Compila i dati studio (centro, indirizzo, P.IVA, email) per generare l’intestazione del titolare.'
+        titolareBox.classList.add('warn')
+      }
+
       document.getElementById('doc-modal-titolo').value = a ? (a.titolo || '') : t.label
       document.getElementById('doc-modal-contenuto').value = a ? (a.contenuto || '') : ''
       document.getElementById('doc-modal').classList.add('open')
@@ -655,23 +702,33 @@
       btn.textContent = 'Salvataggio...'
       msg.classList.remove('visible')
 
+      const payload = {
+        qualifica:    document.getElementById('field-qualifica').value,
+        centro:       document.getElementById('field-centro').value,
+        citta:        document.getElementById('field-citta').value,
+        indirizzo:    document.getElementById('field-indirizzo').value,
+        telefono:     document.getElementById('field-telefono').value,
+        email_studio: document.getElementById('edit-email-studio').value,
+        partita_iva:  document.getElementById('edit-piva').value
+      }
       const { error } = await _supabase
         .from('professionals')
-        .update({
-          qualifica:    document.getElementById('field-qualifica').value,
-          centro:       document.getElementById('field-centro').value,
-          citta:        document.getElementById('field-citta').value,
-          indirizzo:    document.getElementById('field-indirizzo').value,
-          telefono:     document.getElementById('field-telefono').value,
-          email_studio: document.getElementById('edit-email-studio').value,
-          partita_iva:  document.getElementById('edit-piva').value
-        })
+        .update(payload)
         .eq('id', profId)
 
       btn.disabled = false
       btn.textContent = 'Salva modifiche'
 
       if (error) { alert('Errore salvataggio: ' + error.message); return }
+
+      // Tengo _profStudio allineato per l'intestazione titolare nei documenti privacy
+      _profStudio = {
+        centro:       payload.centro       || '',
+        indirizzo:    payload.indirizzo    || '',
+        citta:        payload.citta        || '',
+        partita_iva:  payload.partita_iva  || '',
+        email_studio: payload.email_studio || ''
+      }
 
       msg.classList.add('visible')
       setTimeout(() => msg.classList.remove('visible'), 3500)
