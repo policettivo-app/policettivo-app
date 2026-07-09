@@ -85,6 +85,44 @@
     .lst-status.err { color: #e53935; }
     .lst-actions-row { display: flex; align-items: center; gap: 4px; margin-top: 12px; flex-wrap: wrap; }
     .lst-hint { font-size: 12px; color: #999; margin-bottom: 14px; line-height: 1.5; }
+
+    /* Documenti privacy */
+    .doc-hint { font-size: 12px; color: #999; margin-bottom: 14px; line-height: 1.5; }
+    .doc-item { border: 1.5px solid #eee; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; background: #fafafa; }
+    .doc-item-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .doc-item-info { flex: 1; min-width: 180px; }
+    .doc-item-tipo { font-size: 14px; font-weight: 700; color: #000; }
+    .doc-item-ver { font-size: 12px; color: #666; margin-top: 3px; }
+    .doc-item-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .doc-btn { padding: 8px 14px; border: 1.5px solid #ddd; border-radius: 8px; background: #fff; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; color: #000; }
+    .doc-btn:hover { border-color: #FFD008; background: #FFFDF3; }
+    .doc-btn-primary { background: #FFD008; border-color: #FFD008; }
+    .doc-btn-primary:hover { background: #e6bc00; border-color: #e6bc00; }
+    .doc-history { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd; display: none; }
+    .doc-history.open { display: block; }
+    .doc-history-title { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .doc-history-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; font-size: 12px; color: #555; border-bottom: 1px dotted #eee; }
+    .doc-history-row:last-child { border-bottom: none; }
+    .doc-history-row .ver { font-weight: 700; color: #000; min-width: 42px; }
+    .doc-history-row .who { font-style: italic; color: #999; }
+    .doc-history-row .attiva { color: #2e7d32; font-weight: 700; }
+
+    /* Modal editor */
+    .doc-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1000; align-items: flex-start; justify-content: center; padding: 24px 12px; overflow-y: auto; }
+    .doc-modal.open { display: flex; }
+    .doc-modal-box { background: #fff; border-radius: 14px; width: 100%; max-width: 720px; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .doc-modal-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .doc-modal-sub { font-size: 12px; color: #999; margin-bottom: 18px; }
+    .doc-modal-label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; margin-top: 12px; }
+    .doc-modal-input { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; }
+    .doc-modal-input:focus { border-color: #FFD008; }
+    .doc-modal-textarea { width: 100%; padding: 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; line-height: 1.55; outline: none; min-height: 320px; resize: vertical; }
+    .doc-modal-textarea:focus { border-color: #FFD008; }
+    .doc-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+    .doc-modal-cancel { padding: 11px 22px; border: 1.5px solid #ddd; background: #fff; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .doc-modal-save { padding: 11px 24px; background: #FFD008; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; }
+    .doc-modal-save:hover { background: #e6bc00; }
+    .doc-modal-save:disabled { opacity: 0.55; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -195,6 +233,31 @@
       <div class="lst-actions-row">
         <button type="button" class="lst-add-btn" onclick="listinoAdd()">+ Aggiungi voce</button>
         <span class="lst-status" id="lst-status"></span>
+      </div>
+    </div>
+
+    <!-- DOCUMENTI PRIVACY E CONSENSI -->
+    <div class="card">
+      <div class="card-title">Documenti privacy e consensi</div>
+      <p class="doc-hint">Personalizza i testi mostrati al paziente per la firma dei consensi. Ogni modifica crea una nuova versione: le versioni precedenti non vengono mai perse.</p>
+      <div id="doc-list">
+        <div style="color:#bbb;font-size:13px;padding:16px;text-align:center;">Caricamento…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL editor documento -->
+  <div class="doc-modal" id="doc-modal" onclick="if(event.target===this) docModalClose()">
+    <div class="doc-modal-box">
+      <div class="doc-modal-title" id="doc-modal-title">Modifica documento</div>
+      <div class="doc-modal-sub" id="doc-modal-sub"></div>
+      <label class="doc-modal-label">Titolo</label>
+      <input type="text" class="doc-modal-input" id="doc-modal-titolo" maxlength="200">
+      <label class="doc-modal-label">Contenuto</label>
+      <textarea class="doc-modal-textarea" id="doc-modal-contenuto"></textarea>
+      <div class="doc-modal-actions">
+        <button type="button" class="doc-modal-cancel" onclick="docModalClose()">Annulla</button>
+        <button type="button" class="doc-modal-save" id="doc-modal-save-btn" onclick="docModalSave()">Salva nuova versione</button>
       </div>
     </div>
   </div>
@@ -380,7 +443,191 @@
       listinoRender()
 
       _renderLogo()
+      docLoadAll().catch(function(e){ console.error('[docs] load error:', e) })
       document.body.style.visibility = 'visible'
+    }
+
+    // ─── DOCUMENTI PRIVACY (documenti_versioni) ─────────────────────
+    const DOC_TIPI = [
+      { key: 'informativa_privacy',  label: 'Informativa privacy' },
+      { key: 'consenso_informato',   label: 'Consenso informato' },
+      { key: 'consenso_foto_video',  label: 'Consenso foto/video' }
+    ]
+    // Per ciascun tipo: { active: riga attiva mostrata (prof o globale), history: array righe (prof + globali) desc }
+    let docsData = {}
+    let _docHistoryOpen = {}     // { tipo: bool }
+    let _docModalTipo = null
+    let _docSaving = false
+
+    function _docEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+    function _docFormatDate(iso) {
+      if (!iso) return ''
+      try {
+        const d = new Date(iso)
+        return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      } catch(e) { return '' }
+    }
+
+    // Incrementa una versione stringa "1.0" → "1.1", "1.9" → "1.10". Fallback "1.0".
+    function _docNextVersione(current) {
+      const s = String(current == null ? '' : current).trim()
+      if (!s) return '1.1'
+      const parts = s.split('.')
+      const lastIdx = parts.length - 1
+      const last = parseInt(parts[lastIdx], 10)
+      if (!isFinite(last)) return s + '.1'
+      parts[lastIdx] = String(last + 1)
+      return parts.join('.')
+    }
+
+    async function docLoadAll() {
+      if (!profId) return
+      // Carico in un'unica query tutte le righe del prof + tutte le globali (professional_id NULL) per i 3 tipi
+      const tipi = DOC_TIPI.map(function(t){ return t.key })
+      const { data, error } = await _supabase
+        .from('documenti_versioni')
+        .select('id, professional_id, tipo, versione, titolo, contenuto, attiva, created_at')
+        .in('tipo', tipi)
+        .or('professional_id.eq.' + profId + ',professional_id.is.null')
+        .order('created_at', { ascending: false })
+      if (error) {
+        console.error('[docs] load error:', error)
+        const box = document.getElementById('doc-list')
+        if (box) box.innerHTML = '<div style="color:#c62828;font-size:13px;padding:16px;text-align:center;">Errore nel caricamento: ' + _docEsc(error.message) + '</div>'
+        return
+      }
+      docsData = {}
+      DOC_TIPI.forEach(function(t){
+        const rows = (data || []).filter(function(r){ return r.tipo === t.key })
+        // Attiva mostrata: preferisco quella del professionista, altrimenti la globale
+        const activeProf   = rows.find(function(r){ return r.professional_id === profId && r.attiva === true })
+        const activeGlobal = rows.find(function(r){ return r.professional_id == null && r.attiva === true })
+        docsData[t.key] = {
+          active: activeProf || activeGlobal || null,
+          history: rows
+        }
+      })
+      docRenderAll()
+    }
+
+    function docRenderAll() {
+      const box = document.getElementById('doc-list'); if (!box) return
+      box.innerHTML = DOC_TIPI.map(function(t){
+        const info = docsData[t.key] || { active: null, history: [] }
+        const a = info.active
+        const verLabel = a ? ('v' + _docEsc(a.versione || '?') + (a.titolo ? ' · ' + _docEsc(a.titolo) : '')) : 'Nessuna versione disponibile'
+        const isOpen = !!_docHistoryOpen[t.key]
+        const historyHtml = info.history.length
+          ? info.history.map(function(r){
+              const who = (r.professional_id == null) ? 'globale' : 'personalizzata'
+              const attivaLabel = r.attiva ? '<span class="attiva">attiva</span>' : ''
+              return '<div class="doc-history-row">' +
+                       '<span class="ver">v' + _docEsc(r.versione || '?') + '</span>' +
+                       '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _docEsc(r.titolo || '(senza titolo)') + '</span>' +
+                       '<span class="who">' + who + '</span>' +
+                       '<span>' + _docEsc(_docFormatDate(r.created_at)) + '</span>' +
+                       attivaLabel +
+                     '</div>'
+            }).join('')
+          : '<div style="font-size:12px;color:#999;padding:6px 0">Nessuna versione presente.</div>'
+        return '<div class="doc-item">' +
+                 '<div class="doc-item-head">' +
+                   '<div class="doc-item-info">' +
+                     '<div class="doc-item-tipo">' + _docEsc(t.label) + '</div>' +
+                     '<div class="doc-item-ver">' + verLabel + '</div>' +
+                   '</div>' +
+                   '<div class="doc-item-actions">' +
+                     '<button type="button" class="doc-btn doc-btn-primary" onclick="docModalOpen(\'' + t.key + '\')">Modifica testo</button>' +
+                     '<button type="button" class="doc-btn" onclick="docHistoryToggle(\'' + t.key + '\')">' + (isOpen ? 'Nascondi storico' : 'Storico (' + info.history.length + ')') + '</button>' +
+                   '</div>' +
+                 '</div>' +
+                 '<div class="doc-history' + (isOpen ? ' open' : '') + '">' +
+                   '<div class="doc-history-title">Storico versioni</div>' +
+                   historyHtml +
+                 '</div>' +
+               '</div>'
+      }).join('')
+    }
+
+    function docHistoryToggle(tipo) {
+      _docHistoryOpen[tipo] = !_docHistoryOpen[tipo]
+      docRenderAll()
+    }
+
+    function docModalOpen(tipo) {
+      const t = DOC_TIPI.find(function(x){ return x.key === tipo }); if (!t) return
+      const info = docsData[tipo] || { active: null }
+      const a = info.active
+      _docModalTipo = tipo
+      document.getElementById('doc-modal-title').textContent = 'Modifica: ' + t.label
+      const nextVer = _docNextVersione(a ? a.versione : '1.0')
+      document.getElementById('doc-modal-sub').textContent = 'Verrà creata la nuova versione v' + nextVer + '. Le versioni precedenti restano nello storico.'
+      document.getElementById('doc-modal-titolo').value = a ? (a.titolo || '') : t.label
+      document.getElementById('doc-modal-contenuto').value = a ? (a.contenuto || '') : ''
+      document.getElementById('doc-modal').classList.add('open')
+      setTimeout(function(){ try { document.getElementById('doc-modal-titolo').focus() } catch(e){} }, 30)
+    }
+
+    function docModalClose() {
+      if (_docSaving) return
+      document.getElementById('doc-modal').classList.remove('open')
+      _docModalTipo = null
+    }
+
+    async function docModalSave() {
+      if (!profId || !_docModalTipo || _docSaving) return
+      const tipo = _docModalTipo
+      const titolo = String(document.getElementById('doc-modal-titolo').value || '').trim()
+      const contenuto = String(document.getElementById('doc-modal-contenuto').value || '')
+      if (!titolo) { alert('Inserisci un titolo.'); return }
+      if (!contenuto.trim()) { alert('Il contenuto non può essere vuoto.'); return }
+
+      const info = docsData[tipo] || { active: null }
+      const nextVer = _docNextVersione(info.active ? info.active.versione : '1.0')
+
+      const btn = document.getElementById('doc-modal-save-btn')
+      _docSaving = true
+      btn.disabled = true
+      btn.textContent = 'Salvataggio…'
+
+      try {
+        // 1) Disattivo tutte le versioni PRECEDENTI del professionista per questo tipo (non tocco mai le globali)
+        const { error: upErr } = await _supabase
+          .from('documenti_versioni')
+          .update({ attiva: false })
+          .eq('professional_id', profId)
+          .eq('tipo', tipo)
+          .eq('attiva', true)
+        if (upErr) throw upErr
+
+        // 2) Inserisco la nuova versione (attiva=true, professional_id=profId)
+        const { error: insErr } = await _supabase
+          .from('documenti_versioni')
+          .insert({
+            professional_id: profId,
+            tipo: tipo,
+            versione: nextVer,
+            titolo: titolo,
+            contenuto: contenuto,
+            attiva: true
+          })
+        if (insErr) throw insErr
+
+        // 3) Ricarico e chiudo
+        await docLoadAll()
+        _docSaving = false
+        btn.disabled = false
+        btn.textContent = 'Salva nuova versione'
+        document.getElementById('doc-modal').classList.remove('open')
+        _docModalTipo = null
+      } catch(e) {
+        console.error('[docs] save error:', e)
+        _docSaving = false
+        btn.disabled = false
+        btn.textContent = 'Salva nuova versione'
+        alert('Errore nel salvataggio: ' + (e && e.message ? e.message : 'sconosciuto'))
+      }
     }
 
     function _renderLogo() {
