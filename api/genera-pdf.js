@@ -109,12 +109,27 @@ async function handlePosturale(req, res) {
 // ════════════════════════════════════════════════════════════════════════════
 
 async function handleVisita(req, res) {
-  const { visit_id, professional_id, relazione_modalita = 'singola' } = req.body
-  if (!visit_id || !professional_id) {
-    return res.status(400).json({ error: 'visit_id e professional_id richiesti' })
+  const { visit_id, relazione_modalita = 'singola' } = req.body
+  if (!visit_id) {
+    return res.status(400).json({ error: 'visit_id richiesto' })
   }
 
+  const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
+  if (!token) return res.status(401).json({ error: 'Token mancante' })
+
+  const anon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+  const { data: { user }, error: authErr } = await anon.auth.getUser(token)
+  if (authErr || !user) return res.status(401).json({ error: 'Non autenticato' })
+
   const svc = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+
+  const { data: prof } = await svc
+    .from('professionals')
+    .select('id, logo_url, qualifica, profiles(nome, cognome)')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!prof) return res.status(403).json({ error: 'Profilo professionista non trovato' })
 
   const { data: visit, error: visitErr } = await svc
     .from('visits')
@@ -123,18 +138,14 @@ async function handleVisita(req, res) {
     .maybeSingle()
 
   if (visitErr || !visit) return res.status(404).json({ error: 'Visita non trovata' })
-  if (visit.professional_id !== professional_id) {
+  if (visit.professional_id !== prof.id) {
     return res.status(403).json({ error: 'Non autorizzato' })
   }
 
-  const [{ data: patient }, { data: prof }, { data: photos }] = await Promise.all([
+  const [{ data: patient }, { data: photos }] = await Promise.all([
     svc.from('patients')
        .select('nome, cognome, codice_fiscale, data_nascita')
        .eq('id', visit.patient_id)
-       .maybeSingle(),
-    svc.from('professionals')
-       .select('logo_url, qualifica, profiles(nome, cognome)')
-       .eq('id', professional_id)
        .maybeSingle(),
     svc.from('visit_photos')
        .select('id, tipo, url_pubblico, storage_path, note, ordine')
