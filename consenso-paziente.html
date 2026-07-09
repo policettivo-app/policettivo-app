@@ -295,7 +295,8 @@
 
     // ── Stato ──
     let _prof = null           // profilo studio (nome, cognome, centro, indirizzo, ...)
-    let _profId = null
+    let _profId = null         // professionals.id (usata per clinical_documents e documenti_versioni)
+    let _authUid = null        // auth.uid() = session.user.id (usata per consensi.professional_id, RLS)
     let _patient = null
     let _versioni = {}         // { informativa_privacy: {id, versione, titolo, contenuto}, ... }
     let _titolareStr = ''
@@ -369,6 +370,7 @@
       if (!patientId) { alert('URL non valido: manca ?pid='); window.location.href = 'dashboard.html'; return }
       const { data: { session } } = await _sb.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
+      _authUid = session.user.id   // richiesto dalla RLS di consensi (professional_id = auth.uid())
 
       // Stesso pattern di profilo.html: nome/cognome vivono su `profiles`, non su `professionals`.
       const { data: prof, error: profErr } = await _sb
@@ -529,7 +531,7 @@
       progress(true, 'Registrazione revoca…')
       const { error } = await _sb.from('consensi').insert({
         patient_id: patientId,
-        professional_id: _profId,
+        professional_id: _authUid,
         visit_id: null,
         documento_tipo: tipo,
         documento_versione_id: attuale.documento_versione_id || null,
@@ -701,7 +703,7 @@
       progress(true, 'Registrazione presa visione…')
       const { error } = await _sb.from('consensi').insert({
         patient_id: patientId,
-        professional_id: _profId,
+        professional_id: _authUid,
         visit_id: null,
         documento_tipo: tipo,
         documento_versione_id: v.id,
@@ -736,7 +738,7 @@
       progress(true, 'Registrazione rifiuto…')
       const { error } = await _sb.from('consensi').insert({
         patient_id: patientId,
-        professional_id: _profId,
+        professional_id: _authUid,
         visit_id: null,
         documento_tipo: tipo,
         documento_versione_id: v ? v.id : null,
@@ -819,7 +821,7 @@
         progress(true, 'Registrazione consenso…')
         const { error: insErr } = await _sb.from('consensi').insert({
           patient_id: patientId,
-          professional_id: _profId,
+          professional_id: _authUid,
           visit_id: null,
           documento_tipo: tipo,
           documento_versione_id: v.id,
@@ -1016,7 +1018,7 @@
           const v = _versioni[tipo]
           const { error } = await _sb.from('consensi').insert({
             patient_id: patientId,
-            professional_id: _profId,
+            professional_id: _authUid,
             visit_id: null,
             documento_tipo: tipo,
             documento_versione_id: v ? v.id : null,
