@@ -370,11 +370,13 @@
       const { data: { session } } = await _sb.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
 
-      const { data: prof } = await _sb
+      // Stesso pattern di profilo.html: nome/cognome vivono su `profiles`, non su `professionals`.
+      const { data: prof, error: profErr } = await _sb
         .from('professionals')
-        .select('id, nome, cognome, centro, indirizzo, citta, partita_iva, email_studio')
+        .select('id, centro, indirizzo, citta, partita_iva, email_studio, profiles(nome, cognome)')
         .eq('user_id', session.user.id)
         .maybeSingle()
+      if (profErr) console.error('[consenso] errore fetch professionals:', profErr)
       if (!prof) { alert('Profilo professionista non trovato.'); window.location.href = 'dashboard.html'; return }
       _prof = prof
       _profId = prof.id
@@ -782,7 +784,7 @@
         cfPaz:       _patient.codice_fiscale || '',
         patientId:   patientId,
         professionalId: _profId,
-        professionalName: [(_prof && _prof.nome) || '', (_prof && _prof.cognome) || ''].filter(Boolean).join(' '),
+        professionalName: [((_prof && _prof.profiles && _prof.profiles.nome) || ''), ((_prof && _prof.profiles && _prof.profiles.cognome) || '')].filter(Boolean).join(' '),
         dataOra:     dataOra,
         firmaDataUrl: firmaDataUrl
       })
