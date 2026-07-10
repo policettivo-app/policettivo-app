@@ -823,7 +823,7 @@
         const fileUrl = (urlData && urlData.publicUrl) || null
 
         progress(true, 'Registrazione consenso…')
-        const { error: insErr } = await _sb.from('consensi').insert({
+        const { data: consInserted, error: insErr } = await _sb.from('consensi').insert({
           patient_id: patientId,
           professional_id: _authUid,
           visit_id: null,
@@ -841,8 +841,24 @@
             titolo:   v.titolo || null,
             filename: 'consenso_' + tipo + '_' + ts + '.pdf'
           }
-        })
+        }).select('id').maybeSingle()
         if (insErr) throw insErr
+
+        // Audit best-effort: FIRMA consenso su audit_log (non blocca il flusso)
+        try {
+          const { error: auditErr } = await _sb.from('audit_log').insert({
+            actor: _authUid,
+            tabella: 'consensi',
+            operazione: 'FIRMA',
+            record_id: (consInserted && consInserted.id) || null,
+            patient_id: patientId,
+            prima: null,
+            dopo: { documento_tipo: tipo, evento: 'firma' }
+          })
+          if (auditErr) console.warn('[audit_log] insert best-effort fallito:', auditErr.message)
+        } catch (e) {
+          console.warn('[audit_log] insert best-effort throw:', e && e.message ? e.message : e)
+        }
 
         // Registrazione anche in clinical_documents (cartella clinica)
         const clientToken = (crypto.randomUUID && crypto.randomUUID()) || (String(Date.now()) + Math.random())
