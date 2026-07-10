@@ -37,6 +37,14 @@ export default async function handler(req, res) {
       displayHeaderFooter: false,
       margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' }
     })
+
+    await logAudit({
+      actor: user.id,
+      tabella: 'clinical_documents',
+      operazione: 'DOWNLOAD_PDF',
+      dopo: { filename, source: 'pdf-render' }
+    })
+
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
     return res.status(200).send(Buffer.from(pdf))
@@ -44,5 +52,23 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Errore generazione PDF: ' + err.message })
   } finally {
     if (browser) await browser.close()
+  }
+}
+
+async function logAudit(entry) {
+  try {
+    if (!entry || !entry.actor) return
+    const svc = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+    await svc.from('audit_log').insert({
+      actor: entry.actor,
+      tabella: entry.tabella,
+      operazione: entry.operazione,
+      record_id: entry.record_id || null,
+      patient_id: entry.patient_id || null,
+      prima: null,
+      dopo: entry.dopo || null
+    })
+  } catch (e) {
+    console.warn('[audit_log] insert best-effort fallito:', e && e.message ? e.message : e)
   }
 }
