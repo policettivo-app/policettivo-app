@@ -66,9 +66,26 @@ async function handleDeleteUser(svc, req, res) {
   const { profId, userId } = req.body
   if (!profId || !userId) return res.status(400).json({ error: 'profId e userId obbligatori' })
 
+  // Blocco preventivo: consensi firmati = prova legale, non cancellabili.
+  // Senza questo check la cascata FK su consents.professional_id (SET NULL)
+  // viola il CHECK consent_soggetto_ck e GoTrue riporta "Database error deleting user".
+  const { count: profConsCount, error: profConsErr } = await svc
+    .from('consents').select('id', { count: 'exact', head: true }).eq('professional_id', profId)
+  if (profConsErr) return res.status(500).json({ error: 'Errore verifica consensi professionista: ' + profConsErr.message })
+  if (profConsCount && profConsCount > 0) {
+    return res.status(409).json({ error: 'Impossibile eliminare: ' + profConsCount + ' consenso/i firmato/i collegati al professionista (valore legale). Contatta il supporto per la procedura di archiviazione.' })
+  }
+
   const { data: pats } = await svc.from('patients').select('id').eq('professional_id', profId)
   if (pats && pats.length > 0) {
     const patIds = pats.map(p => p.id)
+
+    const { count: patConsCount, error: patConsErr } = await svc
+      .from('consents').select('id', { count: 'exact', head: true }).in('patient_id', patIds)
+    if (patConsErr) return res.status(500).json({ error: 'Errore verifica consensi pazienti: ' + patConsErr.message })
+    if (patConsCount && patConsCount > 0) {
+      return res.status(409).json({ error: 'Impossibile eliminare: ' + patConsCount + ' consenso/i firmato/i collegati ai pazienti del professionista (valore legale). Contatta il supporto per la procedura di archiviazione.' })
+    }
 
     const { data: protos } = await svc.from('patient_protocols').select('id').in('patient_id', patIds)
     if (protos && protos.length > 0) {
