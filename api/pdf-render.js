@@ -14,7 +14,13 @@ export default async function handler(req, res) {
   const { data: { user }, error: authErr } = await anon.auth.getUser(token)
   if (authErr || !user) return res.status(401).json({ error: 'Non autenticato' })
 
-  const { html, filename = 'documento.pdf' } = req.body
+  const {
+    html,
+    filename = 'documento.pdf',
+    patient_id = null,
+    record_id = null,
+    tabella = 'clinical_documents'
+  } = req.body
   if (!html) return res.status(400).json({ error: 'html mancante' })
 
   let browser = null
@@ -40,8 +46,10 @@ export default async function handler(req, res) {
 
     await logAudit({
       actor: user.id,
-      tabella: 'clinical_documents',
+      tabella,
       operazione: 'DOWNLOAD_PDF',
+      record_id,
+      patient_id,
       dopo: { filename, source: 'pdf-render' }
     })
 
