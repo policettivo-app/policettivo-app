@@ -800,7 +800,7 @@
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + (session ? session.access_token : '')
           },
-          body:    JSON.stringify({ html: html, filename: 'consenso.pdf' })
+          body:    JSON.stringify({ html: html, filename: 'consenso.pdf', patient_id: patientId })
         })
         if (!resp.ok) {
           const err = await resp.json().catch(function(){ return {} })
