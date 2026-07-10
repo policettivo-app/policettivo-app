@@ -95,6 +95,15 @@ async function handlePosturale(req, res) {
     }
   }
 
+  await logAudit(svc, {
+    actor: user.id,
+    tabella: 'visits',
+    operazione: 'DOWNLOAD_PDF',
+    record_id: visit_id,
+    patient_id: visit.patient_id,
+    dopo: { tipo: 'posturale', relazione_modalita }
+  })
+
   return res.status(200).json({
     visit_data:   visit,
     patient:      patient      || {},
@@ -203,6 +212,15 @@ async function handleVisita(req, res) {
     }
   }
 
+  await logAudit(svc, {
+    actor: user.id,
+    tabella: 'visits',
+    operazione: 'DOWNLOAD_PDF',
+    record_id: visit_id,
+    patient_id: visit.patient_id,
+    dopo: { tipo: 'visita', relazione_modalita }
+  })
+
   return res.status(200).json({
     visit_data:   visit,
     patient:      patient      || {},
@@ -215,6 +233,23 @@ async function handleVisita(req, res) {
 // ════════════════════════════════════════════════════════════════════════════
 // HELPERS
 // ════════════════════════════════════════════════════════════════════════════
+
+async function logAudit(svc, entry) {
+  try {
+    if (!entry || !entry.actor) return
+    await svc.from('audit_log').insert({
+      actor: entry.actor,
+      tabella: entry.tabella,
+      operazione: entry.operazione,
+      record_id: entry.record_id || null,
+      patient_id: entry.patient_id || null,
+      prima: null,
+      dopo: entry.dopo || null
+    })
+  } catch (e) {
+    console.warn('[audit_log] insert best-effort fallito:', e && e.message ? e.message : e)
+  }
+}
 
 async function signPhotoUrls(svc, photos) {
   if (!Array.isArray(photos)) return []
