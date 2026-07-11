@@ -97,6 +97,10 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 .btn-modal-confirm { flex: 1; padding: 11px; border: none; border-radius: 8px; background: #FFD008; color: #000; font-family: inherit; font-size: 13px; font-weight: 800; cursor: pointer; letter-spacing: .2px; }
 .btn-modal-confirm:hover { background: #e6bc00; }
 .btn-modal-confirm:disabled { opacity: .5; cursor: not-allowed; }
+.pay-methods { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.pay-method-btn { padding: 7px 12px; border: 1.5px solid #ddd; border-radius: 999px; background: #fff; color: #555; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color .12s, background .12s, color .12s; }
+.pay-method-btn:hover { border-color: #FFD008; color: #000; background: #fffdf0; }
+.pay-method-btn.active { background: #FFD008; color: #000; border-color: #FFD008; }
 
 /* Sezione Pagamenti / acconti */
 .pag-section { background: #fff; border-radius: 14px; border: 1px solid #eee; padding: 16px 18px; margin-top: 16px; }
@@ -293,8 +297,17 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
       <input type="date" class="modal-input" id="incasso-data">
     </div>
     <div class="modal-field">
+      <label class="modal-label">Metodo di pagamento</label>
+      <div class="pay-methods" id="incasso-metodi">
+        <button type="button" class="pay-method-btn" data-metodo="Contanti"   onclick="_setMetodoIncasso('Contanti', this)">Contanti</button>
+        <button type="button" class="pay-method-btn" data-metodo="POS/Carta"  onclick="_setMetodoIncasso('POS/Carta', this)">POS/Carta</button>
+        <button type="button" class="pay-method-btn" data-metodo="Bonifico"   onclick="_setMetodoIncasso('Bonifico', this)">Bonifico</button>
+        <button type="button" class="pay-method-btn" data-metodo=""           onclick="_setMetodoIncasso('', this)">Altro</button>
+      </div>
+    </div>
+    <div class="modal-field">
       <label class="modal-label" for="incasso-nota">Nota (opzionale)</label>
-      <input type="text" class="modal-input" id="incasso-nota" placeholder="Es. Contanti, POS, bonifico…">
+      <input type="text" class="modal-input" id="incasso-nota" placeholder="Aggiungi dettagli…">
     </div>
     <div class="modal-recap" id="incasso-recap">—</div>
     <div class="modal-actions">
@@ -706,9 +719,22 @@ function apriRegistraIncasso(){
   impEl.value = (residuo > 0 ? residuo.toFixed(2) : '0.00');
   document.getElementById('incasso-data').value = (new Date()).toISOString().substring(0,10);
   document.getElementById('incasso-nota').value = '';
+  var payBtns = document.querySelectorAll('#incasso-metodi .pay-method-btn');
+  for (var b = 0; b < payBtns.length; b++) payBtns[b].classList.remove('active');
   _aggiornaRiepilogoIncasso();
   document.getElementById('modal-incasso').classList.add('open');
   setTimeout(function(){ impEl.focus(); impEl.select(); }, 30);
+}
+
+// Prefill del campo nota con il metodo scelto. L'utente può poi estendere
+// digitando dettagli (es. "Contanti — acconto"). "Altro" azzera per input libero.
+function _setMetodoIncasso(metodo, btn){
+  var noteEl = document.getElementById('incasso-nota');
+  noteEl.value = metodo || '';
+  var siblings = document.querySelectorAll('#incasso-metodi .pay-method-btn');
+  for (var i = 0; i < siblings.length; i++) siblings[i].classList.remove('active');
+  if (btn) btn.classList.add('active');
+  noteEl.focus();
 }
 
 function _aggiornaRiepilogoIncasso(){
@@ -750,12 +776,13 @@ async function confermaRegistraIncasso(){
   if (!dataRaw) { alert('Inserisci la data del versamento.'); return; }
   var nota = String(notaRaw || '').trim() || null;
 
-  // Sedute da marcare = selezionate visibili non ancora saldate
+  // Sedute da marcare = selezionate visibili NON ancora chiuse.
+  // Se tutte le selezionate sono già chiuse, ids resta vuoto: il pagamento
+  // viene comunque registrato (la marcatura visiva è secondaria).
   var lista = _sedutePerPeriodo();
   var visibleById = {};
   for (var i = 0; i < lista.length; i++) visibleById[lista[i].id] = lista[i];
   var ids = Object.keys(_selected).filter(function(k){ return _selected[k] && visibleById[k] && !visibleById[k].saldato });
-  if (!ids.length) { alert('Nessuna seduta selezionata (o già saldate).'); return; }
 
   var btn = document.getElementById('btn-incasso-conferma');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvataggio…'; }
