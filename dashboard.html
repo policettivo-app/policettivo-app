@@ -879,7 +879,7 @@
 
     async function loadPatients() {
       const [patientsRes, diariesRes] = await Promise.all([
-        _supabase.from('patients').select('id,nome,cognome,email,problema_principale,configurazione_default,stato,access_token').eq('professional_id', currentProfessionalId).eq('stato', 'attivo').order('cognome', { ascending: true }),
+        _supabase.rpc('get_my_patients'),
         _supabase.from('diary_entries').select('patient_id,data,completato').eq('completato', true).order('data', { ascending: false }).limit(200)
       ])
       allPatients = patientsRes.data || []
