@@ -42,13 +42,17 @@ export default async function handler(req, res) {
     }
     const { data: mioProf, error: profErr } = await svc
       .from('professionals')
-      .select('id, studio_id, ruolo')
+      .select('id, studio_id, ruolo, piano, premium_scadenza')
       .eq('user_id', user.id)
       .maybeSingle()
     if (profErr || !mioProf) return res.status(403).json({ error: 'Non autorizzato: professionista non trovato' })
     if (mioProf.ruolo !== 'master') return res.status(403).json({ error: 'Non autorizzato: solo il master dello studio' })
     if (mioProf.studio_id !== bodyStudioId || mioProf.id !== bodyInvitatoDa) {
       return res.status(403).json({ error: 'Non autorizzato: studio_id o invitato_da non corrispondono' })
+    }
+    const isPremium = mioProf.piano === 'premium' && (!mioProf.premium_scadenza || new Date(mioProf.premium_scadenza) > new Date())
+    if (!isPremium) {
+      return res.status(402).json({ error: 'Il multi-utente richiede il piano Premium', code: 'PREMIUM_REQUIRED' })
     }
     return handleCreateInvite(svc, req, res)
   }
