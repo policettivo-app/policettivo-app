@@ -348,6 +348,7 @@
           <div class="d-av-sep"></div>
           <button class="d-av-btn" onclick="window.location.href='profilo.html'">👤 Il mio profilo</button>
           <button class="d-av-btn" onclick="window.location.href='lettera-ai.html'">✨ Lettera / Relazione AI</button>
+          <button id="btn-studio-link" class="d-av-btn" onclick="window.location.href='studio.html'">🏢 Il mio Studio</button>
           <button id="btn-admin-link" class="d-av-btn" onclick="window.location.href='admin.html'">⚙️ Admin</button>
           <button class="d-av-btn" onclick="openGuida()">❓ Guida</button>
           <div class="d-av-sep"></div>
@@ -758,6 +759,9 @@
         const btnAdmin = document.getElementById('btn-admin-link')
         if (btnAdmin) btnAdmin.style.display = 'none'
       }
+      // Hide "Il mio Studio" button by default; shown later only if ruolo='master'
+      const btnStudioInit = document.getElementById('btn-studio-link')
+      if (btnStudioInit) btnStudioInit.style.display = 'none'
 
       document.getElementById('user-email').textContent = session.user.email
       const _username = session.user.email.split('@')[0]
@@ -796,6 +800,11 @@
       }
 
       if (currentProfessionalId) {
+        const { data: _meRuolo } = await _supabase.from('professionals').select('ruolo').eq('id', currentProfessionalId).maybeSingle()
+        if (_meRuolo && _meRuolo.ruolo === 'master') {
+          const btnStudio = document.getElementById('btn-studio-link')
+          if (btnStudio) btnStudio.style.display = 'block'
+        }
         if (!window.isPremium) {
           const { data: _prof, error: _profErr } = await _supabase.from('professionals').select('ai_uses').eq('id', currentProfessionalId).maybeSingle()
           if (_profErr) console.error('[dashboard] errore query ai_uses:', _profErr)
