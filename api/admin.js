@@ -1,16 +1,60 @@
-import { checkAdminAuth, createServiceClient } from './_check-admin-auth.js'
+import { createServiceClient } from './_check-admin-auth.js'
 import { randomUUID } from 'node:crypto'
+
+const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
+const RUOLI_MEMBRO_VALIDI = ['fisioterapista', 'segretaria', 'amministrazione']
+
+async function getAuthUser(req, res) {
+  if (req.headers['x-preview-mode'] === '1') {
+    res.status(403).json({ error: 'Non autorizzato: modalità anteprima' }); return null
+  }
+  const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
+  if (!token) { res.status(401).json({ error: 'Token mancante' }); return null }
+  const { createClient } = await import('@supabase/supabase-js')
+  const anon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+  const { data: { user }, error } = await anon.auth.getUser(token)
+  if (error || !user) { res.status(401).json({ error: 'Token non valido' }); return null }
+  return user
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const user = await checkAdminAuth(req, res)
+  const user = await getAuthUser(req, res)
   if (!user) return
 
   const { action } = req.body || {}
   if (!action) return res.status(400).json({ error: 'action richiesta' })
 
   const svc = await createServiceClient()
+
+  const isPlatformAdmin = user.email === ADMIN_EMAIL
+
+  // Eccezione: 'create-invite' è accessibile anche a un professionista
+  // con ruolo='master', ma SOLO per il proprio studio e per ruoli membro validi.
+  if (action === 'create-invite' && !isPlatformAdmin) {
+    const { studio_id: bodyStudioId, invitato_da: bodyInvitatoDa, ruolo: bodyRuolo } = req.body || {}
+    if (!bodyStudioId || !bodyInvitatoDa) {
+      return res.status(403).json({ error: 'Non autorizzato: studio_id e invitato_da obbligatori' })
+    }
+    if (!bodyRuolo || !RUOLI_MEMBRO_VALIDI.includes(bodyRuolo)) {
+      return res.status(400).json({ error: 'ruolo non valido: ammessi ' + RUOLI_MEMBRO_VALIDI.join(', ') })
+    }
+    const { data: mioProf, error: profErr } = await svc
+      .from('professionals')
+      .select('id, studio_id, ruolo')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (profErr || !mioProf) return res.status(403).json({ error: 'Non autorizzato: professionista non trovato' })
+    if (mioProf.ruolo !== 'master') return res.status(403).json({ error: 'Non autorizzato: solo il master dello studio' })
+    if (mioProf.studio_id !== bodyStudioId || mioProf.id !== bodyInvitatoDa) {
+      return res.status(403).json({ error: 'Non autorizzato: studio_id o invitato_da non corrispondono' })
+    }
+    return handleCreateInvite(svc, req, res)
+  }
+
+  // Tutte le altre action: solo admin piattaforma
+  if (!isPlatformAdmin) return res.status(403).json({ error: 'Non autorizzato' })
 
   switch (action) {
     case 'list-user-emails':   return handleListUserEmails(svc, req, res)
@@ -121,12 +165,19 @@ async function handleListInvites(svc, req, res) {
 
 // ── create-invite ────────────────────────────────────────────────────────────
 async function handleCreateInvite(svc, req, res) {
-  const { nome, email } = req.body
+  const { nome, email, ruolo, studio_id, invitato_da } = req.body
   if (!nome || !String(nome).trim()) return res.status(400).json({ error: 'nome obbligatorio' })
 
   const token = randomUUID()
   const { data, error } = await svc.from('invites')
-    .insert({ nome: String(nome).trim(), email: email || null, token })
+    .insert({
+      nome: String(nome).trim(),
+      email: email || null,
+      token,
+      ruolo: ruolo || null,
+      studio_id: studio_id || null,
+      invitato_da: invitato_da || null
+    })
     .select()
     .single()
   if (error) return res.status(500).json({ error: error.message })
