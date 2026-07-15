@@ -39,7 +39,8 @@
     .table tr:hover td { background: #fffdf0; }
     .role-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #eef; color: #334; text-transform: capitalize; }
     .role-badge.master { background: #FFD008; color: #000; }
-    .role-badge.segretaria { background: #fff3e0; color: #e65100; }
+    .role-badge.segreteria { background: #fff3e0; color: #e65100; }
+    .role-badge.clinico { background: #e3f2fd; color: #0d47a1; }
     .role-badge.amministrazione { background: #ede7f6; color: #4527a0; }
     .empty-state { text-align: center; padding: 40px; color: #999; font-size: 14px; }
     .copy-btn { background: #000; color: #FFD008; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 8px; }
@@ -90,8 +91,9 @@
         <input type="text" id="invite-nome" placeholder="Nome del membro">
         <input type="email" id="invite-email" placeholder="Email (opzionale)">
         <select id="invite-ruolo">
-          <option value="fisioterapista">Fisioterapista</option>
-          <option value="segretaria">Segretaria</option>
+          <option value="" disabled selected>— Scegli ruolo —</option>
+          <option value="clinico">Clinico (fisio, medico, osteopata…)</option>
+          <option value="segreteria">Segreteria</option>
           <option value="amministrazione">Amministrazione</option>
         </select>
         <button class="btn-primary ds-btn-primary" onclick="generaInvito()">Genera link invito</button>
@@ -208,14 +210,14 @@
           const ruolo = escHtml(m.ruolo || '—')
           const permessi = m.permessi || {}
           let permCell = '—'
-          if (m.ruolo === 'segretaria') {
+          if (m.ruolo === 'segreteria') {
             const checked = permessi.vede_clinico ? 'checked' : ''
             const disabled = isMe ? 'disabled' : ''
             permCell = '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#333">' +
               '<input type="checkbox" class="chk" ' + checked + ' ' + disabled + ' onchange="toggleVedeClinico(\'' + m.id + '\', this.checked)">' +
               'Vede dati clinici</label>'
           }
-          const roleClass = m.ruolo === 'master' ? 'master' : (m.ruolo === 'segretaria' ? 'segretaria' : (m.ruolo === 'amministrazione' ? 'amministrazione' : ''))
+          const roleClass = m.ruolo === 'master' ? 'master' : (m.ruolo === 'segreteria' ? 'segreteria' : (m.ruolo === 'clinico' ? 'clinico' : (m.ruolo === 'amministrazione' ? 'amministrazione' : '')))
           return '<tr>' +
             '<td><strong>' + nome + '</strong>' + (isMe ? ' <span style="font-size:11px;color:#999">(tu)</span>' : '') + '</td>' +
             '<td><span class="role-badge ' + roleClass + '">' + ruolo + '</span></td>' +
@@ -248,6 +250,7 @@
       const email = document.getElementById('invite-email').value.trim()
       const ruolo = document.getElementById('invite-ruolo').value
       if (!nome) { alert('Inserisci il nome del membro'); return }
+      if (!ruolo) { alert('Seleziona un ruolo per il membro'); return }
 
       const token = await getAdminToken()
       const res = await fetch('/api/admin', {
@@ -274,6 +277,7 @@
       document.getElementById('invite-link-box').classList.add('visible')
       document.getElementById('invite-nome').value = ''
       document.getElementById('invite-email').value = ''
+      document.getElementById('invite-ruolo').value = ''
     }
 
     function copiaInvito() {
