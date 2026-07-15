@@ -173,7 +173,14 @@
       const { error: profileError } = await _supabase.from('profiles').insert({ id: userId, role: 'professionista', nome, cognome })
       if (profileError) { showError('Errore creazione profilo: ' + profileError.message); btn.disabled = false; btn.textContent = 'Crea account gratuitamente'; return }
 
-      const { error: profError } = await _supabase.from('professionals').insert({ user_id: userId, qualifica, centro, citta, attivo: true, fonte })
+      const ruoloAssegnato = inviteData?.ruolo || 'master'
+      const studioAssegnato = inviteData?.studio_id || null
+      const { error: profError } = await _supabase.from('professionals').insert({
+        user_id: userId,
+        qualifica, centro, citta, attivo: true, fonte,
+        studio_id: studioAssegnato,
+        ruolo: ruoloAssegnato
+      })
       if (profError) { showError('Errore salvataggio dati: ' + profError.message); btn.disabled = false; btn.textContent = 'Crea account gratuitamente'; return }
 
       if (token) {
