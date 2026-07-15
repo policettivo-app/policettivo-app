@@ -2,7 +2,7 @@ import { createServiceClient } from './_check-admin-auth.js'
 import { randomUUID } from 'node:crypto'
 
 const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
-const RUOLI_MEMBRO_VALIDI = ['fisioterapista', 'segretaria', 'amministrazione']
+const RUOLI_MEMBRO_VALIDI = ['clinico', 'segreteria', 'amministrazione']
 
 async function getAuthUser(req, res) {
   if (req.headers['x-preview-mode'] === '1') {
