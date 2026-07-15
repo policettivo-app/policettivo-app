@@ -53,6 +53,13 @@
     .hint { font-size: 12px; color: #999; margin-top: 8px; }
     .share-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
     .share-toolbar label { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+    .search-input-admin { flex: 1; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; color: #000; }
+    .search-input-admin:focus { border-color: #FFD008; }
+    .share-controls { margin-bottom: 14px; }
+    .share-controls-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding: 10px 12px; background: #fafafa; border: 1px solid #eee; border-radius: 8px; }
+    .share-controls-row label.chk-lbl { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #333; cursor: pointer; text-transform: none; letter-spacing: normal; }
+    .share-controls-row label.perm-lbl { font-size: 12px; color: #666; font-weight: 600; }
+    .share-counter { margin-left: auto; font-size: 12px; color: #666; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -116,6 +123,23 @@
           <option value="">— Seleziona un membro —</option>
         </select>
       </div>
+      <div id="share-controls" class="share-controls" style="display:none">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <input class="search-input-admin" type="text" id="share-search" placeholder="🔍  Cerca paziente..." oninput="onShareSearch(this.value)">
+        </div>
+        <div class="share-controls-row">
+          <label class="chk-lbl">
+            <input type="checkbox" class="chk" id="share-select-all" onchange="onSelectAllChange(this.checked)">
+            Seleziona tutti (visibili)
+          </label>
+          <label class="perm-lbl">Permesso batch:</label>
+          <select class="perm-select" id="share-global-permesso" onchange="globalPermesso = this.value">
+            <option value="lettura" selected>Lettura</option>
+            <option value="scrittura">Scrittura</option>
+          </select>
+          <span id="share-counter" class="share-counter"></span>
+        </div>
+      </div>
       <div id="share-list"><div class="empty-state">Seleziona un membro per gestire le condivisioni.</div></div>
     </div>
   </div>
@@ -132,6 +156,9 @@
     let mieiPazienti = []
     let shareState = {} // patient_id -> { active: bool, permesso: 'lettura'|'scrittura', row_id? }
     let lastInviteLink = ''
+    let searchQuery = ''
+    let globalPermesso = 'lettura'
+    let currentMembroId = ''
 
     function escHtml(s) {
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
@@ -311,12 +338,22 @@
     async function onMembroChange() {
       const membroId = document.getElementById('share-member').value
       const el = document.getElementById('share-list')
+      const ctrls = document.getElementById('share-controls')
       shareState = {}
+      currentMembroId = membroId
+      searchQuery = ''
+      const searchInput = document.getElementById('share-search')
+      if (searchInput) searchInput.value = ''
+      const globalSel = document.getElementById('share-global-permesso')
+      if (globalSel) { globalSel.value = 'lettura'; globalPermesso = 'lettura' }
+
       if (!membroId) {
+        ctrls.style.display = 'none'
         el.innerHTML = '<div class="empty-state">Seleziona un membro per gestire le condivisioni.</div>'
         return
       }
       if (mieiPazienti.length === 0) {
+        ctrls.style.display = 'none'
         el.innerHTML = '<div class="empty-state">Nessun paziente attivo da condividere.</div>'
         return
       }
@@ -329,6 +366,7 @@
         .eq('stato', 'attivo')
 
       if (error) {
+        ctrls.style.display = 'none'
         el.innerHTML = '<div class="empty-state" style="color:#c62828">Errore: ' + escHtml(error.message) + '</div>'
         return
       }
@@ -337,13 +375,91 @@
         shareState[s.patient_id] = { active: true, permesso: s.permesso || 'lettura', row_id: s.id }
       })
 
+      ctrls.style.display = 'block'
+      renderShareList(membroId)
+    }
+
+    function getVisiblePazienti() {
+      if (!searchQuery) return mieiPazienti
+      const q = searchQuery.toLowerCase()
+      return mieiPazienti.filter(p => {
+        const full = ((p.nome || '') + ' ' + (p.cognome || '') + ' ' + (p.cognome || '') + ' ' + (p.nome || '')).toLowerCase()
+        return full.includes(q)
+      })
+    }
+
+    function onShareSearch(q) {
+      searchQuery = q || ''
+      if (currentMembroId) renderShareList(currentMembroId)
+    }
+
+    async function onSelectAllChange(checked) {
+      const membroId = currentMembroId
+      if (!membroId) return
+      const visible = getVisiblePazienti()
+      const membro = membriStudio.find(m => m.id === membroId)
+      const nomeMembro = membro && membro.profiles
+        ? (((membro.profiles.nome || '') + ' ' + (membro.profiles.cognome || '')).trim() || 'il membro')
+        : 'il membro'
+
+      if (checked) {
+        const toAdd = visible.filter(p => !(shareState[p.id] && shareState[p.id].active))
+        if (toAdd.length === 0) { renderShareList(membroId); return }
+        if (toAdd.length > 10 && !confirm('Stai per condividere ' + toAdd.length + ' pazienti con ' + nomeMembro + '. Confermi?')) {
+          renderShareList(membroId); return
+        }
+        const rows = toAdd.map(p => ({
+          patient_id: p.id,
+          owner_id: mioProfId,
+          shared_with_id: membroId,
+          permesso: globalPermesso,
+          stato: 'attivo'
+        }))
+        const { data, error } = await _supabase.from('patient_shares').insert(rows).select('id, patient_id, permesso')
+        if (error) { alert('Errore condivisione batch: ' + error.message); renderShareList(membroId); return }
+        ;(data || []).forEach(r => {
+          shareState[r.patient_id] = { active: true, permesso: r.permesso || globalPermesso, row_id: r.id }
+        })
+      } else {
+        const toRevoke = visible.filter(p => shareState[p.id] && shareState[p.id].active)
+        if (toRevoke.length === 0) { renderShareList(membroId); return }
+        if (toRevoke.length > 10 && !confirm('Stai per revocare la condivisione di ' + toRevoke.length + ' pazienti da ' + nomeMembro + '. Confermi?')) {
+          renderShareList(membroId); return
+        }
+        const ids = toRevoke.map(p => p.id)
+        const { error } = await _supabase.from('patient_shares')
+          .update({ stato: 'revocato', revoked_at: new Date().toISOString() })
+          .in('patient_id', ids)
+          .eq('shared_with_id', membroId)
+          .eq('owner_id', mioProfId)
+          .eq('stato', 'attivo')
+        if (error) { alert('Errore revoca batch: ' + error.message); renderShareList(membroId); return }
+        ids.forEach(id => { delete shareState[id] })
+      }
       renderShareList(membroId)
     }
 
     function renderShareList(membroId) {
       const el = document.getElementById('share-list')
+      const visible = getVisiblePazienti()
+      const totShared = Object.values(shareState).filter(s => s.active).length
+      const visibleActive = visible.filter(p => shareState[p.id] && shareState[p.id].active).length
+      const allSelected = visible.length > 0 && visibleActive === visible.length
+
+      const cbSelectAll = document.getElementById('share-select-all')
+      if (cbSelectAll) {
+        cbSelectAll.checked = allSelected
+        cbSelectAll.indeterminate = visibleActive > 0 && !allSelected
+      }
+      const counter = document.getElementById('share-counter')
+      if (counter) counter.textContent = totShared + ' pazienti condivisi su ' + mieiPazienti.length
+
+      if (visible.length === 0) {
+        el.innerHTML = '<div class="empty-state">Nessun paziente corrisponde alla ricerca.</div>'
+        return
+      }
       el.innerHTML = '<table class="table"><thead><tr><th style="width:60px">Condividi</th><th>Paziente</th><th style="width:180px">Permesso</th></tr></thead><tbody>' +
-        mieiPazienti.map(p => {
+        visible.map(p => {
           const st = shareState[p.id] || { active: false, permesso: 'lettura' }
           const checked = st.active ? 'checked' : ''
           const disabled = st.active ? '' : 'disabled'
