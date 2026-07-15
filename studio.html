@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <style>body{visibility:hidden}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Il mio Studio</title>
+  <link rel="stylesheet" href="css/design-system.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; }
+    .navbar { background: #000; padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .navbar-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .navbar-badge { background: #c62828; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px; }
+    .btn-logout { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; margin-right: 8px; }
+    .main { max-width: 1000px; margin: 0 auto; padding: 36px 24px; }
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; color: #000; }
+    .page-header p { font-size: 13px; color: #666; margin-top: 4px; }
+    .section { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; }
+    .btn-primary { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-primary:hover { background: #e6bc00; }
+    .invite-form { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .invite-form input, .invite-form select { flex: 1; min-width: 180px; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; color: #000; }
+    .invite-form input:focus, .invite-form select:focus { border-color: #FFD008; }
+    .invite-link-box { background: #f0f9f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #2e7d32; word-break: break-all; margin-top: 12px; display: none; }
+    .invite-link-box.visible { display: block; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .table td { font-size: 13px; color: #333; padding: 12px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    .table tr:last-child td { border-bottom: none; }
+    .table tr:hover td { background: #fffdf0; }
+    .role-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #eef; color: #334; text-transform: capitalize; }
+    .role-badge.master { background: #FFD008; color: #000; }
+    .role-badge.segretaria { background: #fff3e0; color: #e65100; }
+    .role-badge.amministrazione { background: #ede7f6; color: #4527a0; }
+    .empty-state { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+    .copy-btn { background: #000; color: #FFD008; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 8px; }
+    .chk { width: 18px; height: 18px; cursor: pointer; accent-color: #FFD008; }
+    .select-member { padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; color: #000; min-width: 260px; }
+    .select-member:focus { border-color: #FFD008; }
+    .perm-select { padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; outline: none; background: #fff; color: #000; }
+    .perm-select:focus { border-color: #FFD008; }
+    .perm-select:disabled { opacity: 0.4; cursor: not-allowed; }
+    .hint { font-size: 12px; color: #999; margin-top: 8px; }
+    .share-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+    .share-toolbar label { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="navbar-logo">POLICETTIVO®</span>
+      <span class="navbar-title">Il mio Studio</span>
+      <span class="navbar-badge">MASTER</span>
+    </div>
+    <div>
+      <button class="btn-back" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+      <button class="btn-logout" onclick="doLogout()">Esci</button>
+    </div>
+  </nav>
+
+  <div class="main ds-page">
+    <div class="page-header">
+      <h1>Il mio Studio</h1>
+      <p>Gestisci i membri del tuo studio e le condivisioni pazienti</p>
+    </div>
+
+    <div class="section ds-card">
+      <div class="section-header">
+        <div class="section-title ds-section-title-line">Membri dello studio</div>
+        <span id="membri-count" style="font-size:12px;color:#999"></span>
+      </div>
+      <div id="membri-list"><div class="empty-state">Caricamento…</div></div>
+    </div>
+
+    <div class="section ds-card">
+      <div class="section-header">
+        <div class="section-title ds-section-title-line">Invita un membro</div>
+      </div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Genera un link di invito per aggiungere un nuovo professionista o segretaria al tuo studio.</p>
+      <div class="invite-form">
+        <input type="text" id="invite-nome" placeholder="Nome del membro">
+        <input type="email" id="invite-email" placeholder="Email (opzionale)">
+        <select id="invite-ruolo">
+          <option value="fisioterapista">Fisioterapista</option>
+          <option value="segretaria">Segretaria</option>
+          <option value="amministrazione">Amministrazione</option>
+        </select>
+        <button class="btn-primary ds-btn-primary" onclick="generaInvito()">Genera link invito</button>
+      </div>
+      <div class="invite-link-box" id="invite-link-box">
+        <strong>Link invito:</strong><br>
+        <span id="invite-link-text"></span>
+        <button class="copy-btn" onclick="copiaInvito()">Copia</button>
+      </div>
+    </div>
+
+    <div class="section ds-card">
+      <div class="section-header">
+        <div class="section-title ds-section-title-line">Condivisione pazienti</div>
+      </div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Scegli un membro dello studio e seleziona quali dei tuoi pazienti condividere con lui.</p>
+      <div class="share-toolbar">
+        <label for="share-member">Membro:</label>
+        <select id="share-member" class="select-member" onchange="onMembroChange()">
+          <option value="">— Seleziona un membro —</option>
+        </select>
+      </div>
+      <div id="share-list"><div class="empty-state">Seleziona un membro per gestire le condivisioni.</div></div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    let mioProfId = null
+    let mioStudioId = null
+    let mioUserId = null
+    let membriStudio = []
+    let mieiPazienti = []
+    let shareState = {} // patient_id -> { active: bool, permesso: 'lettura'|'scrittura', row_id? }
+    let lastInviteLink = ''
+
+    function escHtml(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    }
+
+    async function doLogout() {
+      await _supabase.auth.signOut()
+      window.location.href = 'login.html'
+    }
+
+    async function getAdminToken() {
+      const { data: { session } } = await _supabase.auth.getSession()
+      return session?.access_token || ''
+    }
+
+    async function init() {
+      const { data: { session } } = await _supabase.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+      mioUserId = session.user.id
+
+      const { data: prof, error } = await _supabase
+        .from('professionals')
+        .select('id, studio_id, ruolo')
+        .eq('user_id', mioUserId)
+        .maybeSingle()
+
+      if (error || !prof) {
+        alert('Profilo professionista non trovato')
+        window.location.href = 'dashboard.html'
+        return
+      }
+      if (prof.ruolo !== 'master') {
+        alert('Solo il titolare dello studio può accedere')
+        window.location.href = 'dashboard.html'
+        return
+      }
+
+      mioProfId = prof.id
+      mioStudioId = prof.studio_id
+
+      document.body.style.visibility = 'visible'
+      await Promise.all([loadMembri(), loadPazienti()])
+    }
+
+    // ── SEZIONE 1: Membri dello studio ─────────────────────────────
+    async function loadMembri() {
+      const { data, error } = await _supabase
+        .from('professionals')
+        .select('id, ruolo, permessi, user_id, profiles(nome, cognome)')
+        .eq('studio_id', mioStudioId)
+
+      if (error) {
+        document.getElementById('membri-list').innerHTML =
+          '<div class="empty-state" style="color:#c62828">Errore: ' + escHtml(error.message) + '</div>'
+        return
+      }
+      membriStudio = data || []
+      renderMembri()
+      renderMembriSelect()
+    }
+
+    function renderMembri() {
+      const el = document.getElementById('membri-list')
+      const countEl = document.getElementById('membri-count')
+      if (countEl) countEl.textContent = membriStudio.length + ' membri'
+
+      if (membriStudio.length === 0) {
+        el.innerHTML = '<div class="empty-state">Nessun membro nello studio.</div>'
+        return
+      }
+
+      el.innerHTML = '<table class="table"><thead><tr><th>Nome</th><th>Ruolo</th><th>Permessi</th><th>Azioni</th></tr></thead><tbody>' +
+        membriStudio.map(m => {
+          const nome = m.profiles ? escHtml(((m.profiles.nome || '') + ' ' + (m.profiles.cognome || '')).trim()) : '—'
+          const isMe = m.id === mioProfId
+          const ruolo = escHtml(m.ruolo || '—')
+          const permessi = m.permessi || {}
+          let permCell = '—'
+          if (m.ruolo === 'segretaria') {
+            const checked = permessi.vede_clinico ? 'checked' : ''
+            const disabled = isMe ? 'disabled' : ''
+            permCell = '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#333">' +
+              '<input type="checkbox" class="chk" ' + checked + ' ' + disabled + ' onchange="toggleVedeClinico(\'' + m.id + '\', this.checked)">' +
+              'Vede dati clinici</label>'
+          }
+          const roleClass = m.ruolo === 'master' ? 'master' : (m.ruolo === 'segretaria' ? 'segretaria' : (m.ruolo === 'amministrazione' ? 'amministrazione' : ''))
+          return '<tr>' +
+            '<td><strong>' + nome + '</strong>' + (isMe ? ' <span style="font-size:11px;color:#999">(tu)</span>' : '') + '</td>' +
+            '<td><span class="role-badge ' + roleClass + '">' + ruolo + '</span></td>' +
+            '<td>' + permCell + '</td>' +
+            '<td style="font-size:12px;color:#999">' + (isMe ? 'Non modificabile' : '—') + '</td>' +
+            '</tr>'
+        }).join('') +
+        '</tbody></table>'
+    }
+
+    async function toggleVedeClinico(profId, checked) {
+      const membro = membriStudio.find(m => m.id === profId)
+      if (!membro) return
+      const nuoviPermessi = { ...(membro.permessi || {}), vede_clinico: checked }
+      const { error } = await _supabase
+        .from('professionals')
+        .update({ permessi: nuoviPermessi })
+        .eq('id', profId)
+      if (error) {
+        alert('Errore: ' + error.message)
+        renderMembri()
+        return
+      }
+      membro.permessi = nuoviPermessi
+    }
+
+    // ── SEZIONE 2: Invita un membro ────────────────────────────────
+    async function generaInvito() {
+      const nome = document.getElementById('invite-nome').value.trim()
+      const email = document.getElementById('invite-email').value.trim()
+      const ruolo = document.getElementById('invite-ruolo').value
+      if (!nome) { alert('Inserisci il nome del membro'); return }
+
+      const token = await getAdminToken()
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({
+          action: 'create-invite',
+          nome,
+          email: email || null,
+          ruolo,
+          studio_id: mioStudioId,
+          invitato_da: mioProfId
+        })
+      })
+      let json = {}
+      try { json = await res.json() } catch (_) {}
+      if (!res.ok || json.error) {
+        alert('Errore: ' + (json.error || res.status))
+        return
+      }
+      const data = json.invito
+      lastInviteLink = 'https://policettivo-app.vercel.app/registrazione.html?token=' + data.token
+      document.getElementById('invite-link-text').textContent = lastInviteLink
+      document.getElementById('invite-link-box').classList.add('visible')
+      document.getElementById('invite-nome').value = ''
+      document.getElementById('invite-email').value = ''
+    }
+
+    function copiaInvito() {
+      navigator.clipboard.writeText(lastInviteLink).then(() => alert('Link copiato!'))
+    }
+
+    // ── SEZIONE 3: Condivisione pazienti ───────────────────────────
+    function renderMembriSelect() {
+      const sel = document.getElementById('share-member')
+      const altri = membriStudio.filter(m => m.id !== mioProfId)
+      sel.innerHTML = '<option value="">— Seleziona un membro —</option>' +
+        altri.map(m => {
+          const nome = m.profiles ? escHtml(((m.profiles.nome || '') + ' ' + (m.profiles.cognome || '')).trim()) : '—'
+          return '<option value="' + m.id + '">' + nome + ' (' + escHtml(m.ruolo || '—') + ')</option>'
+        }).join('')
+    }
+
+    async function loadPazienti() {
+      const { data, error } = await _supabase
+        .from('patients')
+        .select('id, nome, cognome')
+        .eq('stato', 'attivo')
+        .order('cognome', { ascending: true })
+      if (error) {
+        console.error('[loadPazienti]', error)
+        return
+      }
+      mieiPazienti = data || []
+    }
+
+    async function onMembroChange() {
+      const membroId = document.getElementById('share-member').value
+      const el = document.getElementById('share-list')
+      shareState = {}
+      if (!membroId) {
+        el.innerHTML = '<div class="empty-state">Seleziona un membro per gestire le condivisioni.</div>'
+        return
+      }
+      if (mieiPazienti.length === 0) {
+        el.innerHTML = '<div class="empty-state">Nessun paziente attivo da condividere.</div>'
+        return
+      }
+
+      const { data: shares, error } = await _supabase
+        .from('patient_shares')
+        .select('id, patient_id, permesso, stato')
+        .eq('shared_with_id', membroId)
+        .eq('owner_id', mioProfId)
+        .eq('stato', 'attivo')
+
+      if (error) {
+        el.innerHTML = '<div class="empty-state" style="color:#c62828">Errore: ' + escHtml(error.message) + '</div>'
+        return
+      }
+
+      ;(shares || []).forEach(s => {
+        shareState[s.patient_id] = { active: true, permesso: s.permesso || 'lettura', row_id: s.id }
+      })
+
+      renderShareList(membroId)
+    }
+
+    function renderShareList(membroId) {
+      const el = document.getElementById('share-list')
+      el.innerHTML = '<table class="table"><thead><tr><th style="width:60px">Condividi</th><th>Paziente</th><th style="width:180px">Permesso</th></tr></thead><tbody>' +
+        mieiPazienti.map(p => {
+          const st = shareState[p.id] || { active: false, permesso: 'lettura' }
+          const checked = st.active ? 'checked' : ''
+          const disabled = st.active ? '' : 'disabled'
+          const nome = escHtml(((p.cognome || '') + ' ' + (p.nome || '')).trim() || '—')
+          return '<tr>' +
+            '<td><input type="checkbox" class="chk" ' + checked + ' onchange="toggleShare(\'' + p.id + '\', \'' + membroId + '\', this.checked)"></td>' +
+            '<td>' + nome + '</td>' +
+            '<td><select class="perm-select" ' + disabled + ' onchange="changePermesso(\'' + p.id + '\', \'' + membroId + '\', this.value)">' +
+              '<option value="lettura" ' + (st.permesso === 'lettura' ? 'selected' : '') + '>Lettura</option>' +
+              '<option value="scrittura" ' + (st.permesso === 'scrittura' ? 'selected' : '') + '>Scrittura</option>' +
+            '</select></td>' +
+            '</tr>'
+        }).join('') +
+        '</tbody></table>'
+    }
+
+    async function toggleShare(patientId, membroId, checked) {
+      if (checked) {
+        const { data, error } = await _supabase
+          .from('patient_shares')
+          .insert({
+            patient_id: patientId,
+            owner_id: mioProfId,
+            shared_with_id: membroId,
+            permesso: 'lettura',
+            stato: 'attivo'
+          })
+          .select()
+          .single()
+        if (error) {
+          alert('Errore condivisione: ' + error.message)
+          renderShareList(membroId)
+          return
+        }
+        shareState[patientId] = { active: true, permesso: 'lettura', row_id: data.id }
+      } else {
+        const { error } = await _supabase
+          .from('patient_shares')
+          .update({ stato: 'revocato', revoked_at: new Date().toISOString() })
+          .eq('patient_id', patientId)
+          .eq('shared_with_id', membroId)
+          .eq('owner_id', mioProfId)
+          .eq('stato', 'attivo')
+        if (error) {
+          alert('Errore revoca: ' + error.message)
+          renderShareList(membroId)
+          return
+        }
+        delete shareState[patientId]
+      }
+      renderShareList(membroId)
+    }
+
+    async function changePermesso(patientId, membroId, permesso) {
+      const st = shareState[patientId]
+      if (!st || !st.active) return
+      const { error } = await _supabase
+        .from('patient_shares')
+        .update({ permesso })
+        .eq('patient_id', patientId)
+        .eq('shared_with_id', membroId)
+        .eq('owner_id', mioProfId)
+        .eq('stato', 'attivo')
+      if (error) {
+        alert('Errore aggiornamento permesso: ' + error.message)
+        return
+      }
+      st.permesso = permesso
+    }
+
+    init()
+  </script>
+</body>
+</html>
