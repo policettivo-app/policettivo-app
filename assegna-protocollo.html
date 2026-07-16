@@ -142,6 +142,11 @@
         <span>🎥</span><span>Registra nuovo contenuto personalizzato</span>
       </button>
     </div>
+    <div class="section" id="studio-library-section" style="display:none">
+      <div class="section-title">📚 Libreria studio</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Esercizi personalizzati creati dallo studio. Clicca per selezionare.</p>
+      <div class="exercise-grid" id="studio-library-grid"></div>
+    </div>
     <div class="section">
       <div class="section-title">Esercizi Elicoidali</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Clicca per selezionare. L'ordine di selezione diventa l'ordine del protocollo, intercalato con gli esercizi Policettivo®.</p>
@@ -206,8 +211,11 @@
         if (patient.configurazione_default) setConfig(patient.configurazione_default)
       }
 
-      const { data: exs } = await _supabase.from('exercises').select('*').eq('active', true).eq('fonte', 'policettivo').order('nome')
-      allExercises = exs || []
+      const { data: exs, error: exErr } = await _supabase.from('exercises').select('*').eq('active', true).eq('fonte', 'policettivo').order('nome')
+      if (exErr) console.error('[esercizi policettivo]', exErr)
+      const { data: libStudio, error: libErr } = await _supabase.from('exercises').select('*').eq('active', true).eq('fonte', 'studio').order('nome')
+      if (libErr) console.error('[libreria studio]', libErr)
+      allExercises = [...(exs || []), ...(libStudio || [])]
 
       if (isEditMode) {
         document.getElementById('page-title').textContent = 'Modifica Protocollo'
@@ -373,10 +381,20 @@
     }
 
     function renderExercises() {
-      const grid = document.getElementById('exercise-grid')
-      if (!allExercises.length) { grid.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio disponibile</div>'; return }
+      const policettivoList = allExercises.filter(function(e) { return e.fonte === 'policettivo' })
+      const studioList = allExercises.filter(function(e) { return e.fonte === 'studio' })
+      renderExercisesList('exercise-grid', policettivoList)
+      renderExercisesList('studio-library-grid', studioList)
+      const studioSection = document.getElementById('studio-library-section')
+      if (studioSection) studioSection.style.display = studioList.length ? 'block' : 'none'
+    }
+
+    function renderExercisesList(gridId, list) {
+      const grid = document.getElementById(gridId)
+      if (!grid) return
+      if (!list.length) { grid.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio disponibile</div>'; return }
       const presets = [{s:30,l:'30s'},{s:60,l:'1m'},{s:120,l:'2m'},{s:180,l:'3m'},{s:300,l:'5m'},{s:600,l:'10m'}]
-      grid.innerHTML = allExercises.map(function(ex) {
+      grid.innerHTML = list.map(function(ex) {
         const isSelected = selectedExercises.some(function(s) { return s.id === ex.id })
         const selIdx = selectedExercises.findIndex(function(s) { return s.id === ex.id })
         const cfg = exerciseCfg[ex.id] || selectedConfig || 'NPL'
