@@ -404,7 +404,10 @@
           return '<div class="exercise-item" onclick="toggleExercise(\'' + ex.id + '\')">' +
             '<div class="exercise-num"></div>' +
             '<div class="exercise-info">' +
-              '<div class="exercise-name">' + ex.nome + '</div>' +
+              '<div style="display:flex;align-items:center;gap:8px">' +
+                '<div class="exercise-name">' + ex.nome + '</div>' +
+                (ex.video_url ? '<button onclick="apriVideoPreview(\'' + ex.id + '\', event)" style="background:transparent;border:1px solid #FFD008;color:#FFD008;border-radius:6px;padding:2px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">▶️ Vedi</button>' : '') +
+              '</div>' +
               '<div class="exercise-meta">' + (ex.durata_default || 60) + 's &middot; ' + (ex.livello || 'base') + '</div>' +
             '</div>' +
           '</div>'
@@ -417,7 +420,10 @@
           '<div style="display:flex;align-items:center;gap:12px">' +
             '<div class="exercise-num">' + (selIdx + 1) + '</div>' +
             '<div class="exercise-info">' +
-              '<div class="exercise-name">' + ex.nome + '</div>' +
+              '<div style="display:flex;align-items:center;gap:8px">' +
+                '<div class="exercise-name">' + ex.nome + '</div>' +
+                (ex.video_url ? '<button onclick="apriVideoPreview(\'' + ex.id + '\', event)" style="background:transparent;border:1px solid #FFD008;color:#FFD008;border-radius:6px;padding:2px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">▶️ Vedi</button>' : '') +
+              '</div>' +
               '<div class="exercise-meta">' + durLabel + ' &middot; ' + (ex.livello || 'base') + '</div>' +
             '</div>' +
             '<div class="exercise-cfg" onclick="event.stopPropagation()"><div class="cfg-toggle">' +
@@ -430,6 +436,35 @@
           '</div>' +
         '</div>'
       }).join('')
+    }
+
+    function getYouTubeId(url) {
+      if (!url) return null
+      const shortsMatch = url.match(/youtube\.com\/shorts\/([^?&\n]+)/)
+      if (shortsMatch) return shortsMatch[1]
+      const normalMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)
+      if (normalMatch) return normalMatch[1]
+      return null
+    }
+
+    function apriVideoPreview(exId, event) {
+      if (event) event.stopPropagation()
+      const ex = allExercises.find(function(e) { return e.id === exId })
+      if (!ex || !ex.video_url) { alert('Nessun video disponibile per questo esercizio.'); return }
+      document.getElementById('video-preview-title').textContent = ex.nome
+      const box = document.getElementById('video-preview-body')
+      const ytId = getYouTubeId(ex.video_url)
+      if (ytId) {
+        box.innerHTML = '<iframe src="https://www.youtube.com/embed/' + ytId + '?playsinline=1&rel=0" style="width:100%;height:100%;border:none" allowfullscreen allow="autoplay"></iframe>'
+      } else {
+        box.innerHTML = '<video src="' + ex.video_url + '#t=0.1" controls playsinline preload="metadata" style="width:100%;height:100%;background:#000"></video>'
+      }
+      document.getElementById('video-preview-modal').style.display = 'flex'
+    }
+
+    function chiudiVideoPreview() {
+      document.getElementById('video-preview-body').innerHTML = ''
+      document.getElementById('video-preview-modal').style.display = 'none'
     }
 
     function renderElicoidali() {
@@ -616,5 +651,12 @@
     init()
   </script>
   <script src="console-nav.js"></script>
+  <div id="video-preview-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)chiudiVideoPreview()">
+    <div style="width:100%;max-width:640px">
+      <div id="video-preview-title" style="color:#FFD008;font-family:Montserrat,sans-serif;font-size:15px;font-weight:700;margin-bottom:12px"></div>
+      <div id="video-preview-body" style="width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden"></div>
+      <button onclick="chiudiVideoPreview()" style="width:100%;margin-top:14px;padding:12px;background:#FFD008;color:#000;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer">Chiudi</button>
+    </div>
+  </div>
 </body>
 </html>
