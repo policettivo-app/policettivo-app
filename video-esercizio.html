@@ -169,6 +169,13 @@
         <label>Descrizione per il paziente</label>
         <textarea id="desc-input" placeholder="Istruzioni per il paziente..."></textarea>
       </div>
+      <div class="form-group" style="border-top:1px solid #eee;padding-top:14px;margin-bottom:16px">
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:600;color:#000;cursor:pointer;text-transform:none;letter-spacing:0;margin-bottom:0">
+          <input type="checkbox" id="salva-libreria" style="width:18px;height:18px;accent-color:#FFD008;cursor:pointer;margin-top:1px;flex-shrink:0">
+          <span>📚 Salva anche nella libreria dello studio (riutilizzabile su altri pazienti)</span>
+        </label>
+        <div style="font-size:11px;color:#888;margin-top:8px;padding-left:28px;line-height:1.5">Assicurati che chi compare nel video abbia firmato il consenso foto/video. Non includere nomi o dati clinici nell'audio o sullo sfondo.</div>
+      </div>
       <button class="btn-primary" id="btn-salva" onclick="salvaVideo()">💾 Salva</button>
     </div>
 
@@ -370,9 +377,36 @@
         tipo:        pendingType
       })
       if (dbErr) { alert('Errore salvataggio: ' + dbErr.message); btn.disabled = false; btn.textContent = '💾 Salva'; return }
+
+      const saveToLibrary = document.getElementById('salva-libreria').checked
+      if (saveToLibrary) {
+        const { data: { session } } = await _supabase.auth.getSession()
+        const { data: prof, error: profErr } = await _supabase.from('professionals').select('id, studio_id').eq('user_id', session.user.id).maybeSingle()
+        if (profErr) {
+          alert('Errore lettura profilo per libreria: ' + profErr.message)
+        } else if (!prof?.studio_id) {
+          alert('Impossibile salvare in libreria: nessuno studio associato al tuo profilo.')
+        } else {
+          const libTitolo = document.getElementById('titolo-input').value.trim() || 'Esercizio senza titolo'
+          const libDesc   = document.getElementById('desc-input').value.trim() || null
+          const { error: libErr } = await _supabase.from('exercises').insert({
+            nome:                 libTitolo,
+            descrizione_paziente: libDesc,
+            video_url:            publicUrl,
+            durata_default:       60,
+            fonte:                'studio',
+            active:               true,
+            studio_id:            prof.studio_id,
+            created_by:           prof.id
+          })
+          if (libErr) alert('Errore salvataggio in libreria studio: ' + libErr.message)
+        }
+      }
+
       btn.disabled = false; btn.textContent = '💾 Salva'
       document.getElementById('titolo-input').value = ''
       document.getElementById('desc-input').value   = ''
+      document.getElementById('salva-libreria').checked = false
       nuovoFile()
       await caricaVideos()
     }
@@ -421,10 +455,29 @@
     async function eliminaVideo(index) {
       const v = videosList[index]
       if (!v || !confirm('Eliminare questo elemento? L\'operazione è irreversibile.')) return
-      try {
-        if (v._storagePath) await _supabase.storage.from('videos').remove([v._storagePath])
-      } catch(e) { /* ignora errori storage, elimina comunque il record DB */ }
-      await _supabase.from('exercise_videos').delete().eq('id', v.id)
+
+      let usedInLibrary = false
+      if (v._storagePath) {
+        const { data: pub } = _supabase.storage.from('videos').getPublicUrl(v._storagePath)
+        const publicUrl = pub?.publicUrl
+        if (publicUrl) {
+          const { data: inLib, error: libErr } = await _supabase.from('exercises').select('id').eq('video_url', publicUrl).limit(1)
+          if (libErr) console.error('[eliminaVideo] errore check libreria:', libErr)
+          if (inLib?.length) usedInLibrary = true
+        }
+      }
+
+      const { error: delErr } = await _supabase.from('exercise_videos').delete().eq('id', v.id)
+      if (delErr) { alert('Errore eliminazione: ' + delErr.message); return }
+
+      if (usedInLibrary) {
+        alert('Video rimosso dal paziente. Resta disponibile nella libreria dello studio.')
+      } else {
+        try {
+          if (v._storagePath) await _supabase.storage.from('videos').remove([v._storagePath])
+        } catch(e) { /* ignora errori storage */ }
+      }
+
       await caricaVideos()
     }
 
