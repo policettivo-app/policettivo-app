@@ -1405,6 +1405,11 @@
       window.location.href = 'autotest.html?token=' + encodeURIComponent(patient.access_token) + '&pro=1'
     }
 
+    function polVediComePaziente() {
+      if (!patient || !patient.access_token) { alert('Token paziente non disponibile.'); return }
+      window.open('https://app.policettivo.it/protocollo.html?token=' + encodeURIComponent(patient.access_token) + '&preview=1', '_blank')
+    }
+
     function openTipoVisitaPaz() {
       document.getElementById('paz-tv-overlay').classList.add('open')
     }
@@ -4422,6 +4427,7 @@
       <div class="pol-hub-grid">
         <button class="pol-hub-btn" onclick="polChiudiHub();openTipoVisitaPaz()"><span class="ico">➕</span><span class="lbl">Nuova visita</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='assegna-protocollo.html?id='+patientId"><span class="ico">📋</span><span class="lbl">Protocollo</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();polVediComePaziente()"><span class="ico">👁</span><span class="lbl">Vedi come paziente</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();apptOpen()"><span class="ico">📅</span><span class="lbl">Appuntamento</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='lettera-ai.html?paziente='+patientId"><span class="ico">✨</span><span class="lbl">Lettera AI</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();vaiAutotestPro()"><span class="ico">🎯</span><span class="lbl">Autotest</span></button>

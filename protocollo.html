@@ -164,6 +164,16 @@
 
     const params = new URLSearchParams(window.location.search)
     let token = params.get('token')
+    const isPreview = new URLSearchParams(location.search).get('preview') === '1'
+    if (isPreview) {
+      document.addEventListener('DOMContentLoaded', function() {
+        const bar = document.createElement('div')
+        bar.textContent = '👁 ANTEPRIMA PROFESSIONISTA — nessun dato viene salvato'
+        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fff8e1;border-bottom:1px solid #ffe082;color:#f57f17;font:13px Montserrat,sans-serif;text-align:center;padding:8px 12px;z-index:99999'
+        document.body.appendChild(bar)
+        document.body.style.paddingTop = '36px'
+      })
+    }
 
     if (token) {
       // Link aperto con token: salva su cookie (sopravvive al passaggio Safari→PWA su iOS)
@@ -247,7 +257,7 @@
       patient = pd.patient
       document.getElementById('greeting-title').textContent = 'Ciao ' + patient.nome
       document.getElementById('nav-name').textContent = patient.nome + ' ' + patient.cognome
-      document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token }
+      document.getElementById('btn-pagella').onclick = function() { window.location.href = 'pagella.html?token=' + token + (isPreview ? '&preview=1' : '') }
       const btnRapida = document.getElementById('btn-rapida'); if(btnRapida) btnRapida.style.display = 'block'
       try { const { data: _pc } = await _supabase.rpc('get_professional_contact', { p_token: token }); window.__profTel = (_pc && _pc.telefono) ? _pc.telefono : '' } catch(e) { window.__profTel = '' }
 
@@ -308,8 +318,10 @@
       const feedbackTesto = stelleSelezionate + ' stelle' + (nota ? ' — ' + nota : '')
 
       if (ultimaSedutaId) {
+        if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
         await _supabase.rpc('update_session_feedback', { p_token: token, p_session_id: ultimaSedutaId, p_feedback: feedbackTesto })
       } else {
+        if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
         await _supabase.rpc('save_therapy_session', { p_token: token, p_data: { data_seduta: new Date().toISOString(), feedback_paziente: feedbackTesto } })
       }
 
@@ -397,13 +409,13 @@
     }
 
     function modalitaRapida() {
-      window.location.href = 'rapida.html?token=' + token
+      window.location.href = 'rapida.html?token=' + token + (isPreview ? '&preview=1' : '')
     }
 
     function iniziaEsercizi() {
       const totalItems = exercises.length + protocolElicoidali.length + protocolCustomVideos.length
       if (totalItems === 0) { alert('Nessun esercizio nel protocollo.'); return }
-      window.location.href = 'esercizio.html?token=' + token + '&idx=0'
+      window.location.href = 'esercizio.html?token=' + token + '&idx=0' + (isPreview ? '&preview=1' : '')
     }
 
     function updateSlider(id, val) {
@@ -428,7 +440,7 @@
     }
 
     function vaiAutotest() {
-      window.location.href = 'autotest.html?token=' + encodeURIComponent(token)
+      window.location.href = 'autotest.html?token=' + encodeURIComponent(token) + (isPreview ? '&preview=1' : '')
     }
     function chiudiNewsAutotest(azione) {
       document.getElementById('news-banner').style.display = 'none'
@@ -437,6 +449,7 @@
 
     async function salvaDiario() {
       const today = new Date().toISOString().split('T')[0]
+      if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
       const { error } = await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
         patient_protocol_id: protocol.id, data: today,
         dolore: parseInt(document.getElementById('sl-dolore').value),

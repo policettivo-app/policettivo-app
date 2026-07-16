@@ -140,7 +140,17 @@
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
+    const isPreview = params.get('preview') === '1'
     let idx = parseInt(params.get('idx') || '0')
+    if (isPreview) {
+      document.addEventListener('DOMContentLoaded', function() {
+        const bar = document.createElement('div')
+        bar.textContent = '👁 ANTEPRIMA PROFESSIONISTA — nessun dato viene salvato'
+        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fff8e1;border-bottom:1px solid #ffe082;color:#f57f17;font:13px Montserrat,sans-serif;text-align:center;padding:8px 12px;z-index:99999'
+        document.body.appendChild(bar)
+        document.body.style.paddingTop = '36px'
+      })
+    }
     let patient = null, protocol = null, exercises = [], items = []
     let totalSeconds = 90, remaining = 90, timerInterval = null, isRunning = false
 
@@ -178,11 +188,11 @@
     ]
 
     async function init() {
-      if (!token) { window.location.href = 'protocollo.html'; return }
+      if (!token) { window.location.href = 'protocollo.html' + (isPreview ? '?preview=1' : ''); return }
       const { data: pd, error: pdErr } = await _supabase.rpc('get_protocol_data', { p_token: token })
-      if (pdErr || !pd || !pd.patient) { window.location.href = 'protocollo.html?token=' + token; return }
+      if (pdErr || !pd || !pd.patient) { window.location.href = 'protocollo.html?token=' + token + (isPreview ? '&preview=1' : ''); return }
       patient = pd.patient
-      if (!pd.protocol || pd.protocol.stato !== 'attivo') { window.location.href = 'protocollo.html?token=' + token; return }
+      if (!pd.protocol || pd.protocol.stato !== 'attivo') { window.location.href = 'protocollo.html?token=' + token + (isPreview ? '&preview=1' : ''); return }
       protocol = pd.protocol
       exercises = (pd.exercises || []).map(function(item) { return Object.assign({}, item.ppe, { exercise: item.exercise || null, item_type: 'standard' }) })
       const eliItems = (pd.elicoidali || []).map(function(eli) {
@@ -412,6 +422,7 @@
     async function salvaDiarioAutomatico(streak) {
       const today = new Date().toISOString().split('T')[0]
       const nota = `Sessione completata automaticamente. ${streak > 1 ? streak + ' giorni consecutivi! 🔥' : 'Prima sessione completata! 🌟'}`
+      if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
       await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
         patient_protocol_id: protocol.id, data: today,
         dolore: 0, rigidita: 0, equilibrio: 5, energia: 5,
@@ -429,7 +440,7 @@
       if (idx > 0) { idx--; resetTimer(); loadExercise(); window.scrollTo(0,0) }
     }
 
-    function finishSession() { window.location.href = 'protocollo.html?token=' + token }
+    function finishSession() { window.location.href = 'protocollo.html?token=' + token + (isPreview ? '&preview=1' : '') }
 
     function exitWithConfirm() {
       if (isRunning || idx > 0) {
@@ -445,6 +456,7 @@
     function painAlert() {
       clearInterval(timerInterval)
       if (confirm('Vuoi interrompere per dolore? Verrà registrata una nota sul tuo diario.')) {
+        if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
         _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
           patient_protocol_id: protocol.id,
           data: new Date().toISOString().split('T')[0],

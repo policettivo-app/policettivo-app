@@ -99,6 +99,16 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 const params = new URLSearchParams(window.location.search)
 const token = params.get('token')
+const isPreview = new URLSearchParams(location.search).get('preview') === '1'
+if (isPreview) {
+  document.addEventListener('DOMContentLoaded', function() {
+    const bar = document.createElement('div')
+    bar.textContent = '👁 ANTEPRIMA PROFESSIONISTA — nessun dato viene salvato'
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fff8e1;border-bottom:1px solid #ffe082;color:#f57f17;font:13px Montserrat,sans-serif;text-align:center;padding:8px 12px;z-index:99999'
+    document.body.appendChild(bar)
+    document.body.style.paddingTop = '36px'
+  })
+}
 let patient = null, protocol = null, exercises = []
 let checkedItems = new Set()
 let timers = {}
@@ -111,7 +121,7 @@ const frasi = [
   'Anche oggi hai scelto di muoverti. Questa e la differenza.'
 ]
 
-function torna() { window.location.href = 'protocollo.html?token=' + token }
+function torna() { window.location.href = 'protocollo.html?token=' + token + (isPreview ? '&preview=1' : '') }
 
 function updateSlider(id, val) {
   document.getElementById('val-' + id).textContent = val
@@ -200,6 +210,7 @@ async function completaSeduta() {
   const today = new Date().toISOString().split('T')[0]
   const eseguiti = eseguitiText()
   const noteFinale = eseguiti + (note ? ('. Note: ' + note) : '')
+  if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
   await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
     patient_protocol_id: protocol.id, data: today,
     dolore, rigidita: 0, equilibrio: 5, energia,
@@ -210,6 +221,7 @@ async function completaSeduta() {
 
 async function saltaECompleta() {
   const today = new Date().toISOString().split('T')[0]
+  if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
   await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
     patient_protocol_id: protocol.id, data: today,
     dolore: 0, rigidita: 0, equilibrio: 5, energia: 5,
