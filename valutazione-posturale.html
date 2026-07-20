@@ -2073,7 +2073,7 @@
     try {
       if (ft.storage_path) {
         chiudiLibreriaFotoModal()
-        await referenceLibraryPhoto(ft.storage_path, _librTipo, _librIsReplace)
+        await referenceLibraryPhoto(ft.storage_path, _librTipo, _librIsReplace, ft.data)
       } else {
         const resp = await fetch(ft.url)
         const blob = await resp.blob()
@@ -2087,11 +2087,11 @@
     }
   }
 
-  async function referenceLibraryPhoto(storage_path, tipo, isReplace) {
+  async function referenceLibraryPhoto(storage_path, tipo, isReplace, dataOriginale) {
     if (!visitId || visitId === 'null') { showToast('Errore: visita non ancora creata. Ricarica la pagina.'); return }
     setIndicator('saving', '')
     try {
-      const data_scatto = new Date().toISOString()
+      const data_scatto = dataOriginale || new Date().toISOString()
       const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(storage_path)
       const pubUrl = urlData.publicUrl
       let dbErr, saved
