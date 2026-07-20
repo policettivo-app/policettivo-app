@@ -2447,7 +2447,10 @@
 
       if (dbErr) { showToast('Errore salvataggio foto: ' + dbErr.message); setIndicator('error', ''); return }
 
-      photos[tipo] = saved || { ...photos[tipo], storage_path: path, url_pubblico: pubUrl, data_scatto }
+      saved = saved || { ...photos[tipo], storage_path: path, url_pubblico: pubUrl, data_scatto }
+      const { data: _suUp } = await _sb.storage.from('clinical-docs').createSignedUrl(path, 7200)
+      if (_suUp && _suUp.signedUrl) saved.url_pubblico = _suUp.signedUrl
+      photos[tipo] = saved
       updatePhotoSlot(tipo)
       setIndicator('saved', '')
     } catch (e) {
@@ -2536,6 +2539,8 @@
         .select().maybeSingle()
       if (dbErr || !np) { showToast('Errore salvataggio'); btn.disabled = false; btn.textContent = 'Aggiungi foto'; return }
 
+      const { data: _suFl } = await _sb.storage.from('clinical-docs').createSignedUrl(path, 7200)
+      if (_suFl && _suFl.signedUrl) np.url_pubblico = _suFl.signedUrl
       fotoLibere.push(np)
       closeFotoLiberaModal()
       renderFotoLibere()
