@@ -1998,15 +1998,7 @@
 
   async function caricaFotoPaziente() {
     const out = []
-    // 1) foto iniziali da patients.foto_url (base64)
-    try {
-      const { data: pat } = await _sb.from('patients').select('foto_url, created_at').eq('id', patientId).maybeSingle()
-      const LBL = { 'prima-sx':'Prima cuscini · Sx','prima-dx':'Prima cuscini · Dx','dopo-sx':'Dopo cuscini · Sx','dopo-dx':'Dopo cuscini · Dx','frontale':'Posturale · Frontale','posteriore':'Posturale · Posteriore','podo-sotto':'Piede · Da sotto','podo-dietro':'Piede · Da dietro' }
-      const iniz = JSON.parse(pat?.foto_url || '{}')
-      Object.keys(LBL).forEach(slot => {
-        if (iniz[slot]) out.push({ url: iniz[slot], label: LBL[slot] || slot, data: pat?.created_at || null, source: 'base64', slot })
-      })
-    } catch (e) {}
+    // (sezione foto onboarding base64 rimossa: nel picker restano solo le foto di visita, per evitare duplicati)
     // 2) foto delle visite del paziente (visit_photos) — signed URL al volo
     try {
       const { data: visite } = await _sb.from('visits').select('id, data_visita').eq('patient_id', patientId)
