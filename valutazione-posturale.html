@@ -2079,7 +2079,7 @@
         const blob = await resp.blob()
         const file = new File([blob], 'libreria.jpg', { type: blob.type || 'image/jpeg' })
         chiudiLibreriaFotoModal()
-        await uploadPhoto(file, _librTipo, _librIsReplace)
+        await uploadPhoto(file, _librTipo, _librIsReplace, ft.data)
       }
       _librTipo = null; _librIsReplace = false
     } catch (e) {
@@ -2407,7 +2407,7 @@
   }
 
   // ── UPLOAD CORE (condiviso da file picker e webcam) ─────────
-  async function uploadPhoto(file, tipo, isReplace) {
+  async function uploadPhoto(file, tipo, isReplace, dataOriginale) {
     if (!visitId || visitId === 'null') {
       showToast('Errore: visita non ancora creata. Ricarica la pagina.')
       return
@@ -2417,7 +2417,7 @@
 
     try {
       let blob = await compressImage(file)
-      const data_scatto = new Date().toISOString()
+      const data_scatto = dataOriginale || new Date().toISOString()
 
       const path = 'visits/' + visitId + '/' + tipo + '_' + Date.now() + '.jpg'
       const { error: storErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
