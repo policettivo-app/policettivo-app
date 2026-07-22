@@ -245,6 +245,19 @@
       renderCustomVideos()
     }
 
+    async function scaricaCustomVideo(id, ev) {
+      if (ev) { ev.stopPropagation(); ev.preventDefault() }
+      const v = customVideos.find(function(x) { return x.id === id })
+      if (!v || !v.url) { alert('File non disponibile'); return }
+      try {
+        const nome = (v.titolo || 'contenuto').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_') || 'contenuto'
+        const ext = (v.url.split('?')[0].split('.').pop() || (v.tipo === 'video' ? 'mp4' : 'jpg')).toLowerCase()
+        await window.polScaricaFile(v.url, nome + '.' + ext)
+      } catch (e) {
+        alert('Download non riuscito')
+      }
+    }
+
     async function eliminaCustomVideo(id, ev) {
       if (ev) { ev.stopPropagation(); ev.preventDefault() }
       const v = customVideos.find(function(x) { return x.id === id })
@@ -305,6 +318,7 @@
                 '</div>' +
                 '<div style="font-size:11px;color:#999;margin-top:2px">' + metaLine + '</div>' +
               '</div>' +
+              '<button onclick="scaricaCustomVideo(\'' + v.id + '\', event)" title="Scarica" style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid #00C48C;background:#fff;color:#00C48C;cursor:pointer;font-family:Montserrat,sans-serif;margin-right:6px">&#11015;</button>' +
               '<button onclick="eliminaCustomVideo(\'' + v.id + '\', event)" title="Elimina definitivamente" style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid #f5c6c6;background:#fff;color:#c62828;cursor:pointer;font-family:Montserrat,sans-serif;margin-right:6px">🗑</button>' +
               '<div style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:2px solid #ddd;background:#fff;color:#000;white-space:nowrap">+ Aggiungi</div>' +
             '</div>' +
@@ -327,6 +341,7 @@
             '<div style="display:flex;gap:6px;flex-shrink:0;align-items:center">' +
               '<div style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;background:#FFD008;color:#000;white-space:nowrap">✓ Nel protocollo</div>' +
               '<button onclick="toggleCustomVideo(\'' + v.id + '\')" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid #ddd;background:#fff;color:#c62828;cursor:pointer;font-family:Montserrat,sans-serif;white-space:nowrap">× Rimuovi</button>' +
+              '<button onclick="scaricaCustomVideo(\'' + v.id + '\', event)" title="Scarica" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid #00C48C;background:#fff;color:#00C48C;cursor:pointer;font-family:Montserrat,sans-serif">&#11015;</button>' +
               '<button onclick="eliminaCustomVideo(\'' + v.id + '\', event)" title="Elimina definitivamente" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid #f5c6c6;background:#fff;color:#c62828;cursor:pointer;font-family:Montserrat,sans-serif">🗑</button>' +
             '</div>' +
           '</div>' +
