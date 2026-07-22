@@ -138,13 +138,13 @@ input.fi { min-height: unset; resize: none; }
     <div class="vas-row">
       <div class="vas-box">
         <span class="vas-lbl">VAS inizio</span>
-        <div class="vas-val" id="vas-inizio-val" style="color:#c62828">5</div>
-        <input type="range" class="vas-sl" id="vas-inizio" min="0" max="10" value="5" oninput="updateVas('inizio',this.value)">
+        <div class="vas-val" id="vas-inizio-val" style="color:#c62828">0</div>
+        <input type="range" class="vas-sl" id="vas-inizio" min="0" max="10" value="0" oninput="updateVas('inizio',this.value)">
       </div>
       <div class="vas-box">
         <span class="vas-lbl">VAS fine</span>
-        <div class="vas-val" id="vas-fine-val" style="color:#2e7d32">3</div>
-        <input type="range" class="vas-sl" id="vas-fine" min="0" max="10" value="3" oninput="updateVas('fine',this.value)">
+        <div class="vas-val" id="vas-fine-val" style="color:#2e7d32">0</div>
+        <input type="range" class="vas-sl" id="vas-fine" min="0" max="10" value="0" oninput="updateVas('fine',this.value)">
       </div>
     </div>
     <div class="fg"><label class="fl">Data seduta</label><input type="date" class="fi" id="f-ds" min="2024-01-01" max="2099-12-31"></div>
@@ -418,10 +418,10 @@ function apriNuovaSeduta() {
   for (var i = 0; i < campi.length; i++) {
     document.getElementById(campi[i]).value = '';
   }
-  document.getElementById('vas-inizio').value = 5;
-  document.getElementById('vas-fine').value = 3;
-  updateVas('inizio', 5);
-  updateVas('fine', 3);
+  document.getElementById('vas-inizio').value = 0;
+  document.getElementById('vas-fine').value = 0;
+  updateVas('inizio', 0);
+  updateVas('fine', 0);
   calON = false;
   var c = document.getElementById('cal-check');
   c.style.background = '';
@@ -474,18 +474,28 @@ function diarioTerapia(sel) {
 // ── DUPLICA ULTIMA SEDUTA ─────────────────────────────────────────────────────
 async function diarioDuplica() {
   var res = await _sb.from('therapy_sessions')
-    .select('protocollo_prossima, tecniche')
+    .select('protocollo_seduta, protocollo_prossima, tecniche, vas_fine, costo, voce_listino, costo_descrizione, colore')
     .eq('patient_id', pid)
     .order('data_seduta', { ascending: false })
     .limit(1);
+  if (res.error) { alert('Errore nel recupero della seduta: ' + res.error.message); return; }
   if (!res.data || res.data.length === 0) {
     alert('Nessuna seduta precedente da duplicare.');
     return;
   }
   var ultima = res.data[0];
   apriNuovaSeduta();
-  if (ultima.protocollo_prossima) document.getElementById('f-ps').value = ultima.protocollo_prossima;
-  if (ultima.tecniche)           document.getElementById('f-tec').value = ultima.tecniche;
+  var proto = ultima.protocollo_prossima || ultima.protocollo_seduta;
+  if (proto)           document.getElementById('f-ps').value = proto;
+  if (ultima.tecniche) document.getElementById('f-tec').value = ultima.tecniche;
+  if (ultima.vas_fine !== null && ultima.vas_fine !== undefined) {
+    document.getElementById('vas-inizio').value = ultima.vas_fine;
+    updateVas('inizio', ultima.vas_fine);
+  }
+  cstPopolaConSeduta('', ultima);
+  if (!proto && !ultima.tecniche) {
+    alert("L'ultima seduta non aveva protocollo né tecniche da copiare: la nuova seduta parte vuota.");
+  }
 }
 // ── END DUPLICA / TEMPLATE ───────────────────────────────────────────────────
 
