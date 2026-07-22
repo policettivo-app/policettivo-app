@@ -533,13 +533,8 @@ async function handleVideo(req, res) {
 
   const out = []
   for (const v of (videos || [])) {
-    let url = v.url
-    if (typeof url === 'string' && url.includes('/videos/')) {
-      const path = decodeURIComponent(url.split('/videos/')[1].split('?')[0])
-      const { data: su } = await svc.storage.from('videos').createSignedUrl(path, 7200)
-      if (su?.signedUrl) url = su.signedUrl
-    }
-    out.push({ id: v.id, titolo: v.titolo, url, tipo: v.tipo, descrizione: v.descrizione, durata: v.durata })
+    // bucket 'videos' pubblico: usiamo la URL pubblica diretta (già funzionante), niente signed URL
+    out.push({ id: v.id, titolo: v.titolo, url: v.url, tipo: v.tipo, descrizione: v.descrizione, durata: v.durata })
   }
 
   return res.status(200).json({ videos: out })
