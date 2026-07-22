@@ -240,15 +240,43 @@
         return
       }
       customVideos = data || []
-      // Firma gli URL video (7200s)
-      for (const v of customVideos) {
-        if (typeof v.url === 'string' && v.url.includes('/videos/')) {
-          const path = decodeURIComponent(v.url.split('/videos/')[1].split('?')[0])
-          const { data: su } = await _supabase.storage.from('videos').createSignedUrl(path, 7200)
-          if (su?.signedUrl) v.url = su.signedUrl
+      // bucket 'videos' pubblico: la URL diretta funziona, nessuna firma necessaria
+      renderCustomVideos()
+    }
+
+    async function eliminaCustomVideo(id, ev) {
+      if (ev) { ev.stopPropagation(); ev.preventDefault() }
+      const v = customVideos.find(function(x) { return x.id === id })
+      if (!v) return
+      if (!confirm('Eliminare definitivamente "' + (v.titolo || 'questo contenuto') + '"?\n\nVerra rimosso dal paziente e da tutti i protocolli. Operazione irreversibile.')) return
+
+      let path = null
+      if (typeof v.url === 'string' && v.url.includes('/videos/')) {
+        path = decodeURIComponent(v.url.split('/videos/')[1].split('?')[0])
+      }
+
+      let usedInLibrary = false
+      if (path) {
+        const { data: pub } = _supabase.storage.from('videos').getPublicUrl(path)
+        if (pub && pub.publicUrl) {
+          const { data: inLib, error: libErr } = await _supabase.from('exercises').select('id').eq('video_url', pub.publicUrl).limit(1)
+          if (libErr) console.error('[eliminaCustomVideo] check libreria:', libErr)
+          if (inLib && inLib.length) usedInLibrary = true
         }
       }
-      renderCustomVideos()
+
+      const { error: delErr } = await _supabase.from('exercise_videos').delete().eq('id', id)
+      if (delErr) { alert('Errore eliminazione: ' + delErr.message); return }
+
+      if (usedInLibrary) {
+        alert('Contenuto rimosso dal paziente. Resta disponibile nella libreria dello studio.')
+      } else if (path) {
+        try { await _supabase.storage.from('videos').remove([path]) } catch(e) {}
+      }
+
+      const si = selectedCustomVideos.indexOf(id)
+      if (si > -1) selectedCustomVideos.splice(si, 1)
+      await caricaCustomVideos()
     }
 
     function renderCustomVideos() {
@@ -276,6 +304,7 @@
                 '</div>' +
                 '<div style="font-size:11px;color:#999;margin-top:2px">' + metaLine + '</div>' +
               '</div>' +
+              '<button onclick="eliminaCustomVideo(\'' + v.id + '\', event)" title="Elimina definitivamente" style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid #f5c6c6;background:#fff;color:#c62828;cursor:pointer;font-family:Montserrat,sans-serif;margin-right:6px">🗑</button>' +
               '<div style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;border:2px solid #ddd;background:#fff;color:#000;white-space:nowrap">+ Aggiungi</div>' +
             '</div>' +
             preview +
@@ -297,6 +326,7 @@
             '<div style="display:flex;gap:6px;flex-shrink:0;align-items:center">' +
               '<div style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;background:#FFD008;color:#000;white-space:nowrap">✓ Nel protocollo</div>' +
               '<button onclick="toggleCustomVideo(\'' + v.id + '\')" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid #ddd;background:#fff;color:#c62828;cursor:pointer;font-family:Montserrat,sans-serif;white-space:nowrap">× Rimuovi</button>' +
+              '<button onclick="eliminaCustomVideo(\'' + v.id + '\', event)" title="Elimina definitivamente" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1.5px solid #f5c6c6;background:#fff;color:#c62828;cursor:pointer;font-family:Montserrat,sans-serif">🗑</button>' +
             '</div>' +
           '</div>' +
           '<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">' + presetsHtml + '</div>' +
