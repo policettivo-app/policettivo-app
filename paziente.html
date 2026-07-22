@@ -938,7 +938,7 @@
     </div>
 
     <!-- PROTOCOLLO -->
-    <div class="section ds-card">
+    <div class="section ds-card" id="sez-protocollo">
       <div class="section-title-plain ds-section-title-line">Protocollo</div>
       <div id="protocollo-info" style="margin-bottom:16px">
         <p style="font-size:13px;color:#666">Caricamento protocollo...</p>
@@ -4454,12 +4454,14 @@
       <div class="pol-hub-title">Azioni rapide</div>
       <div class="pol-hub-grid">
         <button class="pol-hub-btn" onclick="polChiudiHub();openTipoVisitaPaz()"><span class="ico">➕</span><span class="lbl">Nuova visita</span></button>
-        <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='assegna-protocollo.html?id='+patientId"><span class="ico">📋</span><span class="lbl">Protocollo</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();setTimeout(function(){var el=document.getElementById('sez-protocollo'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'})},250)"><span class="ico">📋</span><span class="lbl">Protocollo</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();polVediComePaziente()"><span class="ico">👁</span><span class="lbl">Vedi come paziente</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();apptOpen()"><span class="ico">📅</span><span class="lbl">Appuntamento</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='lettera-ai.html?paziente='+patientId"><span class="ico">✨</span><span class="lbl">Lettera AI</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();vaiAutotestPro()"><span class="ico">🎯</span><span class="lbl">Autotest</span></button>
-        <button class="pol-hub-btn" onclick="polChiudiHub();apriModaleAIP()"><span class="ico">🤖</span><span class="lbl">Analisi AI</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();apriModaleAIP()"><span class="ico">🤖</span><span class="lbl">Analisi AI Policettivo&reg;</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='diario.html?pid='+patientId"><span class="ico">📖</span><span class="lbl">Diario</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='cartella.html?id='+patientId"><span class="ico">📁</span><span class="lbl">Cartella clinica</span></button>
       </div>
     </div>
   </div>
