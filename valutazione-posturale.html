@@ -1771,6 +1771,22 @@
   }
   window.addEventListener('pageshow', polRestoreScroll)
 
+  async function scaricaFotoPosturale(tipo) {
+    const p = photos[tipo]
+    if (!p) { showToast('Foto non disponibile'); return }
+    try {
+      let url = p.url_pubblico
+      if (p.storage_path) {
+        const { data: su } = await _sb.storage.from('clinical-docs').createSignedUrl(p.storage_path, 300)
+        if (su && su.signedUrl) url = su.signedUrl
+      }
+      const dt = p.data_scatto ? new Date(p.data_scatto).toISOString().slice(0,10) : ''
+      await window.polScaricaFile(url, tipo + (dt ? '_' + dt : '') + '.jpg')
+    } catch (e) {
+      showToast('Download non riuscito')
+    }
+  }
+
   function updatePhotoSlot(tipo) {
     const slot = document.getElementById('slot-' + tipo)
     if (!slot) return
@@ -1792,6 +1808,7 @@
           onAnnota: "apriOsservazioni('" + tipo + "')",
           onOsserva: "polNavDisegno('disegno.html?id=" + patientId + "&vp=" + p.id + "', '" + tipo + "')",
           onSostituisci: "replacePhoto('" + tipo + "')",
+          onScarica: "scaricaFotoPosturale('" + tipo + "')",
           onElimina: "removePhoto('" + tipo + "')"
         }) : '')
       if (dateEl) dateEl.textContent = p.data_scatto ? formatDateForDisplay(p.data_scatto) : ''

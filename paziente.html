@@ -1931,6 +1931,16 @@
       })
     }
 
+    async function polFotoScarica(slot) {
+      const img = document.querySelector('#slot-' + slot + ' img')
+      if (!img || !img.src) { alert('Foto non disponibile'); return }
+      try {
+        await window.polScaricaFile(img.src, 'foto_' + slot + '.jpg')
+      } catch (e) {
+        alert('Download non riuscito')
+      }
+    }
+
     function showFotoPreview(slot, src) {
       const el = document.getElementById('slot-' + slot); if (!el) return
       el.classList.add('has-photo'); el.onclick = null
@@ -1939,6 +1949,7 @@
         onAnnota: "window.location.href='disegno.html?id=" + patientId + "&foto=" + slot + "'",
         onLibreria: "polFotoLibreria('" + slot + "')",
         onSostituisci: "triggerInput('" + slot + "')",
+        onScarica: "polFotoScarica('" + slot + "')",
         onElimina: "polFotoElimina('" + slot + "')"
       }) : ''
       el.innerHTML = '<img src="' + src + '" alt="foto">' + _bar +
@@ -2413,10 +2424,27 @@
         html += '</div>'
         html += '<div class="doc-item-actions">'
         html += '<button class="btn-doc-view" onclick="apriDocumento(' + "'" + doc.file_url + "'" + ')">Apri</button>'
+        html += '<button class="btn-doc-view" onclick="scaricaDocumento(' + "'" + doc.file_url + "'" + ')">&#11015;</button>'
         html += '<button class="btn-doc-del" onclick="eliminaDocumento(' + "'" + doc.id + "','" + doc.file_url + "'" + ')">🗑</button>'
         html += '</div></div>'
       })
       lista.innerHTML = html
+    }
+
+    async function scaricaDocumento(fileUrl) {
+      if (!fileUrl) return
+      try {
+        let url = fileUrl
+        if (fileUrl.includes('/clinical-docs/')) {
+          const path = fileUrl.split('/clinical-docs/')[1].split('?')[0]
+          const { data: su } = await _supabase.storage.from('clinical-docs').createSignedUrl(path, 300)
+          if (su && su.signedUrl) url = su.signedUrl
+        }
+        const nome = decodeURIComponent((fileUrl.split('?')[0].split('/').pop()) || 'documento')
+        await window.polScaricaFile(url, nome)
+      } catch (e) {
+        alert('Download non riuscito')
+      }
     }
 
     async function apriDocumento(fileUrl) {
