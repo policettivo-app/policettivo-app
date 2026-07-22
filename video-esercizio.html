@@ -448,12 +448,36 @@
               '<div class="video-card-title">' + tipo + ' ' + escHtml(v.titolo || 'Senza titolo') + '</div>' +
               '<div class="video-card-meta">' + data + (v.tipo === 'video' ? ' · Video' : ' · Foto') + '</div>' +
             '</div>' +
+            '<button class="btn-del-video" onclick="scaricaMedia(' + i + ')" style="background:#00C48C;color:#000;margin-right:6px">&#11015; Scarica</button>' +
             '<button class="btn-del-video" onclick="eliminaVideo(' + i + ')">🗑 Elimina</button>' +
           '</div>' +
           (v.descrizione ? '<p class="video-card-desc">' + escHtml(v.descrizione) + '</p>' : '') +
           media +
           '</div>'
       }).join('')
+    }
+
+    async function scaricaMedia(index) {
+      const v = videosList[index]
+      if (!v || !v.url) { alert('File non disponibile'); return }
+      try {
+        const r = await fetch(v.url)
+        if (!r.ok) throw new Error('HTTP ' + r.status)
+        const blob = await r.blob()
+        const pulito = (v.url.split('?')[0] || '')
+        const ext = (pulito.split('.').pop() || (v.tipo === 'video' ? 'mp4' : 'jpg')).toLowerCase()
+        const nome = (v.titolo || 'media').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_') || 'media'
+        const a = document.createElement('a')
+        const objUrl = URL.createObjectURL(blob)
+        a.href = objUrl
+        a.download = nome + '.' + ext
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        setTimeout(function() { URL.revokeObjectURL(objUrl) }, 2000)
+      } catch (e) {
+        alert('Download non riuscito: ' + (e.message || e))
+      }
     }
 
     async function eliminaVideo(index) {
