@@ -398,6 +398,7 @@
           : (nextItem.exercise ? nextItem.exercise.nome : '')
         document.getElementById('completed-sub').textContent = 'Prossimo: ' + nextName
         document.getElementById('streak-section').style.display = 'none'
+        startAutoNext()
       }
       document.getElementById('completed-overlay').classList.add('show')
     }
@@ -430,7 +431,27 @@
       }})
     }
 
+    let autoNextTimer = null
+    function stopAutoNext() {
+      if (autoNextTimer) { clearInterval(autoNextTimer); autoNextTimer = null }
+      const b = document.getElementById('btn-next')
+      if (b) b.textContent = 'Prossimo esercizio →'
+    }
+    function startAutoNext() {
+      stopAutoNext()
+      let s = 3
+      const b = document.getElementById('btn-next')
+      if (!b) return
+      b.textContent = 'Prossimo esercizio → (' + s + ')'
+      autoNextTimer = setInterval(function() {
+        s--
+        if (s <= 0) { stopAutoNext(); nextExercise(); return }
+        b.textContent = 'Prossimo esercizio → (' + s + ')'
+      }, 1000)
+    }
+
     function nextExercise() {
+      stopAutoNext()
       idx++
       document.getElementById('completed-overlay').classList.remove('show')
       resetTimer(); loadExercise(); window.scrollTo(0,0)
