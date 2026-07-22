@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
+  <script src="js/foto-actions.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; }
@@ -425,6 +426,35 @@
       if (studioSection) studioSection.style.display = studioList.length ? 'block' : 'none'
     }
 
+    async function scaricaEsercizioLib(id, ev) {
+      if (ev) { ev.stopPropagation(); ev.preventDefault() }
+      const ex = allExercises.find(function(x) { return x.id === id })
+      if (!ex || !ex.video_url) { alert('Video non disponibile'); return }
+      try {
+        const nome = (ex.nome || 'esercizio').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_') || 'esercizio'
+        const ext = (ex.video_url.split('?')[0].split('.').pop() || 'mp4').toLowerCase()
+        await window.polScaricaFile(ex.video_url, nome + '.' + ext)
+      } catch (e) {
+        alert('Download non riuscito')
+      }
+    }
+
+    async function eliminaEsercizioLib(id, ev) {
+      if (ev) { ev.stopPropagation(); ev.preventDefault() }
+      const ex = allExercises.find(function(x) { return x.id === id })
+      if (!ex) return
+      if (ex.fonte !== 'studio') { alert('Gli esercizi ufficiali Policettivo non si possono eliminare.'); return }
+      if (!confirm('Eliminare "' + (ex.nome || 'questo esercizio') + '" dalla libreria dello studio?\n\nIl file video NON viene cancellato: resta disponibile per i pazienti che lo hanno gia assegnato.')) return
+      const { error } = await _supabase.from('exercises').delete().eq('id', id)
+      if (error) { alert('Errore eliminazione: ' + error.message); return }
+      const i = allExercises.findIndex(function(x) { return x.id === id })
+      if (i > -1) allExercises.splice(i, 1)
+      const si = selectedExercises.findIndex(function(s) { return s.id === id })
+      if (si > -1) selectedExercises.splice(si, 1)
+      renderExercises()
+      updateSummary()
+    }
+
     function renderExercisesList(gridId, list) {
       const grid = document.getElementById(gridId)
       if (!grid) return
@@ -436,6 +466,12 @@
         const cfg = exerciseCfg[ex.id] || selectedConfig || 'NPL'
         const durata = exerciseDurata[ex.id] || ex.durata_default || 60
         const durLabel = durata < 60 ? durata + 's' : (durata % 60 === 0 ? (durata / 60) + ' min' : durata + 's')
+        const isStudio = ex.fonte === 'studio'
+        const isSupaVideo = typeof ex.video_url === 'string' && ex.video_url.indexOf('/videos/') > -1
+        const azioniLib = !isStudio ? '' : (
+          (isSupaVideo ? '<button onclick="scaricaEsercizioLib(\'' + ex.id + '\', event)" title="Scarica video" style="background:transparent;border:1px solid #00C48C;color:#00C48C;border-radius:6px;padding:2px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">&#11015;</button>' : '') +
+          '<button onclick="eliminaEsercizioLib(\'' + ex.id + '\', event)" title="Elimina dalla libreria" style="background:transparent;border:1px solid #f5c6c6;color:#c62828;border-radius:6px;padding:2px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>'
+        )
         if (!isSelected) {
           return '<div class="exercise-item" onclick="toggleExercise(\'' + ex.id + '\')">' +
             '<div class="exercise-num"></div>' +
@@ -443,6 +479,7 @@
               '<div style="display:flex;align-items:center;gap:8px">' +
                 '<div class="exercise-name">' + ex.nome + '</div>' +
                 (ex.video_url ? '<button onclick="apriVideoPreview(\'' + ex.id + '\', event)" style="background:transparent;border:1px solid #FFD008;color:#FFD008;border-radius:6px;padding:2px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">▶️ Vedi</button>' : '') +
+                azioniLib +
               '</div>' +
               '<div class="exercise-meta">' + (ex.durata_default || 60) + 's &middot; ' + (ex.livello || 'base') + '</div>' +
             '</div>' +
@@ -459,6 +496,7 @@
               '<div style="display:flex;align-items:center;gap:8px">' +
                 '<div class="exercise-name">' + ex.nome + '</div>' +
                 (ex.video_url ? '<button onclick="apriVideoPreview(\'' + ex.id + '\', event)" style="background:transparent;border:1px solid #FFD008;color:#FFD008;border-radius:6px;padding:2px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">▶️ Vedi</button>' : '') +
+                azioniLib +
               '</div>' +
               '<div class="exercise-meta">' + durLabel + ' &middot; ' + (ex.livello || 'base') + '</div>' +
             '</div>' +
