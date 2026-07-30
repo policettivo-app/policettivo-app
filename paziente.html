@@ -1972,7 +1972,7 @@
       try {
         const content = []
         for (const slot of ['prima-sx', 'prima-dx']) {
-          const img = await imgUrlToBase64(fotoUrls[slot])
+          const img = await imgUrlToBase64(await polResolveFoto(fotoUrls[slot], _supabase))
           if (img) content.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })
         }
         content.push({ type: 'text', text:
@@ -2540,7 +2540,7 @@
       const content = []
       for (const slot of (slotsPerBase[base] || [])) {
         if (fotoUrls[slot]) {
-          const img = await imgUrlToBase64(fotoUrls[slot])
+          const img = await imgUrlToBase64(await polResolveFoto(fotoUrls[slot], _supabase))
           if (img) content.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })
         }
       }
@@ -2999,10 +2999,12 @@
         const SLOT_ORDER = ['prima-sx','prima-dx','dopo-sx','dopo-dx','frontale','posteriore','podo-sotto','podo-dietro']
         try {
           const iniz = JSON.parse(patient.foto_url || '{}')
-          SLOT_ORDER.forEach(slot => {
+          for (const slot of SLOT_ORDER) {
             if (iniz[slot]) {
+              const _u = await polResolveFoto(iniz[slot], _supabase)
+              if (!_u) continue
               fotoIniziali.push({
-                _url: iniz[slot],
+                _url: _u,
                 _data: patient.created_at || patient.data_creazione || null,
                 _iniziale: true,
                 tipo: 'iniziale',
@@ -3010,7 +3012,7 @@
                 note: ''
               })
             }
-          })
+          }
         } catch (e) {}
 
         // 1) visite del paziente
