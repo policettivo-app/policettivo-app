@@ -34,9 +34,13 @@
     document.body.appendChild(d);
   }
 
-  w.polFotoIntero = function (slot) {
-    var u = _urls(); var src = u[slot]; if (!src) return;
+  w.polFotoIntero = async function (slot) {
+    var u = _urls(); var raw = u[slot]; if (!raw) return;
     ensureLightbox();
+    var src = (typeof polResolveFoto === 'function')
+      ? await polResolveFoto(raw, (typeof _supabase !== 'undefined' ? _supabase : null))
+      : raw;
+    if (!src) return;
     document.getElementById('pol-lightbox-img').src = src;
     document.getElementById('pol-lightbox').classList.add('open');
   };
