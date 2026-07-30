@@ -189,6 +189,7 @@
   };
   </script>
   <script src="utils-premium.js"></script>
+  <script src="js/foto-resolver.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -290,7 +291,7 @@
         // FOTO INIZIALE PAZIENTE: da patients.foto_url
         let urls = {}
         try { urls = JSON.parse(p.foto_url || '{}') } catch(e) {}
-        src = urls[fotoSlot]
+        src = await polResolveFoto(urls[fotoSlot], _supabase)
         if (!src) { alert('Foto non trovata per slot: ' + fotoSlot); tornaPaziente(); return }
         labelTxt = fotoSlot.replace(/-/g, ' ')
         let annotazioni = {}
