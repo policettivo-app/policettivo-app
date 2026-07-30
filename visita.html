@@ -13,6 +13,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="utils-premium.js"></script>
   <script src="utils-ai.js"></script>
+  <script src="js/foto-resolver.js"></script>
   <style>
     /* ====== RESET & BASE ====== */
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -3324,7 +3325,7 @@
       const { data: pat } = await _sb.from('patients').select('foto_url, created_at').eq('id', patientId).maybeSingle()
       const LBL = { 'prima-sx':'Prima cuscini · Sx','prima-dx':'Prima cuscini · Dx','dopo-sx':'Dopo cuscini · Sx','dopo-dx':'Dopo cuscini · Dx','frontale':'Posturale · Frontale','posteriore':'Posturale · Posteriore','podo-sotto':'Piede · Da sotto','podo-dietro':'Piede · Da dietro' }
       const iniz = JSON.parse(pat?.foto_url || '{}')
-      Object.keys(LBL).forEach(slot => { if (iniz[slot]) out.push({ url: iniz[slot], label: LBL[slot] || slot, data: pat?.created_at || null }) })
+      for (const slot of Object.keys(LBL)) { if (iniz[slot]) { const _u = await polResolveFoto(iniz[slot], _sb); if (_u) out.push({ url: _u, label: LBL[slot] || slot, data: pat?.created_at || null }) } }
     } catch(e) {}
     try {
       const { data: visite } = await _sb.from('visits').select('id, data_visita').eq('patient_id', patientId)
