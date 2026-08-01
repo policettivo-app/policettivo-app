@@ -1039,6 +1039,7 @@
               <option value="data_asc">Data ↑ (vecchie)</option>
             </select>
           </div>
+          <div id="foto-selbar" style="display:none;gap:8px;margin-bottom:12px"></div>
           <div id="foto-loading" style="color:#888;font-size:13px;padding:20px 0">Caricamento foto…</div>
           <div id="foto-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px"></div>
           <div id="foto-empty" style="display:none;color:#888;font-size:14px;padding:30px 0;text-align:center">Nessuna foto ancora per questo paziente.</div>
@@ -3010,6 +3011,10 @@
                 _url: _u,
                 _data: patient.created_at || patient.data_creazione || null,
                 _iniziale: true,
+                _slot: slot,
+                _storagePath: (iniz[slot] && typeof iniz[slot] === 'object' && iniz[slot].storage_path) ? iniz[slot].storage_path
+                              : (typeof iniz[slot] === 'string' && iniz[slot].indexOf('data:') !== 0 && iniz[slot].indexOf('http') !== 0 && iniz[slot] !== '{}' && iniz[slot].trim() !== '') ? iniz[slot]
+                              : null,
                 tipo: 'iniziale',
                 titolo: SLOT_LABELS[slot] || slot,
                 note: ''
@@ -3043,6 +3048,7 @@
 
         // 4) iniziali in cima (più importanti), poi foto visite
         _allFoto = fotoIniziali.concat(fotoVisite)
+        _allFoto.forEach((f, i) => { f._idx = i })
         loading.style.display = 'none'
         if (_allFoto.length === 0) { empty.style.display = 'block'; return }
         renderFoto()
@@ -3050,6 +3056,8 @@
         loading.textContent = 'Errore caricamento foto.'
       }
     }
+
+    let _fotoSel = new Set()
 
     function renderFoto() {
       const grid = document.getElementById('foto-grid')
@@ -3065,22 +3073,89 @@
         })
       }
       list.sort((a, b) => {
-        // foto iniziali sempre in cima
         if (a._iniziale && !b._iniziale) return -1
         if (!a._iniziale && b._iniziale) return 1
         const da = a._data || '', db = b._data || ''
         return order === 'data_asc' ? (da < db ? -1 : 1) : (da > db ? -1 : 1)
       })
-      if (list.length === 0) { grid.innerHTML = ''; empty.style.display = 'block'; return }
+      if (list.length === 0) { grid.innerHTML = ''; empty.style.display = 'block'; _fotoRenderSelbar(); return }
       empty.style.display = 'none'
       grid.innerHTML = list.map(f => {
         const d = f._data ? new Date(f._data).toLocaleDateString('it-IT') : ''
         const label = (f.tipo && f.tipo !== 'libera') ? f.tipo : (f.titolo || 'Foto')
-        return '<div style="border:1px solid #eee;border-radius:10px;overflow:hidden;background:#fff;cursor:pointer" onclick="window.open(\'' + f._url + '\',\'_blank\')">' +
-          '<img src="' + f._url + '" style="width:100%;height:120px;object-fit:cover;display:block" loading="lazy">' +
-          '<div style="padding:7px 9px"><div style="font-size:12px;font-weight:700;color:#000;text-transform:capitalize">' + label + '</div>' +
-          '<div style="font-size:11px;color:#999">' + d + '</div></div></div>'
+        const sel = _fotoSel.has(f._idx)
+        return '<div style="position:relative;border:1px solid ' + (sel ? '#c62828' : '#eee') + ';border-radius:10px;overflow:hidden;background:#fff">' +
+          '<label style="position:absolute;top:6px;left:6px;z-index:2;background:rgba(255,255,255,.92);border-radius:6px;padding:3px;display:flex" onclick="event.stopPropagation()">' +
+            '<input type="checkbox" ' + (sel ? 'checked' : '') + ' onchange="_fotoToggleSel(' + f._idx + ',this.checked)" style="width:18px;height:18px;accent-color:#c62828;cursor:pointer"></label>' +
+          '<div style="cursor:pointer" onclick="window.open(\'' + f._url + '\',\'_blank\')">' +
+            '<img src="' + f._url + '" style="width:100%;height:120px;object-fit:cover;display:block" loading="lazy">' +
+            '<div style="padding:7px 9px"><div style="font-size:12px;font-weight:700;color:#000;text-transform:capitalize">' + label + '</div>' +
+            '<div style="font-size:11px;color:#999">' + d + '</div></div>' +
+          '</div>' +
+        '</div>'
       }).join('')
+      _fotoRenderSelbar()
+    }
+
+    function _fotoToggleSel(idx, on) {
+      if (on) _fotoSel.add(idx); else _fotoSel.delete(idx)
+      renderFoto()
+    }
+
+    function _fotoDeselezionaTutto() { _fotoSel.clear(); renderFoto() }
+
+    function _fotoRenderSelbar() {
+      const bar = document.getElementById('foto-selbar')
+      if (!bar) return
+      const n = _fotoSel.size
+      if (!n) { bar.style.display = 'none'; bar.innerHTML = ''; return }
+      bar.style.display = 'flex'
+      bar.innerHTML =
+        '<button onclick="eliminaFotoSelezionate()" style="background:#c62828;color:#fff;border:none;padding:9px 14px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Elimina selezionate (' + n + ')</button>' +
+        '<button onclick="_fotoDeselezionaTutto()" style="background:transparent;border:1.5px solid #ddd;padding:9px 14px;border-radius:8px;font-family:Montserrat,sans-serif;font-size:13px;cursor:pointer">Deseleziona</button>'
+    }
+
+    async function eliminaFotoSelezionate() {
+      const scelte = _allFoto.filter(f => _fotoSel.has(f._idx))
+      if (!scelte.length) return
+      if (!confirm('Eliminare ' + scelte.length + ' foto?\n\n⚠️ Verranno cancellate DEFINITIVAMENTE dal paziente e dall\'archivio. Non si potranno più recuperare.')) return
+      const bar = document.getElementById('foto-selbar')
+      if (bar) { bar.style.display = 'flex'; bar.innerHTML = '<span style="color:#888;font-size:13px">Eliminazione in corso…</span>' }
+      let ok = 0, ko = 0
+      for (const f of scelte) {
+        try { await _fotoEliminaUno(f); ok++ } catch (e) { ko++ }
+      }
+      _fotoSel.clear()
+      _fotoLoaded = false
+      await caricaFoto()
+      alert('Eliminate ' + ok + ' foto' + (ko ? ' · ' + ko + ' non riuscite' : '') + '.')
+    }
+
+    async function _fotoEliminaUno(f) {
+      if (f._iniziale) {
+        let u = {}; try { u = JSON.parse(patient.foto_url || '{}') } catch (e) {}
+        if (f._slot && Object.prototype.hasOwnProperty.call(u, f._slot)) {
+          delete u[f._slot]
+          patient.foto_url = JSON.stringify(u)
+          const { error } = await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+          if (error) throw error
+        }
+        if (f._storagePath) await _fotoRimuoviFileSeOrfano(f._storagePath)
+      } else {
+        if (f.id) {
+          const { error } = await _supabase.from('visit_photos').delete().eq('id', f.id)
+          if (error) throw error
+        }
+        if (f.storage_path) await _fotoRimuoviFileSeOrfano(f.storage_path)
+      }
+    }
+
+    async function _fotoRimuoviFileSeOrfano(path) {
+      try {
+        const { data: altri } = await _supabase.from('visit_photos').select('id').eq('storage_path', path).limit(1)
+        if (altri && altri.length) return
+        await _supabase.storage.from('clinical-docs').remove([path])
+      } catch (e) {}
     }
 
     function clinicalNotesSwitchTab(tab) {
