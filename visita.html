@@ -3464,7 +3464,9 @@
     }).select('id').maybeSingle()
     if (insErr) throw new Error(insErr.message)
 
-    step3Photos[slotKey] = { id: rec?.id, url: pubUrl, storage_path: path, b64: dataUrl.split(',')[1] }
+    let dispUrl = pubUrl
+    try { const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(path, 7200); if (su?.signedUrl) dispUrl = su.signedUrl } catch(e) {}
+    step3Photos[slotKey] = { id: rec?.id, url: dispUrl, storage_path: path, b64: dataUrl.split(',')[1] }
     renderPhotoSlot(slotKey)
     updateTabStates()
   }
