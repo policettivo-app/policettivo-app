@@ -1776,7 +1776,8 @@
         showFotoPreview(slot, dataUrl)
         let urls = {}
         try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
-        urls[slot] = dataUrl
+        try { urls[slot] = { storage_path: await polUploadFotoIniziale(dataUrl, patientId, slot, _supabase) } }
+        catch (e) { console.warn('[foto] upload storage fallito, salvo base64', e); urls[slot] = dataUrl }
         patient.foto_url = JSON.stringify(urls)
         await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
         _fotoLoaded = false  // forza ricarica scheda Foto con la nuova
@@ -1882,7 +1883,8 @@
         showFotoPreview(slot, dataUrl)
         let urls = {}
         try { urls = JSON.parse(patient.foto_url || '{}') } catch(_) {}
-        urls[slot] = dataUrl
+        try { urls[slot] = { storage_path: await polUploadFotoIniziale(dataUrl, patientId, slot, _supabase) } }
+        catch (e) { console.warn('[foto] upload storage fallito, salvo base64', e); urls[slot] = dataUrl }
         patient.foto_url = JSON.stringify(urls)
         await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
       }
@@ -1928,7 +1930,8 @@
         showFotoPreview(slot, dataUrl)
         let urls = {}
         try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
-        urls[slot] = dataUrl
+        try { urls[slot] = { storage_path: await polUploadFotoIniziale(dataUrl, patientId, slot, _supabase) } }
+        catch (e) { console.warn('[foto] upload storage fallito, salvo base64', e); urls[slot] = dataUrl }
         patient.foto_url = JSON.stringify(urls)
         await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
       })
