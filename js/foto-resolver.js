@@ -1,17 +1,7 @@
 /*
  * js/foto-resolver.js — Policettivo®
- * Helper condiviso per risolvere una foto (iniziale o di visita) in un src usabile.
- *
- * Gestisce QUALSIASI formato presente oggi o in arrivo, in quest'ordine:
- *   - null / '' / '{}'                       -> null
- *   - oggetto { storage_path }               -> signed URL fresca (bucket clinical-docs)
- *   - oggetto { url }                        -> url (retrocompatibilita', usato in visite.html)
- *   - stringa 'data:...' (base64)            -> ritorna com'e' (foto iniziali attuali)
- *   - stringa 'http...'                      -> ritorna com'e'
- *   - stringa tipo 'patientId/file.jpg'      -> signed URL fresca (storage_path "nudo")
- *
- * REGOLA: non salva MAI una signed URL. La genera al volo alla lettura.
- * Il client Supabase va passato come 2o argomento (le pagine lo chiamano _supabase o _sb).
+ * Helper condiviso: risolve una foto (base64 o storage_path) in src usabile,
+ * e carica una foto iniziale nello storage (nome file unico per evitare sovrascritture).
  */
 (function (w) {
   var BUCKET = 'clinical-docs';
@@ -40,25 +30,35 @@
     var c = classify(v);
     if (c.kind === 'empty')  return null;
     if (c.kind === 'direct') return c.value;
-    if (!sb || !sb.storage) { console.warn('[foto-resolver] client Supabase mancante per storage_path:', c.value); return null; }
+    if (!sb || !sb.storage) { console.warn('[foto-resolver] client mancante per', c.value); return null; }
     try {
       var r = await sb.storage.from(BUCKET).createSignedUrl(c.value, SIGNED_TTL);
       if (r && r.data && r.data.signedUrl) return r.data.signedUrl;
-      console.warn('[foto-resolver] signed URL non generata per:', c.value, r && r.error);
+      console.warn('[foto-resolver] signed URL non generata per', c.value, r && r.error);
       return null;
-    } catch (e) {
-      console.warn('[foto-resolver] errore signed URL:', c.value, e);
-      return null;
-    }
+    } catch (e) { console.warn('[foto-resolver] errore signed URL', c.value, e); return null; }
   };
 
   w.polResolveFotoMappa = async function (obj, sb) {
     var out = {};
     if (!obj || typeof obj !== 'object') return out;
     var slots = Object.keys(obj);
-    for (var i = 0; i < slots.length; i++) {
-      out[slots[i]] = await w.polResolveFoto(obj[slots[i]], sb);
-    }
+    for (var i = 0; i < slots.length; i++) out[slots[i]] = await w.polResolveFoto(obj[slots[i]], sb);
     return out;
+  };
+
+  w.polUploadFotoIniziale = async function (dataUrl, patientId, slot, sb) {
+    var m = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl || '');
+    if (!m) throw new Error('polUploadFotoIniziale: dataUrl non valido');
+    var mime = m[1];
+    var bin = atob(m[2]);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var blob = new Blob([bytes], { type: mime });
+    var ext = mime.indexOf('png') >= 0 ? 'png' : mime.indexOf('webp') >= 0 ? 'webp' : 'jpg';
+    var path = patientId + '/iniziali/' + slot + '_' + Date.now() + '.' + ext;
+    var up = await sb.storage.from(BUCKET).upload(path, blob, { upsert: true, contentType: mime });
+    if (up.error) throw up.error;
+    return path;
   };
 })(window);
