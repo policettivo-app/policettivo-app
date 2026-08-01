@@ -3232,7 +3232,7 @@
     document.getElementById('import-posturale-banner').style.display = 'block'
   }
 
-  function importDatiPosturale() {
+  async function importDatiPosturale() {
     if (!_importPosturaleData) return
     const noteEl = document.getElementById('f-note-posturali')
     if (noteEl && _importPosturaleData.note_osservazionali) {
@@ -3242,8 +3242,36 @@
     if (_importPosturaleData.configurazione_suggerita) {
       visitData.ai_suggerimento_config = _importPosturaleData.configurazione_suggerita
     }
+    // import-foto-posturali: copia le foto della valutazione posturale nei riquadri vuoti della visita
+    let importate = 0, saltate = 0, falliti = 0
+    try {
+      showToast('📥 Importo le foto…')
+      const { data: fts } = await _sb.from('visit_photos').select('*').eq('visit_id', _importPosturaleData.id).order('ordine')
+      for (const p of (fts || [])) {
+        if (!p.storage_path) continue
+        let slot = S3_SLOTS.find(s => s.tipo === p.tipo)
+        if (!slot) {
+          const mapKey = LEGACY_SLOT_MAP[p.tipo + ':' + p.ordine] || LEGACY_SLOT_MAP[p.tipo]
+          if (mapKey) slot = S3_SLOTS.find(s => s.key === mapKey)
+        }
+        if (!slot) continue
+        if (step3Photos[slot.key]) { saltate++; continue }
+        try {
+          const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(p.storage_path, 7200)
+          if (!su?.signedUrl) { falliti++; continue }
+          const resp = await fetch(su.signedUrl)
+          const blob = await resp.blob()
+          const dataUrl = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob) })
+          await uploadVisitPhoto(slot.key, blob, dataUrl)
+          importate++
+        } catch(e) { falliti++ }
+      }
+    } catch(e) {}
     ignoraBannerPosturale()
-    showToast('📥 Dati posturali importati')
+    let msg = importate ? ('📥 ' + importate + ' foto importate') : '📥 Dati posturali importati'
+    if (saltate) msg += ' · ' + saltate + ' già presenti'
+    if (falliti) msg += ' · ' + falliti + ' non riuscite'
+    showToast(msg)
   }
 
   function apriValutazionePosturale() {
