@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/foto-resolver.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f0f0f0; padding: 20px; }
@@ -138,6 +139,7 @@
         if (!arr.length) { resolve(src); return }
 
         const img = new Image()
+        img.crossOrigin = 'anonymous'
         img.onload = () => {
           const nw = img.naturalWidth, nh = img.naturalHeight
           const off = document.createElement('canvas')
@@ -221,7 +223,7 @@
 
       if (p.foto_url) {
         try {
-          const urls = JSON.parse(p.foto_url)
+          const urls = await polResolveFotoMappa(JSON.parse(p.foto_url), _supabase)
           let ann = {}
           try { ann = JSON.parse(p.foto_annotazioni || '{}') } catch(e) {}
 
