@@ -943,6 +943,10 @@
   <div id="step-1" class="step-content active">
 
     <div class="field-group">
+      <div style="background:#fffde7;border:1.5px solid #FFD008;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <span style="font-size:12.5px;color:#333"><b>🩺 Anamnesi generale</b> — il quadro completo del paziente, condiviso tra tutte le visite.</span>
+        <button type="button" onclick="window.location.href='anamnesi.html?pid=' + patientId + '&back=visita&vid=' + visitId" style="background:#000;color:#FFD008;border:none;padding:8px 16px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">Apri anamnesi</button>
+      </div>
       <label class="field-label ds-label">Motivo della visita *</label>
       <div class="chip-row ds-chip-row" id="chips-motivo-quick">
         <span class="chip" onclick="appendChip('f-motivo','Dolore lombare')">Dolore lombare</span>
@@ -1819,7 +1823,11 @@
     'Disturbi sfinterici o sospetta cauda equina',
     'Trauma recente significativo',
     'Uso prolungato di cortisonici',
-    'Dolore non modificabile con il movimento/riposo'
+    'Dolore non modificabile con il movimento/riposo',
+    'Svenimenti',
+    'Dolore toracico',
+    'Difficoltà respiratoria importante',
+    'Peggioramento generale rapido'
   ]
   let rfVoci = []
   let rfNota = ''
@@ -3232,7 +3240,7 @@
     document.getElementById('import-posturale-banner').style.display = 'block'
   }
 
-  async function importDatiPosturale() {
+  function importDatiPosturale() {
     if (!_importPosturaleData) return
     const noteEl = document.getElementById('f-note-posturali')
     if (noteEl && _importPosturaleData.note_osservazionali) {
@@ -3242,36 +3250,8 @@
     if (_importPosturaleData.configurazione_suggerita) {
       visitData.ai_suggerimento_config = _importPosturaleData.configurazione_suggerita
     }
-    // import-foto-posturali: copia le foto della valutazione posturale nei riquadri vuoti della visita
-    let importate = 0, saltate = 0, falliti = 0
-    try {
-      showToast('📥 Importo le foto…')
-      const { data: fts } = await _sb.from('visit_photos').select('*').eq('visit_id', _importPosturaleData.id).order('ordine')
-      for (const p of (fts || [])) {
-        if (!p.storage_path) continue
-        let slot = S3_SLOTS.find(s => s.tipo === p.tipo)
-        if (!slot) {
-          const mapKey = LEGACY_SLOT_MAP[p.tipo + ':' + p.ordine] || LEGACY_SLOT_MAP[p.tipo]
-          if (mapKey) slot = S3_SLOTS.find(s => s.key === mapKey)
-        }
-        if (!slot) continue
-        if (step3Photos[slot.key]) { saltate++; continue }
-        try {
-          const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(p.storage_path, 7200)
-          if (!su?.signedUrl) { falliti++; continue }
-          const resp = await fetch(su.signedUrl)
-          const blob = await resp.blob()
-          const dataUrl = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob) })
-          await uploadVisitPhoto(slot.key, blob, dataUrl)
-          importate++
-        } catch(e) { falliti++ }
-      }
-    } catch(e) {}
     ignoraBannerPosturale()
-    let msg = importate ? ('📥 ' + importate + ' foto importate') : '📥 Dati posturali importati'
-    if (saltate) msg += ' · ' + saltate + ' già presenti'
-    if (falliti) msg += ' · ' + falliti + ' non riuscite'
-    showToast(msg)
+    showToast('📥 Dati posturali importati')
   }
 
   function apriValutazionePosturale() {
@@ -3464,9 +3444,7 @@
     }).select('id').maybeSingle()
     if (insErr) throw new Error(insErr.message)
 
-    let dispUrl = pubUrl
-    try { const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(path, 7200); if (su?.signedUrl) dispUrl = su.signedUrl } catch(e) {}
-    step3Photos[slotKey] = { id: rec?.id, url: dispUrl, storage_path: path, b64: dataUrl.split(',')[1] }
+    step3Photos[slotKey] = { id: rec?.id, url: pubUrl, storage_path: path, b64: dataUrl.split(',')[1] }
     renderPhotoSlot(slotKey)
     updateTabStates()
   }

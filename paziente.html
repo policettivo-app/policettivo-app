@@ -3462,6 +3462,18 @@
         }).filter(Boolean)
         lines.push(anamnesiV.length ? anamnesiV.join('\n') : '- (nessuna anamnesi registrata nelle ultime visite)')
         lines.push('Red flag paziente: voci=[' + (rf.voci.length ? rf.voci.join('; ') : 'nessuna') + ']' + (rf.nota ? ' | nota="' + rf.nota + '"' : ''))
+        // Anamnesi generale (scheda dedicata anamnesi.html, salvata in patients.anamnesi)
+        try {
+          const anamG = typeof patient?.anamnesi === 'string' ? JSON.parse(patient.anamnesi) : (patient?.anamnesi || null)
+          if (anamG && Object.keys(anamG).length) {
+            const aLines = Object.keys(anamG).map(function(k){
+              const v = anamG[k]
+              const txt = Array.isArray(v) ? v.join(', ') : String(v == null ? '' : v)
+              return txt ? '- ' + k.replace(/_/g, ' ') + ': ' + txt : ''
+            }).filter(Boolean)
+            if (aLines.length) lines.push('Anamnesi generale del paziente (scheda dedicata):\n' + aLines.join('\n'))
+          }
+        } catch (e) {}
         bodyParts.push(lines.join('\n'))
       }
 

@@ -105,6 +105,10 @@
     let shared = {}     // campi condivisi con anagrafica
     let saveTimer = null
 
+    // Red flags: UNICO magazzino condiviso con la visita = patients.red_flags {voci, nota}
+    const RF_VOCI = ['Storia oncologica','Calo ponderale inspiegato','Dolore notturno non meccanico','Febbre/malessere sistemico','Deficit neurologici progressivi','Disturbi sfinterici o sospetta cauda equina','Trauma recente significativo','Uso prolungato di cortisonici','Dolore non modificabile con il movimento/riposo','Svenimenti','Dolore toracico','Difficoltà respiratoria importante','Peggioramento generale rapido']
+    let rf = { voci: [], nota: '' }
+
     // share: campo colonna patients (unica fonte, niente doppioni)
     // type: single | multi | text | num | vas | date
     const SECTIONS = [
@@ -233,8 +237,8 @@
         { k:'esami_txt', type:'text', label:'Esito o osservazioni' }
       ]},
       { n:27, id:'redflags', t:'Screening di sicurezza', red:1, items:[
-        { k:'redflags', type:'multi', label:'Sono presenti uno o più dei seguenti elementi?', opts:'Nessuno|Trauma importante recente|Febbre o infezione recente|Perdita di peso non intenzionale|Storia oncologica|Dolore notturno costante|Debolezza progressiva|Perdita progressiva di sensibilità|Alterazioni recenti di vescica o intestino|Alterazione sensibilità perineale|Svenimenti|Dolore toracico|Difficoltà respiratoria importante|Peggioramento generale rapido|Altro' },
-        { k:'redflags_txt', type:'text', label:'Osservazioni' }
+        { k:'redflags', type:'multi', rf:'voci', label:'Sono presenti uno o più dei seguenti elementi?', opts: RF_VOCI.join('|') },
+        { k:'redflags_txt', type:'text', rf:'nota', label:'Osservazioni / altre red flag' }
       ]},
       { n:28, id:'obiettivi', t:'Obiettivi', items:[
         { k:'obiettivi', type:'multi', label:'Qual è l\'obiettivo principale?', opts:'Ridurre il dolore|Migliorare la mobilità|Migliorare la postura percepita|Migliorare l\'equilibrio|Migliorare il cammino|Aumentare l\'autonomia|Tornare al lavoro|Tornare allo sport|Migliorare il sonno|Prevenire recidive|Comprendere il problema|Altro' },
@@ -251,12 +255,14 @@
     function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 
     function getVal(item) {
+      if (item.rf) return item.rf === 'voci' ? rf.voci : rf.nota
       if (item.share) return shared[item.share] != null ? shared[item.share] : ''
       return A[item.k] != null ? A[item.k] : (item.type === 'multi' ? [] : '')
     }
 
     function setVal(item, v) {
-      if (item.share) shared[item.share] = v
+      if (item.rf) { if (item.rf === 'voci') rf.voci = v; else rf.nota = v }
+      else if (item.share) shared[item.share] = v
       else A[item.k] = v
       scheduleSave()
       aggiornaDot(item._sec)
@@ -310,6 +316,7 @@
         html += '<textarea rows="' + rows + '" oninput="fieldInput(\'' + sec.id + '\',\'' + it.k + '\',this.value)">' + esc(v) + '</textarea>'
       }
       if (it.share) html += '<div class="shared-hint">↔ Collegato all\'anagrafica: modificandolo qui si aggiorna ovunque.</div>'
+      if (it.rf) html += '<div class="shared-hint">↔ Condiviso con la visita fisioterapica e col banner rosso in scheda paziente: è lo stesso dato.</div>'
       html += '</div>'
       return html
     }
@@ -373,7 +380,7 @@
     async function salva() {
       const st = document.getElementById('save-state')
       st.textContent = 'Salvataggio…'
-      const updates = { anamnesi: A, anamnesi_updated_at: new Date().toISOString() }
+      const updates = { anamnesi: A, anamnesi_updated_at: new Date().toISOString(), red_flags: { voci: rf.voci, nota: rf.nota } }
       Object.keys(shared).forEach(k => { updates[k] = shared[k] === '' ? null : shared[k] })
       const { error } = await _sb.from('patients').update(updates).eq('id', pid)
       if (error) { st.textContent = '⚠️ Errore salvataggio'; st.classList.remove('saved'); console.warn(error); return }
@@ -418,6 +425,18 @@
       patient = p
       document.getElementById('pt-name').textContent = (p.nome || '') + ' ' + (p.cognome || '')
       try { A = typeof p.anamnesi === 'string' ? JSON.parse(p.anamnesi || '{}') : (p.anamnesi || {}) } catch (e) { A = {} }
+      // red flags: legge il magazzino unico condiviso con la visita
+      const rawRf = p.red_flags
+      if (Array.isArray(rawRf)) rf = { voci: rawRf.filter(x => typeof x === 'string'), nota: '' }
+      else if (rawRf && typeof rawRf === 'object') rf = { voci: Array.isArray(rawRf.voci) ? rawRf.voci.filter(x => typeof x === 'string') : [], nota: typeof rawRf.nota === 'string' ? rawRf.nota : '' }
+      // migrazione: vecchie red flag salvate dentro l'anamnesi → spostale nel magazzino unico
+      if (Array.isArray(A.redflags) && A.redflags.length) {
+        const MAP = { 'Trauma importante recente':'Trauma recente significativo','Febbre o infezione recente':'Febbre/malessere sistemico','Perdita di peso non intenzionale':'Calo ponderale inspiegato','Dolore notturno costante':'Dolore notturno non meccanico','Debolezza progressiva':'Deficit neurologici progressivi','Perdita progressiva di sensibilità':'Deficit neurologici progressivi','Alterazioni recenti di vescica o intestino':'Disturbi sfinterici o sospetta cauda equina','Alterazione sensibilità perineale':'Disturbi sfinterici o sospetta cauda equina' }
+        A.redflags.forEach(v => { const m = MAP[v] || v; if (!/^(nessuno|altro)$/i.test(v) && RF_VOCI.indexOf(m) !== -1 && rf.voci.indexOf(m) === -1) rf.voci.push(m) })
+        if (A.redflags_txt && (rf.nota || '').indexOf(A.redflags_txt) === -1) rf.nota = (rf.nota ? rf.nota + ' · ' : '') + A.redflags_txt
+        delete A.redflags; delete A.redflags_txt
+        scheduleSave()
+      }
       shared = {
         altezza: p.altezza != null ? p.altezza : '',
         peso: p.peso != null ? p.peso : '',
