@@ -15,6 +15,7 @@
   <script src="js/foto-actions.js"></script>
   <script src="js/foto-paziente.js"></script>
   <script src="js/foto-resolver.js"></script>
+  <script src="js/camera-pol.js"></script>
   <script src="js/hub.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1885,21 +1886,44 @@
       }
     }
 
+    // Fotocamera unificata (js/camera-pol.js). Il vecchio modal #camera-modal resta
+    // nel file come fallback dormiente ma non viene più aperto.
+    const CAM_SLOT_LABELS = { 'prima-sx':'Prima cuscini · Sinistro','prima-dx':'Prima cuscini · Destro','dopo-sx':'Dopo cuscini · Sinistro','dopo-dx':'Dopo cuscini · Destro','frontale':'Posturale · Frontale','posteriore':'Posturale · Posteriore','podo-sotto':'Piede da sotto','podo-dietro':'Piede da dietro' }
     async function apriCameraModal(slot) {
       _camSlot = slot
-      try {
-        _camStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false
-        })
-        document.getElementById('camera-video').srcObject = _camStream
-        document.getElementById('camera-modal').classList.add('open')
-        mostraSagoma(slot)
-        initLivella()
-      } catch(e) {
+      const isPodo = slot === 'podo-sotto' || slot === 'podo-dietro'
+      const ok = await polCamera.open({
+        label: CAM_SLOT_LABELS[slot] || slot,
+        hint: isPodo ? 'Inquadra il piede dall\'alto' : 'Centra il paziente · distanza 2,5 m',
+        showCross: !isPodo,
+        showTargets: !isPodo,
+        onShot: rawDataUrl => salvaScattoCamera(slot, rawDataUrl),
+        onGallery: () => { const inp = document.getElementById('input-' + slot); if (inp) inp.click() }
+      })
+      if (!ok) {
         const inp = document.getElementById('input-' + slot)
         if (inp) inp.click()
       }
+    }
+
+    // Stessa pipeline di salvataggio di sempre (resize 1200x1600 jpeg 0.82 → storage con fallback base64)
+    function salvaScattoCamera(slot, rawDataUrl) {
+      const tmp = new Image()
+      tmp.onload = async () => {
+        let w = tmp.width, h = tmp.height
+        if (w > 1200 || h > 1600) { const r = Math.min(1200/w, 1600/h); w = Math.round(w*r); h = Math.round(h*r) }
+        const c2 = document.createElement('canvas'); c2.width = w; c2.height = h
+        c2.getContext('2d').drawImage(tmp, 0, 0, w, h)
+        const dataUrl = c2.toDataURL('image/jpeg', 0.82)
+        showFotoPreview(slot, dataUrl)
+        let urls = {}
+        try { urls = JSON.parse(patient.foto_url || '{}') } catch(_) {}
+        try { urls[slot] = { storage_path: await polUploadFotoIniziale(dataUrl, patientId, slot, _supabase) } }
+        catch (e) { console.warn('[foto] upload storage fallito, salvo base64', e); urls[slot] = dataUrl }
+        patient.foto_url = JSON.stringify(urls)
+        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+      }
+      tmp.src = rawDataUrl
     }
 
     function initLivella() {
