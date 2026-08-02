@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Anamnesi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f0f0f0; min-height: 100vh; color: #000; }
+    .topbar { background: #FFD008; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 50; flex-wrap: wrap; }
+    .topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .btn-back { background: transparent; border: none; font-size: 20px; cursor: pointer; font-weight: 800; }
+    .pt-name { font-size: 17px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .save-state { font-size: 11px; font-weight: 700; color: #333; }
+    .save-state.saved { color: #0a7a4b; }
+    .btn-print { background: #000; color: #FFD008; border: none; padding: 9px 16px; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .badge-page { background: #000; color: #FFD008; font-size: 10px; font-weight: 800; letter-spacing: 1px; padding: 4px 10px; border-radius: 12px; }
+    .main { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; }
+    .intro { font-size: 12px; color: #666; margin-bottom: 16px; line-height: 1.5; }
+    .sec { background: #fff; border: 1px solid #e8e8e8; border-radius: 14px; margin-bottom: 10px; overflow: hidden; }
+    .sec.red-sec { border: 2px solid #c62828; }
+    .sec-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; user-select: none; }
+    .sec-head:hover { background: #fafafa; }
+    .sec-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+    .sec-num { background: #FFD008; color: #000; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+    .red-sec .sec-num { background: #c62828; color: #fff; }
+    .red-sec .sec-title { color: #c62828; }
+    .sec-state { font-size: 11px; color: #bbb; display: flex; align-items: center; gap: 8px; }
+    .sec-state .dot { width: 9px; height: 9px; border-radius: 50%; background: #ddd; display: inline-block; }
+    .sec-state .dot.on { background: #00C48C; }
+    .sec-arrow { transition: transform .2s; font-size: 12px; color: #999; }
+    .sec.open .sec-arrow { transform: rotate(180deg); }
+    .sec-body { display: none; padding: 4px 16px 18px; border-top: 1px solid #f2f2f2; }
+    .sec.open .sec-body { display: block; }
+    .q { margin-top: 14px; }
+    .q-label { font-size: 12px; font-weight: 700; color: #444; margin-bottom: 8px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip { border: 1.5px solid #ddd; background: #fff; color: #444; padding: 7px 13px; border-radius: 18px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .chip:hover { border-color: #999; }
+    .chip.on { background: #FFD008; border-color: #FFD008; color: #000; }
+    .red-sec .chip.on { background: #c62828; border-color: #c62828; color: #fff; }
+    textarea, input[type=text], input[type=number], input[type=date] { width: 100%; border: 1.5px solid #ddd; border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13.5px; background: #fff; }
+    textarea:focus, input:focus { outline: none; border-color: #FFD008; }
+    textarea { resize: vertical; min-height: 64px; }
+    .num-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .vas-wrap { display: flex; align-items: center; gap: 12px; }
+    .vas-wrap input[type=range] { flex: 1; accent-color: #FFD008; height: 22px; }
+    .vas-val { font-size: 16px; font-weight: 800; min-width: 26px; text-align: center; }
+    .shared-hint { font-size: 10.5px; color: #999; margin-top: 4px; }
+    .concl { background: #fffde7; border: 2px solid #FFD008; }
+    .toolbar-open { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .btn-mini { background: #fff; border: 1.5px solid #ddd; padding: 7px 13px; border-radius: 8px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+    #print-area { display: none; }
+    @media print {
+      body * { visibility: hidden; }
+      #print-area, #print-area * { visibility: visible; }
+      #print-area { display: block; position: absolute; top: 0; left: 0; width: 100%; padding: 24px; background: #fff; }
+      .pr-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 16px; }
+      .pr-logo { background: #FFD008; font-weight: 800; padding: 4px 10px; border-radius: 4px; font-size: 12px; }
+      .pr-title { font-size: 18px; font-weight: 800; }
+      .pr-meta { font-size: 11px; color: #555; text-align: right; }
+      .pr-sec { margin-bottom: 12px; page-break-inside: avoid; }
+      .pr-sec-t { font-size: 12px; font-weight: 800; text-transform: uppercase; border-bottom: 1.5px solid #FFD008; padding-bottom: 3px; margin-bottom: 6px; }
+      .pr-sec-t.pr-red { color: #c62828; border-color: #c62828; }
+      .pr-row { font-size: 12px; margin: 3px 0; line-height: 1.45; }
+      .pr-row b { font-weight: 700; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="btn-back" onclick="tornaIndietro()">←</button>
+      <span class="pt-name" id="pt-name">Caricamento…</span>
+    </div>
+    <div class="topbar-right">
+      <span class="save-state" id="save-state"></span>
+      <button class="btn-print" onclick="stampaAnamnesi()">🖨 Stampa / PDF</button>
+      <span class="badge-page">ANAMNESI</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="intro" id="intro-line">I dati già presenti in anagrafica sono precompilati: se li modifichi qui, si aggiornano ovunque. Tutto si salva da solo mentre compili.</div>
+    <div class="toolbar-open">
+      <button class="btn-mini" onclick="apriTutte(true)">▾ Apri tutte le sezioni</button>
+      <button class="btn-mini" onclick="apriTutte(false)">▴ Chiudi tutte</button>
+    </div>
+    <div id="sections"></div>
+  </div>
+
+  <div id="print-area"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+    const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const params = new URLSearchParams(window.location.search)
+    const pid = params.get('pid') || params.get('id')
+    let patient = null
+    let A = {}          // dati anamnesi (jsonb)
+    let shared = {}     // campi condivisi con anagrafica
+    let saveTimer = null
+
+    // share: campo colonna patients (unica fonte, niente doppioni)
+    // type: single | multi | text | num | vas | date
+    const SECTIONS = [
+      { n:1, id:'antropometrici', t:'Dati antropometrici', items:[
+        { k:'altezza', type:'num', label:'Altezza (cm)', share:'altezza' },
+        { k:'peso', type:'num', label:'Peso (kg)', share:'peso' },
+        { k:'taglia_piede', type:'num', label:'Numero di scarpa (EU)', share:'taglia_piede' },
+        { k:'piede_diff', type:'text', label:'Numero diverso tra destro e sinistro? (es. dx 42, sx 41.5)', one:1 }
+      ]},
+      { n:2, id:'motivo', t:'Motivo della visita', items:[
+        { k:'motivo', type:'multi', label:'Qual è il motivo principale della visita?', opts:'Dolore|Rigidità|Alterazione posturale percepita|Instabilità|Perdita di equilibrio|Difficoltà nel cammino|Limitazione funzionale|Recupero dopo trauma|Recupero dopo intervento chirurgico|Prevenzione|Miglioramento della prestazione sportiva|Valutazione posturale generale|Altro' },
+        { k:'motivo_txt', type:'text', label:'Descrizione del motivo della visita' }
+      ]},
+      { n:3, id:'patologie', t:'Patologie', items:[
+        { k:'patologie', type:'multi', label:'Sono presenti patologie diagnosticate?', opts:'Nessuna patologia nota|Muscoloscheletriche|Neurologiche|Reumatologiche|Cardiovascolari|Respiratorie|Metaboliche o endocrine|Vestibolari|Visive|Gastrointestinali|Oncologiche|Altre patologie' },
+        { k:'patologie_txt', type:'text', label:'Specificare le patologie', share:'patologie_pregresse' }
+      ]},
+      { n:4, id:'farmaci', t:'Farmaci', items:[
+        { k:'farmaci', type:'single', label:'Assume farmaci?', opts:'No|Sì, regolarmente|Sì, occasionalmente|Non ricorda' },
+        { k:'farmaci_txt', type:'text', label:'Quali farmaci assume?', share:'farmaci_in_uso' }
+      ]},
+      { n:5, id:'allergie', t:'Allergie', items:[
+        { k:'allergie', type:'multi', label:'Sono presenti allergie?', opts:'Nessuna allergia nota|Farmacologiche|Alimentari|Ambientali|A materiali o adesivi|Altre allergie' },
+        { k:'allergie_txt', type:'text', label:'Specificare le allergie', share:'allergie' }
+      ]},
+      { n:6, id:'interventi', t:'Interventi chirurgici', items:[
+        { k:'interventi', type:'single', label:'Ha subito interventi chirurgici?', opts:'No|Sì' },
+        { k:'interventi_txt', type:'text', label:'Specificare: tipo di intervento, distretto corporeo, anno, conseguenze residue', share:'interventi_chirurgici' }
+      ]},
+      { n:7, id:'traumi', t:'Traumi', items:[
+        { k:'traumi', type:'multi', label:'Ha avuto traumi rilevanti?', opts:'No|Trauma recente|Trauma pregresso|Traumi ripetuti' },
+        { k:'traumi_txt', type:'text', label:'Specificare: tipo di trauma, distretto corporeo, anno, conseguenze residue' }
+      ]},
+      { n:8, id:'cicatrici', t:'Cicatrici', items:[
+        { k:'cicatrici', type:'multi', label:'Sono presenti cicatrici?', opts:'No|Sì|Dolorose|Sensibili|Aderenti o retraenti' },
+        { k:'cicatrici_txt', type:'text', label:'Localizzazione e origine delle cicatrici' }
+      ]},
+      { n:9, id:'storia', t:'Storia del problema attuale', items:[
+        { k:'inizio', type:'single', label:'Quando è iniziato il problema attuale?', opts:'Data precisa|Periodo approssimativo|Non ricorda' },
+        { k:'inizio_txt', type:'text', label:'Data o periodo (es. marzo 2026, circa 6 mesi fa)', one:1 },
+        { k:'episodio', type:'single', label:'Si tratta:', opts:'Del primo episodio|Di una recidiva|Di un problema ricorrente|Di un problema cronico' },
+        { k:'esordio', type:'multi', label:'Come è iniziato?', opts:'Improvvisamente|Gradualmente|Dopo un trauma|Dopo un intervento chirurgico|Dopo attività lavorativa|Dopo attività sportiva|Senza causa riconoscibile|Altro' },
+        { k:'evoluzione', type:'single', label:'Come sta evolvendo?', opts:'In miglioramento|Stabile|In peggioramento|Variabile|Ricorrente' }
+      ]},
+      { n:10, id:'dolore', t:'Dolore', items:[
+        { k:'dolore', type:'single', label:'È presente dolore?', opts:'No|Sì' },
+        { k:'dolore_tipo', type:'multi', label:'Il dolore è:', opts:'Continuo|Intermittente|Episodico|Variabile|Solo durante determinate attività' },
+        { k:'vas_att', type:'vas', label:'Intensità del dolore attuale (0–10)' },
+        { k:'vas_max', type:'vas', label:'Intensità massima (0–10)' },
+        { k:'vas_min', type:'vas', label:'Intensità minima (0–10)' },
+        { k:'dolore_quando', type:'multi', label:'Quando compare il dolore?', opts:'Al risveglio|Al mattino|Nel pomeriggio|Alla sera|Durante la notte|Durante il movimento|Dopo il movimento|A riposo|Dopo una posizione mantenuta|Sempre|Altro' },
+        { k:'dolore_dove', type:'multi', label:'Dove è localizzato il dolore?', opts:'Capo o volto|Collo|Spalla|Braccio|Gomito|Avambraccio|Mano|Regione dorsale|Regione lombare|Bacino|Anca|Coscia|Ginocchio|Gamba|Caviglia|Piede|Diffuso|Altro' },
+        { k:'dolore_lato', type:'single', label:'Lato interessato', opts:'Centrale|Destro|Sinistro|Bilaterale' },
+        { k:'dolore_descr', type:'multi', label:'Come viene descritto il dolore?', opts:'Sordo|Acuto|Trafittivo|Bruciore|Pulsante|Scossa elettrica|Crampo|Pesantezza|Altro' },
+        { k:'irradia', type:'single', label:'Il dolore si irradia?', opts:'No|Sì' },
+        { k:'irradia_txt', type:'text', label:'Descrivere l\'irradiazione' }
+      ]},
+      { n:11, id:'sintomi_distretto', t:'Altri sintomi nel distretto doloroso', items:[
+        { k:'sintomi_distretto', type:'multi', label:'Sono presenti altri sintomi?', opts:'Nessuno|Rigidità|Formicolio|Intorpidimento|Debolezza|Gonfiore|Sensazione di instabilità|Limitazione del movimento|Affaticamento|Altro' }
+      ]},
+      { n:12, id:'aggravanti', t:'Fattori aggravanti', items:[
+        { k:'aggravanti', type:'multi', label:'Cosa peggiora il problema?', opts:'Camminare|Stare in piedi|Stare seduto|Alzarsi o sedersi|Salire le scale|Scendere le scale|Piegarsi|Ruotare|Sollevare pesi|Correre|Attività sportiva|Riposo|Posizioni mantenute|Movimenti ripetitivi|Altro' }
+      ]},
+      { n:13, id:'allevianti', t:'Fattori allevianti', items:[
+        { k:'allevianti', type:'multi', label:'Cosa migliora il problema?', opts:'Movimento|Riposo|Cambiamento di posizione|Calore|Freddo|Farmaci|Trattamento manuale|Esercizio|Altro|Nulla' }
+      ]},
+      { n:14, id:'limitazioni', t:'Limitazioni funzionali', items:[
+        { k:'limitazioni', type:'multi', label:'Il problema limita una o più attività?', opts:'Nessuna limitazione|Cammino|Equilibrio|Stazione eretta|Posizione seduta|Passaggi posturali|Salire o scendere le scale|Guida|Lavoro|Attività domestiche|Cura personale|Sonno|Attività sportiva|Altro' },
+        { k:'limitazioni_grado', type:'single', label:'Grado di limitazione', opts:'Lieve|Moderato|Importante|Attività impossibile' }
+      ]},
+      { n:15, id:'equilibrio', t:'Equilibrio e cadute', items:[
+        { k:'instabilita', type:'multi', label:'Avverte instabilità?', opts:'No|Occasionalmente|Frequentemente|Al buio|Su superfici irregolari|Nei cambi di direzione|Quando si alza|Altro' },
+        { k:'cadute', type:'single', label:'Ha avuto cadute negli ultimi 12 mesi?', opts:'Nessuna|Una caduta|Due o più cadute|Non ricorda' },
+        { k:'quasi_cadute', type:'single', label:'Ha avuto quasi-cadute o necessità di appoggiarsi?', opts:'No|Occasionalmente|Frequentemente' },
+        { k:'paura_cadere', type:'single', label:'Ha paura di cadere?', opts:'No|Lieve|Moderata|Elevata' },
+        { k:'ausili', type:'multi', label:'Utilizza ausili per camminare?', opts:'No|Bastone|Stampelle|Deambulatore|Altri ausili' }
+      ]},
+      { n:16, id:'associati', t:'Sintomi associati', items:[
+        { k:'associati', type:'multi', label:'Sono presenti i seguenti sintomi?', opts:'Nessuno|Mal di testa|Vertigini|Instabilità|Palpitazioni|Difficoltà respiratoria|Asma|Disturbi gastrointestinali o colite|Difficoltà di concentrazione|Disturbi della memoria|Mal d\'auto o mal di mare|Acufeni|Otalgia|Disturbi visivi|Affaticamento|DSA (Disturbi Specifici dell\'Apprendimento)|Altro' },
+        { k:'associati_txt', type:'text', label:'Descrizione dei sintomi associati' }
+      ]},
+      { n:17, id:'vista', t:'Vista', items:[
+        { k:'vista_correz', type:'multi', label:'Utilizza correzioni visive?', opts:'Non porta occhiali|Porta occhiali|Porta lenti a contatto|Occhiali e lenti a contatto|Interventi agli occhi' },
+        { k:'vista_dist', type:'multi', label:'Sono presenti disturbi visivi?', opts:'No|Visione offuscata|Visione doppia|Affaticamento visivo|Difficoltà da vicino|Difficoltà da lontano|Altro' },
+        { k:'vista_grad', type:'single', label:'Ha modificato recentemente la gradazione?', opts:'No|Sì|Non ricorda' }
+      ]},
+      { n:18, id:'udito', t:'Udito e vertigini', items:[
+        { k:'udito', type:'multi', label:'Sono presenti problemi uditivi?', opts:'No|Riduzione dell\'udito|Apparecchio acustico|Acufeni|Otalgia|Altro' },
+        { k:'vertigini', type:'multi', label:'Sono presenti vertigini?', opts:'No|Sensazione di rotazione|Sensazione di oscillazione|Instabilità senza rotazione|Provocate dai movimenti del capo|Provocate dai cambi di posizione|Altro' }
+      ]},
+      { n:19, id:'odonto', t:'Apparato odontoiatrico e mandibolare', items:[
+        { k:'ortodonzia', type:'multi', label:'Ha effettuato interventi ortodontici?', opts:'No|Trattamento ortodontico pregresso|Trattamento ortodontico in corso|Contenzione|Protesi dentali|Impianti dentali|Estrazioni rilevanti|Altro' },
+        { k:'mandibola', type:'multi', label:'Sono presenti disturbi mandibolari?', opts:'No|Dolore mandibolare|Rumori o scatti articolari|Blocco mandibolare|Difficoltà nella masticazione|Affaticamento mandibolare|Limitazione apertura bocca|Altro' },
+        { k:'bruxismo', type:'single', label:'La notte stringe o digrigna i denti?', opts:'No|Sì|Probabilmente|Non sa|Utilizza un bite' }
+      ]},
+      { n:20, id:'sonno', t:'Sonno', items:[
+        { k:'sonno', type:'multi', label:'Come riposa durante la notte?', opts:'Riposa bene|Sonno non riposante|Risvegli frequenti|Difficoltà ad addormentarsi|Risveglio precoce|Il dolore disturba il sonno|Altro' },
+        { k:'ore_sonno', type:'single', label:'Quante ore dorme mediamente?', opts:'Meno di 5|Da 5 a 6|Da 7 a 8|Più di 8' }
+      ]},
+      { n:21, id:'ciclo', t:'Ciclo mestruale', onlyF:1, items:[
+        { k:'ciclo', type:'single', label:'Il ciclo mestruale è:', opts:'Regolare e non doloroso|Regolare ma doloroso|Irregolare|Assente|Menopausa|Gravidanza|Post-partum|Non applicabile|Preferisce non rispondere' },
+        { k:'ciclo_sintomi', type:'single', label:'I sintomi cambiano in relazione al ciclo?', opts:'No|Sì|Non sa' },
+        { k:'ciclo_txt', type:'text', label:'Descrizione' }
+      ]},
+      { n:22, id:'lavoro', t:'Attività lavorativa', items:[
+        { k:'lavoro', type:'multi', label:'Il lavoro viene svolto prevalentemente:', opts:'Seduto|In piedi|Camminando|Sollevando carichi|Movimenti ripetitivi|Guidando per molte ore|Attività fisicamente intensa|Modalità variabile' },
+        { k:'lavoro_sintomi', type:'single', label:'Il lavoro influenza i sintomi?', opts:'No|Sì|Non sa' }
+      ]},
+      { n:23, id:'sport', t:'Attività fisica e sportiva', items:[
+        { k:'sport_freq', type:'single', label:'Svolge attività fisica o sportiva?', opts:'No|Occasionalmente|1-2 volte a settimana|3 o più volte a settimana|Agonistica' },
+        { k:'sport_txt', type:'text', label:'Tipo di attività o sport', share:'sport_praticato' },
+        { k:'sport_sintomi', type:'single', label:'L\'attività sportiva influenza i sintomi?', opts:'Migliora|Peggiora|Non modifica|Non sa' }
+      ]},
+      { n:24, id:'calzature', t:'Calzature e dispositivi', items:[
+        { k:'calzature', type:'multi', label:'Quali calzature utilizza prevalentemente?', opts:'Sportive|Da lavoro|Eleganti|Antinfortunistiche|Con tacco|Minimaliste|Aperte|Altro' },
+        { k:'dispositivi', type:'multi', label:'Utilizza dispositivi o ausili?', opts:'Nessuno|Plantari|Solette propriocettive|Tutori|Bite|Calze compressive|Ausili per il cammino|Altro' },
+        { k:'dispositivi_tempo', type:'text', label:'Da quanto tempo utilizza il dispositivo?', one:1 },
+        { k:'dispositivi_effetto', type:'single', label:'Il dispositivo:', opts:'Migliora i sintomi|Peggiora i sintomi|Non modifica|Non sa' }
+      ]},
+      { n:25, id:'trattamenti', t:'Trattamenti precedenti', items:[
+        { k:'trattamenti', type:'multi', label:'Quali trattamenti sono già stati eseguiti?', opts:'Nessuno|Fisioterapia|Terapia manuale|Osteopatia|Esercizio terapeutico|Terapia farmacologica|Infiltrazioni|Intervento chirurgico|Altro' },
+        { k:'trattamenti_esito', type:'single', label:'Qual è stato il risultato?', opts:'Nessun beneficio|Beneficio temporaneo|Beneficio parziale|Beneficio significativo|Peggioramento|Non valutabile' }
+      ]},
+      { n:26, id:'esami', t:'Esami e valutazioni precedenti', items:[
+        { k:'esami', type:'multi', label:'Sono stati effettuati esami?', opts:'Nessuno|Radiografia|Ecografia|Risonanza magnetica|TAC|Elettromiografia|Esami neurologici|Esami vestibolari|Esami del sangue|Visita ortopedica|Visita fisiatrica|Visita neurologica|Altra valutazione specialistica' },
+        { k:'esami_txt', type:'text', label:'Esito o osservazioni' }
+      ]},
+      { n:27, id:'redflags', t:'Screening di sicurezza', red:1, items:[
+        { k:'redflags', type:'multi', label:'Sono presenti uno o più dei seguenti elementi?', opts:'Nessuno|Trauma importante recente|Febbre o infezione recente|Perdita di peso non intenzionale|Storia oncologica|Dolore notturno costante|Debolezza progressiva|Perdita progressiva di sensibilità|Alterazioni recenti di vescica o intestino|Alterazione sensibilità perineale|Svenimenti|Dolore toracico|Difficoltà respiratoria importante|Peggioramento generale rapido|Altro' },
+        { k:'redflags_txt', type:'text', label:'Osservazioni' }
+      ]},
+      { n:28, id:'obiettivi', t:'Obiettivi', items:[
+        { k:'obiettivi', type:'multi', label:'Qual è l\'obiettivo principale?', opts:'Ridurre il dolore|Migliorare la mobilità|Migliorare la postura percepita|Migliorare l\'equilibrio|Migliorare il cammino|Aumentare l\'autonomia|Tornare al lavoro|Tornare allo sport|Migliorare il sonno|Prevenire recidive|Comprendere il problema|Altro' },
+        { k:'obiettivi_breve', type:'text', label:'Obiettivi a breve termine', one:1 },
+        { k:'obiettivi_medio', type:'text', label:'Obiettivi a medio termine', one:1 },
+        { k:'obiettivi_lungo', type:'text', label:'Obiettivi a lungo termine', one:1 }
+      ]},
+      { n:29, id:'conclusioni', t:'Note e conclusioni', concl:1, items:[
+        { k:'note_prof', type:'text', label:'Note anamnestiche e osservazioni del professionista' },
+        { k:'conclusioni', type:'text', label:'Conclusioni' }
+      ]}
+    ]
+
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+    function getVal(item) {
+      if (item.share) return shared[item.share] != null ? shared[item.share] : ''
+      return A[item.k] != null ? A[item.k] : (item.type === 'multi' ? [] : '')
+    }
+
+    function setVal(item, v) {
+      if (item.share) shared[item.share] = v
+      else A[item.k] = v
+      scheduleSave()
+      aggiornaDot(item._sec)
+    }
+
+    function secCompilata(sec) {
+      return sec.items.some(it => {
+        const v = getVal(it)
+        return Array.isArray(v) ? v.length > 0 : (v !== '' && v != null)
+      })
+    }
+
+    function aggiornaDot(secId) {
+      const sec = SECTIONS.find(s => s.id === secId)
+      if (!sec) return
+      const dot = document.getElementById('dot-' + secId)
+      if (dot) dot.classList.toggle('on', secCompilata(sec))
+    }
+
+    function render() {
+      const wrap = document.getElementById('sections')
+      const isM = (patient.sesso || '').toLowerCase() === 'm'
+      wrap.innerHTML = SECTIONS.filter(s => !(s.onlyF && isM)).map(sec => {
+        const body = sec.items.map(it => { it._sec = sec.id; return renderItem(sec, it) }).join('')
+        const cls = 'sec' + (sec.red ? ' red-sec' : '') + (sec.concl ? ' concl' : '')
+        return '<div class="' + cls + '" id="sec-' + sec.id + '">' +
+          '<div class="sec-head" onclick="toggleSec(\'' + sec.id + '\')">' +
+            '<span class="sec-title"><span class="sec-num">' + sec.n + '</span>' + esc(sec.t) + '</span>' +
+            '<span class="sec-state"><span class="dot' + (secCompilata(sec) ? ' on' : '') + '" id="dot-' + sec.id + '"></span><span class="sec-arrow">▾</span></span>' +
+          '</div>' +
+          '<div class="sec-body">' + body + '</div>' +
+        '</div>'
+      }).join('')
+    }
+
+    function renderItem(sec, it) {
+      const v = getVal(it)
+      let html = '<div class="q"><div class="q-label">' + esc(it.label) + '</div>'
+      if (it.type === 'single' || it.type === 'multi') {
+        const opts = it.opts.split('|')
+        html += '<div class="chips">' + opts.map(o => {
+          const on = it.type === 'multi' ? (Array.isArray(v) && v.indexOf(o) !== -1) : (v === o)
+          return '<button type="button" class="chip' + (on ? ' on' : '') + '" onclick="clickChip(\'' + sec.id + '\',\'' + it.k + '\',this)" data-opt="' + esc(o) + '">' + esc(o) + '</button>'
+        }).join('') + '</div>'
+      } else if (it.type === 'vas') {
+        html += '<div class="vas-wrap"><input type="range" min="0" max="10" step="1" value="' + (v === '' ? 0 : v) + '" oninput="vasInput(\'' + sec.id + '\',\'' + it.k + '\',this)"><span class="vas-val" id="vas-' + it.k + '">' + (v === '' ? '—' : v) + '</span></div>'
+      } else if (it.type === 'num') {
+        html += '<input type="number" step="0.1" inputmode="decimal" value="' + esc(v) + '" oninput="fieldInput(\'' + sec.id + '\',\'' + it.k + '\',this.value)">'
+      } else {
+        const rows = it.one ? 1 : 3
+        html += '<textarea rows="' + rows + '" oninput="fieldInput(\'' + sec.id + '\',\'' + it.k + '\',this.value)">' + esc(v) + '</textarea>'
+      }
+      if (it.share) html += '<div class="shared-hint">↔ Collegato all\'anagrafica: modificandolo qui si aggiorna ovunque.</div>'
+      html += '</div>'
+      return html
+    }
+
+    function findItem(secId, k) {
+      const sec = SECTIONS.find(s => s.id === secId)
+      return sec ? sec.items.find(i => i.k === k) : null
+    }
+
+    function clickChip(secId, k, btn) {
+      const it = findItem(secId, k); if (!it) return
+      const opt = btn.dataset.opt
+      if (it.type === 'multi') {
+        let v = getVal(it); v = Array.isArray(v) ? v.slice() : []
+        const idx = v.indexOf(opt)
+        if (idx === -1) {
+          // opzioni "esclusive": Nessuno/No/Nessuna deselezionano il resto e viceversa
+          const excl = /^(no|nessuno|nessuna.*|non porta occhiali)$/i.test(opt)
+          if (excl) v = [opt]
+          else { v = v.filter(x => !/^(no|nessuno|nessuna.*|non porta occhiali)$/i.test(x)); v.push(opt) }
+        } else v.splice(idx, 1)
+        setVal(it, v)
+        // ridisegna solo i chip di questa domanda
+        const chips = btn.parentElement.querySelectorAll('.chip')
+        chips.forEach(c => c.classList.toggle('on', v.indexOf(c.dataset.opt) !== -1))
+      } else {
+        const cur = getVal(it)
+        const nv = cur === opt ? '' : opt
+        setVal(it, nv)
+        const chips = btn.parentElement.querySelectorAll('.chip')
+        chips.forEach(c => c.classList.toggle('on', c.dataset.opt === nv))
+      }
+    }
+
+    function vasInput(secId, k, input) {
+      const it = findItem(secId, k); if (!it) return
+      setVal(it, parseInt(input.value, 10))
+      document.getElementById('vas-' + k).textContent = input.value
+    }
+
+    function fieldInput(secId, k, val) {
+      const it = findItem(secId, k); if (!it) return
+      const v = it.type === 'num' ? (val === '' ? '' : parseFloat(val)) : val
+      setVal(it, v)
+    }
+
+    function toggleSec(id) {
+      document.getElementById('sec-' + id).classList.toggle('open')
+    }
+    function apriTutte(open) {
+      document.querySelectorAll('.sec').forEach(s => s.classList.toggle('open', open))
+    }
+
+    function scheduleSave() {
+      const st = document.getElementById('save-state')
+      st.textContent = 'Modifiche…'; st.classList.remove('saved')
+      clearTimeout(saveTimer)
+      saveTimer = setTimeout(salva, 1200)
+    }
+
+    async function salva() {
+      const st = document.getElementById('save-state')
+      st.textContent = 'Salvataggio…'
+      const updates = { anamnesi: A, anamnesi_updated_at: new Date().toISOString() }
+      Object.keys(shared).forEach(k => { updates[k] = shared[k] === '' ? null : shared[k] })
+      const { error } = await _sb.from('patients').update(updates).eq('id', pid)
+      if (error) { st.textContent = '⚠️ Errore salvataggio'; st.classList.remove('saved'); console.warn(error); return }
+      st.textContent = '● Salvato ' + new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+      st.classList.add('saved')
+    }
+
+    function tornaIndietro() {
+      const back = params.get('back')
+      if (back === 'visita' && params.get('vid')) window.location.href = 'visita.html?id=' + params.get('vid')
+      else if (back === 'posturale' && params.get('vid')) window.location.href = 'valutazione-posturale.html?id=' + params.get('vid')
+      else window.location.href = 'paziente.html?id=' + pid
+    }
+
+    function stampaAnamnesi() {
+      const pa = document.getElementById('print-area')
+      const isM = (patient.sesso || '').toLowerCase() === 'm'
+      const oggi = new Date().toLocaleDateString('it-IT')
+      const agg = patient.anamnesi_updated_at ? new Date(patient.anamnesi_updated_at).toLocaleDateString('it-IT') : oggi
+      let html = '<div class="pr-head"><div><span class="pr-logo">POLICETTIVO®</span> <span class="pr-title">Anamnesi</span></div>' +
+        '<div class="pr-meta"><b>' + esc((patient.nome || '') + ' ' + (patient.cognome || '')) + '</b><br>Aggiornata al: ' + agg + '<br>Stampata il: ' + oggi + '<br>Documento riservato</div></div>'
+      SECTIONS.filter(s => !(s.onlyF && isM)).forEach(sec => {
+        const rows = sec.items.map(it => {
+          const v = getVal(it)
+          const txt = Array.isArray(v) ? v.join(', ') : String(v == null ? '' : v)
+          if (!txt) return ''
+          return '<div class="pr-row"><b>' + esc(it.label) + ':</b> ' + esc(txt) + '</div>'
+        }).filter(Boolean).join('')
+        if (!rows) return
+        html += '<div class="pr-sec"><div class="pr-sec-t' + (sec.red ? ' pr-red' : '') + '">' + sec.n + '. ' + esc(sec.t) + '</div>' + rows + '</div>'
+      })
+      pa.innerHTML = html
+      window.print()
+    }
+
+    async function init() {
+      if (!pid) { alert('Manca il paziente (?pid=...)'); return }
+      const { data: { session } } = await _sb.auth.getSession()
+      if (!session) { window.location.href = 'login.html'; return }
+      const { data: p, error } = await _sb.from('patients').select('*').eq('id', pid).maybeSingle()
+      if (!p) { alert('Paziente non trovato o non accessibile.'); return }
+      patient = p
+      document.getElementById('pt-name').textContent = (p.nome || '') + ' ' + (p.cognome || '')
+      try { A = typeof p.anamnesi === 'string' ? JSON.parse(p.anamnesi || '{}') : (p.anamnesi || {}) } catch (e) { A = {} }
+      shared = {
+        altezza: p.altezza != null ? p.altezza : '',
+        peso: p.peso != null ? p.peso : '',
+        taglia_piede: p.taglia_piede != null ? p.taglia_piede : '',
+        patologie_pregresse: p.patologie_pregresse || '',
+        farmaci_in_uso: p.farmaci_in_uso || '',
+        allergie: p.allergie || '',
+        interventi_chirurgici: p.interventi_chirurgici || '',
+        sport_praticato: p.sport_praticato || ''
+      }
+      if (p.anamnesi_updated_at) {
+        document.getElementById('save-state').textContent = 'Ultimo agg.: ' + new Date(p.anamnesi_updated_at).toLocaleDateString('it-IT')
+      }
+      render()
+      // apri la prima sezione non compilata (o la prima)
+      const first = SECTIONS.find(s => !secCompilata(s)) || SECTIONS[0]
+      const el = document.getElementById('sec-' + first.id)
+      if (el) el.classList.add('open')
+    }
+
+    init()
+  </script>
+</body>
+</html>
