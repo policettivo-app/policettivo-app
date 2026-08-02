@@ -7,6 +7,7 @@
   <title>Valutazione Posturale</title>
   <link rel="stylesheet" href="css/design-system.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/camera-pol.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -1976,8 +1977,36 @@
     document.getElementById('upload-menu-modal').classList.remove('open')
     localStorage.setItem('posturale_upload_pref', 'webcam')
     const cb = umCallback
-    openWebcamModal(umTipo, umIsReplace, cb)
+    const tipo = umTipo, isReplace = umIsReplace
     umTipo = null; umCallback = null
+    if (cb) { openWebcamModal(tipo, isReplace, cb); return } // Acquisizione Rapida: flusso guidato con audio, invariato
+    apriCameraPosturale(tipo, isReplace)
+  }
+
+  // Fotocamera unificata (js/camera-pol.js): stessa esperienza di scheda paziente e visita
+  async function apriCameraPosturale(tipo, isReplace) {
+    const isPodo = String(tipo || '').indexOf('podoscopio') === 0
+    const ok = await polCamera.open({
+      label: String(tipo || '').replace(/_/g, ' '),
+      hint: isPodo ? 'Inquadra il piede dall\'alto' : 'Centra il paziente · distanza 2,5 m',
+      showCross: !isPodo,
+      showTargets: !isPodo,
+      onShot: async raw => {
+        try {
+          const resp = await fetch(raw)
+          const blob = await resp.blob()
+          const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' })
+          await uploadPhoto(file, tipo, isReplace)
+        } catch (e) { showToast('Errore foto: ' + (e.message || e)) }
+      },
+      onGallery: () => {
+        if (isReplace) { replaceSlotTipo = tipo } else { activeSlotTipo = tipo }
+        const inp = document.getElementById('photo-file-input')
+        inp.value = ''
+        inp.click()
+      }
+    })
+    if (!ok) mostraPermessoWebcamNegato(tipo, isReplace)
   }
 
   function umChooseFile() {

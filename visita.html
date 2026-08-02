@@ -14,6 +14,7 @@
   <script src="utils-premium.js"></script>
   <script src="utils-ai.js"></script>
   <script src="js/foto-resolver.js"></script>
+  <script src="js/camera-pol.js"></script>
   <style>
     /* ====== RESET & BASE ====== */
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2977,7 +2978,7 @@
     slotPre.className = 's3-slot'
     slotPre.id = 's3-slot-' + pair.preKey
     slotPre.innerHTML = '<span class="s3-slot-icon">📸</span><span class="s3-slot-lbl">PRE</span><div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
-    slotPre.onclick = () => { if (!step3Photos[pair.preKey]) document.getElementById('s3-inp-' + pair.preKey)?.click() }
+    slotPre.onclick = () => { if (!step3Photos[pair.preKey]) apriCameraVisita(pair.preKey) }
     pagePre.appendChild(slotPre)
     carousel.appendChild(pagePre)
 
@@ -2989,7 +2990,7 @@
     slotPost.className = 's3-slot'
     slotPost.id = 's3-slot-' + pair.postKey
     slotPost.innerHTML = '<span class="s3-slot-icon">📸</span><span class="s3-slot-lbl">POST 3R</span><div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
-    slotPost.onclick = () => { if (!step3Photos[pair.postKey]) document.getElementById('s3-inp-' + pair.postKey)?.click() }
+    slotPost.onclick = () => { if (!step3Photos[pair.postKey]) apriCameraVisita(pair.postKey) }
     pagePost.appendChild(slotPost)
     carousel.appendChild(pagePost)
 
@@ -3180,7 +3181,7 @@
       el.innerHTML = '<span class="s3-slot-icon">📸</span><span class="s3-slot-lbl">' + shortLabel + '</span>' +
         '<button class="s3-slot-libr" onclick="event.stopPropagation();apriLibreriaFoto(\'' + slotKey + '\')" title="Scegli da foto del paziente">🗂</button>' +
         '<div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
-      el.onclick = () => { document.getElementById('s3-inp-' + slotKey)?.click() }
+      el.onclick = () => { apriCameraVisita(slotKey) }
     } else {
       el.className = 's3-slot has-photo'
       el.onclick = e => { if (!e.target.closest('.s3-bar-btn') && !e.target.closest('.s3-slot-del')) openLightbox(photo.url) }
@@ -3191,7 +3192,7 @@
           '<button class="s3-bar-btn" onclick="event.stopPropagation();openLightbox(\'' + escH(photo.url) + '\')" title="Schermo intero">⛶</button>' +
           '<button class="s3-bar-btn" onclick="event.stopPropagation();annotaFotoVisita(\'' + slotKey + '\')" title="Annota">✏️</button>' +
           '<button class="s3-bar-btn" onclick="event.stopPropagation();apriLibreriaFoto(\'' + slotKey + '\')" title="Scegli da foto del paziente">🗂</button>' +
-          '<button class="s3-bar-btn" onclick="event.stopPropagation();document.getElementById(\'s3-inp-' + slotKey + '\')?.click()" title="Sostituisci">🔄</button>' +
+          '<button class="s3-bar-btn" onclick="event.stopPropagation();apriCameraVisita(\'' + slotKey + '\')" title="Sostituisci">🔄</button>' +
           '<button class="s3-bar-btn" style="color:#ff6b6b" onclick="event.stopPropagation();removeVisitPhoto(\'' + slotKey + '\')" title="Elimina">✕</button>' +
         '</div>' +
         '<div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
@@ -3368,6 +3369,31 @@
     } catch(e) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#d32f2f">Errore nel caricare la foto.</div>'
     }
+  }
+
+  // Fotocamera unificata (js/camera-pol.js): stessa esperienza di scheda paziente e posturale
+  async function apriCameraVisita(slotKey) {
+    const isPodo = slotKey.indexOf('podoscopio') === 0
+    const ok = await polCamera.open({
+      label: slotKey.replace(/_/g, ' '),
+      hint: isPodo ? 'Inquadra il piede dall\'alto' : 'Centra il paziente · distanza 2,5 m',
+      showCross: !isPodo,
+      showTargets: !isPodo,
+      onShot: async raw => {
+        const el = document.getElementById('s3-slot-' + slotKey)
+        if (el) el.classList.add('uploading')
+        try {
+          const resp = await fetch(raw)
+          const blobRaw = await resp.blob()
+          const file = new File([blobRaw], 'foto.jpg', { type: 'image/jpeg' })
+          const { blob, dataUrl } = await compressImage(file)
+          await uploadVisitPhoto(slotKey, blob, dataUrl)
+        } catch (e) { showToast('Errore foto: ' + e.message) }
+        if (el) el.classList.remove('uploading')
+      },
+      onGallery: () => { document.getElementById('s3-inp-' + slotKey)?.click() }
+    })
+    if (!ok) document.getElementById('s3-inp-' + slotKey)?.click()
   }
 
   async function handleFotoUpload(slotKey, input) {
