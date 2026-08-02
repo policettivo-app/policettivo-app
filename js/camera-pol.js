@@ -39,17 +39,16 @@
       '#pcm-target-bottom .pcm-tag{top:auto;bottom:100%;margin-bottom:6px;margin-top:0}' +
       '#pcm-dima-line{position:absolute;left:0;right:0;top:82%;height:2px;margin-top:-1px;background:rgba(255,208,8,.75);z-index:3;pointer-events:none}' +
       '#pcm-veil{position:absolute;inset:0;background:#00C853;opacity:0;transition:opacity .25s;z-index:2;pointer-events:none}' +
-      '.pcm-roll-line{position:absolute;left:12%;right:12%;top:50%;height:3px;margin-top:-1.5px;background:#e53935;z-index:4;pointer-events:none;transition:transform .07s linear;box-shadow:0 0 8px rgba(229,57,53,.7)}' +
-      '.pcm-pitch-rail{position:absolute;right:14px;top:30%;bottom:30%;width:6px;border-radius:3px;background:rgba(255,255,255,.25);z-index:4;pointer-events:none}' +
-      '.pcm-pitch-rail:after{content:"";position:absolute;top:50%;left:-5px;right:-5px;height:2px;margin-top:-1px;background:rgba(255,255,255,.8)}' +
-      '#pcm-pitch-dot{position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#e53935;z-index:5;transition:top .07s linear;box-shadow:0 0 8px rgba(0,0,0,.6)}' +
-      '#pcm-stato{position:absolute;top:56%;left:50%;transform:translateX(-50%);z-index:5;font-size:20px;font-weight:800;color:#e53935;text-shadow:0 1px 4px #000;pointer-events:none}' +
+      '#pcm-reticle{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;color:#e53935;border:3px solid currentColor;border-radius:50%;z-index:5;pointer-events:none;transition:transform .07s linear,color .15s;filter:drop-shadow(0 0 4px rgba(0,0,0,.6))}' +
+      '.pcm-ret-h{position:absolute;top:50%;left:-18px;right:-18px;height:2.5px;margin-top:-1.25px;background:currentColor}' +
+      '.pcm-ret-v{position:absolute;left:50%;top:-18px;bottom:-18px;width:2.5px;margin-left:-1.25px;background:currentColor}' +
+      '#pcm-stato{position:absolute;top:60%;left:50%;transform:translateX(-50%);z-index:5;font-size:20px;font-weight:800;color:#00C853;text-shadow:0 1px 4px #000;pointer-events:none}' +
       '#pcm-hint{position:absolute;top:62px;left:50%;transform:translateX(-50%);z-index:5;font-size:13px;font-weight:600;color:#fff;background:rgba(0,0,0,.6);padding:6px 14px;border-radius:16px;white-space:nowrap}' +
       '#pcm-debug{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:5;font-size:11px;color:rgba(255,255,255,.75);font-family:monospace}' +
       '#pcm-ios-btn{display:none;position:absolute;top:104px;left:50%;transform:translateX(-50%);z-index:7;background:#FFD008;color:#000;border:none;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}' +
       '.pcm-bottombar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:34px;padding:18px 0 26px;z-index:6;background:linear-gradient(transparent,rgba(0,0,0,.65))}' +
-      '#pcm-shutter{width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid #e53935;cursor:pointer;transition:border-color .15s}' +
-      '#pcm-shutter.ready{border-color:#00C853;box-shadow:0 0 16px rgba(0,200,83,.55)}' +
+      '#pcm-shutter{width:72px;height:72px;border-radius:50%;background:#FFD008;border:5px solid #000;cursor:pointer;transition:border-color .15s,box-shadow .15s}' +
+      '#pcm-shutter.ready{border-color:#00C853;box-shadow:0 0 16px rgba(0,200,83,.6)}' +
       '#pcm-gallery{background:rgba(0,0,0,.55);color:#fff;border:1.5px solid rgba(255,255,255,.5);padding:10px 16px;border-radius:10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}' +
       '</style>' +
       '<video id="pol-cam-video" autoplay playsinline muted></video>' +
@@ -58,11 +57,10 @@
       '<div class="pcm-topbar"><span class="pcm-label" id="pcm-label"></span><button class="pcm-close" onclick="polCamera.close()">✕</button></div>' +
       '<div class="pcm-cross-v" id="pcm-cross-v"></div>' +
       '<div class="pcm-cross-h" id="pcm-cross-h"></div>' +
-      '<div class="pcm-target" id="pcm-target-top"><span class="pcm-tag">riferimento porta</span></div>' +
-      '<div class="pcm-target" id="pcm-target-bottom"><span class="pcm-tag">croce a terra</span></div>' +
-      '<div class="pcm-roll-line" id="pcm-roll-line"></div>' +
-      '<div class="pcm-pitch-rail"><div id="pcm-pitch-dot"></div></div>' +
-      '<div id="pcm-stato">—</div>' +
+      '<div class="pcm-target" id="pcm-target-top"><span class="pcm-tag">riferimento superiore</span></div>' +
+      '<div class="pcm-target" id="pcm-target-bottom"><span class="pcm-tag">riferimento inferiore</span></div>' +
+      '<div id="pcm-reticle"><div class="pcm-ret-h"></div><div class="pcm-ret-v"></div></div>' +
+      '<div id="pcm-stato"></div>' +
       '<div id="pcm-hint"></div>' +
       '<div id="pcm-debug"></div>' +
       '<button id="pcm-ios-btn">🎯 Abilita livella</button>' +
@@ -78,19 +76,16 @@
     var rollOk = Math.abs(roll) <= TOL;
     var pitchOk = Math.abs(pitch) <= TOL;
     var ok = rollOk && pitchOk;
-    var line = document.getElementById('pcm-roll-line');
-    var dot = document.getElementById('pcm-pitch-dot');
+    var ret = document.getElementById('pcm-reticle');
     var stato = document.getElementById('pcm-stato');
     var shutter = document.getElementById('pcm-shutter');
-    var shift = Math.max(-90, Math.min(90, roll * 5));
-    line.style.transform = 'translateY(' + shift + 'px)';
-    line.style.background = rollOk ? '#00C853' : '#e53935';
-    line.style.boxShadow = rollOk ? '0 0 10px rgba(0,200,83,.5)' : '0 0 8px rgba(229,57,53,.7)';
-    var pshift = Math.max(-46, Math.min(46, pitch * 3));
-    dot.style.top = 'calc(50% + ' + pshift + 'px)';
-    dot.style.background = pitchOk ? '#00C853' : '#e53935';
-    stato.style.color = ok ? '#00C853' : '#e53935';
-    stato.textContent = ok ? '✓ PRONTO' : (!rollOk ? 'Raddrizza ↔' : (pitch > 0 ? 'Inclina indietro' : 'Inclina avanti'));
+    // Mirino "da aereo": scappa dal centro se il telefono non è dritto.
+    // destra/sinistra = rotazione (γ) · su/giù = inclinazione avanti-indietro (β)
+    var x = Math.max(-140, Math.min(140, roll * 6));
+    var y = Math.max(-140, Math.min(140, pitch * 6));
+    ret.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    ret.style.color = ok ? '#00C853' : '#e53935';
+    stato.textContent = ok ? '✓ PRONTO' : '';
     shutter.classList.toggle('ready', ok);
     var veil = document.getElementById('pcm-veil');
     if (veil) veil.style.opacity = ok ? 0.13 : 0;
