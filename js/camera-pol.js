@@ -12,7 +12,7 @@
   'use strict';
 
   var stream = null, orientHandler = null, opts = null;
-  var TOL = 2; // gradi di tolleranza per asse
+  var TOL = 4; // gradi di tolleranza per asse (morbida: deve essere raggiungibile a mano libera)
 
   function buildDom() {
     if (document.getElementById('pol-cam-modal')) return;
@@ -34,21 +34,27 @@
       '.pcm-target:after{top:50%;left:8px;right:8px;height:2px;margin-top:-1px}' +
       '.pcm-target .pcm-tag{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:6px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.6);padding:2px 8px;border-radius:8px;white-space:nowrap}' +
       '#pcm-target-top{left:50%;top:16%}' +
-      '#pcm-target-bottom{left:50%;top:82%}' +
+      '#pcm-target-bottom{left:50%;top:82%;border-color:rgba(255,208,8,.95)}' +
+      '#pcm-target-bottom:before,#pcm-target-bottom:after{background:rgba(255,208,8,.95)}' +
+      '#pcm-target-bottom .pcm-tag{top:auto;bottom:100%;margin-bottom:6px;margin-top:0}' +
+      '#pcm-dima-line{position:absolute;left:0;right:0;top:82%;height:2px;margin-top:-1px;background:rgba(255,208,8,.75);z-index:3;pointer-events:none}' +
+      '#pcm-veil{position:absolute;inset:0;background:#00C853;opacity:0;transition:opacity .25s;z-index:2;pointer-events:none}' +
       '.pcm-roll-line{position:absolute;left:12%;right:12%;top:50%;height:3px;margin-top:-1.5px;background:#e53935;z-index:4;pointer-events:none;transition:transform .07s linear;box-shadow:0 0 8px rgba(229,57,53,.7)}' +
       '.pcm-pitch-rail{position:absolute;right:14px;top:30%;bottom:30%;width:6px;border-radius:3px;background:rgba(255,255,255,.25);z-index:4;pointer-events:none}' +
       '.pcm-pitch-rail:after{content:"";position:absolute;top:50%;left:-5px;right:-5px;height:2px;margin-top:-1px;background:rgba(255,255,255,.8)}' +
       '#pcm-pitch-dot{position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#e53935;z-index:5;transition:top .07s linear;box-shadow:0 0 8px rgba(0,0,0,.6)}' +
       '#pcm-stato{position:absolute;top:56%;left:50%;transform:translateX(-50%);z-index:5;font-size:20px;font-weight:800;color:#e53935;text-shadow:0 1px 4px #000;pointer-events:none}' +
-      '#pcm-hint{position:absolute;bottom:118px;left:50%;transform:translateX(-50%);z-index:5;font-size:13px;font-weight:600;color:#fff;background:rgba(0,0,0,.6);padding:6px 14px;border-radius:16px;white-space:nowrap}' +
+      '#pcm-hint{position:absolute;top:62px;left:50%;transform:translateX(-50%);z-index:5;font-size:13px;font-weight:600;color:#fff;background:rgba(0,0,0,.6);padding:6px 14px;border-radius:16px;white-space:nowrap}' +
       '#pcm-debug{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:5;font-size:11px;color:rgba(255,255,255,.75);font-family:monospace}' +
-      '#pcm-ios-btn{display:none;position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:7;background:#FFD008;color:#000;border:none;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}' +
+      '#pcm-ios-btn{display:none;position:absolute;top:104px;left:50%;transform:translateX(-50%);z-index:7;background:#FFD008;color:#000;border:none;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}' +
       '.pcm-bottombar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:34px;padding:18px 0 26px;z-index:6;background:linear-gradient(transparent,rgba(0,0,0,.65))}' +
       '#pcm-shutter{width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid #e53935;cursor:pointer;transition:border-color .15s}' +
       '#pcm-shutter.ready{border-color:#00C853;box-shadow:0 0 16px rgba(0,200,83,.55)}' +
       '#pcm-gallery{background:rgba(0,0,0,.55);color:#fff;border:1.5px solid rgba(255,255,255,.5);padding:10px 16px;border-radius:10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}' +
       '</style>' +
       '<video id="pol-cam-video" autoplay playsinline muted></video>' +
+      '<div id="pcm-veil"></div>' +
+      '<div id="pcm-dima-line"></div>' +
       '<div class="pcm-topbar"><span class="pcm-label" id="pcm-label"></span><button class="pcm-close" onclick="polCamera.close()">✕</button></div>' +
       '<div class="pcm-cross-v" id="pcm-cross-v"></div>' +
       '<div class="pcm-cross-h" id="pcm-cross-h"></div>' +
@@ -86,6 +92,8 @@
     stato.style.color = ok ? '#00C853' : '#e53935';
     stato.textContent = ok ? '✓ PRONTO' : (!rollOk ? 'Raddrizza ↔' : (pitch > 0 ? 'Inclina indietro' : 'Inclina avanti'));
     shutter.classList.toggle('ready', ok);
+    var veil = document.getElementById('pcm-veil');
+    if (veil) veil.style.opacity = ok ? 0.13 : 0;
     document.getElementById('pcm-debug').textContent = 'γ ' + roll.toFixed(1) + '° · β ' + pitch.toFixed(1) + '°';
   }
 
@@ -137,6 +145,8 @@
       document.getElementById('pcm-cross-h').style.display = showCross ? '' : 'none';
       document.getElementById('pcm-target-top').style.display = showTargets ? '' : 'none';
       document.getElementById('pcm-target-bottom').style.display = showTargets ? '' : 'none';
+      document.getElementById('pcm-dima-line').style.display = showTargets ? '' : 'none';
+      document.getElementById('pcm-veil').style.opacity = 0;
       document.getElementById('pcm-gallery').style.display = (typeof opts.onGallery === 'function') ? '' : 'none';
       document.getElementById('pol-cam-modal').classList.add('open');
       initLivella();
