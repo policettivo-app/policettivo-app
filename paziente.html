@@ -742,6 +742,11 @@
             <button type="button" class="edit-chip e-chip-mano" data-val="ambidestro" onclick="setEditChipMano('ambidestro')">Ambidestro</button>
           </div>
         </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px">
+          <div class="edit-group"><label>Altezza (cm)</label><input id="edit-altezza" type="number" min="0" step="1" inputmode="numeric"></div>
+          <div class="edit-group"><label>Peso (kg)</label><input id="edit-peso" type="number" min="0" step="0.1" inputmode="decimal"></div>
+          <div class="edit-group"><label>Taglia piede (EU)</label><input id="edit-taglia-piede" type="number" min="0" step="0.5" inputmode="decimal"></div>
+        </div>
         <div class="edit-group" style="margin-bottom:12px">
           <label>Attività sportiva</label>
           <input type="hidden" id="edit-attivita-sportiva">
@@ -1607,6 +1612,9 @@
         document.getElementById('edit-interventi').value = patient.interventi_chirurgici || ''
         document.getElementById('edit-medico-curante').value = patient.medico_curante || ''
         document.getElementById('edit-specialista').value = patient.specialista_inviante || ''
+        document.getElementById('edit-altezza').value = patient.altezza != null ? patient.altezza : ''
+        document.getElementById('edit-peso').value = patient.peso != null ? patient.peso : ''
+        document.getElementById('edit-taglia-piede').value = patient.taglia_piede != null ? patient.taglia_piede : ''
         document.getElementById('edit-sport-praticato').value = patient.sport_praticato || ''
         document.getElementById('edit-consenso-privacy').checked = patient.consenso_privacy || false
         document.getElementById('edit-consenso-ricerca').checked = patient.consenso_ricerca || false
@@ -1649,6 +1657,9 @@
         interventi_chirurgici: document.getElementById('edit-interventi').value.trim() || null,
         medico_curante: document.getElementById('edit-medico-curante').value.trim() || null,
         specialista_inviante: document.getElementById('edit-specialista').value.trim() || null,
+        altezza: parseFloat(document.getElementById('edit-altezza').value) || null,
+        peso: parseFloat(document.getElementById('edit-peso').value) || null,
+        taglia_piede: parseFloat(document.getElementById('edit-taglia-piede').value) || null,
         consenso_privacy: consenso,
         consenso_privacy_data: consenso ? new Date().toISOString() : null,
         consenso_ricerca,
