@@ -12,7 +12,8 @@
   'use strict';
 
   var stream = null, orientHandler = null, opts = null;
-  var TOL = 4; // gradi di tolleranza per asse (morbida: deve essere raggiungibile a mano libera)
+  var TOL = 5; // gradi di tolleranza per asse (morbida: deve essere raggiungibile a mano libera)
+  var sRoll = 0, sPitch = 0; // valori smorzati (mirino lento e stabile)
 
   function buildDom() {
     if (document.getElementById('pol-cam-modal')) return;
@@ -28,25 +29,27 @@
       '.pcm-close{background:rgba(0,0,0,.55);color:#fff;border:none;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer}' +
       '.pcm-cross-v{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(255,208,8,.85);z-index:3;pointer-events:none}' +
       '.pcm-cross-h{position:absolute;top:50%;left:0;right:0;height:2px;margin-top:-1px;background:rgba(255,208,8,.55);z-index:3;pointer-events:none}' +
-      '.pcm-target{position:absolute;width:58px;height:58px;margin:-29px 0 0 -29px;border:3px solid rgba(255,255,255,.95);border-radius:50%;z-index:4;pointer-events:none;box-shadow:0 0 6px rgba(0,0,0,.6)}' +
+      '.pcm-target{position:absolute;width:66px;height:66px;margin:-33px 0 0 -33px;z-index:4;pointer-events:none;filter:drop-shadow(0 0 3px rgba(0,0,0,.7))}' +
       '.pcm-target:before,.pcm-target:after{content:"";position:absolute;background:rgba(255,255,255,.95)}' +
-      '.pcm-target:before{left:50%;top:8px;bottom:8px;width:2px;margin-left:-1px}' +
-      '.pcm-target:after{top:50%;left:8px;right:8px;height:2px;margin-top:-1px}' +
+      '.pcm-target:before{left:50%;top:0;bottom:0;width:3px;margin-left:-1.5px}' +
+      '.pcm-target:after{top:50%;left:0;right:0;height:3px;margin-top:-1.5px}' +
       '.pcm-target .pcm-tag{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:6px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.6);padding:2px 8px;border-radius:8px;white-space:nowrap}' +
       '#pcm-target-top{left:50%;top:16%}' +
-      '#pcm-target-bottom{left:50%;top:82%;border-color:rgba(255,208,8,.95)}' +
+      '#pcm-target-bottom{left:50%;top:82%}' +
       '#pcm-target-bottom:before,#pcm-target-bottom:after{background:rgba(255,208,8,.95)}' +
       '#pcm-target-bottom .pcm-tag{top:auto;bottom:100%;margin-bottom:6px;margin-top:0}' +
       '#pcm-dima-line{position:absolute;left:0;right:0;top:82%;height:2px;margin-top:-1px;background:rgba(255,208,8,.75);z-index:3;pointer-events:none}' +
       '#pcm-veil{position:absolute;inset:0;background:#00C853;opacity:0;transition:opacity .25s;z-index:2;pointer-events:none}' +
-      '#pcm-reticle{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;color:#e53935;border:3px solid currentColor;border-radius:50%;z-index:5;pointer-events:none;transition:transform .07s linear,color .15s;filter:drop-shadow(0 0 4px rgba(0,0,0,.6))}' +
+      '#pcm-reticle{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;color:#e53935;border:3px solid currentColor;border-radius:50%;z-index:5;pointer-events:none;transition:transform .22s ease-out,color .15s;filter:drop-shadow(0 0 4px rgba(0,0,0,.6))}' +
       '.pcm-ret-h{position:absolute;top:50%;left:-18px;right:-18px;height:2.5px;margin-top:-1.25px;background:currentColor}' +
       '.pcm-ret-v{position:absolute;left:50%;top:-18px;bottom:-18px;width:2.5px;margin-left:-1.25px;background:currentColor}' +
       '#pcm-stato{position:absolute;top:60%;left:50%;transform:translateX(-50%);z-index:5;font-size:20px;font-weight:800;color:#00C853;text-shadow:0 1px 4px #000;pointer-events:none}' +
       '#pcm-hint{position:absolute;top:62px;left:50%;transform:translateX(-50%);z-index:5;font-size:13px;font-weight:600;color:#fff;background:rgba(0,0,0,.6);padding:6px 14px;border-radius:16px;white-space:nowrap}' +
       '#pcm-debug{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:5;font-size:11px;color:rgba(255,255,255,.75);font-family:monospace}' +
       '#pcm-ios-btn{display:none;position:absolute;top:104px;left:50%;transform:translateX(-50%);z-index:7;background:#FFD008;color:#000;border:none;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}' +
-      '.pcm-bottombar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:34px;padding:18px 0 26px;z-index:6;background:linear-gradient(transparent,rgba(0,0,0,.65))}' +
+      '.pcm-bottombar{position:absolute;bottom:0;left:0;right:0;height:120px;z-index:6;background:linear-gradient(transparent,rgba(0,0,0,.65))}' +
+      '#pcm-shutter{position:absolute;left:50%;bottom:26px;transform:translateX(-50%)}' +
+      '#pcm-gallery{position:absolute;left:16px;bottom:42px}' +
       '#pcm-shutter{width:72px;height:72px;border-radius:50%;background:#FFD008;border:5px solid #000;cursor:pointer;transition:border-color .15s,box-shadow .15s}' +
       '#pcm-shutter.ready{border-color:#00C853;box-shadow:0 0 16px rgba(0,200,83,.6)}' +
       '#pcm-gallery{background:rgba(0,0,0,.55);color:#fff;border:1.5px solid rgba(255,255,255,.5);padding:10px 16px;border-radius:10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}' +
@@ -67,7 +70,6 @@
       '<div class="pcm-bottombar">' +
         '<button id="pcm-gallery" onclick="polCamera._gallery()">📁 Galleria</button>' +
         '<button id="pcm-shutter" onclick="polCamera._shot()" aria-label="Scatta"></button>' +
-        '<span style="width:76px"></span>' +
       '</div>';
     document.body.appendChild(d);
   }
@@ -81,8 +83,8 @@
     var shutter = document.getElementById('pcm-shutter');
     // Mirino "da aereo": scappa dal centro se il telefono non è dritto.
     // destra/sinistra = rotazione (γ) · su/giù = inclinazione avanti-indietro (β)
-    var x = Math.max(-140, Math.min(140, roll * 6));
-    var y = Math.max(-140, Math.min(140, pitch * 6));
+    var x = Math.max(-120, Math.min(120, roll * 3.5));
+    var y = Math.max(-120, Math.min(120, pitch * 3.5));
     ret.style.transform = 'translate(' + x + 'px,' + y + 'px)';
     ret.style.color = ok ? '#00C853' : '#e53935';
     stato.textContent = ok ? '✓ PRONTO' : '';
@@ -94,11 +96,15 @@
 
   function attachOrient() {
     if (orientHandler) return;
+    sRoll = 0; sPitch = 0;
     orientHandler = function (e) {
       var roll = e.gamma != null ? e.gamma : 0;          // rotazione (portrait)
       var beta = e.beta != null ? e.beta : 90;
       var pitch = beta - 90;                              // 0 = telefono verticale
-      setLevelUI(roll, pitch);
+      // smorzamento: il mirino si muove piano e non "scappa"
+      sRoll += (roll - sRoll) * 0.18;
+      sPitch += (pitch - sPitch) * 0.18;
+      setLevelUI(sRoll, sPitch);
     };
     window.addEventListener('deviceorientation', orientHandler, true);
   }
@@ -106,7 +112,8 @@
   function initLivella() {
     var needsPerm = (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function');
     var btn = document.getElementById('pcm-ios-btn');
-    if (needsPerm) {
+    if (!needsPerm) { btn.style.display = 'none'; attachOrient(); return; }
+    var mostraBottone = function () {
       btn.style.display = 'block';
       btn.textContent = '🎯 Abilita livella';
       btn.onclick = function () {
@@ -115,10 +122,15 @@
           else btn.textContent = 'Permesso negato';
         }).catch(function (err) { btn.textContent = 'Errore livella'; console.warn(err); });
       };
-    } else {
-      btn.style.display = 'none';
-      attachOrient();
-    }
+    };
+    // Prova ad attivarla DA SOLA (se il permesso è già stato dato in questa sessione
+    // il popup non compare). Solo se iOS pretende il tocco, mostra il bottone.
+    try {
+      DeviceOrientationEvent.requestPermission().then(function (perm) {
+        if (perm === 'granted') { btn.style.display = 'none'; attachOrient(); }
+        else mostraBottone();
+      }).catch(mostraBottone);
+    } catch (e) { mostraBottone(); }
   }
 
   w.polCamera = {
