@@ -44,6 +44,12 @@
       '.pcm-ret-h{position:absolute;top:50%;left:-18px;right:-18px;height:2.5px;margin-top:-1.25px;background:currentColor}' +
       '.pcm-ret-v{position:absolute;left:50%;top:-18px;bottom:-18px;width:2.5px;margin-left:-1.25px;background:currentColor}' +
       '#pcm-stato{position:absolute;top:60%;left:50%;transform:translateX(-50%);z-index:5;font-size:20px;font-weight:800;color:#00C853;text-shadow:0 1px 4px #000;pointer-events:none}' +
+      '.pcm-arrow{position:absolute;z-index:5;font-size:36px;color:#FFD008;text-shadow:0 1px 5px #000;pointer-events:none;display:none;animation:pcmBlink .9s infinite}' +
+      '@keyframes pcmBlink{0%,100%{opacity:.3}50%{opacity:1}}' +
+      '#pcm-arr-left{left:8px;top:50%;transform:translateY(-50%)}' +
+      '#pcm-arr-right{right:8px;top:50%;transform:translateY(-50%)}' +
+      '#pcm-arr-up{top:120px;left:50%;transform:translateX(-50%)}' +
+      '#pcm-arr-down{bottom:132px;left:50%;transform:translateX(-50%)}' +
       '#pcm-hint{position:absolute;top:62px;left:50%;transform:translateX(-50%);z-index:5;font-size:13px;font-weight:600;color:#fff;background:rgba(0,0,0,.6);padding:6px 14px;border-radius:16px;white-space:nowrap}' +
       '#pcm-debug{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:5;font-size:11px;color:rgba(255,255,255,.75);font-family:monospace}' +
       '#pcm-ios-btn{display:none;position:absolute;top:104px;left:50%;transform:translateX(-50%);z-index:7;background:#FFD008;color:#000;border:none;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}' +
@@ -64,6 +70,10 @@
       '<div class="pcm-target" id="pcm-target-bottom"><span class="pcm-tag">riferimento inferiore</span></div>' +
       '<div id="pcm-reticle"><div class="pcm-ret-h"></div><div class="pcm-ret-v"></div></div>' +
       '<div id="pcm-stato"></div>' +
+      '<div class="pcm-arrow" id="pcm-arr-left">◀</div>' +
+      '<div class="pcm-arrow" id="pcm-arr-right">▶</div>' +
+      '<div class="pcm-arrow" id="pcm-arr-up">▲</div>' +
+      '<div class="pcm-arrow" id="pcm-arr-down">▼</div>' +
       '<div id="pcm-hint"></div>' +
       '<div id="pcm-debug"></div>' +
       '<button id="pcm-ios-btn">🎯 Abilita livella</button>' +
@@ -83,12 +93,18 @@
     var shutter = document.getElementById('pcm-shutter');
     // Mirino "da aereo": scappa dal centro se il telefono non è dritto.
     // destra/sinistra = rotazione (γ) · su/giù = inclinazione avanti-indietro (β)
-    var x = Math.max(-120, Math.min(120, roll * 3.5));
-    var y = Math.max(-120, Math.min(120, pitch * 3.5));
+    // Dentro la tolleranza → si AGGANCIA al centro (calamita).
+    var x = ok ? 0 : Math.max(-120, Math.min(120, roll * 3.5));
+    var y = ok ? 0 : Math.max(-120, Math.min(120, pitch * 3.5));
     ret.style.transform = 'translate(' + x + 'px,' + y + 'px)';
     ret.style.color = ok ? '#00C853' : '#e53935';
     stato.textContent = ok ? '✓ PRONTO' : '';
     shutter.classList.toggle('ready', ok);
+    // Frecce guida sui bordi: si accende quella verso cui portare il mirino
+    document.getElementById('pcm-arr-left').style.display = (!ok && roll > TOL) ? 'block' : 'none';
+    document.getElementById('pcm-arr-right').style.display = (!ok && roll < -TOL) ? 'block' : 'none';
+    document.getElementById('pcm-arr-up').style.display = (!ok && pitch > TOL) ? 'block' : 'none';
+    document.getElementById('pcm-arr-down').style.display = (!ok && pitch < -TOL) ? 'block' : 'none';
     var veil = document.getElementById('pcm-veil');
     if (veil) veil.style.opacity = ok ? 0.13 : 0;
     document.getElementById('pcm-debug').textContent = 'γ ' + roll.toFixed(1) + '° · β ' + pitch.toFixed(1) + '°';
@@ -101,10 +117,10 @@
       var roll = e.gamma != null ? e.gamma : 0;          // rotazione (portrait)
       var beta = e.beta != null ? e.beta : 90;
       var pitch = beta - 90;                              // 0 = telefono verticale
-      // smorzamento: il mirino si muove piano e non "scappa"
-      sRoll += (roll - sRoll) * 0.18;
-      sPitch += (pitch - sPitch) * 0.18;
-      setLevelUI(sRoll, sPitch);
+      // smorzamento forte: il mirino si muove piano, niente tremolii casuali
+      sRoll += (roll - sRoll) * 0.12;
+      sPitch += (pitch - sPitch) * 0.12;
+      setLevelUI(Math.round(sRoll * 10) / 10, Math.round(sPitch * 10) / 10);
     };
     window.addEventListener('deviceorientation', orientHandler, true);
   }
