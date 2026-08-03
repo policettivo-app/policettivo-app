@@ -176,6 +176,11 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 .total-card.storico .total-val { color: #111; }
 .total-card.storico.debt { background: #fdecec; border-color: #ef9a9a; }
 .total-card.storico.debt .total-val { color: #c62828; }
+.total-card.df-ok   { background: #f1f8e9; border-color: #c5e1a5; }
+.total-card.df-ok   .total-val { color: #2e7d32; }
+.total-card.df-warn { background: #fff3e0; border-color: #ffb74d; }
+.total-card.df-warn .total-val { color: #d84315; }
+.tot-hint { font-size: 12px; color: #666; margin-top: 8px; padding: 0 2px; }
 .total-card.storico.paid { background: #e8f5e9; border-color: #a5d6a7; }
 .total-card.storico.paid .total-val { color: #2e7d32; }
 .total-card.storico.credit { background: #e8f5e9; border-color: #a5d6a7; }
@@ -274,22 +279,27 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 
   <div class="totals">
     <div class="total-card">
-      <div class="total-lbl">Dovuto (periodo)</div>
+      <div class="total-lbl">Prestazioni (periodo)</div>
       <div class="total-val" id="tot-dovuto">— €</div>
     </div>
     <div class="total-card paid">
-      <div class="total-lbl">Versato (periodo)</div>
+      <div class="total-lbl">Incassato (periodo)</div>
       <div class="total-val" id="tot-versato">— €</div>
     </div>
     <div class="total-card residuo" id="tot-residuo-card">
-      <div class="total-lbl" id="tot-residuo-lbl">Residuo (periodo)</div>
+      <div class="total-lbl" id="tot-residuo-lbl">Residuo da incassare</div>
       <div class="total-val" id="tot-residuo">— €</div>
     </div>
-    <div class="total-card storico" id="tot-saldo-storico-card">
-      <div class="total-lbl" id="tot-saldo-storico-lbl">Saldo paziente (storico)</div>
-      <div class="total-val" id="tot-saldo-storico">— €</div>
+    <div class="total-card" id="tot-fatturato-card">
+      <div class="total-lbl">Fatturato (periodo)</div>
+      <div class="total-val" id="tot-fatturato">— €</div>
+    </div>
+    <div class="total-card" id="tot-dafatt-card">
+      <div class="total-lbl">Da fatturare</div>
+      <div class="total-val" id="tot-dafatt">— €</div>
     </div>
   </div>
+  <div class="tot-hint" id="tot-hint"></div>
 </div>
 
 <!-- Modal Registra incasso -->
@@ -556,64 +566,46 @@ function renderTotali(){
   var lista = _sedutePerPeriodo();
   var dovuto = 0;
   for (var i = 0; i < lista.length; i++) {
-    var s = lista[i];
-    var c = Number(s.costo);
+    var c = Number(lista[i].costo);
     if (isFinite(c)) dovuto += c;
   }
   var pagLista = _pagPerPeriodo();
-  var versato = 0;
+  var versato = 0, fatturato = 0, daFatturare = 0;
   for (var j = 0; j < pagLista.length; j++) {
-    var v = Number(pagLista[j].importo);
-    if (isFinite(v)) versato += v;
+    var p = pagLista[j];
+    var v = Number(p.importo); if (!isFinite(v)) v = 0;
+    versato += v;
+    if (_fatturaDiPagamento(p.id)) fatturato += v;       // incasso già documentato
+    else if (!p.no_fattura)        daFatturare += v;      // incasso da documentare
+    // gli incassi "no_fattura" restano fuori: esclusi volontariamente
   }
-  // Versato = SOLO patient_payments. Il flag "saldato" sulle sedute è puramente
-  // visivo e NON entra nel calcolo economico (no doppio conteggio).
   var residuo = dovuto - versato;
 
-  document.getElementById('tot-dovuto').textContent  = _fmtEur(dovuto);
-  document.getElementById('tot-versato').textContent = _fmtEur(versato);
+  document.getElementById('tot-dovuto').textContent    = _fmtEur(dovuto);
+  document.getElementById('tot-versato').textContent   = _fmtEur(versato);
+  document.getElementById('tot-fatturato').textContent = _fmtEur(fatturato);
 
-  // Residuo: >0 debito (arancione), ≈0 saldato (verde chiaro), <0 credito (verde)
+  // ── Residuo da incassare (gestionale): >0 debito, ≈0 saldato, <0 credito ──
   var card  = document.getElementById('tot-residuo-card');
   var lbl   = document.getElementById('tot-residuo-lbl');
   var valEl = document.getElementById('tot-residuo');
   var isCredit = residuo < -0.005;
   var isZero   = Math.abs(residuo) <= 0.005;
-  if (card) {
-    card.classList.toggle('zero',   isZero);
-    card.classList.toggle('credit', isCredit);
-  }
-  if (isCredit) {
-    if (lbl) lbl.textContent = 'Credito paziente (periodo)';
-    valEl.textContent = _fmtEur(Math.abs(residuo));
-  } else {
-    if (lbl) lbl.textContent = 'Residuo (periodo)';
-    valEl.textContent = _fmtEur(isZero ? 0 : residuo);
-  }
+  if (card) { card.classList.toggle('zero', isZero); card.classList.toggle('credit', isCredit); }
+  if (isCredit) { if (lbl) lbl.textContent = 'Credito paziente'; valEl.textContent = _fmtEur(Math.abs(residuo)); }
+  else          { if (lbl) lbl.textContent = 'Residuo da incassare'; valEl.textContent = _fmtEur(isZero ? 0 : residuo); }
 
-  // ── Storico completo (ignora filtro periodo) ──
-  // Versato storico = SOLO patient_payments (nessun contributo delle sedute saldate)
-  var saldoStorico = _totCostiStorico() - _totPagamentiStorico();
-  var storicoLbl   = document.getElementById('tot-saldo-storico-lbl');
-  var storicoValEl = document.getElementById('tot-saldo-storico');
-  var storicoCard  = document.getElementById('tot-saldo-storico-card');
-  var isStCredit = saldoStorico < -0.005;
-  var isStDebt   = saldoStorico >  0.005;
-  var isStPaid   = !isStCredit && !isStDebt;
-  if (storicoCard) {
-    storicoCard.classList.toggle('debt',   isStDebt);
-    storicoCard.classList.toggle('paid',   isStPaid);
-    storicoCard.classList.toggle('credit', isStCredit);
-  }
-  if (isStCredit) {
-    if (storicoLbl) storicoLbl.textContent = 'Credito paziente (storico)';
-    storicoValEl.textContent = _fmtEur(Math.abs(saldoStorico));
-  } else if (isStPaid) {
-    if (storicoLbl) storicoLbl.textContent = 'Saldo paziente (storico saldato)';
-    storicoValEl.textContent = _fmtEur(0);
-  } else {
-    if (storicoLbl) storicoLbl.textContent = 'Saldo paziente (storico)';
-    storicoValEl.textContent = _fmtEur(saldoStorico);
+  // ── Da fatturare (fiscale): deve tornare a 0 ──
+  var dfCard = document.getElementById('tot-dafatt-card');
+  var dfVal  = document.getElementById('tot-dafatt');
+  var dfZero = daFatturare <= 0.005;
+  if (dfCard) { dfCard.classList.toggle('df-ok', dfZero); dfCard.classList.toggle('df-warn', !dfZero); }
+  dfVal.textContent = _fmtEur(dfZero ? 0 : daFatturare);
+
+  var hint = document.getElementById('tot-hint');
+  if (hint) {
+    if (dfZero) hint.textContent = '✅ Tutti gli incassi del periodo sono fatturati.';
+    else hint.textContent = '🟠 Hai incassato ' + _fmtEur(daFatturare) + ' non ancora fatturati: emetti le fatture dai versamenti qui sopra.';
   }
 }
 
