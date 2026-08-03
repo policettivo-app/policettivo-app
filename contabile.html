@@ -54,6 +54,7 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 
 .status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .2px; }
 .status-pill.paid   { background: #e8f5e9; color: #2e7d32; }
+.status-pill.partial{ background: #fff3e0; color: #d84315; }
 .status-pill.unpaid { background: #fff8e1; color: #b28900; }
 .status-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .status-detail { font-size: 10px; color: #666; text-align: center; font-weight: 600; line-height: 1.35; }
@@ -210,6 +211,7 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 <div class="topbar">
   <button class="back-btn" onclick="tornaAlPaziente()">← Indietro</button>
   <h1>💶 Contabile</h1>
+  <button class="back-btn" id="btn-vai-diario" onclick="vaiAlDiario()">📒 Diario</button>
   <span class="pname" id="pname">…</span>
 </div>
 
@@ -306,9 +308,9 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 <div class="modal-overlay" id="modal-incasso" onclick="if(event.target===this)chiudiRegistraIncasso()" role="dialog" aria-modal="true" aria-label="Registra incasso">
   <div class="modal-box">
     <div class="modal-title">💰 Registra incasso</div>
-    <div class="modal-sub">Le sedute selezionate verranno marcate come saldate. La somma pagata viene registrata tra i versamenti.</div>
+    <div class="modal-sub">La somma pagata viene registrata tra i versamenti. Lo stato delle sedute (Saldata / Parziale / Da saldare) si aggiorna in automatico in base ai soldi incassati.</div>
     <div class="modal-residuo">
-      <span class="mr-lbl">Residuo attuale (storico)</span>
+      <span class="mr-lbl">Totale sedute selezionate</span>
       <span class="mr-val" id="incasso-residuo-val">— €</span>
     </div>
     <div class="modal-field">
@@ -346,6 +348,7 @@ var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 var _sb = window.supabase.createClient(SB_URL, SB_KEY);
 
 var pid = new URLSearchParams(window.location.search).get('pid');
+var _from = new URLSearchParams(window.location.search).get('from');
 var patient = null;
 var _listino = [];          // listino personale del pro corrente
 var _sedute = [];           // tutte le sedute con costo (dal DB)
@@ -362,8 +365,13 @@ var _fatture = [];          // fatture del paziente (per badge Fatturato/Da fatt
 function _esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function tornaAlPaziente() {
+  if (_from === 'diario' && pid) { window.location.href = 'diario.html?pid=' + pid; return; }
   if (pid) window.location.href = 'paziente.html?id=' + pid;
   else window.location.href = 'dashboard.html';
+}
+
+function vaiAlDiario() {
+  if (pid) window.location.href = 'diario.html?pid=' + pid + '&from=contabile';
 }
 
 function emettiFattura(payId){
@@ -448,23 +456,45 @@ function _sedutePerPeriodo(){
   });
 }
 
+// Stato seduta calcolato dai SOLDI (modello di cassa): l'incassato totale copre
+// le sedute dalla più vecchia. Nessun flag manuale → lo stato non mente mai.
+// Ritorna mappa { id: {stato:'paid'|'partial'|'unpaid', pagato, costo} }.
+var _statoMap = Object.create(null);
+function _calcolaStatoSedute(){
+  _statoMap = Object.create(null);
+  // Tutte le sedute con costo, ordinate dalla più vecchia
+  var conCosto = _sedute.filter(function(s){ return s.costo != null && isFinite(Number(s.costo)); });
+  conCosto.sort(function(a,b){ return String(a.data_seduta||'').localeCompare(String(b.data_seduta||'')); });
+  // Incassato totale (tutti i versamenti, storico)
+  var incassato = 0;
+  for (var i = 0; i < _pagamenti.length; i++) { var v = Number(_pagamenti[i].importo); if (isFinite(v)) incassato += v; }
+  var residuoDaCoprire = incassato;
+  for (var j = 0; j < conCosto.length; j++) {
+    var s = conCosto[j]; var costo = Number(s.costo);
+    var pagato = Math.max(0, Math.min(costo, residuoDaCoprire));
+    residuoDaCoprire -= pagato;
+    var stato = pagato >= costo - 0.005 ? 'paid' : (pagato > 0.005 ? 'partial' : 'unpaid');
+    _statoMap[s.id] = { stato: stato, pagato: pagato, costo: costo };
+  }
+}
+
 function _statusCellHtml(s){
-  var isPaid = !!s.saldato;
-  if (isPaid) {
-    var data = s.saldato_data ? _fmtDate(s.saldato_data) : '';
+  var st = _statoMap[s.id] || { stato: 'unpaid', pagato: 0, costo: Number(s.costo)||0 };
+  if (st.stato === 'paid') {
+    return '<div class="status-actions"><span class="status-pill paid">✅ Saldata</span></div>';
+  }
+  if (st.stato === 'partial') {
     return '<div class="status-actions">' +
-             '<span class="status-pill paid">✓ Chiuso</span>' +
-             (data ? '<div class="status-detail">' + _esc(data) + '</div>' : '') +
-             '<button class="btn-saldo undo" onclick="rimuoviSaldo(\'' + _esc(s.id) + '\')">↩ Annulla chiusura</button>' +
+             '<span class="status-pill partial">🟡 Parziale</span>' +
+             '<div class="status-detail">' + _fmtEur(st.pagato) + ' / ' + _fmtEur(st.costo) + '</div>' +
            '</div>';
   }
-  return '<div class="status-actions">' +
-           '<span class="status-pill unpaid">In attesa</span>' +
-         '</div>';
+  return '<div class="status-actions"><span class="status-pill unpaid">🟠 Da saldare</span></div>';
 }
 
 function renderRighe(){
   var box = document.getElementById('rows'); if (!box) return;
+  _calcolaStatoSedute();
   var lista = _sedutePerPeriodo();
   if (!lista.length) {
     box.innerHTML = '<div class="empty-state">Nessuna seduta con costo nel periodo selezionato.</div>';
@@ -735,13 +765,16 @@ async function _insertPagamento(imp, dataStr, nota){
 }
 
 function apriRegistraIncasso(){
-  var n = 0;
-  Object.keys(_selected).forEach(function(k){ if (_selected[k]) n++ });
+  var n = 0, totale = 0;
+  var byId = {}; for (var q = 0; q < _sedute.length; q++) byId[_sedute[q].id] = _sedute[q];
+  Object.keys(_selected).forEach(function(k){
+    if (_selected[k]) { n++; var s = byId[k]; if (s && isFinite(Number(s.costo))) totale += Number(s.costo); }
+  });
   if (!n) { alert('Nessuna seduta selezionata.'); return; }
-  var residuo = _residuoStorico();
-  document.getElementById('incasso-residuo-val').textContent = _fmtEur(residuo);
+  totale = Math.round(totale*100)/100;
+  document.getElementById('incasso-residuo-val').textContent = _fmtEur(totale);
   var impEl = document.getElementById('incasso-importo');
-  impEl.value = (residuo > 0 ? residuo.toFixed(2) : '0.00');
+  impEl.value = totale.toFixed(2);   // = somma delle sedute selezionate (modificabile)
   document.getElementById('incasso-data').value = (new Date()).toISOString().substring(0,10);
   document.getElementById('incasso-nota').value = '';
   var payBtns = document.querySelectorAll('#incasso-metodi .pay-method-btn');
@@ -772,16 +805,16 @@ function _aggiornaRiepilogoIncasso(){
     recap.textContent = 'Inserisci un importo valido (> 0).';
     return;
   }
-  var delta = residuo - imp; // >0 resta da pagare, ≈0 saldato, <0 credito
+  var delta = residuo - imp; // residuo che resterà dopo questo incasso
   if (delta > 0.005) {
     recap.className = 'modal-recap parziale';
-    recap.textContent = 'Resta da pagare: ' + _fmtEur(delta);
+    recap.textContent = 'Dopo questo incasso resterà da incassare: ' + _fmtEur(delta);
   } else if (delta < -0.005) {
     recap.className = 'modal-recap credito';
-    recap.textContent = 'Tutto saldato + Credito paziente: ' + _fmtEur(Math.abs(delta));
+    recap.textContent = 'Attenzione: incassi più del dovuto → credito paziente ' + _fmtEur(Math.abs(delta));
   } else {
     recap.className = 'modal-recap saldato';
-    recap.textContent = 'Tutto saldato ✓';
+    recap.textContent = 'Dopo questo incasso: tutto incassato ✓';
   }
 }
 
@@ -801,18 +834,11 @@ async function confermaRegistraIncasso(){
   if (!dataRaw) { alert('Inserisci la data del versamento.'); return; }
   var nota = String(notaRaw || '').trim() || null;
 
-  // Sedute da marcare = selezionate visibili NON ancora chiuse.
-  // Se tutte le selezionate sono già chiuse, ids resta vuoto: il pagamento
-  // viene comunque registrato (la marcatura visiva è secondaria).
-  var lista = _sedutePerPeriodo();
-  var visibleById = {};
-  for (var i = 0; i < lista.length; i++) visibleById[lista[i].id] = lista[i];
-  var ids = Object.keys(_selected).filter(function(k){ return _selected[k] && visibleById[k] && !visibleById[k].saldato });
-
   var btn = document.getElementById('btn-incasso-conferma');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvataggio…'; }
 
-  // Step A: pagamento
+  // Registra il pagamento (la verità sui soldi). Lo stato delle sedute
+  // si ricalcola da solo dai soldi incassati (modello di cassa, FIFO).
   var res = await _insertPagamento(imp, dataRaw, nota);
   if (!res || res.error) {
     if (btn) { btn.disabled = false; btn.textContent = 'Conferma'; }
@@ -822,35 +848,17 @@ async function confermaRegistraIncasso(){
   }
   if (res.data) _pagamenti.push(res.data);
 
-  // Step B: batch update therapy_sessions (flag visivo puro: saldato_importo=0
-  // così NON entra nel calcolo del versato — il pagamento è già in patient_payments)
-  var today = (new Date()).toISOString().substring(0,10);
-  var failed = 0;
-  await Promise.all(ids.map(function(id){
-    return _sb.from('therapy_sessions')
-      .update({ saldato: true, saldato_importo: 0, saldato_data: today })
-      .eq('id', id)
-      .then(function(r){
-        if (r.error) { failed++; console.error('[contabile] batch saldo error id=' + id, r.error); return; }
-        for (var k = 0; k < _sedute.length; k++) {
-          if (_sedute[k].id === id) {
-            _sedute[k].saldato = true;
-            _sedute[k].saldato_importo = 0;
-            _sedute[k].saldato_data = today;
-            break;
-          }
-        }
-      });
-  }));
-  ids.forEach(function(id){ if (visibleById[id] && visibleById[id].saldato) delete _selected[id]; });
-
+  // Deseleziona le sedute e chiudi
+  _selected = Object.create(null);
+  var selAll = document.getElementById('sel-all'); if (selAll) selAll.checked = false;
+  if (btn) { btn.disabled = false; btn.textContent = 'Conferma'; }
   chiudiRegistraIncasso();
   renderRighe();
   renderPagamenti();
   renderTotali();
 
-  if (failed > 0) {
-    alert('⚠️ Pagamento di ' + _fmtEur(imp) + ' registrato, ma ' + failed + ' seduta/e non è stata marcata saldata. Ricontrolla la lista sedute.');
+  if (res.data && confirm('Emettere subito la fattura per questo incasso di ' + _fmtEur(res.data.importo) + ' ?')){
+    emettiFattura(res.data.id);
   }
 }
 
