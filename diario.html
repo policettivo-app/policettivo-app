@@ -110,6 +110,7 @@ input.fi { min-height: unset; resize: none; }
 <div class="topbar">
   <button class="back-btn" onclick="torna()">Indietro</button>
   <button class="back-btn" onclick="window.location.href='paziente.html?id='+pid+'&openAppointment=1'">📅 Appuntamento</button>
+  <button class="back-btn" onclick="vaiAllaContabile()">💶 Contabile</button>
   <h1>Diario Sedute</h1>
   <span class="pname" id="pname">...</span>
 </div>
@@ -242,6 +243,7 @@ var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
 var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
 var _sb = window.supabase.createClient(SB_URL, SB_KEY);
 var pid = new URLSearchParams(window.location.search).get('pid');
+var _from = new URLSearchParams(window.location.search).get('from');
 var patient = null;
 var protAtt = null;
 var calON = false;
@@ -395,7 +397,12 @@ function cstDetailHtml(x){
 }
 
 function torna() {
+  if (_from === 'contabile' && pid) { window.location.href = 'contabile.html?pid=' + pid; return; }
   window.location.href = 'paziente.html?id=' + pid;
+}
+
+function vaiAllaContabile() {
+  if (pid) window.location.href = 'contabile.html?pid=' + pid + '&from=diario';
 }
 
 function updateVas(t, v) {
