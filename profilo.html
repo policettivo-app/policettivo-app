@@ -206,6 +206,50 @@
         <input class="f-input" id="edit-piva" type="text" placeholder="es. 01234567890">
       </div>
 
+      <!-- IMPOSTAZIONE FISCALE (fatturazione) -->
+      <div style="border-top:1px solid #eee;margin:22px 0 6px"></div>
+      <div class="card-title" style="font-size:15px">Impostazione fiscale (fatturazione)</div>
+      <p style="font-size:12px;color:#999;margin-bottom:14px">Determina come vengono costruite le fatture. In caso di dubbio, verifica le voci con il tuo commercialista.</p>
+
+      <div class="form-row">
+        <div class="f-group">
+          <label class="f-label">Professione sanitaria riconosciuta?</label>
+          <select class="f-input" id="edit-sanitaria" onchange="aggiornaVisibilitaFiscale()">
+            <option value="no">No (libero professionista non sanitario)</option>
+            <option value="si">Sì (fisioterapista, osteopata…)</option>
+          </select>
+        </div>
+        <div class="f-group">
+          <label class="f-label">Regime fiscale</label>
+          <select class="f-input" id="edit-regime" onchange="aggiornaVisibilitaFiscale()">
+            <option value="forfettario">Forfettario</option>
+            <option value="ordinario">Ordinario</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="f-group" id="grp-albo">
+        <label class="f-label">Numero iscrizione albo <span style="color:#999">(facoltativo)</span></label>
+        <input class="f-input" id="edit-albo" type="text" placeholder="es. 12345">
+      </div>
+
+      <div class="form-row">
+        <div class="f-group">
+          <label class="f-label">IBAN <span style="color:#999">(facoltativo)</span></label>
+          <input class="f-input" id="edit-iban" type="text" placeholder="IT00 A000 0000 0000 0000 0000 000">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Rivalsa previdenziale % <span style="color:#999">(0 se non dovuta)</span></label>
+          <input class="f-input" id="edit-rivalsa" type="number" min="0" step="0.1" placeholder="0">
+        </div>
+      </div>
+
+      <div class="f-group" id="grp-iva">
+        <label class="f-label">Aliquota IVA %</label>
+        <input class="f-input" id="edit-iva" type="number" min="0" step="1" placeholder="22">
+        <div class="read-only-note">Solo per non sanitari in regime ordinario. I professionisti sanitari sono sempre esenti IVA (art. 10).</div>
+      </div>
+
       <button class="btn-save" id="btn-salva" onclick="salvaProfilo()">Salva modifiche</button>
       <div class="save-msg" id="save-msg">✅ Salvato con successo</div>
     </div>
@@ -454,6 +498,15 @@
       document.getElementById('field-telefono').value  = prof.telefono            || ''
       document.getElementById('edit-email-studio').value = prof.email_studio      || ''
       document.getElementById('edit-piva').value       = prof.partita_iva         || ''
+
+      // Impostazione fiscale (fatturazione)
+      document.getElementById('edit-sanitaria').value = prof.professione_sanitaria ? 'si' : 'no'
+      document.getElementById('edit-regime').value    = prof.regime_fiscale || 'forfettario'
+      document.getElementById('edit-albo').value      = prof.numero_albo || ''
+      document.getElementById('edit-iban').value      = prof.iban || ''
+      document.getElementById('edit-rivalsa').value   = (prof.rivalsa_percentuale != null ? prof.rivalsa_percentuale : 0)
+      document.getElementById('edit-iva').value       = (prof.aliquota_iva != null ? prof.aliquota_iva : 0)
+      aggiornaVisibilitaFiscale()
 
       listinoState = listinoNormalize(prof.listino)
       listinoRender()
@@ -709,7 +762,13 @@
         indirizzo:    document.getElementById('field-indirizzo').value,
         telefono:     document.getElementById('field-telefono').value,
         email_studio: document.getElementById('edit-email-studio').value,
-        partita_iva:  document.getElementById('edit-piva').value
+        partita_iva:  document.getElementById('edit-piva').value,
+        professione_sanitaria: document.getElementById('edit-sanitaria').value === 'si',
+        regime_fiscale:        document.getElementById('edit-regime').value,
+        numero_albo:           document.getElementById('edit-albo').value.trim() || null,
+        iban:                  document.getElementById('edit-iban').value.trim() || null,
+        rivalsa_percentuale:   parseFloat(document.getElementById('edit-rivalsa').value) || 0,
+        aliquota_iva:          parseFloat(document.getElementById('edit-iva').value) || 0
       }
       const { error } = await _supabase
         .from('professionals')
@@ -732,6 +791,13 @@
 
       msg.classList.add('visible')
       setTimeout(() => msg.classList.remove('visible'), 3500)
+    }
+
+    function aggiornaVisibilitaFiscale() {
+      const sanitaria = document.getElementById('edit-sanitaria').value === 'si'
+      const regime    = document.getElementById('edit-regime').value
+      document.getElementById('grp-albo').style.display = sanitaria ? '' : 'none'
+      document.getElementById('grp-iva').style.display  = (!sanitaria && regime === 'ordinario') ? '' : 'none'
     }
 
     async function caricaLogo(file) {
