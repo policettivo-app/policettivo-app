@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nuova fattura — Policettivo®</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Montserrat', sans-serif; background: #f5f5f7; color: #1a1a1a; visibility: hidden; }
+  .navbar { background: #000; padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+  .navbar-logo { color: #FFD008; font-weight: 800; letter-spacing: .5px; }
+  .navbar-title { color: #fff; font-size: 13px; margin-left: 12px; opacity: .8; }
+  .nav-right { display: flex; gap: 10px; align-items: center; }
+  .nav-btn { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: inherit; font-size: 12px; cursor: pointer; text-decoration: none; }
+  .nav-btn:hover { border-color: #888; }
+  .nav-btn.back { background: #FFD008; border-color: #FFD008; color: #000; font-weight: 700; }
+  .main { max-width: 820px; margin: 0 auto; padding: 24px 16px 80px; }
+  .page-header h1 { margin: 4px 0 2px; font-size: 24px; }
+  .page-header .num { color: #7a5a00; background: #FFF3C4; display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+  .card { background: #fff; border-radius: 12px; padding: 20px; margin-top: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .card-title { font-weight: 800; font-size: 14px; margin-bottom: 14px; letter-spacing: .2px; }
+  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .party { font-size: 13px; line-height: 1.5; }
+  .party .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #999; margin-bottom: 4px; }
+  .party b { font-weight: 700; }
+  .righe-head, .riga { display: grid; grid-template-columns: 1fr 62px 92px 92px 34px; gap: 8px; align-items: center; }
+  .righe-head { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 8px; }
+  .riga { margin-bottom: 8px; }
+  .riga input { width: 100%; padding: 9px 10px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 13px; }
+  .riga input:focus { outline: none; border-color: #FFD008; }
+  .riga .imp { background: #f5f5f7; text-align: right; font-weight: 700; }
+  .riga-del { border: none; background: transparent; color: #c62828; font-size: 15px; cursor: pointer; border-radius: 6px; }
+  .riga-del:hover { background: #ffebee; }
+  .add-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .btn-add { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 9px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .btn-add:hover { background: #e6bc00; }
+  select.lst-sel { padding: 9px 12px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 12px; background: #fff; }
+  .totals { margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 12px; }
+  .trow { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+  .trow.big { font-size: 17px; font-weight: 800; border-top: 2px solid #000; margin-top: 8px; padding-top: 10px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+  .field input, .field select { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 13px; }
+  .field input:focus, .field select:focus { outline: none; border-color: #FFD008; }
+  .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
+  .hint { font-size: 12px; color: #999; margin: 4px 0 14px; }
+  .warn-box { background: #FFF9E5; border: 1.5px solid #FFE49A; color: #7a5a00; border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.5; margin-bottom: 14px; }
+  .actions { display: flex; gap: 12px; margin-top: 20px; }
+  .btn-primary { flex: 1; background: #00C48C; color: #fff; border: none; border-radius: 10px; padding: 14px; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+  .btn-primary:hover { background: #00b07d; }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-cancel { background: #fff; border: 1.5px solid #ddd; border-radius: 10px; padding: 14px 20px; font-family: inherit; font-size: 14px; font-weight: 600; color: #555; cursor: pointer; }
+  .ok-msg { display: none; background: #E6F9F2; border: 1.5px solid #9EE7CE; color: #067a55; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; margin-top: 14px; }
+  @media (max-width: 560px) {
+    .parties, .frow { grid-template-columns: 1fr; }
+    .righe-head { display: none; }
+    .riga { grid-template-columns: 1fr 1fr; grid-auto-rows: auto; }
+  }
+</style>
+</head>
+<body>
+  <nav class="navbar">
+    <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title">Nuova fattura</span></div>
+    <div class="nav-right">
+      <a class="nav-btn back" id="back-link" href="#">← Contabile</a>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="page-header">
+      <h1>Nuova fattura</h1>
+      <span class="num" id="num-preview">Numero: …</span>
+    </div>
+
+    <!-- INTESTAZIONE -->
+    <div class="card">
+      <div class="card-title">Intestazione</div>
+      <div class="parties">
+        <div class="party">
+          <div class="lbl">Emittente</div>
+          <div id="party-pro">…</div>
+        </div>
+        <div class="party">
+          <div class="lbl">Cliente (paziente)</div>
+          <div id="party-paz">…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHE -->
+    <div class="card">
+      <div class="card-title">Voci della fattura</div>
+      <div class="righe-head">
+        <div>Descrizione</div><div>Q.tà</div><div>Prezzo €</div><div>Importo €</div><div></div>
+      </div>
+      <div id="righe"></div>
+      <div class="add-row">
+        <button class="btn-add" onclick="aggiungiRiga()">+ Aggiungi riga</button>
+        <select class="lst-sel" id="lst-sel" onchange="aggiungiDaListino()">
+          <option value="">+ Dal listino…</option>
+        </select>
+      </div>
+
+      <div class="totals" id="totals"></div>
+    </div>
+
+    <!-- SISTEMA TS (solo sanitari) -->
+    <div class="card" id="ts-card" style="display:none">
+      <div class="card-title">Dati Sistema Tessera Sanitaria</div>
+      <div class="warn-box">Questi dati servono per l'invio al Sistema TS (da interfaccia Fatture in Cloud). In caso di dubbio sul tipo spesa, verifica con il tuo commercialista.</div>
+      <div class="frow">
+        <div class="field">
+          <label>Codice fiscale paziente</label>
+          <input type="text" id="ts-cf" placeholder="RSSMRA80A01H501U" maxlength="16">
+        </div>
+        <div class="field">
+          <label>Tipo spesa</label>
+          <select id="ts-tipo">
+            <option value="SR">SR — Prestazioni sanitarie</option>
+            <option value="TK">TK — Ticket</option>
+            <option value="AD">AD — Acquisto dispositivi medici</option>
+            <option value="SV">SV — Prestazioni sanitarie veterinarie</option>
+          </select>
+        </div>
+      </div>
+      <label class="chk"><input type="checkbox" id="ts-tracciato" checked> Pagamento tracciato (POS, bonifico, assegno)</label>
+      <label class="chk"><input type="checkbox" id="ts-opposizione"> Il paziente si oppone all'invio dei dati a TS</label>
+    </div>
+
+    <!-- EMISSIONE -->
+    <div class="card">
+      <div class="card-title">Emissione</div>
+      <div class="frow">
+        <div class="field">
+          <label>Data emissione</label>
+          <input type="date" id="data-emissione">
+        </div>
+        <div class="field">
+          <label>Modalità di pagamento</label>
+          <input type="text" id="modalita-pag" placeholder="es. Contanti / POS / Bonifico">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-cancel" onclick="annulla()">Annulla</button>
+        <button class="btn-primary" id="btn-emetti" onclick="emetti()">Emetti e scarica PDF</button>
+      </div>
+      <div class="ok-msg" id="ok-msg"></div>
+    </div>
+  </div>
+
+<script>
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var _sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+var params  = new URLSearchParams(window.location.search);
+var pid     = params.get('pid');
+var payId   = params.get('pay');
+var prof    = null;      // record professionals
+var authUid = null;      // auth.uid() = professional_id nelle fatture
+var patient = null;      // record patients
+var righe   = [];        // [{descrizione, quantita, prezzo}]
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function r2(n){ return Math.round((Number(n)||0)*100)/100; }
+function fmtEur(n){ return (Number(n)||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €'; }
+function todayISO(){ return new Date().toISOString().substring(0,10); }
+function fmtDataIT(iso){ if(!iso) return ''; var p=String(iso).substring(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+
+// ─── Calcolo fiscale ────────────────────────────────────────────────
+function calcolaFiscale(){
+  var imponibile = 0;
+  for (var i=0;i<righe.length;i++){ imponibile += (Number(righe[i].quantita)||0) * (Number(righe[i].prezzo)||0); }
+  imponibile = r2(imponibile);
+
+  var san    = !!prof.professione_sanitaria;
+  var regime = prof.regime_fiscale || 'forfettario';
+  var rivPct = Number(prof.rivalsa_percentuale)||0;
+  var ivaPct = Number(prof.aliquota_iva)||0;
+
+  var rivalsa = r2(imponibile * rivPct/100);
+  var esente = true, iva = 0;
+  // Sanitario => sempre esente IVA (art.10). Non sanitario forfettario => senza IVA.
+  // Non sanitario ordinario => IVA su (imponibile+rivalsa).
+  if (!san && regime === 'ordinario'){ esente = false; iva = r2((imponibile+rivalsa) * ivaPct/100); }
+  // Bollo 2€ sulle operazioni esenti/senza IVA > 77,47 €
+  var bollo = (esente && imponibile > 77.47) ? 2 : 0;
+  var totale = r2(imponibile + rivalsa + iva + bollo);
+
+  return { imponibile:imponibile, rivalsa:rivalsa, rivPct:rivPct, esente:esente, iva:iva, ivaPct:ivaPct, bollo:bollo, totale:totale, san:san, regime:regime };
+}
+
+function diciture(f){
+  var out = [];
+  if (f.san){ out.push('Operazione esente da IVA ai sensi dell\u2019art. 10, n. 18, DPR 633/1972.'); }
+  else if (f.regime === 'forfettario'){ out.push('Operazione senza applicazione dell\u2019IVA \u2013 regime forfettario, L. 190/2014 art. 1, commi 54-89.'); }
+  if (f.bollo > 0){ out.push('Imposta di bollo di \u20AC 2,00 assolta sull\u2019originale.'); }
+  return out;
+}
+
+// ─── Righe ──────────────────────────────────────────────────────────
+function renderRighe(){
+  var box = document.getElementById('righe');
+  var html = '';
+  for (var i=0;i<righe.length;i++){
+    var r = righe[i];
+    var imp = r2((Number(r.quantita)||0)*(Number(r.prezzo)||0));
+    html += '<div class="riga">' +
+      '<input type="text"   value="'+esc(r.descrizione)+'" placeholder="Descrizione prestazione" oninput="setRiga('+i+',\'descrizione\',this.value)">' +
+      '<input type="number" value="'+esc(r.quantita)+'" min="0" step="1"    oninput="setRiga('+i+',\'quantita\',this.value)">' +
+      '<input type="number" value="'+esc(r.prezzo)+'"   min="0" step="0.01" oninput="setRiga('+i+',\'prezzo\',this.value)">' +
+      '<input type="text" class="imp" value="'+fmtEur(imp)+'" readonly>' +
+      '<button class="riga-del" title="Rimuovi" onclick="rimuoviRiga('+i+')">\u2715</button>' +
+    '</div>';
+  }
+  box.innerHTML = html;
+  renderTotali();
+}
+function setRiga(i,campo,val){ righe[i][campo] = val; if(campo!=='descrizione') renderRighe(); else renderTotali(); }
+function aggiungiRiga(){ righe.push({descrizione:'', quantita:1, prezzo:''}); renderRighe(); }
+function rimuoviRiga(i){ righe.splice(i,1); if(!righe.length) aggiungiRiga(); else renderRighe(); }
+function aggiungiDaListino(){
+  var sel = document.getElementById('lst-sel');
+  var idx = sel.value; sel.value = '';
+  if (idx === '') return;
+  var v = (prof.listino||[])[Number(idx)];
+  if (!v) return;
+  righe.push({ descrizione: v.descrizione || '', quantita: 1, prezzo: (v.prezzo!=null? v.prezzo : '') });
+  renderRighe();
+}
+
+function renderTotali(){
+  var f = calcolaFiscale();
+  var html = '';
+  html += '<div class="trow"><span>Imponibile</span><span>'+fmtEur(f.imponibile)+'</span></div>';
+  if (f.rivalsa > 0) html += '<div class="trow"><span>Rivalsa previdenziale ('+f.rivPct+'%)</span><span>'+fmtEur(f.rivalsa)+'</span></div>';
+  if (!f.esente)     html += '<div class="trow"><span>IVA ('+f.ivaPct+'%)</span><span>'+fmtEur(f.iva)+'</span></div>';
+  else               html += '<div class="trow"><span>IVA</span><span>Esente</span></div>';
+  if (f.bollo > 0)   html += '<div class="trow"><span>Imposta di bollo</span><span>'+fmtEur(f.bollo)+'</span></div>';
+  html += '<div class="trow big"><span>TOTALE</span><span>'+fmtEur(f.totale)+'</span></div>';
+  document.getElementById('totals').innerHTML = html;
+}
+
+// ─── Numerazione: prossimo progressivo per professionista/anno ───────
+async function prossimoProgressivo(anno){
+  var res = await _sb.from('fatture')
+    .select('progressivo')
+    .eq('professional_id', authUid)
+    .eq('anno', anno)
+    .order('progressivo', { ascending: false })
+    .limit(1);
+  if (res.error){ throw res.error; }
+  var max = (res.data && res.data.length) ? Number(res.data[0].progressivo) : 0;
+  return max + 1;
+}
+function fmtNumero(anno, prog){ return anno + '/' + String(prog).padStart(3,'0'); }
+
+// ─── Emissione ──────────────────────────────────────────────────────
+async function emetti(){
+  var btn = document.getElementById('btn-emetti');
+  var ok  = document.getElementById('ok-msg');
+  ok.style.display = 'none';
+
+  var f = calcolaFiscale();
+  if (f.imponibile <= 0){ alert('Aggiungi almeno una voce con importo maggiore di zero.'); return; }
+  // pulisci righe vuote
+  var righeValide = righe.filter(function(r){ return (Number(r.quantita)||0)>0 && (Number(r.prezzo)||0)>0; })
+    .map(function(r){ var q=Number(r.quantita)||0, p=Number(r.prezzo)||0; return { descrizione:(r.descrizione||'Prestazione'), quantita:q, prezzo_unitario:p, importo:r2(q*p) }; });
+
+  var dataEm = document.getElementById('data-emissione').value || todayISO();
+  var anno   = Number(dataEm.substring(0,4));
+
+  btn.disabled = true; btn.textContent = 'Emissione…';
+
+  var record = null, lastErr = null;
+  // fino a 6 tentativi in caso di conflitto sul progressivo (race)
+  for (var tent=0; tent<6; tent++){
+    var prog, numero;
+    try { prog = await prossimoProgressivo(anno); } catch(e){ lastErr=e; break; }
+    numero = fmtNumero(anno, prog);
+
+    var payload = {
+      professional_id: authUid,
+      patient_id: pid,
+      anno: anno,
+      progressivo: prog,
+      numero: numero,
+      data_emissione: dataEm,
+      righe: righeValide,
+      imponibile: f.imponibile,
+      rivalsa: f.rivalsa,
+      iva: f.iva,
+      bollo: f.bollo,
+      totale: f.totale,
+      esente_iva: f.esente,
+      regime_snapshot: f.regime,
+      sanitaria_snapshot: f.san,
+      payment_id: payId || null,
+      stato: 'emessa'
+    };
+    if (f.san){
+      payload.cf_paziente         = (document.getElementById('ts-cf').value||'').trim().toUpperCase() || null;
+      payload.tipo_spesa          = document.getElementById('ts-tipo').value || null;
+      payload.pagamento_tracciato = document.getElementById('ts-tracciato').checked;
+      payload.opposizione_ts      = document.getElementById('ts-opposizione').checked;
+    }
+
+    var ins = await _sb.from('fatture').insert(payload).select('*').maybeSingle();
+    if (!ins.error){ record = ins.data; break; }
+    lastErr = ins.error;
+    // 23505 = unique_violation → un altro progressivo è stato preso, riprova
+    if (String(ins.error.code) !== '23505'){ break; }
+  }
+
+  btn.disabled = false; btn.textContent = 'Emetti e scarica PDF';
+
+  if (!record){
+    console.error('[fattura] errore emissione:', lastErr);
+    alert('Errore durante l\u2019emissione: ' + (lastErr && lastErr.message ? lastErr.message : 'sconosciuto'));
+    return;
+  }
+
+  try { await generaPDF(record, f); } catch(e){ console.error('[fattura] PDF error:', e); alert('Fattura salvata (n. '+record.numero+'), ma errore nel PDF: '+e.message); }
+
+  ok.textContent = '\u2705 Fattura n. ' + record.numero + ' emessa e scaricata.';
+  ok.style.display = 'block';
+  document.getElementById('num-preview').textContent = 'Numero: ' + record.numero;
+  document.getElementById('btn-emetti').disabled = true;
+}
+
+// ─── PDF (client-side jsPDF) ────────────────────────────────────────
+async function caricaLogoDataURL(url){
+  try {
+    var resp = await fetch(url, { mode: 'cors' });
+    var blob = await resp.blob();
+    return await new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsDataURL(blob); });
+  } catch(e){ return null; }
+}
+
+async function generaPDF(rec, f){
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({ unit:'mm', format:'a4' });
+  var W = 210, M = 18, y = 20;
+
+  // Logo (se presente)
+  if (prof.logo_url){
+    var dataUrl = await caricaLogoDataURL(prof.logo_url);
+    if (dataUrl){
+      try {
+        var fmt = /png/i.test(dataUrl) ? 'PNG' : 'JPEG';
+        doc.addImage(dataUrl, fmt, M, y-4, 34, 18, undefined, 'FAST');
+      } catch(e){}
+    }
+  }
+
+  // Emittente (a destra)
+  doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text(String(prof.centro || ((prof.profiles&&prof.profiles.nome)||'') ), W-M, y, { align:'right' });
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90);
+  var yr = y+5;
+  var linePro = [];
+  if (prof.indirizzo) linePro.push(prof.indirizzo);
+  if (prof.citta) linePro.push(prof.citta);
+  linePro.forEach(function(t){ doc.text(String(t), W-M, yr, {align:'right'}); yr+=4.2; });
+  if (prof.partita_iva){ doc.text('P.IVA '+prof.partita_iva, W-M, yr, {align:'right'}); yr+=4.2; }
+  if (prof.numero_albo){ doc.text('Iscr. Albo n. '+prof.numero_albo, W-M, yr, {align:'right'}); yr+=4.2; }
+  if (prof.telefono){ doc.text('Tel. '+prof.telefono, W-M, yr, {align:'right'}); yr+=4.2; }
+  if (prof.email_studio){ doc.text(prof.email_studio, W-M, yr, {align:'right'}); yr+=4.2; }
+  doc.setTextColor(0);
+
+  y = Math.max(y+22, yr+4);
+
+  // Titolo fattura
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('FATTURA n. ' + rec.numero, M, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text('Data: ' + fmtDataIT(rec.data_emissione), M, y+6);
+  y += 16;
+
+  // Cliente
+  doc.setFillColor(245,245,247); doc.rect(M, y-5, W-2*M, 22, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(120);
+  doc.text('CLIENTE', M+4, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(0);
+  var nomePaz = ((patient&&patient.nome)||'') + ' ' + ((patient&&patient.cognome)||'');
+  doc.text(nomePaz.trim(), M+4, y+6);
+  var infoPaz = [];
+  if (patient && patient.indirizzo) infoPaz.push(patient.indirizzo);
+  if (patient && patient.citta) infoPaz.push(patient.citta);
+  var cf = rec.cf_paziente || (patient && patient.codice_fiscale) || '';
+  if (infoPaz.length) doc.setFontSize(9), doc.text(infoPaz.join(' \u2013 '), M+4, y+11);
+  if (cf) doc.setFontSize(9), doc.text('C.F. ' + cf, M+4, y+15.5);
+  doc.setFontSize(10);
+  y += 26;
+
+  // Tabella righe
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.setDrawColor(210); doc.line(M, y, W-M, y);
+  y += 5;
+  doc.text('Descrizione', M, y);
+  doc.text('Q.tà', 128, y, {align:'right'});
+  doc.text('Prezzo', 158, y, {align:'right'});
+  doc.text('Importo', W-M, y, {align:'right'});
+  y += 3; doc.line(M, y, W-M, y); y += 5;
+  doc.setFont('helvetica','normal');
+  (rec.righe||[]).forEach(function(r){
+    var descLines = doc.splitTextToSize(String(r.descrizione||''), 95);
+    doc.text(descLines, M, y);
+    doc.text(String(r.quantita), 128, y, {align:'right'});
+    doc.text(fmtEur(r.prezzo_unitario), 158, y, {align:'right'});
+    doc.text(fmtEur(r.importo), W-M, y, {align:'right'});
+    y += Math.max(5, descLines.length*4.6);
+  });
+  y += 2; doc.line(M, y, W-M, y); y += 7;
+
+  // Totali (a destra)
+  function tline(lbl, val, bold){
+    doc.setFont('helvetica', bold?'bold':'normal'); doc.setFontSize(bold?12:10);
+    doc.text(lbl, 150, y, {align:'right'}); doc.text(val, W-M, y, {align:'right'});
+    y += bold?7:5.2;
+  }
+  tline('Imponibile', fmtEur(rec.imponibile), false);
+  if (rec.rivalsa > 0) tline('Rivalsa prev.', fmtEur(rec.rivalsa), false);
+  if (!rec.esente_iva) tline('IVA', fmtEur(rec.iva), false); else tline('IVA', 'Esente', false);
+  if (rec.bollo > 0)   tline('Imposta di bollo', fmtEur(rec.bollo), false);
+  y += 1; tline('TOTALE', fmtEur(rec.totale), true);
+  y += 6;
+
+  // Diciture
+  doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(90);
+  var dics = diciture(f);
+  dics.forEach(function(t){ var ll=doc.splitTextToSize(t, W-2*M); doc.text(ll, M, y); y += ll.length*4; });
+  doc.setTextColor(0);
+
+  // Pagamento / IBAN
+  var mod = document.getElementById('modalita-pag').value.trim();
+  if (mod || prof.iban){
+    y += 4; doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    if (mod) { doc.text('Modalità di pagamento: ' + mod, M, y); y += 4.5; }
+    if (prof.iban) { doc.text('IBAN: ' + prof.iban, M, y); y += 4.5; }
+  }
+
+  var cog = ((patient&&patient.cognome)||'paziente').toLowerCase().replace(/[^a-z0-9]/g,'');
+  doc.save('fattura_' + rec.numero.replace('/','-') + '_' + cog + '.pdf');
+}
+
+function annulla(){ window.location.href = 'contabile.html?pid=' + encodeURIComponent(pid || ''); }
+
+// ─── Init ───────────────────────────────────────────────────────────
+async function init(){
+  var sess = await _sb.auth.getSession();
+  if (!sess.data || !sess.data.session){ window.location.href = 'login.html'; return; }
+  authUid = sess.data.session.user.id;
+
+  if (!pid){ alert('Paziente non specificato.'); window.location.href = 'dashboard.html'; return; }
+
+  document.getElementById('back-link').href = 'contabile.html?pid=' + encodeURIComponent(pid);
+  document.getElementById('data-emissione').value = todayISO();
+
+  // Professionista
+  var pr = await _sb.from('professionals').select('*, profiles(nome, cognome)').eq('user_id', authUid).maybeSingle();
+  if (pr.error || !pr.data){ alert('Profilo professionale non trovato.'); window.location.href='dashboard.html'; return; }
+  prof = pr.data;
+
+  // Paziente
+  var pa = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta').eq('id', pid).maybeSingle();
+  patient = pa.data || {};
+
+  // Intestazioni
+  var proHtml = '<b>'+esc(prof.centro || (((prof.profiles&&prof.profiles.nome)||'')+' '+((prof.profiles&&prof.profiles.cognome)||'')))+'</b>';
+  if (prof.indirizzo) proHtml += '<br>'+esc(prof.indirizzo);
+  if (prof.citta) proHtml += '<br>'+esc(prof.citta);
+  if (prof.partita_iva) proHtml += '<br>P.IVA '+esc(prof.partita_iva);
+  if (prof.numero_albo) proHtml += '<br>Iscr. Albo n. '+esc(prof.numero_albo);
+  document.getElementById('party-pro').innerHTML = proHtml;
+
+  var pazHtml = '<b>'+esc(((patient.nome||'')+' '+(patient.cognome||'')).trim() || '—')+'</b>';
+  if (patient.indirizzo) pazHtml += '<br>'+esc(patient.indirizzo);
+  if (patient.citta) pazHtml += '<br>'+esc(patient.citta);
+  if (patient.codice_fiscale) pazHtml += '<br>C.F. '+esc(patient.codice_fiscale);
+  document.getElementById('party-paz').innerHTML = pazHtml;
+
+  // Listino nel selettore
+  var lst = Array.isArray(prof.listino) ? prof.listino : [];
+  var sel = document.getElementById('lst-sel');
+  for (var i=0;i<lst.length;i++){
+    var v = lst[i];
+    var lbl = (v.codice ? v.codice+' · ' : '') + (v.descrizione || 'Voce') + (v.prezzo!=null ? ' · '+fmtEur(v.prezzo) : '');
+    var o = document.createElement('option'); o.value = String(i); o.textContent = lbl; sel.appendChild(o);
+  }
+
+  // Card TS solo per sanitari
+  if (prof.professione_sanitaria){
+    document.getElementById('ts-card').style.display = '';
+    if (patient.codice_fiscale) document.getElementById('ts-cf').value = patient.codice_fiscale;
+  }
+
+  // Prima riga: precompilata dal versamento se presente
+  if (payId){
+    var pay = await _sb.from('patient_payments').select('*').eq('id', payId).maybeSingle();
+    if (pay.data){
+      righe.push({ descrizione:'Prestazione fisioterapica', quantita:1, prezzo: Number(pay.data.importo)||'' });
+      if (pay.data.data) document.getElementById('data-emissione').value = String(pay.data.data).substring(0,10);
+      if (pay.data.nota) document.getElementById('modalita-pag').value = pay.data.nota;
+    }
+  }
+  if (!righe.length) righe.push({ descrizione:'Prestazione fisioterapica', quantita:1, prezzo:'' });
+  renderRighe();
+
+  // Preview numero
+  try {
+    var anno = Number(document.getElementById('data-emissione').value.substring(0,4));
+    var prog = await prossimoProgressivo(anno);
+    document.getElementById('num-preview').textContent = 'Numero previsto: ' + fmtNumero(anno, prog);
+  } catch(e){ document.getElementById('num-preview').textContent = 'Numero: assegnato all\u2019emissione'; }
+
+  document.getElementById('data-emissione').addEventListener('change', async function(){
+    try {
+      var anno = Number(this.value.substring(0,4));
+      var prog = await prossimoProgressivo(anno);
+      document.getElementById('num-preview').textContent = 'Numero previsto: ' + fmtNumero(anno, prog);
+    } catch(e){}
+  });
+
+  document.body.style.visibility = 'visible';
+}
+init();
+</script>
+</body>
+</html>
