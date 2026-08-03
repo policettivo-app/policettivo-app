@@ -26,19 +26,31 @@
   .party { font-size: 13px; line-height: 1.5; }
   .party .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #999; margin-bottom: 4px; }
   .party b { font-weight: 700; }
+  /* Sedute picker */
+  .sed-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+  .sed-row:last-child { border-bottom: none; }
+  .sed-row input[type=checkbox] { width: 18px; height: 18px; accent-color: #FFD008; }
+  .sed-date { color: #999; font-size: 12px; min-width: 78px; }
+  .sed-desc { flex: 1; }
+  .sed-price { width: 88px; }
+  .sed-price input { width: 100%; padding: 7px 9px; border: 1.5px solid #e2e2e5; border-radius: 7px; font-family: inherit; font-size: 13px; text-align: right; }
+  .sed-empty { color: #999; font-size: 13px; }
+  /* Righe */
   .righe-head, .riga { display: grid; grid-template-columns: 1fr 62px 92px 92px 34px; gap: 8px; align-items: center; }
   .righe-head { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 8px; }
   .riga { margin-bottom: 8px; }
   .riga input { width: 100%; padding: 9px 10px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 13px; }
   .riga input:focus { outline: none; border-color: #FFD008; }
   .riga .imp { background: #f5f5f7; text-align: right; font-weight: 700; }
+  .riga.linked input:first-child { border-color: #cfe9df; background: #f4fbf8; }
+  .riga-tag { font-size: 10px; color: #067a55; font-weight: 700; }
   .riga-del { border: none; background: transparent; color: #c62828; font-size: 15px; cursor: pointer; border-radius: 6px; }
   .riga-del:hover { background: #ffebee; }
   .add-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
   .btn-add { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 9px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
   .btn-add:hover { background: #e6bc00; }
   select.lst-sel { padding: 9px 12px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 12px; background: #fff; }
-  .totals { margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 12px; }
+  .totals { margin-top: 12px; border-top: 1px dashed #ddd; padding-top: 12px; }
   .trow { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
   .trow.big { font-size: 17px; font-weight: 800; border-top: 2px solid #000; margin-top: 8px; padding-top: 10px; }
   .field { margin-bottom: 12px; }
@@ -64,7 +76,7 @@
 </head>
 <body>
   <nav class="navbar">
-    <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title">Nuova fattura</span></div>
+    <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title" id="nav-sub">Nuova fattura</span></div>
     <div class="nav-right">
       <a class="nav-btn back" id="back-link" href="#">← Contabile</a>
     </div>
@@ -72,7 +84,7 @@
 
   <div class="main">
     <div class="page-header">
-      <h1>Nuova fattura</h1>
+      <h1 id="page-h1">Nuova fattura</h1>
       <span class="num" id="num-preview">Numero: …</span>
     </div>
 
@@ -91,6 +103,13 @@
       </div>
     </div>
 
+    <!-- SEDUTE DA FATTURARE -->
+    <div class="card" id="sedute-card" style="display:none">
+      <div class="card-title">Sedute da fatturare</div>
+      <div class="hint">Spunta le sedute che questa fattura documenta. Il prezzo è modificabile: se applichi uno sconto, all'emissione verrà aggiornato anche sulla seduta in contabile.</div>
+      <div id="sedute-list"></div>
+    </div>
+
     <!-- RIGHE -->
     <div class="card">
       <div class="card-title">Voci della fattura</div>
@@ -98,7 +117,7 @@
         <div>Descrizione</div><div>Q.tà</div><div>Prezzo €</div><div>Importo €</div><div></div>
       </div>
       <div id="righe"></div>
-      <div class="add-row">
+      <div class="add-row" id="add-row-box">
         <button class="btn-add" onclick="aggiungiRiga()">+ Aggiungi riga</button>
         <select class="lst-sel" id="lst-sel" onchange="aggiungiDaListino()">
           <option value="">+ Dal listino…</option>
@@ -134,7 +153,7 @@
     <!-- EMISSIONE -->
     <div class="card">
       <div class="card-title">Emissione</div>
-      <div class="frow">
+      <div class="frow" id="emissione-fields">
         <div class="field">
           <label>Data emissione</label>
           <input type="date" id="data-emissione">
@@ -158,13 +177,16 @@ var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
 var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
 var _sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-var params  = new URLSearchParams(window.location.search);
-var pid     = params.get('pid');
-var payId   = params.get('pay');
-var prof    = null;      // record professionals
-var authUid = null;      // auth.uid() = professional_id nelle fatture
-var patient = null;      // record patients
-var righe   = [];        // [{descrizione, quantita, prezzo}]
+var params   = new URLSearchParams(window.location.search);
+var pid      = params.get('pid');
+var payId    = params.get('pay');
+var fid      = params.get('fid');     // modalità ristampa
+var reprint  = !!fid;
+var prof     = null;      // record professionals
+var authUid  = null;      // auth.uid() = professional_id nelle fatture
+var patient  = null;      // record patients
+var sedute   = [];        // therapy_sessions con costo
+var righe    = [];        // [{descrizione, quantita, prezzo, session_id?, costoOrig?}]
 
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function r2(n){ return Math.round((Number(n)||0)*100)/100; }
@@ -185,14 +207,20 @@ function calcolaFiscale(){
 
   var rivalsa = r2(imponibile * rivPct/100);
   var esente = true, iva = 0;
-  // Sanitario => sempre esente IVA (art.10). Non sanitario forfettario => senza IVA.
-  // Non sanitario ordinario => IVA su (imponibile+rivalsa).
   if (!san && regime === 'ordinario'){ esente = false; iva = r2((imponibile+rivalsa) * ivaPct/100); }
-  // Bollo 2€ sulle operazioni esenti/senza IVA > 77,47 €
   var bollo = (esente && imponibile > 77.47) ? 2 : 0;
   var totale = r2(imponibile + rivalsa + iva + bollo);
 
   return { imponibile:imponibile, rivalsa:rivalsa, rivPct:rivPct, esente:esente, iva:iva, ivaPct:ivaPct, bollo:bollo, totale:totale, san:san, regime:regime };
+}
+
+// Ricostruisce l'oggetto fiscale da un record fattura (per la ristampa)
+function fDaRecord(rec){
+  return {
+    imponibile: rec.imponibile, rivalsa: rec.rivalsa, rivPct: (prof? Number(prof.rivalsa_percentuale)||0 : 0),
+    esente: rec.esente_iva, iva: rec.iva, ivaPct: (prof? Number(prof.aliquota_iva)||0 : 0),
+    bollo: rec.bollo, totale: rec.totale, san: !!rec.sanitaria_snapshot, regime: rec.regime_snapshot
+  };
 }
 
 function diciture(f){
@@ -203,6 +231,47 @@ function diciture(f){
   return out;
 }
 
+// ─── Sedute picker ──────────────────────────────────────────────────
+function labelSeduta(s){
+  var d = (s.descrizione || s.costo_descrizione || 'Prestazione FKT');
+  if (s.voce) d = s.voce + ' \u00B7 ' + d;
+  return d;
+}
+function rigaDiSeduta(id){ for (var i=0;i<righe.length;i++){ if (righe[i].session_id===id) return i; } return -1; }
+
+function renderSedute(){
+  var box = document.getElementById('sedute-list');
+  if (!sedute.length){ box.innerHTML = '<div class="sed-empty">Nessuna seduta con costo per questo paziente.</div>'; return; }
+  var html = '';
+  for (var i=0;i<sedute.length;i++){
+    var s = sedute[i];
+    var checked = rigaDiSeduta(s.id) !== -1;
+    var prezzo = (s.costo != null && isFinite(Number(s.costo))) ? Number(s.costo) : '';
+    html += '<div class="sed-row">' +
+      '<input type="checkbox" '+(checked?'checked':'')+' onchange="toggleSeduta(\''+esc(s.id)+'\')">' +
+      '<span class="sed-date">'+esc(fmtDataIT(s.data_seduta))+'</span>' +
+      '<span class="sed-desc">'+esc(labelSeduta(s))+'</span>' +
+      '<span class="sed-price"><input type="number" min="0" step="0.01" value="'+esc(prezzo)+'" '+(checked?'':'disabled')+' oninput="setPrezzoSeduta(\''+esc(s.id)+'\',this.value)"></span>' +
+    '</div>';
+  }
+  box.innerHTML = html;
+}
+function toggleSeduta(id){
+  var idx = rigaDiSeduta(id);
+  if (idx !== -1){ righe.splice(idx,1); }
+  else {
+    var s = null; for (var i=0;i<sedute.length;i++){ if (sedute[i].id===id){ s=sedute[i]; break; } }
+    if (!s) return;
+    righe.push({ descrizione: labelSeduta(s), quantita: 1, prezzo: (s.costo!=null? Number(s.costo):''), session_id: id, costoOrig: (s.costo!=null? Number(s.costo):null) });
+  }
+  renderSedute(); renderRighe();
+}
+function setPrezzoSeduta(id, val){
+  var idx = rigaDiSeduta(id); if (idx===-1) return;
+  righe[idx].prezzo = val;
+  renderRighe();  // aggiorna importi/totali (il riquadro riga resta la fonte editabile principale)
+}
+
 // ─── Righe ──────────────────────────────────────────────────────────
 function renderRighe(){
   var box = document.getElementById('righe');
@@ -210,7 +279,8 @@ function renderRighe(){
   for (var i=0;i<righe.length;i++){
     var r = righe[i];
     var imp = r2((Number(r.quantita)||0)*(Number(r.prezzo)||0));
-    html += '<div class="riga">' +
+    var linked = r.session_id ? ' linked' : '';
+    html += '<div class="riga'+linked+'">' +
       '<input type="text"   value="'+esc(r.descrizione)+'" placeholder="Descrizione prestazione" oninput="setRiga('+i+',\'descrizione\',this.value)">' +
       '<input type="number" value="'+esc(r.quantita)+'" min="0" step="1"    oninput="setRiga('+i+',\'quantita\',this.value)">' +
       '<input type="number" value="'+esc(r.prezzo)+'"   min="0" step="0.01" oninput="setRiga('+i+',\'prezzo\',this.value)">' +
@@ -221,9 +291,18 @@ function renderRighe(){
   box.innerHTML = html;
   renderTotali();
 }
-function setRiga(i,campo,val){ righe[i][campo] = val; if(campo!=='descrizione') renderRighe(); else renderTotali(); }
+function setRiga(i,campo,val){
+  righe[i][campo] = val;
+  if (campo==='prezzo' && righe[i].session_id){ renderSedute(); } // tiene allineato il prezzo mostrato nel picker
+  if (campo!=='descrizione') renderRighe(); else renderTotali();
+}
 function aggiungiRiga(){ righe.push({descrizione:'', quantita:1, prezzo:''}); renderRighe(); }
-function rimuoviRiga(i){ righe.splice(i,1); if(!righe.length) aggiungiRiga(); else renderRighe(); }
+function rimuoviRiga(i){
+  var wasLinked = righe[i] && righe[i].session_id;
+  righe.splice(i,1);
+  if(!righe.length && !reprint) righe.push({descrizione:'Prestazione FKT', quantita:1, prezzo:''});
+  renderRighe(); if (wasLinked) renderSedute();
+}
 function aggiungiDaListino(){
   var sel = document.getElementById('lst-sel');
   var idx = sel.value; sel.value = '';
@@ -246,14 +325,10 @@ function renderTotali(){
   document.getElementById('totals').innerHTML = html;
 }
 
-// ─── Numerazione: prossimo progressivo per professionista/anno ───────
+// ─── Numerazione ────────────────────────────────────────────────────
 async function prossimoProgressivo(anno){
-  var res = await _sb.from('fatture')
-    .select('progressivo')
-    .eq('professional_id', authUid)
-    .eq('anno', anno)
-    .order('progressivo', { ascending: false })
-    .limit(1);
+  var res = await _sb.from('fatture').select('progressivo').eq('professional_id', authUid).eq('anno', anno)
+    .order('progressivo', { ascending: false }).limit(1);
   if (res.error){ throw res.error; }
   var max = (res.data && res.data.length) ? Number(res.data[0].progressivo) : 0;
   return max + 1;
@@ -268,9 +343,10 @@ async function emetti(){
 
   var f = calcolaFiscale();
   if (f.imponibile <= 0){ alert('Aggiungi almeno una voce con importo maggiore di zero.'); return; }
-  // pulisci righe vuote
-  var righeValide = righe.filter(function(r){ return (Number(r.quantita)||0)>0 && (Number(r.prezzo)||0)>0; })
-    .map(function(r){ var q=Number(r.quantita)||0, p=Number(r.prezzo)||0; return { descrizione:(r.descrizione||'Prestazione'), quantita:q, prezzo_unitario:p, importo:r2(q*p) }; });
+
+  var righeValide = righe
+    .filter(function(r){ return (Number(r.quantita)||0)>0 && (Number(r.prezzo)||0)>0; })
+    .map(function(r){ var q=Number(r.quantita)||0, p=Number(r.prezzo)||0; return { descrizione:(r.descrizione||'Prestazione FKT'), quantita:q, prezzo_unitario:p, importo:r2(q*p), session_id:(r.session_id||null) }; });
 
   var dataEm = document.getElementById('data-emissione').value || todayISO();
   var anno   = Number(dataEm.substring(0,4));
@@ -278,30 +354,17 @@ async function emetti(){
   btn.disabled = true; btn.textContent = 'Emissione…';
 
   var record = null, lastErr = null;
-  // fino a 6 tentativi in caso di conflitto sul progressivo (race)
   for (var tent=0; tent<6; tent++){
     var prog, numero;
     try { prog = await prossimoProgressivo(anno); } catch(e){ lastErr=e; break; }
     numero = fmtNumero(anno, prog);
 
     var payload = {
-      professional_id: authUid,
-      patient_id: pid,
-      anno: anno,
-      progressivo: prog,
-      numero: numero,
-      data_emissione: dataEm,
-      righe: righeValide,
-      imponibile: f.imponibile,
-      rivalsa: f.rivalsa,
-      iva: f.iva,
-      bollo: f.bollo,
-      totale: f.totale,
-      esente_iva: f.esente,
-      regime_snapshot: f.regime,
-      sanitaria_snapshot: f.san,
-      payment_id: payId || null,
-      stato: 'emessa'
+      professional_id: authUid, patient_id: pid, anno: anno, progressivo: prog, numero: numero,
+      data_emissione: dataEm, righe: righeValide,
+      imponibile: f.imponibile, rivalsa: f.rivalsa, iva: f.iva, bollo: f.bollo, totale: f.totale,
+      esente_iva: f.esente, regime_snapshot: f.regime, sanitaria_snapshot: f.san,
+      payment_id: payId || null, stato: 'emessa'
     };
     if (f.san){
       payload.cf_paziente         = (document.getElementById('ts-cf').value||'').trim().toUpperCase() || null;
@@ -313,24 +376,31 @@ async function emetti(){
     var ins = await _sb.from('fatture').insert(payload).select('*').maybeSingle();
     if (!ins.error){ record = ins.data; break; }
     lastErr = ins.error;
-    // 23505 = unique_violation → un altro progressivo è stato preso, riprova
     if (String(ins.error.code) !== '23505'){ break; }
   }
 
-  btn.disabled = false; btn.textContent = 'Emetti e scarica PDF';
-
   if (!record){
+    btn.disabled = false; btn.textContent = 'Emetti e scarica PDF';
     console.error('[fattura] errore emissione:', lastErr);
     alert('Errore durante l\u2019emissione: ' + (lastErr && lastErr.message ? lastErr.message : 'sconosciuto'));
     return;
   }
 
+  // Ritorno prezzo sulla seduta (sconto) → aggiorna therapy_sessions.costo
+  for (var k=0;k<righe.length;k++){
+    var rr = righe[k];
+    if (rr.session_id && rr.costoOrig != null && Number(rr.prezzo) !== Number(rr.costoOrig) && (Number(rr.prezzo)||0) >= 0){
+      try { await _sb.from('therapy_sessions').update({ costo: Number(rr.prezzo) }).eq('id', rr.session_id); }
+      catch(e){ console.error('[fattura] update costo seduta error:', e); }
+    }
+  }
+
   try { await generaPDF(record, f); } catch(e){ console.error('[fattura] PDF error:', e); alert('Fattura salvata (n. '+record.numero+'), ma errore nel PDF: '+e.message); }
 
-  ok.textContent = '\u2705 Fattura n. ' + record.numero + ' emessa e scaricata.';
+  btn.textContent = '\u2713 Emessa';
+  ok.textContent = '\u2705 Fattura n. ' + record.numero + ' emessa e scaricata. Puoi tornare in Contabile.';
   ok.style.display = 'block';
   document.getElementById('num-preview').textContent = 'Numero: ' + record.numero;
-  document.getElementById('btn-emetti').disabled = true;
 }
 
 // ─── PDF (client-side jsPDF) ────────────────────────────────────────
@@ -347,42 +417,33 @@ async function generaPDF(rec, f){
   var doc = new jsPDF({ unit:'mm', format:'a4' });
   var W = 210, M = 18, y = 20;
 
-  // Logo (se presente)
   if (prof.logo_url){
     var dataUrl = await caricaLogoDataURL(prof.logo_url);
     if (dataUrl){
-      try {
-        var fmt = /png/i.test(dataUrl) ? 'PNG' : 'JPEG';
-        doc.addImage(dataUrl, fmt, M, y-4, 34, 18, undefined, 'FAST');
-      } catch(e){}
+      try { var fmt = /png/i.test(dataUrl) ? 'PNG' : 'JPEG'; doc.addImage(dataUrl, fmt, M, y-4, 34, 18, undefined, 'FAST'); } catch(e){}
     }
   }
 
-  // Emittente (a destra)
   doc.setFont('helvetica','bold'); doc.setFontSize(12);
-  doc.text(String(prof.centro || ((prof.profiles&&prof.profiles.nome)||'') ), W-M, y, { align:'right' });
+  doc.text(String(prof.centro || (((prof.profiles&&prof.profiles.nome)||'')+' '+((prof.profiles&&prof.profiles.cognome)||''))), W-M, y, { align:'right' });
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90);
   var yr = y+5;
-  var linePro = [];
-  if (prof.indirizzo) linePro.push(prof.indirizzo);
-  if (prof.citta) linePro.push(prof.citta);
-  linePro.forEach(function(t){ doc.text(String(t), W-M, yr, {align:'right'}); yr+=4.2; });
+  if (prof.indirizzo){ doc.text(String(prof.indirizzo), W-M, yr, {align:'right'}); yr+=4.2; }
+  if (prof.citta){ doc.text(String(prof.citta), W-M, yr, {align:'right'}); yr+=4.2; }
   if (prof.partita_iva){ doc.text('P.IVA '+prof.partita_iva, W-M, yr, {align:'right'}); yr+=4.2; }
   if (prof.numero_albo){ doc.text('Iscr. Albo n. '+prof.numero_albo, W-M, yr, {align:'right'}); yr+=4.2; }
   if (prof.telefono){ doc.text('Tel. '+prof.telefono, W-M, yr, {align:'right'}); yr+=4.2; }
-  if (prof.email_studio){ doc.text(prof.email_studio, W-M, yr, {align:'right'}); yr+=4.2; }
+  if (prof.email_studio){ doc.text(String(prof.email_studio), W-M, yr, {align:'right'}); yr+=4.2; }
   doc.setTextColor(0);
 
   y = Math.max(y+22, yr+4);
 
-  // Titolo fattura
   doc.setFont('helvetica','bold'); doc.setFontSize(16);
   doc.text('FATTURA n. ' + rec.numero, M, y);
   doc.setFont('helvetica','normal'); doc.setFontSize(10);
   doc.text('Data: ' + fmtDataIT(rec.data_emissione), M, y+6);
   y += 16;
 
-  // Cliente
   doc.setFillColor(245,245,247); doc.rect(M, y-5, W-2*M, 22, 'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(120);
   doc.text('CLIENTE', M+4, y);
@@ -393,15 +454,14 @@ async function generaPDF(rec, f){
   if (patient && patient.indirizzo) infoPaz.push(patient.indirizzo);
   if (patient && patient.citta) infoPaz.push(patient.citta);
   var cf = rec.cf_paziente || (patient && patient.codice_fiscale) || '';
-  if (infoPaz.length) doc.setFontSize(9), doc.text(infoPaz.join(' \u2013 '), M+4, y+11);
-  if (cf) doc.setFontSize(9), doc.text('C.F. ' + cf, M+4, y+15.5);
+  doc.setFontSize(9);
+  if (infoPaz.length) doc.text(infoPaz.join(' \u2013 '), M+4, y+11);
+  if (cf) doc.text('C.F. ' + cf, M+4, y+15.5);
   doc.setFontSize(10);
   y += 26;
 
-  // Tabella righe
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.setDrawColor(210); doc.line(M, y, W-M, y);
-  y += 5;
+  doc.setDrawColor(210); doc.line(M, y, W-M, y); y += 5;
   doc.text('Descrizione', M, y);
   doc.text('Q.tà', 128, y, {align:'right'});
   doc.text('Prezzo', 158, y, {align:'right'});
@@ -418,7 +478,6 @@ async function generaPDF(rec, f){
   });
   y += 2; doc.line(M, y, W-M, y); y += 7;
 
-  // Totali (a destra)
   function tline(lbl, val, bold){
     doc.setFont('helvetica', bold?'bold':'normal'); doc.setFontSize(bold?12:10);
     doc.text(lbl, 150, y, {align:'right'}); doc.text(val, W-M, y, {align:'right'});
@@ -431,14 +490,11 @@ async function generaPDF(rec, f){
   y += 1; tline('TOTALE', fmtEur(rec.totale), true);
   y += 6;
 
-  // Diciture
   doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(90);
-  var dics = diciture(f);
-  dics.forEach(function(t){ var ll=doc.splitTextToSize(t, W-2*M); doc.text(ll, M, y); y += ll.length*4; });
+  diciture(f).forEach(function(t){ var ll=doc.splitTextToSize(t, W-2*M); doc.text(ll, M, y); y += ll.length*4; });
   doc.setTextColor(0);
 
-  // Pagamento / IBAN
-  var mod = document.getElementById('modalita-pag').value.trim();
+  var mod = reprint ? '' : document.getElementById('modalita-pag').value.trim();
   if (mod || prof.iban){
     y += 4; doc.setFont('helvetica','normal'); doc.setFontSize(9);
     if (mod) { doc.text('Modalità di pagamento: ' + mod, M, y); y += 4.5; }
@@ -451,27 +507,115 @@ async function generaPDF(rec, f){
 
 function annulla(){ window.location.href = 'contabile.html?pid=' + encodeURIComponent(pid || ''); }
 
+// ─── Ristampa ───────────────────────────────────────────────────────
+async function scaricaRistampa(rec){
+  try { await generaPDF(rec, fDaRecord(rec)); }
+  catch(e){ console.error(e); alert('Errore nel PDF: '+e.message); }
+}
+
 // ─── Init ───────────────────────────────────────────────────────────
 async function init(){
   var sess = await _sb.auth.getSession();
   if (!sess.data || !sess.data.session){ window.location.href = 'login.html'; return; }
   authUid = sess.data.session.user.id;
 
-  if (!pid){ alert('Paziente non specificato.'); window.location.href = 'dashboard.html'; return; }
-
-  document.getElementById('back-link').href = 'contabile.html?pid=' + encodeURIComponent(pid);
-  document.getElementById('data-emissione').value = todayISO();
-
-  // Professionista
   var pr = await _sb.from('professionals').select('*, profiles(nome, cognome)').eq('user_id', authUid).maybeSingle();
   if (pr.error || !pr.data){ alert('Profilo professionale non trovato.'); window.location.href='dashboard.html'; return; }
   prof = pr.data;
 
-  // Paziente
-  var pa = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta').eq('id', pid).maybeSingle();
-  patient = pa.data || {};
+  // ── RISTAMPA ──
+  if (reprint){
+    var fr = await _sb.from('fatture').select('*').eq('id', fid).maybeSingle();
+    if (fr.error || !fr.data){ alert('Fattura non trovata.'); window.location.href='dashboard.html'; return; }
+    var rec = fr.data;
+    pid = rec.patient_id;
+    var pa = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta').eq('id', pid).maybeSingle();
+    patient = pa.data || {};
 
-  // Intestazioni
+    document.getElementById('page-h1').textContent = 'Ristampa fattura';
+    document.getElementById('nav-sub').textContent = 'Ristampa fattura';
+    document.getElementById('num-preview').textContent = 'Numero: ' + rec.numero;
+    document.getElementById('back-link').href = 'contabile.html?pid=' + encodeURIComponent(pid);
+    riempiIntestazioni();
+
+    // Nascondi composizione
+    document.getElementById('sedute-card').style.display = 'none';
+    document.getElementById('add-row-box').style.display = 'none';
+    document.getElementById('ts-card').style.display = 'none';
+    document.getElementById('emissione-fields').style.display = 'none';
+
+    // Righe read-only
+    var box = document.getElementById('righe'); var html='';
+    (rec.righe||[]).forEach(function(r){
+      html += '<div class="riga"><input type="text" value="'+esc(r.descrizione)+'" readonly><input type="text" value="'+esc(r.quantita)+'" readonly><input type="text" value="'+esc(fmtEur(r.prezzo_unitario))+'" readonly><input type="text" class="imp" value="'+esc(fmtEur(r.importo))+'" readonly><span></span></div>';
+    });
+    box.innerHTML = html;
+    // Totali dal record
+    var tt='';
+    tt+='<div class="trow"><span>Imponibile</span><span>'+fmtEur(rec.imponibile)+'</span></div>';
+    if (rec.rivalsa>0) tt+='<div class="trow"><span>Rivalsa prev.</span><span>'+fmtEur(rec.rivalsa)+'</span></div>';
+    tt+= rec.esente_iva ? '<div class="trow"><span>IVA</span><span>Esente</span></div>' : '<div class="trow"><span>IVA</span><span>'+fmtEur(rec.iva)+'</span></div>';
+    if (rec.bollo>0) tt+='<div class="trow"><span>Imposta di bollo</span><span>'+fmtEur(rec.bollo)+'</span></div>';
+    tt+='<div class="trow big"><span>TOTALE</span><span>'+fmtEur(rec.totale)+'</span></div>';
+    document.getElementById('totals').innerHTML = tt;
+
+    var btn = document.getElementById('btn-emetti');
+    btn.textContent = 'Scarica PDF';
+    btn.onclick = function(){ scaricaRistampa(rec); };
+    document.body.style.visibility = 'visible';
+    return;
+  }
+
+  // ── NUOVA FATTURA ──
+  if (!pid){ alert('Paziente non specificato.'); window.location.href = 'dashboard.html'; return; }
+  document.getElementById('back-link').href = 'contabile.html?pid=' + encodeURIComponent(pid);
+  document.getElementById('data-emissione').value = todayISO();
+
+  var pa2 = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta').eq('id', pid).maybeSingle();
+  patient = pa2.data || {};
+  riempiIntestazioni();
+
+  // Listino
+  var lst = Array.isArray(prof.listino) ? prof.listino : [];
+  var sel = document.getElementById('lst-sel');
+  for (var i=0;i<lst.length;i++){
+    var v = lst[i];
+    var lbl = (v.codice ? v.codice+' \u00B7 ' : '') + (v.descrizione || 'Voce') + (v.prezzo!=null ? ' \u00B7 '+fmtEur(v.prezzo) : '');
+    var o = document.createElement('option'); o.value = String(i); o.textContent = lbl; sel.appendChild(o);
+  }
+
+  // Sedute con costo
+  var sres = await _sb.from('therapy_sessions').select('*').eq('patient_id', pid).order('data_seduta', { ascending: false });
+  sedute = (sres.data || []).filter(function(s){ return s.costo != null && isFinite(Number(s.costo)); });
+  document.getElementById('sedute-card').style.display = '';
+  renderSedute();
+
+  // Card TS solo per sanitari
+  if (prof.professione_sanitaria){
+    document.getElementById('ts-card').style.display = '';
+    if (patient.codice_fiscale) document.getElementById('ts-cf').value = patient.codice_fiscale;
+  }
+
+  // Prima riga precompilata dal versamento
+  if (payId){
+    var pay = await _sb.from('patient_payments').select('*').eq('id', payId).maybeSingle();
+    if (pay.data){
+      righe.push({ descrizione:'Prestazione FKT', quantita:1, prezzo: Number(pay.data.importo)||'' });
+      if (pay.data.data) document.getElementById('data-emissione').value = String(pay.data.data).substring(0,10);
+      if (pay.data.nota) document.getElementById('modalita-pag').value = pay.data.nota;
+    }
+  }
+  if (!righe.length) righe.push({ descrizione:'Prestazione FKT', quantita:1, prezzo:'' });
+  renderRighe();
+
+  // Preview numero
+  await aggiornaPreviewNumero();
+  document.getElementById('data-emissione').addEventListener('change', aggiornaPreviewNumero);
+
+  document.body.style.visibility = 'visible';
+}
+
+function riempiIntestazioni(){
   var proHtml = '<b>'+esc(prof.centro || (((prof.profiles&&prof.profiles.nome)||'')+' '+((prof.profiles&&prof.profiles.cognome)||'')))+'</b>';
   if (prof.indirizzo) proHtml += '<br>'+esc(prof.indirizzo);
   if (prof.citta) proHtml += '<br>'+esc(prof.citta);
@@ -484,51 +628,16 @@ async function init(){
   if (patient.citta) pazHtml += '<br>'+esc(patient.citta);
   if (patient.codice_fiscale) pazHtml += '<br>C.F. '+esc(patient.codice_fiscale);
   document.getElementById('party-paz').innerHTML = pazHtml;
+}
 
-  // Listino nel selettore
-  var lst = Array.isArray(prof.listino) ? prof.listino : [];
-  var sel = document.getElementById('lst-sel');
-  for (var i=0;i<lst.length;i++){
-    var v = lst[i];
-    var lbl = (v.codice ? v.codice+' · ' : '') + (v.descrizione || 'Voce') + (v.prezzo!=null ? ' · '+fmtEur(v.prezzo) : '');
-    var o = document.createElement('option'); o.value = String(i); o.textContent = lbl; sel.appendChild(o);
-  }
-
-  // Card TS solo per sanitari
-  if (prof.professione_sanitaria){
-    document.getElementById('ts-card').style.display = '';
-    if (patient.codice_fiscale) document.getElementById('ts-cf').value = patient.codice_fiscale;
-  }
-
-  // Prima riga: precompilata dal versamento se presente
-  if (payId){
-    var pay = await _sb.from('patient_payments').select('*').eq('id', payId).maybeSingle();
-    if (pay.data){
-      righe.push({ descrizione:'Prestazione fisioterapica', quantita:1, prezzo: Number(pay.data.importo)||'' });
-      if (pay.data.data) document.getElementById('data-emissione').value = String(pay.data.data).substring(0,10);
-      if (pay.data.nota) document.getElementById('modalita-pag').value = pay.data.nota;
-    }
-  }
-  if (!righe.length) righe.push({ descrizione:'Prestazione fisioterapica', quantita:1, prezzo:'' });
-  renderRighe();
-
-  // Preview numero
+async function aggiornaPreviewNumero(){
   try {
     var anno = Number(document.getElementById('data-emissione').value.substring(0,4));
     var prog = await prossimoProgressivo(anno);
     document.getElementById('num-preview').textContent = 'Numero previsto: ' + fmtNumero(anno, prog);
   } catch(e){ document.getElementById('num-preview').textContent = 'Numero: assegnato all\u2019emissione'; }
-
-  document.getElementById('data-emissione').addEventListener('change', async function(){
-    try {
-      var anno = Number(this.value.substring(0,4));
-      var prog = await prossimoProgressivo(anno);
-      document.getElementById('num-preview').textContent = 'Numero previsto: ' + fmtNumero(anno, prog);
-    } catch(e){}
-  });
-
-  document.body.style.visibility = 'visible';
 }
+
 init();
 </script>
 </body>
