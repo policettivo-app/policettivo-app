@@ -65,6 +65,10 @@
   .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
   .hint { font-size: 12px; color: #999; margin: 4px 0 14px; }
   .warn-box { background: #FFF9E5; border: 1.5px solid #FFE49A; color: #7a5a00; border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.5; margin-bottom: 14px; }
+  .paz-banner { background: #FFF3E0; border: 1.5px solid #FFB74D; color: #9a4b00; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; font-weight: 600; margin-top: 14px; }
+  .btn-editpaz { background: #fff; border: 1.5px solid #ddd; border-radius: 8px; padding: 9px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .btn-editpaz:hover { border-color: #FFD008; }
+  .paz-form { margin-top: 12px; border-top: 1px dashed #e2e2e5; padding-top: 14px; }
   .actions { display: flex; gap: 12px; margin-top: 20px; }
   .btn-primary { flex: 1; background: #00C48C; color: #fff; border: none; border-radius: 10px; padding: 14px; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
   .btn-primary:hover { background: #00b07d; }
@@ -103,6 +107,39 @@
         <div class="party">
           <div class="lbl">Cliente (paziente)</div>
           <div id="party-paz">…</div>
+        </div>
+      </div>
+
+      <div id="paz-banner" class="paz-banner" style="display:none"></div>
+      <div style="margin-top:12px">
+        <button class="btn-editpaz" id="btn-editpaz" onclick="toggleFormPaziente()">✏️ Completa / modifica dati paziente</button>
+      </div>
+
+      <div id="paz-form" class="paz-form" style="display:none">
+        <div class="frow">
+          <div class="field">
+            <label>Codice fiscale</label>
+            <input type="text" id="pz-cf" maxlength="16" placeholder="RSSMRA80A01H501U">
+          </div>
+          <div class="field">
+            <label>Città</label>
+            <input type="text" id="pz-citta" placeholder="es. Bassano del Grappa">
+          </div>
+        </div>
+        <div class="frow">
+          <div class="field">
+            <label>Indirizzo</label>
+            <input type="text" id="pz-indirizzo" placeholder="es. Via Roma 12">
+          </div>
+          <div class="field">
+            <label>CAP</label>
+            <input type="text" id="pz-cap" maxlength="5" placeholder="36061">
+          </div>
+        </div>
+        <div class="hint">Il salvataggio aggiorna la scheda del paziente in anagrafica (fonte unica).</div>
+        <div style="display:flex;gap:10px;margin-top:6px">
+          <button class="btn-cancel" onclick="toggleFormPaziente()">Annulla</button>
+          <button class="btn-primary" style="flex:0 0 auto;padding:12px 22px" id="btn-salva-paz" onclick="salvaDatiPaziente()">Salva dati paziente</button>
         </div>
       </div>
     </div>
@@ -552,7 +589,7 @@ async function init(){
     if (fr.error || !fr.data){ alert('Fattura non trovata.'); window.location.href='dashboard.html'; return; }
     var rec = fr.data;
     pid = rec.patient_id;
-    var pa = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta').eq('id', pid).maybeSingle();
+    var pa = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta, cap').eq('id', pid).maybeSingle();
     patient = pa.data || {};
 
     document.getElementById('page-h1').textContent = 'Ristampa fattura';
@@ -566,6 +603,7 @@ async function init(){
     document.getElementById('add-row-box').style.display = 'none';
     document.getElementById('ts-card').style.display = 'none';
     document.getElementById('emissione-fields').style.display = 'none';
+    var _bep = document.getElementById('btn-editpaz'); if (_bep) _bep.style.display = 'none';
 
     // Righe read-only
     var box = document.getElementById('righe'); var html='';
@@ -594,7 +632,7 @@ async function init(){
   document.getElementById('back-link').href = 'contabile.html?pid=' + encodeURIComponent(pid);
   document.getElementById('data-emissione').value = todayISO();
 
-  var pa2 = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta').eq('id', pid).maybeSingle();
+  var pa2 = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta, cap').eq('id', pid).maybeSingle();
   patient = pa2.data || {};
   riempiIntestazioni();
 
@@ -647,10 +685,59 @@ function riempiIntestazioni(){
   document.getElementById('party-pro').innerHTML = proHtml;
 
   var pazHtml = '<b>'+esc(((patient.nome||'')+' '+(patient.cognome||'')).trim() || '—')+'</b>';
-  if (patient.indirizzo) pazHtml += '<br>'+esc(patient.indirizzo);
-  if (patient.citta) pazHtml += '<br>'+esc(patient.citta);
+  var viaCap = [patient.indirizzo, patient.cap, patient.citta].filter(function(x){return x;}).join(' ');
+  if (viaCap) pazHtml += '<br>'+esc(viaCap);
   if (patient.codice_fiscale) pazHtml += '<br>C.F. '+esc(patient.codice_fiscale);
   document.getElementById('party-paz').innerHTML = pazHtml;
+
+  // Banner: segnala i dati mancanti utili alla fattura
+  var mancano = [];
+  if (!patient.codice_fiscale) mancano.push('Codice fiscale');
+  if (!patient.indirizzo) mancano.push('Indirizzo');
+  if (!patient.citta) mancano.push('Città');
+  var banner = document.getElementById('paz-banner');
+  if (banner){
+    if (!reprint && mancano.length){
+      banner.style.display = '';
+      banner.textContent = '⚠️ Dati paziente incompleti: ' + mancano.join(', ') + '. Completali qui sotto.';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+function toggleFormPaziente(){
+  var form = document.getElementById('paz-form');
+  var aperto = form.style.display !== 'none';
+  if (aperto){ form.style.display = 'none'; return; }
+  document.getElementById('pz-cf').value        = patient.codice_fiscale || '';
+  document.getElementById('pz-citta').value     = patient.citta || '';
+  document.getElementById('pz-indirizzo').value = patient.indirizzo || '';
+  document.getElementById('pz-cap').value       = patient.cap || '';
+  form.style.display = '';
+}
+
+async function salvaDatiPaziente(){
+  var btn = document.getElementById('btn-salva-paz');
+  var payload = {
+    codice_fiscale: (document.getElementById('pz-cf').value||'').trim().toUpperCase() || null,
+    citta:          (document.getElementById('pz-citta').value||'').trim() || null,
+    indirizzo:      (document.getElementById('pz-indirizzo').value||'').trim() || null,
+    cap:            (document.getElementById('pz-cap').value||'').trim() || null
+  };
+  btn.disabled = true; btn.textContent = 'Salvataggio…';
+  var res = await _sb.from('patients').update(payload).eq('id', pid).select('*').maybeSingle();
+  btn.disabled = false; btn.textContent = 'Salva dati paziente';
+  if (res.error){ alert('Errore nel salvataggio: ' + (res.error.message||'')); return; }
+  // Aggiorna la copia locale + intestazione + CF della sezione TS
+  patient.codice_fiscale = payload.codice_fiscale;
+  patient.citta = payload.citta;
+  patient.indirizzo = payload.indirizzo;
+  patient.cap = payload.cap;
+  riempiIntestazioni();
+  var tsCf = document.getElementById('ts-cf');
+  if (tsCf && payload.codice_fiscale && !tsCf.value) tsCf.value = payload.codice_fiscale;
+  document.getElementById('paz-form').style.display = 'none';
 }
 
 async function aggiornaPreviewNumero(){
