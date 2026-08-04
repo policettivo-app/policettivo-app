@@ -235,26 +235,32 @@ function esportaCSV(){
 }
 
 async function init(){
-  var sess = await _sb.auth.getSession();
-  if (!sess.data || !sess.data.session){ window.location.href='login.html'; return; }
+  try {
+    var sess = await _sb.auth.getSession();
+    if (!sess.data || !sess.data.session){ window.location.href='login.html'; return; }
 
-  document.getElementById('back-link').href = _from ? ('contabile.html?pid='+encodeURIComponent(_from)) : 'dashboard.html';
+    document.getElementById('back-link').href = _from ? ('contabile.html?pid='+encodeURIComponent(_from)) : 'dashboard.html';
 
-  var fr = await _sb.from('fatture').select('*').order('anno',{ascending:false}).order('progressivo',{ascending:false});
-  if (fr.error){ alert('Errore nel caricamento delle fatture: '+(fr.error.message||'')); return; }
-  _fatture = fr.data || [];
+    var fr = await _sb.from('fatture').select('*').order('anno',{ascending:false}).order('progressivo',{ascending:false});
+    if (fr.error){ console.error('[registro] fatture error:', fr.error); }
+    _fatture = (fr && fr.data) ? fr.data : [];
 
-  // Nomi pazienti
-  var ids = {}; for (var i=0;i<_fatture.length;i++){ if (_fatture[i].patient_id) ids[_fatture[i].patient_id]=true; }
-  var idList = Object.keys(ids);
-  if (idList.length){
-    var pr = await _sb.from('patients').select('id, nome, cognome').in('id', idList);
-    if (pr.data){ for (var j=0;j<pr.data.length;j++){ var p=pr.data[j]; _pazienti[p.id] = ((p.nome||'')+' '+(p.cognome||'')).trim() || '—'; } }
+    var ids = {}; for (var i=0;i<_fatture.length;i++){ if (_fatture[i].patient_id) ids[_fatture[i].patient_id]=true; }
+    var idList = Object.keys(ids);
+    if (idList.length){
+      var pr = await _sb.from('patients').select('id, nome, cognome').in('id', idList);
+      if (pr && pr.data){ for (var j=0;j<pr.data.length;j++){ var p=pr.data[j]; _pazienti[p.id] = ((p.nome||'')+' '+(p.cognome||'')).trim() || '—'; } }
+    }
+
+    renderAnnual();
+    applica();
+  } catch(e){
+    console.error('[registro] init exception:', e);
+    var emptyEl = document.getElementById('empty');
+    if (emptyEl){ emptyEl.style.display='block'; emptyEl.textContent = 'Errore nel caricamento del registro. Riprova.'; }
+  } finally {
+    document.body.style.visibility = 'visible';
   }
-
-  renderAnnual();
-  applica();
-  document.body.style.visibility = 'visible';
 }
 init();
 </script>
