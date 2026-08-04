@@ -405,6 +405,20 @@ async function emetti(){
   var ok  = document.getElementById('ok-msg');
   ok.style.display = 'none';
 
+  // Avviso dati mancanti (il CF è critico per la fattura sanitaria / Sistema TS)
+  if (!reprint && !(patient && patient.codice_fiscale)) {
+    var msg = prof.professione_sanitaria
+      ? '⚠️ Manca il Codice Fiscale del paziente: la fattura sanitaria non sarà completa per il Sistema TS.'
+      : '⚠️ Manca il Codice Fiscale del cliente.';
+    var proc = confirm(msg + '\n\nOK = emetti così com\u2019è\nAnnulla = inserisci i dati ora');
+    if (!proc) {
+      var form = document.getElementById('paz-form');
+      if (form && form.style.display === 'none') toggleFormPaziente();
+      if (form && form.scrollIntoView) form.scrollIntoView({ behavior:'smooth', block:'center' });
+      return;
+    }
+  }
+
   var f = calcolaFiscale();
   if (f.imponibile <= 0){ alert('Aggiungi almeno una voce con importo maggiore di zero.'); return; }
 
