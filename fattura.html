@@ -295,7 +295,7 @@ function renderRighe(){
       '<input type="text"   value="'+esc(r.descrizione)+'" placeholder="'+ph+'" oninput="setRiga('+i+',\'descrizione\',this.value)">' +
       '<input type="number" value="'+esc(r.quantita)+'" min="0" step="1"    oninput="setRiga('+i+',\'quantita\',this.value)">' +
       '<input type="number" value="'+esc(r.prezzo)+'"   min="0" step="0.01" oninput="setRiga('+i+',\'prezzo\',this.value)">' +
-      '<input type="text" class="imp" value="'+fmtEur(imp)+'" readonly>' +
+      '<input type="text" class="imp" id="imp-'+i+'" value="'+fmtEur(imp)+'" readonly>' +
       '<button class="riga-del" title="Rimuovi" onclick="rimuoviRiga('+i+')">\u2715</button>' +
     '</div>';
   }
@@ -304,8 +304,15 @@ function renderRighe(){
 }
 function setRiga(i,campo,val){
   righe[i][campo] = val;
-  if (campo==='prezzo' && righe[i].session_id){ renderSedute(); } // tiene allineato il prezzo mostrato nel picker
-  if (campo!=='descrizione') renderRighe(); else renderTotali();
+  if (campo === 'descrizione') return; // nessun re-render: il campo mantiene il focus
+  // Aggiorna SOLO l'importo di questa riga + i totali, senza ricostruire gli input
+  var r = righe[i];
+  var segno = (r.tipo==='sconto') ? -1 : 1;
+  var imp = r2(segno * (Number(r.quantita)||0) * Math.abs(Number(r.prezzo)||0));
+  var impEl = document.getElementById('imp-'+i);
+  if (impEl) impEl.value = fmtEur(imp);
+  renderTotali();
+  if (campo==='prezzo' && r.session_id) renderSedute(); // tiene allineato il picker (non tocca i campi riga)
 }
 function aggiungiRiga(){ righe.push({descrizione:'', quantita:1, prezzo:''}); renderRighe(); }
 function aggiungiSconto(){ righe.push({descrizione:'Sconto', quantita:1, prezzo:'', tipo:'sconto'}); renderRighe(); }
