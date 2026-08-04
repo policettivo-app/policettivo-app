@@ -49,6 +49,10 @@
   .add-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
   .btn-add { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 9px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
   .btn-add:hover { background: #e6bc00; }
+  .btn-add.sconto { background: #fff; color: #c62828; border: 1.5px solid #f2c2c2; }
+  .btn-add.sconto:hover { background: #ffebee; }
+  .riga.sconto input:first-child { border-color: #f2c2c2; background: #fff5f5; color: #c62828; }
+  .riga.sconto .imp { color: #c62828; }
   select.lst-sel { padding: 9px 12px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 12px; background: #fff; }
   .totals { margin-top: 12px; border-top: 1px dashed #ddd; padding-top: 12px; }
   .trow { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
@@ -118,7 +122,8 @@
       </div>
       <div id="righe"></div>
       <div class="add-row" id="add-row-box">
-        <button class="btn-add" onclick="aggiungiRiga()">+ Aggiungi riga</button>
+        <button class="btn-add" onclick="aggiungiRiga()">+ Aggiungi voce</button>
+        <button class="btn-add sconto" onclick="aggiungiSconto()">− Sconto</button>
         <select class="lst-sel" id="lst-sel" onchange="aggiungiDaListino()">
           <option value="">+ Dal listino…</option>
         </select>
@@ -197,7 +202,10 @@ function fmtDataIT(iso){ if(!iso) return ''; var p=String(iso).substring(0,10).s
 // ─── Calcolo fiscale ────────────────────────────────────────────────
 function calcolaFiscale(){
   var imponibile = 0;
-  for (var i=0;i<righe.length;i++){ imponibile += (Number(righe[i].quantita)||0) * (Number(righe[i].prezzo)||0); }
+  for (var i=0;i<righe.length;i++){
+    var segno = (righe[i].tipo==='sconto') ? -1 : 1;
+    imponibile += segno * (Number(righe[i].quantita)||0) * Math.abs(Number(righe[i].prezzo)||0);
+  }
   imponibile = r2(imponibile);
 
   var san    = !!prof.professione_sanitaria;
@@ -278,10 +286,13 @@ function renderRighe(){
   var html = '';
   for (var i=0;i<righe.length;i++){
     var r = righe[i];
-    var imp = r2((Number(r.quantita)||0)*(Number(r.prezzo)||0));
+    var segno = (r.tipo==='sconto') ? -1 : 1;
+    var imp = r2(segno * (Number(r.quantita)||0) * Math.abs(Number(r.prezzo)||0));
     var linked = r.session_id ? ' linked' : '';
-    html += '<div class="riga'+linked+'">' +
-      '<input type="text"   value="'+esc(r.descrizione)+'" placeholder="Descrizione prestazione" oninput="setRiga('+i+',\'descrizione\',this.value)">' +
+    var scls = (r.tipo==='sconto') ? ' sconto' : '';
+    var ph = (r.tipo==='sconto') ? 'Sconto (descrizione)' : 'Descrizione prestazione';
+    html += '<div class="riga'+linked+scls+'">' +
+      '<input type="text"   value="'+esc(r.descrizione)+'" placeholder="'+ph+'" oninput="setRiga('+i+',\'descrizione\',this.value)">' +
       '<input type="number" value="'+esc(r.quantita)+'" min="0" step="1"    oninput="setRiga('+i+',\'quantita\',this.value)">' +
       '<input type="number" value="'+esc(r.prezzo)+'"   min="0" step="0.01" oninput="setRiga('+i+',\'prezzo\',this.value)">' +
       '<input type="text" class="imp" value="'+fmtEur(imp)+'" readonly>' +
@@ -297,6 +308,7 @@ function setRiga(i,campo,val){
   if (campo!=='descrizione') renderRighe(); else renderTotali();
 }
 function aggiungiRiga(){ righe.push({descrizione:'', quantita:1, prezzo:''}); renderRighe(); }
+function aggiungiSconto(){ righe.push({descrizione:'Sconto', quantita:1, prezzo:'', tipo:'sconto'}); renderRighe(); }
 function rimuoviRiga(i){
   var wasLinked = righe[i] && righe[i].session_id;
   righe.splice(i,1);
@@ -345,8 +357,12 @@ async function emetti(){
   if (f.imponibile <= 0){ alert('Aggiungi almeno una voce con importo maggiore di zero.'); return; }
 
   var righeValide = righe
-    .filter(function(r){ return (Number(r.quantita)||0)>0 && (Number(r.prezzo)||0)>0; })
-    .map(function(r){ var q=Number(r.quantita)||0, p=Number(r.prezzo)||0; return { descrizione:(r.descrizione||'Prestazione FKT'), quantita:q, prezzo_unitario:p, importo:r2(q*p), session_id:(r.session_id||null) }; });
+    .filter(function(r){ return (Number(r.quantita)||0)>0 && Math.abs(Number(r.prezzo)||0)>0; })
+    .map(function(r){
+      var segno = (r.tipo==='sconto') ? -1 : 1;
+      var q = Number(r.quantita)||0, p = segno * Math.abs(Number(r.prezzo)||0);
+      return { descrizione:(r.descrizione || (segno<0?'Sconto':'Prestazione FKT')), quantita:q, prezzo_unitario:p, importo:r2(q*p), session_id:(r.session_id||null) };
+    });
 
   var dataEm = document.getElementById('data-emissione').value || todayISO();
   var anno   = Number(dataEm.substring(0,4));
