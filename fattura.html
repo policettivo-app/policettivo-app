@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/pol-ui.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'Montserrat', sans-serif; background: #f5f5f7; color: #1a1a1a; visibility: hidden; }
@@ -410,7 +411,7 @@ async function emetti(){
     var msg = prof.professione_sanitaria
       ? '⚠️ Manca il Codice Fiscale del paziente: la fattura sanitaria non sarà completa per il Sistema TS.'
       : '⚠️ Manca il Codice Fiscale del cliente.';
-    var proc = confirm(msg + '\n\nOK = emetti così com\u2019è\nAnnulla = inserisci i dati ora');
+    var proc = await polConfirm(msg, { title:'Dati mancanti', icon:'\u26A0\uFE0F', okLabel:'Emetti così com\u2019è', cancelLabel:'Inserisci i dati' });
     if (!proc) {
       var form = document.getElementById('paz-form');
       if (form && form.style.display === 'none') toggleFormPaziente();
@@ -420,7 +421,7 @@ async function emetti(){
   }
 
   var f = calcolaFiscale();
-  if (f.imponibile <= 0){ alert('Aggiungi almeno una voce con importo maggiore di zero.'); return; }
+  if (f.imponibile <= 0){ await polAlert('Aggiungi almeno una voce con importo maggiore di zero.', { title:'Voce mancante', icon:'\uD83D\uDCC4' }); return; }
 
   var righeValide = righe
     .filter(function(r){ return (Number(r.quantita)||0)>0 && Math.abs(Number(r.prezzo)||0)>0; })
@@ -464,7 +465,7 @@ async function emetti(){
   if (!record){
     btn.disabled = false; btn.textContent = 'Emetti e scarica PDF';
     console.error('[fattura] errore emissione:', lastErr);
-    alert('Errore durante l\u2019emissione: ' + (lastErr && lastErr.message ? lastErr.message : 'sconosciuto'));
+    await polAlert('Errore durante l\u2019emissione: ' + (lastErr && lastErr.message ? lastErr.message : 'sconosciuto'), { title:'Errore', icon:'\u26D4' });
     return;
   }
 
@@ -477,7 +478,7 @@ async function emetti(){
     }
   }
 
-  try { await generaPDF(record, f); } catch(e){ console.error('[fattura] PDF error:', e); alert('Fattura salvata (n. '+record.numero+'), ma errore nel PDF: '+e.message); }
+  try { await generaPDF(record, f); } catch(e){ console.error('[fattura] PDF error:', e); await polAlert('Fattura salvata (n. '+record.numero+'), ma errore nel PDF: '+e.message, { title:'Attenzione', icon:'\u26A0\uFE0F' }); }
 
   btn.textContent = '\u2713 Emessa';
   ok.textContent = '\u2705 Fattura n. ' + record.numero + ' emessa e scaricata. Puoi tornare in Contabile.';
@@ -592,7 +593,7 @@ function annulla(){ window.location.href = 'contabile.html?pid=' + encodeURIComp
 // ─── Ristampa ───────────────────────────────────────────────────────
 async function scaricaRistampa(rec){
   try { await generaPDF(rec, fDaRecord(rec)); }
-  catch(e){ console.error(e); alert('Errore nel PDF: '+e.message); }
+  catch(e){ console.error(e); await polAlert('Errore nel PDF: '+e.message, { title:'Errore', icon:'\u26D4' }); }
 }
 
 // ─── Init ───────────────────────────────────────────────────────────
@@ -602,13 +603,13 @@ async function init(){
   authUid = sess.data.session.user.id;
 
   var pr = await _sb.from('professionals').select('*, profiles(nome, cognome)').eq('user_id', authUid).maybeSingle();
-  if (pr.error || !pr.data){ alert('Profilo professionale non trovato.'); window.location.href='dashboard.html'; return; }
+  if (pr.error || !pr.data){ await polAlert('Profilo professionale non trovato.', { title:'Errore', icon:'\u26D4' }); window.location.href='dashboard.html'; return; }
   prof = pr.data;
 
   // ── RISTAMPA ──
   if (reprint){
     var fr = await _sb.from('fatture').select('*').eq('id', fid).maybeSingle();
-    if (fr.error || !fr.data){ alert('Fattura non trovata.'); window.location.href='dashboard.html'; return; }
+    if (fr.error || !fr.data){ await polAlert('Fattura non trovata.', { title:'Errore', icon:'\u26D4' }); window.location.href='dashboard.html'; return; }
     var rec = fr.data;
     pid = rec.patient_id;
     var pa = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta, cap').eq('id', pid).maybeSingle();
@@ -650,7 +651,7 @@ async function init(){
   }
 
   // ── NUOVA FATTURA ──
-  if (!pid){ alert('Paziente non specificato.'); window.location.href = 'dashboard.html'; return; }
+  if (!pid){ await polAlert('Paziente non specificato.', { title:'Errore', icon:'\u26D4' }); window.location.href = 'dashboard.html'; return; }
   document.getElementById('back-link').href = 'contabile.html?pid=' + encodeURIComponent(pid);
   document.getElementById('data-emissione').value = todayISO();
 
@@ -750,7 +751,7 @@ async function salvaDatiPaziente(){
   btn.disabled = true; btn.textContent = 'Salvataggio…';
   var res = await _sb.from('patients').update(payload).eq('id', pid).select('*').maybeSingle();
   btn.disabled = false; btn.textContent = 'Salva dati paziente';
-  if (res.error){ alert('Errore nel salvataggio: ' + (res.error.message||'')); return; }
+  if (res.error){ await polAlert('Errore nel salvataggio: ' + (res.error.message||''), { title:'Errore', icon:'\u26D4' }); return; }
   // Aggiorna la copia locale + intestazione + CF della sezione TS
   patient.codice_fiscale = payload.codice_fiscale;
   patient.citta = payload.citta;
