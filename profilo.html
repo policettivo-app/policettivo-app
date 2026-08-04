@@ -253,6 +253,12 @@
         <div class="read-only-note">Solo per non sanitari in regime ordinario. I professionisti sanitari sono sempre esenti IVA (art. 10).</div>
       </div>
 
+      <div class="f-group" id="grp-numpartenza">
+        <label class="f-label">Numero di partenza fatture <span style="color:#999">(solo alla prima fattura)</span></label>
+        <input class="f-input" id="edit-num-partenza" type="number" min="1" step="1" placeholder="1">
+        <div class="read-only-note" id="num-partenza-note">Se inizi a usare l'app con una numerazione già avviata, imposta qui il primo numero (es. 13). Si può cambiare solo finché non hai emesso nessuna fattura: dopo si blocca.</div>
+      </div>
+
       <button class="btn-save" id="btn-salva" onclick="salvaProfilo()">Salva modifiche</button>
       <div class="save-msg" id="save-msg">✅ Salvato con successo</div>
     </div>
@@ -510,6 +516,17 @@
       document.getElementById('edit-rivalsa').value   = (prof.rivalsa_percentuale != null ? prof.rivalsa_percentuale : 0)
       document.getElementById('edit-iva').value       = (prof.aliquota_iva != null ? prof.aliquota_iva : 0)
       aggiornaVisibilitaFiscale()
+
+      // Numero di partenza fatture: modificabile solo se non esistono ancora fatture
+      document.getElementById('edit-num-partenza').value = (prof.fattura_num_partenza != null ? prof.fattura_num_partenza : '')
+      try {
+        var cnt = await _supabase.from('fatture').select('id', { count: 'exact', head: true }).eq('professional_id', session.user.id)
+        var nFatture = (cnt && typeof cnt.count === 'number') ? cnt.count : 0
+        if (nFatture > 0) {
+          var np = document.getElementById('edit-num-partenza'); np.disabled = true
+          document.getElementById('num-partenza-note').textContent = '🔒 Bloccato: hai già emesso fatture, la numerazione prosegue in automatico.'
+        }
+      } catch(e) { console.error('[profilo] conteggio fatture:', e) }
 
       listinoState = listinoNormalize(prof.listino)
       listinoRender()
@@ -771,8 +788,11 @@
         numero_albo:           document.getElementById('edit-albo').value.trim() || null,
         iban:                  document.getElementById('edit-iban').value.trim() || null,
         rivalsa_percentuale:   parseFloat(document.getElementById('edit-rivalsa').value) || 0,
-        aliquota_iva:          parseFloat(document.getElementById('edit-iva').value) || 0
+        aliquota_iva:          parseFloat(document.getElementById('edit-iva').value) || 0,
+        fattura_num_partenza:  (function(){ var el=document.getElementById('edit-num-partenza'); var v=parseInt(el.value,10); return (el.disabled || !isFinite(v) || v<1) ? (el.disabled ? undefined : null) : v; })()
       }
+      // non sovrascrivere il numero di partenza se il campo è bloccato
+      if (payload.fattura_num_partenza === undefined) delete payload.fattura_num_partenza
       const { error } = await _supabase
         .from('professionals')
         .update(payload)
