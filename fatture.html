@@ -91,7 +91,10 @@
     <div class="card">
       <div class="actions-top">
         <div class="section-title" id="lista-title" style="margin:0">Fatture</div>
-        <button class="btn-export" onclick="esportaCSV()">📊 Esporta CSV</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <a class="btn-mini" id="ts-link" href="esporta-ts.html" style="padding:9px 14px">📤 Esporta per Sistema TS</a>
+          <button class="btn-export" onclick="esportaCSV()">📊 Esporta CSV</button>
+        </div>
       </div>
       <div style="overflow-x:auto">
         <table>
@@ -240,6 +243,7 @@ async function init(){
     if (!sess.data || !sess.data.session){ window.location.href='login.html'; return; }
 
     document.getElementById('back-link').href = _from ? ('contabile.html?pid='+encodeURIComponent(_from)) : 'dashboard.html';
+    document.getElementById('ts-link').href = 'esporta-ts.html' + (_from ? ('?pid='+encodeURIComponent(_from)) : '');
 
     var fr = await _sb.from('fatture').select('*').order('anno',{ascending:false}).order('progressivo',{ascending:false});
     if (fr.error){ console.error('[registro] fatture error:', fr.error); }
