@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="css/design-system.css">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/pol-ui.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 100vh; color: #1d1d1f; padding: 0; }
@@ -391,9 +392,9 @@ function _fatturaDiPagamento(payId){
 }
 function ristampaFattura(fid){ window.location.href = 'fattura.html?fid=' + encodeURIComponent(fid); }
 async function segnaNonFatturare(payId){
-  if (!confirm('Segnare questo incasso come "non fatturare"?')) return;
+  if (!(await polConfirm('Segnare questo incasso come "non fatturare"?', {title:'Non fatturare', icon:'\u26AA\uFE0F', okLabel:'S\u00EC', cancelLabel:'Annulla'}))) return;
   var res = await _sb.from('patient_payments').update({ no_fattura: true }).eq('id', payId).select('*').maybeSingle();
-  if (res.error){ alert('Errore: ' + (res.error.message||'')); return; }
+  if (res.error){ await polAlert('Errore: ' + (res.error.message||''), {title:'Errore', icon:'\u26D4'}); return; }
   for (var i=0;i<_pagamenti.length;i++){ if (_pagamenti[i].id === payId) _pagamenti[i].no_fattura = true; }
   renderPagamenti();
 }
@@ -666,7 +667,7 @@ async function salvaModifica(id){
   try {
     var res = await _sb.from('therapy_sessions').update(payload).eq('id', id);
     if (res.error) {
-      alert('Errore salvataggio: ' + (res.error.message || ''));
+      await polAlert('Errore salvataggio: ' + (res.error.message || ''), {title:'Errore', icon:'\u26D4'});
       return;
     }
     for (var i = 0; i < _sedute.length; i++) {
@@ -681,19 +682,19 @@ async function salvaModifica(id){
     renderTotali();
   } catch(e) {
     console.error('[contabile] salvaModifica exception:', e);
-    alert('Errore salvataggio.');
+    await polAlert('Errore salvataggio.', {title:'Errore', icon:'\u26D4'});
   }
 }
 
 // ── ANNULLA CHIUSURA SEDUTA (recovery da errore) ───────
 // Chiusura sedute = solo via popup "Registra incasso". Qui solo l'undo.
 async function rimuoviSaldo(id){
-  if (!confirm('Rimettere questa seduta tra "da saldare"?\nL\'importo e la data saldo saranno cancellati.')) return;
+  if (!(await polConfirm('Rimettere questa seduta tra "da saldare"? L\'importo e la data saldo saranno cancellati.', {title:'Da saldare', icon:'\u21A9\uFE0F', okLabel:'S\u00EC', cancelLabel:'Annulla'}))) return;
   var payload = { saldato: false, saldato_importo: null, saldato_data: null };
   try {
     var res = await _sb.from('therapy_sessions').update(payload).eq('id', id);
     if (res.error) {
-      alert('Errore salvataggio: ' + (res.error.message || ''));
+      await polAlert('Errore salvataggio: ' + (res.error.message || ''), {title:'Errore', icon:'\u26D4'});
       return;
     }
     for (var i = 0; i < _sedute.length; i++) {
@@ -708,7 +709,7 @@ async function rimuoviSaldo(id){
     renderTotali();
   } catch(e) {
     console.error('[contabile] rimuoviSaldo exception:', e);
-    alert('Errore.');
+    await polAlert('Errore.', {title:'Errore', icon:'\u26D4'});
   }
 }
 
@@ -787,7 +788,7 @@ function apriRegistraIncasso(){
   Object.keys(_selected).forEach(function(k){
     if (_selected[k]) { n++; var s = byId[k]; if (s && isFinite(Number(s.costo))) totale += Number(s.costo); }
   });
-  if (!n) { alert('Nessuna seduta selezionata.'); return; }
+  if (!n) { polAlert('Nessuna seduta selezionata.', {title:'Selezione', icon:'\u26A0\uFE0F'}); return; }
   totale = Math.round(totale*100)/100;
   document.getElementById('incasso-residuo-val').textContent = _fmtEur(totale);
   var impEl = document.getElementById('incasso-importo');
@@ -847,8 +848,8 @@ async function confermaRegistraIncasso(){
   var dataRaw = document.getElementById('incasso-data').value;
   var notaRaw = document.getElementById('incasso-nota').value;
   var imp = Number(impRaw);
-  if (!isFinite(imp) || imp <= 0) { alert('Inserisci un importo valido (> 0).'); return; }
-  if (!dataRaw) { alert('Inserisci la data del versamento.'); return; }
+  if (!isFinite(imp) || imp <= 0) { await polAlert('Inserisci un importo valido (> 0).', {title:'Attenzione', icon:'\u26A0\uFE0F'}); return; }
+  if (!dataRaw) { await polAlert('Inserisci la data del versamento.', {title:'Attenzione', icon:'\u26A0\uFE0F'}); return; }
   var nota = String(notaRaw || '').trim() || null;
 
   var btn = document.getElementById('btn-incasso-conferma');
@@ -860,7 +861,7 @@ async function confermaRegistraIncasso(){
   if (!res || res.error) {
     if (btn) { btn.disabled = false; btn.textContent = 'Conferma'; }
     console.error('[contabile] insert patient_payments error:', res && res.error);
-    alert('Errore nel salvataggio del pagamento: ' + ((res && res.error && res.error.message) || ''));
+    await polAlert('Errore nel salvataggio del pagamento: ' + ((res && res.error && res.error.message) || ''), {title:'Errore', icon:'\u26D4'});
     return;
   }
   if (res.data) _pagamenti.push(res.data);
@@ -874,7 +875,7 @@ async function confermaRegistraIncasso(){
   renderPagamenti();
   renderTotali();
 
-  if (res.data && confirm('Emettere subito la fattura per questo incasso di ' + _fmtEur(res.data.importo) + ' ?')){
+  if (res.data && (await polConfirm('Emettere subito la fattura per questo incasso di ' + _fmtEur(res.data.importo) + ' ?', {title:'Fattura', icon:'\u2705', okLabel:'S\u00EC, emetti', cancelLabel:'Non ora'}))){
     emettiFattura(res.data.id);
   }
 }
@@ -953,14 +954,14 @@ async function aggiungiPagamento(){
       if (sessNow && sessNow.data && sessNow.data.session) _authUserId = sessNow.data.session.user.id;
     } catch(e) {}
   }
-  if (!_authUserId) { alert('Sessione non valida. Riprova ad accedere.'); return; }
+  if (!_authUserId) { await polAlert('Sessione non valida. Riprova ad accedere.', {title:'Errore', icon:'\u26D4'}); return; }
   var impRaw = document.getElementById('pag-importo').value;
   var dataRaw = document.getElementById('pag-data').value;
   var notaRaw = document.getElementById('pag-nota').value;
   var imp = null;
   if (impRaw !== '' && impRaw != null) { var n = Number(impRaw); imp = isFinite(n) && n > 0 ? n : null; }
-  if (imp == null) { alert('Inserisci un importo valido (> 0).'); return; }
-  if (!dataRaw) { alert('Inserisci la data del versamento.'); return; }
+  if (imp == null) { await polAlert('Inserisci un importo valido (> 0).', {title:'Attenzione', icon:'\u26A0\uFE0F'}); return; }
+  if (!dataRaw) { await polAlert('Inserisci la data del versamento.', {title:'Attenzione', icon:'\u26A0\uFE0F'}); return; }
   var nota = String(notaRaw || '').trim() || null;
   // patient_payments.RLS: professional_id DEVE essere auth.uid()
   var payload = { patient_id: pid, professional_id: _authUserId, importo: imp, data: dataRaw, nota: nota };
@@ -968,7 +969,7 @@ async function aggiungiPagamento(){
     var res = await _sb.from('patient_payments').insert(payload).select('*').maybeSingle();
     if (res.error) {
       console.error('[contabile] insert patient_payments error:', res.error);
-      alert('Errore nel salvataggio del versamento: ' + (res.error.message || ''));
+      await polAlert('Errore nel salvataggio del versamento: ' + (res.error.message || ''), {title:'Errore', icon:'\u26D4'});
       return;
     }
     if (res.data) _pagamenti.push(res.data);
@@ -981,13 +982,13 @@ async function aggiungiPagamento(){
     renderRighe();
     renderPagamenti();
     renderTotali();
-    if (res.data && confirm('Emettere subito la fattura per questo incasso di ' + _fmtEur(res.data.importo) + ' ?')){
+    if (res.data && (await polConfirm('Emettere subito la fattura per questo incasso di ' + _fmtEur(res.data.importo) + ' ?', {title:'Fattura', icon:'\u2705', okLabel:'S\u00EC, emetti', cancelLabel:'Non ora'}))){
       emettiFattura(res.data.id);
       return;
     }
   } catch(e) {
     console.error('[contabile] aggiungiPagamento exception:', e);
-    alert('Errore nel salvataggio.');
+    await polAlert('Errore nel salvataggio.', {title:'Errore', icon:'\u26D4'});
   }
 }
 
@@ -1000,14 +1001,14 @@ async function salvaEditPagamento(id){
   var notaRaw = document.getElementById('pag-e-nota').value;
   var imp = null;
   if (impRaw !== '' && impRaw != null) { var n = Number(impRaw); imp = isFinite(n) && n > 0 ? n : null; }
-  if (imp == null) { alert('Importo non valido.'); return; }
-  if (!dataRaw) { alert('Data obbligatoria.'); return; }
+  if (imp == null) { await polAlert('Importo non valido.', {title:'Attenzione', icon:'\u26A0\uFE0F'}); return; }
+  if (!dataRaw) { await polAlert('Data obbligatoria.', {title:'Attenzione', icon:'\u26A0\uFE0F'}); return; }
   var nota = String(notaRaw || '').trim() || null;
   var payload = { importo: imp, data: dataRaw, nota: nota };
   try {
     var res = await _sb.from('patient_payments').update(payload).eq('id', id);
     if (res.error) {
-      alert('Errore salvataggio: ' + (res.error.message || ''));
+      await polAlert('Errore salvataggio: ' + (res.error.message || ''), {title:'Errore', icon:'\u26D4'});
       return;
     }
     for (var i = 0; i < _pagamenti.length; i++) {
@@ -1023,16 +1024,16 @@ async function salvaEditPagamento(id){
     renderTotali();
   } catch(e) {
     console.error('[contabile] salvaEditPagamento exception:', e);
-    alert('Errore salvataggio.');
+    await polAlert('Errore salvataggio.', {title:'Errore', icon:'\u26D4'});
   }
 }
 
 async function eliminaPagamento(id){
-  if (!confirm('Eliminare questo versamento? Operazione non annullabile.')) return;
+  if (!(await polConfirm('Eliminare questo versamento? Operazione non annullabile.', {title:'Elimina versamento', icon:'\u26A0\uFE0F', okLabel:'Elimina', cancelLabel:'Annulla', danger:true}))) return;
   try {
     var res = await _sb.from('patient_payments').delete().eq('id', id);
     if (res.error) {
-      alert('Errore eliminazione: ' + (res.error.message || ''));
+      await polAlert('Errore eliminazione: ' + (res.error.message || ''), {title:'Errore', icon:'\u26D4'});
       return;
     }
     _pagamenti = _pagamenti.filter(function(p){ return p.id !== id });
@@ -1041,7 +1042,7 @@ async function eliminaPagamento(id){
     renderTotali();
   } catch(e) {
     console.error('[contabile] eliminaPagamento exception:', e);
-    alert('Errore eliminazione.');
+    await polAlert('Errore eliminazione.', {title:'Errore', icon:'\u26D4'});
   }
 }
 
@@ -1125,7 +1126,7 @@ function esportaPDF(){
   var storicoVal = isStCreditPdf ? Math.abs(saldoStorico) : (isStDebtPdf ? saldoStorico : 0);
 
   var win = window.open('', '_blank');
-  if (!win) { alert('Il browser ha bloccato il popup PDF. Consenti i popup per esportare.'); return; }
+  if (!win) { polAlert('Il browser ha bloccato il popup PDF. Consenti i popup per esportare.', {title:'Popup bloccato', icon:'\u26A0\uFE0F'}); return; }
   var h = '';
   h += '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Contabile — ' + _esc(nomePaz) + '</title><style>';
   h += 'body{font-family:Montserrat,Arial,sans-serif;max-width:820px;margin:32px auto;padding:0 24px;color:#000;font-size:13px}';
