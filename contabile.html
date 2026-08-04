@@ -708,6 +708,14 @@ async function rimuoviSaldo(id){
 }
 
 // ── SELEZIONE MULTIPLA + BATCH SALDO ──────────────────
+function _sommaSelezionate(){
+  var byId = {}; for (var q = 0; q < _sedute.length; q++) byId[_sedute[q].id] = _sedute[q];
+  var tot = 0;
+  Object.keys(_selected).forEach(function(k){
+    if (_selected[k]) { var s = byId[k]; if (s && isFinite(Number(s.costo))) tot += Number(s.costo); }
+  });
+  return Math.round(tot * 100) / 100;
+}
 function _updateBatchBtn(){
   var n = 0;
   Object.keys(_selected).forEach(function(k){ if (_selected[k]) n++ });
@@ -718,6 +726,9 @@ function _updateBatchBtn(){
       ? '💰 Registra incasso (' + n + ')'
       : '💰 Registra incasso';
   }
+  // Spunta sedute → la somma dei costi compare nel campo Importo dei Pagamenti
+  var pagImp = document.getElementById('pag-importo');
+  if (pagImp) { pagImp.value = n > 0 ? _sommaSelezionate().toFixed(2) : ''; }
 }
 function _updateSelectAllBox(){
   var sa = document.getElementById('sel-all'); if (!sa) return;
@@ -743,6 +754,7 @@ function toggleSelezionaTutto(cb){
     else delete _selected[lista[i].id];
   }
   renderRighe();
+  _updateBatchBtn();
 }
 
 // ── POPUP REGISTRA INCASSO ─────────────────────────────
@@ -955,10 +967,13 @@ async function aggiungiPagamento(){
       return;
     }
     if (res.data) _pagamenti.push(res.data);
-    // Reset form (data resta a oggi come default)
+    // Reset form (data resta a oggi come default) + azzera selezione sedute
     document.getElementById('pag-importo').value = '';
     document.getElementById('pag-nota').value = '';
     document.getElementById('pag-data').value = (new Date()).toISOString().substring(0,10);
+    _selected = Object.create(null);
+    var selAllBox = document.getElementById('sel-all'); if (selAllBox) { selAllBox.checked = false; selAllBox.indeterminate = false; }
+    renderRighe();
     renderPagamenti();
     renderTotali();
     if (res.data && confirm('Emettere subito la fattura per questo incasso di ' + _fmtEur(res.data.importo) + ' ?')){
