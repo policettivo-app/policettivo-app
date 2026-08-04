@@ -212,6 +212,7 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
   <button class="back-btn" onclick="tornaAlPaziente()">← Indietro</button>
   <h1>💶 Contabile</h1>
   <button class="back-btn" id="btn-vai-diario" onclick="vaiAlDiario()">📒 Diario</button>
+  <button class="back-btn" id="btn-vai-registro" onclick="vaiAlRegistro()">📑 Registro</button>
   <span class="pname" id="pname">…</span>
 </div>
 
@@ -372,6 +373,10 @@ function tornaAlPaziente() {
 
 function vaiAlDiario() {
   if (pid) window.location.href = 'diario.html?pid=' + pid + '&from=contabile';
+}
+
+function vaiAlRegistro() {
+  window.location.href = 'fatture.html' + (pid ? ('?pid=' + encodeURIComponent(pid)) : '');
 }
 
 function emettiFattura(payId){
