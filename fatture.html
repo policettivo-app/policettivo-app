@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro fatture — Policettivo®</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Montserrat', sans-serif; background: #f5f5f7; color: #1a1a1a; visibility: hidden; }
+  .navbar { background: #000; padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+  .navbar-logo { color: #FFD008; font-weight: 800; letter-spacing: .5px; }
+  .navbar-title { color: #fff; font-size: 13px; margin-left: 12px; opacity: .85; }
+  .nav-btn { background: #FFD008; border: none; color: #000; padding: 7px 14px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+  .main { max-width: 1000px; margin: 0 auto; padding: 20px 16px 80px; }
+  h1 { font-size: 22px; margin: 4px 0 14px; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .filters { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: end; }
+  .fld label { display: block; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; }
+  .fld input { width: 100%; padding: 9px 11px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 13px; }
+  .fld input:focus { outline: none; border-color: #FFD008; }
+  .btn-reset { background: #f0f0f0; border: none; border-radius: 8px; padding: 9px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .scard { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 12px; }
+  .scard .lbl { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
+  .scard .val { font-size: 19px; font-weight: 800; margin-top: 3px; }
+  .scard.tot { background: #fff8e1; border-color: #ffe082; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .3px; padding: 8px 10px; border-bottom: 2px solid #eee; }
+  td { padding: 10px; border-bottom: 1px solid #f0f0f0; }
+  th.r, td.r { text-align: right; }
+  tr:hover td { background: #fcfcfc; }
+  .numcell { font-weight: 700; }
+  .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+  .badge.emessa { background: #E6F9F2; color: #067a55; }
+  .badge.stornata { background: #ffebee; color: #c62828; }
+  .badge.nc { background: #ede7f6; color: #5e35b1; }
+  .btn-mini { background: #000; color: #FFD008; border: none; border-radius: 6px; padding: 5px 10px; font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer; text-decoration: none; }
+  .annual { display: flex; flex-wrap: wrap; gap: 10px; }
+  .ycard { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 10px 14px; font-size: 13px; }
+  .ycard b { font-size: 16px; }
+  .empty { text-align: center; color: #999; padding: 30px; }
+  .actions-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+  .btn-export { background: #000; color: #fff; border: none; border-radius: 8px; padding: 9px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .section-title { font-size: 13px; font-weight: 800; margin: 0 0 10px; }
+  @media (max-width: 720px) {
+    .filters { grid-template-columns: 1fr 1fr; }
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    table { font-size: 12px; }
+    th.hide, td.hide { display: none; }
+  }
+</style>
+</head>
+<body>
+  <nav class="navbar">
+    <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title">Registro fatture</span></div>
+    <a class="nav-btn" id="back-link" href="#">← Contabile</a>
+  </nav>
+
+  <div class="main">
+    <h1>Registro fatture</h1>
+
+    <div class="card">
+      <div class="filters">
+        <div class="fld">
+          <label>Cerca (paziente o numero)</label>
+          <input type="text" id="q" placeholder="es. Rossi oppure 2026/003" oninput="applica()">
+        </div>
+        <div class="fld">
+          <label>Dal</label>
+          <input type="date" id="da" onchange="applica()">
+        </div>
+        <div class="fld">
+          <label>Al</label>
+          <input type="date" id="a" onchange="applica()">
+        </div>
+        <button class="btn-reset" onclick="reset()">Tutto</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="summary" id="summary"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Riepilogo annuale</div>
+      <div class="annual" id="annual"></div>
+    </div>
+
+    <div class="card">
+      <div class="actions-top">
+        <div class="section-title" id="lista-title" style="margin:0">Fatture</div>
+        <button class="btn-export" onclick="esportaCSV()">📊 Esporta CSV</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Numero</th>
+              <th class="hide">Data</th>
+              <th>Paziente</th>
+              <th class="r hide">Imponibile</th>
+              <th class="r hide">IVA</th>
+              <th class="r">Totale</th>
+              <th>Stato</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty" style="display:none">Nessuna fattura trovata.</div>
+    </div>
+  </div>
+
+<script>
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var _sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+var _from = new URLSearchParams(window.location.search).get('pid');
+var _fatture = [];   // tutte le fatture del professionista
+var _pazienti = {};  // id -> "Nome Cognome"
+var _view = [];      // fatture filtrate correnti
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtEur(n){ return (Number(n)||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €'; }
+function fmtDataIT(iso){ if(!iso) return ''; var p=String(iso).substring(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function nomePaz(id){ return _pazienti[id] || '—'; }
+
+function applica(){
+  var q  = (document.getElementById('q').value || '').trim().toLowerCase();
+  var da = document.getElementById('da').value;
+  var a  = document.getElementById('a').value;
+  _view = _fatture.filter(function(f){
+    var d = String(f.data_emissione||'').substring(0,10);
+    if (da && d < da) return false;
+    if (a  && d > a ) return false;
+    if (q){
+      var hay = (String(f.numero||'') + ' ' + nomePaz(f.patient_id)).toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+  renderSummary(); renderTabella();
+}
+function reset(){ document.getElementById('q').value=''; document.getElementById('da').value=''; document.getElementById('a').value=''; applica(); }
+
+function _segno(f){ return f.tipo_doc === 'nota_credito' ? -1 : 1; } // le NC riducono i totali
+
+function renderSummary(){
+  var n=0, imp=0, iva=0, bollo=0, tot=0;
+  for (var i=0;i<_view.length;i++){
+    var f=_view[i]; if (f.stato==='stornata') { n++; continue; } // fattura stornata: non conta nei totali
+    var s=_segno(f);
+    n++; imp += s*(Number(f.imponibile)||0); iva += s*(Number(f.iva)||0); bollo += s*(Number(f.bollo)||0); tot += s*(Number(f.totale)||0);
+  }
+  var html = '';
+  html += '<div class="scard"><div class="lbl">N. documenti</div><div class="val">'+_view.length+'</div></div>';
+  html += '<div class="scard"><div class="lbl">Imponibile</div><div class="val">'+fmtEur(imp)+'</div></div>';
+  html += '<div class="scard"><div class="lbl">IVA</div><div class="val">'+fmtEur(iva)+'</div></div>';
+  html += '<div class="scard"><div class="lbl">Bollo</div><div class="val">'+fmtEur(bollo)+'</div></div>';
+  html += '<div class="scard tot"><div class="lbl">Totale</div><div class="val">'+fmtEur(tot)+'</div></div>';
+  document.getElementById('summary').innerHTML = html;
+}
+
+function renderAnnual(){
+  var perAnno = {};
+  for (var i=0;i<_fatture.length;i++){
+    var f=_fatture[i]; if (f.stato==='stornata') continue;
+    var anno = f.anno || (String(f.data_emissione||'').substring(0,4));
+    if (!perAnno[anno]) perAnno[anno]=0;
+    perAnno[anno] += _segno(f)*(Number(f.totale)||0);
+  }
+  var anni = Object.keys(perAnno).sort().reverse();
+  var html = anni.length ? '' : '<span style="color:#999;font-size:13px">Nessun dato.</span>';
+  for (var k=0;k<anni.length;k++){ html += '<div class="ycard">'+esc(anni[k])+': <b>'+fmtEur(perAnno[anni[k]])+'</b></div>'; }
+  document.getElementById('annual').innerHTML = html;
+}
+
+function renderTabella(){
+  var tb = document.getElementById('tbody');
+  var empty = document.getElementById('empty');
+  document.getElementById('lista-title').textContent = 'Fatture (' + _view.length + ')';
+  if (!_view.length){ tb.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  // ordina per anno desc, poi numero desc
+  var arr = _view.slice().sort(function(x,y){
+    if ((y.anno||0)!==(x.anno||0)) return (y.anno||0)-(x.anno||0);
+    return (y.progressivo||0)-(x.progressivo||0);
+  });
+  var html='';
+  for (var i=0;i<arr.length;i++){
+    var f=arr[i];
+    var isNC = f.tipo_doc==='nota_credito';
+    var statoBadge = f.stato==='stornata'
+      ? '<span class="badge stornata">Stornata</span>'
+      : (isNC ? '<span class="badge nc">Nota credito</span>' : '<span class="badge emessa">Emessa</span>');
+    var totCell = (isNC ? '− ' : '') + fmtEur(f.totale);
+    html += '<tr>' +
+      '<td class="numcell">'+esc(f.numero)+'</td>' +
+      '<td class="hide">'+esc(fmtDataIT(f.data_emissione))+'</td>' +
+      '<td>'+esc(nomePaz(f.patient_id))+'</td>' +
+      '<td class="r hide">'+fmtEur(f.imponibile)+'</td>' +
+      '<td class="r hide">'+(f.esente_iva?'Esente':fmtEur(f.iva))+'</td>' +
+      '<td class="r">'+totCell+'</td>' +
+      '<td>'+statoBadge+'</td>' +
+      '<td><a class="btn-mini" href="fattura.html?fid='+encodeURIComponent(f.id)+'">Apri</a></td>' +
+    '</tr>';
+  }
+  tb.innerHTML = html;
+}
+
+function esportaCSV(){
+  var rows = [['Numero','Data','Paziente','Tipo','Imponibile','IVA','Bollo','Totale','Stato']];
+  var arr = _view.slice().sort(function(x,y){ if ((y.anno||0)!==(x.anno||0)) return (y.anno||0)-(x.anno||0); return (y.progressivo||0)-(x.progressivo||0); });
+  for (var i=0;i<arr.length;i++){
+    var f=arr[i];
+    rows.push([
+      f.numero, fmtDataIT(f.data_emissione), nomePaz(f.patient_id),
+      (f.tipo_doc==='nota_credito'?'Nota credito':'Fattura'),
+      String(Number(f.imponibile)||0).replace('.',','),
+      (f.esente_iva?'Esente':String(Number(f.iva)||0).replace('.',',')),
+      String(Number(f.bollo)||0).replace('.',','),
+      String(Number(f.totale)||0).replace('.',','),
+      (f.stato==='stornata'?'Stornata':'Emessa')
+    ]);
+  }
+  var csv = rows.map(function(r){ return r.map(function(c){ return '"'+String(c==null?'':c).replace(/"/g,'""')+'"'; }).join(';'); }).join('\n');
+  var blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='registro_fatture.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function init(){
+  var sess = await _sb.auth.getSession();
+  if (!sess.data || !sess.data.session){ window.location.href='login.html'; return; }
+
+  document.getElementById('back-link').href = _from ? ('contabile.html?pid='+encodeURIComponent(_from)) : 'dashboard.html';
+
+  var fr = await _sb.from('fatture').select('*').order('anno',{ascending:false}).order('progressivo',{ascending:false});
+  if (fr.error){ alert('Errore nel caricamento delle fatture: '+(fr.error.message||'')); return; }
+  _fatture = fr.data || [];
+
+  // Nomi pazienti
+  var ids = {}; for (var i=0;i<_fatture.length;i++){ if (_fatture[i].patient_id) ids[_fatture[i].patient_id]=true; }
+  var idList = Object.keys(ids);
+  if (idList.length){
+    var pr = await _sb.from('patients').select('id, nome, cognome').in('id', idList);
+    if (pr.data){ for (var j=0;j<pr.data.length;j++){ var p=pr.data[j]; _pazienti[p.id] = ((p.nome||'')+' '+(p.cognome||'')).trim() || '—'; } }
+  }
+
+  renderAnnual();
+  applica();
+  document.body.style.visibility = 'visible';
+}
+init();
+</script>
+</body>
+</html>
