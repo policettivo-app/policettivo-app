@@ -387,7 +387,15 @@ async function prossimoProgressivo(anno){
     .order('progressivo', { ascending: false }).limit(1);
   if (res.error){ throw res.error; }
   var max = (res.data && res.data.length) ? Number(res.data[0].progressivo) : 0;
-  return max + 1;
+  if (max > 0) return max + 1;
+  // Nessuna fattura per quest'anno: se è la primissima in assoluto e c'è un numero di partenza, usalo
+  var partenza = (prof && prof.fattura_num_partenza) ? Number(prof.fattura_num_partenza) : 0;
+  if (partenza > 1) {
+    var tot = await _sb.from('fatture').select('id', { count:'exact', head:true }).eq('professional_id', authUid);
+    var nTot = (tot && typeof tot.count === 'number') ? tot.count : 0;
+    if (nTot === 0) return partenza;
+  }
+  return 1;
 }
 function fmtNumero(anno, prog){ return anno + '/' + String(prog).padStart(3,'0'); }
 
