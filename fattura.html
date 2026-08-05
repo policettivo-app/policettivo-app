@@ -212,6 +212,7 @@
 
       <div class="actions">
         <button class="btn-cancel" onclick="annulla()">Annulla</button>
+        <button class="btn-cancel" id="btn-prova-fic" style="display:none" onclick="provaFic()">🔎 Prova collegamento FIC</button>
         <button class="btn-primary" id="btn-emetti" onclick="emetti()">Emetti e scarica PDF</button>
       </div>
       <div class="ok-msg" id="ok-msg"></div>
@@ -484,7 +485,18 @@ function fmtNumero(anno, prog){ return anno + '/' + String(prog).padStart(3,'0')
 function labelEmetti(){ return (prof && prof.fic_connected) ? 'Emetti in Fatture in Cloud' : 'Emetti e scarica PDF'; }
 
 // ─── Invio a Fatture in Cloud (fic-push, Blocco 2B) ─────────────────
-async function inviaAFic(f, righeValide, dataEm){
+function costruisciRigheValide(){
+  return righe
+    .filter(function(r){ return (Number(r.quantita)||0)>0 && Math.abs(Number(r.prezzo)||0)>0; })
+    .map(function(r){
+      var segno = (r.tipo==='sconto') ? -1 : 1;
+      var q = Number(r.quantita)||0, p = segno * Math.abs(Number(r.prezzo)||0);
+      var code = rigaIvaCode(r); var t = ivaByCode(code) || ivaByCode('ESENTE10');
+      return { descrizione:(r.descrizione || (segno<0?'Sconto':'Prestazione FKT')), quantita:q, prezzo_unitario:p, importo:r2(q*p), session_id:(r.session_id||null),
+               iva_code:code, aliquota:t.rate, natura:(t.natura||null), iva_label:t.label };
+    });
+}
+function costruisciPayloadFic(f, righeValide, dataEm){
   var cfEl = document.getElementById('ts-cf');
   var cf = ((cfEl && cfEl.value) ? cfEl.value : ((patient && patient.codice_fiscale) || '')).trim().toUpperCase();
   var ts = null;
@@ -495,7 +507,7 @@ async function inviaAFic(f, righeValide, dataEm){
       pagamento_tracciato: (document.getElementById('ts-tracciato') ? document.getElementById('ts-tracciato').checked : true)
     };
   }
-  var payload = {
+  return {
     data_emissione: dataEm,
     bollo: f.bollo,
     cliente: {
@@ -512,12 +524,15 @@ async function inviaAFic(f, righeValide, dataEm){
     }),
     ts: ts
   };
+}
+async function inviaAFic(f, righeValide, dataEm){
+  var payload = costruisciPayloadFic(f, righeValide, dataEm);
   var resp = await _sb.functions.invoke('fic-push', { body: payload });
   if (resp.error){ throw new Error('Collegamento alla funzione Fatture in Cloud non riuscito. Riprova tra poco.'); }
   var d = resp.data || {};
   if (!d.ok){
     if (d.code === 'vat_mapping'){
-      throw new Error('In Fatture in Cloud mancano queste aliquote IVA: ' + ((d.missing||[]).join(', ')) + '. Configurale in FIC (Impostazioni → Aliquote IVA) con la stessa natura, poi riprova.');
+      throw new Error('In Fatture in Cloud mancano queste aliquote IVA: ' + ((d.missing||[]).join(', ')) + '. Usa «Prova collegamento FIC» per vedere le aliquote disponibili.');
     }
     if (d.code === 'not_connected'){
       throw new Error('Il tuo account Fatture in Cloud non risulta collegato. Vai nel Profilo e premi «Collega Fatture in Cloud».');
@@ -525,6 +540,34 @@ async function inviaAFic(f, righeValide, dataEm){
     throw new Error((d.message || 'Invio a Fatture in Cloud non riuscito') + (d.detail ? (' — ' + String(d.detail).substring(0,180)) : ''));
   }
   return d;
+}
+// PROVA: verifica l'abbinamento delle aliquote su FIC SENZA creare la fattura.
+async function provaFic(){
+  var f = calcolaFiscale();
+  if (f.imponibile <= 0){ await polAlert('Aggiungi almeno una voce con importo maggiore di zero prima di provare.', { title:'Voce mancante', icon:'📄' }); return; }
+  var righeValide = costruisciRigheValide();
+  var dataEm = document.getElementById('data-emissione').value || todayISO();
+  var btn = document.getElementById('btn-prova-fic'); var old = btn ? btn.textContent : '';
+  if (btn){ btn.disabled = true; btn.textContent = 'Provo…'; }
+  try {
+    var payload = costruisciPayloadFic(f, righeValide, dataEm); payload.prova = true;
+    var resp = await _sb.functions.invoke('fic-push', { body: payload });
+    if (resp.error){ throw new Error('Collegamento alla funzione FIC non riuscito. Riprova tra poco.'); }
+    var d = resp.data || {};
+    var elenco = (d.aliquote_fic || []).map(function(a){
+      return '• ' + (a.value===0?'0%':(a.value+'%')) + (a.natura?(' '+a.natura):'') + ' — ' + (a.descrizione||'(senza descrizione)') + (a.disattivata?' [disattivata]':'') + ' [id '+a.id+']';
+    }).join('\n');
+    if (d.ok){
+      await polAlert('✅ ' + (d.message||'Prova riuscita.') + '\n\nAliquote trovate in FIC:\n' + elenco, { title:'Prova collegamento FIC', icon:'🔎' });
+    } else {
+      var miss = (d.missing||[]).join(', ');
+      await polAlert('⚠️ Non trovo in FIC l’aliquota per: ' + (miss||'—') + '.\n\nAliquote che hai in FIC:\n' + elenco + '\n\nMandami questo elenco: allineo io l’abbinamento, oppure aggiungi in FIC l’aliquota mancante.', { title:'Prova collegamento FIC', icon:'🔎' });
+    }
+  } catch(e){
+    await polAlert(e.message || 'Prova non riuscita', { title:'Prova collegamento FIC', icon:'⛔' });
+  } finally {
+    if (btn){ btn.disabled = false; btn.textContent = old || '🔎 Prova collegamento FIC'; }
+  }
 }
 
 // ─── Emissione ──────────────────────────────────────────────────────
@@ -550,15 +593,7 @@ async function emetti(){
   var f = calcolaFiscale();
   if (f.imponibile <= 0){ await polAlert('Aggiungi almeno una voce con importo maggiore di zero.', { title:'Voce mancante', icon:'\uD83D\uDCC4' }); return; }
 
-  var righeValide = righe
-    .filter(function(r){ return (Number(r.quantita)||0)>0 && Math.abs(Number(r.prezzo)||0)>0; })
-    .map(function(r){
-      var segno = (r.tipo==='sconto') ? -1 : 1;
-      var q = Number(r.quantita)||0, p = segno * Math.abs(Number(r.prezzo)||0);
-      var code = rigaIvaCode(r); var t = ivaByCode(code) || ivaByCode('ESENTE10');
-      return { descrizione:(r.descrizione || (segno<0?'Sconto':'Prestazione FKT')), quantita:q, prezzo_unitario:p, importo:r2(q*p), session_id:(r.session_id||null),
-               iva_code:code, aliquota:t.rate, natura:(t.natura||null), iva_label:t.label };
-    });
+  var righeValide = costruisciRigheValide();
 
   var dataEm = document.getElementById('data-emissione').value || todayISO();
   var anno   = Number(dataEm.substring(0,4));
@@ -848,6 +883,7 @@ async function init(){
   await aggiornaPreviewNumero();
   document.getElementById('data-emissione').addEventListener('change', aggiornaPreviewNumero);
   var _be = document.getElementById('btn-emetti'); if (_be) _be.textContent = labelEmetti();
+  var _bp = document.getElementById('btn-prova-fic'); if (_bp && prof.fic_connected) _bp.style.display = '';
 
   document.body.style.visibility = 'visible';
 }
