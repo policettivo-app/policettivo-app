@@ -182,7 +182,7 @@ function renderAnnual(){
   document.getElementById('annual').innerHTML = html;
 }
 
-function renderTabella(){
+function renderTabella(){ // fic-registro-v1
   var tb = document.getElementById('tbody');
   var empty = document.getElementById('empty');
   document.getElementById('lista-title').textContent = 'Fatture (' + _view.length + ')';
@@ -208,7 +208,7 @@ function renderTabella(){
       '<td class="r hide">'+fmtEur(f.imponibile)+'</td>' +
       '<td class="r hide">'+(f.esente_iva?'Esente':fmtEur(f.iva))+'</td>' +
       '<td class="r">'+totCell+'</td>' +
-      '<td>'+statoBadge+'</td>' +
+      '<td>'+statoBadge+(f.fic_document_id?' <span class="badge" style="background:#e8f5ff;color:#0369a1" title="Inviata a Fatture in Cloud'+(f.fic_numero?(' — n. '+esc(f.fic_numero)):'')+'">FIC</span>':'')+'</td>' +
       '<td><a class="btn-mini" href="fattura.html?fid='+encodeURIComponent(f.id)+'">Apri</a></td>' +
     '</tr>';
   }

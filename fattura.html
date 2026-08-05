@@ -481,6 +481,51 @@ async function prossimoProgressivo(anno){
   return 1;
 }
 function fmtNumero(anno, prog){ return anno + '/' + String(prog).padStart(3,'0'); }
+function labelEmetti(){ return (prof && prof.fic_connected) ? 'Emetti in Fatture in Cloud' : 'Emetti e scarica PDF'; }
+
+// ─── Invio a Fatture in Cloud (fic-push, Blocco 2B) ─────────────────
+async function inviaAFic(f, righeValide, dataEm){
+  var cfEl = document.getElementById('ts-cf');
+  var cf = ((cfEl && cfEl.value) ? cfEl.value : ((patient && patient.codice_fiscale) || '')).trim().toUpperCase();
+  var ts = null;
+  if (f.san){
+    ts = {
+      tipo_spesa:          (document.getElementById('ts-tipo') ? document.getElementById('ts-tipo').value : null),
+      opposizione:         (document.getElementById('ts-opposizione') ? document.getElementById('ts-opposizione').checked : false),
+      pagamento_tracciato: (document.getElementById('ts-tracciato') ? document.getElementById('ts-tracciato').checked : true)
+    };
+  }
+  var payload = {
+    data_emissione: dataEm,
+    bollo: f.bollo,
+    cliente: {
+      nome:           (patient && patient.nome) || '',
+      cognome:        (patient && patient.cognome) || '',
+      codice_fiscale: cf || null,
+      indirizzo:      (patient && patient.indirizzo) || '',
+      cap:            (patient && patient.cap) || '',
+      citta:          (patient && patient.citta) || ''
+    },
+    righe: righeValide.map(function(r){
+      return { descrizione:r.descrizione, quantita:r.quantita, prezzo_unitario:r.prezzo_unitario,
+               iva_code:r.iva_code, aliquota:r.aliquota, natura:r.natura, iva_label:r.iva_label };
+    }),
+    ts: ts
+  };
+  var resp = await _sb.functions.invoke('fic-push', { body: payload });
+  if (resp.error){ throw new Error('Collegamento alla funzione Fatture in Cloud non riuscito. Riprova tra poco.'); }
+  var d = resp.data || {};
+  if (!d.ok){
+    if (d.code === 'vat_mapping'){
+      throw new Error('In Fatture in Cloud mancano queste aliquote IVA: ' + ((d.missing||[]).join(', ')) + '. Configurale in FIC (Impostazioni → Aliquote IVA) con la stessa natura, poi riprova.');
+    }
+    if (d.code === 'not_connected'){
+      throw new Error('Il tuo account Fatture in Cloud non risulta collegato. Vai nel Profilo e premi «Collega Fatture in Cloud».');
+    }
+    throw new Error((d.message || 'Invio a Fatture in Cloud non riuscito') + (d.detail ? (' — ' + String(d.detail).substring(0,180)) : ''));
+  }
+  return d;
+}
 
 // ─── Emissione ──────────────────────────────────────────────────────
 async function emetti(){
@@ -520,20 +565,41 @@ async function emetti(){
 
   btn.disabled = true; btn.textContent = 'Emissione…';
 
+  // Se collegato a Fatture in Cloud: il numero lo assegna FIC (un clic).
+  var ficResult = null;
+  if (prof.fic_connected){
+    btn.textContent = 'Invio a Fatture in Cloud…';
+    try { ficResult = await inviaAFic(f, righeValide, dataEm); }
+    catch(e){
+      btn.disabled = false; btn.textContent = labelEmetti();
+      await polAlert(e.message || 'Invio a Fatture in Cloud non riuscito', { title:'Fatture in Cloud', icon:'⛔' });
+      return;
+    }
+    btn.textContent = 'Salvataggio…';
+  }
+
   var record = null, lastErr = null;
   for (var tent=0; tent<6; tent++){
-    var prog, numero;
+    var prog, numeroLocale;
     try { prog = await prossimoProgressivo(anno); } catch(e){ lastErr=e; break; }
-    numero = fmtNumero(anno, prog);
+    numeroLocale = fmtNumero(anno, prog);
 
     var payload = {
-      professional_id: authUid, patient_id: pid, anno: anno, progressivo: prog, numero: numero,
+      professional_id: authUid, patient_id: pid, anno: anno, progressivo: prog,
+      numero: (ficResult ? ficResult.fic_numero : numeroLocale),
       data_emissione: dataEm, righe: righeValide,
       imponibile: f.imponibile, rivalsa: f.rivalsa, iva: f.iva, bollo: f.bollo, totale: f.totale,
       esente_iva: f.esente, regime_snapshot: f.regime, sanitaria_snapshot: f.san,
       riepilogo_iva: f.riepilogo,
       payment_id: payId || null, stato: 'emessa'
     };
+    if (ficResult){
+      payload.fic_document_id = ficResult.fic_document_id || null;
+      payload.fic_number      = (ficResult.fic_number != null ? ficResult.fic_number : null);
+      payload.fic_numeration  = ficResult.fic_numeration || null;
+      payload.fic_numero      = ficResult.fic_numero || null;
+      payload.fic_sent_at     = new Date().toISOString();
+    }
     if (f.san){
       payload.cf_paziente         = (document.getElementById('ts-cf').value||'').trim().toUpperCase() || null;
       payload.tipo_spesa          = document.getElementById('ts-tipo').value || null;
@@ -548,9 +614,10 @@ async function emetti(){
   }
 
   if (!record){
-    btn.disabled = false; btn.textContent = 'Emetti e scarica PDF';
+    btn.disabled = false; btn.textContent = labelEmetti();
     console.error('[fattura] errore emissione:', lastErr);
-    await polAlert('Errore durante l\u2019emissione: ' + (lastErr && lastErr.message ? lastErr.message : 'sconosciuto'), { title:'Errore', icon:'\u26D4' });
+    var extra = ficResult ? (' \u26A0\uFE0F La fattura risulta per\u00F2 gi\u00E0 creata su Fatture in Cloud (n. ' + (ficResult.fic_numero||'?') + '): controllala in FIC prima di riprovare, per non duplicarla.') : '';
+    await polAlert('Errore durante l\u2019emissione: ' + (lastErr && lastErr.message ? lastErr.message : 'sconosciuto') + extra, { title:'Errore', icon:'\u26D4' });
     return;
   }
 
@@ -566,7 +633,8 @@ async function emetti(){
   try { await generaPDF(record, f); } catch(e){ console.error('[fattura] PDF error:', e); await polAlert('Fattura salvata (n. '+record.numero+'), ma errore nel PDF: '+e.message, { title:'Attenzione', icon:'\u26A0\uFE0F' }); }
 
   btn.textContent = '\u2713 Emessa';
-  ok.textContent = '\u2705 Fattura n. ' + record.numero + ' emessa e scaricata. Puoi tornare in Contabile.';
+  var viaFic = record.fic_numero ? ' (creata su Fatture in Cloud)' : '';
+  ok.textContent = '\u2705 Fattura n. ' + record.numero + ' emessa e scaricata' + viaFic + '. Puoi tornare in Contabile.';
   ok.style.display = 'block';
   document.getElementById('num-preview').textContent = 'Numero: ' + record.numero;
 }
@@ -776,9 +844,10 @@ async function init(){
   if (!righe.length) righe.push({ descrizione:'Prestazione FKT', quantita:1, prezzo:'' });
   renderRighe();
 
-  // Preview numero
+  // Preview numero + etichetta pulsante (cambia se collegato a FIC)
   await aggiornaPreviewNumero();
   document.getElementById('data-emissione').addEventListener('change', aggiornaPreviewNumero);
+  var _be = document.getElementById('btn-emetti'); if (_be) _be.textContent = labelEmetti();
 
   document.body.style.visibility = 'visible';
 }
@@ -848,6 +917,10 @@ async function salvaDatiPaziente(){
 }
 
 async function aggiornaPreviewNumero(){
+  if (prof && prof.fic_connected){
+    document.getElementById('num-preview').textContent = 'Numero: assegnato da Fatture in Cloud';
+    return;
+  }
   try {
     var anno = Number(document.getElementById('data-emissione').value.substring(0,4));
     var prog = await prossimoProgressivo(anno);
