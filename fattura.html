@@ -37,11 +37,13 @@
   .sed-price input { width: 100%; padding: 7px 9px; border: 1.5px solid #e2e2e5; border-radius: 7px; font-family: inherit; font-size: 13px; text-align: right; }
   .sed-empty { color: #999; font-size: 13px; }
   /* Righe */
-  .righe-head, .riga { display: grid; grid-template-columns: 1fr 62px 92px 92px 34px; gap: 8px; align-items: center; }
+  .righe-head, .riga { display: grid; grid-template-columns: 1fr 52px 82px 96px 88px 30px; gap: 8px; align-items: center; }
   .righe-head { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 8px; }
   .riga { margin-bottom: 8px; }
   .riga input { width: 100%; padding: 9px 10px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 13px; }
   .riga input:focus { outline: none; border-color: #FFD008; }
+  .riga select.riga-iva { width: 100%; padding: 9px 6px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 12px; background: #fff; }
+  .riga select.riga-iva:focus { outline: none; border-color: #FFD008; }
   .riga .imp { background: #f5f5f7; text-align: right; font-weight: 700; }
   .riga.linked input:first-child { border-color: #cfe9df; background: #f4fbf8; }
   .riga-tag { font-size: 10px; color: #067a55; font-weight: 700; }
@@ -156,7 +158,7 @@
     <div class="card">
       <div class="card-title">Voci della fattura</div>
       <div class="righe-head">
-        <div>Descrizione</div><div>Q.tà</div><div>Prezzo €</div><div>Importo €</div><div></div>
+        <div>Descrizione</div><div>Q.tà</div><div>Prezzo €</div><div>IVA</div><div>Importo €</div><div></div>
       </div>
       <div id="righe"></div>
       <div class="add-row" id="add-row-box">
@@ -181,11 +183,12 @@
         </div>
         <div class="field">
           <label>Tipo spesa</label>
+          <!-- ts-tipo-sp-fix : SP = professioni sanitarie non mediche (fisioterapista) -->
           <select id="ts-tipo">
-            <option value="SR">SR — Prestazioni sanitarie</option>
+            <option value="SP" selected>SP — Prestazioni sanitarie (fisioterapista)</option>
+            <option value="AD">AD — Dispositivi medici (CE)</option>
             <option value="TK">TK — Ticket</option>
-            <option value="AD">AD — Acquisto dispositivi medici</option>
-            <option value="SV">SV — Prestazioni sanitarie veterinarie</option>
+            <option value="AA">AA — Altre spese sanitarie</option>
           </select>
         </div>
       </div>
@@ -237,45 +240,112 @@ function fmtEur(n){ return (Number(n)||0).toLocaleString('it-IT',{minimumFractio
 function todayISO(){ return new Date().toISOString().substring(0,10); }
 function fmtDataIT(iso){ if(!iso) return ''; var p=String(iso).substring(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 
-// ─── Calcolo fiscale ────────────────────────────────────────────────
-function calcolaFiscale(){
-  var imponibile = 0;
-  for (var i=0;i<righe.length;i++){
-    var segno = (righe[i].tipo==='sconto') ? -1 : 1;
-    imponibile += segno * (Number(righe[i].quantita)||0) * Math.abs(Number(righe[i].prezzo)||0);
-  }
-  imponibile = r2(imponibile);
+// ─── IVA per riga (iva-mista-v1) ────────────────────────────────────
+// Ogni riga porta un codice IVA. Prestazioni sanitarie = Esente art.10;
+// beni/corsi = IVA 22% (o altra aliquota). Cosi' Policettivo gestisce la
+// fattura mista e resta allineato a Fatture in Cloud riga per riga.
+var IVA_TIPI = [
+  { code:'ESENTE10', label:'Esente art.10', rate:0,  natura:'N4',   dicitura:'Operazione esente da IVA ai sensi dell’art. 10, n. 18, DPR 633/1972.' },
+  { code:'FORF',     label:'Senza IVA (forfettario)', rate:0, natura:'N2.2', dicitura:'Operazione senza applicazione dell’IVA – regime forfettario, L. 190/2014 art. 1, commi 54-89.' },
+  { code:'IVA22',    label:'IVA 22%', rate:22, natura:null, dicitura:null },
+  { code:'IVA10',    label:'IVA 10%', rate:10, natura:null, dicitura:null },
+  { code:'IVA5',     label:'IVA 5%',  rate:5,  natura:null, dicitura:null },
+  { code:'IVA4',     label:'IVA 4%',  rate:4,  natura:null, dicitura:null }
+];
+function ivaByCode(code){ for (var i=0;i<IVA_TIPI.length;i++){ if (IVA_TIPI[i].code===code) return IVA_TIPI[i]; } return null; }
+// Codice IVA di default per il professionista (la sua prestazione tipica)
+function ivaDefaultProf(){
+  if (prof && prof.professione_sanitaria) return 'ESENTE10';
+  var reg = (prof && prof.regime_fiscale) || 'forfettario';
+  if (reg === 'forfettario') return 'FORF';
+  return 'IVA22';
+}
+// Codici mostrati nel menu, in base al regime del professionista
+function ivaCodiciDisponibili(){
+  if (prof && prof.professione_sanitaria) return ['ESENTE10','IVA22','IVA10','IVA5','IVA4'];
+  var reg = (prof && prof.regime_fiscale) || 'forfettario';
+  if (reg === 'forfettario') return ['FORF'];
+  return ['IVA22','IVA10','IVA5','IVA4','ESENTE10'];
+}
+function rigaIvaCode(r){ return (r && r.ivaCode) ? r.ivaCode : ivaDefaultProf(); }
+function ivaOptionsHTML(sel){
+  var codes = ivaCodiciDisponibili().slice();
+  if (sel && codes.indexOf(sel) === -1) codes.push(sel);   // preserva un codice gia' scelto ma non nel menu
+  var h = '';
+  for (var i=0;i<codes.length;i++){ var t=ivaByCode(codes[i]); if(!t) continue; h += '<option value="'+t.code+'"'+(t.code===sel?' selected':'')+'>'+esc(t.label)+'</option>'; }
+  return h;
+}
 
+// ─── Calcolo fiscale (castelletto IVA per aliquota) ─────────────────
+function calcolaFiscale(){
   var san    = !!prof.professione_sanitaria;
   var regime = prof.regime_fiscale || 'forfettario';
   var rivPct = Number(prof.rivalsa_percentuale)||0;
-  var ivaPct = Number(prof.aliquota_iva)||0;
+
+  var groups = {};   // code -> { code,label,rate,natura,dicitura,imponibile }
+  var order  = [];
+  var imponibile = 0;
+  for (var i=0;i<righe.length;i++){
+    var r = righe[i];
+    var segno = (r.tipo==='sconto') ? -1 : 1;
+    var imp = r2(segno * (Number(r.quantita)||0) * Math.abs(Number(r.prezzo)||0));
+    imponibile = r2(imponibile + imp);
+    var code = rigaIvaCode(r); var t = ivaByCode(code) || ivaByCode('ESENTE10');
+    if (!groups[code]){ groups[code] = { code:code, label:t.label, rate:t.rate, natura:t.natura||null, dicitura:t.dicitura||null, imponibile:0 }; order.push(code); }
+    groups[code].imponibile = r2(groups[code].imponibile + imp);
+  }
 
   var rivalsa = r2(imponibile * rivPct/100);
-  var esente = true, iva = 0;
-  if (!san && regime === 'ordinario'){ esente = false; iva = r2((imponibile+rivalsa) * ivaPct/100); }
-  var bollo = (esente && imponibile > 77.47) ? 2 : 0;
-  var totale = r2(imponibile + rivalsa + iva + bollo);
+  var unicoGruppo = (order.length === 1);
+  var riepilogo = [], totIva = 0, baseSenzaIva = 0;
+  for (var k=0;k<order.length;k++){
+    var g = groups[order[k]];
+    var base = g.imponibile;
+    var ivaG = r2(base * g.rate/100);
+    if (g.rate>0 && unicoGruppo) ivaG = r2((base+rivalsa) * g.rate/100);  // la rivalsa concorre alla base solo se un unico gruppo
+    totIva = r2(totIva + ivaG);
+    if (g.rate===0) baseSenzaIva = r2(baseSenzaIva + base);
+    riepilogo.push({ code:g.code, label:g.label, rate:g.rate, natura:g.natura, imponibile:base, iva:ivaG });
+  }
 
-  return { imponibile:imponibile, rivalsa:rivalsa, rivPct:rivPct, esente:esente, iva:iva, ivaPct:ivaPct, bollo:bollo, totale:totale, san:san, regime:regime };
+  // Bollo 2€: solo sulla parte SENZA IVA (esente/forfettario) se > 77,47 (verificato su norma, ago 2026)
+  var bollo = (baseSenzaIva > 77.47) ? 2 : 0;
+  var totale = r2(imponibile + rivalsa + totIva + bollo);
+  var esente = (totIva === 0);
+
+  return { imponibile:imponibile, rivalsa:rivalsa, rivPct:rivPct, iva:totIva, esente:esente,
+           bollo:bollo, totale:totale, riepilogo:riepilogo, baseSenzaIva:baseSenzaIva, san:san, regime:regime };
 }
 
 // Ricostruisce l'oggetto fiscale da un record fattura (per la ristampa)
 function fDaRecord(rec){
+  var riep = Array.isArray(rec.riepilogo_iva) ? rec.riepilogo_iva : null;
+  if (!riep){
+    // Fallback per fatture emesse prima dell'IVA per riga (documento intero)
+    var code = !rec.esente_iva ? 'IVA22'
+             : ((rec.regime_snapshot === 'forfettario' && !rec.sanitaria_snapshot) ? 'FORF' : 'ESENTE10');
+    var t = ivaByCode(code);
+    riep = [{ code:code, label:t.label, rate:t.rate, natura:t.natura, imponibile:rec.imponibile, iva:(rec.iva||0) }];
+  }
   return {
     imponibile: rec.imponibile, rivalsa: rec.rivalsa, rivPct: (prof? Number(prof.rivalsa_percentuale)||0 : 0),
-    esente: rec.esente_iva, iva: rec.iva, ivaPct: (prof? Number(prof.aliquota_iva)||0 : 0),
-    bollo: rec.bollo, totale: rec.totale, san: !!rec.sanitaria_snapshot, regime: rec.regime_snapshot
+    esente: rec.esente_iva, iva: rec.iva, bollo: rec.bollo, totale: rec.totale,
+    san: !!rec.sanitaria_snapshot, regime: rec.regime_snapshot, riepilogo: riep, baseSenzaIva: 0
   };
 }
 
 function diciture(f){
-  var out = [];
-  if (f.san){ out.push('Operazione esente da IVA ai sensi dell\u2019art. 10, n. 18, DPR 633/1972.'); }
-  else if (f.regime === 'forfettario'){ out.push('Operazione senza applicazione dell\u2019IVA \u2013 regime forfettario, L. 190/2014 art. 1, commi 54-89.'); }
+  var out = [], seen = {};
+  var rows = f.riepilogo || [];
+  for (var i=0;i<rows.length;i++){
+    var t = ivaByCode(rows[i].code);
+    if (t && t.dicitura && !seen[t.dicitura]){ out.push(t.dicitura); seen[t.dicitura]=1; }
+  }
   if (f.bollo > 0){ out.push('Imposta di bollo di \u20AC 2,00 assolta sull\u2019originale.'); }
   return out;
 }
+// Etichetta IVA breve per una riga (PDF / ristampa). Vuoto per fatture vecchie senza aliquota.
+function ivaShortRiga(r){ if (r && r.aliquota!=null){ return Number(r.aliquota)>0 ? (Number(r.aliquota)+'%') : 'Es.'; } return ''; }
 
 // ─── Sedute picker ──────────────────────────────────────────────────
 function labelSeduta(s){
@@ -333,6 +403,7 @@ function renderRighe(){
       '<input type="text"   value="'+esc(r.descrizione)+'" placeholder="'+ph+'" oninput="setRiga('+i+',\'descrizione\',this.value)">' +
       '<input type="number" value="'+esc(r.quantita)+'" min="0" step="1"    oninput="setRiga('+i+',\'quantita\',this.value)">' +
       '<input type="number" value="'+esc(r.prezzo)+'"   min="0" step="0.01" oninput="setRiga('+i+',\'prezzo\',this.value)">' +
+      '<select class="riga-iva" title="IVA della riga" onchange="setRiga('+i+',\'ivaCode\',this.value)">'+ivaOptionsHTML(rigaIvaCode(r))+'</select>' +
       '<input type="text" class="imp" id="imp-'+i+'" value="'+fmtEur(imp)+'" readonly>' +
       '<button class="riga-del" title="Rimuovi" onclick="rimuoviRiga('+i+')">\u2715</button>' +
     '</div>';
@@ -343,6 +414,7 @@ function renderRighe(){
 function setRiga(i,campo,val){
   righe[i][campo] = val;
   if (campo === 'descrizione') return; // nessun re-render: il campo mantiene il focus
+  if (campo === 'ivaCode'){ renderTotali(); return; } // cambia solo il castelletto, non gli importi riga
   // Aggiorna SOLO l'importo di questa riga + i totali, senza ricostruire gli input
   var r = righe[i];
   var segno = (r.tipo==='sconto') ? -1 : 1;
@@ -366,21 +438,31 @@ function aggiungiDaListino(){
   if (idx === '') return;
   var v = (prof.listino||[])[Number(idx)];
   if (!v) return;
-  righe.push({ descrizione: v.descrizione || '', quantita: 1, prezzo: (v.prezzo!=null? v.prezzo : '') });
+  righe.push({ descrizione: v.descrizione || '', quantita: 1, prezzo: (v.prezzo!=null? v.prezzo : ''), ivaCode: (v.iva_code || undefined) });
   renderRighe();
 }
 
-function renderTotali(){
-  var f = calcolaFiscale();
+function totaliHTML(f){
   var html = '';
   html += '<div class="trow"><span>Imponibile</span><span>'+fmtEur(f.imponibile)+'</span></div>';
   if (f.rivalsa > 0) html += '<div class="trow"><span>Rivalsa previdenziale ('+f.rivPct+'%)</span><span>'+fmtEur(f.rivalsa)+'</span></div>';
-  if (!f.esente)     html += '<div class="trow"><span>IVA ('+f.ivaPct+'%)</span><span>'+fmtEur(f.iva)+'</span></div>';
-  else               html += '<div class="trow"><span>IVA</span><span>Esente</span></div>';
-  if (f.bollo > 0)   html += '<div class="trow"><span>Imposta di bollo</span><span>'+fmtEur(f.bollo)+'</span></div>';
+  var riep = f.riepilogo || [];
+  var conIva = false;
+  for (var i=0;i<riep.length;i++){ if (riep[i].rate>0) conIva = true; }
+  if (riep.length > 1 || conIva){
+    for (var j=0;j<riep.length;j++){
+      var g = riep[j];
+      if (g.rate>0) html += '<div class="trow"><span>IVA '+g.rate+'% (su '+fmtEur(g.imponibile)+')</span><span>'+fmtEur(g.iva)+'</span></div>';
+      else          html += '<div class="trow"><span>'+esc(g.label)+' (su '+fmtEur(g.imponibile)+')</span><span>—</span></div>';
+    }
+  } else {
+    html += '<div class="trow"><span>IVA</span><span>Esente</span></div>';
+  }
+  if (f.bollo > 0) html += '<div class="trow"><span>Imposta di bollo</span><span>'+fmtEur(f.bollo)+'</span></div>';
   html += '<div class="trow big"><span>TOTALE</span><span>'+fmtEur(f.totale)+'</span></div>';
-  document.getElementById('totals').innerHTML = html;
+  return html;
 }
+function renderTotali(){ document.getElementById('totals').innerHTML = totaliHTML(calcolaFiscale()); }
 
 // ─── Numerazione ────────────────────────────────────────────────────
 async function prossimoProgressivo(anno){
@@ -428,7 +510,9 @@ async function emetti(){
     .map(function(r){
       var segno = (r.tipo==='sconto') ? -1 : 1;
       var q = Number(r.quantita)||0, p = segno * Math.abs(Number(r.prezzo)||0);
-      return { descrizione:(r.descrizione || (segno<0?'Sconto':'Prestazione FKT')), quantita:q, prezzo_unitario:p, importo:r2(q*p), session_id:(r.session_id||null) };
+      var code = rigaIvaCode(r); var t = ivaByCode(code) || ivaByCode('ESENTE10');
+      return { descrizione:(r.descrizione || (segno<0?'Sconto':'Prestazione FKT')), quantita:q, prezzo_unitario:p, importo:r2(q*p), session_id:(r.session_id||null),
+               iva_code:code, aliquota:t.rate, natura:(t.natura||null), iva_label:t.label };
     });
 
   var dataEm = document.getElementById('data-emissione').value || todayISO();
@@ -447,6 +531,7 @@ async function emetti(){
       data_emissione: dataEm, righe: righeValide,
       imponibile: f.imponibile, rivalsa: f.rivalsa, iva: f.iva, bollo: f.bollo, totale: f.totale,
       esente_iva: f.esente, regime_snapshot: f.regime, sanitaria_snapshot: f.san,
+      riepilogo_iva: f.riepilogo,
       payment_id: payId || null, stato: 'emessa'
     };
     if (f.san){
@@ -546,16 +631,18 @@ async function generaPDF(rec, f){
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
   doc.setDrawColor(210); doc.line(M, y, W-M, y); y += 5;
   doc.text('Descrizione', M, y);
-  doc.text('Q.tà', 128, y, {align:'right'});
-  doc.text('Prezzo', 158, y, {align:'right'});
+  doc.text('Q.tà', 116, y, {align:'right'});
+  doc.text('Prezzo', 143, y, {align:'right'});
+  doc.text('IVA', 165, y, {align:'right'});
   doc.text('Importo', W-M, y, {align:'right'});
   y += 3; doc.line(M, y, W-M, y); y += 5;
   doc.setFont('helvetica','normal');
   (rec.righe||[]).forEach(function(r){
-    var descLines = doc.splitTextToSize(String(r.descrizione||''), 95);
+    var descLines = doc.splitTextToSize(String(r.descrizione||''), 74);
     doc.text(descLines, M, y);
-    doc.text(String(r.quantita), 128, y, {align:'right'});
-    doc.text(fmtEur(r.prezzo_unitario), 158, y, {align:'right'});
+    doc.text(String(r.quantita), 116, y, {align:'right'});
+    doc.text(fmtEur(r.prezzo_unitario), 143, y, {align:'right'});
+    doc.text(ivaShortRiga(r), 165, y, {align:'right'});
     doc.text(fmtEur(r.importo), W-M, y, {align:'right'});
     y += Math.max(5, descLines.length*4.6);
   });
@@ -568,7 +655,10 @@ async function generaPDF(rec, f){
   }
   tline('Imponibile', fmtEur(rec.imponibile), false);
   if (rec.rivalsa > 0) tline('Rivalsa prev.', fmtEur(rec.rivalsa), false);
-  if (!rec.esente_iva) tline('IVA', fmtEur(rec.iva), false); else tline('IVA', 'Esente', false);
+  var riepPdf = Array.isArray(rec.riepilogo_iva) ? rec.riepilogo_iva : ((f && f.riepilogo) ? f.riepilogo : []);
+  var anyIvaPdf = false;
+  for (var rp=0; rp<riepPdf.length; rp++){ if (riepPdf[rp].rate>0){ anyIvaPdf=true; tline('IVA '+riepPdf[rp].rate+'%', fmtEur(riepPdf[rp].iva), false); } }
+  if (!anyIvaPdf) tline('IVA', 'Esente', false);
   if (rec.bollo > 0)   tline('Imposta di bollo', fmtEur(rec.bollo), false);
   y += 1; tline('TOTALE', fmtEur(rec.totale), true);
   y += 6;
@@ -631,17 +721,11 @@ async function init(){
     // Righe read-only
     var box = document.getElementById('righe'); var html='';
     (rec.righe||[]).forEach(function(r){
-      html += '<div class="riga"><input type="text" value="'+esc(r.descrizione)+'" readonly><input type="text" value="'+esc(r.quantita)+'" readonly><input type="text" value="'+esc(fmtEur(r.prezzo_unitario))+'" readonly><input type="text" class="imp" value="'+esc(fmtEur(r.importo))+'" readonly><span></span></div>';
+      html += '<div class="riga"><input type="text" value="'+esc(r.descrizione)+'" readonly><input type="text" value="'+esc(r.quantita)+'" readonly><input type="text" value="'+esc(fmtEur(r.prezzo_unitario))+'" readonly><input type="text" value="'+esc(r.iva_label || ivaShortRiga(r) || '')+'" readonly><input type="text" class="imp" value="'+esc(fmtEur(r.importo))+'" readonly><span></span></div>';
     });
     box.innerHTML = html;
-    // Totali dal record
-    var tt='';
-    tt+='<div class="trow"><span>Imponibile</span><span>'+fmtEur(rec.imponibile)+'</span></div>';
-    if (rec.rivalsa>0) tt+='<div class="trow"><span>Rivalsa prev.</span><span>'+fmtEur(rec.rivalsa)+'</span></div>';
-    tt+= rec.esente_iva ? '<div class="trow"><span>IVA</span><span>Esente</span></div>' : '<div class="trow"><span>IVA</span><span>'+fmtEur(rec.iva)+'</span></div>';
-    if (rec.bollo>0) tt+='<div class="trow"><span>Imposta di bollo</span><span>'+fmtEur(rec.bollo)+'</span></div>';
-    tt+='<div class="trow big"><span>TOTALE</span><span>'+fmtEur(rec.totale)+'</span></div>';
-    document.getElementById('totals').innerHTML = tt;
+    // Totali dal record (castelletto IVA)
+    document.getElementById('totals').innerHTML = totaliHTML(fDaRecord(rec));
 
     var btn = document.getElementById('btn-emetti');
     btn.textContent = 'Scarica PDF';

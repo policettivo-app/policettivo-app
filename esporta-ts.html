@@ -72,6 +72,7 @@
       <div class="infobox">
         ℹ️ Questo è un <b>riepilogo</b> (Excel/CSV), <b>non</b> il file XML ufficiale del portale. Serve a chi manda i dati tramite il <b>commercialista</b> o li <b>inserisce a mano</b> sul portale Tessera Sanitaria.
         Ricorda: l'invio al Sistema TS è <b>mensile</b>, entro la fine del mese successivo alla data della fattura. Il tipo spesa del fisioterapista è <b>SP</b>.
+        Per le fatture <b>miste</b> (prestazione + beni/corsi con IVA) qui è conteggiata <b>solo la parte sanitaria</b> (righe esenti art.10).
       </div>
     </div>
 
@@ -151,18 +152,30 @@ function nomePaz(id){ var p=paz(id); return ((p.nome||'')+' '+(p.cognome||'')).t
 // Una fattura è "spesa sanitaria" se emessa come sanitaria (esente art.10)
 function isSanitaria(f){ return f.sanitaria_snapshot === true; }
 
+// esporta-ts-iva-mista : per le fatture miste al TS va SOLO la quota sanitaria
+// (righe esenti art.10), non cuscini/corsi con IVA.
+function importoSanitario(f){
+  if (Array.isArray(f.righe) && f.righe.some(function(r){ return r && r.iva_code; })){
+    var s = 0;
+    f.righe.forEach(function(r){ if (r && r.iva_code === 'ESENTE10'){ s += Number(r.importo)||0; } });
+    return Math.round(s*100)/100;
+  }
+  return Number(f.totale)||0;   // fatture vecchie senza IVA per riga: intero totale
+}
+
 function normalizza(f){
   var isNC = f.tipo_doc === 'nota_credito';
   var segno = isNC ? -1 : 1;
   var p = paz(f.patient_id);
   var opp = (f.opposizione_ts === true);
+  var base = isSanitaria(f) ? importoSanitario(f) : (Number(f.totale)||0);
   return {
     cf: (f.cf_paziente || p.cf || '').toUpperCase(),
     paziente: nomePaz(f.patient_id),
     data: String(f.data_emissione||'').substring(0,10),
     numero: f.numero || '',
     tipo: (f.tipo_spesa || (isSanitaria(f)?'SP':'')),
-    importo: segno * (Number(f.totale)||0),
+    importo: segno * base,
     tracciato: (f.pagamento_tracciato === true),
     opposizione: opp,
     isNC: isNC,

@@ -70,8 +70,9 @@
     .lst-input { padding: 8px 10px; border: 1.5px solid #ddd; border-radius: 7px; font-family: inherit; font-size: 13px; color: #000; outline: none; background: #fff; box-sizing: border-box; }
     .lst-input:focus { border-color: #FFD008; }
     .lst-code { width: 84px; text-transform: uppercase; }
-    .lst-desc { flex: 1 1 220px; min-width: 130px; }
-    .lst-price { width: 110px; }
+    .lst-desc { flex: 1 1 200px; min-width: 130px; }
+    .lst-price { width: 100px; }
+    .lst-iva { width: 132px; padding-right: 4px; background: #fff; }
     .lst-btn-del { width: 32px; height: 32px; border: none; background: transparent; color: #a15a5a; font-size: 15px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 0; flex: none; }
     .lst-btn-del:hover { background: #fee2e2; color: #7f1d1d; }
     .lst-palette { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 4px 4px; border-top: 1px dashed #eee; margin-top: 8px; }
@@ -360,6 +361,16 @@
       { name: 'Grape',     hex: '#8E24AA' },
       { name: 'Graphite',  hex: '#616161' }
     ]
+    // IVA selezionabile per voce di listino (allineata a fattura.html).
+    // '' = usa il default del professionista (esente art.10 per i sanitari).
+    const LISTINO_IVA = [
+      { code:'',         label:'IVA: default' },
+      { code:'ESENTE10', label:'Esente art.10' },
+      { code:'IVA22',    label:'IVA 22%' },
+      { code:'IVA10',    label:'IVA 10%' },
+      { code:'IVA5',     label:'IVA 5%' },
+      { code:'IVA4',     label:'IVA 4%' }
+    ]
     let listinoState = []
     let _listinoSaveTimer = null
     let _listinoOpenPalette = -1   // indice della riga con palette aperta, -1 se nessuna
@@ -379,6 +390,7 @@
           codice:      typeof v.codice === 'string' ? v.codice : (v.codice != null ? String(v.codice) : ''),
           descrizione: typeof v.descrizione === 'string' ? v.descrizione : (v.descrizione != null ? String(v.descrizione) : ''),
           prezzo:      prezzo,
+          iva_code:    (typeof v.iva_code === 'string') ? v.iva_code : '',
           colore:      (typeof v.colore === 'string' && v.colore) ? v.colore : LISTINO_COLORS[LISTINO_COLORS.length - 1].hex
         }
       })
@@ -404,6 +416,7 @@
                    '<input class="lst-input lst-code" type="text" maxlength="6" placeholder="Cod." value="' + _lstEsc(v.codice) + '" oninput="listinoUpdate(' + i + ',\'codice\',this.value)">' +
                    '<input class="lst-input lst-desc" type="text" placeholder="Descrizione (es. Terapia manuale)" value="' + _lstEsc(v.descrizione) + '" oninput="listinoUpdate(' + i + ',\'descrizione\',this.value)">' +
                    '<input class="lst-input lst-price" type="number" step="0.01" min="0" placeholder="€ 0,00" value="' + _lstEsc(prezzoVal) + '" oninput="listinoUpdate(' + i + ',\'prezzo\',this.value)">' +
+                   '<select class="lst-input lst-iva" title="IVA di questa voce" onchange="listinoUpdate(' + i + ',\'iva_code\',this.value)">' + LISTINO_IVA.map(function(o){ return '<option value="' + o.code + '"' + (((v.iva_code||'') === o.code) ? ' selected' : '') + '>' + _lstEsc(o.label) + '</option>' }).join('') + '</select>' +
                    '<button type="button" class="lst-btn-del" title="Elimina voce" aria-label="Elimina voce" onclick="listinoRemove(' + i + ')">🗑</button>' +
                  '</div>' +
                  paletteHtml +
@@ -422,7 +435,7 @@
       if (field === 'prezzo') {
         if (value === '' || value == null) v.prezzo = null
         else { const n = Number(value); v.prezzo = isFinite(n) ? n : null }
-      } else if (field === 'codice' || field === 'descrizione') {
+      } else if (field === 'codice' || field === 'descrizione' || field === 'iva_code') {
         v[field] = String(value == null ? '' : value)
       }
       listinoSaveDebounced()
@@ -437,7 +450,7 @@
     }
 
     function listinoAdd() {
-      listinoState.push({ codice: '', descrizione: '', prezzo: null, colore: LISTINO_COLORS[0].hex })
+      listinoState.push({ codice: '', descrizione: '', prezzo: null, iva_code: '', colore: LISTINO_COLORS[0].hex })
       _listinoOpenPalette = -1
       listinoRender()
       listinoSaveDebounced()
@@ -469,6 +482,7 @@
           codice:      String(v.codice || '').trim(),
           descrizione: String(v.descrizione || '').trim(),
           prezzo:      (typeof v.prezzo === 'number' && isFinite(v.prezzo)) ? v.prezzo : null,
+          iva_code:    (typeof v.iva_code === 'string') ? v.iva_code : '',
           colore:      typeof v.colore === 'string' ? v.colore : LISTINO_COLORS[LISTINO_COLORS.length - 1].hex
         }
       })
