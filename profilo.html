@@ -274,6 +274,18 @@
 
       <button class="btn-save" id="fic-btn-collega" onclick="ficCollega()" style="display:none;background:#00C48C;color:#fff">🔗 Collega Fatture in Cloud</button>
       <button class="btn-logo-remove" id="fic-btn-scollega" onclick="ficScollega()" style="display:none">Scollega</button>
+
+      <!-- fic-map-v1 : abbinamento aliquote IVA -> voci di Fatture in Cloud -->
+      <div id="fic-map-box" style="display:none;margin-top:18px;border-top:1px dashed #eee;padding-top:14px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px">Abbinamento aliquote IVA → Fatture in Cloud</div>
+        <p style="font-size:12px;color:#999;margin:0 0 10px;line-height:1.5">Il tuo Fatture in Cloud ha molte aliquote simili. Scegli qui, per ogni aliquota che usi in Policettivo, la voce ESATTA di FIC. Si imposta una volta. Le aliquote che non usi lasciale su «non usata».</p>
+        <button class="doc-btn" id="fic-map-load" onclick="ficMapLoad()">Carica aliquote da FIC</button>
+        <div id="fic-map-rows" style="margin-top:12px"></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:10px">
+          <button class="btn-save" id="fic-map-save" style="display:none" onclick="ficMapSave()">Salva abbinamento</button>
+          <span class="lst-status" id="fic-map-status"></span>
+        </div>
+      </div>
     </div>
 
     <!-- LOGO -->
@@ -342,6 +354,15 @@
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
     let profId = null
+    let _ficVatMap = {}
+    let _ficAliquote = null
+    const FIC_MAP_CODES = [
+      { code:'ESENTE10', label:'Esente art. 10 (prestazioni sanitarie)' },
+      { code:'IVA22',    label:'IVA 22%' },
+      { code:'IVA10',    label:'IVA 10%' },
+      { code:'IVA5',     label:'IVA 5%' },
+      { code:'IVA4',     label:'IVA 4%' }
+    ]
     let _profLogoUrl = null
     let _profStudio = { centro: '', indirizzo: '', citta: '', partita_iva: '', email_studio: '' }
 
@@ -566,12 +587,76 @@
         })
         if (!r.ok) throw new Error('scollegamento non riuscito')
         ficRenderStato({ fic_connected:false })
+        ficMapVisibile(false)
         ficMsg('Fatture in Cloud scollegato.', true)
       } catch(e){
         console.error('[fic] scollega:', e)
         ficMsg('⛔ ' + (e.message||e), false)
       } finally {
         b.disabled = false; b.textContent = 'Scollega'
+      }
+    }
+
+    // ── Abbinamento aliquote IVA -> Fatture in Cloud (marker: fic-map-v1) ──
+    function ficMapVisibile(connected){
+      var box = document.getElementById('fic-map-box')
+      if (box) box.style.display = connected ? '' : 'none'
+    }
+    function ficMapOptionLabel(a){
+      return (a.value===0?'0%':(a.value+'%')) + (a.natura?(' '+a.natura):'') + ' — ' + (a.descrizione||'(senza descrizione)') + (a.disattivata?' [disattivata]':'')
+    }
+    function ficMapRender(){
+      var box = document.getElementById('fic-map-rows'); if (!box) return
+      if (!_ficAliquote){ box.innerHTML=''; return }
+      var html=''
+      for (var i=0;i<FIC_MAP_CODES.length;i++){
+        var c = FIC_MAP_CODES[i]
+        var sel = (_ficVatMap && _ficVatMap[c.code]!=null) ? String(_ficVatMap[c.code]) : ''
+        var opts = '<option value="">— non usata —</option>'
+        for (var j=0;j<_ficAliquote.length;j++){
+          var a=_ficAliquote[j]
+          opts += '<option value="'+a.id+'"'+((String(a.id)===sel)?' selected':'')+'>'+ficEsc(ficMapOptionLabel(a))+'</option>'
+        }
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">'
+              + '<span style="min-width:230px;font-size:13px;font-weight:600">'+ficEsc(c.label)+'</span>'
+              + '<select class="lst-input" data-code="'+c.code+'" style="flex:1 1 260px;min-width:200px">'+opts+'</select>'
+              + '</div>'
+      }
+      box.innerHTML = html
+      document.getElementById('fic-map-save').style.display = 'inline-block'
+    }
+    async function ficMapLoad(){
+      var b = document.getElementById('fic-map-load'); var st = document.getElementById('fic-map-status')
+      var old = b ? b.textContent : ''
+      if (b){ b.disabled=true; b.textContent='Carico…' }
+      if (st){ st.textContent=''; st.className='lst-status' }
+      try {
+        var resp = await _supabase.functions.invoke('fic-push', { body: { action:'vat_types' } })
+        if (resp.error) throw new Error('Collegamento a FIC non riuscito')
+        var d = resp.data || {}
+        if (!d.ok || !Array.isArray(d.aliquote_fic)) throw new Error(d.message || 'Nessuna aliquota ricevuta')
+        _ficAliquote = d.aliquote_fic
+        ficMapRender()
+        if (st){ st.textContent='Aliquote caricate: scegli e salva.'; st.className='lst-status' }
+      } catch(e){
+        if (st){ st.textContent='Errore: '+(e.message||e); st.className='lst-status err' }
+      } finally {
+        if (b){ b.disabled=false; b.textContent = old || 'Carica aliquote da FIC' }
+      }
+    }
+    async function ficMapSave(){
+      var st = document.getElementById('fic-map-status')
+      var selects = document.querySelectorAll('#fic-map-rows select[data-code]')
+      var map = {}
+      for (var i=0;i<selects.length;i++){ var code=selects[i].getAttribute('data-code'); var v=selects[i].value; if (v) map[code]=Number(v) }
+      if (st){ st.textContent='Salvataggio…'; st.className='lst-status' }
+      try {
+        var res = await _supabase.from('professionals').update({ fic_vat_map: map }).eq('id', profId)
+        if (res.error) throw res.error
+        _ficVatMap = map
+        if (st){ st.textContent='✓ Abbinamento salvato'; st.className='lst-status ok' }
+      } catch(e){
+        if (st){ st.textContent='Errore salvataggio: '+(e.message||e); st.className='lst-status err' }
       }
     }
 
@@ -589,6 +674,8 @@
 
       profId = prof.id
       ficRenderStato(prof)
+      _ficVatMap = (prof && prof.fic_vat_map && typeof prof.fic_vat_map === 'object') ? prof.fic_vat_map : {}
+      ficMapVisibile(!!(prof && prof.fic_connected))
       ficHandleReturn()
       _profLogoUrl = prof.logo_url || null
       _profStudio = {

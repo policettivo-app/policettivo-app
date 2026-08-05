@@ -532,7 +532,7 @@ async function inviaAFic(f, righeValide, dataEm){
   var d = resp.data || {};
   if (!d.ok){
     if (d.code === 'vat_mapping'){
-      throw new Error('In Fatture in Cloud mancano queste aliquote IVA: ' + ((d.missing||[]).join(', ')) + '. Usa «Prova collegamento FIC» per vedere le aliquote disponibili.');
+      throw new Error('Aliquota non abbinata: ' + ((d.missing||[]).join(', ')) + '. Vai nel Profilo → Fatture in Cloud → «Abbinamento aliquote IVA» e scegli la voce giusta, poi riprova.');
     }
     if (d.code === 'not_connected'){
       throw new Error('Il tuo account Fatture in Cloud non risulta collegato. Vai nel Profilo e premi «Collega Fatture in Cloud».');
@@ -561,7 +561,7 @@ async function provaFic(){
       await polAlert('✅ ' + (d.message||'Prova riuscita.') + '\n\nAliquote trovate in FIC:\n' + elenco, { title:'Prova collegamento FIC', icon:'🔎' });
     } else {
       var miss = (d.missing||[]).join(', ');
-      await polAlert('⚠️ Non trovo in FIC l’aliquota per: ' + (miss||'—') + '.\n\nAliquote che hai in FIC:\n' + elenco + '\n\nMandami questo elenco: allineo io l’abbinamento, oppure aggiungi in FIC l’aliquota mancante.', { title:'Prova collegamento FIC', icon:'🔎' });
+      await polAlert('⚠️ Non trovo l’aliquota abbinata per: ' + (miss||'—') + '.\n\nImposta l’abbinamento nel Profilo → Fatture in Cloud → «Abbinamento aliquote IVA» (scegli la voce giusta tra quelle del tuo FIC), poi riprova.', { title:'Prova collegamento FIC', icon:'🔎' });
     }
   } catch(e){
     await polAlert(e.message || 'Prova non riuscita', { title:'Prova collegamento FIC', icon:'⛔' });
