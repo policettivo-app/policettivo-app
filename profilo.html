@@ -263,6 +263,18 @@
       <div class="save-msg" id="save-msg">✅ Salvato con successo</div>
     </div>
 
+    <!-- COLLEGAMENTO FATTURE IN CLOUD (marker: fic-collega-v1) -->
+    <div class="card" id="fic-card">
+      <div class="card-title">🔗 Fatture in Cloud</div>
+      <p style="font-size:12px;color:#999;margin-bottom:14px">Collega il tuo account Fatture in Cloud per inviare le fatture direttamente dal gestionale. È facoltativo: se non usi Fatture in Cloud, continui a emettere le fatture in PDF come sempre. I dati del tuo account restano privati e separati da quelli degli altri.</p>
+
+      <div id="fic-stato" style="margin-bottom:14px"></div>
+      <div id="fic-msg" style="display:none;font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:12px"></div>
+
+      <button class="btn-save" id="fic-btn-collega" onclick="ficCollega()" style="display:none;background:#00C48C;color:#fff">🔗 Collega Fatture in Cloud</button>
+      <button class="btn-logo-remove" id="fic-btn-scollega" onclick="ficScollega()" style="display:none">Scollega</button>
+    </div>
+
     <!-- LOGO -->
     <div class="card">
       <div class="card-title">Logo studio</div>
@@ -476,6 +488,79 @@
       }
     }
 
+    // ── Collegamento Fatture in Cloud (marker: fic-collega-v1) ───────────────
+    const FIC_FN = SUPABASE_URL + '/functions/v1/fic-oauth'
+    function ficEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+    function ficRenderStato(prof){
+      var box = document.getElementById('fic-stato')
+      var bC  = document.getElementById('fic-btn-collega')
+      var bS  = document.getElementById('fic-btn-scollega')
+      if (!box) return
+      if (prof && prof.fic_connected){
+        var nome = prof.fic_company_name ? (' — ' + ficEsc(prof.fic_company_name)) : ''
+        box.innerHTML = '<span style="display:inline-block;background:#E6F9F2;color:#067a55;font-weight:700;font-size:13px;padding:6px 12px;border-radius:999px">✓ Collegato' + nome + '</span>'
+        bC.style.display = 'none'; bS.style.display = 'inline-block'
+      } else {
+        box.innerHTML = '<span style="display:inline-block;background:#f0f0f0;color:#777;font-weight:700;font-size:13px;padding:6px 12px;border-radius:999px">Non collegato</span>'
+        bC.style.display = 'inline-block'; bS.style.display = 'none'
+      }
+    }
+    function ficMsg(text, ok){
+      var m = document.getElementById('fic-msg'); if (!m) return
+      m.textContent = text; m.style.display = 'block'
+      m.style.background = ok ? '#E6F9F2' : '#ffebee'
+      m.style.color = ok ? '#067a55' : '#c62828'
+    }
+    function ficHandleReturn(){
+      var p = new URLSearchParams(location.search).get('fic')
+      if (p === 'ok') ficMsg('✅ Fatture in Cloud collegato con successo.', true)
+      else if (p === 'err') ficMsg('⛔ Collegamento non riuscito. Riprova; se persiste, controlla la configurazione dell’app FIC.', false)
+      if (p) history.replaceState(null, '', location.pathname)
+    }
+    async function ficCollega(){
+      var b = document.getElementById('fic-btn-collega')
+      b.disabled = true; b.textContent = 'Connessione…'
+      try {
+        var s = await _supabase.auth.getSession()
+        var token = (s.data && s.data.session) ? s.data.session.access_token : null
+        if (!token){ window.location.href = 'login.html'; return }
+        var r = await fetch(FIC_FN + '?action=start', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token, 'apikey': SUPABASE_KEY },
+          body: JSON.stringify({ origin: location.origin })
+        })
+        var j = await r.json().catch(function(){ return {} })
+        if (!r.ok || !j.authorize_url) throw new Error(j.error || 'avvio non riuscito')
+        window.location.href = j.authorize_url   // -> pagina FIC (login + Autorizza)
+      } catch(e){
+        console.error('[fic] collega:', e)
+        ficMsg('⛔ Non è stato possibile avviare il collegamento: ' + (e.message||e), false)
+        b.disabled = false; b.textContent = '🔗 Collega Fatture in Cloud'
+      }
+    }
+    async function ficScollega(){
+      if (!confirm('Scollegare Fatture in Cloud? Potrai ricollegarlo quando vuoi.')) return
+      var b = document.getElementById('fic-btn-scollega')
+      b.disabled = true; b.textContent = 'Scollego…'
+      try {
+        var s = await _supabase.auth.getSession()
+        var token = (s.data && s.data.session) ? s.data.session.access_token : null
+        var r = await fetch(FIC_FN + '?action=disconnect', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token, 'apikey': SUPABASE_KEY }
+        })
+        if (!r.ok) throw new Error('scollegamento non riuscito')
+        ficRenderStato({ fic_connected:false })
+        ficMsg('Fatture in Cloud scollegato.', true)
+      } catch(e){
+        console.error('[fic] scollega:', e)
+        ficMsg('⛔ ' + (e.message||e), false)
+      } finally {
+        b.disabled = false; b.textContent = 'Scollega'
+      }
+    }
+
     async function init() {
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
@@ -489,6 +574,8 @@
       if (!prof) { alert('Profilo non trovato'); window.location.href = 'dashboard.html'; return }
 
       profId = prof.id
+      ficRenderStato(prof)
+      ficHandleReturn()
       _profLogoUrl = prof.logo_url || null
       _profStudio = {
         centro:       prof.centro       || '',
