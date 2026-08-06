@@ -554,14 +554,11 @@ async function provaFic(){
     var resp = await _sb.functions.invoke('fic-push', { body: payload });
     if (resp.error){ throw new Error('Collegamento alla funzione FIC non riuscito. Riprova tra poco.'); }
     var d = resp.data || {};
-    var elenco = (d.aliquote_fic || []).map(function(a){
-      return '• ' + (a.value===0?'0%':(a.value+'%')) + (a.natura?(' '+a.natura):'') + ' — ' + (a.descrizione||'(senza descrizione)') + (a.disattivata?' [disattivata]':'') + ' [id '+a.id+']';
-    }).join('\n');
     if (d.ok){
-      await polAlert('✅ ' + (d.message||'Prova riuscita.') + '\n\nAliquote trovate in FIC:\n' + elenco, { title:'Prova collegamento FIC', icon:'🔎' });
+      await polAlert('Tutte le righe si abbinano correttamente alle aliquote di Fatture in Cloud. Nessuna fattura è stata creata: puoi emettere quando vuoi.', { title:'✅ Prova riuscita', icon:'✅' });
     } else {
       var miss = (d.missing||[]).join(', ');
-      await polAlert('⚠️ Non trovo l’aliquota abbinata per: ' + (miss||'—') + '.\n\nImposta l’abbinamento nel Profilo → Fatture in Cloud → «Abbinamento aliquote IVA» (scegli la voce giusta tra quelle del tuo FIC), poi riprova.', { title:'Prova collegamento FIC', icon:'🔎' });
+      await polAlert('Non trovo l’aliquota abbinata per: ' + (miss||'—') + '.\n\nVai nel Profilo → Fatture in Cloud → «Abbinamento aliquote IVA», scegli la voce giusta e premi «Salva abbinamento», poi riprova.', { title:'Manca un abbinamento', icon:'⚠️' });
     }
   } catch(e){
     await polAlert(e.message || 'Prova non riuscita', { title:'Prova collegamento FIC', icon:'⛔' });
