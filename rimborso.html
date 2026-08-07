@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rimborso chilometrico — Policettivo®</title>
+<!-- rimborso-v1 : modulo rimborso chilometrico (amministrazione) -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/pol-ui.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Montserrat',sans-serif; background:#f5f5f7; color:#1a1a1a; visibility:hidden; }
+  .navbar { background:#000; padding:0 20px; height:60px; display:flex; align-items:center; justify-content:space-between; }
+  .navbar-logo { color:#FFD008; font-weight:800; letter-spacing:.5px; }
+  .navbar-title { color:#fff; font-size:13px; margin-left:12px; opacity:.8; }
+  .nav-btn { background:#FFD008; border:none; color:#000; padding:7px 14px; border-radius:6px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; }
+  .main { max-width:1000px; margin:0 auto; padding:20px 16px 90px; }
+  h1 { font-size:23px; margin:4px 0 4px; }
+  .sub { color:#666; font-size:13px; margin:0 0 16px; }
+  .tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .tab { background:#fff; border:1.5px solid #e2e2e5; border-radius:999px; padding:8px 16px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; color:#555; }
+  .tab.on { background:#000; color:#FFD008; border-color:#000; }
+  .card { background:#fff; border-radius:12px; padding:18px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .card-title { font-weight:800; font-size:14px; margin-bottom:12px; }
+  .frow { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .frow3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+  .field { margin-bottom:10px; }
+  .field label { display:block; font-size:12px; font-weight:600; margin-bottom:5px; }
+  .field input, .field select, .field textarea { width:100%; padding:10px 12px; border:1.5px solid #e2e2e5; border-radius:8px; font-family:inherit; font-size:13px; background:#fff; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline:none; border-color:#FFD008; }
+  .chk { display:flex; align-items:center; gap:8px; font-size:13px; margin:6px 0; }
+  .chk input { width:18px; height:18px; accent-color:#FFD008; }
+  .btn { border:none; border-radius:8px; padding:11px 16px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+  .btn-primary { background:#00C48C; color:#fff; }
+  .btn-primary:hover { background:#00b07d; }
+  .btn-yellow { background:#FFD008; color:#000; }
+  .btn-ghost { background:#fff; border:1.5px solid #ddd; color:#555; }
+  .btn-danger { background:#fff; border:1.5px solid #f2c2c2; color:#c62828; }
+  .btn-xls { background:#000; color:#fff; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:11px; color:#999; text-transform:uppercase; letter-spacing:.3px; padding:8px 8px; border-bottom:2px solid #eee; }
+  td { padding:9px 8px; border-bottom:1px solid #f0f0f0; }
+  th.r, td.r { text-align:right; }
+  tr:hover td { background:#fcfcfc; }
+  .imp { font-weight:800; }
+  .pill { font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .pill.lav { background:#E6F9F2; color:#067a55; }
+  .pill.cl { background:#fff3e0; color:#e65100; }
+  .empty { text-align:center; color:#999; padding:26px; font-size:13px; }
+  .warn { background:#FFF9E5; border:1.5px solid #FFE49A; color:#7a5a00; border-radius:8px; padding:9px 12px; font-size:12.5px; line-height:1.5; margin-top:8px; }
+  .stat { display:inline-block; background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:10px 14px; font-size:13px; font-weight:700; margin-right:10px; }
+  .row-actions { display:flex; gap:6px; }
+  .mini { border:none; background:transparent; cursor:pointer; font-size:14px; border-radius:6px; padding:4px 6px; }
+  .mini.del { color:#c62828; }
+  .mini.del:hover { background:#ffebee; }
+  .mini.edit:hover { background:#fff8e1; }
+  .filters { display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:12px; }
+  .gate { max-width:520px; margin:60px auto; text-align:center; background:#fff; border-radius:12px; padding:32px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  @media (max-width:640px){ .frow,.frow3{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+  <nav class="navbar">
+    <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title">Rimborso chilometrico</span></div>
+    <a class="nav-btn" href="dashboard.html">← Dashboard</a>
+  </nav>
+
+  <div class="main" id="app" style="display:none">
+    <h1>Rimborso chilometrico</h1>
+    <p class="sub">Gestione trasferte e rimborsi km per operatori e dipendenti. La tariffa €/km si aggiorna a mano (tabella ACI, di norma a gennaio).</p>
+
+    <div class="tabs">
+      <button class="tab on" id="tab-trasferte" onclick="mostra('trasferte')">Trasferte</button>
+      <button class="tab" id="tab-operatori" onclick="mostra('operatori')">Operatori &amp; veicoli</button>
+      <button class="tab" id="tab-tragitti" onclick="mostra('tragitti')">Tragitti ricorrenti</button>
+    </div>
+
+    <!-- ═══ TRASFERTE ═══ -->
+    <div id="pane-trasferte">
+      <div class="card">
+        <div class="card-title">Registra una trasferta</div>
+        <div class="frow3">
+          <div class="field"><label>Operatore</label><select id="t-operatore" onchange="tCalc()"></select></div>
+          <div class="field"><label>Data</label><input type="date" id="t-data"></div>
+          <div class="field"><label>Tragitto ricorrente (facoltativo)</label><select id="t-tragitto" onchange="tApplicaTragitto()"></select></div>
+        </div>
+        <div class="frow"><div class="field"><label>Partenza</label><input type="text" id="t-partenza" placeholder="es. Studio"></div>
+          <div class="field"><label>Arrivo</label><input type="text" id="t-arrivo" placeholder="es. Domicilio paziente"></div></div>
+        <div class="frow3">
+          <div class="field"><label>Km (una tratta)</label><input type="number" id="t-km" min="0" step="0.1" oninput="tCalc()"></div>
+          <div class="field"><label>Tipo</label><select id="t-tipo" onchange="tCalc()"><option value="lavoro">Trasferta di lavoro</option><option value="casa_lavoro">Casa ↔ lavoro</option></select></div>
+          <div class="field"><label>&nbsp;</label><label class="chk"><input type="checkbox" id="t-ar" onchange="tCalc()"> Andata e ritorno (km × 2)</label></div>
+        </div>
+        <div class="field"><label>Note (facoltativo)</label><input type="text" id="t-note" placeholder="es. visita domiciliare"></div>
+        <div id="t-riepilogo" style="font-size:14px;font-weight:700;margin:6px 0"></div>
+        <div id="t-avvisi"></div>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button class="btn btn-primary" id="t-salva" onclick="tSalva()">Registra trasferta</button>
+          <button class="btn btn-ghost" onclick="tReset()">Pulisci</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="filters">
+          <div class="field" style="margin:0"><label>Mese</label><select id="f-mese" onchange="renderTrasferte()"></select></div>
+          <div class="field" style="margin:0"><label>Operatore</label><select id="f-operatore" onchange="renderTrasferte()"></select></div>
+          <button class="btn btn-xls" id="btn-xls" onclick="esportaExcel()">⬇️ Esporta Excel</button>
+        </div>
+        <div id="tot-box" style="margin-bottom:12px"></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Data</th><th>Operatore</th><th>Percorso</th><th class="r">Km</th><th>Tipo</th><th class="r">€/km</th><th class="r">Importo</th><th></th></tr></thead>
+            <tbody id="tb-trasferte"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="empty-trasferte" style="display:none">Nessuna trasferta nel periodo scelto.</div>
+      </div>
+    </div>
+
+    <!-- ═══ OPERATORI ═══ -->
+    <div id="pane-operatori" style="display:none">
+      <div class="card">
+        <div class="card-title" id="op-form-title">Nuovo operatore</div>
+        <input type="hidden" id="op-id">
+        <div class="frow3">
+          <div class="field"><label>Nome *</label><input type="text" id="op-nome"></div>
+          <div class="field"><label>Cognome</label><input type="text" id="op-cognome"></div>
+          <div class="field"><label>Email (facoltativa)</label><input type="text" id="op-email"></div>
+        </div>
+        <div class="frow3">
+          <div class="field"><label>Veicolo</label><input type="text" id="op-veicolo" placeholder="es. Fiat Panda 1.2 benzina"></div>
+          <div class="field"><label>Targa</label><input type="text" id="op-targa"></div>
+          <div class="field"><label>Alimentazione</label><select id="op-alim"><option value="">—</option><option>benzina</option><option>diesel</option><option>gpl</option><option>metano</option><option>ibrido</option><option>elettrico</option></select></div>
+        </div>
+        <div class="frow3">
+          <div class="field"><label>Cavalli fiscali (CV)</label><input type="number" id="op-cv" min="0" step="1" placeholder="es. 17"></div>
+          <div class="field"><label>Tariffa €/km (ACI)</label><input type="number" id="op-tariffa" min="0" step="0.0001" placeholder="es. 0,4523"></div>
+          <div class="field"><label>Anno tariffa</label><input type="number" id="op-anno" min="2020" step="1" placeholder="2026"></div>
+        </div>
+        <div class="warn">La tariffa €/km si ricava dalle <b>tabelle ACI</b> (in base a modello/alimentazione/km annui) e va aggiornata a mano, di norma a gennaio. La deducibilità piena vale fino a <b>17 CV benzina</b> / <b>20 CV diesel</b>.</div>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button class="btn btn-primary" id="op-salva" onclick="opSalva()">Salva operatore</button>
+          <button class="btn btn-ghost" onclick="opReset()">Annulla</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Operatori</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Operatore</th><th>Veicolo</th><th>Targa</th><th class="r">€/km</th><th>Anno</th><th></th></tr></thead>
+          <tbody id="tb-operatori"></tbody>
+        </table></div>
+        <div class="empty" id="empty-operatori" style="display:none">Nessun operatore. Aggiungi il primo qui sopra.</div>
+      </div>
+    </div>
+
+    <!-- ═══ TRAGITTI ═══ -->
+    <div id="pane-tragitti" style="display:none">
+      <div class="card">
+        <div class="card-title" id="tr-form-title">Nuovo tragitto ricorrente</div>
+        <input type="hidden" id="tr-id">
+        <div class="field"><label>Descrizione *</label><input type="text" id="tr-desc" placeholder="es. Studio → Domicilio Rossi"></div>
+        <div class="frow"><div class="field"><label>Partenza</label><input type="text" id="tr-partenza"></div>
+          <div class="field"><label>Arrivo</label><input type="text" id="tr-arrivo"></div></div>
+        <div class="frow"><div class="field"><label>Km (una tratta)</label><input type="number" id="tr-km" min="0" step="0.1"></div>
+          <div class="field"><label>Tipo</label><select id="tr-tipo"><option value="lavoro">Trasferta di lavoro</option><option value="casa_lavoro">Casa ↔ lavoro</option></select></div></div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button class="btn btn-primary" id="tr-salva" onclick="trSalva()">Salva tragitto</button>
+          <button class="btn btn-ghost" onclick="trReset()">Annulla</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Tragitti salvati</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Descrizione</th><th>Percorso</th><th class="r">Km</th><th>Tipo</th><th></th></tr></thead>
+          <tbody id="tb-tragitti"></tbody>
+        </table></div>
+        <div class="empty" id="empty-tragitti" style="display:none">Nessun tragitto salvato. Aggiungine uno per compilare le trasferte in due clic.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gate ruolo -->
+  <div class="gate" id="gate" style="display:none">
+    <div style="font-size:40px">🔒</div>
+    <h2 style="margin:10px 0 6px;font-size:18px">Sezione riservata all'amministrazione</h2>
+    <p style="color:#666;font-size:13px">Il rimborso chilometrico è gestito dal ruolo <b>amministrazione</b>. Se ti serve l'accesso, chiedilo al titolare dello studio.</p>
+    <a class="nav-btn" href="dashboard.html" style="display:inline-block;margin-top:14px">← Torna alla dashboard</a>
+  </div>
+
+<script>
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var _sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+var authUid = null;
+var operatori = [];
+var tragitti  = [];
+var trasferte = [];
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function n2(n){ return Math.round((Number(n)||0)*100)/100; }
+function fmtEur(n){ return (Number(n)||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+function fmtKm(n){ return (Number(n)||0).toLocaleString('it-IT',{minimumFractionDigits:0,maximumFractionDigits:1}); }
+function fmtDataIT(iso){ if(!iso) return ''; var p=String(iso).substring(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function todayISO(){ return new Date().toISOString().substring(0,10); }
+function opById(id){ for(var i=0;i<operatori.length;i++){ if(operatori[i].id===id) return operatori[i]; } return null; }
+function trById(id){ for(var i=0;i<tragitti.length;i++){ if(tragitti[i].id===id) return tragitti[i]; } return null; }
+function nomeOp(o){ return o ? ((o.nome||'')+' '+(o.cognome||'')).trim() : '—'; }
+
+// ── Tabs ──
+function mostra(k){
+  ['trasferte','operatori','tragitti'].forEach(function(x){
+    document.getElementById('pane-'+x).style.display = (x===k)?'':'none';
+    document.getElementById('tab-'+x).classList.toggle('on', x===k);
+  });
+}
+
+// ── Avvisi fiscali ──
+function avvisiTrasferta(op, tipo){
+  var out = [];
+  if (tipo === 'casa_lavoro'){
+    out.push('Tratto <b>casa ↔ lavoro</b>: di norma è reddito tassato in busta paga, non un rimborso esente. Verifica col commercialista.');
+  }
+  if (op){
+    var cv = Number(op.cavalli_fiscali)||0;
+    var al = (op.alimentazione||'').toLowerCase();
+    if (cv>0 && ((/(benzina|gpl|metano|ibrido)/.test(al) && cv>17) || (/diesel/.test(al) && cv>20))){
+      out.push('Veicolo oltre i limiti ACI (17 CV benzina / 20 CV diesel): la quota eccedente potrebbe <b>non essere deducibile</b>.');
+    }
+    if (!(Number(op.tariffa_km)>0)){
+      out.push('Questo operatore non ha una <b>tariffa €/km</b> impostata: l’importo sarà 0. Impostala in «Operatori & veicoli».');
+    }
+  }
+  return out;
+}
+
+// ── Trasferte: form ──
+function popolaSelectOperatori(){
+  var sel = document.getElementById('t-operatore');
+  var fop = document.getElementById('f-operatore');
+  var opts = '<option value="">— scegli —</option>';
+  var fopts = '<option value="">Tutti</option>';
+  for (var i=0;i<operatori.length;i++){ if(operatori[i].attivo===false) continue;
+    opts += '<option value="'+esc(operatori[i].id)+'">'+esc(nomeOp(operatori[i]))+'</option>';
+  }
+  for (var j=0;j<operatori.length;j++){ fopts += '<option value="'+esc(operatori[j].id)+'">'+esc(nomeOp(operatori[j]))+'</option>'; }
+  sel.innerHTML = opts; fop.innerHTML = fopts;
+}
+function popolaSelectTragitti(){
+  var sel = document.getElementById('t-tragitto');
+  var opts = '<option value="">— nessuno —</option>';
+  for (var i=0;i<tragitti.length;i++){ opts += '<option value="'+esc(tragitti[i].id)+'">'+esc(tragitti[i].descrizione)+' ('+fmtKm(tragitti[i].km)+' km)</option>'; }
+  sel.innerHTML = opts;
+}
+function tApplicaTragitto(){
+  var t = trById(document.getElementById('t-tragitto').value);
+  if (!t) return;
+  document.getElementById('t-partenza').value = t.partenza||'';
+  document.getElementById('t-arrivo').value   = t.arrivo||'';
+  document.getElementById('t-km').value       = (t.km!=null? t.km : '');
+  document.getElementById('t-tipo').value      = t.tipo||'lavoro';
+  tCalc();
+}
+function tCalc(){
+  var op = opById(document.getElementById('t-operatore').value);
+  var km = Number(document.getElementById('t-km').value)||0;
+  var ar = document.getElementById('t-ar').checked;
+  var tipo = document.getElementById('t-tipo').value;
+  var kmTot = ar ? n2(km*2) : n2(km);
+  var tar = op ? (Number(op.tariffa_km)||0) : 0;
+  var imp = n2(kmTot * tar);
+  document.getElementById('t-riepilogo').innerHTML =
+    'Km totali: <b>'+fmtKm(kmTot)+'</b> · Tariffa: <b>'+(tar? fmtEur(tar).replace(' €','')+' €/km':'—')+'</b> · Rimborso: <b>'+fmtEur(imp)+'</b>';
+  var av = avvisiTrasferta(op, tipo);
+  document.getElementById('t-avvisi').innerHTML = av.length ? ('<div class="warn">'+av.join('<br>')+'</div>') : '';
+  return { op:op, km:km, ar:ar, kmTot:kmTot, tar:tar, imp:imp, tipo:tipo };
+}
+function tReset(){
+  document.getElementById('t-tragitto').value='';
+  document.getElementById('t-partenza').value='';
+  document.getElementById('t-arrivo').value='';
+  document.getElementById('t-km').value='';
+  document.getElementById('t-note').value='';
+  document.getElementById('t-ar').checked=false;
+  document.getElementById('t-tipo').value='lavoro';
+  tCalc();
+}
+async function tSalva(){
+  var c = tCalc();
+  if (!c.op){ await polAlert('Scegli l’operatore.', { title:'Manca l’operatore', icon:'🚗' }); return; }
+  if (!(c.kmTot>0)){ await polAlert('Inserisci i chilometri della trasferta.', { title:'Km mancanti', icon:'🚗' }); return; }
+  var btn = document.getElementById('t-salva'); btn.disabled=true; btn.textContent='Salvataggio…';
+  var payload = {
+    operatore_id: c.op.id,
+    tragitto_id: document.getElementById('t-tragitto').value || null,
+    data: document.getElementById('t-data').value || todayISO(),
+    partenza: document.getElementById('t-partenza').value.trim() || null,
+    arrivo: document.getElementById('t-arrivo').value.trim() || null,
+    km: n2(c.km), andata_ritorno: c.ar, km_totali: c.kmTot,
+    tipo: c.tipo, tariffa_km: c.tar, importo: c.imp,
+    note: document.getElementById('t-note').value.trim() || null
+  };
+  var ins = await _sb.from('rimborso_trasferte').insert(payload).select('*').maybeSingle();
+  btn.disabled=false; btn.textContent='Registra trasferta';
+  if (ins.error){ await polAlert('Errore nel salvataggio: '+(ins.error.message||''), { title:'Errore', icon:'⛔' }); return; }
+  trasferte.unshift(ins.data);
+  tReset();
+  aggiornaFiltriMese();
+  renderTrasferte();
+  await polAlert('Trasferta registrata: '+fmtEur(c.imp)+'.', { title:'✅ Fatto', icon:'✅' });
+}
+
+// ── Trasferte: elenco + export ──
+function aggiornaFiltriMese(){
+  var sel = document.getElementById('f-mese');
+  var mesi = {};
+  for (var i=0;i<trasferte.length;i++){ var m=String(trasferte[i].data||'').substring(0,7); if(m) mesi[m]=true; }
+  var cur = todayISO().substring(0,7); mesi[cur]=true;
+  var lista = Object.keys(mesi).sort().reverse();
+  var val = sel.value;
+  var opts = '<option value="">Tutti i mesi</option>';
+  for (var k=0;k<lista.length;k++){ var mm=lista[k]; var p=mm.split('-'); opts += '<option value="'+mm+'">'+p[1]+'/'+p[0]+'</option>'; }
+  sel.innerHTML = opts; if (val) sel.value = val;
+}
+function trasferteFiltrate(){
+  var mese = document.getElementById('f-mese').value;
+  var opId = document.getElementById('f-operatore').value;
+  return trasferte.filter(function(t){
+    if (mese && String(t.data||'').substring(0,7)!==mese) return false;
+    if (opId && t.operatore_id!==opId) return false;
+    return true;
+  }).sort(function(a,b){ return (a.data<b.data?1:(a.data>b.data?-1:0)); });
+}
+function renderTrasferte(){
+  var arr = trasferteFiltrate();
+  var tb = document.getElementById('tb-trasferte');
+  document.getElementById('empty-trasferte').style.display = arr.length?'none':'block';
+  var html=''; var tot=0, totKm=0, totCL=0;
+  for (var i=0;i<arr.length;i++){
+    var t=arr[i]; tot += Number(t.importo)||0; totKm += Number(t.km_totali)||0;
+    if (t.tipo==='casa_lavoro') totCL += Number(t.importo)||0;
+    var perc = [t.partenza,t.arrivo].filter(function(x){return x;}).join(' → ') || (t.note||'—');
+    html += '<tr>' +
+      '<td>'+esc(fmtDataIT(t.data))+'</td>' +
+      '<td>'+esc(nomeOp(opById(t.operatore_id)))+'</td>' +
+      '<td>'+esc(perc)+(t.andata_ritorno?' <span class="pill lav">A/R</span>':'')+'</td>' +
+      '<td class="r">'+fmtKm(t.km_totali)+'</td>' +
+      '<td>'+(t.tipo==='casa_lavoro'?'<span class="pill cl">casa-lavoro</span>':'<span class="pill lav">lavoro</span>')+'</td>' +
+      '<td class="r">'+(Number(t.tariffa_km)? fmtEur(t.tariffa_km).replace(' €',''):'—')+'</td>' +
+      '<td class="r imp">'+fmtEur(t.importo)+'</td>' +
+      '<td><div class="row-actions"><button class="mini del" title="Elimina" onclick="tElimina(\''+esc(t.id)+'\')">🗑</button></div></td>' +
+    '</tr>';
+  }
+  tb.innerHTML = html;
+  var box = '<span class="stat">Trasferte: '+arr.length+'</span><span class="stat">Km totali: '+fmtKm(totKm)+'</span><span class="stat">Rimborso: '+fmtEur(tot)+'</span>';
+  if (totCL>0) box += '<span class="stat" style="background:#fff3e0;border-color:#ffcc80">di cui casa-lavoro (tassato): '+fmtEur(totCL)+'</span>';
+  document.getElementById('tot-box').innerHTML = box;
+  document.getElementById('btn-xls').disabled = arr.length===0;
+}
+async function tElimina(id){
+  var ok = await polConfirm('Eliminare questa trasferta?', { title:'Conferma', icon:'🗑', okLabel:'Elimina', cancelLabel:'Annulla' });
+  if (!ok) return;
+  var res = await _sb.from('rimborso_trasferte').delete().eq('id', id);
+  if (res.error){ await polAlert('Errore: '+(res.error.message||''), { title:'Errore', icon:'⛔' }); return; }
+  trasferte = trasferte.filter(function(t){ return t.id!==id; });
+  renderTrasferte();
+}
+function esportaExcel(){
+  var arr = trasferteFiltrate(); if (!arr.length) return;
+  var header = ['Data','Operatore','Veicolo','Targa','Partenza','Arrivo','Km tratta','A/R','Km totali','Tipo','€/km','Importo','Note'];
+  var aoa = [header]; var tot=0;
+  for (var i=0;i<arr.length;i++){
+    var t=arr[i]; var o=opById(t.operatore_id)||{}; tot += Number(t.importo)||0;
+    aoa.push([
+      fmtDataIT(t.data), nomeOp(o), o.veicolo||'', o.targa||'',
+      t.partenza||'', t.arrivo||'', n2(t.km), t.andata_ritorno?'Sì':'No', n2(t.km_totali),
+      (t.tipo==='casa_lavoro'?'Casa-lavoro (tassato)':'Lavoro'),
+      n2(t.tariffa_km), n2(t.importo), t.note||''
+    ]);
+  }
+  aoa.push([]); aoa.push(['','','','','','','','','','','','TOTALE', n2(tot)]);
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:11},{wch:20},{wch:22},{wch:10},{wch:18},{wch:18},{wch:9},{wch:6},{wch:9},{wch:20},{wch:9},{wch:11},{wch:24}];
+  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Rimborsi km');
+  var mese = document.getElementById('f-mese').value || 'tutti';
+  XLSX.writeFile(wb, 'rimborso_km_'+mese+'.xlsx');
+}
+
+// ── Operatori CRUD ──
+function opReset(){
+  document.getElementById('op-id').value='';
+  ['op-nome','op-cognome','op-email','op-veicolo','op-targa','op-cv','op-tariffa','op-anno'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('op-alim').value='';
+  document.getElementById('op-form-title').textContent='Nuovo operatore';
+}
+function opEdit(id){
+  var o = opById(id); if(!o) return;
+  document.getElementById('op-id').value=o.id;
+  document.getElementById('op-nome').value=o.nome||'';
+  document.getElementById('op-cognome').value=o.cognome||'';
+  document.getElementById('op-email').value=o.email||'';
+  document.getElementById('op-veicolo').value=o.veicolo||'';
+  document.getElementById('op-targa').value=o.targa||'';
+  document.getElementById('op-alim').value=o.alimentazione||'';
+  document.getElementById('op-cv').value=(o.cavalli_fiscali!=null?o.cavalli_fiscali:'');
+  document.getElementById('op-tariffa').value=(o.tariffa_km!=null?o.tariffa_km:'');
+  document.getElementById('op-anno').value=(o.tariffa_anno!=null?o.tariffa_anno:'');
+  document.getElementById('op-form-title').textContent='Modifica operatore';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+async function opSalva(){
+  var nome = document.getElementById('op-nome').value.trim();
+  if (!nome){ await polAlert('Il nome è obbligatorio.', { title:'Manca il nome', icon:'👤' }); return; }
+  var id = document.getElementById('op-id').value;
+  var payload = {
+    nome: nome,
+    cognome: document.getElementById('op-cognome').value.trim()||null,
+    email: document.getElementById('op-email').value.trim()||null,
+    veicolo: document.getElementById('op-veicolo').value.trim()||null,
+    targa: document.getElementById('op-targa').value.trim().toUpperCase()||null,
+    alimentazione: document.getElementById('op-alim').value||null,
+    cavalli_fiscali: document.getElementById('op-cv').value!==''? Number(document.getElementById('op-cv').value):null,
+    tariffa_km: document.getElementById('op-tariffa').value!==''? Number(document.getElementById('op-tariffa').value):0,
+    tariffa_anno: document.getElementById('op-anno').value!==''? Number(document.getElementById('op-anno').value):null
+  };
+  var btn=document.getElementById('op-salva'); btn.disabled=true; btn.textContent='Salvataggio…';
+  var res;
+  if (id){ res = await _sb.from('rimborso_operatori').update(payload).eq('id', id).select('*').maybeSingle(); }
+  else   { res = await _sb.from('rimborso_operatori').insert(payload).select('*').maybeSingle(); }
+  btn.disabled=false; btn.textContent='Salva operatore';
+  if (res.error){ await polAlert('Errore: '+(res.error.message||''), { title:'Errore', icon:'⛔' }); return; }
+  if (id){ for(var i=0;i<operatori.length;i++){ if(operatori[i].id===id) operatori[i]=res.data; } }
+  else operatori.push(res.data);
+  operatori.sort(function(a,b){ return nomeOp(a).localeCompare(nomeOp(b)); });
+  opReset(); renderOperatori(); popolaSelectOperatori();
+}
+async function opElimina(id){
+  var ok = await polConfirm('Eliminare questo operatore? Le trasferte già registrate restano.', { title:'Conferma', icon:'🗑', okLabel:'Elimina', cancelLabel:'Annulla' });
+  if (!ok) return;
+  var res = await _sb.from('rimborso_operatori').delete().eq('id', id);
+  if (res.error){ await polAlert('Non è stato possibile eliminare (potrebbe avere trasferte collegate): '+(res.error.message||''), { title:'Errore', icon:'⛔' }); return; }
+  operatori = operatori.filter(function(o){ return o.id!==id; });
+  renderOperatori(); popolaSelectOperatori();
+}
+function renderOperatori(){
+  var tb=document.getElementById('tb-operatori');
+  document.getElementById('empty-operatori').style.display = operatori.length?'none':'block';
+  var html='';
+  for (var i=0;i<operatori.length;i++){ var o=operatori[i];
+    html += '<tr>' +
+      '<td><b>'+esc(nomeOp(o))+'</b>'+(o.email?'<br><span style="color:#999;font-size:11px">'+esc(o.email)+'</span>':'')+'</td>' +
+      '<td>'+esc(o.veicolo||'—')+(o.alimentazione?' <span style="color:#999">('+esc(o.alimentazione)+')</span>':'')+'</td>' +
+      '<td>'+esc(o.targa||'—')+'</td>' +
+      '<td class="r">'+(Number(o.tariffa_km)? fmtEur(o.tariffa_km).replace(' €',''):'—')+'</td>' +
+      '<td>'+esc(o.tariffa_anno||'—')+'</td>' +
+      '<td><div class="row-actions"><button class="mini edit" title="Modifica" onclick="opEdit(\''+esc(o.id)+'\')">✏️</button><button class="mini del" title="Elimina" onclick="opElimina(\''+esc(o.id)+'\')">🗑</button></div></td>' +
+    '</tr>';
+  }
+  tb.innerHTML = html;
+}
+
+// ── Tragitti CRUD ──
+function trReset(){
+  document.getElementById('tr-id').value='';
+  ['tr-desc','tr-partenza','tr-arrivo','tr-km'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('tr-tipo').value='lavoro';
+  document.getElementById('tr-form-title').textContent='Nuovo tragitto ricorrente';
+}
+function trEdit(id){
+  var t=trById(id); if(!t) return;
+  document.getElementById('tr-id').value=t.id;
+  document.getElementById('tr-desc').value=t.descrizione||'';
+  document.getElementById('tr-partenza').value=t.partenza||'';
+  document.getElementById('tr-arrivo').value=t.arrivo||'';
+  document.getElementById('tr-km').value=(t.km!=null?t.km:'');
+  document.getElementById('tr-tipo').value=t.tipo||'lavoro';
+  document.getElementById('tr-form-title').textContent='Modifica tragitto';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+async function trSalva(){
+  var desc = document.getElementById('tr-desc').value.trim();
+  if (!desc){ await polAlert('Metti una descrizione al tragitto.', { title:'Manca la descrizione', icon:'🛣️' }); return; }
+  var id=document.getElementById('tr-id').value;
+  var payload = {
+    descrizione: desc,
+    partenza: document.getElementById('tr-partenza').value.trim()||null,
+    arrivo: document.getElementById('tr-arrivo').value.trim()||null,
+    km: document.getElementById('tr-km').value!==''? Number(document.getElementById('tr-km').value):0,
+    tipo: document.getElementById('tr-tipo').value||'lavoro'
+  };
+  var btn=document.getElementById('tr-salva'); btn.disabled=true; btn.textContent='Salvataggio…';
+  var res;
+  if (id){ res = await _sb.from('rimborso_tragitti').update(payload).eq('id', id).select('*').maybeSingle(); }
+  else   { res = await _sb.from('rimborso_tragitti').insert(payload).select('*').maybeSingle(); }
+  btn.disabled=false; btn.textContent='Salva tragitto';
+  if (res.error){ await polAlert('Errore: '+(res.error.message||''), { title:'Errore', icon:'⛔' }); return; }
+  if (id){ for(var i=0;i<tragitti.length;i++){ if(tragitti[i].id===id) tragitti[i]=res.data; } }
+  else tragitti.push(res.data);
+  tragitti.sort(function(a,b){ return String(a.descrizione).localeCompare(String(b.descrizione)); });
+  trReset(); renderTragitti(); popolaSelectTragitti();
+}
+async function trElimina(id){
+  var ok = await polConfirm('Eliminare questo tragitto ricorrente?', { title:'Conferma', icon:'🗑', okLabel:'Elimina', cancelLabel:'Annulla' });
+  if (!ok) return;
+  var res = await _sb.from('rimborso_tragitti').delete().eq('id', id);
+  if (res.error){ await polAlert('Errore: '+(res.error.message||''), { title:'Errore', icon:'⛔' }); return; }
+  tragitti = tragitti.filter(function(t){ return t.id!==id; });
+  renderTragitti(); popolaSelectTragitti();
+}
+function renderTragitti(){
+  var tb=document.getElementById('tb-tragitti');
+  document.getElementById('empty-tragitti').style.display = tragitti.length?'none':'block';
+  var html='';
+  for (var i=0;i<tragitti.length;i++){ var t=tragitti[i];
+    var perc=[t.partenza,t.arrivo].filter(function(x){return x;}).join(' → ')||'—';
+    html += '<tr>' +
+      '<td><b>'+esc(t.descrizione)+'</b></td>' +
+      '<td>'+esc(perc)+'</td>' +
+      '<td class="r">'+fmtKm(t.km)+'</td>' +
+      '<td>'+(t.tipo==='casa_lavoro'?'<span class="pill cl">casa-lavoro</span>':'<span class="pill lav">lavoro</span>')+'</td>' +
+      '<td><div class="row-actions"><button class="mini edit" title="Modifica" onclick="trEdit(\''+esc(t.id)+'\')">✏️</button><button class="mini del" title="Elimina" onclick="trElimina(\''+esc(t.id)+'\')">🗑</button></div></td>' +
+    '</tr>';
+  }
+  tb.innerHTML = html;
+}
+
+// ── Init ──
+async function init(){
+  var sess = await _sb.auth.getSession();
+  if (!sess.data || !sess.data.session){ window.location.href='login.html'; return; }
+  authUid = sess.data.session.user.id;
+
+  var pr = await _sb.from('professionals').select('ruolo').eq('user_id', authUid).maybeSingle();
+  var ruolo = (pr.data && pr.data.ruolo) ? pr.data.ruolo : null;
+  var ammesso = (ruolo==='amministrazione' || ruolo==='master');
+  if (!ammesso){
+    document.getElementById('gate').style.display='block';
+    document.body.style.visibility='visible';
+    return;
+  }
+
+  document.getElementById('t-data').value = todayISO();
+
+  var ro = await _sb.from('rimborso_operatori').select('*').order('nome',{ascending:true});
+  operatori = (ro.data||[]);
+  var rt = await _sb.from('rimborso_tragitti').select('*').order('descrizione',{ascending:true});
+  tragitti = (rt.data||[]);
+  var rtr = await _sb.from('rimborso_trasferte').select('*').order('data',{ascending:false});
+  trasferte = (rtr.data||[]);
+
+  popolaSelectOperatori(); popolaSelectTragitti();
+  aggiornaFiltriMese();
+  renderOperatori(); renderTragitti(); renderTrasferte();
+  tCalc();
+
+  document.getElementById('app').style.display='';
+  document.body.style.visibility='visible';
+}
+init();
+</script>
+</body>
+</html>

@@ -350,6 +350,7 @@
           <button class="d-av-btn" onclick="window.location.href='fatture.html'">📑 Registro fatture</button>
           <button class="d-av-btn" onclick="window.location.href='lettera-ai.html'">✨ Lettera / Relazione AI</button>
           <button id="btn-studio-link" class="d-av-btn" onclick="window.location.href='studio.html'">🏢 Il mio Studio</button>
+          <button id="btn-rimborso-link" class="d-av-btn" style="display:none" onclick="window.location.href='rimborso.html'">🚗 Rimborso km</button>
           <button id="btn-admin-link" class="d-av-btn" onclick="window.location.href='admin.html'">⚙️ Admin</button>
           <button class="d-av-btn" onclick="openGuida()">❓ Guida</button>
           <div class="d-av-sep"></div>
@@ -806,6 +807,10 @@
         if (_meRuolo && _meRuolo.ruolo === 'master') {
           const btnStudio = document.getElementById('btn-studio-link')
           if (btnStudio) btnStudio.style.display = 'block'
+        }
+        if (_meRuolo && (_meRuolo.ruolo === 'master' || _meRuolo.ruolo === 'amministrazione')) {
+          const btnRimb = document.getElementById('btn-rimborso-link')
+          if (btnRimb) btnRimb.style.display = 'block'
         }
         if (!window.isPremium) {
           const { data: _prof, error: _profErr } = await _supabase.from('professionals').select('ai_uses').eq('id', currentProfessionalId).maybeSingle()
