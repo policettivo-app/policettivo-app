@@ -154,6 +154,13 @@
       <div id="sedute-list"></div>
     </div>
 
+    <!-- noleggi-fattura-v1 : addebiti di noleggi e vendite -->
+    <div class="card" id="noleggi-card" style="display:none">
+      <div class="card-title">Noleggi e prodotti da fatturare</div>
+      <div class="hint">Spunta le righe di noleggio o vendita da mettere in questa fattura. Ognuna porta la sua IVA: le terapie restano esenti art. 10, i beni no — la fattura diventa a IVA mista e il bollo si calcola solo sulla parte senza IVA.</div>
+      <div id="noleggi-list"></div>
+    </div>
+
     <!-- RIGHE -->
     <div class="card">
       <div class="card-title">Voci della fattura</div>
@@ -233,6 +240,7 @@ var prof     = null;      // record professionals
 var authUid  = null;      // auth.uid() = professional_id nelle fatture
 var patient  = null;      // record patients
 var sedute   = [];        // therapy_sessions con costo
+var addebiti = [];        // noleggi-fattura-v1: righe di noleggi_addebiti del paziente
 var righe    = [];        // [{descrizione, quantita, prezzo, session_id?, costoOrig?}]
 
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -389,6 +397,49 @@ function setPrezzoSeduta(id, val){
   renderRighe();  // aggiorna importi/totali (il riquadro riga resta la fonte editabile principale)
 }
 
+// ─── noleggi-fattura-v1 — addebiti di noleggi e vendite ─────────────
+// A differenza delle sedute NON c'e' writeback: l'addebito e' uno storico
+// gia' generato (una tantum o canone del mese) e non va riscritto dalla fattura.
+// Il prezzo resta comunque modificabile sulla riga della fattura.
+function rigaDiAddebito(id){ for (var i=0;i<righe.length;i++){ if (righe[i].addebito_id===id) return i; } return -1; }
+
+function renderAddebiti(){
+  var box = document.getElementById('noleggi-list');
+  if (!box) return;
+  if (!addebiti.length){ box.innerHTML = '<div class="sed-empty">Nessun noleggio o prodotto per questo paziente.</div>'; return; }
+  var html = '';
+  for (var i=0;i<addebiti.length;i++){
+    var a = addebiti[i];
+    var checked = rigaDiAddebito(a.id) !== -1;
+    var iva = ivaByCode(a.iva_code || ivaDefaultProf());
+    var per = String(a.periodo || '').substring(0,10);
+    html += '<div class="sed-row">' +
+      '<input type="checkbox" '+(checked?'checked':'')+' onchange="toggleAddebito(\''+esc(a.id)+'\')">' +
+      '<span class="sed-date">'+esc(fmtDataIT(per))+'</span>' +
+      '<span class="sed-desc">'+esc(a.descrizione || 'Noleggio')+' · '+esc(iva ? iva.label : '')+'</span>' +
+      '<span class="sed-price">'+fmtEur(a.importo)+'</span>' +
+    '</div>';
+  }
+  box.innerHTML = html;
+}
+
+function toggleAddebito(id){
+  var idx = rigaDiAddebito(id);
+  if (idx !== -1){ righe.splice(idx,1); }
+  else {
+    var a = null; for (var i=0;i<addebiti.length;i++){ if (addebiti[i].id===id){ a=addebiti[i]; break; } }
+    if (!a) return;
+    righe.push({
+      descrizione: a.descrizione || 'Noleggio',
+      quantita: 1,
+      prezzo: (a.importo != null ? Number(a.importo) : ''),
+      ivaCode: a.iva_code || undefined,
+      addebito_id: id
+    });
+  }
+  renderAddebiti(); renderRighe();
+}
+
 // ─── Righe ──────────────────────────────────────────────────────────
 function renderRighe(){
   var box = document.getElementById('righe');
@@ -429,9 +480,10 @@ function aggiungiRiga(){ righe.push({descrizione:'', quantita:1, prezzo:''}); re
 function aggiungiSconto(){ righe.push({descrizione:'Sconto', quantita:1, prezzo:'', tipo:'sconto'}); renderRighe(); }
 function rimuoviRiga(i){
   var wasLinked = righe[i] && righe[i].session_id;
+  var wasAdd    = righe[i] && righe[i].addebito_id;   // noleggi-fattura-v1
   righe.splice(i,1);
   if(!righe.length && !reprint) righe.push({descrizione:'Prestazione FKT', quantita:1, prezzo:''});
-  renderRighe(); if (wasLinked) renderSedute();
+  renderRighe(); if (wasLinked) renderSedute(); if (wasAdd) renderAddebiti();
 }
 function aggiungiDaListino(){
   var sel = document.getElementById('lst-sel');
@@ -813,6 +865,7 @@ async function init(){
 
     // Nascondi composizione
     document.getElementById('sedute-card').style.display = 'none';
+    var _nc = document.getElementById('noleggi-card'); if (_nc) _nc.style.display = 'none';
     document.getElementById('add-row-box').style.display = 'none';
     document.getElementById('ts-card').style.display = 'none';
     document.getElementById('emissione-fields').style.display = 'none';
@@ -857,6 +910,17 @@ async function init(){
   sedute = (sres.data || []).filter(function(s){ return s.costo != null && isFinite(Number(s.costo)); });
   document.getElementById('sedute-card').style.display = '';
   renderSedute();
+
+  // noleggi-fattura-v1 — addebiti di noleggi/vendite del paziente
+  try {
+    var nres = await _sb.from('noleggi_addebiti').select('*').eq('patient_id', pid).order('periodo', { ascending: false });
+    if (nres && nres.error) console.error('[fattura] noleggi_addebiti error:', nres.error);
+    addebiti = (nres && nres.data ? nres.data : []).filter(function(a){ return Number(a.importo) > 0; });
+  } catch(e){ console.error('[fattura] noleggi_addebiti exception:', e); addebiti = []; }
+  if (addebiti.length){
+    document.getElementById('noleggi-card').style.display = '';
+    renderAddebiti();
+  }
 
   // Card TS solo per sanitari
   if (prof.professione_sanitaria){

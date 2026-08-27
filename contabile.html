@@ -159,7 +159,17 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 .row-edit-form .btn-cancel:hover { border-color: #bbb; color: #000; }
 
 /* Totali */
-.totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+/* noleggi-contabile-v1 : da 5 a 6 numeri (aggiunta la voce Noleggi/Vendite) */
+.totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+.total-card.nol { background: #e3f2fd; border-color: #90caf9; }
+.total-card.nol .total-val { color: #1565c0; }
+.nol-list { margin-top: 4px; }
+.nol-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 2px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.nol-row:last-child { border-bottom: none; }
+.nol-desc { flex: 1 1 auto; min-width: 0; }
+.nol-date { font-size: 11px; color: #888; margin-top: 2px; }
+.nol-empty { padding: 18px 4px; color: #999; font-size: 13px; text-align: center; }
+.nol-amt { font-weight: 700; white-space: nowrap; }
 .total-card { background: #fff; border-radius: 12px; padding: 14px 18px; border: 1px solid #eee; }
 .total-lbl { font-size: 10px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
 .total-val { font-size: 22px; font-weight: 800; color: #000; font-variant-numeric: tabular-nums; }
@@ -214,6 +224,7 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
   <h1>💶 Contabile</h1>
   <button class="back-btn" id="btn-vai-diario" onclick="vaiAlDiario()">📒 Diario</button>
   <button class="back-btn" id="btn-vai-registro" onclick="vaiAlRegistro()">📑 Registro</button>
+  <button class="back-btn" id="btn-vai-noleggi" onclick="vaiAiNoleggi()">📦 Noleggi</button>
   <span class="pname" id="pname">…</span>
 </div>
 
@@ -281,10 +292,23 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
     </div>
   </div>
 
+  <!-- NOLEGGI E PRODOTTI (noleggi-contabile-v1) -->
+  <div class="pag-section" id="nol-section">
+    <div class="pag-title">📦 Noleggi e prodotti</div>
+    <div class="pag-hint">Righe generate dalla pagina Noleggi: entrano nel conto come le sedute. Lo stato si calcola dagli incassi, dalla riga più vecchia in avanti.</div>
+    <div class="nol-list" id="nol-list">
+      <div class="nol-empty">Nessun noleggio o prodotto per questo paziente.</div>
+    </div>
+  </div>
+
   <div class="totals">
     <div class="total-card">
       <div class="total-lbl">Prestazioni (periodo)</div>
       <div class="total-val" id="tot-dovuto">— €</div>
+    </div>
+    <div class="total-card nol" id="tot-noleggi-card">
+      <div class="total-lbl">Noleggi / Vendite (periodo)</div>
+      <div class="total-val" id="tot-noleggi">— €</div>
     </div>
     <div class="total-card paid">
       <div class="total-lbl">Incassato (periodo)</div>
@@ -363,6 +387,10 @@ var _editingId = null;      // id seduta in edit costo/descrizione
 var _selected = Object.create(null); // { id_seduta: true } — sedute selezionate per batch
 var _pagEditingId = null;   // id pagamento in edit
 var _fatture = [];          // fatture del paziente (per badge Fatturato/Da fatturare)
+// noleggi-contabile-v1 — righe a valore dei noleggi/vendite (tabella noleggi_addebiti).
+// Sono "venduto" esattamente come le sedute: NON sono soldi. I soldi restano
+// solo in patient_payments. Entrano quindi nel Residuo e nella coda FIFO.
+var _addebiti = [];
 
 function _esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -374,6 +402,10 @@ function tornaAlPaziente() {
 
 function vaiAlDiario() {
   if (pid) window.location.href = 'diario.html?pid=' + pid + '&from=contabile';
+}
+
+function vaiAiNoleggi() {
+  if (pid) window.location.href = 'noleggi.html?pid=' + encodeURIComponent(pid);
 }
 
 function vaiAlRegistro() {
@@ -466,21 +498,40 @@ function _sedutePerPeriodo(){
 // le sedute dalla più vecchia. Nessun flag manuale → lo stato non mente mai.
 // Ritorna mappa { id: {stato:'paid'|'partial'|'unpaid', pagato, costo} }.
 var _statoMap = Object.create(null);
+var _statoAddMap = Object.create(null);   // noleggi-contabile-v1: stesso calcolo per gli addebiti
 function _calcolaStatoSedute(){
   _statoMap = Object.create(null);
-  // Tutte le sedute con costo, ordinate dalla più vecchia
-  var conCosto = _sedute.filter(function(s){ return s.costo != null && isFinite(Number(s.costo)); });
-  conCosto.sort(function(a,b){ return String(a.data_seduta||'').localeCompare(String(b.data_seduta||'')); });
+  _statoAddMap = Object.create(null);
+
+  // noleggi-contabile-v1 — coda UNICA di tutto il venduto, sedute e noleggi
+  // insieme, ordinata dalla più vecchia. I soldi coprono il debito più vecchio
+  // qualunque cosa sia: se pagassimo prima le sedute e poi i noleggi (o
+  // viceversa) lo stato mentirebbe a chi guarda una sola delle due liste.
+  var coda = [];
+  for (var i0 = 0; i0 < _sedute.length; i0++) {
+    var s0 = _sedute[i0];
+    if (s0.costo == null || !isFinite(Number(s0.costo))) continue;
+    coda.push({ kind:'seduta', id:s0.id, data:String(s0.data_seduta||''), costo:Number(s0.costo) });
+  }
+  for (var i1 = 0; i1 < _addebiti.length; i1++) {
+    var a1 = _addebiti[i1];
+    var imp = Number(a1.importo);
+    if (!isFinite(imp) || imp === 0) continue;   // le righe gratuite non entrano nel conto
+    coda.push({ kind:'addebito', id:a1.id, data:String(a1.periodo||''), costo:imp });
+  }
+  coda.sort(function(a,b){ return String(a.data).localeCompare(String(b.data)); });
+
   // Incassato totale (tutti i versamenti, storico)
   var incassato = 0;
   for (var i = 0; i < _pagamenti.length; i++) { var v = Number(_pagamenti[i].importo); if (isFinite(v)) incassato += v; }
   var residuoDaCoprire = incassato;
-  for (var j = 0; j < conCosto.length; j++) {
-    var s = conCosto[j]; var costo = Number(s.costo);
+  for (var j = 0; j < coda.length; j++) {
+    var r = coda[j]; var costo = r.costo;
     var pagato = Math.max(0, Math.min(costo, residuoDaCoprire));
     residuoDaCoprire -= pagato;
     var stato = pagato >= costo - 0.005 ? 'paid' : (pagato > 0.005 ? 'partial' : 'unpaid');
-    _statoMap[s.id] = { stato: stato, pagato: pagato, costo: costo };
+    var cell = { stato: stato, pagato: pagato, costo: costo };
+    if (r.kind === 'seduta') _statoMap[r.id] = cell; else _statoAddMap[r.id] = cell;
   }
 }
 
@@ -570,6 +621,33 @@ function _pagPerPeriodo(){
   });
 }
 
+// ── noleggi-contabile-v1 ────────────────────────────────────────────
+// Gli addebiti dei noleggi filtrati per periodo (campo `periodo`, non `data`).
+function _addebitiPerPeriodo(){
+  var daStr = document.getElementById('f-da').value;
+  var aStr  = document.getElementById('f-a').value;
+  return _addebiti.filter(function(a){
+    var p = String(a.periodo || '').substring(0,10);
+    if (!p) return true;
+    if (daStr && p < daStr) return false;
+    if (aStr  && p > aStr ) return false;
+    return true;
+  });
+}
+function _totAddebitiStorico(){
+  var t = 0;
+  for (var i = 0; i < _addebiti.length; i++) {
+    var v = Number(_addebiti[i].importo);
+    if (isFinite(v)) t += v;
+  }
+  return t;
+}
+// Venduto totale storico = sedute + noleggi/vendite. È questo che l'incassato
+// deve coprire: il saldo del paziente comprende anche i noleggi.
+function _totVendutoStorico(){
+  return _totCostiStorico() + _totAddebitiStorico();
+}
+
 // Somma di TUTTI i costi sedute con costo valorizzato (ignora filtro periodo)
 function _totCostiStorico(){
   var t = 0;
@@ -594,7 +672,7 @@ function _totPagamentiStorico(){
 // tutto il denaro entra esclusivamente via patient_payments, così l'identità
 // Dovuto = Versato + Residuo resta sempre valida (Residuo < 0 = credito paziente).
 function _residuoStorico(){
-  return _totCostiStorico() - _totPagamentiStorico();
+  return _totVendutoStorico() - _totPagamentiStorico();
 }
 
 function renderTotali(){
@@ -615,9 +693,18 @@ function renderTotali(){
     else if (!p.no_fattura)        daFatturare += v;      // incasso da documentare
     // gli incassi "no_fattura" restano fuori: esclusi volontariamente
   }
-  var residuo = dovuto - versato;
+  // noleggi-contabile-v1 — noleggi e vendite sono venduto: si sommano alle
+  // prestazioni dentro il Residuo, ma restano una voce separata a video.
+  var noleggiPeriodo = 0;
+  var addPeriodo = _addebitiPerPeriodo();
+  for (var k = 0; k < addPeriodo.length; k++) {
+    var an = Number(addPeriodo[k].importo);
+    if (isFinite(an)) noleggiPeriodo += an;
+  }
+  var residuo = (dovuto + noleggiPeriodo) - versato;
 
   document.getElementById('tot-dovuto').textContent    = _fmtEur(dovuto);
+  document.getElementById('tot-noleggi').textContent   = _fmtEur(noleggiPeriodo);
   document.getElementById('tot-versato').textContent   = _fmtEur(versato);
   document.getElementById('tot-fatturato').textContent = _fmtEur(fatturato);
 
@@ -645,7 +732,37 @@ function renderTotali(){
   }
 }
 
-function applicaFiltri(){ renderRighe(); renderPagamenti(); renderTotali(); }
+// noleggi-contabile-v1 — elenco degli addebiti di noleggi/vendite del periodo
+function renderNoleggi(){
+  var box = document.getElementById('nol-list');
+  if (!box) return;
+  var lista = _addebitiPerPeriodo();
+  if (!lista.length){
+    box.innerHTML = '<div class="nol-empty">Nessun noleggio o prodotto nel periodo selezionato.</div>';
+    return;
+  }
+  lista = lista.slice().sort(function(a,b){ return String(b.periodo||'').localeCompare(String(a.periodo||'')); });
+  var html = '';
+  for (var i = 0; i < lista.length; i++){
+    var a = lista[i];
+    var st = _statoAddMap[a.id];
+    var pill;
+    if (Number(a.importo) === 0)          pill = '<span class="status-pill paid">Gratuito</span>';
+    else if (!st || st.stato === 'unpaid')pill = '<span class="status-pill unpaid">🟠 Da saldare</span>';
+    else if (st.stato === 'partial')      pill = '<span class="status-pill partial">🟡 ' + _fmtEur(st.pagato) + ' / ' + _fmtEur(st.costo) + '</span>';
+    else                                  pill = '<span class="status-pill paid">✅ Saldato</span>';
+    var per = String(a.periodo || '').substring(0,10);
+    var perIT = per ? (per.substring(8,10) + '/' + per.substring(5,7) + '/' + per.substring(0,4)) : '—';
+    html += '<div class="nol-row">'
+          +   '<div class="nol-desc">' + _esc(a.descrizione || 'Noleggio') + '<div class="nol-date">' + perIT + '</div></div>'
+          +   '<div>' + pill + '</div>'
+          +   '<div class="nol-amt">' + _fmtEur(a.importo) + '</div>'
+          + '</div>';
+  }
+  box.innerHTML = html;
+}
+
+function applicaFiltri(){ renderRighe(); renderPagamenti(); renderNoleggi(); renderTotali(); }
 function resetFiltri(){
   document.getElementById('f-da').value = '';
   document.getElementById('f-a').value  = '';
@@ -1116,7 +1233,7 @@ function esportaPDF(){
   var residuoVal = isCredit ? Math.abs(residuo) : (isZeroRes ? 0 : residuo);
 
   // Saldo storico: ignora periodo. Versato storico = SOLO patient_payments.
-  var saldoStorico = _totCostiStorico() - _totPagamentiStorico();
+  var saldoStorico = _totVendutoStorico() - _totPagamentiStorico();
   var isStCreditPdf = saldoStorico < -0.005;
   var isStDebtPdf   = saldoStorico >  0.005;
   var storicoCls = isStCreditPdf ? 'credit' : (isStDebtPdf ? 'debt' : 'okpaid');
@@ -1224,7 +1341,7 @@ function esportaCSV(){
   // ── Sezione 3: Totali ──
   // Versato = SOLO patient_payments. Residuo mantiene il segno: negativo = credito.
   var residuo = dovuto - versato;
-  var saldoStorico = _totCostiStorico() - _totPagamentiStorico();
+  var saldoStorico = _totVendutoStorico() - _totPagamentiStorico();
   var residuoLblCsv = residuo < -0.005 ? 'Credito paziente (periodo)' : 'Residuo (periodo)';
   var storicoLblCsv = saldoStorico < -0.005
     ? 'Credito paziente (storico)'
@@ -1284,6 +1401,13 @@ async function init(){
     var fres = await _sb.from('fatture').select('id, numero, payment_id').eq('patient_id', pid);
     if (fres && fres.data) _fatture = fres.data;
   } catch(e) { console.error('[contabile] fetch fatture error:', e); }
+
+  // noleggi-contabile-v1 — addebiti di noleggi/vendite (RLS filtra al pro corrente)
+  try {
+    var nres = await _sb.from('noleggi_addebiti').select('*').eq('patient_id', pid).order('periodo', { ascending: false });
+    if (nres && nres.data) _addebiti = nres.data;
+    if (nres && nres.error) console.error('[contabile] fetch noleggi_addebiti error:', nres.error);
+  } catch(e) { console.error('[contabile] fetch noleggi_addebiti exception:', e); }
 
   // Data del form pagamento pre-compilata a oggi
   var pagDataEl = document.getElementById('pag-data');
