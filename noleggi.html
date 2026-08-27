@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Noleggi e Prodotti — Policettivo®</title>
 <!-- noleggi-v1 : noleggi e vendite di prodotti - vista paziente (?pid=) e vista globale -->
+<!-- noleggi-v2 : canone dalla data di consegna, anteprima addebiti, addebito modificabile -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/pol-ui.js"></script>
@@ -71,6 +72,13 @@
   .pill.iva  { background:#f5f5f5; color:#777; }
   .pill.free { background:#fff8e1; color:#8a6d00; }
 
+  /* noleggi-v2 : riquadro "cosa succederà" sotto il form */
+  .prev { margin-top: 14px; background:#f5f9ff; border:1px solid #cfe3fb; border-radius:10px; padding:11px 13px; font-size:12.5px; line-height:1.55; color:#1a3a5c; }
+  .prev b { color:#0d47a1; }
+  .prev.free { background:#fff8e1; border-color:#ffe082; color:#6b5500; }
+  .prev.free b { color:#8a6d00; }
+  .prev.none { background:#fafafa; border-color:#eee; color:#888; }
+
   .rowacts { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
   .desc-main { font-weight:700; }
   .desc-sub { font-size:11px; color:#888; margin-top:2px; }
@@ -97,7 +105,10 @@
 <body>
   <nav class="navbar">
     <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title" id="nav-title">Noleggi e Prodotti</span></div>
-    <a class="nav-btn" id="back-link" href="dashboard.html">← Indietro</a>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a class="nav-btn" href="profilo.html" style="background:#333;color:#fff" title="Aggiungi i prodotti che usi sempre">⚙️ Catalogo</a>
+      <a class="nav-btn" id="back-link" href="dashboard.html">← Indietro</a>
+    </div>
   </nav>
 
   <div class="main">
@@ -121,11 +132,11 @@
           <select id="n-catalogo" onchange="daCatalogo()">
             <option value="">— voce libera —</option>
           </select>
-          <div class="hint">Il catalogo si compila nel Profilo → Listino.</div>
+          <div class="hint">Vuoto? I prodotti che usi sempre si aggiungono una volta sola: <a href="profilo.html" style="color:#8a6d00;font-weight:700">apri Profilo → Listino prezzi e catalogo</a> e metti Tipo = Noleggio o Vendita.</div>
         </div>
         <div class="fld w4">
           <label>Descrizione</label>
-          <input type="text" id="n-desc" placeholder="Es. Cuscino cervicale">
+          <input type="text" id="n-desc" placeholder="Es. Cuscini Elicoidali CEP" oninput="anteprima()">
         </div>
 
         <div class="fld w2">
@@ -141,14 +152,15 @@
             <option value="una_tantum">Una tantum</option>
             <option value="canone_mensile">Canone mensile</option>
           </select>
+          <div class="hint">È questo che decide se paga <b>una volta sola</b> o <b>ogni mese</b>, non le date.</div>
         </div>
         <div class="fld w2">
           <label>Q.tà</label>
-          <input type="number" id="n-qta" step="1" min="1" value="1">
+          <input type="number" id="n-qta" step="1" min="1" value="1" oninput="anteprima()">
         </div>
         <div class="fld w2">
           <label id="lbl-prezzo">Prezzo €</label>
-          <input type="number" id="n-prezzo" step="0.01" min="0" placeholder="0,00">
+          <input type="number" id="n-prezzo" step="0.01" min="0" placeholder="0,00" oninput="anteprima()">
           <div class="hint">0 = regalato / incluso</div>
         </div>
         <div class="fld w2">
@@ -157,12 +169,12 @@
         </div>
         <div class="fld w2">
           <label>Consegna</label>
-          <input type="date" id="n-inizio">
+          <input type="date" id="n-inizio" onchange="anteprima()">
         </div>
 
         <div class="fld w4" id="fld-scadenza">
           <label>Rientro previsto</label>
-          <input type="date" id="n-fine">
+          <input type="date" id="n-fine" onchange="anteprima()">
           <div class="hint">Lascia vuoto se non c'è una data.</div>
         </div>
         <div class="fld w8">
@@ -170,6 +182,9 @@
           <input type="text" id="n-note" placeholder="Facoltative">
         </div>
       </div>
+
+      <!-- noleggi-v2 : cosa succederà, prima di salvare -->
+      <div class="prev" id="prev-box"></div>
       <div style="margin-top:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap">
         <button class="btn btn-pri" id="btn-salva" onclick="salvaNuovo()">💾 Registra</button>
         <button class="btn btn-sec" onclick="svuotaForm()">Annulla</button>
@@ -313,23 +328,40 @@ function totaleDi(nid){
 // ─── Generazione addebiti dovuti (idempotente, lato client) ─────────
 // Niente cron: il vincolo 12/12 serverless vieta nuove funzioni. L'unique
 // index (noleggio_id, periodo) rende l'upsert ripetibile senza doppioni.
+// noleggi-v2 — MENSILITA' DALLA DATA DI CONSEGNA (decisione Giuliano, 27 ago).
+// Consegnato il 27/05 -> scatta il 27/05, 27/06, 27/07... Un mese intero di
+// canone per un mese intero di possesso. NON a mese di calendario: cosi' chi
+// consegna il 28 e riceve indietro il 2 non paga due mesi per cinque giorni.
+// Mesi corti gestiti col clamp (31/01 -> 28/02).
+function ultimoGiornoMese(y, m){ return new Date(y, m, 0).getDate(); }
+function addMesi(iso, n){
+  var y = Number(iso.substring(0,4));
+  var m = Number(iso.substring(5,7));
+  var d = Number(iso.substring(8,10));
+  var tot = (y * 12) + (m - 1) + n;
+  var ny = Math.floor(tot / 12);
+  var nm = (tot % 12) + 1;
+  var nd = Math.min(d, ultimoGiornoMese(ny, nm));
+  return ny + '-' + String(nm).padStart(2,'0') + '-' + String(nd).padStart(2,'0');
+}
+
 function periodiDovuti(n){
   var out = [];
   var inizio = String(n.data_inizio || '').substring(0,10);
   if (!inizio) return out;
-  if (n.modalita !== 'canone_mensile'){ out.push(inizio); return out; }
-
+  if (n.modalita !== 'canone_mensile'){
+    if (inizio > todayISO()) return out;   // consegna futura: niente da addebitare
+    out.push(inizio);
+    return out;
+  }
   var fine = String(n.data_restituzione || '').substring(0,10) || todayISO();
   if (fine > todayISO()) fine = todayISO();
-  var cur = primoDelMese(inizio);
-  var stop = primoDelMese(fine);
-  var guardia = 0;
-  while (cur <= stop && guardia < 240){
+  var i = 0;
+  while (i < 240){
+    var cur = addMesi(inizio, i);
+    if (cur > fine) break;
     out.push(cur);
-    var y = Number(cur.substring(0,4)), m = Number(cur.substring(5,7));
-    m++; if (m > 12){ m = 1; y++; }
-    cur = y + '-' + String(m).padStart(2,'0') + '-01';
-    guardia++;
+    i++;
   }
   return out;
 }
@@ -346,7 +378,7 @@ async function generaAddebitiDovuti(){
     for (var j=0;j<per.length;j++){
       if (esistenti[per[j]]) continue;
       var imp = (Number(n.prezzo)||0) * (Number(n.quantita)||1);
-      var desc = n.descrizione + (n.modalita === 'canone_mensile' ? ' — canone ' + per[j].substring(0,7) : '');
+      var desc = n.descrizione + (n.modalita === 'canone_mensile' ? ' — canone dal ' + fmtDataIT(per[j]) : '');
       nuovi.push({
         professional_id: _uid,
         noleggio_id: n.id,
@@ -466,12 +498,17 @@ function render(){
         + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
           + '<label style="font-size:11px;font-weight:700;color:#888">PREZZO €</label>'
           + '<input type="number" step="0.01" min="0" id="ed-prezzo-' + n.id + '" value="' + (Number(n.prezzo)||0) + '" style="width:110px;padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit">'
+          + '<label style="font-size:11px;font-weight:700;color:#888">ADDEBITO</label>'
+          + '<select id="ed-mod-' + n.id + '" style="padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit">'
+            + '<option value="una_tantum"' + (n.modalita !== 'canone_mensile' ? ' selected' : '') + '>Una tantum</option>'
+            + '<option value="canone_mensile"' + (n.modalita === 'canone_mensile' ? ' selected' : '') + '>Canone mensile</option>'
+          + '</select>'
           + '<label style="font-size:11px;font-weight:700;color:#888">RIENTRO PREVISTO</label>'
           + '<input type="date" id="ed-fine-' + n.id + '" value="' + (n.data_fine_prevista ? String(n.data_fine_prevista).substring(0,10) : '') + '" style="padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit">'
           + '<button class="btn-mini btn-pri" onclick="salvaModifica(\'' + n.id + '\')">💾 Salva</button>'
           + '<span class="msg" id="msg-ed-' + n.id + '"></span>'
         + '</div>'
-        + '<div class="hint" style="margin-top:6px">Il nuovo prezzo vale per gli addebiti futuri: quelli già generati restano come storico.</div>'
+        + '<div class="hint" style="margin-top:6px">Il nuovo prezzo vale per gli addebiti futuri: quelli già generati restano come storico. Se cambi <b>Addebito</b>, invece, gli addebiti di questa voce vengono rifatti da capo.</div>'
         + '</div></td></tr>';
     }
   }
@@ -496,10 +533,36 @@ async function segnaRestituito(id){
 async function salvaModifica(id){
   var pEl = document.getElementById('ed-prezzo-' + id);
   var fEl = document.getElementById('ed-fine-' + id);
+  var mEl = document.getElementById('ed-mod-' + id);
   var msg = document.getElementById('msg-ed-' + id);
+  var n = null;
+  for (var i=0;i<_noleggi.length;i++){ if (_noleggi[i].id === id) n = _noleggi[i]; }
+  if (!n) return;
+
   var prezzo = Number(pEl.value); if (!isFinite(prezzo) || prezzo < 0) prezzo = 0;
   var fine = fEl.value || null;
-  var r = await _sb.from('noleggi').update({ prezzo: prezzo, data_fine_prevista: fine }).eq('id', id);
+  var mod = mEl ? mEl.value : n.modalita;
+  var cambiaModalita = (mod !== n.modalita);
+
+  // noleggi-v2 — cambiare "una tantum" <-> "canone mensile" cambia le DATE degli
+  // addebiti (una tantum = data di consegna; canone = una ogni mese dalla consegna).
+  // Tenere i vecchi accanto ai nuovi lascerebbe righe doppie e scollegate, quindi
+  // si rifanno da capo. Le fatture gia' emesse non ne risentono: salvano le righe
+  // come copia, non come collegamento.
+  if (cambiaModalita){
+    var ad = addebitiDi(id);
+    var avviso = ad.length
+      ? '\n\nI ' + ad.length + ' addebiti già generati per ' + fmtEur(totaleDi(id)) + ' verranno rifatti da capo con le date nuove.'
+      : '';
+    var ok = await polConfirm('Cambiare l\'addebito di "' + n.descrizione + '" in «' +
+      (mod === 'canone_mensile' ? 'Canone mensile' : 'Una tantum') + '»?' + avviso, {
+      title:'Cambia addebito', icon:'🔁', okLabel:'Sì, cambia', cancelLabel:'Annulla' });
+    if (!ok){ if (mEl) mEl.value = n.modalita; return; }
+    var del = await _sb.from('noleggi_addebiti').delete().eq('noleggio_id', id);
+    if (del && del.error){ msg.className='msg err'; msg.textContent = 'Errore: ' + del.error.message; return; }
+  }
+
+  var r = await _sb.from('noleggi').update({ prezzo: prezzo, data_fine_prevista: fine, modalita: mod }).eq('id', id);
   if (r && r.error){ msg.className='msg err'; msg.textContent = 'Errore: ' + r.error.message; return; }
   msg.className='msg ok'; msg.textContent = 'Salvato';
   await ricarica();
@@ -544,6 +607,54 @@ function tipoCambiato(){
 function modalitaCambiata(){
   var m = document.getElementById('n-modalita').value;
   document.getElementById('lbl-prezzo').textContent = (m === 'canone_mensile') ? 'Canone €/mese' : 'Prezzo €';
+  anteprima();
+}
+
+// noleggi-v2 — dice PRIMA di salvare quanti addebiti verranno generati e per
+// quanto. Serve a non far piu' passare inosservata la differenza fra
+// "una tantum" e "canone mensile": era gia' costata un noleggio sbagliato.
+function anteprima(){
+  var box = document.getElementById('prev-box');
+  if (!box) return;
+  var desc = String(document.getElementById('n-desc').value || '').trim();
+  var prezzo = Number(document.getElementById('n-prezzo').value);
+  if (!isFinite(prezzo) || prezzo < 0) prezzo = 0;
+  var qta = Number(document.getElementById('n-qta').value);
+  if (!isFinite(qta) || qta < 1) qta = 1;
+  var mod = document.getElementById('n-modalita').value;
+  var inizio = document.getElementById('n-inizio').value || todayISO();
+  var unit = prezzo * qta;
+
+  if (!desc && !prezzo){ box.className = 'prev none'; box.textContent = 'Compila la voce: qui sotto ti dico cosa verrà addebitato.'; return; }
+  if (prezzo === 0){
+    box.className = 'prev free';
+    box.innerHTML = '🎁 <b>Nessun addebito.</b> Resta scritto che il paziente ha questo articolo, ma non gli viene conteggiato nulla.';
+    return;
+  }
+
+  var per = periodiDovuti({ data_inizio: inizio, modalita: mod });
+  if (mod !== 'canone_mensile'){
+    box.className = 'prev';
+    if (!per.length){
+      box.innerHTML = '📅 Consegna futura: l\'addebito di <b>' + fmtEur(unit) + '</b> comparirà il <b>' + fmtDataIT(inizio) + '</b>.';
+    } else {
+      box.innerHTML = '✅ <b>Un solo addebito</b> di <b>' + fmtEur(unit) + '</b> con data ' + fmtDataIT(inizio)
+        + '. <span style="opacity:.8">Se invece deve pagare ogni mese, metti Addebito su «Canone mensile».</span>';
+    }
+    return;
+  }
+
+  box.className = 'prev';
+  if (!per.length){
+    box.innerHTML = '📅 Il primo canone di <b>' + fmtEur(unit) + '</b> scatterà il <b>' + fmtDataIT(inizio) + '</b>.';
+    return;
+  }
+  var elenco = per.slice(0, 6).map(function(p){ return fmtDataIT(p); }).join(' · ');
+  if (per.length > 6) elenco += ' … ';
+  box.innerHTML = '🔁 <b>' + per.length + ' addebit' + (per.length === 1 ? 'o' : 'i') + '</b> da ' + fmtEur(unit)
+    + ' = <b>' + fmtEur(unit * per.length) + '</b> già dovuti oggi.<br>'
+    + '<span style="opacity:.85">Date: ' + elenco + '</span><br>'
+    + 'Poi ' + fmtEur(unit) + ' ogni mese, finché non segni <b>✅ Rientrato</b>.';
 }
 function svuotaForm(){
   document.getElementById('n-catalogo').value = '';
@@ -557,7 +668,7 @@ function svuotaForm(){
   document.getElementById('n-modalita').value = 'una_tantum';
   document.getElementById('n-iva').value = ivaDefaultBene();
   document.getElementById('msg-nuovo').textContent = '';
-  tipoCambiato(); modalitaCambiata();
+  tipoCambiato(); modalitaCambiata(); anteprima();
 }
 
 async function salvaNuovo(){
