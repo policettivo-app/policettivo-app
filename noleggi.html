@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noleggi e Prodotti — Policettivo®</title>
+<!-- noleggi-v1 : noleggi e vendite di prodotti - vista paziente (?pid=) e vista globale -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/pol-ui.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Montserrat', sans-serif; background: #f5f5f7; color: #1a1a1a; visibility: hidden; }
+  .navbar { background: #000; padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+  .navbar-logo { color: #FFD008; font-weight: 800; letter-spacing: .5px; }
+  .navbar-title { color: #fff; font-size: 13px; margin-left: 12px; opacity: .85; }
+  .nav-btn { background: #FFD008; border: none; color: #000; padding: 7px 14px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+  .main { max-width: 1060px; margin: 0 auto; padding: 20px 16px 90px; }
+  h1 { font-size: 22px; margin: 4px 0 6px; }
+  .sub { color:#666; font-size:13px; margin:0 0 14px; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .card-title { font-size: 13px; font-weight: 800; margin: 0 0 12px; }
+  .infobox { background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:11px 13px; font-size:12.5px; line-height:1.5; }
+  .infobox b { color:#8a6d00; }
+
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .scard { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 12px; }
+  .scard .lbl { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
+  .scard .val { font-size: 19px; font-weight: 800; margin-top: 3px; }
+  .scard.tot { background: #fff8e1; border-color: #ffe082; }
+  .scard.bad { background: #ffebee; border-color: #ffcdd2; }
+  .scard.bad .val { color: #c62828; }
+
+  .frm { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px; }
+  .fld { grid-column: span 3; }
+  .fld.w2 { grid-column: span 2; }
+  .fld.w4 { grid-column: span 4; }
+  .fld.w6 { grid-column: span 6; }
+  .fld.w12 { grid-column: span 12; }
+  .fld label { display: block; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; }
+  .fld input, .fld select, .fld textarea { width: 100%; padding: 9px 11px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 13px; background:#fff; }
+  .fld input:focus, .fld select:focus, .fld textarea:focus { outline: none; border-color: #FFD008; }
+  .hint { font-size: 11px; color: #999; margin-top: 4px; }
+
+  .btn { border: none; border-radius: 9px; padding: 11px 17px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .btn-pri { background: #FFD008; color: #000; }
+  .btn-sec { background: #fff; color: #555; border: 1.5px solid #ddd; }
+  .btn-ok  { background: #00C48C; color: #fff; }
+  .btn-del { background: #fff; color: #c62828; border: 1.5px solid #f2c4c4; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .btn-mini { border:none; border-radius:7px; padding:6px 10px; font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer; }
+
+  .filters { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+  .filters .fld { grid-column:auto; min-width:160px; flex:1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .3px; padding: 8px 10px; border-bottom: 2px solid #eee; }
+  td { padding: 10px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  th.r, td.r { text-align: right; }
+  th.c, td.c { text-align: center; }
+  tr:hover td { background: #fcfcfc; }
+  tr.late td { background: #fff5f5; }
+
+  .pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; display:inline-block; white-space:nowrap; }
+  .pill.att  { background:#e8f5e9; color:#2e7d32; }
+  .pill.warn { background:#fff3e0; color:#e65100; }
+  .pill.late { background:#ffebee; color:#c62828; }
+  .pill.done { background:#eeeeee; color:#666; }
+  .pill.nol  { background:#e3f2fd; color:#1565c0; }
+  .pill.ven  { background:#ede7f6; color:#5e35b1; }
+  .pill.iva  { background:#f5f5f5; color:#777; }
+  .pill.free { background:#fff8e1; color:#8a6d00; }
+
+  .rowacts { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
+  .desc-main { font-weight:700; }
+  .desc-sub { font-size:11px; color:#888; margin-top:2px; }
+  .empty { text-align: center; color: #999; padding: 30px; }
+  .msg { font-size:12px; font-weight:700; margin-left:10px; }
+  .msg.ok { color:#2e7d32; }
+  .msg.err { color:#c62828; }
+
+  .detail { background:#fafafa; }
+  .detail td { padding: 10px 14px; }
+  .addeb { font-size:12px; color:#555; }
+  .addeb .ln { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dashed #e6e6e6; }
+  .addeb .ln:last-child { border-bottom:none; }
+
+  @media (max-width: 760px) {
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    .fld, .fld.w2, .fld.w4, .fld.w6 { grid-column: span 6; }
+    .fld.w12 { grid-column: span 12; }
+    table { font-size: 12px; }
+    th.hide, td.hide { display: none; }
+  }
+</style>
+</head>
+<body>
+  <nav class="navbar">
+    <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title" id="nav-title">Noleggi e Prodotti</span></div>
+    <a class="nav-btn" id="back-link" href="dashboard.html">← Indietro</a>
+  </nav>
+
+  <div class="main">
+    <h1 id="page-title">Noleggi e Prodotti</h1>
+    <p class="sub" id="page-sub">Cosa hai dato ai pazienti: noleggi, vendite, rientri.</p>
+
+    <div class="card">
+      <div class="summary" id="summary"></div>
+    </div>
+
+    <!-- NUOVO NOLEGGIO / VENDITA -->
+    <div class="card" id="card-nuovo">
+      <div class="card-title">➕ Nuovo noleggio o vendita</div>
+      <div class="frm">
+        <div class="fld w4" id="fld-paziente-wrap">
+          <label>Paziente</label>
+          <select id="n-paziente"></select>
+        </div>
+        <div class="fld w4">
+          <label>Dal catalogo</label>
+          <select id="n-catalogo" onchange="daCatalogo()">
+            <option value="">— voce libera —</option>
+          </select>
+          <div class="hint">Il catalogo si compila nel Profilo → Listino.</div>
+        </div>
+        <div class="fld w4">
+          <label>Descrizione</label>
+          <input type="text" id="n-desc" placeholder="Es. Cuscino cervicale">
+        </div>
+
+        <div class="fld w2">
+          <label>Tipo</label>
+          <select id="n-tipo" onchange="tipoCambiato()">
+            <option value="noleggio">Noleggio</option>
+            <option value="vendita">Vendita</option>
+          </select>
+        </div>
+        <div class="fld w2">
+          <label>Addebito</label>
+          <select id="n-modalita" onchange="modalitaCambiata()">
+            <option value="una_tantum">Una tantum</option>
+            <option value="canone_mensile">Canone mensile</option>
+          </select>
+        </div>
+        <div class="fld w2">
+          <label>Q.tà</label>
+          <input type="number" id="n-qta" step="1" min="1" value="1">
+        </div>
+        <div class="fld w2">
+          <label id="lbl-prezzo">Prezzo €</label>
+          <input type="number" id="n-prezzo" step="0.01" min="0" placeholder="0,00">
+          <div class="hint">0 = regalato / incluso</div>
+        </div>
+        <div class="fld w2">
+          <label>IVA</label>
+          <select id="n-iva"></select>
+        </div>
+        <div class="fld w2">
+          <label>Consegna</label>
+          <input type="date" id="n-inizio">
+        </div>
+
+        <div class="fld w4" id="fld-scadenza">
+          <label>Rientro previsto</label>
+          <input type="date" id="n-fine">
+          <div class="hint">Lascia vuoto se non c'è una data.</div>
+        </div>
+        <div class="fld w8">
+          <label>Note</label>
+          <input type="text" id="n-note" placeholder="Facoltative">
+        </div>
+      </div>
+      <div style="margin-top:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+        <button class="btn btn-pri" id="btn-salva" onclick="salvaNuovo()">💾 Registra</button>
+        <button class="btn btn-sec" onclick="svuotaForm()">Annulla</button>
+        <span class="msg" id="msg-nuovo"></span>
+      </div>
+    </div>
+
+    <!-- ELENCO -->
+    <div class="card">
+      <div class="filters" style="margin-bottom:12px">
+        <div class="fld" id="fld-cerca-wrap">
+          <label>Cerca</label>
+          <input type="text" id="f-cerca" placeholder="Paziente o articolo…" oninput="render()">
+        </div>
+        <div class="fld">
+          <label>Stato</label>
+          <select id="f-stato" onchange="render()">
+            <option value="attivi">Solo attivi</option>
+            <option value="tutti">Tutti</option>
+            <option value="scaduti">Solo scaduti</option>
+            <option value="restituiti">Solo restituiti</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label>Tipo</label>
+          <select id="f-tipo" onchange="render()">
+            <option value="">Tutti</option>
+            <option value="noleggio">Noleggi</option>
+            <option value="vendita">Vendite</option>
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th id="th-paziente">Paziente</th>
+              <th>Articolo</th>
+              <th class="hide">Consegna</th>
+              <th class="hide">Rientro</th>
+              <th class="c">Stato</th>
+              <th class="r">Addebitato</th>
+              <th class="r">Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty" style="display:none">Nessun noleggio da mostrare.</div>
+    </div>
+
+    <div class="card">
+      <div class="infobox">
+        ℹ️ <b>Fisco.</b> Noleggi e vendite di prodotti sono <b>soggetti a IVA</b> anche per il professionista sanitario: solo le <b>terapie</b> sono esenti art. 10.
+        In fattura le due cose convivono (IVA mista) e il <b>bollo da 2 €</b> si calcola solo sulla quota <b>senza IVA</b> oltre 77,47 €.
+        Al <b>Sistema TS</b> vanno solo le prestazioni sanitarie: noleggi e vendite restano <b>esclusi</b>, salvo i <b>dispositivi medici CE</b> — da verificare col tuo commercialista.
+        Se sei in <b>regime forfettario</b> non applichi IVA su nulla (L. 190/2014).
+      </div>
+    </div>
+  </div>
+
+<script>
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var _sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+var _pid   = new URLSearchParams(window.location.search).get('pid');
+var _uid   = null;
+var _prof  = {};
+var _noleggi   = [];
+var _addebiti  = [];      // tutti gli addebiti dei noleggi caricati
+var _pazienti  = {};      // id -> {nome, cognome}
+var _catalogo  = [];      // voci di listino con tipo noleggio/vendita
+var _openId    = null;    // riga espansa
+
+// IVA per riga — stessi codici di fattura.html (IVA_TIPI, marker iva-mista-v1)
+var IVA_TIPI = [
+  { code:'ESENTE10', label:'Esente art.10', rate:0 },
+  { code:'FORF',     label:'Senza IVA (forfettario)', rate:0 },
+  { code:'IVA22',    label:'IVA 22%', rate:22 },
+  { code:'IVA10',    label:'IVA 10%', rate:10 },
+  { code:'IVA5',     label:'IVA 5%',  rate:5 },
+  { code:'IVA4',     label:'IVA 4%',  rate:4 }
+];
+function ivaByCode(c){ for (var i=0;i<IVA_TIPI.length;i++){ if (IVA_TIPI[i].code===c) return IVA_TIPI[i]; } return null; }
+
+// Codice IVA di default per beni/noleggi (NON per le terapie):
+// sanitario ordinario e non-sanitario ordinario -> IVA ordinaria; forfettario -> nessuna IVA.
+function ivaDefaultBene(){
+  var reg = _prof.regime_fiscale || 'forfettario';
+  if (reg === 'forfettario') return 'FORF';
+  var al = Number(_prof.aliquota_iva);
+  if (al === 10) return 'IVA10';
+  if (al === 5)  return 'IVA5';
+  if (al === 4)  return 'IVA4';
+  return 'IVA22';
+}
+function ivaCodiciDisponibili(){
+  var reg = _prof.regime_fiscale || 'forfettario';
+  if (reg === 'forfettario') return ['FORF'];
+  return ['IVA22','IVA10','IVA5','IVA4','ESENTE10'];
+}
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtEur(n){ return (Number(n)||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €'; }
+function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtDataIT(iso){ if(!iso) return '—'; var p=String(iso).substring(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function nomePaziente(id){ var p=_pazienti[id]; if(!p) return '—'; return ((p.cognome||'')+' '+(p.nome||'')).trim() || '—'; }
+function primoDelMese(iso){ return String(iso).substring(0,7) + '-01'; }
+function giorniDaOggi(iso){
+  if (!iso) return null;
+  var a = new Date(String(iso).substring(0,10)+'T00:00:00');
+  var b = new Date(todayISO()+'T00:00:00');
+  return Math.round((a - b) / 86400000);
+}
+
+// ─── Stato visivo del noleggio ──────────────────────────────────────
+function statoNoleggio(n){
+  if (n.stato === 'restituito' || n.data_restituzione) return { key:'done', cls:'done', txt:'✅ Restituito' };
+  if (n.stato === 'chiuso') return { key:'done', cls:'done', txt:'Chiuso' };
+  if (n.tipo === 'vendita') return { key:'att', cls:'att', txt:'Venduto' };
+  var g = giorniDaOggi(n.data_fine_prevista);
+  if (g === null) return { key:'att', cls:'att', txt:'🟢 In corso' };
+  if (g < 0)  return { key:'late', cls:'late', txt:'🔴 Scaduto da ' + Math.abs(g) + 'g' };
+  if (g <= 7) return { key:'warn', cls:'warn', txt:'🟡 Rientra fra ' + g + 'g' };
+  return { key:'att', cls:'att', txt:'🟢 In corso' };
+}
+
+function addebitiDi(nid){
+  var out = [];
+  for (var i=0;i<_addebiti.length;i++){ if (_addebiti[i].noleggio_id === nid) out.push(_addebiti[i]); }
+  out.sort(function(a,b){ return String(a.periodo) < String(b.periodo) ? -1 : 1; });
+  return out;
+}
+function totaleDi(nid){
+  var t = 0, a = addebitiDi(nid);
+  for (var i=0;i<a.length;i++){ var v = Number(a[i].importo); if (isFinite(v)) t += v; }
+  return t;
+}
+
+// ─── Generazione addebiti dovuti (idempotente, lato client) ─────────
+// Niente cron: il vincolo 12/12 serverless vieta nuove funzioni. L'unique
+// index (noleggio_id, periodo) rende l'upsert ripetibile senza doppioni.
+function periodiDovuti(n){
+  var out = [];
+  var inizio = String(n.data_inizio || '').substring(0,10);
+  if (!inizio) return out;
+  if (n.modalita !== 'canone_mensile'){ out.push(inizio); return out; }
+
+  var fine = String(n.data_restituzione || '').substring(0,10) || todayISO();
+  if (fine > todayISO()) fine = todayISO();
+  var cur = primoDelMese(inizio);
+  var stop = primoDelMese(fine);
+  var guardia = 0;
+  while (cur <= stop && guardia < 240){
+    out.push(cur);
+    var y = Number(cur.substring(0,4)), m = Number(cur.substring(5,7));
+    m++; if (m > 12){ m = 1; y++; }
+    cur = y + '-' + String(m).padStart(2,'0') + '-01';
+    guardia++;
+  }
+  return out;
+}
+
+async function generaAddebitiDovuti(){
+  var nuovi = [];
+  for (var i=0;i<_noleggi.length;i++){
+    var n = _noleggi[i];
+    if (Number(n.prezzo) === 0) continue;            // regalato/incluso: nessun importo
+    var esistenti = {};
+    var ad = addebitiDi(n.id);
+    for (var k=0;k<ad.length;k++){ esistenti[String(ad[k].periodo).substring(0,10)] = true; }
+    var per = periodiDovuti(n);
+    for (var j=0;j<per.length;j++){
+      if (esistenti[per[j]]) continue;
+      var imp = (Number(n.prezzo)||0) * (Number(n.quantita)||1);
+      var desc = n.descrizione + (n.modalita === 'canone_mensile' ? ' — canone ' + per[j].substring(0,7) : '');
+      nuovi.push({
+        professional_id: _uid,
+        noleggio_id: n.id,
+        patient_id: n.patient_id,
+        periodo: per[j],
+        descrizione: desc,
+        importo: imp,
+        iva_code: n.iva_code || null
+      });
+    }
+  }
+  if (!nuovi.length) return 0;
+  var r = await _sb.from('noleggi_addebiti')
+    .upsert(nuovi, { onConflict: 'noleggio_id,periodo', ignoreDuplicates: true });
+  if (r && r.error){ console.error('[noleggi] genera addebiti:', r.error); return 0; }
+  return nuovi.length;
+}
+
+// ─── Render ─────────────────────────────────────────────────────────
+function filtrati(){
+  var q = String((document.getElementById('f-cerca')||{}).value || '').trim().toLowerCase();
+  var fs = document.getElementById('f-stato').value;
+  var ft = document.getElementById('f-tipo').value;
+  var out = [];
+  for (var i=0;i<_noleggi.length;i++){
+    var n = _noleggi[i];
+    if (ft && n.tipo !== ft) continue;
+    var st = statoNoleggio(n);
+    if (fs === 'attivi'     && st.key === 'done') continue;
+    if (fs === 'scaduti'    && st.key !== 'late') continue;
+    if (fs === 'restituiti' && st.key !== 'done') continue;
+    if (q){
+      var blob = (nomePaziente(n.patient_id) + ' ' + (n.descrizione||'') + ' ' + (n.codice||'')).toLowerCase();
+      if (blob.indexOf(q) === -1) continue;
+    }
+    out.push(n);
+  }
+  out.sort(function(a,b){ return String(b.data_inizio) < String(a.data_inizio) ? -1 : 1; });
+  return out;
+}
+
+function renderSummary(){
+  var attivi = 0, scaduti = 0, tot = 0, gratis = 0;
+  for (var i=0;i<_noleggi.length;i++){
+    var n = _noleggi[i];
+    var st = statoNoleggio(n);
+    if (st.key !== 'done') attivi++;
+    if (st.key === 'late') scaduti++;
+    if (Number(n.prezzo) === 0) gratis++;
+    tot += totaleDi(n.id);
+  }
+  var html = ''
+    + '<div class="scard"><div class="lbl">In corso</div><div class="val">' + attivi + '</div></div>'
+    + '<div class="scard' + (scaduti ? ' bad' : '') + '"><div class="lbl">Scaduti</div><div class="val">' + scaduti + '</div></div>'
+    + '<div class="scard"><div class="lbl">A titolo gratuito</div><div class="val">' + gratis + '</div></div>'
+    + '<div class="scard tot"><div class="lbl">Totale addebitato</div><div class="val">' + fmtEur(tot) + '</div></div>';
+  document.getElementById('summary').innerHTML = html;
+}
+
+function render(){
+  renderSummary();
+  var lista = filtrati();
+  var tb = document.getElementById('tbody');
+  var emptyEl = document.getElementById('empty');
+  if (!lista.length){
+    tb.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  var html = '';
+  for (var i=0;i<lista.length;i++){
+    var n = lista[i];
+    var st = statoNoleggio(n);
+    var iva = ivaByCode(n.iva_code || ivaDefaultBene());
+    var tipoPill = n.tipo === 'vendita'
+      ? '<span class="pill ven">Vendita</span>'
+      : '<span class="pill nol">Noleggio</span>';
+    var canone = n.modalita === 'canone_mensile'
+      ? fmtEur(n.prezzo) + '/mese'
+      : fmtEur(n.prezzo);
+    if (Number(n.prezzo) === 0) canone = '<span class="pill free">Gratuito</span>';
+    var qta = (Number(n.quantita) || 1);
+
+    html += '<tr class="' + (st.key === 'late' ? 'late' : '') + '">'
+      + (_pid ? '' : '<td>' + esc(nomePaziente(n.patient_id)) + '</td>')
+      + '<td>'
+        + '<div class="desc-main">' + esc(n.descrizione || '—') + (qta > 1 ? ' ×' + qta : '') + '</div>'
+        + '<div class="desc-sub">' + tipoPill + ' ' + canone
+          + ' <span class="pill iva">' + esc(iva ? iva.label : '—') + '</span></div>'
+      + '</td>'
+      + '<td class="hide">' + fmtDataIT(n.data_inizio) + '</td>'
+      + '<td class="hide">' + (n.data_restituzione ? fmtDataIT(n.data_restituzione) : fmtDataIT(n.data_fine_prevista)) + '</td>'
+      + '<td class="c"><span class="pill ' + st.cls + '">' + st.txt + '</span></td>'
+      + '<td class="r"><b>' + fmtEur(totaleDi(n.id)) + '</b></td>'
+      + '<td class="r"><div class="rowacts">'
+        + '<button class="btn-mini btn-sec" onclick="apriDettaglio(\'' + n.id + '\')">' + (_openId === n.id ? '▲' : '▼') + ' Dettagli</button>'
+        + (st.key !== 'done' && n.tipo === 'noleggio'
+            ? '<button class="btn-mini btn-ok" onclick="segnaRestituito(\'' + n.id + '\')">✅ Rientrato</button>' : '')
+        + '<button class="btn-mini btn-del" onclick="eliminaNoleggio(\'' + n.id + '\')">🗑</button>'
+      + '</div></td>'
+      + '</tr>';
+
+    if (_openId === n.id){
+      var ad = addebitiDi(n.id);
+      var lines = ad.length
+        ? ad.map(function(a){
+            return '<div class="ln"><span>' + esc(a.descrizione) + '</span><span>' + fmtEur(a.importo) + '</span></div>';
+          }).join('')
+        : '<div class="ln"><span>Nessun addebito generato' + (Number(n.prezzo) === 0 ? ' (voce gratuita)' : '') + '.</span><span></span></div>';
+      html += '<tr class="detail"><td colspan="' + (_pid ? 6 : 7) + '">'
+        + '<div class="addeb">'
+        + '<div style="font-weight:800;margin-bottom:6px">Addebiti generati</div>'
+        + lines
+        + (n.note ? '<div style="margin-top:8px;color:#777">📝 ' + esc(n.note) + '</div>' : '')
+        + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+          + '<label style="font-size:11px;font-weight:700;color:#888">PREZZO €</label>'
+          + '<input type="number" step="0.01" min="0" id="ed-prezzo-' + n.id + '" value="' + (Number(n.prezzo)||0) + '" style="width:110px;padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit">'
+          + '<label style="font-size:11px;font-weight:700;color:#888">RIENTRO PREVISTO</label>'
+          + '<input type="date" id="ed-fine-' + n.id + '" value="' + (n.data_fine_prevista ? String(n.data_fine_prevista).substring(0,10) : '') + '" style="padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit">'
+          + '<button class="btn-mini btn-pri" onclick="salvaModifica(\'' + n.id + '\')">💾 Salva</button>'
+          + '<span class="msg" id="msg-ed-' + n.id + '"></span>'
+        + '</div>'
+        + '<div class="hint" style="margin-top:6px">Il nuovo prezzo vale per gli addebiti futuri: quelli già generati restano come storico.</div>'
+        + '</div></td></tr>';
+    }
+  }
+  tb.innerHTML = html;
+}
+
+function apriDettaglio(id){ _openId = (_openId === id) ? null : id; render(); }
+
+// ─── Azioni ─────────────────────────────────────────────────────────
+async function segnaRestituito(id){
+  var n = null;
+  for (var i=0;i<_noleggi.length;i++){ if (_noleggi[i].id === id) n = _noleggi[i]; }
+  if (!n) return;
+  var ok = await polConfirm('Segnare "' + n.descrizione + '" come rientrato oggi?', {
+    title:'Rientro', icon:'📦', okLabel:'Sì, è rientrato', cancelLabel:'Annulla' });
+  if (!ok) return;
+  var r = await _sb.from('noleggi').update({ stato:'restituito', data_restituzione: todayISO() }).eq('id', id);
+  if (r && r.error){ await polAlert('Non sono riuscito a salvare: ' + r.error.message, {title:'Errore', icon:'⚠️'}); return; }
+  await ricarica();
+}
+
+async function salvaModifica(id){
+  var pEl = document.getElementById('ed-prezzo-' + id);
+  var fEl = document.getElementById('ed-fine-' + id);
+  var msg = document.getElementById('msg-ed-' + id);
+  var prezzo = Number(pEl.value); if (!isFinite(prezzo) || prezzo < 0) prezzo = 0;
+  var fine = fEl.value || null;
+  var r = await _sb.from('noleggi').update({ prezzo: prezzo, data_fine_prevista: fine }).eq('id', id);
+  if (r && r.error){ msg.className='msg err'; msg.textContent = 'Errore: ' + r.error.message; return; }
+  msg.className='msg ok'; msg.textContent = 'Salvato';
+  await ricarica();
+}
+
+async function eliminaNoleggio(id){
+  var n = null;
+  for (var i=0;i<_noleggi.length;i++){ if (_noleggi[i].id === id) n = _noleggi[i]; }
+  if (!n) return;
+  var tot = totaleDi(id);
+  var extra = tot > 0 ? '\n\nVerranno cancellati anche ' + addebitiDi(id).length + ' addebiti per ' + fmtEur(tot) + '.' : '';
+  var ok = await polConfirm('Eliminare "' + n.descrizione + '"?' + extra, {
+    title:'Elimina', icon:'🗑', okLabel:'Elimina', cancelLabel:'Annulla', danger:true });
+  if (!ok) return;
+  var r = await _sb.from('noleggi').delete().eq('id', id);
+  if (r && r.error){ await polAlert('Non sono riuscito a eliminare: ' + r.error.message, {title:'Errore', icon:'⚠️'}); return; }
+  _openId = null;
+  await ricarica();
+}
+
+// ─── Form nuovo ─────────────────────────────────────────────────────
+function daCatalogo(){
+  var idx = document.getElementById('n-catalogo').value;
+  if (idx === '') return;
+  var v = _catalogo[Number(idx)];
+  if (!v) return;
+  document.getElementById('n-desc').value = v.descrizione || '';
+  if (v.prezzo != null) document.getElementById('n-prezzo').value = v.prezzo;
+  if (v.tipo) document.getElementById('n-tipo').value = v.tipo;
+  if (v.modalita) document.getElementById('n-modalita').value = v.modalita;
+  if (v.iva_code) document.getElementById('n-iva').value = v.iva_code;
+  tipoCambiato(); modalitaCambiata();
+}
+function tipoCambiato(){
+  var t = document.getElementById('n-tipo').value;
+  document.getElementById('fld-scadenza').style.display = (t === 'vendita') ? 'none' : '';
+  if (t === 'vendita'){
+    document.getElementById('n-modalita').value = 'una_tantum';
+    modalitaCambiata();
+  }
+}
+function modalitaCambiata(){
+  var m = document.getElementById('n-modalita').value;
+  document.getElementById('lbl-prezzo').textContent = (m === 'canone_mensile') ? 'Canone €/mese' : 'Prezzo €';
+}
+function svuotaForm(){
+  document.getElementById('n-catalogo').value = '';
+  document.getElementById('n-desc').value = '';
+  document.getElementById('n-prezzo').value = '';
+  document.getElementById('n-qta').value = '1';
+  document.getElementById('n-note').value = '';
+  document.getElementById('n-fine').value = '';
+  document.getElementById('n-inizio').value = todayISO();
+  document.getElementById('n-tipo').value = 'noleggio';
+  document.getElementById('n-modalita').value = 'una_tantum';
+  document.getElementById('n-iva').value = ivaDefaultBene();
+  document.getElementById('msg-nuovo').textContent = '';
+  tipoCambiato(); modalitaCambiata();
+}
+
+async function salvaNuovo(){
+  var msg = document.getElementById('msg-nuovo');
+  var btn = document.getElementById('btn-salva');
+  var pazId = _pid || document.getElementById('n-paziente').value;
+  var desc  = String(document.getElementById('n-desc').value || '').trim();
+  if (!pazId){ msg.className='msg err'; msg.textContent = 'Scegli il paziente.'; return; }
+  if (!desc){ msg.className='msg err'; msg.textContent = 'Serve una descrizione.'; return; }
+
+  var prezzoRaw = document.getElementById('n-prezzo').value;
+  var prezzo = Number(prezzoRaw); if (!isFinite(prezzo) || prezzo < 0) prezzo = 0;
+  var qta = Number(document.getElementById('n-qta').value); if (!isFinite(qta) || qta < 1) qta = 1;
+  var tipo = document.getElementById('n-tipo').value;
+
+  var rec = {
+    professional_id: _uid,
+    patient_id: pazId,
+    tipo: tipo,
+    descrizione: desc,
+    quantita: qta,
+    modalita: document.getElementById('n-modalita').value,
+    prezzo: prezzo,
+    iva_code: document.getElementById('n-iva').value || null,
+    data_inizio: document.getElementById('n-inizio').value || todayISO(),
+    data_fine_prevista: (tipo === 'vendita') ? null : (document.getElementById('n-fine').value || null),
+    note: String(document.getElementById('n-note').value || '').trim() || null,
+    stato: 'attivo'
+  };
+  var cat = document.getElementById('n-catalogo').value;
+  if (cat !== '' && _catalogo[Number(cat)]) rec.codice = _catalogo[Number(cat)].codice || null;
+
+  btn.disabled = true;
+  msg.className='msg'; msg.textContent = 'Salvo…';
+  var r = await _sb.from('noleggi').insert(rec);
+  btn.disabled = false;
+  if (r && r.error){ msg.className='msg err'; msg.textContent = 'Errore: ' + r.error.message; return; }
+  msg.className='msg ok'; msg.textContent = 'Registrato ✓';
+  svuotaForm();
+  await ricarica();
+}
+
+// ─── Caricamento ────────────────────────────────────────────────────
+async function caricaDati(){
+  var q = _sb.from('noleggi').select('*').order('data_inizio', { ascending:false });
+  if (_pid) q = q.eq('patient_id', _pid);
+  var nr = await q;
+  if (nr && nr.error) console.error('[noleggi] load noleggi:', nr.error);
+  _noleggi = (nr && nr.data) ? nr.data : [];
+
+  var ar = await _sb.from('noleggi_addebiti').select('*');
+  if (ar && ar.error) console.error('[noleggi] load addebiti:', ar.error);
+  _addebiti = (ar && ar.data) ? ar.data : [];
+  if (_pid) _addebiti = _addebiti.filter(function(a){ return a.patient_id === _pid; });
+}
+
+async function ricarica(){
+  await caricaDati();
+  var creati = await generaAddebitiDovuti();
+  if (creati) await caricaDati();
+  render();
+}
+
+async function caricaPazienti(){
+  if (_pid){
+    var one = await _sb.from('patients').select('id, nome, cognome').eq('id', _pid).maybeSingle();
+    if (one && one.data) _pazienti[one.data.id] = { nome: one.data.nome, cognome: one.data.cognome };
+    return;
+  }
+  var pr = await _sb.from('patients').select('id, nome, cognome').order('cognome', { ascending:true });
+  var list = (pr && pr.data) ? pr.data : [];
+  var sel = document.getElementById('n-paziente');
+  sel.innerHTML = '<option value="">— scegli il paziente —</option>';
+  for (var i=0;i<list.length;i++){
+    var p = list[i];
+    _pazienti[p.id] = { nome: p.nome, cognome: p.cognome };
+    var o = document.createElement('option');
+    o.value = p.id;
+    o.textContent = ((p.cognome||'') + ' ' + (p.nome||'')).trim();
+    sel.appendChild(o);
+  }
+}
+
+function popolaIva(){
+  var sel = document.getElementById('n-iva');
+  var codici = ivaCodiciDisponibili();
+  sel.innerHTML = '';
+  for (var i=0;i<codici.length;i++){
+    var t = ivaByCode(codici[i]);
+    var o = document.createElement('option');
+    o.value = t.code; o.textContent = t.label;
+    sel.appendChild(o);
+  }
+  sel.value = ivaDefaultBene();
+}
+
+function popolaCatalogo(){
+  var lst = Array.isArray(_prof.listino) ? _prof.listino : [];
+  _catalogo = [];
+  for (var i=0;i<lst.length;i++){
+    var v = lst[i];
+    if (!v || typeof v !== 'object') continue;
+    var t = v.tipo || 'prestazione';
+    if (t !== 'noleggio' && t !== 'vendita') continue;   // le prestazioni restano fuori
+    _catalogo.push(v);
+  }
+  var sel = document.getElementById('n-catalogo');
+  sel.innerHTML = '<option value="">— voce libera —</option>';
+  for (var j=0;j<_catalogo.length;j++){
+    var c = _catalogo[j];
+    var lbl = (c.codice ? c.codice + ' · ' : '') + (c.descrizione || 'Voce')
+            + (c.prezzo != null ? ' · ' + fmtEur(c.prezzo) : '');
+    var o = document.createElement('option'); o.value = String(j); o.textContent = lbl;
+    sel.appendChild(o);
+  }
+}
+
+async function init(){
+  try {
+    var sess = await _sb.auth.getSession();
+    if (!sess.data || !sess.data.session){ window.location.href = 'login.html'; return; }
+    _uid = sess.data.session.user.id;
+
+    var prq = await _sb.from('professionals')
+      .select('listino, professione_sanitaria, regime_fiscale, aliquota_iva')
+      .eq('user_id', _uid).maybeSingle();
+    _prof = (prq && prq.data) ? prq.data : {};
+
+    // Vista paziente vs vista globale
+    if (_pid){
+      document.getElementById('back-link').href = 'paziente.html?id=' + encodeURIComponent(_pid);
+      document.getElementById('back-link').textContent = '← Scheda paziente';
+      document.getElementById('th-paziente').style.display = 'none';
+      var w = document.getElementById('fld-paziente-wrap'); if (w) w.style.display = 'none';
+      var cw = document.getElementById('fld-cerca-wrap'); if (cw) cw.style.display = 'none';
+    } else {
+      document.getElementById('back-link').href = 'dashboard.html';
+      document.getElementById('page-sub').textContent = 'Tutti i noleggi e le vendite dei tuoi pazienti: chi ha cosa, e cosa deve rientrare.';
+    }
+
+    await caricaPazienti();
+    if (_pid){
+      var nm = nomePaziente(_pid);
+      document.getElementById('page-title').textContent = 'Noleggi e Prodotti — ' + nm;
+      document.getElementById('nav-title').textContent = nm;
+      document.getElementById('page-sub').textContent = 'Cosa hai dato a questo paziente: noleggi, vendite, rientri.';
+    }
+
+    popolaIva();
+    popolaCatalogo();
+    svuotaForm();
+    await ricarica();
+  } catch(e){
+    console.error('[noleggi] init exception:', e);
+    var emptyEl = document.getElementById('empty');
+    if (emptyEl){ emptyEl.style.display='block'; emptyEl.textContent='Errore nel caricamento. Riprova.'; }
+  } finally {
+    document.body.style.visibility = 'visible';
+  }
+}
+init();
+</script>
+</body>
+</html>
