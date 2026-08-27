@@ -160,12 +160,15 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
 
 /* Totali */
 /* noleggi-contabile-v1 : da 5 a 6 numeri (aggiunta la voce Noleggi/Vendite) */
+/* noleggi-contabile-v2 : spunta + cestino sulle righe noleggio, righe annullate escluse dai conti */
 .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
 .total-card.nol { background: #e3f2fd; border-color: #90caf9; }
 .total-card.nol .total-val { color: #1565c0; }
 .nol-list { margin-top: 4px; }
-.nol-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 2px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.nol-row { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
 .nol-row:last-child { border-bottom: none; }
+/* noleggi-contabile-v2 : spunta come le sedute */
+.nol-chk { width: 16px; height: 16px; flex: none; cursor: pointer; accent-color: #FFD008; }
 .nol-desc { flex: 1 1 auto; min-width: 0; }
 .nol-date { font-size: 11px; color: #888; margin-top: 2px; }
 .nol-empty { padding: 18px 4px; color: #999; font-size: 13px; text-align: center; }
@@ -295,7 +298,7 @@ body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; min-height: 1
   <!-- NOLEGGI E PRODOTTI (noleggi-contabile-v1) -->
   <div class="pag-section" id="nol-section">
     <div class="pag-title">📦 Noleggi e prodotti</div>
-    <div class="pag-hint">Righe generate dalla pagina Noleggi: entrano nel conto come le sedute. Lo stato si calcola dagli incassi, dalla riga più vecchia in avanti.</div>
+    <div class="pag-hint">Righe generate dalla pagina Noleggi: entrano nel conto come le sedute. Lo stato si calcola dagli incassi, dalla riga più vecchia in avanti.<br><b>Spunta</b> le righe per sommarle nell'importo del versamento qui sopra. Il <b>🗑</b> toglie una riga dal conto (si rimette dalla pagina Noleggi → ▼ Dettagli).</div>
     <div class="nol-list" id="nol-list">
       <div class="nol-empty">Nessun noleggio o prodotto per questo paziente.</div>
     </div>
@@ -391,6 +394,7 @@ var _fatture = [];          // fatture del paziente (per badge Fatturato/Da fatt
 // Sono "venduto" esattamente come le sedute: NON sono soldi. I soldi restano
 // solo in patient_payments. Entrano quindi nel Residuo e nella coda FIFO.
 var _addebiti = [];
+var _selAdd = Object.create(null);   // noleggi-contabile-v2: addebiti spuntati
 
 function _esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -515,6 +519,7 @@ function _calcolaStatoSedute(){
   }
   for (var i1 = 0; i1 < _addebiti.length; i1++) {
     var a1 = _addebiti[i1];
+    if (a1.annullato) continue;                  // riga tolta dai conti
     var imp = Number(a1.importo);
     if (!isFinite(imp) || imp === 0) continue;   // le righe gratuite non entrano nel conto
     coda.push({ kind:'addebito', id:a1.id, data:String(a1.periodo||''), costo:imp });
@@ -623,10 +628,14 @@ function _pagPerPeriodo(){
 
 // ── noleggi-contabile-v1 ────────────────────────────────────────────
 // Gli addebiti dei noleggi filtrati per periodo (campo `periodo`, non `data`).
+// noleggi-contabile-v2: le righe annullate non contano da nessuna parte
+// (totali, FIFO, fattura). Restano in tabella solo per impedire che il canone
+// si rigeneri da solo alla riapertura della pagina Noleggi.
 function _addebitiPerPeriodo(){
   var daStr = document.getElementById('f-da').value;
   var aStr  = document.getElementById('f-a').value;
   return _addebiti.filter(function(a){
+    if (a.annullato) return false;
     var p = String(a.periodo || '').substring(0,10);
     if (!p) return true;
     if (daStr && p < daStr) return false;
@@ -637,6 +646,7 @@ function _addebitiPerPeriodo(){
 function _totAddebitiStorico(){
   var t = 0;
   for (var i = 0; i < _addebiti.length; i++) {
+    if (_addebiti[i].annullato) continue;
     var v = Number(_addebiti[i].importo);
     if (isFinite(v)) t += v;
   }
@@ -753,10 +763,16 @@ function renderNoleggi(){
     else                                  pill = '<span class="status-pill paid">✅ Saldato</span>';
     var per = String(a.periodo || '').substring(0,10);
     var perIT = per ? (per.substring(8,10) + '/' + per.substring(5,7) + '/' + per.substring(0,4)) : '—';
+    // noleggi-contabile-v2 — spunta (somma nell'importo del versamento, come le
+    // sedute) e cestino (toglie la riga dai conti), cosi' i noleggi si gestiscono
+    // come le sedute del diario invece di essere una lista che si guarda e basta.
+    var chk = _selAdd[a.id] ? ' checked' : '';
     html += '<div class="nol-row">'
+          +   '<input type="checkbox" class="nol-chk"' + chk + ' title="Somma nell\'importo del versamento" onchange="toggleSelAddebito(\'' + _esc(a.id) + '\', this)">'
           +   '<div class="nol-desc">' + _esc(a.descrizione || 'Noleggio') + '<div class="nol-date">' + perIT + '</div></div>'
           +   '<div>' + pill + '</div>'
           +   '<div class="nol-amt">' + _fmtEur(a.importo) + '</div>'
+          +   '<button class="btn-pag-mini del" title="Togli questa riga dal conto" onclick="annullaAddebito(\'' + _esc(a.id) + '\')">🗑</button>'
           + '</div>';
   }
   box.innerHTML = html;
@@ -837,11 +853,17 @@ function _sommaSelezionate(){
   Object.keys(_selected).forEach(function(k){
     if (_selected[k]) { var s = byId[k]; if (s && isFinite(Number(s.costo))) tot += Number(s.costo); }
   });
+  // noleggi-contabile-v2 — anche i noleggi spuntati entrano nella somma
+  var byA = {}; for (var w = 0; w < _addebiti.length; w++) byA[_addebiti[w].id] = _addebiti[w];
+  Object.keys(_selAdd).forEach(function(k){
+    if (_selAdd[k]) { var a = byA[k]; if (a && !a.annullato && isFinite(Number(a.importo))) tot += Number(a.importo); }
+  });
   return Math.round(tot * 100) / 100;
 }
 function _updateBatchBtn(){
   var n = 0;
   Object.keys(_selected).forEach(function(k){ if (_selected[k]) n++ });
+  Object.keys(_selAdd).forEach(function(k){ if (_selAdd[k]) n++ });
   var btnIncasso = document.getElementById('btn-batch-incasso');
   if (btnIncasso) {
     btnIncasso.disabled = (n === 0);
@@ -868,6 +890,31 @@ function toggleSelezioneRiga(id, cb){
   else delete _selected[id];
   _updateSelectAllBox();
   _updateBatchBtn();
+}
+
+// ── noleggi-contabile-v2 — spunta e cestino sulle righe di noleggio ──
+function toggleSelAddebito(id, cb){
+  if (cb.checked) _selAdd[id] = true;
+  else delete _selAdd[id];
+  _updateBatchBtn();
+}
+
+// Non si cancella davvero: i canoni si rigenerano lato client alla riapertura
+// della pagina Noleggi, quindi una DELETE tornerebbe indietro da sola.
+// Marcandola annullata la riga sparisce dai conti e resta a bloccare il periodo.
+async function annullaAddebito(aid){
+  var a = null;
+  for (var i = 0; i < _addebiti.length; i++) { if (_addebiti[i].id === aid) a = _addebiti[i]; }
+  if (!a) return;
+  var ok = await polConfirm('Togliere «' + (a.descrizione || 'questa riga') + '» (' + _fmtEur(a.importo) + ') dal conto del paziente?\n\nNon verrà più conteggiata né qui né in fattura. Puoi rimetterla dalla pagina Noleggi, aprendo ▼ Dettagli.', {
+    title:'Togli riga', icon:'🗑', okLabel:'Togli', cancelLabel:'Annulla', danger:true });
+  if (!ok) return;
+  var r = await _sb.from('noleggi_addebiti').update({ annullato: true }).eq('id', aid);
+  if (r && r.error){ await polAlert('Non sono riuscito a salvare: ' + r.error.message, {title:'Errore', icon:'⚠️'}); return; }
+  delete _selAdd[aid];
+  var nres = await _sb.from('noleggi_addebiti').select('*').eq('patient_id', pid).order('periodo', { ascending: false });
+  if (nres && nres.data) _addebiti = nres.data;
+  applicaFiltri();
 }
 function toggleSelezionaTutto(cb){
   var lista = _sedutePerPeriodo();
@@ -985,6 +1032,7 @@ async function confermaRegistraIncasso(){
 
   // Deseleziona le sedute e chiudi
   _selected = Object.create(null);
+  _selAdd = Object.create(null);   // noleggi-contabile-v2
   var selAll = document.getElementById('sel-all'); if (selAll) selAll.checked = false;
   if (btn) { btn.disabled = false; btn.textContent = 'Conferma'; }
   chiudiRegistraIncasso();
@@ -1095,6 +1143,7 @@ async function aggiungiPagamento(){
     document.getElementById('pag-nota').value = '';
     document.getElementById('pag-data').value = (new Date()).toISOString().substring(0,10);
     _selected = Object.create(null);
+    _selAdd = Object.create(null);   // noleggi-contabile-v2
     var selAllBox = document.getElementById('sel-all'); if (selAllBox) { selAllBox.checked = false; selAllBox.indeterminate = false; }
     renderRighe();
     renderPagamenti();

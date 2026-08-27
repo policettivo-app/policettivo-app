@@ -915,7 +915,8 @@ async function init(){
   try {
     var nres = await _sb.from('noleggi_addebiti').select('*').eq('patient_id', pid).order('periodo', { ascending: false });
     if (nres && nres.error) console.error('[fattura] noleggi_addebiti error:', nres.error);
-    addebiti = (nres && nres.data ? nres.data : []).filter(function(a){ return Number(a.importo) > 0; });
+    // noleggi-fattura-v2: fuori le righe tolte dal conto (annullato) e quelle a zero
+    addebiti = (nres && nres.data ? nres.data : []).filter(function(a){ return !a.annullato && Number(a.importo) > 0; });
   } catch(e){ console.error('[fattura] noleggi_addebiti exception:', e); addebiti = []; }
   if (addebiti.length){
     document.getElementById('noleggi-card').style.display = '';

@@ -6,7 +6,8 @@
 <title>Noleggi e Prodotti — Policettivo®</title>
 <!-- noleggi-v1 : noleggi e vendite di prodotti - vista paziente (?pid=) e vista globale -->
 <!-- noleggi-v2 : canone dalla data di consegna, anteprima addebiti, addebito modificabile -->
-<!-- noleggi-v3 : popup incasso alla consegna (crea un versamento in patient_payments) -->
+<!-- noleggi-v3 : popup incasso (crea un versamento in patient_payments) -->
+<!-- noleggi-v4 : incasso al RIENTRO (non alla consegna), pulsante Incassa sempre, righe annullabili, uscite sempre disponibili -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/pol-ui.js"></script>
@@ -51,6 +52,9 @@
   .btn-del { background: #fff; color: #c62828; border: 1.5px solid #f2c4c4; }
   .btn:disabled { opacity:.45; cursor:not-allowed; }
   .btn-mini { border:none; border-radius:7px; padding:6px 10px; font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer; }
+  .btn-inc { background:#fff8e1; color:#8a6d00; border:1.5px solid #ffe082; }   /* noleggi-v4 */
+  .ovx { float:right; border:none; background:transparent; font-size:20px; line-height:1; color:#aaa; cursor:pointer; padding:0 2px; margin:-6px -4px 0 0; }
+  .ovx:hover { color:#333; }
 
   .filters { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
   .filters .fld { grid-column:auto; min-width:160px; flex:1; }
@@ -261,7 +265,8 @@
   <!-- noleggi-v3 : incasso al momento della consegna -->
   <div class="ov" id="ov-incasso" onclick="if(event.target===this)chiudiIncasso()">
     <div class="ovbox">
-      <div class="ovt">💰 Il paziente ha pagato subito?</div>
+      <button class="ovx" onclick="chiudiIncasso()" title="Chiudi senza fare niente" aria-label="Chiudi">✕</button>
+      <div class="ovt" id="inc-titolo">💰 Il paziente ha pagato?</div>
       <div class="ovs" id="inc-sub">—</div>
       <div class="ovrow">
         <div class="fld">
@@ -284,7 +289,7 @@
         Come sempre, i soldi coprono il debito più vecchio: se ci sono sedute arretrate scoperte, andranno prima su quelle.
       </div>
       <div class="ovacts">
-        <button class="btn btn-sec" onclick="chiudiIncasso()">Metti sul conto</button>
+        <button class="btn btn-sec" onclick="chiudiIncasso()">📋 Metti sul conto</button>
         <button class="btn btn-ok" id="btn-inc-ok" onclick="confermaIncasso()">💰 Registra incasso</button>
       </div>
       <div class="msg" id="msg-inc" style="margin-left:0;display:block;margin-top:10px"></div>
@@ -358,14 +363,19 @@ function statoNoleggio(n){
   return { key:'att', cls:'att', txt:'🟢 In corso' };
 }
 
+// noleggi-v4: addebitiDi() restituisce TUTTE le righe (servono a bloccare il
+// periodo in rigenerazione); i conti usano solo quelle non annullate.
 function addebitiDi(nid){
   var out = [];
   for (var i=0;i<_addebiti.length;i++){ if (_addebiti[i].noleggio_id === nid) out.push(_addebiti[i]); }
   out.sort(function(a,b){ return String(a.periodo) < String(b.periodo) ? -1 : 1; });
   return out;
 }
+function addebitiAttiviDi(nid){
+  return addebitiDi(nid).filter(function(a){ return !a.annullato; });
+}
 function totaleDi(nid){
-  var t = 0, a = addebitiDi(nid);
+  var t = 0, a = addebitiAttiviDi(nid);
   for (var i=0;i<a.length;i++){ var v = Number(a[i].importo); if (isFinite(v)) t += v; }
   return t;
 }
@@ -522,9 +532,11 @@ function render(){
       + '<td class="r"><b>' + fmtEur(totaleDi(n.id)) + '</b></td>'
       + '<td class="r"><div class="rowacts">'
         + '<button class="btn-mini btn-sec" onclick="apriDettaglio(\'' + n.id + '\')">' + (_openId === n.id ? '▲' : '▼') + ' Dettagli</button>'
+        + (totaleDi(n.id) > 0
+            ? '<button class="btn-mini btn-inc" onclick="incassaNoleggio(\'' + n.id + '\')">💰 Incassa</button>' : '')
         + (st.key !== 'done' && n.tipo === 'noleggio'
             ? '<button class="btn-mini btn-ok" onclick="segnaRestituito(\'' + n.id + '\')">✅ Rientrato</button>' : '')
-        + '<button class="btn-mini btn-del" onclick="eliminaNoleggio(\'' + n.id + '\')">🗑</button>'
+        + '<button class="btn-mini btn-del" title="Elimina tutto il noleggio" onclick="eliminaNoleggio(\'' + n.id + '\')">🗑</button>'
       + '</div></td>'
       + '</tr>';
 
@@ -532,7 +544,15 @@ function render(){
       var ad = addebitiDi(n.id);
       var lines = ad.length
         ? ad.map(function(a){
-            return '<div class="ln"><span>' + esc(a.descrizione) + '</span><span>' + fmtEur(a.importo) + '</span></div>';
+            // noleggi-v4 — ogni riga si puo' togliere dai conti (e rimettere)
+            if (a.annullato){
+              return '<div class="ln"><span style="text-decoration:line-through;opacity:.5">' + esc(a.descrizione) + '</span>'
+                   + '<span><span style="text-decoration:line-through;opacity:.5">' + fmtEur(a.importo) + '</span> '
+                   + '<button class="btn-mini btn-sec" onclick="ripristinaAddebito(\'' + a.id + '\')">↩︎ Rimetti</button></span></div>';
+            }
+            return '<div class="ln"><span>' + esc(a.descrizione) + '</span>'
+                 + '<span>' + fmtEur(a.importo) + ' '
+                 + '<button class="btn-mini btn-del" title="Togli questa riga dai conti" onclick="annullaAddebito(\'' + a.id + '\')">🗑</button></span></div>';
           }).join('')
         : '<div class="ln"><span>Nessun addebito generato' + (Number(n.prezzo) === 0 ? ' (voce gratuita)' : '') + '.</span><span></span></div>';
       html += '<tr class="detail"><td colspan="' + (_pid ? 6 : 7) + '">'
@@ -563,6 +583,9 @@ function render(){
 function apriDettaglio(id){ _openId = (_openId === id) ? null : id; render(); }
 
 // ─── Azioni ─────────────────────────────────────────────────────────
+// noleggi-v4 — il rientro e' il momento in cui si sa se il paziente paga:
+// alla consegna non lo sai ancora. Quindi il popup incasso sta QUI, non
+// alla registrazione (che resta il posto giusto solo per le vendite).
 async function segnaRestituito(id){
   var n = null;
   for (var i=0;i<_noleggi.length;i++){ if (_noleggi[i].id === id) n = _noleggi[i]; }
@@ -571,6 +594,36 @@ async function segnaRestituito(id){
     title:'Rientro', icon:'📦', okLabel:'Sì, è rientrato', cancelLabel:'Annulla' });
   if (!ok) return;
   var r = await _sb.from('noleggi').update({ stato:'restituito', data_restituzione: todayISO() }).eq('id', id);
+  if (r && r.error){ await polAlert('Non sono riuscito a salvare: ' + r.error.message, {title:'Errore', icon:'⚠️'}); return; }
+  await ricarica();
+  // Ora chiedo dei soldi: quanto e' maturato in totale, gia' compilato.
+  var dovuto = totaleDi(id);
+  if (dovuto > 0) apriIncasso(n.patient_id, n.descrizione, dovuto, todayISO(), 'rientro');
+}
+
+// Incasso a metà noleggio (o in qualunque momento), dal pulsante 💰 Incassa
+function incassaNoleggio(id){
+  var n = null;
+  for (var i=0;i<_noleggi.length;i++){ if (_noleggi[i].id === id) n = _noleggi[i]; }
+  if (!n) return;
+  apriIncasso(n.patient_id, n.descrizione, totaleDi(id), todayISO(), 'manuale');
+}
+
+// noleggi-v4 — togliere una riga dai conti senza cancellarla davvero:
+// se la cancellassi, al prossimo caricamento il canone si rigenererebbe.
+async function annullaAddebito(aid){
+  var a = null;
+  for (var i=0;i<_addebiti.length;i++){ if (_addebiti[i].id === aid) a = _addebiti[i]; }
+  if (!a) return;
+  var ok = await polConfirm('Togliere «' + a.descrizione + '» (' + fmtEur(a.importo) + ') dal conto del paziente?\n\nNon verrà più conteggiata né in Contabile né in fattura. Puoi rimetterla quando vuoi.', {
+    title:'Togli riga', icon:'🗑', okLabel:'Togli', cancelLabel:'Annulla', danger:true });
+  if (!ok) return;
+  var r = await _sb.from('noleggi_addebiti').update({ annullato: true }).eq('id', aid);
+  if (r && r.error){ await polAlert('Non sono riuscito a salvare: ' + r.error.message, {title:'Errore', icon:'⚠️'}); return; }
+  await ricarica();
+}
+async function ripristinaAddebito(aid){
+  var r = await _sb.from('noleggi_addebiti').update({ annullato: false }).eq('id', aid);
   if (r && r.error){ await polAlert('Non sono riuscito a salvare: ' + r.error.message, {title:'Errore', icon:'⚠️'}); return; }
   await ricarica();
 }
@@ -752,12 +805,14 @@ async function salvaNuovo(){
   btn.disabled = false;
   if (r && r.error){ msg.className='msg err'; msg.textContent = 'Errore: ' + r.error.message; return; }
   msg.className='msg ok'; msg.textContent = 'Registrato ✓';
-  var dovutoOra = 0;
   var perOra = periodiDovuti({ data_inizio: rec.data_inizio, modalita: rec.modalita });
-  dovutoOra = perOra.length * prezzo * qta;
+  var dovutoOra = perOra.length * prezzo * qta;
   svuotaForm();
   await ricarica();
-  if (dovutoOra > 0) apriIncasso(pazId, desc, dovutoOra, rec.data_inizio);
+  // noleggi-v4 — solo per le VENDITE si chiede subito: lì consegni e incassi
+  // nello stesso momento. Per i noleggi la domanda arriva al rientro, oppure
+  // quando vuoi tu col pulsante 💰 Incassa.
+  if (tipo === 'vendita' && dovutoOra > 0) apriIncasso(pazId, desc, dovutoOra, rec.data_inizio, 'vendita');
 }
 
 // ─── noleggi-v3 — incasso alla consegna ─────────────────────────────
@@ -766,11 +821,24 @@ async function salvaNuovo(){
 // I soldi restano UNA cosa sola (patient_payments) e continuano a coprire il
 // debito piu' vecchio: qui si registra l'incasso, non lo si "attacca" al noleggio.
 var _incPid = null;
-function apriIncasso(pazId, descrizione, importo, dataIso){
+function apriIncasso(pazId, descrizione, importo, dataIso, momento){
   _incPid = pazId;
-  document.getElementById('inc-sub').innerHTML =
-    'Hai appena registrato <b>' + esc(descrizione) + '</b> per <b>' + fmtEur(importo) + '</b>. '
-    + 'Se te li ha dati adesso, registrali; se glieli metti sul conto, chiudi pure.';
+  var titolo, sub;
+  if (momento === 'rientro'){
+    titolo = '📦 Rientrato. Ha pagato?';
+    sub = '<b>' + esc(descrizione) + '</b> è tornato. In tutto sono maturati <b>' + fmtEur(importo) + '</b>.'
+        + ' Se te li ha dati adesso registrali, altrimenti restano sul conto del paziente.';
+  } else if (momento === 'vendita'){
+    titolo = '💰 Il paziente ha pagato subito?';
+    sub = 'Hai appena venduto <b>' + esc(descrizione) + '</b> per <b>' + fmtEur(importo) + '</b>.'
+        + ' Se te li ha dati adesso registrali, altrimenti restano sul conto.';
+  } else {
+    titolo = '💰 Registra un incasso';
+    sub = 'Per <b>' + esc(descrizione) + '</b> sono maturati <b>' + fmtEur(importo) + '</b> in tutto.'
+        + ' Scrivi quanto ti ha dato: anche solo una parte.';
+  }
+  document.getElementById('inc-titolo').textContent = titolo;
+  document.getElementById('inc-sub').innerHTML = sub;
   document.getElementById('inc-importo').value = (Math.round(importo*100)/100).toFixed(2);
   document.getElementById('inc-data').value = String(dataIso || todayISO()).substring(0,10);
   document.getElementById('inc-nota').value = descrizione;
