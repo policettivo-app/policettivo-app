@@ -6,6 +6,7 @@
 <title>Noleggi e Prodotti — Policettivo®</title>
 <!-- noleggi-v1 : noleggi e vendite di prodotti - vista paziente (?pid=) e vista globale -->
 <!-- noleggi-v2 : canone dalla data di consegna, anteprima addebiti, addebito modificabile -->
+<!-- noleggi-v3 : popup incasso alla consegna (crea un versamento in patient_payments) -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/pol-ui.js"></script>
@@ -78,6 +79,17 @@
   .prev.free { background:#fff8e1; border-color:#ffe082; color:#6b5500; }
   .prev.free b { color:#8a6d00; }
   .prev.none { background:#fafafa; border-color:#eee; color:#888; }
+
+  /* noleggi-v3 : popup "ha pagato subito?" dopo la registrazione */
+  .ov { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:9998; padding:20px; }
+  .ov.open { display:flex; }
+  .ovbox { background:#fff; border-radius:16px; max-width:430px; width:100%; padding:24px; box-shadow:0 18px 50px rgba(0,0,0,.28); }
+  .ovt { font-size:18px; font-weight:800; margin-bottom:6px; }
+  .ovs { font-size:13px; color:#666; line-height:1.55; margin-bottom:16px; }
+  .ovrow { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .ovrow .fld { flex:1; min-width:130px; grid-column:auto; }
+  .ovacts { display:flex; gap:10px; }
+  .ovacts .btn { flex:1; }
 
   .rowacts { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
   .desc-main { font-weight:700; }
@@ -243,6 +255,39 @@
         Al <b>Sistema TS</b> vanno solo le prestazioni sanitarie: noleggi e vendite restano <b>esclusi</b>, salvo i <b>dispositivi medici CE</b> — da verificare col tuo commercialista.
         Se sei in <b>regime forfettario</b> non applichi IVA su nulla (L. 190/2014).
       </div>
+    </div>
+  </div>
+
+  <!-- noleggi-v3 : incasso al momento della consegna -->
+  <div class="ov" id="ov-incasso" onclick="if(event.target===this)chiudiIncasso()">
+    <div class="ovbox">
+      <div class="ovt">💰 Il paziente ha pagato subito?</div>
+      <div class="ovs" id="inc-sub">—</div>
+      <div class="ovrow">
+        <div class="fld">
+          <label>Importo incassato €</label>
+          <input type="number" id="inc-importo" step="0.01" min="0">
+        </div>
+        <div class="fld">
+          <label>Data</label>
+          <input type="date" id="inc-data">
+        </div>
+      </div>
+      <div class="ovrow">
+        <div class="fld" style="flex:1 1 100%">
+          <label>Nota</label>
+          <input type="text" id="inc-nota" placeholder="Es. Contanti">
+        </div>
+      </div>
+      <div class="ovs" style="margin-bottom:14px">
+        L'incasso finisce tra i <b>Pagamenti</b> del paziente e comparirà in Contabile come <b>🟠 Da fatturare</b>.
+        Come sempre, i soldi coprono il debito più vecchio: se ci sono sedute arretrate scoperte, andranno prima su quelle.
+      </div>
+      <div class="ovacts">
+        <button class="btn btn-sec" onclick="chiudiIncasso()">Metti sul conto</button>
+        <button class="btn btn-ok" id="btn-inc-ok" onclick="confermaIncasso()">💰 Registra incasso</button>
+      </div>
+      <div class="msg" id="msg-inc" style="margin-left:0;display:block;margin-top:10px"></div>
     </div>
   </div>
 
@@ -707,8 +752,57 @@ async function salvaNuovo(){
   btn.disabled = false;
   if (r && r.error){ msg.className='msg err'; msg.textContent = 'Errore: ' + r.error.message; return; }
   msg.className='msg ok'; msg.textContent = 'Registrato ✓';
+  var dovutoOra = 0;
+  var perOra = periodiDovuti({ data_inizio: rec.data_inizio, modalita: rec.modalita });
+  dovutoOra = perOra.length * prezzo * qta;
   svuotaForm();
   await ricarica();
+  if (dovutoOra > 0) apriIncasso(pazId, desc, dovutoOra, rec.data_inizio);
+}
+
+// ─── noleggi-v3 — incasso alla consegna ─────────────────────────────
+// Buco emerso in prova: consegnando un prodotto spesso si viene pagati sul
+// momento, ma non c'era modo di registrarlo senza passare da Contabile.
+// I soldi restano UNA cosa sola (patient_payments) e continuano a coprire il
+// debito piu' vecchio: qui si registra l'incasso, non lo si "attacca" al noleggio.
+var _incPid = null;
+function apriIncasso(pazId, descrizione, importo, dataIso){
+  _incPid = pazId;
+  document.getElementById('inc-sub').innerHTML =
+    'Hai appena registrato <b>' + esc(descrizione) + '</b> per <b>' + fmtEur(importo) + '</b>. '
+    + 'Se te li ha dati adesso, registrali; se glieli metti sul conto, chiudi pure.';
+  document.getElementById('inc-importo').value = (Math.round(importo*100)/100).toFixed(2);
+  document.getElementById('inc-data').value = String(dataIso || todayISO()).substring(0,10);
+  document.getElementById('inc-nota').value = descrizione;
+  document.getElementById('msg-inc').textContent = '';
+  document.getElementById('btn-inc-ok').disabled = false;
+  document.getElementById('ov-incasso').classList.add('open');
+}
+function chiudiIncasso(){
+  document.getElementById('ov-incasso').classList.remove('open');
+  _incPid = null;
+}
+async function confermaIncasso(){
+  var msg = document.getElementById('msg-inc');
+  var btn = document.getElementById('btn-inc-ok');
+  var imp = Number(document.getElementById('inc-importo').value);
+  if (!isFinite(imp) || imp <= 0){ msg.className='msg err'; msg.textContent = 'Metti un importo maggiore di zero.'; return; }
+  var dataStr = document.getElementById('inc-data').value || todayISO();
+  var nota = String(document.getElementById('inc-nota').value || '').trim();
+  btn.disabled = true;
+  msg.className='msg'; msg.textContent = 'Salvo…';
+  var r = await _sb.from('patient_payments').insert({
+    patient_id: _incPid,
+    professional_id: _uid,
+    importo: Math.round(imp*100)/100,
+    data: dataStr,
+    nota: nota
+  });
+  btn.disabled = false;
+  if (r && r.error){ msg.className='msg err'; msg.textContent = 'Errore: ' + r.error.message; return; }
+  chiudiIncasso();
+  await polAlert('Incasso di ' + fmtEur(imp) + ' registrato. Lo trovi in Contabile fra i pagamenti, come «Da fatturare».',
+    { title:'Fatto', icon:'💰' });
 }
 
 // ─── Caricamento ────────────────────────────────────────────────────
