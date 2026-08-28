@@ -37,6 +37,8 @@
   .badge.stornata { background: #ffebee; color: #c62828; }
   .badge.nc { background: #ede7f6; color: #5e35b1; }
   .btn-mini { background: #000; color: #FFD008; border: none; border-radius: 6px; padding: 5px 10px; font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer; text-decoration: none; }
+  .btn-mini.storna { background: #fff; color: #c62828; border: 1.5px solid #ffcdd2; }
+  .btn-mini.storna:hover { background: #ffebee; }
   .annual { display: flex; flex-wrap: wrap; gap: 10px; }
   .ycard { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 10px 14px; font-size: 13px; }
   .ycard b { font-size: 16px; }
@@ -152,10 +154,14 @@ function reset(){ document.getElementById('q').value=''; document.getElementById
 
 function _segno(f){ return f.tipo_doc === 'nota_credito' ? -1 : 1; } // le NC riducono i totali
 
+// nc-registro-v1 — I totali sommano TUTTI i documenti emessi: la fattura stornata
+// resta a positivo (fiscalmente esiste) e la sua nota di credito la annulla in
+// negativo. Saltare la fattura stornata avrebbe lasciato in giro solo la NC,
+// facendo risultare un totale negativo.
 function renderSummary(){
   var n=0, imp=0, iva=0, bollo=0, tot=0;
   for (var i=0;i<_view.length;i++){
-    var f=_view[i]; if (f.stato==='stornata') { n++; continue; } // fattura stornata: non conta nei totali
+    var f=_view[i];
     var s=_segno(f);
     n++; imp += s*(Number(f.imponibile)||0); iva += s*(Number(f.iva)||0); bollo += s*(Number(f.bollo)||0); tot += s*(Number(f.totale)||0);
   }
@@ -171,7 +177,7 @@ function renderSummary(){
 function renderAnnual(){
   var perAnno = {};
   for (var i=0;i<_fatture.length;i++){
-    var f=_fatture[i]; if (f.stato==='stornata') continue;
+    var f=_fatture[i];   // nc-registro-v1: stornate incluse, la NC le annulla in negativo
     var anno = f.anno || (String(f.data_emissione||'').substring(0,4));
     if (!perAnno[anno]) perAnno[anno]=0;
     perAnno[anno] += _segno(f)*(Number(f.totale)||0);
@@ -182,7 +188,28 @@ function renderAnnual(){
   document.getElementById('annual').innerHTML = html;
 }
 
-function renderTabella(){ // fic-registro-v1
+// nc-registro-v1 — quanto di questa fattura è già stato stornato
+function _stornatoDi(f){
+  var s = 0;
+  for (var i=0;i<_fatture.length;i++){
+    var x = _fatture[i];
+    if (x.tipo_doc === 'nota_credito' && x.rif_fattura_id === f.id) s += (Number(x.totale)||0);
+  }
+  return Math.round(s*100)/100;
+}
+function _stornabile(f){
+  if (f.tipo_doc === 'nota_credito') return false;   // una NC non si storna
+  if (f.stato === 'stornata') return false;
+  return true;
+}
+function apriStorno(id){ window.location.href = 'fattura.html?nc=' + encodeURIComponent(id); }
+function _numeroDi(id){
+  if (!id) return '';
+  for (var i=0;i<_fatture.length;i++){ if (_fatture[i].id === id) return _fatture[i].numero || ''; }
+  return '';
+}
+
+function renderTabella(){ // fic-registro-v1 + nc-registro-v1
   var tb = document.getElementById('tbody');
   var empty = document.getElementById('empty');
   document.getElementById('lista-title').textContent = 'Fatture (' + _view.length + ')';
@@ -201,6 +228,12 @@ function renderTabella(){ // fic-registro-v1
       ? '<span class="badge stornata">Stornata</span>'
       : (isNC ? '<span class="badge nc">Nota credito</span>' : '<span class="badge emessa">Emessa</span>');
     var totCell = (isNC ? '− ' : '') + fmtEur(f.totale);
+    // nc-registro-v1: badge storno parziale + bottone Storna
+    var parz = 0;
+    if (!isNC && f.stato !== 'stornata') parz = _stornatoDi(f);
+    if (parz > 0) statoBadge += ' <span class="badge" style="background:#fff3e0;color:#e65100" title="Già stornati '+fmtEur(parz)+'">Storno parziale</span>';
+    var azioni = '<a class="btn-mini" href="fattura.html?fid='+encodeURIComponent(f.id)+'">Apri</a>';
+    if (_stornabile(f)) azioni += ' <button class="btn-mini storna" onclick="apriStorno(\''+esc(f.id)+'\')" title="Emetti una nota di credito">↩︎ Storna</button>';
     html += '<tr>' +
       '<td class="numcell">'+esc(f.numero)+'</td>' +
       '<td class="hide">'+esc(fmtDataIT(f.data_emissione))+'</td>' +
@@ -209,20 +242,21 @@ function renderTabella(){ // fic-registro-v1
       '<td class="r hide">'+(f.esente_iva?'Esente':fmtEur(f.iva))+'</td>' +
       '<td class="r">'+totCell+'</td>' +
       '<td>'+statoBadge+(f.fic_document_id?' <span class="badge" style="background:#e8f5ff;color:#0369a1" title="Inviata a Fatture in Cloud'+(f.fic_numero?(' — n. '+esc(f.fic_numero)):'')+'">FIC</span>':'')+'</td>' +
-      '<td><a class="btn-mini" href="fattura.html?fid='+encodeURIComponent(f.id)+'">Apri</a></td>' +
+      '<td style="white-space:nowrap">'+azioni+'</td>' +
     '</tr>';
   }
   tb.innerHTML = html;
 }
 
 function esportaCSV(){
-  var rows = [['Numero','Data','Paziente','Tipo','Imponibile','IVA','Bollo','Totale','Stato']];
+  var rows = [['Numero','Data','Paziente','Tipo','Rif. fattura','Imponibile','IVA','Bollo','Totale','Stato']];
   var arr = _view.slice().sort(function(x,y){ if ((y.anno||0)!==(x.anno||0)) return (y.anno||0)-(x.anno||0); return (y.progressivo||0)-(x.progressivo||0); });
   for (var i=0;i<arr.length;i++){
     var f=arr[i];
     rows.push([
       f.numero, fmtDataIT(f.data_emissione), nomePaz(f.patient_id),
       (f.tipo_doc==='nota_credito'?'Nota credito':'Fattura'),
+      _numeroDi(f.rif_fattura_id),
       String(Number(f.imponibile)||0).replace('.',','),
       (f.esente_iva?'Esente':String(Number(f.iva)||0).replace('.',',')),
       String(Number(f.bollo)||0).replace('.',','),

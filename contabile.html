@@ -422,9 +422,34 @@ function emettiFattura(payId){
   window.location.href = url;
 }
 
+// nc-contabile-v1 — movimento di rimborso (soldi restituiti al paziente dopo una
+// nota di credito): esce di scena dalla fatturazione, ma resta nel Versato.
+function _eRimborso(p){ return !!(p && (p.rimborso_nc_id || Number(p.importo) < 0)); }
+
+// nc-contabile-v1 — una fattura stornata (o una nota di credito) non documenta
+// piu' l'incasso: quel versamento torna «da fatturare» e si puo' rifatturare.
 function _fatturaDiPagamento(payId){
-  for (var i=0;i<_fatture.length;i++){ if (_fatture[i].payment_id === payId) return _fatture[i]; }
+  for (var i=0;i<_fatture.length;i++){
+    var f = _fatture[i];
+    if (f.payment_id !== payId) continue;
+    if (f.stato === 'stornata') continue;
+    if (f.tipo_doc === 'nota_credito') continue;
+    return f;
+  }
   return null;
+}
+// Nota di credito emessa su una fattura che documentava questo incasso (per il badge).
+function _ncDiPagamento(payId){
+  var stornata = null;
+  for (var i=0;i<_fatture.length;i++){
+    var f = _fatture[i];
+    if (f.payment_id === payId && f.stato === 'stornata'){ stornata = f; break; }
+  }
+  if (!stornata) return null;
+  for (var j=0;j<_fatture.length;j++){
+    if (_fatture[j].tipo_doc === 'nota_credito' && _fatture[j].rif_fattura_id === stornata.id) return _fatture[j];
+  }
+  return { numero: '', id: null };
 }
 function ristampaFattura(fid){ window.location.href = 'fattura.html?fid=' + encodeURIComponent(fid); }
 async function segnaNonFatturare(payId){
@@ -699,6 +724,7 @@ function renderTotali(){
     var p = pagLista[j];
     var v = Number(p.importo); if (!isFinite(v)) v = 0;
     versato += v;
+    if (_eRimborso(p)) continue;                          // nc-contabile-v1: i rimborsi non si fatturano
     if (_fatturaDiPagamento(p.id)) fatturato += v;       // incasso già documentato
     else if (!p.no_fattura)        daFatturare += v;      // incasso da documentare
     // gli incassi "no_fattura" restano fuori: esclusi volontariamente
@@ -1085,9 +1111,16 @@ function renderPagamenti(){
     } else {
       var fatt = _fatturaDiPagamento(p.id);
       var statoHtml = '';
-      if (fatt){
+      if (_eRimborso(p)){
+        statoHtml = '<span class="fatt-badge no" title="Soldi restituiti al paziente">↩︎ Rimborso</span>';
+      } else if (fatt){
         statoHtml = '<span class="fatt-badge ok">🟢 Fatt. ' + _esc(fatt.numero) + '</span>' +
                     '<button class="btn-fatt ristampa" title="Ristampa PDF" onclick="ristampaFattura(\'' + _esc(fatt.id) + '\')">Ristampa</button>';
+      } else if (_ncDiPagamento(p.id)){
+        // nc-contabile-v1: la fattura di questo incasso e' stata stornata
+        var _ncp = _ncDiPagamento(p.id);
+        statoHtml = '<span class="fatt-badge todo" title="La fattura e stata stornata con una nota di credito">↩︎ Stornata' + (_ncp.numero ? (' (' + _esc(_ncp.numero) + ')') : '') + '</span>' +
+                    '<button class="btn-fatt emetti" onclick="emettiFattura(\'' + _esc(p.id) + '\')">🧾 Rifattura</button>';
       } else if (p.no_fattura){
         statoHtml = '<span class="fatt-badge no">⚪️ Non fatturare</span>' +
                     '<button class="btn-fatt" title="Emetti comunque" onclick="emettiFattura(\'' + _esc(p.id) + '\')">Emetti</button>';
@@ -1447,7 +1480,7 @@ async function init(){
 
   // Fatture del paziente (per i badge Da fatturare / Fatturato)
   try {
-    var fres = await _sb.from('fatture').select('id, numero, payment_id').eq('patient_id', pid);
+    var fres = await _sb.from('fatture').select('id, numero, payment_id, stato, tipo_doc, rif_fattura_id').eq('patient_id', pid);   // nc-contabile-v1
     if (fres && fres.data) _fatture = fres.data;
   } catch(e) { console.error('[contabile] fetch fatture error:', e); }
 

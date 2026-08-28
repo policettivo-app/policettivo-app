@@ -147,6 +147,15 @@
       </div>
     </div>
 
+    <!-- nc-v1 : COSA STORNARE (solo in modalità nota di credito) -->
+    <div class="card" id="nc-card" style="display:none">
+      <div class="card-title">Cosa stornare</div>
+      <div class="warn-box" id="nc-rif"></div>
+      <div class="hint">Spunta le voci da stornare. Se le lasci tutte spuntate la fattura viene annullata per intero; togliendone qualcuna emetti una nota di credito parziale. Gli importi restano modificabili qui sotto, nelle «Voci».</div>
+      <div id="nc-list"></div>
+      <div class="hint" id="nc-bollo-hint" style="display:none">L'imposta di bollo si ricalcola sulla nota: 2 € solo se la quota senza IVA della nota supera 77,47 €. Se vuoi restituire al paziente anche i 2 € della fattura originale, aggiungi una voce a mano.</div>
+    </div>
+
     <!-- SEDUTE DA FATTURARE -->
     <div class="card" id="sedute-card" style="display:none">
       <div class="card-title">Sedute da fatturare</div>
@@ -236,6 +245,11 @@ var pid      = params.get('pid');
 var payId    = params.get('pay');
 var fid      = params.get('fid');     // modalità ristampa
 var reprint  = !!fid;
+// nc-v1 — modalità NOTA DI CREDITO: ?nc=<id della fattura da stornare>
+var ncFid      = params.get('nc');
+var isNC       = !!ncFid;
+var ncOrig     = null;    // record della fattura stornata
+var ncGiaFatte = [];      // note di credito già emesse su quella fattura
 var prof     = null;      // record professionals
 var authUid  = null;      // auth.uid() = professional_id nelle fatture
 var patient  = null;      // record patients
@@ -481,9 +495,10 @@ function aggiungiSconto(){ righe.push({descrizione:'Sconto', quantita:1, prezzo:
 function rimuoviRiga(i){
   var wasLinked = righe[i] && righe[i].session_id;
   var wasAdd    = righe[i] && righe[i].addebito_id;   // noleggi-fattura-v1
+  var wasNC     = righe[i] && righe[i].nc_idx != null; // nc-v1
   righe.splice(i,1);
-  if(!righe.length && !reprint) righe.push({descrizione:'Prestazione FKT', quantita:1, prezzo:''});
-  renderRighe(); if (wasLinked) renderSedute(); if (wasAdd) renderAddebiti();
+  if(!righe.length && !reprint && !isNC) righe.push({descrizione:'Prestazione FKT', quantita:1, prezzo:''});
+  renderRighe(); if (wasLinked) renderSedute(); if (wasAdd) renderAddebiti(); if (wasNC) renderNCPicker();
 }
 function aggiungiDaListino(){
   var sel = document.getElementById('lst-sel');
@@ -518,12 +533,17 @@ function totaliHTML(f){
 function renderTotali(){ document.getElementById('totals').innerHTML = totaliHTML(calcolaFiscale()); }
 
 // ─── Numerazione ────────────────────────────────────────────────────
-async function prossimoProgressivo(anno){
-  var res = await _sb.from('fatture').select('progressivo').eq('professional_id', authUid).eq('anno', anno)
-    .order('progressivo', { ascending: false }).limit(1);
+// nc-v1: la numerazione è per SERIE — 'FT' = fatture, 'NC' = note di credito.
+// Le fatture emesse prima della migration 030 hanno serie NULL e valgono FT.
+async function prossimoProgressivo(anno, serie){
+  serie = serie || 'FT';
+  var q = _sb.from('fatture').select('progressivo').eq('professional_id', authUid).eq('anno', anno);
+  q = (serie === 'NC') ? q.eq('serie','NC') : q.or('serie.eq.FT,serie.is.null');
+  var res = await q.order('progressivo', { ascending: false }).limit(1);
   if (res.error){ throw res.error; }
   var max = (res.data && res.data.length) ? Number(res.data[0].progressivo) : 0;
   if (max > 0) return max + 1;
+  if (serie === 'NC') return 1;   // le NC partono sempre da 1, numerazione propria
   // Nessuna fattura per quest'anno: se è la primissima in assoluto e c'è un numero di partenza, usalo
   var partenza = (prof && prof.fattura_num_partenza) ? Number(prof.fattura_num_partenza) : 0;
   if (partenza > 1) {
@@ -533,8 +553,14 @@ async function prossimoProgressivo(anno){
   }
   return 1;
 }
-function fmtNumero(anno, prog){ return anno + '/' + String(prog).padStart(3,'0'); }
-function labelEmetti(){ return (prof && prof.fic_connected) ? 'Emetti in Fatture in Cloud' : 'Emetti e scarica PDF'; }
+function fmtNumero(anno, prog, serie){
+  var base = anno + '/' + String(prog).padStart(3,'0');
+  return (serie === 'NC') ? ('NC/' + base) : base;   // nc-v1: serie separata
+}
+function labelEmetti(){
+  if (isNC) return (prof && prof.fic_connected) ? 'Emetti nota di credito in Fatture in Cloud' : 'Emetti nota di credito';
+  return (prof && prof.fic_connected) ? 'Emetti in Fatture in Cloud' : 'Emetti e scarica PDF';
+}
 
 // ─── Invio a Fatture in Cloud (fic-push, Blocco 2B) ─────────────────
 function costruisciRigheValide(){
@@ -562,6 +588,11 @@ function costruisciPayloadFic(f, righeValide, dataEm){
   return {
     data_emissione: dataEm,
     bollo: f.bollo,
+    // nc-v1: 'credit_note' fa creare a FIC una nota di credito invece di una fattura
+    tipo_doc: (isNC ? 'nota_credito' : 'fattura'),
+    rif_fattura: (isNC && ncOrig)
+      ? { numero: (ncOrig.fic_numero || ncOrig.numero || ''), data: String(ncOrig.data_emissione||'').substring(0,10), fic_document_id: (ncOrig.fic_document_id || null) }
+      : null,
     cliente: {
       nome:           (patient && patient.nome) || '',
       cognome:        (patient && patient.cognome) || '',
@@ -723,6 +754,172 @@ async function emetti(){
   document.getElementById('num-preview').textContent = 'Numero: ' + record.numero;
 }
 
+// ─── nc-v1 — NOTA DI CREDITO (storno) ───────────────────────────────
+// La nota di credito è un documento NUOVO: le fatture non si cancellano mai.
+// Serie separata NC/2026/001 e, se il professionista è collegato a Fatture in
+// Cloud, il numero lo assegna FIC come per le fatture.
+
+// Quanto resta ancora da stornare della fattura originale.
+function ncResiduoStornabile(){
+  if (!ncOrig) return 0;
+  var gia = 0;
+  for (var i=0;i<ncGiaFatte.length;i++){ gia = r2(gia + (Number(ncGiaFatte[i].totale)||0)); }
+  return r2((Number(ncOrig.totale)||0) - gia);
+}
+
+function rigaDiOrig(idx){ for (var i=0;i<righe.length;i++){ if (righe[i].nc_idx === idx) return i; } return -1; }
+
+function rigaDaOrig(r, idx){
+  return {
+    descrizione: r.descrizione || 'Voce',
+    quantita:    (Number(r.quantita)||1),
+    prezzo:      Math.abs(Number(r.prezzo_unitario)||0),
+    ivaCode:     (r.iva_code || undefined),
+    tipo:        ((Number(r.importo)||0) < 0 ? 'sconto' : undefined),  // gli sconti restano negativi anche nella NC
+    nc_idx:      idx
+  };
+}
+
+function renderNCPicker(){
+  var box = document.getElementById('nc-list');
+  if (!box || !ncOrig) return;
+  var orig = Array.isArray(ncOrig.righe) ? ncOrig.righe : [];
+  var html = '';
+  for (var i=0;i<orig.length;i++){
+    var r = orig[i];
+    var checked = rigaDiOrig(i) !== -1;
+    html += '<div class="sed-row">' +
+      '<input type="checkbox" '+(checked?'checked':'')+' onchange="toggleRigaNC('+i+')">' +
+      '<span class="sed-date">'+esc(r.iva_label || ivaShortRiga(r) || '')+'</span>' +
+      '<span class="sed-desc">'+esc(r.descrizione || 'Voce')+'</span>' +
+      '<span class="sed-price">'+fmtEur(r.importo)+'</span>' +
+    '</div>';
+  }
+  box.innerHTML = html || '<div class="sed-empty">La fattura non ha voci dettagliate.</div>';
+}
+
+function toggleRigaNC(idx){
+  var pos = rigaDiOrig(idx);
+  if (pos !== -1){ righe.splice(pos,1); }
+  else {
+    var orig = Array.isArray(ncOrig.righe) ? ncOrig.righe : [];
+    if (!orig[idx]) return;
+    righe.push(rigaDaOrig(orig[idx], idx));
+    righe.sort(function(a,b){ return (a.nc_idx==null?999:a.nc_idx) - (b.nc_idx==null?999:b.nc_idx); });
+  }
+  renderNCPicker(); renderRighe();
+}
+
+async function emettiNC(){
+  var btn = document.getElementById('btn-emetti');
+  var ok  = document.getElementById('ok-msg');
+
+  var f = calcolaFiscale();
+  if (f.imponibile <= 0){ await polAlert('Spunta almeno una voce da stornare.', { title:'Niente da stornare', icon:'↩️' }); return; }
+
+  var residuo = ncResiduoStornabile();
+  if (f.totale > r2(residuo + 0.01)){
+    var proc = await polConfirm(
+      'Stai stornando ' + fmtEur(f.totale) + ', ma di questa fattura resta da stornare ' + fmtEur(residuo) + '.\n\nVuoi procedere lo stesso?',
+      { title:'Importo troppo alto', icon:'⚠️', okLabel:'Procedi', cancelLabel:'Correggi', danger:true });
+    if (!proc) return;
+  }
+
+  var righeValide = costruisciRigheValide();
+  var dataEm = document.getElementById('data-emissione').value || todayISO();
+  var anno   = Number(dataEm.substring(0,4));
+
+  btn.disabled = true; btn.textContent = 'Emissione…';
+
+  var ficResult = null;
+  if (prof.fic_connected){
+    btn.textContent = 'Invio a Fatture in Cloud…';
+    try { ficResult = await inviaAFic(f, righeValide, dataEm); }
+    catch(e){
+      btn.disabled = false; btn.textContent = labelEmetti();
+      await polAlert(e.message || 'Invio a Fatture in Cloud non riuscito', { title:'Fatture in Cloud', icon:'⛔' });
+      return;
+    }
+    btn.textContent = 'Salvataggio…';
+  }
+
+  var record = null, lastErr = null;
+  for (var tent=0; tent<6; tent++){
+    var prog, numeroLocale;
+    try { prog = await prossimoProgressivo(anno, 'NC'); } catch(e){ lastErr=e; break; }
+    numeroLocale = fmtNumero(anno, prog, 'NC');
+
+    var payload = {
+      professional_id: authUid, patient_id: pid, anno: anno, progressivo: prog,
+      tipo_doc: 'nota_credito', serie: 'NC', rif_fattura_id: ncOrig.id,
+      numero: (ficResult ? ficResult.fic_numero : numeroLocale),
+      data_emissione: dataEm, righe: righeValide,
+      imponibile: f.imponibile, rivalsa: f.rivalsa, iva: f.iva, bollo: f.bollo, totale: f.totale,
+      esente_iva: f.esente, regime_snapshot: f.regime, sanitaria_snapshot: f.san,
+      riepilogo_iva: f.riepilogo, stato: 'emessa'
+    };
+    if (ficResult){
+      payload.fic_document_id = ficResult.fic_document_id || null;
+      payload.fic_number      = (ficResult.fic_number != null ? ficResult.fic_number : null);
+      payload.fic_numeration  = ficResult.fic_numeration || null;
+      payload.fic_numero      = ficResult.fic_numero || null;
+      payload.fic_sent_at     = new Date().toISOString();
+    }
+    // I dati TS della fattura originale seguono la nota (il TS vuole la variazione)
+    if (f.san){
+      payload.cf_paziente         = ncOrig.cf_paziente || ((patient && patient.codice_fiscale) || null);
+      payload.tipo_spesa          = ncOrig.tipo_spesa || null;
+      payload.pagamento_tracciato = (ncOrig.pagamento_tracciato != null ? ncOrig.pagamento_tracciato : true);
+      payload.opposizione_ts      = !!ncOrig.opposizione_ts;
+    }
+
+    var ins = await _sb.from('fatture').insert(payload).select('*').maybeSingle();
+    if (!ins.error){ record = ins.data; break; }
+    lastErr = ins.error;
+    if (String(ins.error.code) !== '23505'){ break; }
+  }
+
+  if (!record){
+    btn.disabled = false; btn.textContent = labelEmetti();
+    console.error('[nc] errore emissione:', lastErr);
+    var extra = ficResult ? (' ⚠️ La nota risulta però già creata su Fatture in Cloud (n. ' + (ficResult.fic_numero||'?') + '): controllala in FIC prima di riprovare, per non duplicarla.') : '';
+    await polAlert('Errore durante l’emissione della nota di credito: ' + (lastErr && lastErr.message ? lastErr.message : 'sconosciuto') + extra, { title:'Errore', icon:'⛔' });
+    return;
+  }
+
+  // Storno totale? -> la fattura originale diventa "stornata".
+  var stornatoTot = r2(f.totale + ((Number(ncOrig.totale)||0) - residuo));
+  var totale_pieno = stornatoTot >= r2((Number(ncOrig.totale)||0) - 0.01);
+  if (totale_pieno){
+    var up = await _sb.from('fatture').update({ stato: 'stornata' }).eq('id', ncOrig.id);
+    if (up && up.error) console.error('[nc] update stato fattura error:', up.error);
+  }
+
+  // Rimborso: i soldi sono tornati al paziente oppure restano in cassa?
+  var reso = await polConfirm(
+    'Hai restituito ' + fmtEur(f.totale) + ' al paziente?\n\nSì → tolgo l’incasso dalla contabilità (registro un rimborso).\nNo → l’incasso resta in cassa e le prestazioni tornano «da fatturare».',
+    { title:'Soldi restituiti?', icon:'💰', okLabel:'Sì, restituiti', cancelLabel:'No, restano in cassa' });
+  if (reso){
+    var payRimb = { patient_id: pid, professional_id: authUid, importo: -Math.abs(f.totale),
+                    data: dataEm, nota: 'Rimborso — nota di credito n. ' + record.numero, rimborso_nc_id: record.id };
+    var pr2 = await _sb.from('patient_payments').insert(payRimb);
+    if (pr2 && pr2.error){
+      console.error('[nc] rimborso error:', pr2.error);
+      await polAlert('La nota di credito è emessa, ma non sono riuscito a registrare il rimborso in contabilità: ' +
+        (pr2.error.message||'') + '\n\nRegistralo a mano dalla pagina Contabile.', { title:'Rimborso non registrato', icon:'⚠️' });
+    }
+  }
+
+  try { await generaPDF(record, f); } catch(e){ console.error('[nc] PDF error:', e); await polAlert('Nota di credito salvata (n. '+record.numero+'), ma errore nel PDF: '+e.message, { title:'Attenzione', icon:'⚠️' }); }
+
+  btn.textContent = '✓ Emessa';
+  var viaFic2 = record.fic_numero ? ' (creata su Fatture in Cloud)' : '';
+  ok.textContent = '✅ Nota di credito n. ' + record.numero + ' emessa' + viaFic2 + '. ' +
+    (totale_pieno ? 'La fattura ' + ncOrig.numero + ' risulta stornata.' : 'Storno parziale: la fattura ' + ncOrig.numero + ' resta valida per la parte non stornata.');
+  ok.style.display = 'block';
+  document.getElementById('num-preview').textContent = 'Numero: ' + record.numero;
+}
+
 // ─── PDF (client-side jsPDF) ────────────────────────────────────────
 async function caricaLogoDataURL(url){
   try {
@@ -758,11 +955,19 @@ async function generaPDF(rec, f){
 
   y = Math.max(y+22, yr+4);
 
+  // nc-v1: stesso PDF, intestazione diversa per le note di credito
+  var isNCdoc = (rec.tipo_doc === 'nota_credito');
   doc.setFont('helvetica','bold'); doc.setFontSize(16);
-  doc.text('FATTURA n. ' + rec.numero, M, y);
+  doc.text((isNCdoc ? 'NOTA DI CREDITO n. ' : 'FATTURA n. ') + rec.numero, M, y);
   doc.setFont('helvetica','normal'); doc.setFontSize(10);
   doc.text('Data: ' + fmtDataIT(rec.data_emissione), M, y+6);
   y += 16;
+  if (isNCdoc){
+    var rifTxt = '';
+    if (ncOrig && ncOrig.id === rec.rif_fattura_id) rifTxt = 'Storno della fattura n. ' + ncOrig.numero + ' del ' + fmtDataIT(ncOrig.data_emissione);
+    else if (rec._rif_numero) rifTxt = 'Storno della fattura n. ' + rec._rif_numero + (rec._rif_data ? (' del ' + fmtDataIT(rec._rif_data)) : '');
+    if (rifTxt){ doc.setFontSize(10); doc.text(rifTxt, M, y - 4); y += 4; }
+  }
 
   doc.setFillColor(245,245,247); doc.rect(M, y-5, W-2*M, 22, 'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(120);
@@ -827,7 +1032,8 @@ async function generaPDF(rec, f){
   }
 
   var cog = ((patient&&patient.cognome)||'paziente').toLowerCase().replace(/[^a-z0-9]/g,'');
-  doc.save('fattura_' + rec.numero.replace('/','-') + '_' + cog + '.pdf');
+  var prefisso = (rec.tipo_doc === 'nota_credito') ? 'nota_credito_' : 'fattura_';
+  doc.save(prefisso + String(rec.numero).replace(/\//g,'-') + '_' + cog + '.pdf');
 }
 
 function annulla(){ window.location.href = 'contabile.html?pid=' + encodeURIComponent(pid || ''); }
@@ -857,8 +1063,16 @@ async function init(){
     var pa = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta, cap').eq('id', pid).maybeSingle();
     patient = pa.data || {};
 
-    document.getElementById('page-h1').textContent = 'Ristampa fattura';
-    document.getElementById('nav-sub').textContent = 'Ristampa fattura';
+    // nc-v1: se è una nota di credito, recupera il numero della fattura stornata (per il PDF)
+    if (rec.tipo_doc === 'nota_credito' && rec.rif_fattura_id){
+      try {
+        var rf = await _sb.from('fatture').select('numero, data_emissione').eq('id', rec.rif_fattura_id).maybeSingle();
+        if (rf && rf.data){ rec._rif_numero = rf.data.numero; rec._rif_data = rf.data.data_emissione; }
+      } catch(e){}
+    }
+    var etichetta = (rec.tipo_doc === 'nota_credito') ? 'Ristampa nota di credito' : 'Ristampa fattura';
+    document.getElementById('page-h1').textContent = etichetta;
+    document.getElementById('nav-sub').textContent = etichetta;
     document.getElementById('num-preview').textContent = 'Numero: ' + rec.numero;
     document.getElementById('back-link').href = 'contabile.html?pid=' + encodeURIComponent(pid);
     riempiIntestazioni();
@@ -883,6 +1097,58 @@ async function init(){
     var btn = document.getElementById('btn-emetti');
     btn.textContent = 'Scarica PDF';
     btn.onclick = function(){ scaricaRistampa(rec); };
+    document.body.style.visibility = 'visible';
+    return;
+  }
+
+  // ── nc-v1 : NOTA DI CREDITO (storno di una fattura) ──
+  if (isNC){
+    var ofr = await _sb.from('fatture').select('*').eq('id', ncFid).maybeSingle();
+    if (ofr.error || !ofr.data){ await polAlert('Fattura da stornare non trovata.', { title:'Errore', icon:'⛔' }); window.location.href='fatture.html'; return; }
+    ncOrig = ofr.data;
+    if (ncOrig.tipo_doc === 'nota_credito'){ await polAlert('Questo documento è già una nota di credito: non si storna.', { title:'Non consentito', icon:'⚠️' }); window.location.href='fatture.html'; return; }
+    pid = ncOrig.patient_id;
+
+    var ncr = await _sb.from('fatture').select('id, totale, numero').eq('rif_fattura_id', ncOrig.id);
+    ncGiaFatte = (ncr && ncr.data) ? ncr.data : [];
+
+    var pa3 = await _sb.from('patients').select('nome, cognome, codice_fiscale, indirizzo, citta, cap').eq('id', pid).maybeSingle();
+    patient = pa3.data || {};
+
+    document.getElementById('page-h1').textContent = 'Nota di credito';
+    document.getElementById('nav-sub').textContent = 'Nota di credito';
+    document.getElementById('num-preview').textContent = 'Numero: assegnato all’emissione';
+    document.getElementById('back-link').href = 'fatture.html' + (pid ? ('?pid='+encodeURIComponent(pid)) : '');
+    document.getElementById('data-emissione').value = todayISO();
+    riempiIntestazioni();
+
+    // Fuori tutto cio' che serve solo a una fattura nuova
+    document.getElementById('sedute-card').style.display = 'none';
+    var _nc2 = document.getElementById('noleggi-card'); if (_nc2) _nc2.style.display = 'none';
+    document.getElementById('ts-card').style.display = 'none';
+    var _bpf = document.getElementById('btn-prova-fic'); if (_bpf) _bpf.style.display = 'none';
+    var _mp = document.getElementById('modalita-pag'); if (_mp && _mp.parentNode) _mp.parentNode.style.display = 'none';
+
+    // Card «Cosa stornare» + righe precaricate (storno totale come default)
+    document.getElementById('nc-card').style.display = '';
+    var residuoIniz = ncResiduoStornabile();
+    document.getElementById('nc-rif').innerHTML =
+      'Stai stornando la fattura <b>n. ' + esc(ncOrig.numero) + '</b> del ' + esc(fmtDataIT(ncOrig.data_emissione)) +
+      ' — totale ' + fmtEur(ncOrig.totale) + '.' +
+      (ncGiaFatte.length ? ('<br>Note di credito già emesse su questa fattura: ' + ncGiaFatte.length +
+        ' · resta da stornare <b>' + fmtEur(residuoIniz) + '</b>.') : '') +
+      '<br>La fattura non viene cancellata: resta nel registro e la nota di credito la annulla.';
+    if (Number(ncOrig.bollo) > 0) document.getElementById('nc-bollo-hint').style.display = '';
+
+    var origRighe = Array.isArray(ncOrig.righe) ? ncOrig.righe : [];
+    righe = [];
+    for (var oi=0; oi<origRighe.length; oi++){ righe.push(rigaDaOrig(origRighe[oi], oi)); }
+    if (!righe.length) righe.push({ descrizione: 'Storno fattura n. ' + ncOrig.numero, quantita: 1, prezzo: Math.abs(Number(ncOrig.imponibile)||0) });
+    renderNCPicker(); renderRighe();
+
+    var btnNC = document.getElementById('btn-emetti');
+    btnNC.textContent = labelEmetti();
+    btnNC.onclick = function(){ emettiNC(); };
     document.body.style.visibility = 'visible';
     return;
   }

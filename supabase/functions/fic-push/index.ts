@@ -224,14 +224,28 @@ Deno.serve(async (req: Request) => {
   };
 
   // 7) crea il documento (senza number -> FIC assegna la numerazione)
+  // nc-v1: 'credit_note' quando l'app sta emettendo una nota di credito.
+  // Il riferimento alla fattura stornata va nell'oggetto visibile, cosi' resta
+  // stampato anche sul PDF prodotto da Fatture in Cloud.
+  const isNotaCredito = String(body?.tipo_doc || "") === "nota_credito";
   const docPayload: any = {
     data: {
-      type: "invoice",
+      type: isNotaCredito ? "credit_note" : "invoice",
       entity,
       e_invoice: false, // sanitaria/privato: niente SDI (invio a TS poi da FIC)
       items_list: items,
     },
   };
+  if (isNotaCredito) {
+    const rif = body?.rif_fattura || {};
+    const rifNum = String(rif.numero || "").trim();
+    const rifData = String(rif.data || "").trim();
+    if (rifNum) {
+      docPayload.data.visible_subject =
+        "Storno della fattura n. " + rifNum +
+        (rifData ? (" del " + rifData.split("-").reverse().join("/")) : "");
+    }
+  }
   if (body?.data_emissione) docPayload.data.date = String(body.data_emissione);
   if (Number(body?.bollo) > 0) docPayload.data.stamp_duty = Number(body.bollo);
 
@@ -240,7 +254,11 @@ Deno.serve(async (req: Request) => {
   });
   const crText = await crRes.text();
   if (!crRes.ok) {
-    return json({ ok: false, code: "fic_error", message: "Creazione della fattura su Fatture in Cloud non riuscita", detail: crText });
+    return json({ ok: false, code: "fic_error",
+      message: (isNotaCredito
+        ? "Creazione della nota di credito su Fatture in Cloud non riuscita"
+        : "Creazione della fattura su Fatture in Cloud non riuscita"),
+      detail: crText });
   }
   let crBody: any = {};
   try { crBody = JSON.parse(crText); } catch { crBody = {}; }
