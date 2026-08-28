@@ -226,6 +226,19 @@
         </div>
       </div>
 
+      <!-- nc-v2 : la domanda sui soldi sta QUI, prima di emettere, non in un popup dopo -->
+      <div id="nc-rimborso-box" style="display:none;margin:4px 0 14px;padding:14px 16px;background:#fffdf2;border:1.5px solid #ffe082;border-radius:10px">
+        <div style="font-weight:800;font-size:14px;margin-bottom:8px">E i soldi?</div>
+        <label class="chk" style="display:flex;gap:9px;align-items:flex-start;margin-bottom:7px;cursor:pointer">
+          <input type="radio" name="nc-rimborso" value="cassa" checked style="margin-top:3px">
+          <span><b>L'incasso resta in cassa.</b> Le prestazioni tornano «da fatturare» e potrai rifatturarle. <span style="color:#777">Scegli questa se il paziente non ha ancora avuto indietro i soldi.</span></span>
+        </label>
+        <label class="chk" style="display:flex;gap:9px;align-items:flex-start;cursor:pointer">
+          <input type="radio" name="nc-rimborso" value="reso" style="margin-top:3px">
+          <span><b>Ho restituito i soldi al paziente</b> <span id="nc-rimborso-imp"></span>. Registro il rimborso in contabilità e l'incasso sparisce dai conti.</span>
+        </label>
+      </div>
+
       <div class="actions">
         <button class="btn-cancel" onclick="annulla()">Annulla</button>
         <button class="btn-cancel" id="btn-prova-fic" style="display:none" onclick="provaFic()">🔎 Prova collegamento FIC</button>
@@ -530,7 +543,15 @@ function totaliHTML(f){
   html += '<div class="trow big"><span>TOTALE</span><span>'+fmtEur(f.totale)+'</span></div>';
   return html;
 }
-function renderTotali(){ document.getElementById('totals').innerHTML = totaliHTML(calcolaFiscale()); }
+function renderTotali(){
+  var f = calcolaFiscale();
+  document.getElementById('totals').innerHTML = totaliHTML(f);
+  // nc-v2: tiene aggiornato l'importo nella scelta sul rimborso
+  if (isNC){
+    var el = document.getElementById('nc-rimborso-imp');
+    if (el) el.textContent = '(' + fmtEur(f.totale) + ')';
+  }
+}
 
 // ─── Numerazione ────────────────────────────────────────────────────
 // nc-v1: la numerazione è per SERIE — 'FT' = fatture, 'NC' = note di credito.
@@ -895,10 +916,11 @@ async function emettiNC(){
     if (up && up.error) console.error('[nc] update stato fattura error:', up.error);
   }
 
-  // Rimborso: i soldi sono tornati al paziente oppure restano in cassa?
-  var reso = await polConfirm(
-    'Hai restituito ' + fmtEur(f.totale) + ' al paziente?\n\nSì → tolgo l’incasso dalla contabilità (registro un rimborso).\nNo → l’incasso resta in cassa e le prestazioni tornano «da fatturare».',
-    { title:'Soldi restituiti?', icon:'💰', okLabel:'Sì, restituiti', cancelLabel:'No, restano in cassa' });
+  // nc-v2 — Rimborso: la scelta è già stata fatta nella pagina, prima di emettere.
+  // Niente popup dopo l'emissione: la nota a quel punto esiste già e la domanda
+  // non sarebbe piu annullabile (e ricaricando la pagina la risposta si perdeva).
+  var _resoEl = document.querySelector('input[name="nc-rimborso"]:checked');
+  var reso = !!(_resoEl && _resoEl.value === 'reso');
   if (reso){
     var payRimb = { patient_id: pid, professional_id: authUid, importo: -Math.abs(f.totale),
                     data: dataEm, nota: 'Rimborso — nota di credito n. ' + record.numero, rimborso_nc_id: record.id };
@@ -915,7 +937,8 @@ async function emettiNC(){
   btn.textContent = '✓ Emessa';
   var viaFic2 = record.fic_numero ? ' (creata su Fatture in Cloud)' : '';
   ok.textContent = '✅ Nota di credito n. ' + record.numero + ' emessa' + viaFic2 + '. ' +
-    (totale_pieno ? 'La fattura ' + ncOrig.numero + ' risulta stornata.' : 'Storno parziale: la fattura ' + ncOrig.numero + ' resta valida per la parte non stornata.');
+    (totale_pieno ? 'La fattura ' + ncOrig.numero + ' risulta stornata. ' : 'Storno parziale: la fattura ' + ncOrig.numero + ' resta valida per la parte non stornata. ') +
+    (reso ? 'Rimborso di ' + fmtEur(f.totale) + ' registrato in contabilità.' : 'L’incasso resta in cassa: lo trovi «da fatturare» in Contabile.');
   ok.style.display = 'block';
   document.getElementById('num-preview').textContent = 'Numero: ' + record.numero;
 }
@@ -1128,6 +1151,7 @@ async function init(){
     document.getElementById('ts-card').style.display = 'none';
     var _bpf = document.getElementById('btn-prova-fic'); if (_bpf) _bpf.style.display = 'none';
     var _mp = document.getElementById('modalita-pag'); if (_mp && _mp.parentNode) _mp.parentNode.style.display = 'none';
+    var _rb = document.getElementById('nc-rimborso-box'); if (_rb) _rb.style.display = '';   // nc-v2
 
     // Card «Cosa stornare» + righe precaricate (storno totale come default)
     document.getElementById('nc-card').style.display = '';
