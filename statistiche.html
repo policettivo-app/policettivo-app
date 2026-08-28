@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statistiche dello studio — Policettivo®</title>
+<!-- statistiche-v1 : cruscotto direzionale, solo ruolo master.
+     Anno solare contro anno solare (decisione 28 ago). Dormiente = 6 mesi.
+     Export Excel/CSV da ogni tabella, lato client: api/ resta 12/12.
+     ATTENZIONE contabile: le fatture STORNATE restano a positivo e le note di
+     credito vanno in negativo — la somma torna da sola. Escludere le stornate
+     lascerebbe in giro solo il negativo della nota (bug gia' corretto in
+     fatture.html con nc-registro-v1). I rimborsi sono importi NEGATIVI in
+     patient_payments: sono uscite di cassa vere e vanno sottratte all'incassato. -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/pol-ui.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Montserrat',sans-serif; background:#f5f5f7; color:#1a1a1a; visibility:hidden; }
+  .navbar { background:#000; padding:0 20px; height:60px; display:flex; align-items:center; justify-content:space-between; }
+  .navbar-logo { color:#FFD008; font-weight:800; letter-spacing:.5px; }
+  .navbar-title { color:#fff; font-size:13px; margin-left:12px; opacity:.85; }
+  .nav-btn { background:#FFD008; border:none; color:#000; padding:7px 14px; border-radius:6px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; }
+  .main { max-width:1100px; margin:0 auto; padding:20px 16px 90px; }
+  h1 { font-size:22px; margin:4px 0 6px; }
+  .sub { color:#666; font-size:13px; margin:0 0 16px; }
+  .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .card-title { font-size:13px; font-weight:800; margin:0 0 4px; }
+  .card-sub { font-size:12px; color:#888; margin:0 0 12px; line-height:1.5; }
+  .infobox { background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:11px 13px; font-size:12.5px; line-height:1.55; }
+  .infobox b { color:#8a6d00; }
+  .warnbox { background:#fff3e0; border:1px solid #ffcc80; border-radius:10px; padding:10px 13px; font-size:12.5px; line-height:1.5; color:#8a4b00; margin-bottom:12px; }
+
+  /* ── barra comandi ───────────────────────────────────────────── */
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:14px; }
+  .fld label { display:block; font-size:11px; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px; }
+  .fld select, .fld input { padding:9px 11px; border:1.5px solid #e2e2e5; border-radius:8px; font-family:inherit; font-size:13px; background:#fff; }
+  .fld select:focus, .fld input:focus { outline:none; border-color:#FFD008; }
+
+  .btn { border:none; border-radius:9px; padding:10px 15px; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
+  .btn-sec { background:#fff; color:#555; border:1.5px solid #ddd; }
+  .btn-xls { background:#00C48C; color:#fff; }
+  .btn-csv { background:#000; color:#fff; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .exp { display:flex; gap:8px; margin-left:auto; }
+
+  .seg { display:inline-flex; border:1.5px solid #e2e2e5; border-radius:9px; overflow:hidden; }
+  .seg button { border:none; background:#fff; color:#777; font-family:inherit; font-size:12.5px; font-weight:700; padding:9px 15px; cursor:pointer; }
+  .seg button.on { background:#FFD008; color:#000; }
+
+  /* ── riquadri numeri ─────────────────────────────────────────── */
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .kpi { background:#fafafa; border:1px solid #eee; border-radius:12px; padding:14px; }
+  .kpi .lbl { font-size:10.5px; color:#999; text-transform:uppercase; letter-spacing:.4px; font-weight:700; }
+  .kpi .val { font-size:24px; font-weight:800; margin-top:4px; letter-spacing:-.5px; }
+  .kpi .cmp { font-size:11.5px; color:#777; margin-top:6px; line-height:1.45; }
+  .kpi.tot { background:#fff8e1; border-color:#ffe082; }
+  .kpi.bad .val { color:#c62828; }
+  .dlt { font-weight:800; }
+  .dlt.up { color:#1b7a4b; }
+  .dlt.down { color:#c62828; }
+  .dlt.flat { color:#777; }
+
+  /* ── grafico ─────────────────────────────────────────────────── */
+  .legend { display:flex; gap:16px; align-items:center; font-size:12px; color:#666; margin:2px 0 10px; flex-wrap:wrap; }
+  .legend i { width:11px; height:11px; border-radius:3px; display:inline-block; margin-right:6px; vertical-align:-1px; }
+  .chartwrap { position:relative; overflow-x:auto; }
+  .tip { position:absolute; pointer-events:none; background:#1a1a1a; color:#fff; font-size:11.5px; line-height:1.5; padding:7px 10px; border-radius:8px; white-space:nowrap; opacity:0; transition:opacity .1s; z-index:5; }
+  .tip b { color:#FFD008; }
+
+  /* ── tabelle ─────────────────────────────────────────────────── */
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:11px; color:#999; text-transform:uppercase; letter-spacing:.3px; padding:8px 10px; border-bottom:2px solid #eee; white-space:nowrap; }
+  td { padding:9px 10px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+  th.r, td.r { text-align:right; }
+  th.c, td.c { text-align:center; }
+  tr:hover td { background:#fcfcfc; }
+  tfoot td { font-weight:800; border-top:2px solid #eee; border-bottom:none; background:#fafafa; }
+  .tbl-scroll { overflow-x:auto; max-height:460px; overflow-y:auto; }
+  a.paz { color:#1565c0; font-weight:700; text-decoration:none; }
+  a.paz:hover { text-decoration:underline; }
+  .pill { font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; display:inline-block; white-space:nowrap; }
+  .pill.late { background:#ffebee; color:#c62828; }
+  .pill.warn { background:#fff3e0; color:#e65100; }
+  .pill.ok   { background:#e8f5e9; color:#2e7d32; }
+  .empty { text-align:center; color:#999; padding:26px; font-size:13px; }
+
+  .bars { display:grid; grid-template-columns:1fr; gap:6px; }
+  .bar-row { display:grid; grid-template-columns:170px 1fr 90px; gap:10px; align-items:center; font-size:12.5px; }
+  .bar-track { background:#f2f2f4; border-radius:5px; height:12px; overflow:hidden; }
+  .bar-fill { background:#1565c0; height:100%; border-radius:5px; }
+
+  #gate { display:none; max-width:560px; margin:60px auto; text-align:center; }
+  #app { display:none; }
+
+  @media (max-width:900px){ .kpis { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:640px){
+    .bar-row { grid-template-columns:120px 1fr 78px; font-size:11.5px; }
+    .exp { margin-left:0; width:100%; }
+    .exp .btn { flex:1; }
+    th.hide, td.hide { display:none; }
+  }
+</style>
+</head>
+<body>
+  <nav class="navbar">
+    <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title">Statistiche dello studio</span></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a class="nav-btn" href="noleggi.html" style="background:#333;color:#fff">📦 Noleggi</a>
+      <a class="nav-btn" href="dashboard.html">← Indietro</a>
+    </div>
+  </nav>
+
+  <!-- Gate ruolo: chi non è master non vede nulla -->
+  <div id="gate" class="main">
+    <div class="card">
+      <div style="font-size:40px;margin-bottom:8px">🔒</div>
+      <h1 style="margin-bottom:8px">Riservato al titolare</h1>
+      <p style="color:#666;font-size:13px;line-height:1.6">
+        Le statistiche dello studio contengono il fatturato e sono riservate al ruolo <b>master</b>.
+        Se ti serve l'accesso, chiedilo al titolare dello studio.
+      </p>
+      <p style="margin-top:18px"><a class="nav-btn" href="dashboard.html">← Torna alla dashboard</a></p>
+    </div>
+  </div>
+
+  <div class="main" id="app">
+    <h1>📊 Andamento dello studio</h1>
+    <p class="sub">I pochi numeri che fanno cambiare una decisione. Da guardare una volta al mese, con calma.</p>
+
+    <div class="toolbar">
+      <div class="fld">
+        <label>Anno</label>
+        <select id="f-anno" onchange="renderTutto()"></select>
+      </div>
+      <div class="fld">
+        <label>Confronto</label>
+        <input type="text" id="f-conf" value="—" disabled style="width:150px;background:#fafafa;color:#777">
+      </div>
+    </div>
+
+    <div id="warn-anno"></div>
+
+    <!-- ── I QUATTRO NUMERI ────────────────────────────────────── -->
+    <div class="card">
+      <div class="kpis" id="kpis"></div>
+    </div>
+
+    <!-- ── ANDAMENTO MENSILE ───────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">📈 Mese per mese, contro l'anno prima</div>
+      <p class="card-sub" id="graf-sub">—</p>
+      <div class="toolbar" style="margin-bottom:8px">
+        <div class="seg">
+          <button id="seg-fat" class="on" onclick="setMisura('fatturato')">Fatturato</button>
+          <button id="seg-inc" onclick="setMisura('incassato')">Incassato</button>
+        </div>
+        <button class="btn btn-sec" id="btn-tab" onclick="toggleTabella()">📋 Vedi i numeri</button>
+        <div class="exp">
+          <button class="btn btn-xls" onclick="esporta('mensile','xlsx')">⬇️ Excel</button>
+          <button class="btn btn-csv" onclick="esporta('mensile','csv')">⬇️ CSV</button>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="chartwrap">
+        <div id="chart"></div>
+        <div class="tip" id="tip"></div>
+      </div>
+      <div id="tab-mensile" style="display:none;margin-top:14px" class="tbl-scroll"></div>
+    </div>
+
+    <!-- ── CREDITI ─────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">💸 Chi deve soldi, e da quanto</div>
+      <p class="card-sub">Calcolato come in Contabile: <b>venduto − incassato</b>, e i soldi coprono sempre il debito più vecchio. «Scoperto dal» è la data della prima riga rimasta senza copertura. Non dipende dall'anno scelto: è la situazione di oggi.</p>
+      <div class="toolbar" style="margin-bottom:10px">
+        <div class="fld">
+          <label>Scoperto da almeno</label>
+          <select id="f-gg" onchange="renderCrediti()">
+            <option value="0">qualunque</option>
+            <option value="30">30 giorni</option>
+            <option value="60" selected>60 giorni</option>
+            <option value="90">90 giorni</option>
+            <option value="180">180 giorni</option>
+          </select>
+        </div>
+        <div class="exp">
+          <button class="btn btn-xls" onclick="esporta('crediti','xlsx')">⬇️ Excel</button>
+          <button class="btn btn-csv" onclick="esporta('crediti','csv')">⬇️ CSV</button>
+        </div>
+      </div>
+      <div class="tbl-scroll" id="tab-crediti"></div>
+    </div>
+
+    <!-- ── DORMIENTI ───────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">😴 Pazienti fermi da più di 6 mesi</div>
+      <p class="card-sub">La lista su cui si può agire domani mattina. Insieme a «sedute per paziente» qui sotto dice la cosa più utile di tutte: se il problema è <b>trovare</b> pazienti nuovi o <b>tenere</b> quelli che già ci sono.</p>
+      <div class="toolbar" style="margin-bottom:10px">
+        <div class="exp">
+          <button class="btn btn-xls" onclick="esporta('dormienti','xlsx')">⬇️ Excel</button>
+          <button class="btn btn-csv" onclick="esporta('dormienti','csv')">⬇️ CSV</button>
+        </div>
+      </div>
+      <div class="tbl-scroll" id="tab-dormienti"></div>
+    </div>
+
+    <!-- ── PERCORSI ────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">🧭 Quante sedute fa un paziente</div>
+      <p class="card-sub" id="perc-sub">—</p>
+      <div class="bars" id="perc-bars"></div>
+    </div>
+
+    <!-- ── RESA PER VOCE ───────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">💊 Cosa regge lo studio</div>
+      <p class="card-sub">Quanto ha reso ogni voce nell'anno scelto: sedute (dalla descrizione del costo) e noleggi/vendite insieme.</p>
+      <div class="toolbar" style="margin-bottom:10px">
+        <div class="exp">
+          <button class="btn btn-xls" onclick="esporta('resa','xlsx')">⬇️ Excel</button>
+          <button class="btn btn-csv" onclick="esporta('resa','csv')">⬇️ CSV</button>
+        </div>
+      </div>
+      <div class="tbl-scroll" id="tab-resa"></div>
+    </div>
+
+    <!-- ── NOLEGGI FUORI ───────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">📦 Roba fuori da troppo tempo</div>
+      <p class="card-sub">Merce che non torna è merce persa. Da qui si va dritti alla pagina Noleggi per sollecitare.</p>
+      <div class="tbl-scroll" id="tab-fuori"></div>
+    </div>
+
+    <!-- ── PROVENIENZA ─────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">🧭 Da dove arrivano i pazienti</div>
+      <p class="card-sub" id="prov-sub">—</p>
+      <div class="bars" id="prov-bars"></div>
+      <div class="toolbar" style="margin-top:12px">
+        <div class="exp">
+          <button class="btn btn-xls" onclick="esporta('provenienza','xlsx')">⬇️ Excel</button>
+          <button class="btn btn-csv" onclick="esporta('provenienza','csv')">⬇️ CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="infobox">
+        ℹ️ <b>Come sono calcolati questi numeri.</b>
+        Il <b>fatturato</b> somma le fatture emesse col tuo account: le stornate restano a positivo e le note di credito vanno in negativo, così il totale torna da solo.
+        L'<b>incassato</b> somma i pagamenti dei pazienti, e i <b>rimborsi</b> (importi negativi) vengono sottratti perché sono uscite di cassa vere.
+        <b>Crediti e residui</b> seguono il modello di cassa di Contabile: venduto meno incassato, i soldi coprono il debito più vecchio.
+        Il confronto è <b>anno solare contro anno solare</b>, come ragiona il commercialista.
+        Questa pagina <b>legge soltanto</b>: non modifica niente.
+      </div>
+    </div>
+  </div>
+
+<script>
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var _sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+// Colori serie: validati per daltonismo e contrasto sul bianco.
+var C_ORA  = '#1565c0';   // anno scelto
+var C_PRIM = '#c77700';   // anno precedente
+var MESI = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+var MESI_LUNGHI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+var PROV_LABEL = {
+  passaparola:'Passaparola (amico, parente)', paziente:'Consigliato da un altro paziente',
+  medico:'Medico di base', specialista:'Specialista / ortopedico',
+  google:'Google / ricerca web', sito:'Sito web dello studio',
+  social:'Social (Instagram, Facebook)', sport:'Palestra / società sportiva',
+  farmacia:'Farmacia', insegna:'Insegna / passava di qui', altro:'Altro'
+};
+
+var _uid = null;
+var _pazienti = [];      // {id, nome, cognome, created_at, provenienza, provenienza_dettaglio}
+var _pazMap   = {};
+var _sedute   = [];
+var _pagam    = [];
+var _fatture  = [];
+var _noleggi  = [];
+var _addeb    = [];
+
+var _misura   = 'fatturato';
+var _statoPaz = [];      // calcolo FIFO per paziente
+var _exp      = {};      // tabelle esportabili: chiave -> {nome, head, rows}
+
+// ─── utilità ────────────────────────────────────────────────────────
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function eur(n){ return (Math.round((Number(n)||0)*100)/100).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €'; }
+function eur0(n){ return Math.round(Number(n)||0).toLocaleString('it-IT') + ' €'; }
+function num(n){ return (Number(n)||0).toLocaleString('it-IT'); }
+function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function iso(s){ return String(s==null?'':s).substring(0,10); }
+function fmtDataIT(s){ if(!s) return '—'; var p=iso(s).split('-'); if(p.length<3) return '—'; return p[2]+'/'+p[1]+'/'+p[0]; }
+function annoDi(s){ return Number(iso(s).substring(0,4)) || 0; }
+function meseDi(s){ return Number(iso(s).substring(5,7)) - 1; }
+function giorniTra(a, b){
+  if (!a || !b) return null;
+  return Math.round((new Date(iso(b)+'T00:00:00') - new Date(iso(a)+'T00:00:00')) / 86400000);
+}
+function nomePaz(id){ var p=_pazMap[id]; if(!p) return '—'; return ((p.cognome||'')+' '+(p.nome||'')).trim() || '—'; }
+
+// ─── caricamento a pagine ───────────────────────────────────────────
+// Supabase restituisce al massimo 1000 righe per chiamata: senza range() uno
+// studio con qualche anno di storico vedrebbe numeri troncati SENZA errore.
+async function caricaTutto(tabella, colonne){
+  var out = [], from = 0, size = 1000, giri = 0;
+  while (giri < 60){
+    var r = await _sb.from(tabella).select(colonne).range(from, from + size - 1);
+    if (r && r.error){ console.error('[stat] ' + tabella + ':', r.error); break; }
+    var d = (r && r.data) ? r.data : [];
+    out = out.concat(d);
+    if (d.length < size) break;
+    from += size; giri++;
+  }
+  return out;
+}
+
+// ─── calcoli ────────────────────────────────────────────────────────
+// Le fatture: stornate a POSITIVO, note di credito a NEGATIVO. La somma torna
+// da sola. Escludere le stornate lascerebbe solo il negativo della nota.
+function segnoFattura(f){ return f.tipo_doc === 'nota_credito' ? -1 : 1; }
+
+function serieMensile(misura, anno){
+  var out = [0,0,0,0,0,0,0,0,0,0,0,0];
+  if (misura === 'fatturato'){
+    for (var i=0;i<_fatture.length;i++){
+      var f = _fatture[i];
+      var d = iso(f.data_emissione);
+      if (annoDi(d) !== anno) continue;
+      out[meseDi(d)] += segnoFattura(f) * (Number(f.totale)||0);
+    }
+  } else {
+    for (var j=0;j<_pagam.length;j++){
+      var p = _pagam[j];
+      var dp = iso(p.data);
+      if (annoDi(dp) !== anno) continue;
+      out[meseDi(dp)] += (Number(p.importo)||0);   // i rimborsi sono negativi: si sottraggono da soli
+    }
+  }
+  return out;
+}
+
+function totaleSerie(s, finoAMese){
+  var t = 0, lim = (finoAMese == null) ? 12 : (finoAMese + 1);
+  for (var i=0;i<lim && i<12;i++) t += s[i];
+  return t;
+}
+
+// "a pari data": stesso periodo dell'anno precedente, giorno per giorno.
+function sommaFinoAlGiorno(misura, anno, mmdd){
+  var t = 0;
+  if (misura === 'fatturato'){
+    for (var i=0;i<_fatture.length;i++){
+      var f = _fatture[i], d = iso(f.data_emissione);
+      if (annoDi(d) !== anno) continue;
+      if (d.substring(5) > mmdd) continue;
+      t += segnoFattura(f) * (Number(f.totale)||0);
+    }
+  } else {
+    for (var j=0;j<_pagam.length;j++){
+      var p = _pagam[j], dp = iso(p.data);
+      if (annoDi(dp) !== anno) continue;
+      if (dp.substring(5) > mmdd) continue;
+      t += (Number(p.importo)||0);
+    }
+  }
+  return t;
+}
+
+function nuoviPazienti(anno, mmdd){
+  var n = 0;
+  for (var i=0;i<_pazienti.length;i++){
+    var d = iso(_pazienti[i].created_at);
+    if (annoDi(d) !== anno) continue;
+    if (mmdd && d.substring(5) > mmdd) continue;
+    n++;
+  }
+  return n;
+}
+
+// Stato per paziente, stessa logica della coda FIFO di Contabile: sedute e
+// addebiti dei noleggi in UNA coda sola ordinata per data, l'incassato copre
+// il piu' vecchio. Con due code separate lo stato mentirebbe.
+function calcolaStatoPazienti(){
+  var perPaz = {};
+  function slot(pid){
+    if (!perPaz[pid]) perPaz[pid] = { pid:pid, debiti:[], incassato:0, nSedute:0, ultimaSeduta:null, primaSeduta:null };
+    return perPaz[pid];
+  }
+  for (var i=0;i<_sedute.length;i++){
+    var s = _sedute[i];
+    if (!s.patient_id) continue;
+    var sl = slot(s.patient_id);
+    sl.nSedute++;
+    var ds = iso(s.data_seduta);
+    if (ds){
+      if (!sl.ultimaSeduta || ds > sl.ultimaSeduta) sl.ultimaSeduta = ds;
+      if (!sl.primaSeduta  || ds < sl.primaSeduta)  sl.primaSeduta  = ds;
+    }
+    var c = Number(s.costo)||0;
+    if (c > 0) sl.debiti.push({ data: ds || '', importo: c });
+  }
+  var addebNol = {};
+  for (var k=0;k<_noleggi.length;k++) addebNol[_noleggi[k].id] = _noleggi[k];
+  for (var a=0;a<_addeb.length;a++){
+    var ad = _addeb[a];
+    if (ad.annullato) continue;
+    if (!ad.patient_id) continue;
+    var im = Number(ad.importo)||0;
+    if (im <= 0) continue;
+    slot(ad.patient_id).debiti.push({ data: iso(ad.periodo) || '', importo: im });
+  }
+  for (var p=0;p<_pagam.length;p++){
+    var pg = _pagam[p];
+    if (!pg.patient_id) continue;
+    slot(pg.patient_id).incassato += (Number(pg.importo)||0);
+  }
+
+  var out = [];
+  for (var id in perPaz){
+    if (!Object.prototype.hasOwnProperty.call(perPaz, id)) continue;
+    var o = perPaz[id];
+    o.debiti.sort(function(x,y){ return x.data < y.data ? -1 : (x.data > y.data ? 1 : 0); });
+    var venduto = 0;
+    for (var d=0;d<o.debiti.length;d++) venduto += o.debiti[d].importo;
+    var residuo = Math.round((venduto - o.incassato) * 100) / 100;
+    var scopertoDal = null;
+    if (residuo > 0.005){
+      var resta = o.incassato;
+      for (var q=0;q<o.debiti.length;q++){
+        if (resta >= o.debiti[q].importo - 0.005){ resta -= o.debiti[q].importo; continue; }
+        scopertoDal = o.debiti[q].data || null;
+        break;
+      }
+    }
+    out.push({
+      pid: o.pid, nome: nomePaz(o.pid), venduto: venduto, incassato: o.incassato,
+      residuo: residuo, scopertoDal: scopertoDal,
+      giorni: scopertoDal ? giorniTra(scopertoDal, todayISO()) : null,
+      nSedute: o.nSedute, ultimaSeduta: o.ultimaSeduta, primaSeduta: o.primaSeduta
+    });
+  }
+  return out;
+}
+
+// ─── render: i quattro numeri ───────────────────────────────────────
+function annoSel(){ return Number(document.getElementById('f-anno').value) || annoDi(todayISO()); }
+function isAnnoCorrente(){ return annoSel() === annoDi(todayISO()); }
+
+function bloccoDelta(ora, prima, etichetta, fmt){
+  var f = fmt || eur0;
+  if (!prima || Math.abs(prima) < 0.005){
+    return '<span class="dlt flat">n.d.</span> <span style="opacity:.8">(niente da confrontare ' + etichetta + ')</span>';
+  }
+  var d = ((ora - prima) / Math.abs(prima)) * 100;
+  var cls = d > 1 ? 'up' : (d < -1 ? 'down' : 'flat');
+  var seg = d > 0 ? '▲ +' : (d < 0 ? '▼ ' : '= ');
+  return '<span class="dlt ' + cls + '">' + seg + (Math.round(d*10)/10).toLocaleString('it-IT') + '%</span> '
+       + '<span style="opacity:.8">' + etichetta + ' ' + f(prima) + '</span>';
+}
+
+function renderKpi(){
+  var anno = annoSel(), prec = anno - 1;
+  var oggi = todayISO(), mmdd = oggi.substring(5);
+  var corrente = isAnnoCorrente();
+
+  var fatOra   = corrente ? sommaFinoAlGiorno('fatturato', anno, mmdd) : totaleSerie(serieMensile('fatturato', anno));
+  var fatPrima = corrente ? sommaFinoAlGiorno('fatturato', prec, mmdd) : totaleSerie(serieMensile('fatturato', prec));
+  var incOra   = corrente ? sommaFinoAlGiorno('incassato', anno, mmdd) : totaleSerie(serieMensile('incassato', anno));
+  var incPrima = corrente ? sommaFinoAlGiorno('incassato', prec, mmdd) : totaleSerie(serieMensile('incassato', prec));
+  var nuoviOra   = corrente ? nuoviPazienti(anno, mmdd) : nuoviPazienti(anno, null);
+  var nuoviPrima = corrente ? nuoviPazienti(prec, mmdd) : nuoviPazienti(prec, null);
+
+  var etich = corrente ? ('nel ' + prec + ' a pari data:') : ('nel ' + prec + ':');
+  document.getElementById('f-conf').value = corrente ? (prec + ' a pari data') : String(prec);
+
+  // crediti aperti (situazione di oggi, non dell'anno scelto)
+  var credTot = 0, credVecchi = 0;
+  for (var i=0;i<_statoPaz.length;i++){
+    var s = _statoPaz[i];
+    if (s.residuo > 0.005){
+      credTot += s.residuo;
+      if (s.giorni != null && s.giorni >= 90) credVecchi += s.residuo;
+    }
+  }
+
+  var deltaNuovi = bloccoDelta(nuoviOra, nuoviPrima, etich, function(v){ return num(v) + ' pazienti'; });
+
+  var h = ''
+    + '<div class="kpi tot"><div class="lbl">Fatturato ' + anno + '</div><div class="val">' + eur0(fatOra) + '</div>'
+      + '<div class="cmp">' + bloccoDelta(fatOra, fatPrima, etich) + '</div></div>'
+    + '<div class="kpi"><div class="lbl">Incassato ' + anno + '</div><div class="val">' + eur0(incOra) + '</div>'
+      + '<div class="cmp">' + bloccoDelta(incOra, incPrima, etich) + '</div></div>'
+    + '<div class="kpi' + (credVecchi > 0 ? ' bad' : '') + '"><div class="lbl">Da incassare (oggi)</div><div class="val">' + eur0(credTot) + '</div>'
+      + '<div class="cmp">di cui <b>' + eur0(credVecchi) + '</b> scoperti da oltre 90 giorni</div></div>'
+    + '<div class="kpi"><div class="lbl">Pazienti nuovi ' + anno + '</div><div class="val">' + num(nuoviOra) + '</div>'
+      + '<div class="cmp">' + deltaNuovi + '</div></div>';
+  document.getElementById('kpis').innerHTML = h;
+
+  // Avviso onesto: a gennaio-febbraio il confronto non dice ancora niente.
+  var wa = document.getElementById('warn-anno');
+  var meseOra = Number(oggi.substring(5,7));
+  if (corrente && meseOra <= 2){
+    wa.innerHTML = '<div class="warnbox">⚠️ Siamo a <b>' + MESI_LUNGHI[meseOra-1] + '</b>: due mesi di dati non bastano a dire se l\'anno va meglio o peggio. '
+      + 'Le percentuali qui sotto sono vere ma fragili — una fattura grossa in più o in meno le ribalta. Per un confronto che significhi qualcosa, guarda l\'anno ' + prec + ' completo.</div>';
+  } else if (corrente){
+    wa.innerHTML = '<div class="warnbox">📅 Il ' + anno + ' non è finito: i confronti sono fatti <b>a pari data</b> (1° gennaio → ' + fmtDataIT(oggi) + ' contro lo stesso periodo del ' + prec + '), non contro l\'anno intero.</div>';
+  } else {
+    wa.innerHTML = '';
+  }
+}
+
+// ─── render: grafico mensile ────────────────────────────────────────
+function setMisura(m){
+  _misura = m;
+  document.getElementById('seg-fat').className = (m === 'fatturato') ? 'on' : '';
+  document.getElementById('seg-inc').className = (m === 'incassato') ? 'on' : '';
+  renderGrafico();
+}
+
+function pathBarra(x, y, w, h, r){
+  if (h <= 0.5) return '';
+  var rr = Math.min(r, w/2, h);
+  return 'M' + x + ',' + (y+h)
+       + 'V' + (y+rr)
+       + 'a' + rr + ',' + rr + ' 0 0 1 ' + rr + ',' + (-rr)
+       + 'h' + (w - 2*rr)
+       + 'a' + rr + ',' + rr + ' 0 0 1 ' + rr + ',' + rr
+       + 'V' + (y+h) + 'Z';
+}
+
+function renderGrafico(){
+  var anno = annoSel(), prec = anno - 1;
+  var A = serieMensile(_misura, anno);
+  var B = serieMensile(_misura, prec);
+  var etich = (_misura === 'fatturato') ? 'Fatturato' : 'Incassato';
+
+  document.getElementById('legend').innerHTML =
+      '<span><i style="background:' + C_ORA + '"></i>' + anno + '</span>'
+    + '<span><i style="background:' + C_PRIM + '"></i>' + prec + '</span>'
+    + '<span style="color:#aaa">' + etich + ' per mese, in euro</span>';
+  document.getElementById('graf-sub').textContent =
+    (_misura === 'fatturato')
+      ? 'Fatture emesse mese per mese: le note di credito sono già sottratte.'
+      : 'Soldi realmente entrati mese per mese: i rimborsi sono già sottratti.';
+
+  var max = 0;
+  for (var i=0;i<12;i++){ if (A[i] > max) max = A[i]; if (B[i] > max) max = B[i]; }
+  if (max <= 0) max = 1;
+
+  var W = 900, H = 260, padL = 58, padR = 10, padT = 10, padB = 34;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+  var passo = plotW / 12;
+  var bw = Math.max(6, (passo - 12) / 2);   // 2px di aria fra le due barre del mese
+
+  var g = '';
+  // griglia discreta + asse dei valori
+  for (var t=0;t<=4;t++){
+    var v = max * t / 4;
+    var y = padT + plotH - (plotH * t / 4);
+    g += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '" stroke="#eee" stroke-width="1"/>';
+    g += '<text x="' + (padL-8) + '" y="' + (y+4) + '" text-anchor="end" font-size="10" fill="#aaa">' + Math.round(v).toLocaleString('it-IT') + '</text>';
+  }
+  for (var m=0;m<12;m++){
+    var x0 = padL + passo*m;
+    var hA = Math.max(0, A[m]) / max * plotH;
+    var hB = Math.max(0, B[m]) / max * plotH;
+    var xB = x0 + (passo/2) - bw - 1;
+    var xA = x0 + (passo/2) + 1;
+    if (hB > 0.5) g += '<path d="' + pathBarra(xB, padT+plotH-hB, bw, hB, 4) + '" fill="' + C_PRIM + '"/>';
+    if (hA > 0.5) g += '<path d="' + pathBarra(xA, padT+plotH-hA, bw, hA, 4) + '" fill="' + C_ORA + '"/>';
+    // zona sensibile al passaggio del mouse, larga tutto il mese
+    g += '<rect class="hit" x="' + x0 + '" y="' + padT + '" width="' + passo + '" height="' + plotH + '" fill="transparent" '
+       + 'data-m="' + m + '" data-a="' + Math.round(A[m]*100)/100 + '" data-b="' + Math.round(B[m]*100)/100 + '"/>';
+    g += '<text x="' + (x0 + passo/2) + '" y="' + (H-12) + '" text-anchor="middle" font-size="11" fill="#888">' + MESI[m] + '</text>';
+  }
+  g += '<line x1="' + padL + '" y1="' + (padT+plotH) + '" x2="' + (W-padR) + '" y2="' + (padT+plotH) + '" stroke="#ddd" stroke-width="1"/>';
+
+  document.getElementById('chart').innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" style="min-width:640px;display:block" role="img" '
+    + 'aria-label="' + etich + ' per mese, ' + anno + ' contro ' + prec + '">' + g + '</svg>';
+
+  var tip = document.getElementById('tip');
+  var hits = document.getElementById('chart').querySelectorAll('.hit');
+  for (var k=0;k<hits.length;k++){
+    hits[k].addEventListener('mousemove', function(ev){
+      var mm = Number(this.getAttribute('data-m'));
+      tip.innerHTML = '<b>' + MESI_LUNGHI[mm] + '</b><br>' + anno + ': ' + eur(this.getAttribute('data-a'))
+                    + '<br>' + prec + ': ' + eur(this.getAttribute('data-b'));
+      var box = document.getElementById('chart').getBoundingClientRect();
+      tip.style.left = Math.max(0, ev.clientX - box.left + 12) + 'px';
+      tip.style.top  = Math.max(0, ev.clientY - box.top - 10) + 'px';
+      tip.style.opacity = '1';
+    });
+    hits[k].addEventListener('mouseleave', function(){ tip.style.opacity = '0'; });
+  }
+
+  renderTabellaMensile(A, B, anno, prec, etich);
+}
+
+function renderTabellaMensile(A, B, anno, prec, etich){
+  var fatA = serieMensile('fatturato', anno), fatB = serieMensile('fatturato', prec);
+  var incA = serieMensile('incassato', anno), incB = serieMensile('incassato', prec);
+  var head = ['Mese', 'Fatturato ' + anno, 'Fatturato ' + prec, 'Differenza', 'Incassato ' + anno, 'Incassato ' + prec];
+  var rows = [], tf=0, tfp=0, ti=0, tip2=0;
+  var h = '<table><thead><tr><th>Mese</th><th class="r">Fatt. ' + anno + '</th><th class="r">Fatt. ' + prec
+        + '</th><th class="r">Diff.</th><th class="r hide">Inc. ' + anno + '</th><th class="r hide">Inc. ' + prec + '</th></tr></thead><tbody>';
+  for (var m=0;m<12;m++){
+    var diff = fatA[m] - fatB[m];
+    tf += fatA[m]; tfp += fatB[m]; ti += incA[m]; tip2 += incB[m];
+    rows.push([MESI_LUNGHI[m], Math.round(fatA[m]*100)/100, Math.round(fatB[m]*100)/100,
+               Math.round(diff*100)/100, Math.round(incA[m]*100)/100, Math.round(incB[m]*100)/100]);
+    h += '<tr><td>' + MESI_LUNGHI[m] + '</td><td class="r">' + eur(fatA[m]) + '</td><td class="r">' + eur(fatB[m])
+       + '</td><td class="r" style="color:' + (diff >= 0 ? '#1b7a4b' : '#c62828') + ';font-weight:700">'
+       + (diff >= 0 ? '+' : '') + eur(diff) + '</td><td class="r hide">' + eur(incA[m]) + '</td><td class="r hide">' + eur(incB[m]) + '</td></tr>';
+  }
+  h += '</tbody><tfoot><tr><td>Totale anno</td><td class="r">' + eur(tf) + '</td><td class="r">' + eur(tfp)
+     + '</td><td class="r">' + ((tf-tfp) >= 0 ? '+' : '') + eur(tf-tfp) + '</td><td class="r hide">' + eur(ti)
+     + '</td><td class="r hide">' + eur(tip2) + '</td></tr></tfoot></table>';
+  document.getElementById('tab-mensile').innerHTML = h;
+  rows.push(['Totale anno', Math.round(tf*100)/100, Math.round(tfp*100)/100, Math.round((tf-tfp)*100)/100,
+             Math.round(ti*100)/100, Math.round(tip2*100)/100]);
+  _exp.mensile = { nome: 'andamento_mensile_' + anno, head: head, rows: rows };
+}
+
+function toggleTabella(){
+  var el = document.getElementById('tab-mensile');
+  var apri = (el.style.display === 'none');
+  el.style.display = apri ? '' : 'none';
+  document.getElementById('btn-tab').textContent = apri ? '📋 Nascondi i numeri' : '📋 Vedi i numeri';
+}
+
+// ─── render: crediti ────────────────────────────────────────────────
+function renderCrediti(){
+  var soglia = Number(document.getElementById('f-gg').value) || 0;
+  var lista = _statoPaz.filter(function(s){
+    return s.residuo > 0.005 && (soglia === 0 || (s.giorni != null && s.giorni >= soglia));
+  });
+  lista.sort(function(a,b){ return (b.giorni||0) - (a.giorni||0) || b.residuo - a.residuo; });
+
+  var head = ['Paziente','Residuo €','Scoperto dal','Giorni','Venduto €','Incassato €'];
+  var rows = [], tot = 0;
+  var h = '<table><thead><tr><th>Paziente</th><th class="r">Residuo</th><th class="hide">Scoperto dal</th><th class="c">Giorni</th><th class="r hide">Venduto</th><th class="r hide">Incassato</th></tr></thead><tbody>';
+  for (var i=0;i<lista.length;i++){
+    var s = lista[i];
+    tot += s.residuo;
+    var cls = (s.giorni != null && s.giorni >= 90) ? 'late' : ((s.giorni != null && s.giorni >= 30) ? 'warn' : 'ok');
+    h += '<tr><td><a class="paz" href="contabile.html?pid=' + esc(s.pid) + '">' + esc(s.nome) + '</a></td>'
+       + '<td class="r"><b>' + eur(s.residuo) + '</b></td>'
+       + '<td class="hide">' + fmtDataIT(s.scopertoDal) + '</td>'
+       + '<td class="c">' + (s.giorni != null ? '<span class="pill ' + cls + '">' + s.giorni + ' g</span>' : '—') + '</td>'
+       + '<td class="r hide">' + eur(s.venduto) + '</td><td class="r hide">' + eur(s.incassato) + '</td></tr>';
+    rows.push([s.nome, Math.round(s.residuo*100)/100, s.scopertoDal ? fmtDataIT(s.scopertoDal) : '',
+               s.giorni != null ? s.giorni : '', Math.round(s.venduto*100)/100, Math.round(s.incassato*100)/100]);
+  }
+  h += '</tbody><tfoot><tr><td>' + lista.length + ' pazienti</td><td class="r">' + eur(tot)
+     + '</td><td class="hide"></td><td></td><td class="hide"></td><td class="hide"></td></tr></tfoot></table>';
+  document.getElementById('tab-crediti').innerHTML = lista.length
+    ? h : '<div class="empty">Nessun credito scoperto con questo filtro. 👏</div>';
+  rows.push(['TOTALE', Math.round(tot*100)/100, '', '', '', '']);
+  _exp.crediti = { nome: 'crediti_scoperti', head: head, rows: rows };
+}
+
+// ─── render: dormienti ──────────────────────────────────────────────
+function renderDormienti(){
+  var oggi = todayISO();
+  var lista = _statoPaz.filter(function(s){
+    if (!s.ultimaSeduta) return false;                    // mai avuto sedute: non è "dormiente", è un contatto
+    var g = giorniTra(s.ultimaSeduta, oggi);
+    return g != null && g >= 180;                          // 6 mesi (decisione 28 ago)
+  });
+  lista.sort(function(a,b){ return a.ultimaSeduta < b.ultimaSeduta ? -1 : 1; });
+
+  var head = ['Paziente','Ultima seduta','Ferma da (giorni)','Sedute fatte','Residuo €'];
+  var rows = [];
+  var h = '<table><thead><tr><th>Paziente</th><th class="hide">Ultima seduta</th><th class="c">Fermo da</th><th class="c hide">Sedute</th><th class="r">Residuo</th></tr></thead><tbody>';
+  for (var i=0;i<lista.length;i++){
+    var s = lista[i];
+    var g = giorniTra(s.ultimaSeduta, oggi);
+    var mesi = Math.floor(g/30);
+    h += '<tr><td><a class="paz" href="paziente.html?id=' + esc(s.pid) + '">' + esc(s.nome) + '</a></td>'
+       + '<td class="hide">' + fmtDataIT(s.ultimaSeduta) + '</td>'
+       + '<td class="c"><span class="pill ' + (g >= 365 ? 'late' : 'warn') + '">' + mesi + ' mesi</span></td>'
+       + '<td class="c hide">' + s.nSedute + '</td>'
+       + '<td class="r">' + (s.residuo > 0.005 ? eur(s.residuo) : '—') + '</td></tr>';
+    rows.push([s.nome, fmtDataIT(s.ultimaSeduta), g, s.nSedute, s.residuo > 0.005 ? Math.round(s.residuo*100)/100 : 0]);
+  }
+  h += '</tbody><tfoot><tr><td>' + lista.length + ' pazienti fermi da oltre 6 mesi</td><td class="hide"></td><td></td><td class="hide"></td><td></td></tr></tfoot></table>';
+  document.getElementById('tab-dormienti').innerHTML = lista.length
+    ? h : '<div class="empty">Nessun paziente fermo da più di sei mesi.</div>';
+  _exp.dormienti = { nome: 'pazienti_dormienti', head: head, rows: rows };
+}
+
+// ─── render: sedute per paziente ────────────────────────────────────
+function renderPercorsi(){
+  var conSedute = _statoPaz.filter(function(s){ return s.nSedute > 0; });
+  var tot = 0;
+  for (var i=0;i<conSedute.length;i++) tot += conSedute[i].nSedute;
+  var media = conSedute.length ? (tot / conSedute.length) : 0;
+
+  var fasce = [
+    { lbl:'1 sola seduta',   test:function(n){ return n === 1; } },
+    { lbl:'2-4 sedute',      test:function(n){ return n >= 2 && n <= 4; } },
+    { lbl:'5-9 sedute',      test:function(n){ return n >= 5 && n <= 9; } },
+    { lbl:'10 o più sedute', test:function(n){ return n >= 10; } }
+  ];
+  var conteggi = [0,0,0,0];
+  for (var j=0;j<conSedute.length;j++){
+    for (var f=0;f<fasce.length;f++){ if (fasce[f].test(conSedute[j].nSedute)){ conteggi[f]++; break; } }
+  }
+  var maxC = Math.max(1, conteggi[0], conteggi[1], conteggi[2], conteggi[3]);
+  var h = '';
+  for (var k=0;k<fasce.length;k++){
+    var perc = conSedute.length ? Math.round(conteggi[k]/conSedute.length*1000)/10 : 0;
+    h += '<div class="bar-row"><div>' + fasce[k].lbl + '</div>'
+       + '<div class="bar-track"><div class="bar-fill" style="width:' + (conteggi[k]/maxC*100) + '%"></div></div>'
+       + '<div style="text-align:right"><b>' + conteggi[k] + '</b> <span style="color:#999">' + perc.toLocaleString('it-IT') + '%</span></div></div>';
+  }
+  document.getElementById('perc-bars').innerHTML = h;
+  var unaSola = conSedute.length ? Math.round(conteggi[0]/conSedute.length*100) : 0;
+  document.getElementById('perc-sub').innerHTML =
+    'Media di <b>' + (Math.round(media*10)/10).toLocaleString('it-IT') + ' sedute</b> per paziente, su ' + conSedute.length
+    + ' pazienti che almeno una seduta l\'hanno fatta (tutto lo storico, non il solo anno scelto). '
+    + '<b>' + unaSola + '%</b> si è fermato dopo la prima: se questa quota è alta, il problema non è trovare pazienti, è tenerli.';
+}
+
+// ─── render: resa per voce ──────────────────────────────────────────
+function renderResa(){
+  var anno = annoSel();
+  var m = {};
+  function add(voce, imp, tipo){
+    var key = (voce && String(voce).trim()) ? String(voce).trim() : '(senza descrizione)';
+    if (!m[key]) m[key] = { voce:key, tipo:tipo, n:0, tot:0 };
+    m[key].n++; m[key].tot += imp;
+    if (m[key].tipo !== tipo) m[key].tipo = 'misto';
+  }
+  for (var i=0;i<_sedute.length;i++){
+    var s = _sedute[i];
+    if (annoDi(s.data_seduta) !== anno) continue;
+    var c = Number(s.costo)||0;
+    if (c <= 0) continue;
+    add(s.costo_descrizione || s.voce_listino, c, 'Seduta');
+  }
+  var nolMap = {};
+  for (var k=0;k<_noleggi.length;k++) nolMap[_noleggi[k].id] = _noleggi[k];
+  for (var a=0;a<_addeb.length;a++){
+    var ad = _addeb[a];
+    if (ad.annullato) continue;
+    if (annoDi(ad.periodo) !== anno) continue;
+    var im = Number(ad.importo)||0;
+    if (im <= 0) continue;
+    var n = nolMap[ad.noleggio_id];
+    add(n ? n.descrizione : ad.descrizione, im, n && n.tipo === 'vendita' ? 'Vendita' : 'Noleggio');
+  }
+  var lista = [];
+  for (var key in m){ if (Object.prototype.hasOwnProperty.call(m, key)) lista.push(m[key]); }
+  lista.sort(function(x,y){ return y.tot - x.tot; });
+
+  var totGen = 0;
+  for (var t=0;t<lista.length;t++) totGen += lista[t].tot;
+
+  var head = ['Voce','Tipo','Quante volte','Totale €','Quota %'];
+  var rows = [];
+  var h = '<table><thead><tr><th>Voce</th><th class="hide">Tipo</th><th class="c">Volte</th><th class="r">Totale</th><th class="r hide">Quota</th></tr></thead><tbody>';
+  for (var q=0;q<lista.length;q++){
+    var v = lista[q];
+    var quota = totGen ? Math.round(v.tot/totGen*1000)/10 : 0;
+    h += '<tr><td>' + esc(v.voce) + '</td><td class="hide">' + esc(v.tipo) + '</td><td class="c">' + v.n
+       + '</td><td class="r"><b>' + eur(v.tot) + '</b></td><td class="r hide">' + quota.toLocaleString('it-IT') + '%</td></tr>';
+    rows.push([v.voce, v.tipo, v.n, Math.round(v.tot*100)/100, quota]);
+  }
+  h += '</tbody><tfoot><tr><td>Totale ' + anno + '</td><td class="hide"></td><td></td><td class="r">' + eur(totGen) + '</td><td class="hide"></td></tr></tfoot></table>';
+  document.getElementById('tab-resa').innerHTML = lista.length
+    ? h : '<div class="empty">Nessuna riga a valore nel ' + anno + '.</div>';
+  rows.push(['TOTALE', '', '', Math.round(totGen*100)/100, '']);
+  _exp.resa = { nome: 'resa_per_voce_' + anno, head: head, rows: rows };
+}
+
+// ─── render: noleggi fuori da troppo ────────────────────────────────
+function renderFuori(){
+  var oggi = todayISO(), lista = [];
+  for (var i=0;i<_noleggi.length;i++){
+    var n = _noleggi[i];
+    if (n.tipo === 'vendita') continue;
+    if (n.stato === 'restituito' || n.data_restituzione) continue;
+    var rit = n.data_fine_prevista ? giorniTra(n.data_fine_prevista, oggi) : null;
+    var fuoriDa = n.data_inizio ? giorniTra(n.data_inizio, oggi) : null;
+    if (rit == null || rit <= 0) continue;
+    lista.push({ n:n, rit:rit, fuoriDa:fuoriDa });
+  }
+  lista.sort(function(a,b){ return b.rit - a.rit; });
+
+  var h = '<table><thead><tr><th>Paziente</th><th>Articolo</th><th class="hide">Rientro previsto</th><th class="c">In ritardo di</th><th class="c hide">Fuori da</th></tr></thead><tbody>';
+  for (var k=0;k<lista.length;k++){
+    var r = lista[k];
+    h += '<tr><td><a class="paz" href="noleggi.html?pid=' + esc(r.n.patient_id) + '">' + esc(nomePaz(r.n.patient_id)) + '</a></td>'
+       + '<td>' + esc(r.n.descrizione || '—') + '</td>'
+       + '<td class="hide">' + fmtDataIT(r.n.data_fine_prevista) + '</td>'
+       + '<td class="c"><span class="pill ' + (r.rit >= 30 ? 'late' : 'warn') + '">' + r.rit + ' g</span></td>'
+       + '<td class="c hide">' + (r.fuoriDa != null ? r.fuoriDa + ' g' : '—') + '</td></tr>';
+  }
+  h += '</tbody></table>';
+  document.getElementById('tab-fuori').innerHTML = lista.length
+    ? h : '<div class="empty">Niente in ritardo: tutto quello che doveva rientrare è rientrato.</div>';
+}
+
+// ─── render: provenienza ────────────────────────────────────────────
+// Il dato si accumula dal 28 agosto 2026: per i primi mesi il quadro è
+// parziale, e va detto invece di far finta che copra tutto lo storico.
+function renderProvenienza(){
+  var anno = annoSel();
+  var totAnno = 0, conDato = 0, m = {};
+  for (var i=0;i<_pazienti.length;i++){
+    var p = _pazienti[i];
+    if (annoDi(p.created_at) !== anno) continue;
+    totAnno++;
+    var v = p.provenienza;
+    if (!v) continue;
+    conDato++;
+    if (!m[v]) m[v] = { v:v, n:0, chi:{} };
+    m[v].n++;
+    var det = (p.provenienza_dettaglio || '').trim();
+    if (det) m[v].chi[det] = (m[v].chi[det] || 0) + 1;
+  }
+  var lista = [];
+  for (var k in m){ if (Object.prototype.hasOwnProperty.call(m, k)) lista.push(m[k]); }
+  lista.sort(function(a,b){ return b.n - a.n; });
+
+  var maxN = 1;
+  for (var q=0;q<lista.length;q++) if (lista[q].n > maxN) maxN = lista[q].n;
+
+  var head = ['Provenienza','Pazienti','Quota % (sui registrati)','Chi in particolare'];
+  var rows = [];
+  var h = '';
+  for (var j=0;j<lista.length;j++){
+    var it = lista[j];
+    var perc = conDato ? Math.round(it.n/conDato*1000)/10 : 0;
+    var chiArr = [];
+    for (var c in it.chi){ if (Object.prototype.hasOwnProperty.call(it.chi, c)) chiArr.push({ c:c, n:it.chi[c] }); }
+    chiArr.sort(function(x,y){ return y.n - x.n; });
+    var chiTxt = chiArr.slice(0,4).map(function(o){ return o.c + (o.n > 1 ? ' ×' + o.n : ''); }).join(', ');
+    h += '<div class="bar-row"><div>' + esc(PROV_LABEL[it.v] || it.v) + '</div>'
+       + '<div class="bar-track"><div class="bar-fill" style="width:' + (it.n/maxN*100) + '%"></div></div>'
+       + '<div style="text-align:right"><b>' + it.n + '</b> <span style="color:#999">' + perc.toLocaleString('it-IT') + '%</span></div></div>';
+    if (chiTxt) h += '<div style="font-size:11.5px;color:#999;margin:-2px 0 4px 4px">↳ ' + esc(chiTxt) + '</div>';
+    rows.push([PROV_LABEL[it.v] || it.v, it.n, perc, chiTxt]);
+  }
+  document.getElementById('prov-bars').innerHTML = lista.length
+    ? h : '<div class="empty">Nessuna provenienza registrata fra i pazienti nuovi del ' + anno + '.</div>';
+
+  var mancanti = totAnno - conDato;
+  document.getElementById('prov-sub').innerHTML =
+    'Su <b>' + totAnno + '</b> pazienti nuovi del ' + anno + ', la provenienza è registrata per <b>' + conDato + '</b>'
+    + (mancanti > 0 ? ' (mancano ' + mancanti + ')' : '') + '. Le percentuali sono calcolate solo su quelli registrati. '
+    + 'Il campo esiste dal <b>28 agosto 2026</b>: prima di quella data il dato non c\'è e non è ricavabile — quindi per i primi mesi questo quadro è parziale. '
+    + 'Si riempie compilando «Come ci ha conosciuto» quando capita di aprire una scheda.';
+  _exp.provenienza = { nome: 'provenienza_pazienti_' + anno, head: head, rows: rows };
+}
+
+// ─── export ─────────────────────────────────────────────────────────
+// Lato client (SheetJS + Blob), come esporta-ts.html: api/ resta 12/12.
+function esporta(chiave, fmt){
+  var t = _exp[chiave];
+  if (!t || !t.rows.length){ polAlert('Non c\'è niente da esportare in questa tabella.', {title:'Vuota', icon:'📄'}); return; }
+  var aoa = [];
+  aoa.push(['Policettivo — statistiche dello studio']);
+  aoa.push(['Estratto il', fmtDataIT(todayISO())]);
+  aoa.push([]);
+  aoa.push(t.head);
+  for (var i=0;i<t.rows.length;i++) aoa.push(t.rows[i]);
+
+  if (fmt === 'xlsx'){
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    var cols = [];
+    for (var c=0;c<t.head.length;c++) cols.push({ wch: c === 0 ? 30 : 16 });
+    ws['!cols'] = cols;
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Dati');
+    XLSX.writeFile(wb, t.nome + '.xlsx');
+  } else {
+    var righe = aoa.map(function(r){
+      return r.map(function(cell){
+        if (typeof cell === 'number') cell = String(cell).replace('.', ',');
+        return '"' + String(cell==null?'':cell).replace(/"/g,'""') + '"';
+      }).join(';');
+    }).join('\n');
+    var blob = new Blob(['﻿'+righe], { type:'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = t.nome + '.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+// ─── orchestrazione ─────────────────────────────────────────────────
+function renderTutto(){
+  renderKpi();
+  renderGrafico();
+  renderCrediti();
+  renderDormienti();
+  renderPercorsi();
+  renderResa();
+  renderFuori();
+  renderProvenienza();
+}
+
+function popolaAnni(){
+  var anni = {};
+  var ora = annoDi(todayISO());
+  anni[ora] = true;
+  for (var i=0;i<_fatture.length;i++){ var a1 = annoDi(_fatture[i].data_emissione); if (a1 > 1990) anni[a1] = true; }
+  for (var j=0;j<_sedute.length;j++){  var a2 = annoDi(_sedute[j].data_seduta);     if (a2 > 1990) anni[a2] = true; }
+  for (var k=0;k<_pagam.length;k++){   var a3 = annoDi(_pagam[k].data);             if (a3 > 1990) anni[a3] = true; }
+  var lista = Object.keys(anni).map(Number).sort(function(a,b){ return b - a; });
+  var sel = document.getElementById('f-anno');
+  sel.innerHTML = '';
+  for (var q=0;q<lista.length;q++){
+    var o = document.createElement('option');
+    o.value = String(lista[q]); o.textContent = String(lista[q]);
+    sel.appendChild(o);
+  }
+  sel.value = String(ora);
+}
+
+// Il ruolo lo dice il DATABASE, non il browser: is_master() è una funzione
+// SECURITY DEFINER sul database (migrazione 032). Se non c'è ancora, si
+// ripiega sulla lettura della colonna ruolo, che passa comunque dalla RLS.
+async function sonoMaster(){
+  try {
+    var r = await _sb.rpc('is_master');
+    if (r && !r.error && typeof r.data === 'boolean') return r.data;
+  } catch(e){ /* funzione non ancora installata */ }
+  var pr = await _sb.from('professionals').select('ruolo').eq('user_id', _uid).maybeSingle();
+  return !!(pr && pr.data && pr.data.ruolo === 'master');
+}
+
+async function init(){
+  try {
+    var sess = await _sb.auth.getSession();
+    if (!sess.data || !sess.data.session){ window.location.href = 'login.html'; return; }
+    _uid = sess.data.session.user.id;
+
+    if (!(await sonoMaster())){
+      document.getElementById('gate').style.display = 'block';
+      return;
+    }
+
+    _pazienti = await caricaTutto('patients', 'id, nome, cognome, created_at, provenienza, provenienza_dettaglio');
+    for (var i=0;i<_pazienti.length;i++) _pazMap[_pazienti[i].id] = _pazienti[i];
+    _sedute  = await caricaTutto('therapy_sessions', 'id, patient_id, data_seduta, costo, costo_descrizione, voce_listino');
+    _pagam   = await caricaTutto('patient_payments', 'id, patient_id, importo, data');
+    _fatture = await caricaTutto('fatture', 'id, patient_id, data_emissione, anno, totale, tipo_doc, stato, numero');
+    _noleggi = await caricaTutto('noleggi', 'id, patient_id, tipo, descrizione, prezzo, data_inizio, data_fine_prevista, data_restituzione, stato');
+    _addeb   = await caricaTutto('noleggi_addebiti', 'id, noleggio_id, patient_id, periodo, descrizione, importo, annullato');
+
+    _statoPaz = calcolaStatoPazienti();
+    popolaAnni();
+    renderTutto();
+    document.getElementById('app').style.display = 'block';
+  } catch(e){
+    console.error('[statistiche] init:', e);
+    document.getElementById('gate').style.display = 'block';
+    document.getElementById('gate').innerHTML =
+      '<div class="card"><div style="font-size:40px">⚠️</div><h1>Non sono riuscito a caricare i dati</h1>'
+      + '<p style="color:#666;font-size:13px">Riprova fra un momento. Se continua, dillo pure.</p>'
+      + '<p style="margin-top:18px"><a class="nav-btn" href="dashboard.html">← Torna alla dashboard</a></p></div>';
+  } finally {
+    document.body.style.visibility = 'visible';
+  }
+}
+init();
+</script>
+</body>
+</html>
