@@ -750,6 +750,30 @@
           <div class="edit-group"><label>Peso (kg)</label><input id="edit-peso" type="number" min="0" step="0.1" inputmode="decimal"></div>
           <div class="edit-group"><label>Taglia piede (EU)</label><input id="edit-taglia-piede" type="number" min="0" step="0.5" inputmode="decimal"></div>
         </div>
+        <!-- provenienza-v1 : da dove arriva il paziente -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="edit-group">
+            <label>Come ci ha conosciuto</label>
+            <select id="edit-provenienza">
+              <option value="">— non chiesto —</option>
+              <option value="passaparola">Passaparola (amico, parente)</option>
+              <option value="paziente">Consigliato da un altro paziente</option>
+              <option value="medico">Medico di base</option>
+              <option value="specialista">Specialista / ortopedico</option>
+              <option value="google">Google / ricerca web</option>
+              <option value="sito">Sito web dello studio</option>
+              <option value="social">Social (Instagram, Facebook)</option>
+              <option value="sport">Palestra / società sportiva</option>
+              <option value="farmacia">Farmacia</option>
+              <option value="insegna">Insegna / passava di qui</option>
+              <option value="altro">Altro</option>
+            </select>
+          </div>
+          <div class="edit-group">
+            <label>Chi nello specifico</label>
+            <input id="edit-provenienza-dettaglio" type="text" placeholder="es. Sig.ra Bianchi, Dr. Verdi">
+          </div>
+        </div>
         <div class="edit-group" style="margin-bottom:12px">
           <label>Attività sportiva</label>
           <input type="hidden" id="edit-attivita-sportiva">
@@ -1619,6 +1643,8 @@
         document.getElementById('edit-peso').value = patient.peso != null ? patient.peso : ''
         document.getElementById('edit-taglia-piede').value = patient.taglia_piede != null ? patient.taglia_piede : ''
         document.getElementById('edit-sport-praticato').value = patient.sport_praticato || ''
+        document.getElementById('edit-provenienza').value = patient.provenienza || ''                          // provenienza-v1
+        document.getElementById('edit-provenienza-dettaglio').value = patient.provenienza_dettaglio || ''      // provenienza-v1
         document.getElementById('edit-consenso-privacy').checked = patient.consenso_privacy || false
         document.getElementById('edit-consenso-ricerca').checked = patient.consenso_ricerca || false
         document.querySelector('#edit-sesso').value = patient.sesso || ''
@@ -1663,6 +1689,8 @@
         altezza: parseFloat(document.getElementById('edit-altezza').value) || null,
         peso: parseFloat(document.getElementById('edit-peso').value) || null,
         taglia_piede: parseFloat(document.getElementById('edit-taglia-piede').value) || null,
+        provenienza: document.getElementById('edit-provenienza').value || null,                                  // provenienza-v1
+        provenienza_dettaglio: document.getElementById('edit-provenienza-dettaglio').value.trim() || null,       // provenienza-v1
         consenso_privacy: consenso,
         consenso_privacy_data: consenso ? new Date().toISOString() : null,
         consenso_ricerca,

@@ -492,6 +492,30 @@
             <div class="form-group-sm"><label>Città</label><input type="text" id="f-citta" placeholder="Milano"></div>
             <div class="form-group-sm"><label>CAP</label><input type="text" id="f-cap" placeholder="20121" maxlength="5" pattern="[0-9]{5}"></div>
           </div>
+          <!-- provenienza-v1 : da dove arriva il paziente (unico dato di marketing non ricavabile a posteriori) -->
+          <div class="form-row">
+            <div class="form-group-sm">
+              <label>Come ci ha conosciuto</label>
+              <select id="f-provenienza">
+                <option value="">— non chiesto —</option>
+                <option value="passaparola">Passaparola (amico, parente)</option>
+                <option value="paziente">Consigliato da un altro paziente</option>
+                <option value="medico">Medico di base</option>
+                <option value="specialista">Specialista / ortopedico</option>
+                <option value="google">Google / ricerca web</option>
+                <option value="sito">Sito web dello studio</option>
+                <option value="social">Social (Instagram, Facebook)</option>
+                <option value="sport">Palestra / società sportiva</option>
+                <option value="farmacia">Farmacia</option>
+                <option value="insegna">Insegna / passava di qui</option>
+                <option value="altro">Altro</option>
+              </select>
+            </div>
+            <div class="form-group-sm">
+              <label>Chi nello specifico</label>
+              <input type="text" id="f-provenienza-dettaglio" placeholder="es. Sig.ra Bianchi, Dr. Verdi, Palestra Olympia">
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1051,9 +1075,9 @@
       selectedConfig = null
       document.getElementById('opt-npl').className = 'config-option'
       document.getElementById('opt-gpl').className = 'config-option'
-      const textIds = ['f-nome','f-cognome','f-email','f-telefono','f-data-nascita','f-codice-fiscale','f-indirizzo','f-citta','f-cap','f-professione','f-sport-praticato','f-allergie','f-farmaci','f-patologie','f-interventi','f-medico-curante','f-specialista','f-problema','f-note']
+      const textIds = ['f-nome','f-cognome','f-email','f-telefono','f-data-nascita','f-codice-fiscale','f-indirizzo','f-citta','f-cap','f-professione','f-sport-praticato','f-allergie','f-farmaci','f-patologie','f-interventi','f-medico-curante','f-specialista','f-problema','f-note','f-provenienza-dettaglio']
       textIds.forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
-      ;['f-sesso','f-mano-dominante','f-attivita-sportiva'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+      ;['f-sesso','f-mano-dominante','f-attivita-sportiva','f-provenienza'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
       const cbRic = document.getElementById('f-consenso-ricerca'); if (cbRic) cbRic.checked = false
       document.querySelectorAll('#modal-box .acc-chip.active').forEach(c => c.classList.remove('active'))
       const sr = document.getElementById('f-sport-row'); if (sr) sr.style.display = 'none'
@@ -1166,6 +1190,8 @@
           citta: document.getElementById('f-citta').value.trim() || null,
           cap: document.getElementById('f-cap').value.trim() || null,
           professione: document.getElementById('f-professione').value.trim() || null,
+          provenienza: document.getElementById('f-provenienza').value || null,                                  // provenienza-v1
+          provenienza_dettaglio: document.getElementById('f-provenienza-dettaglio').value.trim() || null,        // provenienza-v1
           mano_dominante: document.getElementById('f-mano-dominante').value || null,
           attivita_sportiva: document.getElementById('f-attivita-sportiva').value || null,
           sport_praticato: document.getElementById('f-sport-praticato').value.trim() || null,
