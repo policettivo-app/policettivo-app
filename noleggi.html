@@ -8,8 +8,10 @@
 <!-- noleggi-v2 : canone dalla data di consegna, anteprima addebiti, addebito modificabile -->
 <!-- noleggi-v3 : popup incasso (crea un versamento in patient_payments) -->
 <!-- noleggi-v4 : incasso al RIENTRO (non alla consegna), pulsante Incassa sempre, righe annullabili, uscite sempre disponibili -->
+<!-- noleggi-v5 : schede Noleggi | Vendite, filtro periodo, ordinamento per ritardo, export Excel/CSV -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/pol-ui.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -109,8 +111,22 @@
   .addeb .ln { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dashed #e6e6e6; }
   .addeb .ln:last-child { border-bottom:none; }
 
+  /* noleggi-v5 : schede, periodo, ordinamento, export */
+  .tabs { display:flex; gap:8px; margin:0 0 14px; flex-wrap:wrap; }
+  .tab { border:1.5px solid #e2e2e5; background:#fff; color:#777; border-radius:10px; padding:10px 18px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+  .tab .cnt { font-weight:800; opacity:.55; margin-left:6px; }
+  .tab.on { background:#FFD008; border-color:#FFD008; color:#000; }
+  .tab.on .cnt { opacity:.7; }
+  .exp { display:flex; gap:8px; align-items:flex-end; margin-left:auto; }
+  .btn-xls { background:#00C48C; color:#fff; }
+  .btn-csvv { background:#000; color:#fff; }
+  .sumnote { font-size:11px; color:#999; margin-top:10px; }
+  td.rit { font-weight:800; color:#c62828; }
+
   @media (max-width: 760px) {
     .summary { grid-template-columns: repeat(2, 1fr); }
+    .exp { margin-left:0; width:100%; }
+    .exp .btn { flex:1; }
     .fld, .fld.w2, .fld.w4, .fld.w6 { grid-column: span 6; }
     .fld.w12 { grid-column: span 12; }
     table { font-size: 12px; }
@@ -131,8 +147,15 @@
     <h1 id="page-title">Noleggi e Prodotti</h1>
     <p class="sub" id="page-sub">Cosa hai dato ai pazienti: noleggi, vendite, rientri.</p>
 
+    <!-- noleggi-v5 : due momenti d'uso diversi, due schede -->
+    <div class="tabs">
+      <button class="tab on" id="tab-noleggio" onclick="setTab('noleggio')">📦 Noleggi<span class="cnt" id="cnt-noleggio"></span></button>
+      <button class="tab" id="tab-vendita" onclick="setTab('vendita')">🛒 Vendite<span class="cnt" id="cnt-vendita"></span></button>
+    </div>
+
     <div class="card">
       <div class="summary" id="summary"></div>
+      <div class="sumnote" id="sumnote"></div>
     </div>
 
     <!-- NUOVO NOLEGGIO / VENDITA -->
@@ -215,7 +238,7 @@
           <label>Cerca</label>
           <input type="text" id="f-cerca" placeholder="Paziente o articolo…" oninput="render()">
         </div>
-        <div class="fld">
+        <div class="fld" id="fld-stato-wrap">
           <label>Stato</label>
           <select id="f-stato" onchange="render()">
             <option value="attivi">Solo attivi</option>
@@ -224,28 +247,38 @@
             <option value="restituiti">Solo restituiti</option>
           </select>
         </div>
+        <!-- noleggi-v5 : periodo sulla data di consegna / vendita -->
         <div class="fld">
-          <label>Tipo</label>
-          <select id="f-tipo" onchange="render()">
-            <option value="">Tutti</option>
-            <option value="noleggio">Noleggi</option>
-            <option value="vendita">Vendite</option>
+          <label>Periodo</label>
+          <select id="f-periodo" onchange="periodoCambiato()">
+            <option value="tutto">Tutto</option>
+            <option value="anno">Quest'anno</option>
+            <option value="annoprec">Anno scorso</option>
+            <option value="g30">Ultimi 30 giorni</option>
+            <option value="m12">Ultimi 12 mesi</option>
+            <option value="custom">Dal… al…</option>
           </select>
+        </div>
+        <div class="fld" id="fld-da" style="display:none">
+          <label>Dal</label>
+          <input type="date" id="f-da" onchange="render()">
+        </div>
+        <div class="fld" id="fld-a" style="display:none">
+          <label>Al</label>
+          <input type="date" id="f-a" onchange="render()">
+        </div>
+        <div class="fld">
+          <label>Ordina per</label>
+          <select id="f-ordina" onchange="render()"></select>
+        </div>
+        <div class="exp">
+          <button class="btn btn-xls" id="btn-xls" onclick="scarica('xlsx')" title="Scarica quello che vedi in Excel">⬇️ Excel</button>
+          <button class="btn btn-csvv" id="btn-csv" onclick="scarica('csv')" title="Scarica quello che vedi in CSV">⬇️ CSV</button>
         </div>
       </div>
       <div style="overflow-x:auto">
         <table>
-          <thead>
-            <tr>
-              <th id="th-paziente">Paziente</th>
-              <th>Articolo</th>
-              <th class="hide">Consegna</th>
-              <th class="hide">Rientro</th>
-              <th class="c">Stato</th>
-              <th class="r">Addebitato</th>
-              <th class="r">Azioni</th>
-            </tr>
-          </thead>
+          <thead><tr id="thead-row"></tr></thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
@@ -309,6 +342,7 @@ var _addebiti  = [];      // tutti gli addebiti dei noleggi caricati
 var _pazienti  = {};      // id -> {nome, cognome}
 var _catalogo  = [];      // voci di listino con tipo noleggio/vendita
 var _openId    = null;    // riga espansa
+var _vista     = [];      // noleggi-v5 — le righe attualmente mostrate (= quelle esportate)
 
 // IVA per riga — stessi codici di fattura.html (IVA_TIPI, marker iva-mista-v1)
 var IVA_TIPI = [
@@ -452,54 +486,219 @@ async function generaAddebitiDovuti(){
   return nuovi.length;
 }
 
+// ─── noleggi-v5 — schede, periodo, ordinamento ──────────────────────
+// Noleggi e vendite si guardano in due momenti diversi: nei noleggi conta
+// chi deve restituire, nelle vendite conta cosa e' stato venduto. Stessa
+// pagina, due schede, colonne diverse: una vendita non ha un "rientro".
+var _tab = 'noleggio';
+
+// Giorni di ritardo sul rientro previsto (positivo = in ritardo).
+// null = non pertinente (vendita, gia' rientrato, nessuna data prevista).
+function giorniRitardo(n){
+  if (n.tipo === 'vendita') return null;
+  if (n.stato === 'restituito' || n.data_restituzione) return null;
+  var g = giorniDaOggi(n.data_fine_prevista);
+  if (g === null) return null;
+  return -g;
+}
+
+function setTab(t){
+  if (_tab === t) return;
+  _tab = t;
+  _openId = null;
+  document.getElementById('tab-noleggio').className = 'tab' + (t === 'noleggio' ? ' on' : '');
+  document.getElementById('tab-vendita').className  = 'tab' + (t === 'vendita'  ? ' on' : '');
+  // il form segue la scheda: se sto guardando le vendite, ne registro una
+  var sel = document.getElementById('n-tipo');
+  if (sel){ sel.value = t; tipoCambiato(); }
+  popolaOrdina();
+  aggiornaFiltriPerTab();
+  render();
+}
+
+function aggiornaFiltriPerTab(){
+  // Lo stato (attivo / scaduto / restituito) esiste solo per i noleggi.
+  var w = document.getElementById('fld-stato-wrap');
+  if (w) w.style.display = (_tab === 'vendita') ? 'none' : '';
+}
+
+function popolaOrdina(){
+  var sel = document.getElementById('f-ordina');
+  if (!sel) return;
+  var prec = sel.value;
+  var opz = (_tab === 'vendita')
+    ? [['recenti','Più recenti'],['vecchi','Meno recenti'],['importo','Importo (dal più alto)'],['paziente','Paziente A-Z'],['articolo','Articolo A-Z']]
+    : [['ritardo','Giorni di ritardo'],['scadenza','Rientro più vicino'],['recenti','Più recenti'],['vecchi','Meno recenti'],['importo','Importo (dal più alto)'],['paziente','Paziente A-Z'],['articolo','Articolo A-Z']];
+  sel.innerHTML = '';
+  for (var i=0;i<opz.length;i++){
+    var o = document.createElement('option');
+    o.value = opz[i][0]; o.textContent = opz[i][1];
+    sel.appendChild(o);
+  }
+  var ok = false;
+  for (var j=0;j<opz.length;j++){ if (opz[j][0] === prec) ok = true; }
+  sel.value = ok ? prec : opz[0][0];
+}
+
+function periodoCambiato(){
+  var v = document.getElementById('f-periodo').value;
+  var cust = (v === 'custom');
+  document.getElementById('fld-da').style.display = cust ? '' : 'none';
+  document.getElementById('fld-a').style.display  = cust ? '' : 'none';
+  render();
+}
+
+// Restituisce {da, a, label} in ISO. Stringa vuota = nessun limite.
+function periodoAttivo(){
+  var v = document.getElementById('f-periodo').value;
+  var oggi = todayISO();
+  var anno = Number(oggi.substring(0,4));
+  if (v === 'anno')     return { da: anno+'-01-01', a: anno+'-12-31', label: String(anno) };
+  if (v === 'annoprec') return { da: (anno-1)+'-01-01', a: (anno-1)+'-12-31', label: String(anno-1) };
+  if (v === 'g30'){
+    var d = new Date(oggi+'T00:00:00'); d.setDate(d.getDate()-29);
+    var da = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    return { da: da, a: oggi, label: 'ultimi30gg' };
+  }
+  if (v === 'm12') return { da: addMesi(oggi, -12), a: oggi, label: 'ultimi12mesi' };
+  if (v === 'custom'){
+    var dd = document.getElementById('f-da').value || '';
+    var aa = document.getElementById('f-a').value || '';
+    return { da: dd, a: aa, label: (dd || 'inizio') + '_' + (aa || 'oggi') };
+  }
+  return { da:'', a:'', label:'tutto' };
+}
+
 // ─── Render ─────────────────────────────────────────────────────────
 function filtrati(){
   var q = String((document.getElementById('f-cerca')||{}).value || '').trim().toLowerCase();
   var fs = document.getElementById('f-stato').value;
-  var ft = document.getElementById('f-tipo').value;
+  var ord = document.getElementById('f-ordina').value || 'recenti';
+  var per = periodoAttivo();
   var out = [];
   for (var i=0;i<_noleggi.length;i++){
     var n = _noleggi[i];
-    if (ft && n.tipo !== ft) continue;
+    if ((n.tipo === 'vendita' ? 'vendita' : 'noleggio') !== _tab) continue;
+    var d = String(n.data_inizio || '').substring(0,10);
+    if (per.da && d && d < per.da) continue;
+    if (per.a  && d && d > per.a)  continue;
     var st = statoNoleggio(n);
-    if (fs === 'attivi'     && st.key === 'done') continue;
-    if (fs === 'scaduti'    && st.key !== 'late') continue;
-    if (fs === 'restituiti' && st.key !== 'done') continue;
+    if (_tab === 'noleggio'){
+      if (fs === 'attivi'     && st.key === 'done') continue;
+      if (fs === 'scaduti'    && st.key !== 'late') continue;
+      if (fs === 'restituiti' && st.key !== 'done') continue;
+    }
     if (q){
       var blob = (nomePaziente(n.patient_id) + ' ' + (n.descrizione||'') + ' ' + (n.codice||'')).toLowerCase();
       if (blob.indexOf(q) === -1) continue;
     }
     out.push(n);
   }
-  out.sort(function(a,b){ return String(b.data_inizio) < String(a.data_inizio) ? -1 : 1; });
+
+  function txt(a,b){ return a < b ? -1 : (a > b ? 1 : 0); }
+  out.sort(function(a,b){
+    if (ord === 'ritardo'){
+      // i piu' in ritardo per primi; chi non ha un ritardo va in fondo
+      var ra = giorniRitardo(a), rb = giorniRitardo(b);
+      var va = (ra === null || ra <= 0) ? -999999 : ra;
+      var vb = (rb === null || rb <= 0) ? -999999 : rb;
+      if (va !== vb) return vb - va;
+      return txt(String(b.data_inizio), String(a.data_inizio));
+    }
+    if (ord === 'scadenza'){
+      var fa = String(a.data_fine_prevista || '9999-99-99').substring(0,10);
+      var fb = String(b.data_fine_prevista || '9999-99-99').substring(0,10);
+      if (fa !== fb) return txt(fa, fb);
+      return txt(String(b.data_inizio), String(a.data_inizio));
+    }
+    if (ord === 'importo')  return totaleDi(b.id) - totaleDi(a.id);
+    if (ord === 'paziente') return txt(nomePaziente(a.patient_id).toLowerCase(), nomePaziente(b.patient_id).toLowerCase());
+    if (ord === 'articolo') return txt(String(a.descrizione||'').toLowerCase(), String(b.descrizione||'').toLowerCase());
+    if (ord === 'vecchi')   return txt(String(a.data_inizio), String(b.data_inizio));
+    return txt(String(b.data_inizio), String(a.data_inizio));   // recenti
+  });
   return out;
 }
 
-function renderSummary(){
-  var attivi = 0, scaduti = 0, tot = 0, gratis = 0;
+// I contatori sulle schede guardano TUTTO (non il filtro): servono a dire
+// quante righe ci sono di là.
+function renderContatori(){
+  var cn = 0, cv = 0;
   for (var i=0;i<_noleggi.length;i++){
-    var n = _noleggi[i];
+    if (_noleggi[i].tipo === 'vendita') cv++; else cn++;
+  }
+  document.getElementById('cnt-noleggio').textContent = cn ? '(' + cn + ')' : '';
+  document.getElementById('cnt-vendita').textContent  = cv ? '(' + cv + ')' : '';
+}
+
+// I riquadri in alto contano ESATTAMENTE le righe mostrate: cambiando
+// periodo o filtro devono cambiare anche loro, altrimenti mentono.
+function renderSummary(lista){
+  var tot = 0, gratis = 0, pezzi = 0, attivi = 0, scaduti = 0;
+  for (var i=0;i<lista.length;i++){
+    var n = lista[i];
     var st = statoNoleggio(n);
     if (st.key !== 'done') attivi++;
     if (st.key === 'late') scaduti++;
     if (Number(n.prezzo) === 0) gratis++;
+    pezzi += (Number(n.quantita) || 1);
     tot += totaleDi(n.id);
   }
-  var html = ''
-    + '<div class="scard"><div class="lbl">In corso</div><div class="val">' + attivi + '</div></div>'
-    + '<div class="scard' + (scaduti ? ' bad' : '') + '"><div class="lbl">Scaduti</div><div class="val">' + scaduti + '</div></div>'
-    + '<div class="scard"><div class="lbl">A titolo gratuito</div><div class="val">' + gratis + '</div></div>'
-    + '<div class="scard tot"><div class="lbl">Totale addebitato</div><div class="val">' + fmtEur(tot) + '</div></div>';
+  var html;
+  if (_tab === 'vendita'){
+    html = ''
+      + '<div class="scard"><div class="lbl">Vendite</div><div class="val">' + lista.length + '</div></div>'
+      + '<div class="scard"><div class="lbl">Pezzi venduti</div><div class="val">' + pezzi + '</div></div>'
+      + '<div class="scard"><div class="lbl">A titolo gratuito</div><div class="val">' + gratis + '</div></div>'
+      + '<div class="scard tot"><div class="lbl">Totale addebitato</div><div class="val">' + fmtEur(tot) + '</div></div>';
+  } else {
+    html = ''
+      + '<div class="scard"><div class="lbl">In corso</div><div class="val">' + attivi + '</div></div>'
+      + '<div class="scard' + (scaduti ? ' bad' : '') + '"><div class="lbl">Scaduti</div><div class="val">' + scaduti + '</div></div>'
+      + '<div class="scard"><div class="lbl">A titolo gratuito</div><div class="val">' + gratis + '</div></div>'
+      + '<div class="scard tot"><div class="lbl">Totale addebitato</div><div class="val">' + fmtEur(tot) + '</div></div>';
+  }
   document.getElementById('summary').innerHTML = html;
+  var per = periodoAttivo();
+  var quando = (!per.da && !per.a) ? 'tutto lo storico'
+             : 'consegne dal ' + (per.da ? fmtDataIT(per.da) : 'inizio') + ' al ' + (per.a ? fmtDataIT(per.a) : 'oggi');
+  document.getElementById('sumnote').textContent =
+    'Conteggi sulle ' + lista.length + ' righe mostrate qui sotto (' + quando + ').';
+}
+
+function renderThead(){
+  var h = '';
+  if (!_pid) h += '<th>Paziente</th>';
+  h += '<th>Articolo</th>';
+  if (_tab === 'vendita'){
+    h += '<th class="hide">Data</th>';
+  } else {
+    h += '<th class="hide">Consegna</th><th class="hide">Rientro</th><th class="c hide">Ritardo</th>';
+  }
+  h += '<th class="c">Stato</th><th class="r">Addebitato</th><th class="r">Azioni</th>';
+  document.getElementById('thead-row').innerHTML = h;
+}
+function nColonne(){
+  // vendite: articolo, data, stato, addebitato, azioni
+  // noleggi: articolo, consegna, rientro, ritardo, stato, addebitato, azioni
+  return (_pid ? 0 : 1) + (_tab === 'vendita' ? 5 : 7);
 }
 
 function render(){
-  renderSummary();
+  renderContatori();
   var lista = filtrati();
+  renderSummary(lista);
+  renderThead();
+  document.getElementById('btn-xls').disabled = !lista.length;
+  document.getElementById('btn-csv').disabled = !lista.length;
+  _vista = lista;
   var tb = document.getElementById('tbody');
   var emptyEl = document.getElementById('empty');
   if (!lista.length){
     tb.innerHTML = '';
+    emptyEl.textContent = (_tab === 'vendita')
+      ? 'Nessuna vendita da mostrare con questi filtri.'
+      : 'Nessun noleggio da mostrare con questi filtri.';
     emptyEl.style.display = 'block';
     return;
   }
@@ -519,6 +718,13 @@ function render(){
     if (Number(n.prezzo) === 0) canone = '<span class="pill free">Gratuito</span>';
     var qta = (Number(n.quantita) || 1);
 
+    var rit = giorniRitardo(n);
+    var celleData = (_tab === 'vendita')
+      ? '<td class="hide">' + fmtDataIT(n.data_inizio) + '</td>'
+      : '<td class="hide">' + fmtDataIT(n.data_inizio) + '</td>'
+        + '<td class="hide">' + (n.data_restituzione ? fmtDataIT(n.data_restituzione) : fmtDataIT(n.data_fine_prevista)) + '</td>'
+        + '<td class="c hide' + (rit > 0 ? ' rit' : '') + '">' + (rit > 0 ? rit + 'g' : '—') + '</td>';
+
     html += '<tr class="' + (st.key === 'late' ? 'late' : '') + '">'
       + (_pid ? '' : '<td>' + esc(nomePaziente(n.patient_id)) + '</td>')
       + '<td>'
@@ -526,8 +732,7 @@ function render(){
         + '<div class="desc-sub">' + tipoPill + ' ' + canone
           + ' <span class="pill iva">' + esc(iva ? iva.label : '—') + '</span></div>'
       + '</td>'
-      + '<td class="hide">' + fmtDataIT(n.data_inizio) + '</td>'
-      + '<td class="hide">' + (n.data_restituzione ? fmtDataIT(n.data_restituzione) : fmtDataIT(n.data_fine_prevista)) + '</td>'
+      + celleData
       + '<td class="c"><span class="pill ' + st.cls + '">' + st.txt + '</span></td>'
       + '<td class="r"><b>' + fmtEur(totaleDi(n.id)) + '</b></td>'
       + '<td class="r"><div class="rowacts">'
@@ -555,7 +760,7 @@ function render(){
                  + '<button class="btn-mini btn-del" title="Togli questa riga dai conti" onclick="annullaAddebito(\'' + a.id + '\')">🗑</button></span></div>';
           }).join('')
         : '<div class="ln"><span>Nessun addebito generato' + (Number(n.prezzo) === 0 ? ' (voce gratuita)' : '') + '.</span><span></span></div>';
-      html += '<tr class="detail"><td colspan="' + (_pid ? 6 : 7) + '">'
+      html += '<tr class="detail"><td colspan="' + nColonne() + '">'
         + '<div class="addeb">'
         + '<div style="font-weight:800;margin-bottom:6px">Addebiti generati</div>'
         + lines
@@ -568,8 +773,8 @@ function render(){
             + '<option value="una_tantum"' + (n.modalita !== 'canone_mensile' ? ' selected' : '') + '>Una tantum</option>'
             + '<option value="canone_mensile"' + (n.modalita === 'canone_mensile' ? ' selected' : '') + '>Canone mensile</option>'
           + '</select>'
-          + '<label style="font-size:11px;font-weight:700;color:#888">RIENTRO PREVISTO</label>'
-          + '<input type="date" id="ed-fine-' + n.id + '" value="' + (n.data_fine_prevista ? String(n.data_fine_prevista).substring(0,10) : '') + '" style="padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit">'
+          + '<label style="font-size:11px;font-weight:700;color:#888' + (n.tipo === 'vendita' ? ';display:none' : '') + '">RIENTRO PREVISTO</label>'
+          + '<input type="date" id="ed-fine-' + n.id + '" value="' + (n.data_fine_prevista ? String(n.data_fine_prevista).substring(0,10) : '') + '" style="padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit' + (n.tipo === 'vendita' ? ';display:none' : '') + '">'
           + '<button class="btn-mini btn-pri" onclick="salvaModifica(\'' + n.id + '\')">💾 Salva</button>'
           + '<span class="msg" id="msg-ed-' + n.id + '"></span>'
         + '</div>'
@@ -581,6 +786,91 @@ function render(){
 }
 
 function apriDettaglio(id){ _openId = (_openId === id) ? null : id; render(); }
+
+// ─── noleggi-v5 — export Excel / CSV ────────────────────────────────
+// Tutto lato client (SheetJS + Blob), come esporta-ts.html: api/ resta 12/12.
+// Si esporta ESATTAMENTE quello che si vede: stessa scheda, stessi filtri,
+// stesso ordine. Se il foglio non torna con lo schermo, non ci si fida piu'.
+function exportAoA(){
+  var aoa = [];
+  var per = periodoAttivo();
+  var titolo = (_tab === 'vendita' ? 'Vendite' : 'Noleggi') + ' — Policettivo';
+  var quando = (!per.da && !per.a) ? 'tutto lo storico'
+             : 'dal ' + (per.da ? fmtDataIT(per.da) : 'inizio') + ' al ' + (per.a ? fmtDataIT(per.a) : 'oggi');
+  aoa.push([titolo]);
+  aoa.push(['Periodo (data di ' + (_tab === 'vendita' ? 'vendita' : 'consegna') + ')', quando]);
+  aoa.push(['Estratto il', fmtDataIT(todayISO())]);
+  aoa.push([]);
+
+  var head = [];
+  if (!_pid) head.push('Paziente');
+  head.push('Articolo', 'Codice', 'Q.tà', 'Prezzo unitario', 'IVA');
+  if (_tab === 'vendita'){
+    head.push('Data vendita', 'Stato');
+  } else {
+    head.push('Addebito', 'Consegna', 'Rientro previsto', 'Restituito il', 'Giorni di ritardo', 'Stato');
+  }
+  head.push('Addebitato', 'Note');
+  aoa.push(head);
+
+  var tot = 0;
+  for (var i=0;i<_vista.length;i++){
+    var n = _vista[i];
+    var iva = ivaByCode(n.iva_code || ivaDefaultBene());
+    var imp = totaleDi(n.id);
+    tot += imp;
+    var r = [];
+    if (!_pid) r.push(nomePaziente(n.patient_id));
+    r.push(n.descrizione || '', n.codice || '', Number(n.quantita) || 1,
+           Math.round((Number(n.prezzo)||0)*100)/100, iva ? iva.label : '');
+    if (_tab === 'vendita'){
+      r.push(fmtDataIT(n.data_inizio), statoNoleggio(n).txt.replace(/^[^\wÀ-ÿ]+/, ''));
+    } else {
+      var rit = giorniRitardo(n);
+      r.push(n.modalita === 'canone_mensile' ? 'Canone mensile' : 'Una tantum',
+             fmtDataIT(n.data_inizio),
+             n.data_fine_prevista ? fmtDataIT(n.data_fine_prevista) : '',
+             n.data_restituzione ? fmtDataIT(n.data_restituzione) : '',
+             (rit !== null && rit > 0) ? rit : '',
+             statoNoleggio(n).txt.replace(/^[^\wÀ-ÿ]+/, ''));
+    }
+    r.push(Math.round(imp*100)/100, n.note || '');
+    aoa.push(r);
+  }
+  aoa.push([]);
+  var totRow = [];
+  for (var k=0;k<head.length-2;k++) totRow.push('');
+  totRow.push('TOTALE', Math.round(tot*100)/100);
+  aoa.push(totRow);
+  return aoa;
+}
+
+function scarica(fmt){
+  if (!_vista.length) return;
+  var aoa = exportAoA();
+  var base = (_tab === 'vendita' ? 'vendite_' : 'noleggi_') + periodoAttivo().label;
+  if (_pid) base += '_' + nomePaziente(_pid).replace(/[^A-Za-z0-9]+/g,'-');
+  if (fmt === 'xlsx'){
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    var cols = [];
+    for (var i=0;i<aoa[4].length;i++) cols.push({ wch: i <= 1 ? 26 : 14 });
+    ws['!cols'] = cols;
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, _tab === 'vendita' ? 'Vendite' : 'Noleggi');
+    XLSX.writeFile(wb, base + '.xlsx');
+  } else {
+    var rows = aoa.map(function(r){
+      return r.map(function(c){
+        if (typeof c === 'number') c = String(c).replace('.', ',');   // decimali all'italiana
+        return '"' + String(c==null?'':c).replace(/"/g,'""') + '"';
+      }).join(';');
+    }).join('\n');
+    var blob = new Blob(['﻿'+rows], {type:'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download=base+'.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+}
 
 // ─── Azioni ─────────────────────────────────────────────────────────
 // noleggi-v4 — il rientro e' il momento in cui si sa se il paziente paga:
@@ -762,7 +1052,7 @@ function svuotaForm(){
   document.getElementById('n-note').value = '';
   document.getElementById('n-fine').value = '';
   document.getElementById('n-inizio').value = todayISO();
-  document.getElementById('n-tipo').value = 'noleggio';
+  document.getElementById('n-tipo').value = _tab;   // noleggi-v5 — il form segue la scheda aperta
   document.getElementById('n-modalita').value = 'una_tantum';
   document.getElementById('n-iva').value = ivaDefaultBene();
   document.getElementById('msg-nuovo').textContent = '';
@@ -807,6 +1097,8 @@ async function salvaNuovo(){
   msg.className='msg ok'; msg.textContent = 'Registrato ✓';
   var perOra = periodiDovuti({ data_inizio: rec.data_inizio, modalita: rec.modalita });
   var dovutoOra = perOra.length * prezzo * qta;
+  // noleggi-v5 — porta l'utente sulla scheda dove la riga appena salvata si vede
+  if (_tab !== tipo) setTab(tipo);
   svuotaForm();
   await ricarica();
   // noleggi-v4 — solo per le VENDITE si chiede subito: lì consegni e incassi
@@ -963,7 +1255,6 @@ async function init(){
     if (_pid){
       document.getElementById('back-link').href = 'paziente.html?id=' + encodeURIComponent(_pid);
       document.getElementById('back-link').textContent = '← Scheda paziente';
-      document.getElementById('th-paziente').style.display = 'none';
       var w = document.getElementById('fld-paziente-wrap'); if (w) w.style.display = 'none';
       var cw = document.getElementById('fld-cerca-wrap'); if (cw) cw.style.display = 'none';
     } else {
@@ -981,6 +1272,8 @@ async function init(){
 
     popolaIva();
     popolaCatalogo();
+    popolaOrdina();              // noleggi-v5
+    aggiornaFiltriPerTab();      // noleggi-v5
     svuotaForm();
     await ricarica();
   } catch(e){
