@@ -394,6 +394,15 @@
 
     async function showCompleted() {
       const isLast = idx >= items.length - 1
+
+      /* guidata-diretta-v1 — QUANDO NON E' L'ULTIMO ESERCIZIO SI VA AVANTI E BASTA.
+         Prima compariva una schermata intermedia "Esercizio completato! /
+         Prossimo: ... / Prossimo esercizio -> (3)" con un conto alla rovescia:
+         un'attesa in mezzo a una seduta di quattro minuti, che non aggiungeva
+         niente. Chi ha appena finito un esercizio vuole fare il successivo.
+         La schermata di fine SEDUTA (trofeo, streak, salvataggio) resta:
+         quella e' il momento che vale, ed e' una volta sola. */
+      if (!isLast) { nextExercise(); return }
       document.getElementById('completed-icon').textContent = isLast ? '🏆' : '✅'
       document.getElementById('completed-title').textContent = isLast ? 'Sessione completata!' : 'Esercizio completato!'
       document.getElementById('btn-next').style.display = isLast ? 'none' : 'block'
@@ -462,18 +471,11 @@
       const b = document.getElementById('btn-next')
       if (b) b.textContent = 'Prossimo esercizio →'
     }
-    function startAutoNext() {
-      stopAutoNext()
-      let s = 3
-      const b = document.getElementById('btn-next')
-      if (!b) return
-      b.textContent = 'Prossimo esercizio → (' + s + ')'
-      autoNextTimer = setInterval(function() {
-        s--
-        if (s <= 0) { stopAutoNext(); nextExercise(); return }
-        b.textContent = 'Prossimo esercizio → (' + s + ')'
-      }, 1000)
-    }
+    /* guidata-diretta-v1 — il conto alla rovescia non parte piu' da nessuna
+       parte. La funzione resta (vuota) perche' altrove qualcuno la chiama:
+       toglierla del tutto vorrebbe dire rincorrere ogni punto in cui e'
+       nominata, e un errore li' fermerebbe la seduta di un paziente. */
+    function startAutoNext() { stopAutoNext() }
 
     function nextExercise() {
       stopAutoNext()

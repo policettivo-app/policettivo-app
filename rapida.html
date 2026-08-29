@@ -55,6 +55,32 @@ body { font-family: 'Montserrat', sans-serif; background: #000; color: #fff; min
 .ex-timer-btn.running { border-color: #FFD008; color: #FFD008; }
 .timer-mini { font-size: 13px; color: #FFD008; font-weight: 700; margin-top: 6px; display: none; }
 .timer-mini.visible { display: block; }
+/* rapida-video-v1 — due pulsanti distinti per ogni esercizio: il VIDEO e il TIMER.
+   Sono impilati e ognuno ha la sua parola sotto l'icona: a 60-75 anni due icone
+   nude una accanto all'altra si confondono, e la regola dice che nessuna
+   informazione importante puo' essere affidata al solo simbolo. */
+.ex-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.ex-btn { background: #1a1a1a; border: 1px solid #333; color: #999; width: 62px; padding: 7px 4px; border-radius: 10px;
+          font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; cursor: pointer;
+          line-height: 1.25; text-align: center; }
+.ex-btn .ic { display: block; font-size: 17px; margin-bottom: 1px; }
+.ex-btn-video { border-color: #3a3a1a; color: #FFD008; }
+.ex-btn-video:active { background: #FFD008; color: #000; }
+.ex-btn-timer.running { border-color: #FFD008; color: #FFD008; }
+
+/* Il video si apre SOPRA la lista, non in un'altra pagina: la seduta non si
+   perde e non si cambia modalita' per un dubbio di dieci secondi. */
+#video-modal { position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,.94);
+               display: none; align-items: center; justify-content: center; padding: 16px; }
+#video-modal.open { display: flex; }
+#video-modal .vm-box { width: 100%; max-width: 640px; }
+#video-modal .vm-titolo { color: #FFD008; font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+#video-modal .vm-media { background: #000; border-radius: 14px; overflow: hidden; }
+#video-modal .vm-media iframe, #video-modal .vm-media video, #video-modal .vm-media img {
+  width: 100%; height: 56vh; max-height: 420px; border: none; display: block; object-fit: contain; background: #000; }
+#video-modal .vm-media.shorts iframe { height: 72vh; max-height: 560px; }
+#video-modal .vm-chiudi { width: 100%; margin-top: 14px; padding: 15px; background: #FFD008; color: #000;
+  border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; }
 .diary-section { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; margin-bottom: 24px; }
 .diary-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 16px; }
 .slider-group { margin-bottom: 14px; }
@@ -157,11 +183,56 @@ async function init() {
   patient = pd.patient
   if (!pd.protocol || pd.protocol.stato !== 'attivo') { torna(); return }
   protocol = pd.protocol
-  const _std = (pd.exercises || []).map(function(item){ const ex = item.exercise || null; const ppe = item.ppe || {}; return { name: ex ? ex.nome : 'Esercizio', durata: ppe.durata || (ex ? ex.durata_default : 90) || 90 } })
-  const _eli = (pd.elicoidali || []).map(function(e){ const def = (typeof EXERCISES_ELICOIDALI !== 'undefined') ? EXERCISES_ELICOIDALI.find(function(x){ return x.id === e.elicoidale_id }) : null; return { name: def ? def.title : e.elicoidale_id, durata: e.durata || 60 } })
-  const _cust = (pd.custom_videos || []).map(function(v){ return { name: v.titolo || 'Contenuto personalizzato', durata: v.durata || 60 } })
+  // rapida-video-v1 : ogni esercizio si porta dietro il suo video. Prima la
+  // modalita' rapida lo buttava via, e chi non ricordava un esercizio doveva
+  // uscire e cambiare modalita' - cioe' perdere il punto della modalita' rapida.
+  const _std = (pd.exercises || []).map(function(item){ const ex = item.exercise || null; const ppe = item.ppe || {}; return { name: ex ? ex.nome : 'Esercizio', durata: ppe.durata || (ex ? ex.durata_default : 90) || 90, video: videoDa(ex ? ex.video_url : null) } })
+  const _eli = (pd.elicoidali || []).map(function(e){ const def = (typeof EXERCISES_ELICOIDALI !== 'undefined') ? EXERCISES_ELICOIDALI.find(function(x){ return x.id === e.elicoidale_id }) : null; return { name: def ? def.title : e.elicoidale_id, durata: e.durata || 60, video: videoDa(e.video_url || (def ? def.video_url : null)) } })
+  const _cust = (pd.custom_videos || []).map(function(v){ return { name: v.titolo || 'Contenuto personalizzato', durata: v.durata || 60, video: v.url ? { tipo: (v.tipo === 'foto' ? 'foto' : 'file'), url: v.url } : null } })
   exercises = _std.concat(_eli).concat(_cust)
   renderExercises()
+}
+
+/* rapida-video-v1 — riconosce che tipo di video e', una volta sola al
+   caricamento, cosi' il disegno della lista non deve ragionarci ogni volta.
+   Le stesse forme gestite dalla modalita' guidata: YouTube normale, YouTube
+   Shorts, e i link di ricerca che non si possono incorporare. */
+function videoDa(url) {
+  if (!url) return null
+  if (url.indexOf('youtube.com/results') !== -1) return { tipo: 'link', url: url }
+  var shorts = url.match(/youtube\.com\/shorts\/([^?&\n]+)/)
+  if (shorts) return { tipo: 'youtube', id: shorts[1], shorts: true, url: url }
+  var normale = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)
+  if (normale) return { tipo: 'youtube', id: normale[1], shorts: false, url: url }
+  return { tipo: 'link', url: url }
+}
+
+function apriVideo(i) {
+  var e = exercises[i]; if (!e || !e.video) return
+  var v = e.video
+  try { polEvento('exercise_video_opened', { modalita: 'rapid', n: i + 1 }) } catch (err) {}
+  document.getElementById('vm-titolo').textContent = e.name || ('Esercizio ' + (i + 1))
+  var media = document.getElementById('vm-media')
+  media.className = 'vm-media' + (v.tipo === 'youtube' && v.shorts ? ' shorts' : '')
+  if (v.tipo === 'youtube') {
+    media.innerHTML = '<iframe src="https://www.youtube.com/embed/' + v.id + '?playsinline=1&rel=0" allowfullscreen allow="autoplay"></iframe>'
+  } else if (v.tipo === 'foto') {
+    media.innerHTML = '<img src="' + v.url + '" alt="">'
+  } else if (v.tipo === 'file') {
+    media.innerHTML = '<video src="' + v.url + '" controls playsinline preload="metadata"></video>'
+  } else {
+    media.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#aaa;font-size:14px">' +
+      'Questo video si apre su YouTube.<br><br>' +
+      '<a href="' + v.url + '" target="_blank" rel="noopener" style="background:#FF0000;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700;display:inline-block">Guarda su YouTube</a></div>'
+  }
+  document.getElementById('video-modal').classList.add('open')
+}
+
+// Chiudendo si svuota il riquadro: altrimenti l'audio di YouTube continuerebbe
+// a suonare dietro la lista.
+function chiudiVideo() {
+  document.getElementById('vm-media').innerHTML = ''
+  document.getElementById('video-modal').classList.remove('open')
 }
 
 function renderExercises() {
@@ -178,9 +249,16 @@ function renderExercises() {
         '<div class="ex-meta">' + durata + ' sec</div>' +
         '<div class="timer-mini" id="timer-' + i + '"></div>' +
       '</div>' +
-      '<button class="ex-timer-btn" id="tbtn-' + i + '" onclick="toggleTimer(' + i + ',' + durata + ')">' +
-        (timers[i] && timers[i].running ? '⏸' : '▶') +
-      '</button>' +
+      '<div class="ex-actions">' +
+        (e.video
+          ? '<button class="ex-btn ex-btn-video" onclick="apriVideo(' + i + ')" aria-label="Guarda il video di ' + nome.replace(/"/g, '') + '">' +
+              '<span class="ic">▶</span>Video</button>'
+          : '') +
+        '<button class="ex-btn ex-btn-timer' + (timers[i] && timers[i].running ? ' running' : '') + '" id="tbtn-' + i + '" onclick="toggleTimer(' + i + ',' + durata + ')">' +
+          '<span class="ic">' + (timers[i] && timers[i].running ? '⏸' : '⏱') + '</span>' +
+          (timers[i] && timers[i].running ? 'Pausa' : 'Timer') +
+        '</button>' +
+      '</div>' +
     '</div>'
   }).join('')
 }
@@ -214,8 +292,14 @@ function toggleTimer(i, durata) {
         checkedItems.add(i)
         renderExercises()
       }
+      // rapida-video-v1 : si aggiorna il CONTENUTO del pulsante, non lo si
+      // svuota. La riga di prima faceva `btn.textContent = '⏸'` ogni secondo e
+      // avrebbe cancellato icona + parola, lasciando un simbolo nudo.
       const btn = document.getElementById('tbtn-' + i)
-      if (btn) btn.textContent = t.running ? '⏸' : '▶'
+      if (btn) {
+        btn.innerHTML = '<span class="ic">' + (t.running ? '⏸' : '⏱') + '</span>' + (t.running ? 'Pausa' : 'Timer')
+        btn.classList.toggle('running', t.running)
+      }
     }, 1000)
   }
   renderExercises()
@@ -268,6 +352,14 @@ function mostraCompletato() {
 
 init()
 </script>
+<!-- rapida-video-v1 -->
+<div id="video-modal" onclick="if(event.target===this)chiudiVideo()">
+  <div class="vm-box">
+    <div class="vm-titolo" id="vm-titolo"></div>
+    <div class="vm-media" id="vm-media"></div>
+    <button class="vm-chiudi" onclick="chiudiVideo()">Chiudi e torna agli esercizi</button>
+  </div>
+</div>
 <script>/* pol-eventi-apertura */try{polEvento('rapid_mode_started',{modalita:'rapid'})}catch(e){}</script>
 </body>
 </html>
