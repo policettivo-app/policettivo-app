@@ -43,6 +43,19 @@
     .role-badge.segreteria { background: #fff3e0; color: #e65100; }
     .role-badge.clinico { background: #e3f2fd; color: #0d47a1; }
     .role-badge.amministrazione { background: #ede7f6; color: #4527a0; }
+    /* membri-v1 */
+    .m-act { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .m-btn { border: 1.5px solid #ddd; background: #fff; color: #555; padding: 5px 10px; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .m-btn:hover { border-color: #bbb; }
+    .m-btn.warn { color: #e65100; border-color: #ffcc80; }
+    .m-btn.ok { color: #2e7d32; border-color: #a5d6a7; }
+    .m-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .m-sel { padding: 5px 8px; border: 1.5px solid #ddd; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 11.5px; background: #fff; }
+    .m-stato { font-size: 11px; font-weight: 700; }
+    .m-stato.sosp { color: #c62828; }
+    .m-msg { font-size: 11px; color: #999; margin-top: 4px; display: block; }
+    .m-msg.ok { color: #2e7d32; }
+    .m-msg.err { color: #c62828; }
     .empty-state { text-align: center; padding: 40px; color: #999; font-size: 14px; }
     .copy-btn { background: #000; color: #FFD008; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 8px; }
     .chk { width: 18px; height: 18px; cursor: pointer; accent-color: #FFD008; }
@@ -239,7 +252,7 @@
     async function loadMembri() {
       const { data, error } = await _supabase
         .from('professionals')
-        .select('id, ruolo, permessi, user_id, profiles(nome, cognome)')
+        .select('id, ruolo, permessi, user_id, attivo, profiles(nome, cognome)')   // membri-v1
         .eq('studio_id', mioStudioId)
 
       if (error) {
@@ -267,26 +280,107 @@
           const nome = m.profiles ? escHtml(((m.profiles.nome || '') + ' ' + (m.profiles.cognome || '')).trim()) : '—'
           const isMe = m.id === mioProfId
           const ruolo = escHtml(m.ruolo || '—')
-          const permessi = m.permessi || {}
-          let permCell = '—'
-          if (m.ruolo === 'segreteria') {
-            const checked = permessi.vede_clinico ? 'checked' : ''
-            const disabled = isMe ? 'disabled' : ''
-            permCell = '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#333">' +
-              '<input type="checkbox" class="chk" ' + checked + ' ' + disabled + ' onchange="toggleVedeClinico(\'' + m.id + '\', this.checked)">' +
-              'Vede dati clinici</label>'
-          }
           const roleClass = m.ruolo === 'master' ? 'master' : (m.ruolo === 'segreteria' ? 'segreteria' : (m.ruolo === 'clinico' ? 'clinico' : (m.ruolo === 'amministrazione' ? 'amministrazione' : '')))
+          const sospeso = (m.attivo === false)
+
+          // membri-v1 — la spunta «Vede dati clinici» oggi viene salvata e non
+          // la legge NESSUNA pagina: era un interruttore che prometteva una
+          // protezione inesistente. Finché non la si collega davvero resta
+          // disattivata e dichiarata, invece di mentire.
+          let permCell = '<span style="font-size:12px;color:#bbb">—</span>'
+          if (m.ruolo === 'segreteria') {
+            permCell = '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#bbb" ' +
+              'title="Funzione non ancora attiva: al momento la segreteria vede i dati dei pazienti che le condividi.">' +
+              '<input type="checkbox" class="chk" disabled> Vede dati clinici <em style="font-size:10px">(in arrivo)</em></label>'
+          }
+
+          let azioni = '<span style="font-size:12px;color:#999">Non modificabile</span>'
+          if (!isMe && m.ruolo !== 'master') {
+            azioni =
+              '<div class="m-act">' +
+                '<select class="m-sel" onchange="cambiaRuolo(\'' + m.id + '\', this.value)">' +
+                  ['clinico','segreteria','amministrazione'].map(r =>
+                    '<option value="' + r + '"' + (m.ruolo === r ? ' selected' : '') + '>' + r + '</option>').join('') +
+                '</select>' +
+                (sospeso
+                  ? '<button class="m-btn ok" onclick="riattivaMembro(\'' + m.id + '\')">Riattiva</button>'
+                  : '<button class="m-btn warn" onclick="sospendiMembro(\'' + m.id + '\')">Sospendi</button>') +
+                '<button class="m-btn" onclick="resetPasswordMembro(\'' + m.id + '\')">Reset password</button>' +
+              '</div>' +
+              '<span class="m-msg" id="m-msg-' + m.id + '"></span>'
+          }
+
           return '<tr>' +
-            '<td><strong>' + nome + '</strong>' + (isMe ? ' <span style="font-size:11px;color:#999">(tu)</span>' : '') + '</td>' +
+            '<td><strong>' + nome + '</strong>' + (isMe ? ' <span style="font-size:11px;color:#999">(tu)</span>' : '') +
+              (sospeso ? '<br><span class="m-stato sosp">⛔ Accesso sospeso</span>' : '') + '</td>' +
             '<td><span class="role-badge ' + roleClass + '">' + ruolo + '</span></td>' +
             '<td>' + permCell + '</td>' +
-            '<td style="font-size:12px;color:#999">' + (isMe ? 'Non modificabile' : '—') + '</td>' +
+            '<td>' + azioni + '</td>' +
             '</tr>'
         }).join('') +
         '</tbody></table>'
     }
 
+    // ── membri-v1 : azioni sui membri ──────────────────────────────────────
+    // Passano tutte da /api/admin, che ricontrolla lato server che chi chiede
+    // sia il master DI QUEL membro: un controllo fatto solo qui nel browser si
+    // aggira aprendo la console.
+    function mMsg(id, testo, tipo) {
+      const el = document.getElementById('m-msg-' + id)
+      if (el) { el.textContent = testo; el.className = 'm-msg' + (tipo ? ' ' + tipo : '') }
+    }
+
+    async function azioneMembro(id, action, extra) {
+      const token = await getAdminToken()
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(Object.assign({ action, membro_id: id }, extra || {}))
+      })
+      let json = {}
+      try { json = await res.json() } catch (_) {}
+      if (!res.ok || json.error) throw new Error(json.error || ('errore ' + res.status))
+      return json
+    }
+
+    async function cambiaRuolo(id, ruolo) {
+      mMsg(id, 'Salvo…')
+      try {
+        await azioneMembro(id, 'member-set-role', { ruolo })
+        mMsg(id, 'Ruolo aggiornato.', 'ok')
+        await loadMembri()
+      } catch (e) { mMsg(id, 'Errore: ' + e.message, 'err'); await loadMembri() }
+    }
+
+    async function sospendiMembro(id) {
+      if (!confirm('Sospendere l\'accesso di questa persona?\n\nNon potrà più entrare, e le sessioni già aperte cadono subito. Tutto quello che ha scritto (sedute, visite, pagamenti) resta al suo posto e resta attribuito a lei: è documentazione sanitaria e contabile, non si cancella.\n\nPuoi riattivarla quando vuoi.')) return
+      mMsg(id, 'Sospendo…')
+      try {
+        await azioneMembro(id, 'member-suspend')
+        await loadMembri()
+      } catch (e) { mMsg(id, 'Errore: ' + e.message, 'err') }
+    }
+
+    async function riattivaMembro(id) {
+      mMsg(id, 'Riattivo…')
+      try {
+        await azioneMembro(id, 'member-restore')
+        await loadMembri()
+      } catch (e) { mMsg(id, 'Errore: ' + e.message, 'err') }
+    }
+
+    async function resetPasswordMembro(id) {
+      if (!confirm('Mandare a questa persona l\'email per reimpostare la password?\n\nLa nuova password la sceglie lei: tu non la vedi e non la decidi. È voluto — così nel registro delle modifiche «fatto da lei» continua a voler dire davvero lei.')) return
+      mMsg(id, 'Invio…')
+      try {
+        const r = await azioneMembro(id, 'member-reset-password')
+        mMsg(id, 'Email inviata a ' + (r.email || 'quell\'indirizzo') + '.', 'ok')
+      } catch (e) { mMsg(id, 'Errore: ' + e.message, 'err') }
+    }
+
+    // membri-v1 — non più agganciata a nulla: la spunta è disattivata finché
+    // «vede dati clinici» non verrà implementata davvero (decidere cosa deve
+    // sparire alla segreteria: anamnesi? referti? foto?). Si tiene qui pronta.
     async function toggleVedeClinico(profId, checked) {
       const membro = membriStudio.find(m => m.id === profId)
       if (!membro) return
