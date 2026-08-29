@@ -3,6 +3,9 @@ import { randomUUID } from 'node:crypto'
 
 const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
 const RUOLI_MEMBRO_VALIDI = ['clinico', 'segreteria', 'amministrazione']
+// membri-v1 — azioni che il master puo' fare sui membri del proprio studio
+const AZIONI_MEMBRO = ['member-suspend', 'member-restore', 'member-set-role', 'member-reset-password']
+const BAN_LUNGO = '876000h'   // 100 anni: la sospensione dura finche' non la togli
 
 async function getAuthUser(req, res) {
   if (req.headers['x-preview-mode'] === '1') {
@@ -55,6 +58,35 @@ export default async function handler(req, res) {
       return res.status(402).json({ error: 'Il multi-utente richiede il piano Premium', code: 'PREMIUM_REQUIRED' })
     }
     return handleCreateInvite(svc, req, res)
+  }
+
+  // ── membri-v1 ────────────────────────────────────────────────────────────
+  // Il master del proprio studio puo' gestire i SUOI membri: sospendere,
+  // riattivare, cambiare ruolo, mandare il reset password.
+  // Sta qui dentro e non in un file nuovo apposta: api/ e' a 12/12 funzioni
+  // serverless, un file in piu' sfonderebbe il limite del piano.
+  // NON esiste un'azione «imposta la password di un altro»: se il master
+  // potesse farlo, «modificato dalla segretaria» nel registro non
+  // significherebbe piu' niente. Si manda un'email di reimpostazione.
+  if (AZIONI_MEMBRO.includes(action) && !isPlatformAdmin) {
+    const { membro_id: membroId } = req.body || {}
+    if (!membroId) return res.status(400).json({ error: 'membro_id obbligatorio' })
+
+    const { data: mioProf, error: e1 } = await svc
+      .from('professionals').select('id, studio_id, ruolo').eq('user_id', user.id).maybeSingle()
+    if (e1 || !mioProf) return res.status(403).json({ error: 'Non autorizzato: professionista non trovato' })
+    if (mioProf.ruolo !== 'master') return res.status(403).json({ error: 'Non autorizzato: solo il master dello studio' })
+    if (!mioProf.studio_id) return res.status(403).json({ error: 'Non autorizzato: nessuno studio' })
+    if (membroId === mioProf.id) return res.status(400).json({ error: 'Non puoi applicare questa azione a te stesso' })
+
+    const { data: membro, error: e2 } = await svc
+      .from('professionals').select('id, user_id, studio_id, ruolo, attivo').eq('id', membroId).maybeSingle()
+    if (e2 || !membro) return res.status(404).json({ error: 'Membro non trovato' })
+    // Il controllo che conta: dev'essere del MIO studio.
+    if (membro.studio_id !== mioProf.studio_id) return res.status(403).json({ error: 'Non autorizzato: membro di un altro studio' })
+    if (membro.ruolo === 'master') return res.status(403).json({ error: 'Un master non si tocca da qui' })
+
+    return handleAzioneMembro(svc, action, membro, req, res)
   }
 
   // Tutte le altre action: solo admin piattaforma
@@ -186,6 +218,57 @@ async function handleCreateInvite(svc, req, res) {
     .single()
   if (error) return res.status(500).json({ error: error.message })
   return res.status(200).json({ invito: data })
+}
+
+// ── membri-v1: azioni del master sui membri del suo studio ───────────────────
+// La sospensione NON si limita a `professionals.attivo`: quel campo non era
+// letto da nessuna pagina, quindi da solo non impedirebbe niente (era un
+// interruttore scollegato). Il blocco vero e' il BAN dell'utente su Supabase
+// Auth: da bannato non fa piu' login e i token in corso smettono di valere.
+// `attivo` resta come stato visibile nelle liste.
+async function handleAzioneMembro(svc, action, membro, req, res) {
+  if (action === 'member-set-role') {
+    const { ruolo } = req.body || {}
+    if (!RUOLI_MEMBRO_VALIDI.includes(ruolo)) {
+      return res.status(400).json({ error: 'ruolo non valido: ammessi ' + RUOLI_MEMBRO_VALIDI.join(', ') })
+    }
+    const { error } = await svc.from('professionals').update({ ruolo }).eq('id', membro.id)
+    if (error) return res.status(500).json({ error: error.message })
+    return res.status(200).json({ ok: true, ruolo })
+  }
+
+  if (action === 'member-suspend' || action === 'member-restore') {
+    const sospendi = action === 'member-suspend'
+    if (membro.user_id) {
+      const { error: eBan } = await svc.auth.admin.updateUserById(membro.user_id, {
+        ban_duration: sospendi ? BAN_LUNGO : 'none'
+      })
+      if (eBan) return res.status(500).json({ error: 'Blocco accesso non riuscito: ' + eBan.message })
+      if (sospendi) {
+        // Le sessioni gia' aperte devono cadere subito, non alla scadenza.
+        try { await svc.auth.admin.signOut(membro.user_id, 'global') } catch (_) {}
+      }
+    }
+    const { error } = await svc.from('professionals').update({ attivo: !sospendi }).eq('id', membro.id)
+    if (error) return res.status(500).json({ error: error.message })
+    return res.status(200).json({ ok: true, attivo: !sospendi })
+  }
+
+  if (action === 'member-reset-password') {
+    if (!membro.user_id) return res.status(400).json({ error: 'Questo membro non ha ancora completato la registrazione' })
+    const { data: u, error: eU } = await svc.auth.admin.getUserById(membro.user_id)
+    const email = u && u.user ? u.user.email : null
+    if (eU || !email) return res.status(400).json({ error: 'Email del membro non trovata' })
+    // Manda l'email di reimpostazione: il master non vede e non sceglie mai
+    // la password altrui.
+    const { error } = await svc.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://app.policettivo.it/reset-password.html'
+    })
+    if (error) return res.status(500).json({ error: error.message })
+    return res.status(200).json({ ok: true, email })
+  }
+
+  return res.status(400).json({ error: 'azione membro sconosciuta: ' + action })
 }
 
 // ── delete-invite ────────────────────────────────────────────────────────────
