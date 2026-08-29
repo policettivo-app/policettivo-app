@@ -3,14 +3,21 @@
 <head>
   <script src="js/domain-redirect.js"></script>
   <meta charset="UTF-8">
-  <!-- ux-paz-sicurezza-v1 : il token del paziente vive nell'URL.
+  <!-- ux-paz-sicurezza-v2 : il token del paziente vive nell'URL.
        noindex  : questa pagina non deve mai finire su Google.
-       referrer : l'indirizzo della pagina (token compreso) non viene passato
-                  a NESSUN sito esterno - ne' a YouTube, ne' al CDN delle
-                  librerie. Senza questa riga il token finiva nei log di
-                  chiunque servisse un file a questa pagina. -->
+       referrer : verso l'esterno esce SOLO l'origine (https://app.policettivo.it),
+                  mai il percorso e mai la query - quindi mai il token. Era
+                  finito nei log di chiunque servisse un file a questa pagina.
+
+       ⚠️ NON rimettere 'no-referrer'. E' stato provato il 29 ago e ha rotto i
+       video: il player incorporato di YouTube controlla l'header Referer per
+       sapere chi lo sta incorporando, e senza quello risponde 'Errore di
+       configurazione del video player - Errore 153'. 'strict-origin-when-cross-origin'
+       gli da' l'origine che gli serve e tiene dentro il token lo stesso.
+       Vale per tutte le pagine paziente, non solo esercizio.html: in Release 1
+       il video arriva anche nella modalita' rapida. -->
   <meta name="robots" content="noindex, nofollow, noarchive">
-  <meta name="referrer" content="no-referrer">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Il tuo protocollo</title>
   <link rel="stylesheet" href="css/design-system.css">
