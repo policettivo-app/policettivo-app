@@ -1979,24 +1979,39 @@
     const cb = umCallback
     const tipo = umTipo, isReplace = umIsReplace
     umTipo = null; umCallback = null
-    if (cb) { openWebcamModal(tipo, isReplace, cb); return } // Acquisizione Rapida: flusso guidato con audio, invariato
-    apriCameraPosturale(tipo, isReplace)
+    // camera-unificata-2 (29 ago) — QUI stava la differenza.
+    // Prima: se c'era una callback (cioe' Acquisizione Rapida) si apriva la
+    // fotocamera VECCHIA, quella con le barre nere che tagliano l'inquadratura.
+    // Adesso la fotocamera e' una sola per tutta l'app, e la callback le viene
+    // passata: il resto del flusso a passi (upload, ordine, vibrazione,
+    // messaggio finale) non cambia di una riga.
+    apriCameraPosturale(tipo, isReplace, cb)
   }
 
-  // Fotocamera unificata (js/camera-pol.js): stessa esperienza di scheda paziente e visita
-  async function apriCameraPosturale(tipo, isReplace) {
+  // Fotocamera unificata (js/camera-pol.js): stessa esperienza di scheda paziente,
+  // visita, posturale e Acquisizione Rapida. Una sola fotocamera in tutta l'app.
+  async function apriCameraPosturale(tipo, isReplace, cb) {
     const isPodo = String(tipo || '').indexOf('podoscopio') === 0
+    const guidata = !!cb && rapidInCorso()      // camera-unificata-2
     const ok = await polCamera.open({
       label: String(tipo || '').replace(/_/g, ' '),
       hint: isPodo ? 'Inquadra il piede dall\'alto' : 'Centra il paziente · distanza 2,5 m',
       showCross: !isPodo,
       showTargets: !isPodo,
+      step: guidata ? rapidStepLabel() : '',
+      onSkip: guidata ? function () { rapidSkip() } : null,
+      // La ✕ a meta' sequenza: la guida si ferma, come faceva prima chiudendo
+      // il vecchio modale. Senza questo il contatore dei passi resterebbe
+      // acceso su una fotocamera che non c'e' piu'.
+      onCancel: guidata ? function () { rapidIdx = -1; rapidUpdateBanner() } : null,
       onShot: async raw => {
         try {
           const resp = await fetch(raw)
           const blob = await resp.blob()
           const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' })
-          await uploadPhoto(file, tipo, isReplace)
+          // Se qualcuno aspetta la foto (Acquisizione Rapida, foto libera) gliela
+          // si passa: e' lui che decide dove salvarla e come proseguire.
+          if (cb) { await cb(file) } else { await uploadPhoto(file, tipo, isReplace) }
         } catch (e) { showToast('Errore foto: ' + (e.message || e)) }
       },
       onGallery: () => {
@@ -2331,7 +2346,7 @@
   }
   function permWebcamRiprova() {
     chiudiPermessoWebcam()
-    openWebcamModal(_permTipo, _permIsReplace, null)
+    apriCameraPosturale(_permTipo, _permIsReplace)   // camera-unificata-2
   }
   function permWebcamUsaFile() {
     chiudiPermessoWebcam()
@@ -2510,9 +2525,10 @@
     wcShowShootState()
   }
 
-  // Webcam per foto libera
+  // Webcam per foto libera — camera-unificata-2: stessa fotocamera di tutto
+  // il resto. Prende una callback, quindi passa dal ramo con cb.
   function openWebcamForFotoLib() {
-    openWebcamModal(null, false, file => {
+    apriCameraPosturale('foto libera', false, file => {
       flPendingFile = file
       const reader = new FileReader()
       reader.onload = e => {
@@ -3797,6 +3813,15 @@ ISTRUZIONI:
       : 'Tutte le foto acquisite ✅'
     setTimeout(() => showToast(msg), 300)
   }
+
+  // camera-unificata-2 — il testo del passo, che ora vive DENTRO la fotocamera
+  // a tutto schermo invece che nella striscia del vecchio modale.
+  function rapidStepLabel() {
+    if (rapidIdx < 0 || rapidIdx >= rapidSteps.length) return ''
+    return 'Step ' + (rapidIdx + 1) + '/' + rapidSteps.length + ' — ' + rapidSteps[rapidIdx].titolo
+  }
+
+  function rapidInCorso() { return rapidIdx >= 0 && rapidIdx < rapidSteps.length }
 
   function rapidUpdateBanner() {
     const banner  = document.getElementById('wc-rapid-banner')

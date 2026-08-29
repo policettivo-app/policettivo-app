@@ -5,8 +5,19 @@
    - 2 mirini fissi: basso → croce della dima a terra, alto → riferimento
      verticale sulla porta. Bolla verde + mirini centrati = scatti ripetibili.
    API:
-     polCamera.open({ label, hint, showCross, showTargets, onShot(rawDataUrl), onGallery() }) → Promise<bool>
+     polCamera.open({ label, hint, showCross, showTargets,
+                      step, onSkip(), onCancel(),
+                      onShot(rawDataUrl), onGallery() }) → Promise<bool>
      polCamera.close()
+
+   camera-unificata-2 (29 ago) — AGGIUNTE, non modifiche:
+     step      testo tipo "Step 1/12 — Frontale". Se manca, la striscia non compare.
+     onSkip    se c'e', appare il pulsante "Salta". Se manca, non appare.
+     onCancel  chiamato SOLO quando l'utente chiude con la ✕, mai dopo uno
+               scatto: serve ai flussi a passi per sapere che l'utente ha
+               abbandonato a meta' strada.
+   Chi non passa questi tre campi (scheda paziente, visita) si comporta
+   esattamente come prima: nessuna riga del loro codice cambia.
    ============================================================ */
 (function (w) {
   'use strict';
@@ -50,6 +61,10 @@
       '#pcm-arr-right{right:8px;top:50%;transform:translateY(-50%)}' +
       '#pcm-arr-up{top:120px;left:50%;transform:translateX(-50%)}' +
       '#pcm-arr-down{bottom:132px;left:50%;transform:translateX(-50%)}' +
+      '#pcm-step{display:none;position:absolute;top:56px;left:50%;transform:translateX(-50%);z-index:6;color:#FFD008;font-size:14px;font-weight:800;background:rgba(0,0,0,.72);padding:6px 16px;border-radius:14px;white-space:nowrap;text-shadow:0 1px 3px #000}' +
+      '#pol-cam-modal.has-step #pcm-step{display:block}' +
+      '#pol-cam-modal.has-step #pcm-hint{top:98px}' +
+      '#pcm-skip{display:none;position:absolute;right:16px;bottom:42px;background:rgba(0,0,0,.55);color:#fff;border:1.5px solid rgba(255,255,255,.5);padding:10px 16px;border-radius:10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}' +
       '#pcm-hint{position:absolute;top:62px;left:50%;transform:translateX(-50%);z-index:5;font-size:13px;font-weight:600;color:#fff;background:rgba(0,0,0,.6);padding:6px 14px;border-radius:16px;white-space:nowrap}' +
       '#pcm-debug{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:5;font-size:11px;color:rgba(255,255,255,.75);font-family:monospace}' +
       '#pcm-ios-btn{display:none;position:absolute;top:104px;left:50%;transform:translateX(-50%);z-index:7;background:#FFD008;color:#000;border:none;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}' +
@@ -63,7 +78,7 @@
       '<video id="pol-cam-video" autoplay playsinline muted></video>' +
       '<div id="pcm-veil"></div>' +
       '<div id="pcm-dima-line"></div>' +
-      '<div class="pcm-topbar"><span class="pcm-label" id="pcm-label"></span><button class="pcm-close" onclick="polCamera.close()">✕</button></div>' +
+      '<div class="pcm-topbar"><span class="pcm-label" id="pcm-label"></span><button class="pcm-close" onclick="polCamera._annulla()">✕</button></div>' +
       '<div class="pcm-cross-v" id="pcm-cross-v"></div>' +
       '<div class="pcm-cross-h" id="pcm-cross-h"></div>' +
       '<div class="pcm-target" id="pcm-target-top"><span class="pcm-tag">riferimento superiore</span></div>' +
@@ -74,12 +89,14 @@
       '<div class="pcm-arrow" id="pcm-arr-right">▶</div>' +
       '<div class="pcm-arrow" id="pcm-arr-up">▲</div>' +
       '<div class="pcm-arrow" id="pcm-arr-down">▼</div>' +
+      '<div id="pcm-step"></div>' +
       '<div id="pcm-hint"></div>' +
       '<div id="pcm-debug"></div>' +
       '<button id="pcm-ios-btn">🎯 Abilita livella</button>' +
       '<div class="pcm-bottombar">' +
         '<button id="pcm-gallery" onclick="polCamera._gallery()">📁 Galleria</button>' +
         '<button id="pcm-shutter" onclick="polCamera._shot()" aria-label="Scatta"></button>' +
+        '<button id="pcm-skip" onclick="polCamera._skip()">⏭ Salta</button>' +
       '</div>';
     document.body.appendChild(d);
   }
@@ -171,6 +188,14 @@
       document.getElementById('pcm-dima-line').style.display = showTargets ? '' : 'none';
       document.getElementById('pcm-veil').style.opacity = 0;
       document.getElementById('pcm-gallery').style.display = (typeof opts.onGallery === 'function') ? '' : 'none';
+      // camera-unificata-2: striscia dei passi e pulsante Salta, solo se richiesti
+      var passo = opts.step || '';
+      document.getElementById('pcm-step').textContent = passo;
+      // 'block' e non '': il CSS di #pcm-skip parte da display:none, quindi una
+      // stringa vuota toglie lo stile inline e lascia vincere la regola nascosta.
+      // Il pulsante c'era ma non si vedeva - trovato solo aprendola nel browser.
+      document.getElementById('pcm-skip').style.display = (typeof opts.onSkip === 'function') ? 'block' : 'none';
+      document.getElementById('pol-cam-modal').classList.toggle('has-step', !!passo);
       document.getElementById('pol-cam-modal').classList.add('open');
       initLivella();
       return true;
@@ -199,6 +224,22 @@
 
     _gallery: function () {
       var cb = opts && opts.onGallery;
+      this.close();
+      if (typeof cb === 'function') cb();
+    },
+
+    // camera-unificata-2 — "Salta questo passo" dei flussi guidati.
+    _skip: function () {
+      var cb = opts && opts.onSkip;
+      this.close();
+      if (typeof cb === 'function') cb();
+    },
+
+    // camera-unificata-2 — la ✕. Distinta da close() di proposito: close()
+    // la chiamano anche lo scatto e la galleria, e se avvisasse pure lei il
+    // flusso guidato crederebbe di essere stato abbandonato a ogni foto.
+    _annulla: function () {
+      var cb = opts && opts.onCancel;
       this.close();
       if (typeof cb === 'function') cb();
     }
