@@ -4,7 +4,21 @@ import { randomUUID } from 'node:crypto'
 const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
 const RUOLI_MEMBRO_VALIDI = ['clinico', 'segreteria', 'amministrazione']
 // membri-v1 — azioni che il master puo' fare sui membri del proprio studio
-const AZIONI_MEMBRO = ['member-suspend', 'member-restore', 'member-set-role', 'member-reset-password']
+const AZIONI_MEMBRO = ['member-suspend', 'member-restore', 'member-set-role', 'member-reset-password', 'member-delete']
+// membri-v2 — dove cercare i dati prodotti da un membro, prima di cancellarlo.
+// ⚠️ `professional_id` NON ha lo stesso significato ovunque (lezione #17):
+// in patients/therapy_sessions/visits vale professionals.id, in
+// fatture/patient_payments/noleggi vale auth.uid() DIRETTO. Sbagliare chiave
+// qui vorrebbe dire contare zero righe e cancellare un membro che invece ha
+// scritto cartelle e fatture.
+const TABELLE_DATI = [
+  { tabella: 'patients',         chiave: 'prof' },
+  { tabella: 'therapy_sessions', chiave: 'prof' },
+  { tabella: 'visits',           chiave: 'prof' },
+  { tabella: 'fatture',          chiave: 'uid'  },
+  { tabella: 'patient_payments', chiave: 'uid'  },
+  { tabella: 'noleggi',          chiave: 'uid'  }
+]
 const BAN_LUNGO = '876000h'   // 100 anni: la sospensione dura finche' non la togli
 
 async function getAuthUser(req, res) {
@@ -258,6 +272,51 @@ async function handleAzioneMembro(svc, action, membro, req, res) {
     const { error } = await svc.from('professionals').update({ attivo: !sospendi }).eq('id', membro.id)
     if (error) return res.status(500).json({ error: error.message })
     return res.status(200).json({ ok: true, attivo: !sospendi })
+  }
+
+  // membri-v2 — cancellazione DEFINITIVA, ma solo di un account che non ha
+  // mai prodotto niente (tipicamente una prova fatta male). Se ha prodotto
+  // dati il server RIFIUTA: sedute, visite e fatture sono documentazione
+  // sanitaria e contabile, e cancellarne l'autore le lascerebbe orfane. In
+  // quel caso la risposta giusta è sospendere, non cancellare.
+  if (action === 'member-delete') {
+    const trovati = []
+    for (const t of TABELLE_DATI) {
+      const valore = t.chiave === 'prof' ? membro.id : membro.user_id
+      if (!valore) continue
+      const { count, error } = await svc
+        .from(t.tabella)
+        .select('id', { count: 'exact', head: true })
+        .eq('professional_id', valore)
+      if (error) {
+        // Nel dubbio non si cancella: meglio un rifiuto che un dato orfano.
+        return res.status(500).json({ error: 'Controllo dati non riuscito su ' + t.tabella + ': ' + error.message })
+      }
+      if (count && count > 0) trovati.push(t.tabella + ' (' + count + ')')
+    }
+    if (trovati.length) {
+      return res.status(409).json({
+        error: 'Questo membro ha già prodotto dati (' + trovati.join(', ') + '). ' +
+               'Non si cancella: sospendilo, così quello che ha scritto resta e resta attribuito a lui.',
+        code: 'HA_DATI'
+      })
+    }
+
+    // Nessun dato: si può togliere davvero. Prima la riga professionals,
+    // poi il profilo, poi l'utente vero e proprio.
+    const { error: eProf } = await svc.from('professionals').delete().eq('id', membro.id)
+    if (eProf) return res.status(500).json({ error: eProf.message })
+    if (membro.user_id) {
+      try { await svc.from('profiles').delete().eq('id', membro.user_id) } catch (_) {}
+      const { error: eUser } = await svc.auth.admin.deleteUser(membro.user_id)
+      if (eUser) {
+        return res.status(200).json({
+          ok: true,
+          avviso: 'Membro rimosso dallo studio, ma l\'utente di accesso non è stato eliminato: ' + eUser.message
+        })
+      }
+    }
+    return res.status(200).json({ ok: true })
   }
 
   if (action === 'member-reset-password') {

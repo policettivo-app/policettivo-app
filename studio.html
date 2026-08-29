@@ -49,6 +49,7 @@
     .m-btn:hover { border-color: #bbb; }
     .m-btn.warn { color: #e65100; border-color: #ffcc80; }
     .m-btn.ok { color: #2e7d32; border-color: #a5d6a7; }
+    .m-btn.del { color: #c62828; border-color: #f2c4c4; }
     .m-btn:disabled { opacity: .5; cursor: not-allowed; }
     .m-sel { padding: 5px 8px; border: 1.5px solid #ddd; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 11.5px; background: #fff; }
     .m-stato { font-size: 11px; font-weight: 700; }
@@ -306,6 +307,7 @@
                   ? '<button class="m-btn ok" onclick="riattivaMembro(\'' + m.id + '\')">Riattiva</button>'
                   : '<button class="m-btn warn" onclick="sospendiMembro(\'' + m.id + '\')">Sospendi</button>') +
                 '<button class="m-btn" onclick="resetPasswordMembro(\'' + m.id + '\')">Reset password</button>' +
+                '<button class="m-btn del" onclick="eliminaMembro(\'' + m.id + '\')" title="Solo per account di prova che non hanno mai scritto niente">Elimina</button>' +
               '</div>' +
               '<span class="m-msg" id="m-msg-' + m.id + '"></span>'
           }
@@ -367,6 +369,18 @@
         await azioneMembro(id, 'member-restore')
         await loadMembri()
       } catch (e) { mMsg(id, 'Errore: ' + e.message, 'err') }
+    }
+
+    // membri-v2 — l'eliminazione la nega il SERVER se il membro ha prodotto
+    // dati. Qui si chiede solo conferma: la regola non può stare nel browser.
+    async function eliminaMembro(id) {
+      if (!confirm('Eliminare definitivamente questo account?\n\nFunziona SOLO se questa persona non ha mai creato pazienti, sedute, visite, fatture o pagamenti. Se ha prodotto qualcosa il server rifiuta, e va sospesa invece che cancellata: quello che ha scritto è documentazione sanitaria e contabile, e deve restare attribuita a lei.\n\nNon si torna indietro.')) return
+      mMsg(id, 'Elimino…')
+      try {
+        const r = await azioneMembro(id, 'member-delete')
+        if (r.avviso) { mMsg(id, r.avviso, 'err'); }
+        await loadMembri()
+      } catch (e) { mMsg(id, e.message, 'err') }
     }
 
     async function resetPasswordMembro(id) {

@@ -292,6 +292,30 @@
       </div>
     </div>
 
+    <!-- EMAIL DI ACCESSO (marker: cambio-email-v1) -->
+    <div class="card">
+      <div class="card-title">✉️ Email di accesso</div>
+      <p style="font-size:12px;color:#999;margin-bottom:14px;line-height:1.55">
+        L'indirizzo con cui entri, e su cui arrivano le email di reimpostazione password.
+        La cambi solo tu, dal tuo account: serve la tua password attuale, e la nuova casella deve confermare
+        con un clic. Finché non confermi, resta valida la vecchia — così un indirizzo sbagliato non ti chiude fuori.
+      </p>
+      <div class="f-group">
+        <label class="f-label">Email attuale</label>
+        <input class="f-input" id="em-attuale" type="text" readonly>
+      </div>
+      <div class="f-group">
+        <label class="f-label">Nuova email</label>
+        <input class="f-input" id="em-nuova" type="email" autocomplete="off" placeholder="nome@esempio.it">
+      </div>
+      <div class="f-group">
+        <label class="f-label">La tua password</label>
+        <input class="f-input" id="em-pw" type="password" autocomplete="current-password" placeholder="per confermare che sei tu">
+      </div>
+      <button class="btn-save" onclick="cambiaEmail()">Cambia email</button>
+      <span class="lst-status" id="em-status"></span>
+    </div>
+
     <!-- PASSWORD DI ACCESSO (marker: cambio-password-v1) -->
     <div class="card">
       <div class="card-title">🔑 Password di accesso</div>
@@ -709,6 +733,36 @@
       await lkRenderStato()
     }
 
+    // ── Cambio email (marker: cambio-email-v1) ──────────────────────────────
+    // Ognuno cambia la PROPRIA email, non quella degli altri. Se il master
+    // potesse cambiare l'email di un membro, con il reset password in mano
+    // potrebbe entrare al posto suo — e il registro delle modifiche direbbe
+    // il falso. Supabase manda un link di conferma alla casella nuova: fino a
+    // quel clic vale ancora la vecchia, quindi un indirizzo sbagliato non
+    // chiude nessuno fuori.
+    async function cambiaEmail() {
+      const nuova = document.getElementById('em-nuova').value.trim()
+      const pw    = document.getElementById('em-pw').value
+      const s = document.getElementById('em-status')
+      function msg(t, ok) { s.textContent = t; s.className = 'lst-status' + (ok ? ' ok' : '') }
+
+      if (!nuova || !pw) { msg('Compila la nuova email e la tua password.', false); return }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nuova)) { msg('Questa email non sembra valida.', false); return }
+      if (nuova.toLowerCase() === (_mioEmail || '').toLowerCase()) { msg('È già la tua email attuale.', false); return }
+      if (!_mioEmail) { msg('Non riesco a leggere la tua email. Ricarica la pagina.', false); return }
+
+      msg('Verifico la password…', false)
+      const { error: errLogin } = await _supabase.auth.signInWithPassword({ email: _mioEmail, password: pw })
+      if (errLogin) { msg('La password non è corretta.', false); return }
+
+      msg('Invio la conferma…', false)
+      const { error } = await _supabase.auth.updateUser({ email: nuova })
+      if (error) { msg('Errore: ' + (error.message || ''), false); return }
+
+      document.getElementById('em-pw').value = ''
+      msg('Ti ho mandato un link di conferma a ' + nuova + '. Cliccalo da quella casella: fino ad allora entri con la vecchia email.', true)
+    }
+
     // ── Cambio password (marker: cambio-password-v1) ────────────────────────
     // La password vecchia si verifica rifacendo il login con quella: se non e'
     // giusta, Supabase rifiuta e non si va oltre. Non e' un vezzo — senza
@@ -949,6 +1003,8 @@
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
       _mioEmail = session.user.email || ''      // cambio-password-v1
+      const _emEl = document.getElementById('em-attuale')   // cambio-email-v1
+      if (_emEl) _emEl.value = _mioEmail
 
       const { data: prof } = await _supabase
         .from('professionals')
