@@ -3,6 +3,14 @@
 <head>
   <script src="js/domain-redirect.js"></script>
   <meta charset="UTF-8">
+  <!-- ux-paz-sicurezza-v1 : il token del paziente vive nell'URL.
+       noindex  : questa pagina non deve mai finire su Google.
+       referrer : l'indirizzo della pagina (token compreso) non viene passato
+                  a NESSUN sito esterno - ne' a YouTube, ne' al CDN delle
+                  librerie. Senza questa riga il token finiva nei log di
+                  chiunque servisse un file a questa pagina. -->
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Il tuo protocollo</title>
   <link rel="stylesheet" href="css/design-system.css">
@@ -16,7 +24,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="utils-premium.js"></script>
+  <!-- ux-paz-sicurezza-v1 : utils-premium.js RIMOSSO. Questa pagina non lo
+       usava (nessuna chiamata a policettivoCheckPremium) e dal 29 ago carica
+       da solo js/pol-lock.js, il blocco schermo dei PROFESSIONISTI, che sulle
+       pagine del paziente non deve mai arrivare. -->
   <script src="js/elicoidali-exercises.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }

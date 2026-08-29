@@ -3,6 +3,14 @@
 <head>
   <script src="js/domain-redirect.js"></script>
   <meta charset="UTF-8">
+  <!-- ux-paz-sicurezza-v1 : il token del paziente vive nell'URL.
+       noindex  : questa pagina non deve mai finire su Google.
+       referrer : l'indirizzo della pagina (token compreso) non viene passato
+                  a NESSUN sito esterno - ne' a YouTube, ne' al CDN delle
+                  librerie. Senza questa riga il token finiva nei log di
+                  chiunque servisse un file a questa pagina. -->
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — La mia pagella</title>
   <link rel="stylesheet" href="css/design-system.css">
