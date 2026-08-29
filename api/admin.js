@@ -68,7 +68,13 @@ export default async function handler(req, res) {
   // NON esiste un'azione «imposta la password di un altro»: se il master
   // potesse farlo, «modificato dalla segretaria» nel registro non
   // significherebbe piu' niente. Si manda un'email di reimpostazione.
-  if (AZIONI_MEMBRO.includes(action) && !isPlatformAdmin) {
+  // ⚠️ NIENTE `&& !isPlatformAdmin` qui: Giuliano è insieme master del suo
+  // studio E amministratore della piattaforma, quindi con quella condizione il
+  // suo caso saltava questo ramo e finiva nel `default` dello switch
+  // («action sconosciuta»). Le azioni sui membri passano SEMPRE di qui: i
+  // controlli sotto (master + stesso studio) valgono per chiunque, admin
+  // compreso. Per intervenire su un altro studio c'è il pannello admin.
+  if (AZIONI_MEMBRO.includes(action)) {
     const { membro_id: membroId } = req.body || {}
     if (!membroId) return res.status(400).json({ error: 'membro_id obbligatorio' })
 
