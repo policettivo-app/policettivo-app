@@ -14,7 +14,13 @@
      patient_payments: sono uscite di cassa vere e vanno sottratte all'incassato. -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- statistiche-v2 : codice riservato all'apertura (migrazione 033) e conti spostati
+     in js/pol-conti.js, condivisi con sospesi.html. Il codice e' una TENDA, non
+     una cassaforte: serve contro chi si siede al computer gia' loggato, non
+     contro chi ha credenziali valide e sa aggirare la pagina. La cassaforte
+     resta la RLS delle fatture + un account separato per ogni persona. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/pol-conti.js"></script>
 <script src="js/pol-ui.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -94,6 +100,14 @@
 
   #gate { display:none; max-width:560px; margin:60px auto; text-align:center; }
   #app { display:none; }
+  /* statistiche-v2 : schermata del codice */
+  #lock { display:none; max-width:460px; margin:60px auto; }
+  #lock .card { text-align:center; }
+  #lock input { width:100%; padding:13px 15px; border:1.5px solid #e2e2e5; border-radius:10px; font-family:inherit; font-size:18px; text-align:center; letter-spacing:2px; margin:14px 0 4px; }
+  #lock input:focus { outline:none; border-color:#FFD008; }
+  .btn-pri { background:#FFD008; color:#000; width:100%; padding:13px; font-size:14px; }
+  .lockmsg { font-size:12.5px; font-weight:700; min-height:18px; margin-top:10px; }
+  .lockmsg.err { color:#c62828; }
 
   @media (max-width:900px){ .kpis { grid-template-columns:repeat(2,1fr); } }
   @media (max-width:640px){
@@ -108,7 +122,7 @@
   <nav class="navbar">
     <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title">Statistiche dello studio</span></div>
     <div style="display:flex;gap:8px;align-items:center">
-      <a class="nav-btn" href="noleggi.html" style="background:#333;color:#fff">📦 Noleggi</a>
+      <a class="nav-btn" href="sospesi.html" style="background:#333;color:#fff">💸 Sospesi</a>
       <a class="nav-btn" href="dashboard.html">← Indietro</a>
     </div>
   </nav>
@@ -123,6 +137,27 @@
         Se ti serve l'accesso, chiedilo al titolare dello studio.
       </p>
       <p style="margin-top:18px"><a class="nav-btn" href="dashboard.html">← Torna alla dashboard</a></p>
+    </div>
+  </div>
+
+  <!-- statistiche-v2 : codice riservato, chiesto a ogni apertura -->
+  <div id="lock" class="main">
+    <div class="card">
+      <div style="font-size:38px;margin-bottom:6px">🔐</div>
+      <h1 style="margin-bottom:6px">Codice riservato</h1>
+      <p style="color:#666;font-size:13px;line-height:1.6;margin:0">
+        Questa pagina contiene il fatturato dello studio. Inserisci il tuo codice per aprirla.
+      </p>
+      <form onsubmit="event.preventDefault(); sbloccaStat(); return false;">
+        <input type="password" id="lock-pin" inputmode="text" autocomplete="off" placeholder="• • • • •" autofocus>
+        <button type="submit" class="btn btn-pri" id="lock-btn">Apri le statistiche</button>
+      </form>
+      <div class="lockmsg" id="lock-msg"></div>
+      <p style="color:#aaa;font-size:11.5px;line-height:1.5;margin-top:14px">
+        Il codice si cambia o si toglie dal <a href="profilo.html" style="color:#8a6d00;font-weight:700">tuo profilo</a>.
+        Se l'hai dimenticato, da lì puoi impostarne uno nuovo.
+      </p>
+      <p style="margin-top:10px"><a class="nav-btn" href="dashboard.html" style="background:#eee;color:#555">← Torna indietro</a></p>
     </div>
   </div>
 
@@ -141,6 +176,7 @@
       </div>
     </div>
 
+    <div id="pin-hint"></div>
     <div id="warn-anno"></div>
 
     <!-- ── I QUATTRO NUMERI ────────────────────────────────────── -->
@@ -307,19 +343,11 @@ function giorniTra(a, b){
 function nomePaz(id){ var p=_pazMap[id]; if(!p) return '—'; return ((p.cognome||'')+' '+(p.nome||'')).trim() || '—'; }
 
 // ─── caricamento a pagine ───────────────────────────────────────────
-// Supabase restituisce al massimo 1000 righe per chiamata: senza range() uno
-// studio con qualche anno di storico vedrebbe numeri troncati SENZA errore.
+// Il paginatore e il calcolo dei conti stanno in js/pol-conti.js: sono gli
+// STESSI usati da sospesi.html. Due implementazioni della stessa regola
+// divergono sempre, e il giorno che divergono non si sa piu' a chi credere.
 async function caricaTutto(tabella, colonne){
-  var out = [], from = 0, size = 1000, giri = 0;
-  while (giri < 60){
-    var r = await _sb.from(tabella).select(colonne).range(from, from + size - 1);
-    if (r && r.error){ console.error('[stat] ' + tabella + ':', r.error); break; }
-    var d = (r && r.data) ? r.data : [];
-    out = out.concat(d);
-    if (d.length < size) break;
-    from += size; giri++;
-  }
-  return out;
+  return await window.polConti.caricaTutto(_sb, tabella, colonne);
 }
 
 // ─── calcoli ────────────────────────────────────────────────────────
@@ -385,68 +413,11 @@ function nuoviPazienti(anno, mmdd){
   return n;
 }
 
-// Stato per paziente, stessa logica della coda FIFO di Contabile: sedute e
-// addebiti dei noleggi in UNA coda sola ordinata per data, l'incassato copre
-// il piu' vecchio. Con due code separate lo stato mentirebbe.
+// Stato per paziente: la coda FIFO sta in js/pol-conti.js, condivisa con
+// sospesi.html e coerente con Contabile. Qui si aggiunge solo il nome.
 function calcolaStatoPazienti(){
-  var perPaz = {};
-  function slot(pid){
-    if (!perPaz[pid]) perPaz[pid] = { pid:pid, debiti:[], incassato:0, nSedute:0, ultimaSeduta:null, primaSeduta:null };
-    return perPaz[pid];
-  }
-  for (var i=0;i<_sedute.length;i++){
-    var s = _sedute[i];
-    if (!s.patient_id) continue;
-    var sl = slot(s.patient_id);
-    sl.nSedute++;
-    var ds = iso(s.data_seduta);
-    if (ds){
-      if (!sl.ultimaSeduta || ds > sl.ultimaSeduta) sl.ultimaSeduta = ds;
-      if (!sl.primaSeduta  || ds < sl.primaSeduta)  sl.primaSeduta  = ds;
-    }
-    var c = Number(s.costo)||0;
-    if (c > 0) sl.debiti.push({ data: ds || '', importo: c });
-  }
-  var addebNol = {};
-  for (var k=0;k<_noleggi.length;k++) addebNol[_noleggi[k].id] = _noleggi[k];
-  for (var a=0;a<_addeb.length;a++){
-    var ad = _addeb[a];
-    if (ad.annullato) continue;
-    if (!ad.patient_id) continue;
-    var im = Number(ad.importo)||0;
-    if (im <= 0) continue;
-    slot(ad.patient_id).debiti.push({ data: iso(ad.periodo) || '', importo: im });
-  }
-  for (var p=0;p<_pagam.length;p++){
-    var pg = _pagam[p];
-    if (!pg.patient_id) continue;
-    slot(pg.patient_id).incassato += (Number(pg.importo)||0);
-  }
-
-  var out = [];
-  for (var id in perPaz){
-    if (!Object.prototype.hasOwnProperty.call(perPaz, id)) continue;
-    var o = perPaz[id];
-    o.debiti.sort(function(x,y){ return x.data < y.data ? -1 : (x.data > y.data ? 1 : 0); });
-    var venduto = 0;
-    for (var d=0;d<o.debiti.length;d++) venduto += o.debiti[d].importo;
-    var residuo = Math.round((venduto - o.incassato) * 100) / 100;
-    var scopertoDal = null;
-    if (residuo > 0.005){
-      var resta = o.incassato;
-      for (var q=0;q<o.debiti.length;q++){
-        if (resta >= o.debiti[q].importo - 0.005){ resta -= o.debiti[q].importo; continue; }
-        scopertoDal = o.debiti[q].data || null;
-        break;
-      }
-    }
-    out.push({
-      pid: o.pid, nome: nomePaz(o.pid), venduto: venduto, incassato: o.incassato,
-      residuo: residuo, scopertoDal: scopertoDal,
-      giorni: scopertoDal ? giorniTra(scopertoDal, todayISO()) : null,
-      nSedute: o.nSedute, ultimaSeduta: o.ultimaSeduta, primaSeduta: o.primaSeduta
-    });
-  }
+  var out = window.polConti.statoPazienti({ sedute:_sedute, addebiti:_addeb, pagamenti:_pagam });
+  for (var i=0;i<out.length;i++) out[i].nome = nomePaz(out[i].pid);
   return out;
 }
 
@@ -457,7 +428,7 @@ function isAnnoCorrente(){ return annoSel() === annoDi(todayISO()); }
 function bloccoDelta(ora, prima, etichetta, fmt){
   var f = fmt || eur0;
   if (!prima || Math.abs(prima) < 0.005){
-    return '<span class="dlt flat">n.d.</span> <span style="opacity:.8">(niente da confrontare ' + etichetta + ')</span>';
+    return '<span class="dlt flat">n.d.</span> <span style="opacity:.8">(niente da confrontare ' + etichetta.replace(/:\s*$/, '') + ')</span>';
   }
   var d = ((ora - prima) / Math.abs(prima)) * 100;
   var cls = d > 1 ? 'up' : (d < -1 ? 'down' : 'flat');
@@ -553,7 +524,13 @@ function renderGrafico(){
 
   var max = 0;
   for (var i=0;i<12;i++){ if (A[i] > max) max = A[i]; if (B[i] > max) max = B[i]; }
-  if (max <= 0) max = 1;
+  if (max <= 0){
+    // Un grafico vuoto con l'asse a zero sembra un errore. Meglio dirlo.
+    document.getElementById('chart').innerHTML =
+      '<div class="empty">Nessun ' + etich.toLowerCase() + ' registrato nel ' + anno + ' né nel ' + prec + '.</div>';
+    renderTabellaMensile(A, B, anno, prec, etich);
+    return;
+  }
 
   var W = 900, H = 260, padL = 58, padR = 10, padT = 10, padB = 34;
   var plotW = W - padL - padR, plotH = H - padT - padB;
@@ -940,6 +917,45 @@ async function sonoMaster(){
   return !!(pr && pr.data && pr.data.ruolo === 'master');
 }
 
+// ─── statistiche-v2 — codice riservato ──────────────────────────────
+// Chiesto a OGNI apertura (decisione 28 ago): chiude anche il caso «ho aperto
+// le statistiche, e' entrato un paziente, sono uscito dalla stanza».
+// Il confronto lo fa il DATABASE (stat_pin_check, bcrypt): il codice in chiaro
+// non esiste da nessuna parte e non passa mai dal browser di ritorno.
+// Resta una TENDA, non una cassaforte — vedi il commento in testa al file.
+var _pinAttivo = false;
+
+async function pinAttivo(){
+  try {
+    var r = await _sb.rpc('stat_pin_attivo');
+    if (r && !r.error && typeof r.data === 'boolean') return r.data;
+  } catch(e){ /* migrazione 033 non ancora eseguita */ }
+  return false;
+}
+
+async function sbloccaStat(){
+  var inp = document.getElementById('lock-pin');
+  var msg = document.getElementById('lock-msg');
+  var btn = document.getElementById('lock-btn');
+  var pw = String(inp.value || '');
+  if (!pw){ msg.className = 'lockmsg err'; msg.textContent = 'Scrivi il codice.'; return; }
+  btn.disabled = true; msg.className = 'lockmsg'; msg.textContent = 'Controllo…';
+  var ok = false;
+  try {
+    var r = await _sb.rpc('stat_pin_check', { pw: pw });
+    ok = !!(r && !r.error && r.data === true);
+  } catch(e){ ok = false; }
+  btn.disabled = false;
+  if (!ok){
+    msg.className = 'lockmsg err'; msg.textContent = 'Codice sbagliato.';
+    inp.value = ''; inp.focus();
+    return;
+  }
+  msg.textContent = '';
+  document.getElementById('lock').style.display = 'none';
+  await avvia();
+}
+
 async function init(){
   try {
     var sess = await _sb.auth.getSession();
@@ -951,6 +967,32 @@ async function init(){
       return;
     }
 
+    _pinAttivo = await pinAttivo();
+    if (_pinAttivo){
+      document.getElementById('lock').style.display = 'block';
+      setTimeout(function(){ var e = document.getElementById('lock-pin'); if (e) e.focus(); }, 60);
+      return;
+    }
+    await avvia();
+  } catch(e){
+    console.error('[statistiche] init:', e);
+    mostraErrore();
+  } finally {
+    document.body.style.visibility = 'visible';
+  }
+}
+
+function mostraErrore(){
+  var g = document.getElementById('gate');
+  g.style.display = 'block';
+  g.innerHTML =
+    '<div class="card"><div style="font-size:40px">⚠️</div><h1>Non sono riuscito a caricare i dati</h1>'
+    + '<p style="color:#666;font-size:13px">Riprova fra un momento. Se continua, dillo pure.</p>'
+    + '<p style="margin-top:18px"><a class="nav-btn" href="dashboard.html">← Torna alla dashboard</a></p></div>';
+}
+
+async function avvia(){
+  try {
     _pazienti = await caricaTutto('patients', 'id, nome, cognome, created_at, provenienza, provenienza_dettaglio');
     for (var i=0;i<_pazienti.length;i++) _pazMap[_pazienti[i].id] = _pazienti[i];
     _sedute  = await caricaTutto('therapy_sessions', 'id, patient_id, data_seduta, costo, costo_descrizione, voce_listino');
@@ -962,14 +1004,17 @@ async function init(){
     _statoPaz = calcolaStatoPazienti();
     popolaAnni();
     renderTutto();
+    if (!_pinAttivo){
+      document.getElementById('pin-hint').innerHTML =
+        '<div class="warnbox">🔐 Questa pagina non ha ancora un <b>codice riservato</b>. '
+        + 'Se al tuo account può capitare che si sieda qualcun altro, impostane uno dal '
+        + '<a href="profilo.html" style="color:#8a4b00;font-weight:700">tuo profilo</a> — ci vogliono dieci secondi. '
+        + 'Resta comunque una tenda: la protezione vera è dare a ogni persona il suo account.</div>';
+    }
     document.getElementById('app').style.display = 'block';
   } catch(e){
-    console.error('[statistiche] init:', e);
-    document.getElementById('gate').style.display = 'block';
-    document.getElementById('gate').innerHTML =
-      '<div class="card"><div style="font-size:40px">⚠️</div><h1>Non sono riuscito a caricare i dati</h1>'
-      + '<p style="color:#666;font-size:13px">Riprova fra un momento. Se continua, dillo pure.</p>'
-      + '<p style="margin-top:18px"><a class="nav-btn" href="dashboard.html">← Torna alla dashboard</a></p></div>';
+    console.error('[statistiche] avvia:', e);
+    mostraErrore();
   } finally {
     document.body.style.visibility = 'visible';
   }

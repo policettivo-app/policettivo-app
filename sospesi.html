@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sospesi e incassi — Policettivo®</title>
+<!-- sospesi-v1 : la parte OPERATIVA dei soldi, per la segreteria.
+     Chi deve ancora pagare, da quanto, e cosa deve rientrare.
+     Ruoli ammessi: master, amministrazione, segreteria.
+     ⚠️ QUI NON ENTRA IL FATTURATO. La tabella `fatture` non viene nemmeno
+     interrogata: i numeri dell'andamento dello studio stanno in
+     statistiche.html, riservata al titolare. Se un domani si e' tentati di
+     aggiungere qui «giusto il totale fatturato», rileggere questa riga.
+     I conti li fa js/pol-conti.js, lo stesso di statistiche.html. -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/pol-conti.js"></script>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Montserrat',sans-serif; background:#f5f5f7; color:#1a1a1a; visibility:hidden; }
+  .navbar { background:#000; padding:0 20px; height:60px; display:flex; align-items:center; justify-content:space-between; }
+  .navbar-logo { color:#FFD008; font-weight:800; letter-spacing:.5px; }
+  .navbar-title { color:#fff; font-size:13px; margin-left:12px; opacity:.85; }
+  .nav-btn { background:#FFD008; border:none; color:#000; padding:7px 14px; border-radius:6px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; }
+  .main { max-width:1100px; margin:0 auto; padding:20px 16px 90px; }
+  h1 { font-size:22px; margin:4px 0 6px; }
+  .sub { color:#666; font-size:13px; margin:0 0 16px; }
+  .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .card-title { font-size:13px; font-weight:800; margin:0 0 4px; }
+  .card-sub { font-size:12px; color:#888; margin:0 0 12px; line-height:1.5; }
+  .infobox { background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:11px 13px; font-size:12.5px; line-height:1.55; }
+  .infobox b { color:#8a6d00; }
+
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:12px; }
+  .fld label { display:block; font-size:11px; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px; }
+  .fld select, .fld input { padding:9px 11px; border:1.5px solid #e2e2e5; border-radius:8px; font-family:inherit; font-size:13px; background:#fff; }
+  .fld select:focus, .fld input:focus { outline:none; border-color:#FFD008; }
+  .fld.grow { flex:1; min-width:180px; }
+  .fld.grow input { width:100%; }
+
+  .btn { border:none; border-radius:9px; padding:10px 15px; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
+  .btn-xls { background:#00C48C; color:#fff; }
+  .btn-csv { background:#000; color:#fff; }
+  .exp { display:flex; gap:8px; margin-left:auto; }
+
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .kpi { background:#fafafa; border:1px solid #eee; border-radius:12px; padding:14px; }
+  .kpi .lbl { font-size:10.5px; color:#999; text-transform:uppercase; letter-spacing:.4px; font-weight:700; }
+  .kpi .val { font-size:24px; font-weight:800; margin-top:4px; letter-spacing:-.5px; }
+  .kpi .cmp { font-size:11.5px; color:#777; margin-top:6px; line-height:1.45; }
+  .kpi.tot { background:#fff8e1; border-color:#ffe082; }
+  .kpi.bad { background:#ffebee; border-color:#ffcdd2; }
+  .kpi.bad .val { color:#c62828; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; font-size:11px; color:#999; text-transform:uppercase; letter-spacing:.3px; padding:8px 10px; border-bottom:2px solid #eee; white-space:nowrap; }
+  td { padding:9px 10px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+  th.r, td.r { text-align:right; }
+  th.c, td.c { text-align:center; }
+  tr:hover td { background:#fcfcfc; }
+  tfoot td { font-weight:800; border-top:2px solid #eee; border-bottom:none; background:#fafafa; }
+  .tbl-scroll { overflow-x:auto; max-height:520px; overflow-y:auto; }
+  a.paz { color:#1565c0; font-weight:700; text-decoration:none; }
+  a.paz:hover { text-decoration:underline; }
+  .pill { font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; display:inline-block; white-space:nowrap; }
+  .pill.late { background:#ffebee; color:#c62828; }
+  .pill.warn { background:#fff3e0; color:#e65100; }
+  .pill.ok   { background:#e8f5e9; color:#2e7d32; }
+  .empty { text-align:center; color:#999; padding:26px; font-size:13px; }
+
+  #gate { display:none; max-width:560px; margin:60px auto; text-align:center; }
+  #app { display:none; }
+
+  @media (max-width:900px){ .kpis { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:640px){
+    .exp { margin-left:0; width:100%; }
+    .exp .btn { flex:1; }
+    th.hide, td.hide { display:none; }
+  }
+</style>
+</head>
+<body>
+  <nav class="navbar">
+    <div><span class="navbar-logo">POLICETTIVO®</span><span class="navbar-title">Sospesi e incassi</span></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a class="nav-btn" href="noleggi.html" style="background:#333;color:#fff">📦 Noleggi</a>
+      <a class="nav-btn" href="dashboard.html">← Indietro</a>
+    </div>
+  </nav>
+
+  <div id="gate" class="main">
+    <div class="card">
+      <div style="font-size:40px;margin-bottom:8px">🔒</div>
+      <h1 style="margin-bottom:8px">Non disponibile per il tuo ruolo</h1>
+      <p style="color:#666;font-size:13px;line-height:1.6">
+        Questa pagina è per chi si occupa di incassi: ruoli <b>segreteria</b>, <b>amministrazione</b> e <b>titolare</b>.
+        Se ti serve l'accesso, chiedilo al titolare dello studio.
+      </p>
+      <p style="margin-top:18px"><a class="nav-btn" href="dashboard.html">← Torna alla dashboard</a></p>
+    </div>
+  </div>
+
+  <div class="main" id="app">
+    <h1>💸 Sospesi e incassi</h1>
+    <p class="sub">Chi deve ancora pagare, da quanto tempo, e cosa deve rientrare. Da guardare tutte le volte che serve.</p>
+
+    <div class="card">
+      <div class="kpis" id="kpis"></div>
+    </div>
+
+    <!-- ── CHI DEVE PAGARE ─────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">🧾 Chi deve ancora pagare</div>
+      <p class="card-sub">Stesso conto di Contabile: <b>venduto − incassato</b>, e i soldi coprono sempre il debito più vecchio. «Scoperto dal» è la data della prima riga rimasta senza copertura. Cliccando il nome si apre Contabile del paziente, dove si registra l'incasso.</p>
+      <div class="toolbar">
+        <div class="fld grow">
+          <label>Cerca paziente</label>
+          <input type="text" id="f-cerca" placeholder="Cognome o nome…" oninput="renderSospesi()">
+        </div>
+        <div class="fld">
+          <label>Scoperto da almeno</label>
+          <select id="f-gg" onchange="renderSospesi()">
+            <option value="0">qualunque</option>
+            <option value="30" selected>30 giorni</option>
+            <option value="60">60 giorni</option>
+            <option value="90">90 giorni</option>
+            <option value="180">180 giorni</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label>Importo minimo €</label>
+          <input type="number" id="f-min" step="1" min="0" value="0" style="width:120px" oninput="renderSospesi()">
+        </div>
+        <div class="exp">
+          <button class="btn btn-xls" onclick="esporta('sospesi','xlsx')">⬇️ Excel</button>
+          <button class="btn btn-csv" onclick="esporta('sospesi','csv')">⬇️ CSV</button>
+        </div>
+      </div>
+      <div class="tbl-scroll" id="tab-sospesi"></div>
+    </div>
+
+    <!-- ── DA FAR RIENTRARE ────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">📦 Da far rientrare</div>
+      <p class="card-sub">Noleggi non ancora restituiti. In rosso quelli oltre la data prevista: sono quelli da sollecitare. Il dettaglio completo, con la registrazione del rientro, è nella pagina Noleggi.</p>
+      <div class="toolbar">
+        <div class="fld">
+          <label>Mostra</label>
+          <select id="f-nol" onchange="renderRientri()">
+            <option value="ritardo" selected>Solo in ritardo</option>
+            <option value="tutti">Tutti quelli fuori</option>
+          </select>
+        </div>
+        <div class="exp">
+          <button class="btn btn-xls" onclick="esporta('rientri','xlsx')">⬇️ Excel</button>
+          <button class="btn btn-csv" onclick="esporta('rientri','csv')">⬇️ CSV</button>
+        </div>
+      </div>
+      <div class="tbl-scroll" id="tab-rientri"></div>
+    </div>
+
+    <div class="card">
+      <div class="infobox">
+        ℹ️ <b>Come leggerla.</b> «Residuo» è quanto il paziente deve in tutto, non quanto deve per una singola seduta.
+        I soldi che versa coprono sempre il debito più vecchio: se paga il cuscino ma ha una seduta arretrata scoperta,
+        l'incasso si appoggia prima sulla seduta. Il totale è comunque giusto — cambia solo la riga su cui si posa.
+        Un residuo <b>negativo</b> non compare qui: vuol dire che il paziente ha versato più di quanto dovuto (acconto).
+      </div>
+    </div>
+  </div>
+
+<script>
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var _sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+var RUOLI_AMMESSI = ['master','amministrazione','segreteria'];
+
+var _uid = null;
+var _pazMap = {};
+var _stato  = [];
+var _noleggi = [];
+var _exp = {};
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function eur(n){ return (Math.round((Number(n)||0)*100)/100).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €'; }
+function eur0(n){ return Math.round(Number(n)||0).toLocaleString('it-IT') + ' €'; }
+function fmtDataIT(s){ if(!s) return '—'; var p=String(s).substring(0,10).split('-'); if(p.length<3) return '—'; return p[2]+'/'+p[1]+'/'+p[0]; }
+function nomePaz(id){ var p=_pazMap[id]; if(!p) return '—'; return ((p.cognome||'')+' '+(p.nome||'')).trim() || '—'; }
+function oggi(){ return window.polConti.oggiISO(); }
+function giorniTra(a,b){ return window.polConti.giorniTra(a,b); }
+
+// ─── riquadri in alto ───────────────────────────────────────────────
+function renderKpi(){
+  var tot = 0, quanti = 0, vecchi = 0, vecchiN = 0;
+  for (var i=0;i<_stato.length;i++){
+    var s = _stato[i];
+    if (s.residuo <= 0.005) continue;
+    tot += s.residuo; quanti++;
+    if (s.giorni != null && s.giorni >= 90){ vecchi += s.residuo; vecchiN++; }
+  }
+  var fuori = 0, ritardo = 0;
+  for (var k=0;k<_noleggi.length;k++){
+    var n = _noleggi[k];
+    if (n.tipo === 'vendita') continue;
+    if (n.stato === 'restituito' || n.data_restituzione) continue;
+    fuori++;
+    var g = n.data_fine_prevista ? giorniTra(n.data_fine_prevista, oggi()) : null;
+    if (g != null && g > 0) ritardo++;
+  }
+  document.getElementById('kpis').innerHTML = ''
+    + '<div class="kpi tot"><div class="lbl">Da incassare in tutto</div><div class="val">' + eur0(tot) + '</div>'
+      + '<div class="cmp">su <b>' + quanti + '</b> pazienti</div></div>'
+    + '<div class="kpi' + (vecchi > 0 ? ' bad' : '') + '"><div class="lbl">Scoperti da oltre 90 giorni</div><div class="val">' + eur0(vecchi) + '</div>'
+      + '<div class="cmp">' + vecchiN + ' pazienti — sono questi da chiamare</div></div>'
+    + '<div class="kpi"><div class="lbl">Articoli fuori</div><div class="val">' + fuori + '</div>'
+      + '<div class="cmp">noleggi non ancora rientrati</div></div>'
+    + '<div class="kpi' + (ritardo > 0 ? ' bad' : '') + '"><div class="lbl">Fuori oltre la data</div><div class="val">' + ritardo + '</div>'
+      + '<div class="cmp">da sollecitare</div></div>';
+}
+
+// ─── chi deve pagare ────────────────────────────────────────────────
+function renderSospesi(){
+  var q = String(document.getElementById('f-cerca').value || '').trim().toLowerCase();
+  var soglia = Number(document.getElementById('f-gg').value) || 0;
+  var minimo = Number(document.getElementById('f-min').value) || 0;
+
+  var lista = [];
+  for (var i=0;i<_stato.length;i++){
+    var s = _stato[i];
+    if (s.residuo <= 0.005) continue;
+    if (s.residuo < minimo) continue;
+    if (soglia > 0 && !(s.giorni != null && s.giorni >= soglia)) continue;
+    if (q && nomePaz(s.pid).toLowerCase().indexOf(q) === -1) continue;
+    lista.push(s);
+  }
+  lista.sort(function(a,b){ return (b.giorni||0) - (a.giorni||0) || b.residuo - a.residuo; });
+
+  var head = ['Paziente','Residuo €','Scoperto dal','Giorni','Ultima seduta','Sedute fatte','Venduto €','Incassato €'];
+  var rows = [], tot = 0;
+  var h = '<table><thead><tr><th>Paziente</th><th class="r">Residuo</th><th class="hide">Scoperto dal</th>'
+        + '<th class="c">Giorni</th><th class="hide">Ultima seduta</th><th class="r hide">Venduto</th><th class="r hide">Incassato</th><th class="r">Azione</th></tr></thead><tbody>';
+  for (var k=0;k<lista.length;k++){
+    var s2 = lista[k];
+    tot += s2.residuo;
+    var cls = (s2.giorni != null && s2.giorni >= 90) ? 'late' : ((s2.giorni != null && s2.giorni >= 30) ? 'warn' : 'ok');
+    h += '<tr><td><a class="paz" href="contabile.html?pid=' + esc(s2.pid) + '">' + esc(nomePaz(s2.pid)) + '</a></td>'
+       + '<td class="r"><b>' + eur(s2.residuo) + '</b></td>'
+       + '<td class="hide">' + fmtDataIT(s2.scopertoDal) + '</td>'
+       + '<td class="c">' + (s2.giorni != null ? '<span class="pill ' + cls + '">' + s2.giorni + ' g</span>' : '—') + '</td>'
+       + '<td class="hide">' + fmtDataIT(s2.ultimaSeduta) + '</td>'
+       + '<td class="r hide">' + eur(s2.venduto) + '</td>'
+       + '<td class="r hide">' + eur(s2.incassato) + '</td>'
+       + '<td class="r"><a class="paz" href="contabile.html?pid=' + esc(s2.pid) + '">💰 Incassa →</a></td></tr>';
+    rows.push([nomePaz(s2.pid), Math.round(s2.residuo*100)/100, s2.scopertoDal ? fmtDataIT(s2.scopertoDal) : '',
+               s2.giorni != null ? s2.giorni : '', s2.ultimaSeduta ? fmtDataIT(s2.ultimaSeduta) : '',
+               s2.nSedute, Math.round(s2.venduto*100)/100, Math.round(s2.incassato*100)/100]);
+  }
+  h += '</tbody><tfoot><tr><td>' + lista.length + ' pazienti</td><td class="r">' + eur(tot)
+     + '</td><td class="hide"></td><td></td><td class="hide"></td><td class="hide"></td><td class="hide"></td><td></td></tr></tfoot></table>';
+  document.getElementById('tab-sospesi').innerHTML = lista.length
+    ? h : '<div class="empty">Nessuno da rincorrere con questi filtri. 👏</div>';
+  rows.push(['TOTALE', Math.round(tot*100)/100, '', '', '', '', '', '']);
+  _exp.sospesi = { nome:'sospesi_' + oggi(), head:head, rows:rows };
+}
+
+// ─── da far rientrare ───────────────────────────────────────────────
+function renderRientri(){
+  var solo = document.getElementById('f-nol').value;
+  var lista = [];
+  for (var i=0;i<_noleggi.length;i++){
+    var n = _noleggi[i];
+    if (n.tipo === 'vendita') continue;
+    if (n.stato === 'restituito' || n.data_restituzione) continue;
+    var rit = n.data_fine_prevista ? giorniTra(n.data_fine_prevista, oggi()) : null;
+    if (solo === 'ritardo' && !(rit != null && rit > 0)) continue;
+    lista.push({ n:n, rit:rit, fuoriDa: n.data_inizio ? giorniTra(n.data_inizio, oggi()) : null });
+  }
+  lista.sort(function(a,b){ return (b.rit == null ? -1 : b.rit) - (a.rit == null ? -1 : a.rit); });
+
+  var head = ['Paziente','Articolo','Consegnato il','Rientro previsto','Giorni di ritardo','Fuori da (giorni)'];
+  var rows = [];
+  var h = '<table><thead><tr><th>Paziente</th><th>Articolo</th><th class="hide">Consegnato</th><th class="hide">Rientro previsto</th>'
+        + '<th class="c">Ritardo</th><th class="c hide">Fuori da</th><th class="r">Azione</th></tr></thead><tbody>';
+  for (var k=0;k<lista.length;k++){
+    var r = lista[k];
+    h += '<tr><td>' + esc(nomePaz(r.n.patient_id)) + '</td>'
+       + '<td>' + esc(r.n.descrizione || '—') + '</td>'
+       + '<td class="hide">' + fmtDataIT(r.n.data_inizio) + '</td>'
+       + '<td class="hide">' + (r.n.data_fine_prevista ? fmtDataIT(r.n.data_fine_prevista) : '— nessuna data') + '</td>'
+       + '<td class="c">' + (r.rit != null && r.rit > 0 ? '<span class="pill ' + (r.rit >= 30 ? 'late' : 'warn') + '">' + r.rit + ' g</span>' : '—') + '</td>'
+       + '<td class="c hide">' + (r.fuoriDa != null ? r.fuoriDa + ' g' : '—') + '</td>'
+       + '<td class="r"><a class="paz" href="noleggi.html?pid=' + esc(r.n.patient_id) + '">📦 Apri →</a></td></tr>';
+    rows.push([nomePaz(r.n.patient_id), r.n.descrizione || '', fmtDataIT(r.n.data_inizio),
+               r.n.data_fine_prevista ? fmtDataIT(r.n.data_fine_prevista) : '',
+               (r.rit != null && r.rit > 0) ? r.rit : '', r.fuoriDa != null ? r.fuoriDa : '']);
+  }
+  h += '</tbody></table>';
+  document.getElementById('tab-rientri').innerHTML = lista.length
+    ? h : '<div class="empty">' + (solo === 'ritardo' ? 'Niente in ritardo: tutto quello che doveva rientrare è rientrato.' : 'Non c\'è niente fuori.') + '</div>';
+  _exp.rientri = { nome:'da_far_rientrare_' + oggi(), head:head, rows:rows };
+}
+
+// ─── export (lato client: api/ resta 12/12) ─────────────────────────
+function esporta(chiave, fmt){
+  var t = _exp[chiave];
+  if (!t || !t.rows.length){ alert('Non c\'è niente da esportare in questa tabella.'); return; }
+  var aoa = [];
+  aoa.push(['Policettivo — sospesi e incassi']);
+  aoa.push(['Estratto il', fmtDataIT(oggi())]);
+  aoa.push([]);
+  aoa.push(t.head);
+  for (var i=0;i<t.rows.length;i++) aoa.push(t.rows[i]);
+
+  if (fmt === 'xlsx'){
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    var cols = [];
+    for (var c=0;c<t.head.length;c++) cols.push({ wch: c === 0 ? 30 : 16 });
+    ws['!cols'] = cols;
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Dati');
+    XLSX.writeFile(wb, t.nome + '.xlsx');
+  } else {
+    var righe = aoa.map(function(r){
+      return r.map(function(cell){
+        if (typeof cell === 'number') cell = String(cell).replace('.', ',');
+        return '"' + String(cell==null?'':cell).replace(/"/g,'""') + '"';
+      }).join(';');
+    }).join('\n');
+    var blob = new Blob(['﻿'+righe], { type:'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download=t.nome+'.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+// ─── ruolo: lo dice il database ─────────────────────────────────────
+async function mioRuolo(){
+  try {
+    var r = await _sb.rpc('mio_ruolo');
+    if (r && !r.error && typeof r.data === 'string') return r.data;
+  } catch(e){ /* funzione non ancora installata */ }
+  var pr = await _sb.from('professionals').select('ruolo').eq('user_id', _uid).maybeSingle();
+  return (pr && pr.data && pr.data.ruolo) ? pr.data.ruolo : null;
+}
+
+async function init(){
+  try {
+    var sess = await _sb.auth.getSession();
+    if (!sess.data || !sess.data.session){ window.location.href = 'login.html'; return; }
+    _uid = sess.data.session.user.id;
+
+    var ruolo = await mioRuolo();
+    if (RUOLI_AMMESSI.indexOf(ruolo) === -1){
+      document.getElementById('gate').style.display = 'block';
+      return;
+    }
+
+    var P = window.polConti;
+    var pazienti = await P.caricaTutto(_sb, 'patients', 'id, nome, cognome');
+    for (var i=0;i<pazienti.length;i++) _pazMap[pazienti[i].id] = pazienti[i];
+
+    var sedute    = await P.caricaTutto(_sb, 'therapy_sessions', 'id, patient_id, data_seduta, costo');
+    var pagamenti = await P.caricaTutto(_sb, 'patient_payments', 'id, patient_id, importo, data');
+    _noleggi      = await P.caricaTutto(_sb, 'noleggi', 'id, patient_id, tipo, descrizione, data_inizio, data_fine_prevista, data_restituzione, stato');
+    var addebiti  = await P.caricaTutto(_sb, 'noleggi_addebiti', 'id, noleggio_id, patient_id, periodo, importo, annullato');
+
+    _stato = P.statoPazienti({ sedute:sedute, addebiti:addebiti, pagamenti:pagamenti });
+
+    renderKpi();
+    renderSospesi();
+    renderRientri();
+    document.getElementById('app').style.display = 'block';
+  } catch(e){
+    console.error('[sospesi] init:', e);
+    var g = document.getElementById('gate');
+    g.style.display = 'block';
+    g.innerHTML = '<div class="card"><div style="font-size:40px">⚠️</div><h1>Non sono riuscito a caricare i dati</h1>'
+      + '<p style="color:#666;font-size:13px">Riprova fra un momento.</p>'
+      + '<p style="margin-top:18px"><a class="nav-btn" href="dashboard.html">← Torna alla dashboard</a></p></div>';
+  } finally {
+    document.body.style.visibility = 'visible';
+  }
+}
+init();
+</script>
+</body>
+</html>

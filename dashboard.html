@@ -350,6 +350,7 @@
           <button class="d-av-btn" onclick="window.location.href='fatture.html'">📑 Registro fatture</button>
           <button class="d-av-btn" onclick="window.location.href='noleggi.html'">📦 Noleggi e Prodotti</button>
           <button class="d-av-btn" onclick="window.location.href='lettera-ai.html'">✨ Lettera / Relazione AI</button>
+          <button id="btn-sospesi-link" class="d-av-btn" style="display:none" onclick="window.location.href='sospesi.html'">💸 Sospesi e incassi</button><!-- sospesi-v1 : master, amministrazione, segreteria -->
           <button id="btn-stat-link" class="d-av-btn" style="display:none" onclick="window.location.href='statistiche.html'">📊 Statistiche studio</button><!-- statistiche-v1 : solo master -->
           <button id="btn-studio-link" class="d-av-btn" onclick="window.location.href='studio.html'">🏢 Il mio Studio</button>
           <button id="btn-rimborso-link" class="d-av-btn" style="display:none" onclick="window.location.href='rimborso.html'">🚗 Rimborso km</button>
@@ -839,6 +840,11 @@
         if (_meRuolo && (_meRuolo.ruolo === 'master' || _meRuolo.ruolo === 'amministrazione')) {
           const btnRimb = document.getElementById('btn-rimborso-link')
           if (btnRimb) btnRimb.style.display = 'block'
+        }
+        // sospesi-v1 : chi si occupa di incassi. Il clinico cura, non incassa.
+        if (_meRuolo && ['master', 'amministrazione', 'segreteria'].indexOf(_meRuolo.ruolo) !== -1) {
+          const btnSosp = document.getElementById('btn-sospesi-link')
+          if (btnSosp) btnSosp.style.display = 'block'
         }
         if (!window.isPremium) {
           const { data: _prof, error: _profErr } = await _supabase.from('professionals').select('ai_uses').eq('id', currentProfessionalId).maybeSingle()

@@ -291,6 +291,29 @@
       </div>
     </div>
 
+    <!-- CODICE STATISTICHE (marker: stat-pin-v1) -->
+    <div class="card" id="pin-card" style="display:none">
+      <div class="card-title">🔐 Codice per le Statistiche</div>
+      <p style="font-size:12px;color:#999;margin-bottom:14px;line-height:1.55">
+        La pagina <b>Statistiche studio</b> contiene il fatturato. Se al tuo account può capitare che si sieda qualcun altro,
+        puoi chiedere un codice a ogni apertura. Serve contro chi trova il computer già acceso: <b>non</b> è una cassaforte,
+        e non sostituisce l'avere un account separato per ogni persona (lo crei in <a href="studio.html" style="color:#8a6d00;font-weight:700">Il mio Studio</a>).
+        Il codice non viene salvato in chiaro da nessuna parte: sul database resta solo un'impronta cifrata.
+      </p>
+      <div id="pin-stato" style="font-size:13px;font-weight:700;margin-bottom:12px">—</div>
+      <div class="f-group">
+        <label class="f-label">Nuovo codice (almeno 5 caratteri)</label>
+        <input class="f-input" id="pin-nuovo" type="password" autocomplete="new-password" placeholder="es. una parola che ricordi + due numeri">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Ripeti il codice</label>
+        <input class="f-input" id="pin-conf" type="password" autocomplete="new-password" placeholder="riscrivilo uguale">
+      </div>
+      <button class="btn-save" onclick="pinSalva()">Salva il codice</button>
+      <button class="btn-save" id="pin-btn-togli" onclick="pinTogli()" style="display:none;background:#fff;color:#c62828;border:1.5px solid #f2c4c4;margin-top:8px">Togli il codice</button>
+      <span class="lst-status" id="pin-status"></span>
+    </div>
+
     <!-- LOGO -->
     <div class="card">
       <div class="card-title">Logo studio</div>
@@ -551,6 +574,59 @@
       }
     }
 
+    // ── Codice per le Statistiche (marker: stat-pin-v1) ─────────────────────
+    // La card compare solo al ruolo master: sono le SUE statistiche a essere
+    // protette. Il codice non torna mai indietro dal database: qui si sa solo
+    // SE c'e', non qual e'.
+    async function pinInit(prof) {
+      if (!prof || prof.ruolo !== 'master') return
+      document.getElementById('pin-card').style.display = ''
+      await pinRenderStato()
+    }
+
+    async function pinRenderStato() {
+      let attivo = false
+      try {
+        const { data, error } = await _supabase.rpc('stat_pin_attivo')
+        if (!error && typeof data === 'boolean') attivo = data
+      } catch (_) { /* migrazione 033 non ancora eseguita */ }
+      const el = document.getElementById('pin-stato')
+      el.innerHTML = attivo
+        ? '<span style="color:#2e7d32">✅ Codice attivo</span> <span style="font-weight:400;color:#999">— viene chiesto a ogni apertura delle Statistiche. Se l\'hai dimenticato, scrivine uno nuovo qui sotto.</span>'
+        : '<span style="color:#999">⚪️ Nessun codice</span> <span style="font-weight:400;color:#999">— le Statistiche si aprono subito.</span>'
+      document.getElementById('pin-btn-togli').style.display = attivo ? '' : 'none'
+    }
+
+    function pinMsg(testo, ok) {
+      const s = document.getElementById('pin-status')
+      s.textContent = testo
+      s.className = 'lst-status' + (ok ? ' ok' : '')
+    }
+
+    async function pinSalva() {
+      const a = document.getElementById('pin-nuovo').value
+      const b = document.getElementById('pin-conf').value
+      if (!a || !b) { pinMsg('Scrivi il codice in tutt\'e due i campi.', false); return }
+      if (a !== b)  { pinMsg('I due codici non coincidono.', false); return }
+      if (a.trim().length < 5) { pinMsg('Serve almeno 5 caratteri.', false); return }
+      pinMsg('Salvo…', false)
+      const { error } = await _supabase.rpc('stat_pin_set', { nuovo: a })
+      if (error) { pinMsg('Errore: ' + (error.message || ''), false); return }
+      document.getElementById('pin-nuovo').value = ''
+      document.getElementById('pin-conf').value = ''
+      pinMsg('Codice salvato.', true)
+      await pinRenderStato()
+    }
+
+    async function pinTogli() {
+      if (!confirm('Togliere il codice? Le Statistiche si apriranno senza chiedere niente.')) return
+      pinMsg('Salvo…', false)
+      const { error } = await _supabase.rpc('stat_pin_set', { nuovo: '' })
+      if (error) { pinMsg('Errore: ' + (error.message || ''), false); return }
+      pinMsg('Codice tolto.', true)
+      await pinRenderStato()
+    }
+
     // ── Collegamento Fatture in Cloud (marker: fic-collega-v1) ───────────────
     const FIC_FN = SUPABASE_URL + '/functions/v1/fic-oauth'
     function ficEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
@@ -701,6 +777,7 @@
       if (!prof) { alert('Profilo non trovato'); window.location.href = 'dashboard.html'; return }
 
       profId = prof.id
+      pinInit(prof)                       // stat-pin-v1
       ficRenderStato(prof)
       _ficVatMap = (prof && prof.fic_vat_map && typeof prof.fic_vat_map === 'object') ? prof.fic_vat_map : {}
       ficMapVisibile(!!(prof && prof.fic_connected))
