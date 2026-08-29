@@ -133,6 +133,7 @@
     .doc-titolare-box.warn { background: #FFF9E5; border-color: #FFE49A; color: #7a5a00; }
     .doc-titolare-hint { font-size: 11px; color: #999; margin-top: 4px; font-style: italic; }
   </style>
+  <script src="js/pol-lock.js"></script><!-- sess-lock-v1 : blocco schermo per inattività -->
 </head>
 <body>
   <nav class="navbar">
@@ -342,6 +343,51 @@
       <button class="btn-save" onclick="pinSalva()">Salva il codice</button>
       <button class="btn-save" id="pin-btn-togli" onclick="pinTogli()" style="display:none;background:#fff;color:#c62828;border:1.5px solid #f2c4c4;margin-top:8px">Togli il codice</button>
       <span class="lst-status" id="pin-status"></span>
+    </div>
+
+    <!-- BLOCCO SCHERMO (marker: sess-lock-v1) -->
+    <div class="card">
+      <div class="card-title">📱 Blocco schermo automatico</div>
+      <p style="font-size:12px;color:#999;margin-bottom:14px;line-height:1.55">
+        Come il telefono: se non tocchi l'app per un po', cala un velo e ti chiede <b>4 cifre</b> per riprendere.
+        Mentre lavori non ti interrompe mai — chi lavora tocca lo schermo. Serve per il computer o il tablet
+        lasciato acceso tra un paziente e l'altro, che in uno studio è il buco più probabile.
+        Sappi però cos'è: <b>un velo sullo schermo, non una cassaforte</b>. Una persona esperta con la tua sessione
+        aperta può aggirarlo. La protezione forte resta un account per ogni persona, e uscire quando hai finito.
+      </p>
+      <div id="lk-stato" style="font-size:13px;font-weight:700;margin-bottom:12px">—</div>
+      <div class="f-group" id="lk-attuale-wrap" style="display:none">
+        <label class="f-label">PIN attuale</label>
+        <input class="f-input" id="lk-attuale" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="le 4 cifre che usi adesso">
+        <div class="read-only-note">Serve per cambiarlo o toglierlo, per lo stesso motivo del codice qui sopra.</div>
+      </div>
+      <div class="form-row">
+        <div class="f-group">
+          <label class="f-label">Nuovo PIN (4 cifre)</label>
+          <input class="f-input" id="lk-nuovo" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="es. 4831">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Ripeti il PIN</label>
+          <input class="f-input" id="lk-conf" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="riscrivilo uguale">
+        </div>
+      </div>
+      <div class="f-group">
+        <label class="f-label">Blocca dopo</label>
+        <select class="f-input" id="lk-min">
+          <option value="5">5 minuti</option>
+          <option value="10">10 minuti</option>
+          <option value="15" selected>15 minuti (consigliato)</option>
+          <option value="30">30 minuti</option>
+          <option value="60">1 ora</option>
+        </select>
+        <div class="read-only-note">Quanto tempo senza toccare nulla prima che si blocchi.</div>
+      </div>
+      <button class="btn-save" onclick="lkSalva()">Attiva il blocco schermo</button>
+      <button class="btn-save" id="lk-btn-togli" onclick="lkTogli()" style="display:none;background:#fff;color:#c62828;border:1.5px solid #f2c4c4;margin-top:8px">Togli il blocco</button>
+      <span class="lst-status" id="lk-status"></span>
+      <p style="font-size:11.5px;color:#bbb;margin-top:12px;line-height:1.5">
+        Se dimentichi il PIN non resti fuori: dalla schermata di blocco puoi sempre uscire dall'account e rifare il login.
+      </p>
     </div>
 
     <!-- LOGO -->
@@ -604,6 +650,65 @@
       }
     }
 
+    // ── Blocco schermo (marker: sess-lock-v1) ───────────────────────────────
+    // PIN separato da quello delle Statistiche, ed è voluto: questo si digita
+    // di corsa più volte al giorno (4 cifre), quello protegge il fatturato e si
+    // digita una volta al mese. Unirli avrebbe voluto dire abbassare il secondo
+    // al livello del primo.
+    async function lkRenderStato() {
+      let attivo = false, min = 15
+      try {
+        const { data, error } = await _supabase.rpc('sess_lock_stato')
+        if (!error && data) { attivo = data.attivo === true; min = Number(data.minuti) || 15 }
+      } catch (_) { /* migrazione 035 non ancora eseguita */ }
+      const el = document.getElementById('lk-stato')
+      el.innerHTML = attivo
+        ? '<span style="color:#2e7d32">✅ Blocco attivo</span> <span style="font-weight:400;color:#999">— dopo ' + min + ' minuti di inattività chiede il PIN.</span>'
+        : '<span style="color:#999">⚪️ Blocco non attivo</span> <span style="font-weight:400;color:#999">— l\'app resta aperta finché non esci.</span>'
+      document.getElementById('lk-btn-togli').style.display = attivo ? '' : 'none'
+      document.getElementById('lk-attuale-wrap').style.display = attivo ? '' : 'none'
+      const sel = document.getElementById('lk-min')
+      if (sel) sel.value = String(min)
+    }
+
+    function lkMsg(t, ok) {
+      const s = document.getElementById('lk-status')
+      s.textContent = t; s.className = 'lst-status' + (ok ? ' ok' : '')
+    }
+    function lkAttuale() {
+      const el = document.getElementById('lk-attuale')
+      return el ? el.value : ''
+    }
+
+    async function lkSalva() {
+      const a = document.getElementById('lk-nuovo').value.trim()
+      const b = document.getElementById('lk-conf').value.trim()
+      const m = Number(document.getElementById('lk-min').value) || 15
+      if (!a || !b) { lkMsg('Scrivi il PIN in tutt\'e due i campi.', false); return }
+      if (a !== b)  { lkMsg('I due PIN non coincidono.', false); return }
+      if (!/^[0-9]{4}$/.test(a)) { lkMsg('Il PIN deve essere di 4 cifre.', false); return }
+      lkMsg('Salvo…', false)
+      const { error } = await _supabase.rpc('sess_pin_set', { nuovo: a, attuale: lkAttuale(), minuti: m })
+      if (error) { lkMsg('Errore: ' + (error.message || ''), false); return }
+      document.getElementById('lk-nuovo').value = ''
+      document.getElementById('lk-conf').value = ''
+      document.getElementById('lk-attuale').value = ''
+      lkMsg('Blocco schermo attivo.', true)
+      await lkRenderStato()
+    }
+
+    async function lkTogli() {
+      if (!lkAttuale()) { lkMsg('Per togliere il blocco devi scrivere il PIN attuale.', false); return }
+      if (!confirm('Togliere il blocco schermo? L\'app resterà aperta finché non esci dall\'account.')) return
+      lkMsg('Salvo…', false)
+      const m = Number(document.getElementById('lk-min').value) || 15
+      const { error } = await _supabase.rpc('sess_pin_set', { nuovo: '', attuale: lkAttuale(), minuti: m })
+      if (error) { lkMsg('Errore: ' + (error.message || ''), false); return }
+      document.getElementById('lk-attuale').value = ''
+      lkMsg('Blocco tolto.', true)
+      await lkRenderStato()
+    }
+
     // ── Cambio password (marker: cambio-password-v1) ────────────────────────
     // La password vecchia si verifica rifacendo il login con quella: se non e'
     // giusta, Supabase rifiuta e non si va oltre. Non e' un vezzo — senza
@@ -855,6 +960,7 @@
 
       profId = prof.id
       pinInit(prof)                       // stat-pin-v1
+      lkRenderStato()                     // sess-lock-v1
       ficRenderStato(prof)
       _ficVatMap = (prof && prof.fic_vat_map && typeof prof.fic_vat_map === 'object') ? prof.fic_vat_map : {}
       ficMapVisibile(!!(prof && prof.fic_connected))

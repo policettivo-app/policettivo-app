@@ -40,3 +40,15 @@ window.policettivoCheckPremium = async function (supabase, userId, userEmail) {
   window.isPremium = isPremium
   return { isPremium, piano: isPremium ? 'premium' : 'free', profId: prof.id }
 }
+
+/* pol-lock-inject-v1 — carica il blocco schermo per inattività su ogni pagina
+   che include questo file, senza doverlo aggiungere a mano una per una.
+   Se il professionista non ha impostato un PIN, pol-lock.js si spegne da solo. */
+(function () {
+  if (window.__polLockInject) return;
+  window.__polLockInject = true;
+  var s = document.createElement('script');
+  s.src = 'js/pol-lock.js';
+  s.async = true;
+  (document.head || document.documentElement).appendChild(s);
+})();

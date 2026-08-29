@@ -137,3 +137,14 @@
     statoPazienti: statoPazienti
   };
 })();
+
+/* pol-lock-inject-v1 — vedi utils-premium.js: stesso aggancio, per sospesi.html
+   e statistiche.html. */
+(function () {
+  if (window.__polLockInject) return;
+  window.__polLockInject = true;
+  var s = document.createElement('script');
+  s.src = 'js/pol-lock.js';
+  s.async = true;
+  (document.head || document.documentElement).appendChild(s);
+})();

@@ -93,3 +93,14 @@
       okLabel:opts.okLabel, cancelLabel:opts.cancelLabel, danger:opts.danger });
   };
 })();
+
+/* pol-lock-inject-v1 — vedi utils-premium.js: stesso aggancio, per le pagine
+   che includono pol-ui.js invece di utils-premium.js. */
+(function () {
+  if (window.__polLockInject) return;
+  window.__polLockInject = true;
+  var s = document.createElement('script');
+  s.src = 'js/pol-lock.js';
+  s.async = true;
+  (document.head || document.documentElement).appendChild(s);
+})();
