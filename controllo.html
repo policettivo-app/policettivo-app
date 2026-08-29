@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <title>Controllo — Policettivo®</title>
+<!-- controllo-v2 (29 ago 2026) : la vecchia password di app_config e' ABBANDONATA.
+     Perche': questa pagina non faceva login e leggeva `app_config.audit_password`
+     con la sola chiave pubblica, scritta dentro la pagina stessa. La policy di
+     app_config pero' e' `auth.role() = 'authenticated'` -> da anonimo tornavano
+     ZERO righe senza errore, e la pagina diceva «password non configurata».
+     Le due strade erano: allargare la policy (e allora la password sarebbe
+     leggibile da chiunque apra il sorgente = non protegge niente) oppure
+     autenticare la pagina. Fatta la seconda:
+       1) niente sessione  -> login.html
+       2) ruolo != master  -> messaggio, niente dati
+       3) codice riservato -> lo stesso di statistiche.html (stat_pin_check,
+          bcrypt confrontato NEL database), chiesto solo se impostato.
+     La riga audit_password in app_config non serve piu' e si puo' cancellare. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* Pagina isolata, non collegata al resto dell'app — stile "console admin" scuro. */
@@ -72,16 +85,28 @@ tr.delete-row td { color: #ffb3b3; }
 </head>
 <body>
 
-<!-- ── GATE PASSWORD ── -->
-<div id="gate">
+<!-- ── AVVIO (controllo-v2) ── -->
+<div id="boot" style="max-width:420px;margin:18vh auto 0;text-align:center;color:#7d8590;font-size:13px">
+  Verifica in corso…
+</div>
+
+<!-- ── GATE CODICE (controllo-v2) ── -->
+<div id="gate" style="display:none">
   <h1>🔒 Controllo economico</h1>
-  <p>Area riservata al titolare. Inserisci la password di controllo per accedere al registro delle modifiche.</p>
+  <p>Inserisci il tuo <b>codice riservato</b> — lo stesso che usi per le Statistiche.</p>
   <form onsubmit="event.preventDefault(); tentaAccesso();" autocomplete="off">
-    <input type="password" id="pwd" placeholder="Password" autocomplete="new-password" autofocus>
+    <input type="password" id="pwd" placeholder="Codice" autocomplete="new-password">
     <button type="submit" id="btn-gate">Accedi</button>
     <div class="err" id="gate-err"></div>
   </form>
-  <div class="hint">Il registro è immodificabile. Ogni modifica economica (sedute, pagamenti) resta tracciata con timestamp e valori prima/dopo. Sola lettura.</div>
+  <div class="hint">Il codice si cambia dal tuo profilo nell'app. Il registro è immodificabile: ogni modifica economica (sedute, pagamenti) resta tracciata con timestamp e valori prima/dopo. Sola lettura.</div>
+</div>
+
+<!-- ── RUOLO NON AMMESSO (controllo-v2) ── -->
+<div id="nego" style="display:none">
+  <h1>🔒 Riservato al titolare</h1>
+  <p>Il registro delle modifiche economiche è visibile solo al ruolo <b>master</b>. Se ti serve l'accesso, chiedilo al titolare dello studio.</p>
+  <div class="hint"><a href="dashboard.html" style="color:#58a6ff">← Torna alla dashboard</a></div>
 </div>
 
 <!-- ── APP ── -->
@@ -200,56 +225,88 @@ function _nomePaz(pid){
   return full || String(pid);
 }
 
-// ── Password gate ──
+// ── controllo-v2 — avvio: sessione, ruolo, codice ──
+// Il ruolo e il codice li decide il DATABASE (is_master / stat_pin_check,
+// migrazioni 032 e 033). Il codice in chiaro non esiste piu' da nessuna parte.
+async function sonoMasterCtrl(uid){
+  try {
+    var r = await _sb.rpc('is_master');
+    if (r && !r.error && typeof r.data === 'boolean') return r.data;
+  } catch(e){ /* migrazione 032 non ancora eseguita */ }
+  var pr = await _sb.from('professionals').select('ruolo').eq('user_id', uid).maybeSingle();
+  return !!(pr && pr.data && pr.data.ruolo === 'master');
+}
+
+async function codiceAttivo(){
+  try {
+    var r = await _sb.rpc('stat_pin_attivo');
+    if (r && !r.error && typeof r.data === 'boolean') return r.data;
+  } catch(e){ /* migrazione 033 non ancora eseguita */ }
+  return false;
+}
+
+async function initControllo(){
+  var boot = document.getElementById('boot');
+  try {
+    var sess = await _sb.auth.getSession();
+    if (!sess.data || !sess.data.session){ window.location.href = 'login.html'; return; }
+
+    if (!(await sonoMasterCtrl(sess.data.session.user.id))){
+      boot.style.display = 'none';
+      document.getElementById('nego').style.display = 'block';
+      return;
+    }
+
+    var conCodice = await codiceAttivo();
+    boot.style.display = 'none';
+    if (!conCodice){
+      // Nessun codice impostato: il login + ruolo master bastano gia'.
+      document.getElementById('app').style.display = 'block';
+      await caricaDati();
+      return;
+    }
+    document.getElementById('gate').style.display = 'block';
+    var i = document.getElementById('pwd'); if (i) i.focus();
+  } catch(e){
+    console.error('[controllo] init:', e);
+    boot.textContent = 'Errore di avvio. Ricarica la pagina.';
+  }
+}
+
+// ── Gate codice ──
 async function tentaAccesso(){
   var pwd = document.getElementById('pwd').value;
   var errEl = document.getElementById('gate-err');
   var btn = document.getElementById('btn-gate');
-  if (!pwd) { errEl.textContent = 'Inserisci la password.'; return; }
+  if (!pwd) { errEl.textContent = 'Inserisci il codice.'; return; }
   errEl.textContent = 'Verifica in corso…';
   errEl.className = 'err';
   btn.disabled = true;
+  var ok = false;
   try {
-    var res = await _sb.from('app_config').select('valore').eq('chiave', 'audit_password').maybeSingle();
-    if (res && res.error) {
-      // Se RLS blocca la lettura di app_config, non riveliamo il motivo esatto.
-      console.error('[controllo] app_config read error:', res.error);
-      errEl.textContent = '❌ Accesso negato';
-      btn.disabled = false;
-      return;
-    }
-    if (!res || !res.data || res.data.valore == null) {
-      errEl.textContent = 'Password di controllo non configurata sul server.';
-      btn.disabled = false;
-      return;
-    }
-    if (String(pwd) !== String(res.data.valore)) {
-      errEl.textContent = '❌ Accesso negato';
-      btn.disabled = false;
-      // Non nascondere il campo, permetti nuovi tentativi
-      document.getElementById('pwd').select();
-      return;
-    }
-    // Accesso ok
-    document.getElementById('gate').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    await caricaDati();
-  } catch(e) {
-    console.error('[controllo] password check exception:', e);
-    errEl.textContent = 'Errore verifica. Riprova.';
-    btn.disabled = false;
+    var r = await _sb.rpc('stat_pin_check', { pw: pwd });
+    ok = !!(r && !r.error && r.data === true);
+    if (r && r.error) console.error('[controllo] stat_pin_check:', r.error);
+  } catch(e){
+    console.error('[controllo] stat_pin_check exception:', e);
   }
+  btn.disabled = false;
+  if (!ok){
+    errEl.textContent = '❌ Codice sbagliato';
+    document.getElementById('pwd').select();
+    return;
+  }
+  errEl.textContent = '';
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  await caricaDati();
 }
 
 function logout(){
-  // Torna al gate (client-side reset). Il gate password rimane il barrier.
-  document.getElementById('pwd').value = '';
-  document.getElementById('gate-err').textContent = '';
-  document.getElementById('btn-gate').disabled = false;
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('gate').style.display = 'block';
+  // controllo-v2 — «Esci» torna alla dashboard: la sessione resta quella
+  // dell'app, non ha senso simularne una tutta di questa pagina.
   _entries = []; _patientsMap = {};
-  document.getElementById('pwd').focus();
+  window.location.href = 'dashboard.html';
 }
 
 // ── Caricamento dati ──
@@ -429,6 +486,8 @@ function resetFiltri(){
   document.getElementById('f-a').value = '';
   applicaFiltri();
 }
+
+initControllo();   // controllo-v2
 </script>
 </body>
 </html>

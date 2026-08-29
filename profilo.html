@@ -301,6 +301,12 @@
         Il codice non viene salvato in chiaro da nessuna parte: sul database resta solo un'impronta cifrata.
       </p>
       <div id="pin-stato" style="font-size:13px;font-weight:700;margin-bottom:12px">—</div>
+      <!-- stat-pin-v2 : per cambiare o togliere un codice esistente serve quello attuale -->
+      <div class="f-group" id="pin-attuale-wrap" style="display:none">
+        <label class="f-label">Codice attuale</label>
+        <input class="f-input" id="pin-attuale" type="password" autocomplete="current-password" placeholder="il codice che usi adesso">
+        <div class="read-only-note">Serve per cambiarlo o toglierlo: altrimenti chi si siede al tuo account potrebbe semplicemente rimuoverlo.</div>
+      </div>
       <div class="f-group">
         <label class="f-label">Nuovo codice (almeno 5 caratteri)</label>
         <input class="f-input" id="pin-nuovo" type="password" autocomplete="new-password" placeholder="es. una parola che ricordi + due numeri">
@@ -592,15 +598,24 @@
       } catch (_) { /* migrazione 033 non ancora eseguita */ }
       const el = document.getElementById('pin-stato')
       el.innerHTML = attivo
-        ? '<span style="color:#2e7d32">✅ Codice attivo</span> <span style="font-weight:400;color:#999">— viene chiesto a ogni apertura delle Statistiche. Se l\'hai dimenticato, scrivine uno nuovo qui sotto.</span>'
-        : '<span style="color:#999">⚪️ Nessun codice</span> <span style="font-weight:400;color:#999">— le Statistiche si aprono subito.</span>'
+        ? '<span style="color:#2e7d32">✅ Codice attivo</span> <span style="font-weight:400;color:#999">— viene chiesto a ogni apertura delle Statistiche e del registro Controllo.</span>'
+        : '<span style="color:#999">⚪️ Nessun codice</span> <span style="font-weight:400;color:#999">— quelle pagine si aprono subito (resta comunque il login e il ruolo master).</span>'
       document.getElementById('pin-btn-togli').style.display = attivo ? '' : 'none'
+      document.getElementById('pin-attuale-wrap').style.display = attivo ? '' : 'none'   // stat-pin-v2
     }
 
     function pinMsg(testo, ok) {
       const s = document.getElementById('pin-status')
       s.textContent = testo
       s.className = 'lst-status' + (ok ? ' ok' : '')
+    }
+
+    // stat-pin-v2 : `attuale` viaggia sempre; il database lo pretende solo se
+    // un codice c'è già. Il controllo sta lì, non qui: una verifica fatta nel
+    // browser si aggira, questa no.
+    function pinAttuale() {
+      const el = document.getElementById('pin-attuale')
+      return el ? el.value : ''
     }
 
     async function pinSalva() {
@@ -610,19 +625,22 @@
       if (a !== b)  { pinMsg('I due codici non coincidono.', false); return }
       if (a.trim().length < 5) { pinMsg('Serve almeno 5 caratteri.', false); return }
       pinMsg('Salvo…', false)
-      const { error } = await _supabase.rpc('stat_pin_set', { nuovo: a })
+      const { error } = await _supabase.rpc('stat_pin_set', { nuovo: a, attuale: pinAttuale() })
       if (error) { pinMsg('Errore: ' + (error.message || ''), false); return }
       document.getElementById('pin-nuovo').value = ''
       document.getElementById('pin-conf').value = ''
+      document.getElementById('pin-attuale').value = ''
       pinMsg('Codice salvato.', true)
       await pinRenderStato()
     }
 
     async function pinTogli() {
-      if (!confirm('Togliere il codice? Le Statistiche si apriranno senza chiedere niente.')) return
+      if (!pinAttuale()) { pinMsg('Per togliere il codice devi scrivere quello attuale.', false); return }
+      if (!confirm('Togliere il codice? Statistiche e Controllo si apriranno senza chiederlo (resta il login e il ruolo master).')) return
       pinMsg('Salvo…', false)
-      const { error } = await _supabase.rpc('stat_pin_set', { nuovo: '' })
+      const { error } = await _supabase.rpc('stat_pin_set', { nuovo: '', attuale: pinAttuale() })
       if (error) { pinMsg('Errore: ' + (error.message || ''), false); return }
+      document.getElementById('pin-attuale').value = ''
       pinMsg('Codice tolto.', true)
       await pinRenderStato()
     }
