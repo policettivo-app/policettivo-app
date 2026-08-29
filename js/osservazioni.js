@@ -63,6 +63,17 @@
 
   function ossPianoForTipo(t) {
     t = (t || '').toLowerCase();
+    // osserva-ovunque-v1 — gli slot della SCHEDA PAZIENTE hanno nomi diversi da
+    // quelli delle visite ('prima-sx' invece di 'sagittale_sx'), ma sono le
+    // stesse viste. Senza queste righe la scheda paziente cadeva su 'generale'
+    // e mostrava un elenco di voci che non c'entravano col piano inquadrato.
+    // Stessa traduzione che fa gia' classifyView() in js/postural-overlay.js:
+    // la conoscenza era in due posti e ne era stato aggiornato uno solo.
+    if (t.indexOf('prima-sx') === 0 || t.indexOf('prima_sx') === 0) return 'sagittale_sx';
+    if (t.indexOf('dopo-sx')  === 0 || t.indexOf('dopo_sx')  === 0) return 'sagittale_sx';
+    if (t.indexOf('prima-dx') === 0 || t.indexOf('prima_dx') === 0) return 'sagittale_dx';
+    if (t.indexOf('dopo-dx')  === 0 || t.indexOf('dopo_dx')  === 0) return 'sagittale_dx';
+    if (t.indexOf('podo') === 0) return 'podoscopia';
     if (t.indexOf('sagittale_sx') === 0) return 'sagittale_sx';
     if (t.indexOf('sagittale_dx') === 0) return 'sagittale_dx';
     if (t.indexOf('frontale') === 0) return 'frontale_ant';

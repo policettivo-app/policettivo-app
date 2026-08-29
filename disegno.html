@@ -166,7 +166,32 @@
   <script>
   window._polObs = [];
   window.polToggleObs = function(){ var p=document.getElementById('pol-obs-panel'); var b=document.getElementById('pol-obs-backdrop'); if(p) p.classList.toggle('open'); if(b) b.classList.toggle('open'); };
-  window.polToggleObsChip = function(el){ var v=el.getAttribute('data-v'); var i=window._polObs.indexOf(v); if(i>=0){ window._polObs.splice(i,1); el.classList.remove('active'); } else { window._polObs.push(v); el.classList.add('active'); } };
+  /* nota-modificabile-v1 — spuntare una voce la scrive ANCHE nella nota, dove
+     poi si corregge a mano ("Ipercifosi dorsale" -> "Ipercifosi dorsale marcata,
+     soprattutto D6-D8").
+     ⚠️ La voce spuntata resta comunque salvata a parte, come dato strutturato.
+     E' apposta: una crocetta si puo' contare su duecento pazienti, una frase
+     riscritta a mano no. La nota serve a scrivere bene, l'elenco a contare. */
+  function _polNotaAggiungi(v){
+    var nt=document.getElementById('pol-note'); if(!nt) return;
+    var t=nt.value.trim();
+    if (t.indexOf(v) >= 0) return;              // gia' scritta: non si ripete
+    nt.value = t ? (t.replace(/[.\s]+$/,'') + '. ' + v + '.') : (v + '.');
+  }
+  function _polNotaTogli(v){
+    var nt=document.getElementById('pol-note'); if(!nt) return;
+    // Si toglie SOLO la frase esatta come l'aveva scritta l'app. Se e' stata
+    // riscritta a mano non la si tocca: il testo del professionista non si
+    // cancella mai da soli.
+    var t=nt.value;
+    t = t.replace(new RegExp('(^|\\.\\s*)' + v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\.', 'i'), '$1');
+    nt.value = t.replace(/\s{2,}/g,' ').replace(/^[.\s]+/,'').trim();
+  }
+  window.polToggleObsChip = function(el){
+    var v=el.getAttribute('data-v'); var i=window._polObs.indexOf(v);
+    if(i>=0){ window._polObs.splice(i,1); el.classList.remove('active'); _polNotaTogli(v); }
+    else { window._polObs.push(v); el.classList.add('active'); _polNotaAggiungi(v); }
+  };
   function _polEsc(x){ return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
   window.polRenderObs = function(tipo){
     var box=document.getElementById('pol-obs-chips'); if(!box) return;
@@ -309,12 +334,38 @@
           if (arr.length > 0) lines = linesFromJSON(savedAnnot)
         }
         redraw()
-        if (vpId && window.polRenderObs) { window.polRenderObs(_vpRecord ? _vpRecord.tipo : ''); window.polRestoreObs(savedAnnot) }
+        // osserva-ovunque-v1 — le osservazioni valgono su OGNI foto, non solo
+        // su quelle delle visite. La vista si ricava dal record se c'e',
+        // altrimenti dal nome dello slot della scheda paziente.
+        if (window.polRenderObs) {
+          window.polRenderObs(vpId && _vpRecord ? _vpRecord.tipo : (fotoSlot || ''))
+          window.polRestoreObs(savedAnnot)
+        }
         if (params.get('osserva') === '1') { setTimeout(function(){ if (window.polToggleObs) window.polToggleObs() }, 250) }
-        var _ob=document.getElementById('pol-obs-btn'); if(_ob) _ob.style.display = vpId ? '' : 'none'
+        var _ob=document.getElementById('pol-obs-btn'); if(_ob) _ob.style.display = ''
       }
-      // foto di visita = signed URL cross-origin: serve crossOrigin per far leggere l'immagine a MediaPipe/canvas
-      if (vpId) bgImg.crossOrigin = 'anonymous'
+      /* analisi-ovunque-v1 — QUESTA RIGA e' il motivo per cui "Analizza postura"
+         non tracciava niente sulle foto della scheda paziente.
+         Le immagini arrivano da Supabase Storage, quindi sono cross-origin in
+         TUTTI E DUE i casi. Senza crossOrigin il canvas resta "sporcato" e
+         leggere i pixel - che e' quello che fa il motore per trovare i punti -
+         solleva un errore di sicurezza. L'errore non era gestito, quindi la
+         scritta restava su "Analizzo..." e non succedeva piu' niente.
+         Prima la riga valeva solo per le foto di visita: stesso bisogno, una
+         sola delle due strade coperta. */
+      /* Rete di sicurezza: se un server NON manda le intestazioni CORS, una
+         immagine con crossOrigin non si carica proprio - e la foto sparirebbe.
+         Peggio del problema che stiamo risolvendo. Quindi: se il caricamento
+         fallisce, si riprova SENZA crossOrigin. Si perde l'analisi AI su quella
+         foto, ma la foto si vede. */
+      bgImg.onerror = function () {
+        if (!bgImg.crossOrigin) return
+        console.warn('[disegno] immagine bloccata da CORS: riprovo senza crossOrigin')
+        bgImg.onerror = null
+        bgImg.removeAttribute('crossorigin')
+        bgImg.src = src
+      }
+      if (/^https?:/i.test(src)) bgImg.crossOrigin = 'anonymous'
       bgImg.src = src
     }
 
@@ -445,7 +496,12 @@
         return
       }
       try { annotazioni = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) {}
-      annotazioni[fotoSlot] = linesToJSON()
+      const _annF = linesToJSON()
+      // osserva-ovunque-v1 — accanto ai disegni si salvano anche le voci
+      // spuntate e la nota, come gia' avviene per le foto di visita.
+      _annF.osservazioni = (window._polObs || []).slice()
+      var _pnF = document.getElementById('pol-note'); _annF.note = _pnF ? _pnF.value : ''
+      annotazioni[fotoSlot] = _annF
       patient.foto_annotazioni = JSON.stringify(annotazioni)
 
       const { error } = await _supabase
