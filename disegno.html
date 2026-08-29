@@ -187,29 +187,52 @@
     t = t.replace(new RegExp('(^|\\.\\s*)' + v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\.', 'i'), '$1');
     nt.value = t.replace(/\s{2,}/g,' ').replace(/^[.\s]+/,'').trim();
   }
+  /* sagittale-condiviso-v1 — stato del pannello.
+     _polObs  = voci sagittali (vivono sul lato SINISTRO di riferimento)
+     _polRot  = voci di rotazione (un solo record, sempre sul sinistro)
+     _polObsLegacy = voci gia' salvate su QUESTA foto destra prima della
+                     condivisione: non si cancellano da sole. */
+  window._polRot = [];
+  window._polObsLegacy = [];
   window.polToggleObsChip = function(el){
-    var v=el.getAttribute('data-v'); var i=window._polObs.indexOf(v);
+    if (el.getAttribute('aria-disabled') === 'true') return;   // sagittale dx: sola lettura
+    var v=el.getAttribute('data-v');
+    if (el.getAttribute('data-rot') === '1'){
+      // La rotazione non finisce nella nota della foto: e' un dato della coppia,
+      // non di questo scatto. Una copia sola, altrimenti divergono.
+      var r=window._polRot.indexOf(v);
+      if(r>=0){ window._polRot.splice(r,1); el.classList.remove('active'); }
+      else { window._polRot.push(v); el.classList.add('active'); }
+      return;
+    }
+    var i=window._polObs.indexOf(v);
     if(i>=0){ window._polObs.splice(i,1); el.classList.remove('active'); _polNotaTogli(v); }
     else { window._polObs.push(v); el.classList.add('active'); _polNotaAggiungi(v); }
   };
-  function _polEsc(x){ return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
-  window.polRenderObs = function(tipo){
+  window.polRenderObs = function(tipo, opts){
     var box=document.getElementById('pol-obs-chips'); if(!box) return;
-    var groups=(window.ossGruppiPerTipo? window.ossGruppiPerTipo(tipo): null);
-    if(!groups){ box.innerHTML=''; return; }
-    var html='';
-    for(var g=0; g<groups.length; g++){
-      html+='<div class="pol-obs-grp">'+_polEsc(groups[g].g)+'</div><div class="pol-obs-row">';
-      var its=groups[g].items||[];
-      for(var i=0;i<its.length;i++){ var v=_polEsc(its[i]); html+='<span class="pol-chip" data-v="'+v+'" onclick="polToggleObsChip(this)">'+v+'</span>'; }
-      html+='</div>';
-    }
-    box.innerHTML=html;
+    if(!window.polObsHtml){ box.innerHTML=''; return; }
+    opts = opts || {};
+    box.innerHTML = window.polObsHtml({
+      tipo: tipo,
+      chipClass: 'pol-chip', grpClass: 'pol-obs-grp', rowClass: 'pol-obs-row',
+      chipClick: 'polToggleObsChip(this)',
+      sagSel: opts.sagSel || [], rotSel: opts.rotSel || [],
+      legacy: opts.legacy || [], legacyClick: 'polSpostaLegacy()',
+      gemellaPresente: !!opts.gemellaPresente
+    });
   };
-  window.polRestoreObs = function(ann){
-    window._polObs = (ann && Array.isArray(ann.osservazioni)) ? ann.osservazioni.slice() : [];
+  window.polRestoreObs = function(ann, opts){
+    opts = opts || {};
+    window._polObs = (opts.sagSel || []).slice();
+    window._polRot = (opts.rotSel || []).slice();
+    window._polObsLegacy = (opts.legacy || []).slice();
     var chips=document.querySelectorAll('#pol-obs-chips .pol-chip');
-    for(var i=0;i<chips.length;i++){ var v=chips[i].getAttribute('data-v'); chips[i].classList.toggle('active', window._polObs.indexOf(v)>=0); }
+    for(var i=0;i<chips.length;i++){
+      var v=chips[i].getAttribute('data-v');
+      var lista = chips[i].getAttribute('data-rot')==='1' ? window._polRot : window._polObs;
+      chips[i].classList.toggle('active', lista.indexOf(v)>=0);
+    }
     var nt=document.getElementById('pol-note'); if(nt) nt.value=(ann && ann.note)?ann.note:'';
   };
   </script>
@@ -226,6 +249,29 @@
     const fotoSlot  = params.get('foto')
     const vpId      = params.get('vp')   // id record visit_photos (foto di visita)
     let _vpRecord   = null               // record visit_photos caricato
+
+    /* sagittale-condiviso-v1 — le voci sagittali e la rotazione vivono in UNA
+       sola copia, sul lato sinistro (riferimento). Qui si tiene traccia di
+       quale record e' il riferimento e se la foto gemella esiste. */
+    let _tipoCorrente    = ''
+    let _coppia          = null    // null se la foto non e' sagittale
+    let _sibRecord       = null    // riga visit_photos dell'altro lato
+    let _gemellaPresente = false
+    let _urlsPaz         = {}      // patients.foto_url        (gia' letto)
+    let _annPaz          = {}      // patients.foto_annotazioni (gia' letto)
+
+    function _parseAnn(a){
+      if (!a) return null
+      if (typeof a === 'string') { try { return JSON.parse(a) } catch(e) { return null } }
+      return a
+    }
+    // Annotazione del record di RIFERIMENTO: se siamo sul destro e' quella
+    // della foto sinistra, se siamo sul sinistro e' la nostra.
+    function _annRif(propria){
+      if (!_coppia || _coppia.isRiferimento) return propria
+      if (vpId) return _parseAnn(_sibRecord && _sibRecord.annotazioni)
+      return _parseAnn(_annPaz[_coppia.gemella])
+    }
 
     const canvas = document.getElementById('draw-canvas')
     const ctx    = canvas.getContext('2d')
@@ -314,14 +360,31 @@
         savedAnnot = vp.annotazioni || null
       } else {
         // FOTO INIZIALE PAZIENTE: da patients.foto_url
-        let urls = {}
-        try { urls = JSON.parse(p.foto_url || '{}') } catch(e) {}
-        src = await polResolveFoto(urls[fotoSlot], _supabase)
+        try { _urlsPaz = JSON.parse(p.foto_url || '{}') } catch(e) { _urlsPaz = {} }
+        src = await polResolveFoto(_urlsPaz[fotoSlot], _supabase)
         if (!src) { alert('Foto non trovata per slot: ' + fotoSlot); tornaPaziente(); return }
         labelTxt = fotoSlot.replace(/-/g, ' ')
-        let annotazioni = {}
-        try { annotazioni = JSON.parse(p.foto_annotazioni || '{}') } catch(e) {}
-        savedAnnot = annotazioni[fotoSlot] || null
+        try { _annPaz = JSON.parse(p.foto_annotazioni || '{}') } catch(e) { _annPaz = {} }
+        savedAnnot = _annPaz[fotoSlot] || null
+      }
+
+      /* sagittale-condiviso-v1 — chi e' il riferimento e c'e' l'altra foto?
+         La coppia e' sempre dello STESSO momento (pre con pre, post con post):
+         pre e post sono due stati clinici diversi. */
+      _tipoCorrente = vpId && _vpRecord ? (_vpRecord.tipo || '') : (fotoSlot || '')
+      _coppia = window.polSagCoppia ? window.polSagCoppia(_tipoCorrente) : null
+      if (_coppia) {
+        if (vpId) {
+          // niente maybeSingle: se per un errore vecchio esistessero due righe
+          // dello stesso tipo, maybeSingle solleverebbe e il pannello sparirebbe.
+          const { data: sibs } = await _supabase
+            .from('visit_photos').select('id, tipo, annotazioni')
+            .eq('visit_id', _vpRecord.visit_id).eq('tipo', _coppia.gemella).limit(1)
+          _sibRecord = (sibs && sibs.length) ? sibs[0] : null
+          _gemellaPresente = !!_sibRecord
+        } else {
+          _gemellaPresente = !!_urlsPaz[_coppia.gemella]
+        }
       }
 
       document.getElementById('nav-title').textContent =
@@ -338,8 +401,7 @@
         // su quelle delle visite. La vista si ricava dal record se c'e',
         // altrimenti dal nome dello slot della scheda paziente.
         if (window.polRenderObs) {
-          window.polRenderObs(vpId && _vpRecord ? _vpRecord.tipo : (fotoSlot || ''))
-          window.polRestoreObs(savedAnnot)
+          polDisegnaPannello(savedAnnot)
         }
         if (params.get('osserva') === '1') { setTimeout(function(){ if (window.polToggleObs) window.polToggleObs() }, 250) }
         var _ob=document.getElementById('pol-obs-btn'); if(_ob) _ob.style.display = ''
@@ -367,6 +429,75 @@
       }
       if (/^https?:/i.test(src)) bgImg.crossOrigin = 'anonymous'
       bgImg.src = src
+    }
+
+    /* sagittale-condiviso-v1 — disegna il pannello Osserva a partire dal record
+       di riferimento. Sul lato destro le voci sagittali si vedono e non si
+       toccano; la rotazione si compila da tutte e due le foto ma finisce in un
+       record solo. */
+    function polDisegnaPannello(propria) {
+      const rif   = _annRif(propria)
+      const sagSel = (rif && Array.isArray(rif.osservazioni)) ? rif.osservazioni.slice() : []
+      const rotSel = (rif && Array.isArray(rif.rotazione))    ? rif.rotazione.slice()    : []
+      const mia    = _parseAnn(propria)
+      const legacy = (_coppia && !_coppia.isRiferimento && mia && Array.isArray(mia.osservazioni))
+        ? mia.osservazioni.filter(v => sagSel.indexOf(v) < 0)
+        : []
+      const opts = { sagSel, rotSel, legacy, gemellaPresente: _gemellaPresente }
+      window.polRenderObs(_tipoCorrente, opts)
+      window.polRestoreObs(mia, opts)
+      // La nota libera resta di questa foto: sul destro serve per la qualita'
+      // dello scatto e per cio' che si vede solo da quel lato. Una riga.
+      const nt = document.getElementById('pol-note')
+      if (nt && _coppia && !_coppia.isRiferimento) {
+        nt.placeholder = 'Solo di questa foto: qualita\' dello scatto (es. paziente non perfettamente di profilo) o dettagli visibili solo da destra.'
+      }
+    }
+
+    /* Voci rimaste sul lato destro da prima della condivisione. Non si
+       cancellano da sole e non si spostano da sole: le sposta il professionista
+       con un click, e restano tutte. */
+    window.polSpostaLegacy = async function () {
+      const n = (window._polObsLegacy || []).length
+      if (!n) return
+      if (!confirm('Sposto ' + n + ' voci sulla foto sagittale sinistra, dove ora vivono le voci condivise?\n\nNon si perde niente: cambiano posto.')) return
+      const unite = (window._polObs || []).slice()
+      ;(window._polObsLegacy || []).forEach(v => { if (unite.indexOf(v) < 0) unite.push(v) })
+      const status = document.getElementById('nav-status')
+      if (status) status.textContent = '⏳ Sposto...'
+      try {
+        if (vpId) {
+          if (!_sibRecord) { if (status) status.textContent = 'Foto sinistra assente'; return }
+          const { data: fresh } = await _supabase
+            .from('visit_photos').select('annotazioni').eq('id', _sibRecord.id).maybeSingle()
+          const annRif = _parseAnn(fresh && fresh.annotazioni) || {}
+          annRif.osservazioni = unite
+          const { error: e1 } = await _supabase
+            .from('visit_photos').update({ annotazioni: annRif }).eq('id', _sibRecord.id)
+          if (e1) { if (status) status.textContent = 'Errore'; return }
+          _sibRecord.annotazioni = annRif
+          const annMia = _parseAnn(_vpRecord && _vpRecord.annotazioni) || {}
+          annMia.osservazioni = []
+          await _supabase.from('visit_photos').update({ annotazioni: annMia }).eq('id', vpId)
+          _vpRecord.annotazioni = annMia
+          polDisegnaPannello(annMia)
+        } else {
+          const annRif = _parseAnn(_annPaz[_coppia.gemella]) || {}
+          annRif.osservazioni = unite
+          _annPaz[_coppia.gemella] = annRif
+          const annMia = _parseAnn(_annPaz[fotoSlot]) || {}
+          annMia.osservazioni = []
+          _annPaz[fotoSlot] = annMia
+          patient.foto_annotazioni = JSON.stringify(_annPaz)
+          const { error } = await _supabase
+            .from('patients').update({ foto_annotazioni: patient.foto_annotazioni }).eq('id', patientId)
+          if (error) { if (status) status.textContent = '❌ Errore'; return }
+          polDisegnaPannello(annMia)
+        }
+        if (status) { status.textContent = '✓ Spostate'; setTimeout(() => { status.textContent = '' }, 2500) }
+      } catch (e) {
+        if (status) status.textContent = '❌ Errore'
+      }
     }
 
     function syncCanvas() {
@@ -483,26 +614,62 @@
       const status = document.getElementById('nav-status')
       status.textContent = '⏳ Salvo...'
 
-      let annotazioni = {}
+      /* sagittale-condiviso-v1 — chi scrive cosa:
+         - lato SINISTRO (o foto non sagittale): scrive le proprie voci e, se
+           sagittale, anche la rotazione condivisa;
+         - lato DESTRO: NON scrive le voci sagittali (sono del sinistro) e non
+           tocca le proprie voci vecchie; la rotazione la scrive sul record
+           sinistro. Mai due copie: due copie possono divergere, ed e'
+           esattamente cio' che questa modifica elimina. */
+      const _lat_dx = !!(_coppia && !_coppia.isRiferimento)
+      var _pn = document.getElementById('pol-note')
+
       if (vpId) {
         // salva su visit_photos.annotazioni (jsonb)
         const _ann = linesToJSON()
-        _ann.osservazioni = (window._polObs || []).slice()
-        var _pn = document.getElementById('pol-note'); _ann.note = _pn ? _pn.value : ''
+        _ann.osservazioni = _lat_dx ? (window._polObsLegacy || []).slice()
+                                    : (window._polObs || []).slice()
+        _ann.note = _pn ? _pn.value : ''
+        if (_coppia && _coppia.isRiferimento) _ann.rotazione = (window._polRot || []).slice()
         const { error: e1 } = await _supabase
           .from('visit_photos').update({ annotazioni: _ann }).eq('id', vpId)
+        if (!e1 && _vpRecord) _vpRecord.annotazioni = _ann
+
+        let e2 = null
+        if (!e1 && _lat_dx && _sibRecord && _gemellaPresente) {
+          // rilettura prima di scrivere: il record del riferimento e' l'unica
+          // copia, non si sovrascrive alla cieca cio' che ci ha messo l'altro lato.
+          const { data: fresh } = await _supabase
+            .from('visit_photos').select('annotazioni').eq('id', _sibRecord.id).maybeSingle()
+          const annRif = _parseAnn(fresh && fresh.annotazioni) || {}
+          annRif.rotazione = (window._polRot || []).slice()
+          const r2 = await _supabase
+            .from('visit_photos').update({ annotazioni: annRif }).eq('id', _sibRecord.id)
+          e2 = r2.error
+          if (!e2) _sibRecord.annotazioni = annRif
+        }
         const st = document.getElementById('nav-status')
-        if (st) st.textContent = e1 ? 'Errore salvataggio' : 'Salvato'
+        if (st) st.textContent = (e1 || e2) ? 'Errore salvataggio' : 'Salvato'
         return
       }
-      try { annotazioni = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) {}
+
+      try { _annPaz = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) { _annPaz = {} }
       const _annF = linesToJSON()
       // osserva-ovunque-v1 — accanto ai disegni si salvano anche le voci
       // spuntate e la nota, come gia' avviene per le foto di visita.
-      _annF.osservazioni = (window._polObs || []).slice()
-      var _pnF = document.getElementById('pol-note'); _annF.note = _pnF ? _pnF.value : ''
-      annotazioni[fotoSlot] = _annF
-      patient.foto_annotazioni = JSON.stringify(annotazioni)
+      _annF.osservazioni = _lat_dx ? (window._polObsLegacy || []).slice()
+                                   : (window._polObs || []).slice()
+      _annF.note = _pn ? _pn.value : ''
+      if (_coppia && _coppia.isRiferimento) _annF.rotazione = (window._polRot || []).slice()
+      _annPaz[fotoSlot] = _annF
+      // Qui le due foto stanno nello stesso JSON: la rotazione del lato destro
+      // si scrive nella voce del sinistro, nello stesso salvataggio.
+      if (_lat_dx && _gemellaPresente) {
+        const annRif = _parseAnn(_annPaz[_coppia.gemella]) || {}
+        annRif.rotazione = (window._polRot || []).slice()
+        _annPaz[_coppia.gemella] = annRif
+      }
+      patient.foto_annotazioni = JSON.stringify(_annPaz)
 
       const { error } = await _supabase
         .from('patients').update({ foto_annotazioni: patient.foto_annotazioni }).eq('id', patientId)
@@ -521,13 +688,16 @@
       redraw()
 
       if (!patient) return
-      let annotazioni = {}
-      try { annotazioni = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) {}
-      delete annotazioni[fotoSlot]
-      patient.foto_annotazioni = JSON.stringify(annotazioni)
+      // Le foto di visita non stanno nel JSON del paziente: senza questa guardia
+      // il Reset riscriveva la riga patients per niente.
+      if (vpId) return
+      try { _annPaz = JSON.parse(patient.foto_annotazioni || '{}') } catch(e) { _annPaz = {} }
+      delete _annPaz[fotoSlot]
+      patient.foto_annotazioni = JSON.stringify(_annPaz)
 
       await _supabase
         .from('patients').update({ foto_annotazioni: patient.foto_annotazioni }).eq('id', patientId)
+      if (window.polRenderObs) polDisegnaPannello(null)
     }
 
     // --- Export: download composite PNG without saving to DB ---
