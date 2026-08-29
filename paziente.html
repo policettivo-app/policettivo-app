@@ -15,6 +15,7 @@
   <script src="js/foto-actions.js"></script>
   <script src="js/foto-paziente.js"></script>
   <script src="js/foto-resolver.js"></script>
+  <script src="js/elicoidali-exercises.js"></script><!-- conteggio-completo-v1 : servono i titoli degli elicoidali -->
   <script src="js/camera-pol.js"></script>
   <script src="js/hub.js"></script>
   <style>
@@ -1412,14 +1413,9 @@
       const dataInizio = prot.created_at ? new Date(prot.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric'}) : '—'
       const cfg = prot.configurazione_generale || '—'
 
-      const { data: ppe } = await _supabase
-        .from('patient_protocol_exercises')
-        .select('*, exercises(nome)')
-        .eq('patient_protocol_id', prot.id)
-        .order('ordine', { ascending: true })
-
-      const nomiEsercizi = ppe ? ppe.map(e => e.exercises ? e.exercises.nome : '—').join(', ') : '—'
-      const numEx = ppe ? ppe.length : 0
+      const _conteggio = await contaEserciziProtocollo(prot.id)   // conteggio-completo-v1
+      const nomiEsercizi = _conteggio.nomi.length ? _conteggio.nomi.join(', ') : '—'
+      const numEx = _conteggio.numero
 
       box.innerHTML =
         '<div style="background:#f0fff4;border:1px solid #a5d6a7;border-radius:10px;padding:16px 18px">' +
@@ -1432,6 +1428,38 @@
         '<div style="font-size:12px;color:#666;line-height:1.6"><strong>Esercizi:</strong> ' + nomiEsercizi + '</div>' +
         (prot.note ? '<div style="margin-top:10px;font-size:12px;color:#555;background:#fff;border-radius:6px;padding:10px"><strong>Note:</strong> ' + prot.note + '</div>' : '') +
         '</div>'
+    }
+
+    /* conteggio-completo-v1 — QUANTI ESERCIZI HA DAVVERO QUESTO PROTOCOLLO.
+       Un protocollo vive in TRE tabelle diverse, non in una:
+         patient_protocol_exercises   esercizi Policettivo + Libreria studio
+         patient_protocol_elicoidali  elicoidali
+         exercise_videos              contenuti personalizzati (protocol_id)
+       Prima si contava solo la prima, e il numero in scheda era piu' basso di
+       quello che il paziente si trova davvero da fare. Un numero che mente e'
+       peggio di un numero che non c'e'. */
+    async function contaEserciziProtocollo(protocolId) {
+      const vuoto = { numero: 0, nomi: [] }
+      if (!protocolId) return vuoto
+      try {
+        const [rStd, rEli, rVid] = await Promise.all([
+          _supabase.from('patient_protocol_exercises').select('*, exercises(nome)').eq('patient_protocol_id', protocolId).order('ordine', { ascending: true }),
+          _supabase.from('patient_protocol_elicoidali').select('elicoidale_id, ordine').eq('patient_protocol_id', protocolId).order('ordine', { ascending: true }),
+          _supabase.from('exercise_videos').select('titolo').eq('protocol_id', protocolId).order('created_at', { ascending: true })
+        ])
+        const std = rStd.data || [], eli = rEli.data || [], vid = rVid.data || []
+        const nomiStd = std.map(function(e){ return (e.exercises && e.exercises.nome) ? e.exercises.nome : 'Esercizio' })
+        const nomiEli = eli.map(function(e){
+          const def = (typeof EXERCISES_ELICOIDALI !== 'undefined')
+            ? EXERCISES_ELICOIDALI.find(function(x){ return x.id === e.elicoidale_id }) : null
+          return def ? def.title : e.elicoidale_id
+        })
+        const nomiVid = vid.map(function(v){ return v.titolo || 'Contenuto personalizzato' })
+        return { numero: std.length + eli.length + vid.length, nomi: nomiStd.concat(nomiEli).concat(nomiVid) }
+      } catch (e) {
+        console.error('[contaEserciziProtocollo]', e)
+        return vuoto
+      }
     }
 
     function vaiAutotestPro() {
@@ -2332,14 +2360,9 @@
         const statoColor = stato === 'attivo' ? '#2e7d32' : stato === 'completato' ? '#1565c0' : '#888'
         const statoLabel = stato === 'attivo' ? '✅ Attivo' : stato === 'completato' ? '✔ Completato' : '⏹ ' + stato
 
-        const { data: ppe } = await _supabase
-          .from('patient_protocol_exercises')
-          .select('*, exercises(nome)')
-          .eq('patient_protocol_id', prot.id)
-          .order('ordine', { ascending: true })
-
-        const esercizi = ppe ? ppe.map(e => e.exercises ? e.exercises.nome : '—').join(', ') : '—'
-        const numEx = ppe ? ppe.length : 0
+        const _conteggio = await contaEserciziProtocollo(prot.id)   // conteggio-completo-v1
+        const esercizi = _conteggio.nomi.length ? _conteggio.nomi.join(', ') : '—'
+        const numEx = _conteggio.numero
 
         const diaryCnt = diaryMap[prot.id] || 0
         const canDelete = diaryCnt === 0
