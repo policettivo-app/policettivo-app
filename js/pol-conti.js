@@ -139,8 +139,9 @@
 })();
 
 /* pol-lock-inject-v1 — vedi utils-premium.js: stesso aggancio, per sospesi.html
-   e statistiche.html. */
-(function () {
+   e statistiche.html. Il ';' iniziale protegge dall'incollamento con la riga
+   precedente in un file senza punti e virgola (vedi utils-premium.js). */
+;(function () {
   if (window.__polLockInject) return;
   window.__polLockInject = true;
   var s = document.createElement('script');

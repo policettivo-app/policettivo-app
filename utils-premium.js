@@ -43,8 +43,13 @@ window.policettivoCheckPremium = async function (supabase, userId, userEmail) {
 
 /* pol-lock-inject-v1 — carica il blocco schermo per inattività su ogni pagina
    che include questo file, senza doverlo aggiungere a mano una per una.
-   Se il professionista non ha impostato un PIN, pol-lock.js si spegne da solo. */
-(function () {
+   Se il professionista non ha impostato un PIN, pol-lock.js si spegne da solo.
+
+   ⚠️ Il ';' qui sotto NON e' un vezzo: utils-premium.js non usa i punti e virgola,
+   quindi senza di esso questa IIFE si incolla alla riga precedente e diventa una
+   CHIAMATA a quella funzione. E' successo davvero il 29 ago: policettivoCheckPremium
+   e' diventata una Promise invece di una funzione e la dashboard e' morta. */
+;(function () {
   if (window.__polLockInject) return;
   window.__polLockInject = true;
   var s = document.createElement('script');

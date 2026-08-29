@@ -95,8 +95,9 @@
 })();
 
 /* pol-lock-inject-v1 — vedi utils-premium.js: stesso aggancio, per le pagine
-   che includono pol-ui.js invece di utils-premium.js. */
-(function () {
+   che includono pol-ui.js invece di utils-premium.js. Il ';' iniziale protegge
+   dall'incollamento con la riga precedente. */
+;(function () {
   if (window.__polLockInject) return;
   window.__polLockInject = true;
   var s = document.createElement('script');
