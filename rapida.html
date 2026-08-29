@@ -68,6 +68,7 @@ input[type=range] { width: 100%; accent-color: #FFD008; }
 .btn-torna { padding: 18px 40px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; }
 .motivational { background: #111; border-radius: 12px; padding: 16px 20px; font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 24px; font-style: italic; }
 </style>
+  <script src="js/pol-eventi.js"></script><!-- pol-eventi-v1 : misura come viene usata l'area paziente. Vedi js/pol-eventi.js -->
 </head>
 <body>
 <nav class="navbar">
@@ -179,7 +180,7 @@ function renderExercises() {
 
 function toggleCheck(i) {
   if (checkedItems.has(i)) checkedItems.delete(i)
-  else checkedItems.add(i)
+  else { checkedItems.add(i); try{polEvento('exercise_completed',{modalita:'rapid',n:i+1})}catch(e){} }
   renderExercises()
 }
 
@@ -231,6 +232,7 @@ async function completaSeduta() {
     dolore, rigidita: 0, equilibrio: 5, energia,
     note: noteFinale, completato: true
   }})
+  try{polEvento('session_completed',{modalita:'rapid'})}catch(e){}
   mostraCompletato()
 }
 
@@ -242,6 +244,7 @@ async function saltaECompleta() {
     dolore: 0, rigidita: 0, equilibrio: 5, energia: 5,
     note: eseguitiText(), completato: true
   }})
+  try{polEvento('session_completed',{modalita:'manual'})}catch(e){}
   mostraCompletato()
 }
 
@@ -258,5 +261,6 @@ function mostraCompletato() {
 
 init()
 </script>
+<script>/* pol-eventi-apertura */try{polEvento('rapid_mode_started',{modalita:'rapid'})}catch(e){}</script>
 </body>
 </html>

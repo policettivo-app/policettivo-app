@@ -87,6 +87,7 @@
     .btn-finish { padding: 16px 40px; background: transparent; border: 1px solid #FFD008; color: #FFD008; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; }
     .evening-hint { background: #0a1a0a; border: 1px solid #2e7d32; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #81c784; margin-top: 16px; line-height: 1.5; }
   </style>
+  <script src="js/pol-eventi.js"></script><!-- pol-eventi-v1 : misura come viene usata l'area paziente. Vedi js/pol-eventi.js -->
 </head>
 <body>
   <nav class="navbar">
@@ -360,6 +361,7 @@
         document.getElementById('breathing-hint').classList.remove('active')
       } else {
         isRunning = true
+        try{polEvento('exercise_started',{modalita:'guided',n:idx+1})}catch(e){}
         document.getElementById('play-btn').textContent = '⏸ Pausa'
         document.getElementById('breathing-hint').classList.add('active')
         timerInterval = setInterval(() => {
@@ -381,7 +383,7 @@
       document.getElementById('breathing-hint').classList.remove('active')
     }
 
-    function completeExercise() { clearInterval(timerInterval); isRunning = false; showCompleted() }
+    function completeExercise() { clearInterval(timerInterval); isRunning = false; try{polEvento('exercise_completed',{modalita:'guided',n:idx+1})}catch(e){}; showCompleted() }
 
     async function showCompleted() {
       const isLast = idx >= items.length - 1
@@ -391,6 +393,7 @@
       document.getElementById('btn-finish').style.display = isLast ? 'block' : 'none'
 
       if (isLast) {
+        try{polEvento('session_completed',{modalita:'guided'})}catch(e){}
         setTimeout(playVictorySound, 300)
         document.getElementById('completed-sub').textContent = 'Hai completato tutti gli esercizi di oggi!'
         document.getElementById('streak-section').style.display = 'block'
@@ -500,6 +503,7 @@
           note: 'Sessione interrotta per dolore durante ' + (items[idx].item_type === 'standard' && items[idx].exercise ? items[idx].exercise.nome : (items[idx].titolo || 'esercizio')),
           completato: false
         }})
+        try{polEvento('pain_stop',{modalita:'guided',n:idx+1})}catch(e){}
         finishSession()
       }
     }
@@ -525,5 +529,6 @@
 
     init()
   </script>
+<script>/* pol-eventi-apertura */try{polEvento('guided_mode_started',{modalita:'guided'})}catch(e){}</script>
 </body>
 </html>
