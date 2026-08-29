@@ -87,6 +87,18 @@
       <p style="text-align:center;font-size:11px;color:#999;margin-top:14px">Hai già un account? <a href="login.html" style="color:#000;font-weight:700">Accedi →</a></p>
     </div>
 
+    <!-- invito-usato-v1 : un link di invito gia' usato NON deve piu' cadere
+         nella registrazione libera, che creerebbe un titolare di uno studio
+         nuovo invece di un membro. -->
+    <div class="invalid-msg" id="invalid-msg" style="display:none">
+      <h2>🔗 Questo invito non è più valido</h2>
+      <p style="font-size:14px;color:#666;line-height:1.6;margin-top:10px">
+        Il link è già stato usato da qualcun altro, oppure è stato annullato.<br><br>
+        <b>Chiedi al titolare dello studio di generarne uno nuovo</b> — ogni link vale per una persona sola.
+      </p>
+      <p style="margin-top:20px"><a href="login.html" style="display:inline-block;background:#FFD008;color:#000;padding:12px 24px;border-radius:8px;font-weight:700;text-decoration:none">Ho già un account, vai al login →</a></p>
+    </div>
+
     <div class="success-msg" id="success-msg">
       ✅ Account creato con successo!<br><br>
       <strong>📧 Controlla la tua email per verificare l'account prima di accedere.</strong><br><br>
@@ -104,16 +116,34 @@
     const token = params.get('token')
     let inviteData = null
 
+    // invito-usato-v1 — Senza token in URL siamo nella registrazione libera dal
+    // sito: giusto che nasca un titolare di un suo studio. CON un token che
+    // pero' non vale piu' (gia' usato o annullato) il vecchio codice cadeva
+    // nello stesso ramo, e la persona diventava MASTER DI UNO STUDIO NUOVO
+    // invece che membro di quello che l'aveva invitata — senza che nessuno se
+    // ne accorgesse. Ora quel caso si ferma qui.
+    let invitoNonValido = false
+
     async function init() {
       if (!token) return
-      const _rInv = await fetch('/api/invite-public', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get-invite', token })
-      })
-      const _jInv = await _rInv.json()
-      const data = _jInv.invito
-      if (!data) return
+      let data = null
+      try {
+        const _rInv = await fetch('/api/invite-public', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get-invite', token })
+        })
+        const _jInv = await _rInv.json()
+        data = _jInv.invito
+      } catch (e) {
+        console.error('[registrazione] get-invite:', e)
+      }
+      if (!data) {
+        invitoNonValido = true
+        document.getElementById('form-state').style.display = 'none'
+        document.getElementById('invalid-msg').style.display = 'block'
+        return
+      }
       inviteData = data
       const banner = document.getElementById('invite-banner')
       banner.innerHTML = data.nome
@@ -124,6 +154,12 @@
     }
 
     async function registrati() {
+      // invito-usato-v1 — seconda rete: anche se qualcuno riesce a far
+      // ricomparire il modulo, qui non si passa.
+      if (invitoNonValido) {
+        showError('Questo invito non è più valido. Chiedi al titolare un link nuovo.')
+        return
+      }
       const nome     = document.getElementById('reg-nome').value.trim()
       const cognome  = document.getElementById('reg-cognome').value.trim()
       const email    = document.getElementById('reg-email').value.trim()
@@ -173,7 +209,9 @@
       const { error: profileError } = await _supabase.from('profiles').insert({ id: userId, role: 'professionista', nome, cognome })
       if (profileError) { showError('Errore creazione profilo: ' + profileError.message); btn.disabled = false; btn.textContent = 'Crea account gratuitamente'; return }
 
-      const ruoloAssegnato = inviteData?.ruolo || 'master'
+      // invito-usato-v1 — con un invito in mano non si diventa MAI master:
+      // se l'invito è vecchio e non porta il ruolo, si atterra su 'clinico'.
+      const ruoloAssegnato = token ? (inviteData?.ruolo || 'clinico') : 'master'
       const studioAssegnato = inviteData?.studio_id || null
       const { error: profError } = await _supabase.from('professionals').insert({
         user_id: userId,

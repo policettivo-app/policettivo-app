@@ -291,6 +291,30 @@
       </div>
     </div>
 
+    <!-- PASSWORD DI ACCESSO (marker: cambio-password-v1) -->
+    <div class="card">
+      <div class="card-title">🔑 Password di accesso</div>
+      <p style="font-size:12px;color:#999;margin-bottom:14px;line-height:1.55">
+        La password con cui entri in Policettivo. Cambiarla ogni tanto è una buona abitudine, soprattutto se l'hai
+        digitata su un computer non tuo. Per cambiarla serve quella attuale: così nessuno può farlo al posto tuo
+        trovando il tuo account già aperto.
+      </p>
+      <div class="f-group">
+        <label class="f-label">Password attuale</label>
+        <input class="f-input" id="pw-vecchia" type="password" autocomplete="current-password" placeholder="quella che usi adesso">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Nuova password (almeno 8 caratteri)</label>
+        <input class="f-input" id="pw-nuova" type="password" autocomplete="new-password" placeholder="scegline una lunga, più delle maiuscole conta la lunghezza">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Ripeti la nuova password</label>
+        <input class="f-input" id="pw-conf" type="password" autocomplete="new-password" placeholder="riscrivila uguale">
+      </div>
+      <button class="btn-save" onclick="cambiaPassword()">Cambia password</button>
+      <span class="lst-status" id="pw-status"></span>
+    </div>
+
     <!-- CODICE STATISTICHE (marker: stat-pin-v1) -->
     <div class="card" id="pin-card" style="display:none">
       <div class="card-title">🔐 Codice per le Statistiche</div>
@@ -580,6 +604,40 @@
       }
     }
 
+    // ── Cambio password (marker: cambio-password-v1) ────────────────────────
+    // La password vecchia si verifica rifacendo il login con quella: se non e'
+    // giusta, Supabase rifiuta e non si va oltre. Non e' un vezzo — senza
+    // questo passaggio, chiunque trovi il tuo account gia' aperto potrebbe
+    // cambiarti la password e chiuderti fuori da casa tua.
+    let _mioEmail = ''
+
+    async function cambiaPassword() {
+      const vecchia = document.getElementById('pw-vecchia').value
+      const nuova   = document.getElementById('pw-nuova').value
+      const conf    = document.getElementById('pw-conf').value
+      const s = document.getElementById('pw-status')
+      function msg(t, ok) { s.textContent = t; s.className = 'lst-status' + (ok ? ' ok' : '') }
+
+      if (!vecchia || !nuova || !conf) { msg('Compila tutti e tre i campi.', false); return }
+      if (nuova !== conf)              { msg('Le due nuove password non coincidono.', false); return }
+      if (nuova.length < 8)            { msg('La nuova password deve essere di almeno 8 caratteri.', false); return }
+      if (nuova === vecchia)           { msg('La nuova password è uguale a quella attuale.', false); return }
+      if (!_mioEmail)                  { msg('Non riesco a leggere la tua email. Ricarica la pagina.', false); return }
+
+      msg('Verifico la password attuale…', false)
+      const { error: errLogin } = await _supabase.auth.signInWithPassword({ email: _mioEmail, password: vecchia })
+      if (errLogin) { msg('La password attuale non è corretta.', false); return }
+
+      msg('Aggiorno…', false)
+      const { error: errUpd } = await _supabase.auth.updateUser({ password: nuova })
+      if (errUpd) { msg('Errore: ' + (errUpd.message || ''), false); return }
+
+      document.getElementById('pw-vecchia').value = ''
+      document.getElementById('pw-nuova').value = ''
+      document.getElementById('pw-conf').value = ''
+      msg('Password cambiata. La prossima volta entra con quella nuova.', true)
+    }
+
     // ── Codice per le Statistiche (marker: stat-pin-v1) ─────────────────────
     // La card compare solo al ruolo master: sono le SUE statistiche a essere
     // protette. Il codice non torna mai indietro dal database: qui si sa solo
@@ -785,6 +843,7 @@
     async function init() {
       const { data: { session } } = await _supabase.auth.getSession()
       if (!session) { window.location.href = 'login.html'; return }
+      _mioEmail = session.user.email || ''      // cambio-password-v1
 
       const { data: prof } = await _supabase
         .from('professionals')
