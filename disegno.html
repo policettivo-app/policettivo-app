@@ -635,6 +635,7 @@
         // salva su visit_photos.annotazioni (jsonb)
         const _ann = linesToJSON()
         _ann.osservazioni = _mieVoci()
+        _ann.agg_il = new Date().toISOString()   // pdf-validato-v1: dice se la relazione AI e' invecchiata
         _ann.note = _pn ? _pn.value : ''
         if (_rotQui && _coppia.isRiferimento) _ann.rotazione = (window._polRot || []).slice()
         const { error: e1 } = await _supabase
@@ -664,6 +665,7 @@
       // osserva-ovunque-v1 — accanto ai disegni si salvano anche le voci
       // spuntate e la nota, come gia' avviene per le foto di visita.
       _annF.osservazioni = _mieVoci()
+      _annF.agg_il = new Date().toISOString()
       _annF.note = _pn ? _pn.value : ''
       if (_rotQui && _coppia.isRiferimento) _annF.rotazione = (window._polRot || []).slice()
       _annPaz[fotoSlot] = _annF

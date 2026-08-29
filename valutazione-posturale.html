@@ -566,6 +566,35 @@
     }
     .vp-pdf-modal-btn-close:hover { background: #f5f5f5; opacity: 1; }
     #vp-pdf-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.85); z-index: -1; }
+    /* pdf-validato-v1 — il pannello dove la relazione si legge, si corregge e si valida */
+    #vp-pdf-valida {
+      background: #fff; border-bottom: 1px solid #e3e3e0; padding: 12px 20px 14px;
+      flex-shrink: 0; max-height: 46vh; overflow-y: auto;
+    }
+    #vp-pdf-valida-avviso {
+      background: #fdf1f0; border-left: 4px solid #e53935; border-radius: 6px;
+      padding: 10px 12px; margin-bottom: 10px; font-size: 12.5px; line-height: 1.55; color: #5a1f1c;
+    }
+    .vp-pdf-valida-lbl { font-size: 11px; font-weight: 800; color: #999; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    #vp-pdf-relazione {
+      width: 100%; min-height: 120px; border: 1.5px solid #e3e3e0; border-radius: 10px;
+      padding: 10px; font-family: inherit; font-size: 13px; line-height: 1.55; resize: vertical; box-sizing: border-box;
+    }
+    .vp-pdf-check {
+      display: flex; align-items: flex-start; gap: 9px; margin-top: 10px;
+      font-size: 13px; line-height: 1.5; color: #1a1a1a; cursor: pointer; font-weight: 600;
+    }
+    .vp-pdf-check input { width: 20px; height: 20px; margin: 0; flex-shrink: 0; cursor: pointer; }
+    .vp-pdf-modal-btn[disabled] { opacity: .45; cursor: not-allowed; }
+    #vp-pdf-stato {
+      margin-top: 10px; background: #f6f6f4; border-left: 4px solid #FFD008; border-radius: 8px;
+      padding: 11px 13px; font-size: 13px; line-height: 1.55; color: #333;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    }
+    #vp-pdf-stato button {
+      background: #1a1a1a; color: #FFD008; border: none; border-radius: 8px;
+      padding: 8px 14px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    }
     @media (max-width: 768px) {
       #vp-pdf-preview-bar { height: auto; flex-direction: column; padding: 12px 16px; gap: 8px; }
       .vp-pdf-modal-btn { width: 100%; justify-content: center; min-height: 44px; }
@@ -878,47 +907,36 @@
         placeholder="Sintesi clinica, raccomandazioni, piano di trattamento…" oninput="scheduleSave()"></textarea>
     </div>
     <div style="margin-top:20px">
-      <button class="vp-pdf-btn" id="btn-genera-pdf-vp" onclick="showVPPDFOptionsModal()">📄 Genera PDF Valutazione Posturale</button>
+      <button class="vp-pdf-btn" id="btn-genera-pdf-vp" onclick="apriPDFPosturale()">📄 Genera PDF Valutazione Posturale</button>
+      <div id="vp-pdf-stato" style="display:none"></div>
     </div>
   </section>
 
 </div><!-- /main-content -->
 
-<!-- ====== VP PDF OPTIONS MODAL (pre-flight) ====== -->
-<div id="vp-pdf-options-modal" role="dialog" aria-modal="true" aria-label="Opzioni PDF valutazione posturale">
-  <div class="vp-pdf-options-box">
-    <div class="vp-pdf-options-title">📋 OPZIONI PDF POSTURALE</div>
-    <div class="vp-pdf-options-section-label">Relazione clinica</div>
-    <div class="vp-pdf-options-radio-group">
-      <label class="vp-pdf-options-radio-label">
-        <input type="radio" name="vp-pdf-modalita" value="singola" checked>
-        <span>
-          Con AI — relazione strutturata per piani
-          <span class="vp-pdf-options-radio-note">~10s · usa 1 credito AI</span>
-        </span>
-      </label>
-      <label class="vp-pdf-options-radio-label">
-        <input type="radio" name="vp-pdf-modalita" value="nessuna">
-        <span>
-          Senza AI — PDF rapido
-          <span class="vp-pdf-options-radio-note">istantaneo · nessun credito</span>
-        </span>
-      </label>
-    </div>
-    <div class="vp-pdf-options-actions">
-      <button class="vp-pdf-options-btn-cancel" onclick="closeVPPDFOptionsModal()">Annulla</button>
-      <button class="vp-pdf-options-btn-generate" onclick="confirmVPPDFOptions()">Genera PDF</button>
-    </div>
-  </div>
-</div>
+<!-- pdf-validato-v1 — il modale «Con AI / Senza AI» e' stato tolto: diceva una
+     cosa falsa (l'API riusava gia' la relazione della card) e faceva credere che
+     il PDF si generasse da solo. Adesso il PDF usa SEMPRE la relazione scritta e
+     validata dal professionista. -->
 
 <!-- ====== VP PDF PREVIEW MODAL ====== -->
 <div id="vp-pdf-preview-modal" role="dialog" aria-modal="true" aria-label="Anteprima PDF valutazione posturale">
   <div id="vp-pdf-modal-backdrop" onclick="closeVPPDFPreview()"></div>
   <div id="vp-pdf-preview-bar">
     <button class="vp-pdf-modal-btn vp-pdf-modal-btn-print" onclick="printVPPDFPreview()">🖨️ Stampa</button>
-    <button class="vp-pdf-modal-btn vp-pdf-modal-btn-save"  onclick="saveVPPDFPreview()" style="display:none">💾 Salva PDF</button>
+    <button class="vp-pdf-modal-btn vp-pdf-modal-btn-save"  id="vp-pdf-btn-salva" onclick="saveVPPDFPreview()" disabled>💾 Salva PDF in archivio</button>
     <button class="vp-pdf-modal-btn vp-pdf-modal-btn-close" onclick="closeVPPDFPreview()" aria-label="Chiudi anteprima">✕</button>
+  </div>
+  <!-- pdf-validato-v1 — niente PDF senza che il professionista abbia letto il
+       testo. Qui la relazione si corregge, e la spunta sblocca il salvataggio. -->
+  <div id="vp-pdf-valida">
+    <div id="vp-pdf-valida-avviso" style="display:none"></div>
+    <div class="vp-pdf-valida-lbl">Relazione clinica — correggila qui, il PDF userà questo testo</div>
+    <textarea id="vp-pdf-relazione" oninput="vpPdfRelazioneCambiata()" placeholder="Nessuna relazione: il PDF verrà generato senza."></textarea>
+    <label class="vp-pdf-check">
+      <input type="checkbox" id="vp-pdf-validata" onchange="vpPdfAggiornaSalva()">
+      <span>Ho letto la relazione e la valido: corrisponde a quello che ho osservato. Il documento porta la mia firma.</span>
+    </label>
   </div>
   <div id="vp-pdf-preview-scroll">
     <div id="vp-pdf-preview-body"></div>
@@ -1406,6 +1424,7 @@
     }
 
     await loadPhotos()
+    renderStatoPDF(v)          // pdf-validato-v1 — archivio
     setIndicator('saved', '')
   }
 
@@ -1475,7 +1494,12 @@
         // La rotazione e' della COPPIA: si stampa una volta sola, dal riferimento.
         const rot = (cop && cop.rotazione && cop.isRiferimento && Array.isArray(ann.rotazione)) ? ann.rotazione : []
         if (!oss.length && !note && !rot.length) continue
-        if (oss.length) lines.push('• ' + oss.join(', ') + pp)
+        // La voce spuntata finisce ANCHE nella nota (nota-modificabile-v1): se la
+        // nota le contiene gia' tutte, stampare pure l'elenco fa la riga doppia
+        // che si vedeva nel PDF. Vince la nota, che e' la versione del
+        // professionista.
+        const notaLeHaTutte = note && oss.length && oss.every(v => note.indexOf(v) >= 0)
+        if (oss.length && !notaLeHaTutte) lines.push('• ' + oss.join(', ') + pp)
         if (rot.length) lines.push('• Confronto fra i profili: ' + rot.join(', ') +
                                    ' — sospetto dal sagittale, da confermare sul frontale' + pp)
         if (note) lines.push('• ' + note + pp)
@@ -2918,6 +2942,16 @@
       monopodalico_note: document.getElementById('f-monopodalico-note')?.value.trim() || '',
       configurazione_suggerita: configSug || '',
       note_finali: document.getElementById('f-note-finali')?.value.trim() || '',
+      /* relazione-vede-le-foto-v1 — QUESTA era la causa del PDF che si
+         contraddiceva: il prompt non riceveva NIENTE delle osservazioni
+         annotate sulle foto, e la relazione scriveva «dati podoscopici non
+         documentati» mentre due righe sopra, nello stesso PDF, c'erano.
+         Le note per piano contengono gia' le voci spuntate (polSyncNoteRapide). */
+      piano_sagittale:          document.getElementById('note-piano-note_sagittale')?.value.trim() || '',
+      piano_frontale:           document.getElementById('note-piano-note_frontale')?.value.trim() || '',
+      piano_posteriore:         document.getElementById('note-piano-note_posteriore')?.value.trim() || '',
+      podoscopio_vista_sotto:   document.getElementById('note-piano-note_podoscopio_sotto')?.value.trim() || '',
+      podoscopio_vista_dietro:  document.getElementById('note-piano-note_podoscopio_dietro')?.value.trim() || '',
     }
 
     const prompt = `Sei un esperto di posturologia e tecnica Policettivo. Genera una relazione clinica posturale in italiano basata sulla valutazione seguente.
@@ -2950,7 +2984,10 @@ ISTRUZIONI:
       const testo = json.testo || ''
       if (json.ai_uses !== undefined) vpAiUses = json.ai_uses
 
-      await _sb.from('visits').update({ relazione_ai: testo }).eq('id', visitId)
+      await _sb.from('visits').update({
+        relazione_ai: testo,
+        relazione_ai_generata_il: new Date().toISOString()   // per accorgersi se invecchia
+      }).eq('id', visitId)
       document.getElementById('f-relazione-ai').value = testo
       result.style.display  = 'block'
       spinner.style.display = 'none'
@@ -3344,6 +3381,7 @@ ISTRUZIONI:
     const ann = linesToJSON()
     // Voci proprie + voci vecchie + voci fuori elenco: niente si perde.
     ann.osservazioni = window.polVociDaSalvare(window._lbStato || {}, window._lbObs || [])
+    ann.agg_il = new Date().toISOString()   // pdf-validato-v1: per sapere se la relazione e' invecchiata
     var _nt = document.getElementById('lb-note'); ann.note = _nt ? _nt.value : ''
     if (_rotQui && _lbCoppia.isRiferimento) ann.rotazione = (window._lbRot || []).slice()
     const { error } = await _sb.from('visit_photos').update({ annotazioni: ann }).eq('id', lbPhotoId)
@@ -3459,20 +3497,106 @@ ISTRUZIONI:
 
   // ====== PDF VALUTAZIONE POSTURALE ======
 
-  async function showVPPDFOptionsModal() {
+  /* pdf-validato-v1 ─────────────────────────────────────────────────────
+     Il PDF non puo' contenere un testo che il professionista non ha appena
+     letto: e' un documento che porta la sua firma.
+     Tre cose che prima non tornavano:
+     1. Il modale diceva «Con AI · ~10s · usa 1 credito», ma l'API (genera-pdf,
+        riga 82) usava GIA' `visits.relazione_ai`: il credito lo spendeva solo
+        se la card era vuota. L'etichetta era falsa.
+     2. La card salva con 2 secondi di ritardo (scheduleRelazioneAISave): chi
+        correggeva e cliccava subito si portava nel PDF il testo di prima.
+        Adesso si salva PRIMA di generare, sempre.
+     3. Il pulsante «Salva PDF» era `display:none` e non lo mostrava nessuno:
+        saveVPPDFPreview() era codice morto, e per questo il PDF non finiva mai
+        in archivio e andava rifatto ogni volta.
+     ------------------------------------------------------------------- */
+  function closeVPPDFOptionsModal() { /* modale rimosso: resta per il tasto Esc */ }
+
+  // Scarica subito quello che c'e' nella card, senza aspettare il debounce.
+  async function salvaRelazioneAdesso() {
+    clearTimeout(relazioneAITimer)
+    const testo = document.getElementById('f-relazione-ai')?.value.trim() || null
+    const { error } = await _sb.from('visits').update({ relazione_ai: testo }).eq('id', visitId)
+    if (error) { showToast('Relazione non salvata: ' + error.message); return undefined }
+    return testo
+  }
+
+  async function apriPDFPosturale() {
     await aiDisclosureGate()
-    const radio = document.querySelector('input[name="vp-pdf-modalita"][value="singola"]')
-    if (radio) radio.checked = true
-    document.getElementById('vp-pdf-options-modal').classList.add('open')
-  }
-  function closeVPPDFOptionsModal() {
-    document.getElementById('vp-pdf-options-modal').classList.remove('open')
-  }
-  function confirmVPPDFOptions() {
-    const selected = document.querySelector('input[name="vp-pdf-modalita"]:checked')
-    const modalita = selected ? selected.value : 'singola'
-    closeVPPDFOptionsModal()
+    const testo = await salvaRelazioneAdesso()
+    if (testo === undefined) return            // salvataggio fallito: non si procede
+    let modalita = 'singola'
+    if (!testo) {
+      if (!confirm('Non c\'e\' nessuna relazione clinica.\n\nOK = genero il PDF senza relazione.\nAnnulla = torno indietro e uso «Genera Relazione con AI».')) return
+      modalita = 'nessuna'
+    }
     generaPDFPosturale(modalita)
+  }
+
+  // Ultima modifica alle annotazioni delle foto (le mette li' chi salva:
+  // valutazione-posturale e disegno.html). Serve a dire se la relazione e'
+  // piu' vecchia dei dati su cui dovrebbe basarsi.
+  function vpUltimaAnnotazione() {
+    let max = null
+    Object.keys(photos || {}).forEach(t => {
+      let a = photos[t] && photos[t].annotazioni
+      if (typeof a === 'string') { try { a = JSON.parse(a) } catch (e) { a = null } }
+      if (a && a.agg_il && (!max || a.agg_il > max)) max = a.agg_il
+    })
+    return max
+  }
+
+  function vpPdfRelazioneCambiata() {
+    clearTimeout(window._vpPdfRenderTimer)
+    // Ogni correzione invalida la validazione precedente: si rilegge.
+    const chk = document.getElementById('vp-pdf-validata')
+    if (chk && chk.checked) { chk.checked = false; vpPdfAggiornaSalva() }
+    window._vpPdfRenderTimer = setTimeout(vpPdfRirenderizza, 400)
+  }
+
+  function vpPdfRirenderizza() {
+    if (!_vpPdfState) return
+    const testo = document.getElementById('vp-pdf-relazione')?.value.trim() || null
+    _vpPdfState.ai_relazione = testo
+    document.getElementById('vp-pdf-preview-body').innerHTML = buildPDFTemplatePosturale(
+      _vpPdfState.visit_data, _vpPdfState.patient, _vpPdfState.professional,
+      _vpPdfState.photos || [], testo
+    )
+    if (typeof window._vpApplyScale === 'function') window._vpApplyScale()
+  }
+
+  function vpPdfAggiornaSalva() {
+    const chk = document.getElementById('vp-pdf-validata')
+    const btn = document.getElementById('vp-pdf-btn-salva')
+    if (btn) btn.disabled = !(chk && chk.checked)
+  }
+
+  // ── ARCHIVIO ──────────────────────────────────────────────────────────
+  // Il bucket clinical-docs e' privato (le foto usano tutte createSignedUrl):
+  // il link pubblico salvato prima non si sarebbe aperto. Si tiene il percorso
+  // e si firma al momento dell'apertura.
+  function renderStatoPDF(v) {
+    const box = document.getElementById('vp-pdf-stato')
+    if (!box) return
+    if (!v || !v.pdf_validato_il) { box.style.display = 'none'; box.innerHTML = ''; return }
+    const d = new Date(v.pdf_validato_il)
+    box.style.display = 'flex'
+    box.innerHTML = '<span>📄 <b>PDF validato</b> il ' +
+      d.toLocaleDateString('it-IT') + ' alle ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) +
+      '</span><button type="button" onclick="apriPDFArchiviato()">Apri</button>' +
+      '<span style="color:#777;font-size:12px">Per rifarlo usa il pulsante qui sopra: la copia in archivio viene sostituita.</span>'
+    window._vpPdfArchivio = { path: v.pdf_storage_path || null, url: v.pdf_url || null }
+  }
+
+  async function apriPDFArchiviato() {
+    const a = window._vpPdfArchivio || {}
+    if (a.path) {
+      const { data, error } = await _sb.storage.from('clinical-docs').createSignedUrl(a.path, 300)
+      if (!error && data && data.signedUrl) { window.open(data.signedUrl, '_blank'); return }
+    }
+    if (a.url) { window.open(a.url, '_blank'); return }
+    showToast('PDF non disponibile: rigeneralo')
   }
 
   async function generaPDFPosturale(modalita = 'singola') {
@@ -3535,6 +3659,34 @@ ISTRUZIONI:
         ai_relazione
       )
 
+      // pdf-validato-v1 — il testo arriva nel pannello, modificabile, e il
+      // salvataggio resta chiuso finche' non c'e' la spunta.
+      const taRel = document.getElementById('vp-pdf-relazione')
+      if (taRel) taRel.value = ai_relazione || ''
+      const chk = document.getElementById('vp-pdf-validata')
+      if (chk) chk.checked = false
+      vpPdfAggiornaSalva()
+
+      // Avviso: la relazione e' piu' vecchia delle annotazioni sulle foto.
+      // E' il caso che ha prodotto un PDF in cui la relazione diceva «dati
+      // podoscopici non documentati» mentre due righe sopra c'erano.
+      const avviso = document.getElementById('vp-pdf-valida-avviso')
+      if (avviso) {
+        const ultima = vpUltimaAnnotazione()
+        const gen    = visit_data.relazione_ai_generata_il
+        if (ai_relazione && ultima && gen && ultima > gen) {
+          const du = new Date(ultima)
+          avviso.style.display = 'block'
+          avviso.innerHTML = '<b>Attenzione: hai annotato delle foto dopo aver generato questa relazione</b> ' +
+            '(ultima annotazione il ' + du.toLocaleDateString('it-IT') + ' alle ' +
+            du.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) + ').<br>' +
+            'La relazione potrebbe dire che un dato manca mentre nel PDF c\'è. Rileggila, correggila qui, ' +
+            'oppure chiudi e rigenerala con «Genera Relazione con AI».'
+        } else {
+          avviso.style.display = 'none'; avviso.innerHTML = ''
+        }
+      }
+
       const modal = document.getElementById('vp-pdf-preview-modal')
       modal.style.display = 'flex'
       document.body.style.overflow = 'hidden'
@@ -3561,6 +3713,7 @@ ISTRUZIONI:
         setTimeout(applyVPPDFScale, 100)
         setTimeout(applyVPPDFScale, 300)
       }
+      window._vpApplyScale = applyVPPDFScaleSafe   // serve dopo ogni correzione
       applyVPPDFScaleSafe()
       if (_vpPdfScaleCleanup) _vpPdfScaleCleanup()
       window.addEventListener('resize', applyVPPDFScale)
@@ -3644,12 +3797,27 @@ ISTRUZIONI:
         .from('clinical-docs')
         .upload(_vpPdfState.storagePath, await pdfBlob.arrayBuffer(), { contentType: 'application/pdf', upsert: true })
 
-      if (!upErr) {
-        const { data: { publicUrl } } = _sb.storage.from('clinical-docs').getPublicUrl(_vpPdfState.storagePath)
-        await _sb.from('visits').update({ pdf_url: publicUrl }).eq('id', visitId)
-      }
+      if (upErr) throw new Error('PDF non archiviato: ' + upErr.message)
 
-      showToast('✅ PDF salvato')
+      const { data: pub } = _sb.storage.from('clinical-docs').getPublicUrl(_vpPdfState.storagePath)
+      const validatoIl = new Date().toISOString()
+      // Si salva anche il PERCORSO: il bucket e' privato, il link pubblico da
+      // solo non basta ad aprirlo.
+      const patch = {
+        pdf_url: (pub && pub.publicUrl) || null,
+        pdf_storage_path: _vpPdfState.storagePath,
+        pdf_validato_il: validatoIl,
+        relazione_ai: _vpPdfState.ai_relazione || null
+      }
+      const { error: updErr } = await _sb.from('visits').update(patch).eq('id', visitId)
+      if (updErr) throw new Error('PDF caricato ma non registrato: ' + updErr.message)
+
+      // La correzione fatta nell'anteprima e' quella buona: torna anche nella card.
+      const elAI = document.getElementById('f-relazione-ai')
+      if (elAI) elAI.value = _vpPdfState.ai_relazione || ''
+      renderStatoPDF(Object.assign({}, patch))
+
+      showToast('✅ PDF validato e archiviato')
     } catch (e) {
       console.error('[PDF VP Save]', e)
       showToast('Errore generazione PDF: ' + e.message)
