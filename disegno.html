@@ -187,7 +187,9 @@
     t = t.replace(new RegExp('(^|\\.\\s*)' + v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\.', 'i'), '$1');
     nt.value = t.replace(/\s{2,}/g,' ').replace(/^[.\s]+/,'').trim();
   }
-  /* sagittale-condiviso-v1 — stato del pannello.
+  /* sagittale-condiviso-v1 + vocabolario-unico-v1 — stato del pannello.
+     Le voci e le regole di condivisione stanno tutte in js/osservazioni.js:
+     qui si disegna e si salva soltanto.
      _polObs  = voci sagittali (vivono sul lato SINISTRO di riferimento)
      _polRot  = voci di rotazione (un solo record, sempre sul sinistro)
      _polObsLegacy = voci gia' salvate su QUESTA foto destra prima della
@@ -209,30 +211,21 @@
     if(i>=0){ window._polObs.splice(i,1); el.classList.remove('active'); _polNotaTogli(v); }
     else { window._polObs.push(v); el.classList.add('active'); _polNotaAggiungi(v); }
   };
-  window.polRenderObs = function(tipo, opts){
+  window.polRenderObs = function(stato){
     var box=document.getElementById('pol-obs-chips'); if(!box) return;
     if(!window.polObsHtml){ box.innerHTML=''; return; }
-    opts = opts || {};
     box.innerHTML = window.polObsHtml({
-      tipo: tipo,
+      tipo: stato.tipo, stato: stato,
       chipClass: 'pol-chip', grpClass: 'pol-obs-grp', rowClass: 'pol-obs-row',
       chipClick: 'polToggleObsChip(this)',
-      sagSel: opts.sagSel || [], rotSel: opts.rotSel || [],
-      legacy: opts.legacy || [], legacyClick: 'polSpostaLegacy()',
-      gemellaPresente: !!opts.gemellaPresente
+      legacyClick: 'polSpostaLegacy()'
     });
   };
-  window.polRestoreObs = function(ann, opts){
-    opts = opts || {};
-    window._polObs = (opts.sagSel || []).slice();
-    window._polRot = (opts.rotSel || []).slice();
-    window._polObsLegacy = (opts.legacy || []).slice();
-    var chips=document.querySelectorAll('#pol-obs-chips .pol-chip');
-    for(var i=0;i<chips.length;i++){
-      var v=chips[i].getAttribute('data-v');
-      var lista = chips[i].getAttribute('data-rot')==='1' ? window._polRot : window._polObs;
-      chips[i].classList.toggle('active', lista.indexOf(v)>=0);
-    }
+  window.polRestoreObs = function(ann, stato){
+    window._polStato = stato;
+    window._polObs = (stato.editabili || []).slice();
+    window._polRot = (stato.rot || []).slice();
+    window._polObsLegacy = (stato.legacy || []).slice();
     var nt=document.getElementById('pol-note'); if(nt) nt.value=(ann && ann.note)?ann.note:'';
   };
   </script>
@@ -436,20 +429,19 @@
        toccano; la rotazione si compila da tutte e due le foto ma finisce in un
        record solo. */
     function polDisegnaPannello(propria) {
-      const rif   = _annRif(propria)
-      const sagSel = (rif && Array.isArray(rif.osservazioni)) ? rif.osservazioni.slice() : []
-      const rotSel = (rif && Array.isArray(rif.rotazione))    ? rif.rotazione.slice()    : []
-      const mia    = _parseAnn(propria)
-      const legacy = (_coppia && !_coppia.isRiferimento && mia && Array.isArray(mia.osservazioni))
-        ? mia.osservazioni.filter(v => sagSel.indexOf(v) < 0)
-        : []
-      const opts = { sagSel, rotSel, legacy, gemellaPresente: _gemellaPresente }
-      window.polRenderObs(_tipoCorrente, opts)
-      window.polRestoreObs(mia, opts)
-      // La nota libera resta di questa foto: sul destro serve per la qualita'
-      // dello scatto e per cio' che si vede solo da quel lato. Una riga.
+      const mia = _parseAnn(propria)
+      const stato = window.polStatoPannello({
+        tipo: _tipoCorrente,
+        annPropria: mia,
+        annRiferimento: _annRif(propria),
+        gemellaPresente: _gemellaPresente
+      })
+      window.polRenderObs(stato)
+      window.polRestoreObs(mia, stato)
+      // La nota libera resta di questa foto: sul lato non di riferimento serve
+      // per la qualita' dello scatto e per cio' che si vede solo da li'.
       const nt = document.getElementById('pol-note')
-      if (nt && _coppia && !_coppia.isRiferimento) {
+      if (nt && _coppia && !_coppia.isRiferimento && _coppia.modo === 'tutto') {
         nt.placeholder = 'Solo di questa foto: qualita\' dello scatto (es. paziente non perfettamente di profilo) o dettagli visibili solo da destra.'
       }
     }
@@ -459,34 +451,45 @@
        con un click, e restano tutte. */
     window.polSpostaLegacy = async function () {
       const n = (window._polObsLegacy || []).length
-      if (!n) return
-      if (!confirm('Sposto ' + n + ' voci sulla foto sagittale sinistra, dove ora vivono le voci condivise?\n\nNon si perde niente: cambiano posto.')) return
-      const unite = (window._polObs || []).slice()
-      ;(window._polObsLegacy || []).forEach(v => { if (unite.indexOf(v) < 0) unite.push(v) })
+      if (!n || !_coppia) return
+      if (!confirm('Sposto ' + n + ' voci sulla foto ' + _coppia.nomeRif + ', dove ora vivono le voci condivise?\n\nNon si perde niente: cambiano posto.')) return
+      // Si parte dalle voci che il riferimento ha DAVVERO (rilette), non da
+      // quelle mostrate: se il riferimento ne ha di sue fuori elenco, restano.
+      const _unisci = (base) => {
+        const u = (Array.isArray(base) ? base : []).slice()
+        ;(window._polObsLegacy || []).forEach(v => { if (u.indexOf(v) < 0) u.push(v) })
+        return u
+      }
+      // Su questa foto restano le sue voci proprie e quelle fuori elenco:
+      // se ne vanno soltanto quelle appena spostate.
+      const _senzaLegacy = () => window.polVociDaSalvare(
+        { legacy: [], fuoriElenco: (window._polStato || {}).fuoriElenco || [] },
+        window._polObs || []
+      )
       const status = document.getElementById('nav-status')
       if (status) status.textContent = '⏳ Sposto...'
       try {
         if (vpId) {
-          if (!_sibRecord) { if (status) status.textContent = 'Foto sinistra assente'; return }
+          if (!_sibRecord) { if (status) status.textContent = 'Foto di riferimento assente'; return }
           const { data: fresh } = await _supabase
             .from('visit_photos').select('annotazioni').eq('id', _sibRecord.id).maybeSingle()
           const annRif = _parseAnn(fresh && fresh.annotazioni) || {}
-          annRif.osservazioni = unite
+          annRif.osservazioni = _unisci(annRif.osservazioni)
           const { error: e1 } = await _supabase
             .from('visit_photos').update({ annotazioni: annRif }).eq('id', _sibRecord.id)
           if (e1) { if (status) status.textContent = 'Errore'; return }
           _sibRecord.annotazioni = annRif
           const annMia = _parseAnn(_vpRecord && _vpRecord.annotazioni) || {}
-          annMia.osservazioni = []
+          annMia.osservazioni = _senzaLegacy()
           await _supabase.from('visit_photos').update({ annotazioni: annMia }).eq('id', vpId)
           _vpRecord.annotazioni = annMia
           polDisegnaPannello(annMia)
         } else {
           const annRif = _parseAnn(_annPaz[_coppia.gemella]) || {}
-          annRif.osservazioni = unite
+          annRif.osservazioni = _unisci(annRif.osservazioni)
           _annPaz[_coppia.gemella] = annRif
           const annMia = _parseAnn(_annPaz[fotoSlot]) || {}
-          annMia.osservazioni = []
+          annMia.osservazioni = _senzaLegacy()
           _annPaz[fotoSlot] = annMia
           patient.foto_annotazioni = JSON.stringify(_annPaz)
           const { error } = await _supabase
@@ -622,21 +625,24 @@
            sinistro. Mai due copie: due copie possono divergere, ed e'
            esattamente cio' che questa modifica elimina. */
       const _lat_dx = !!(_coppia && !_coppia.isRiferimento)
+      const _rotQui = !!(_coppia && _coppia.rotazione)
       var _pn = document.getElementById('pol-note')
+      // Le voci proprie + quelle vecchie + quelle fuori elenco: non si perde
+      // niente di cio' che era gia' scritto su questa foto.
+      const _mieVoci = () => window.polVociDaSalvare(window._polStato || {}, window._polObs || [])
 
       if (vpId) {
         // salva su visit_photos.annotazioni (jsonb)
         const _ann = linesToJSON()
-        _ann.osservazioni = _lat_dx ? (window._polObsLegacy || []).slice()
-                                    : (window._polObs || []).slice()
+        _ann.osservazioni = _mieVoci()
         _ann.note = _pn ? _pn.value : ''
-        if (_coppia && _coppia.isRiferimento) _ann.rotazione = (window._polRot || []).slice()
+        if (_rotQui && _coppia.isRiferimento) _ann.rotazione = (window._polRot || []).slice()
         const { error: e1 } = await _supabase
           .from('visit_photos').update({ annotazioni: _ann }).eq('id', vpId)
         if (!e1 && _vpRecord) _vpRecord.annotazioni = _ann
 
         let e2 = null
-        if (!e1 && _lat_dx && _sibRecord && _gemellaPresente) {
+        if (!e1 && _lat_dx && _rotQui && _sibRecord && _gemellaPresente) {
           // rilettura prima di scrivere: il record del riferimento e' l'unica
           // copia, non si sovrascrive alla cieca cio' che ci ha messo l'altro lato.
           const { data: fresh } = await _supabase
@@ -657,14 +663,13 @@
       const _annF = linesToJSON()
       // osserva-ovunque-v1 — accanto ai disegni si salvano anche le voci
       // spuntate e la nota, come gia' avviene per le foto di visita.
-      _annF.osservazioni = _lat_dx ? (window._polObsLegacy || []).slice()
-                                   : (window._polObs || []).slice()
+      _annF.osservazioni = _mieVoci()
       _annF.note = _pn ? _pn.value : ''
-      if (_coppia && _coppia.isRiferimento) _annF.rotazione = (window._polRot || []).slice()
+      if (_rotQui && _coppia.isRiferimento) _annF.rotazione = (window._polRot || []).slice()
       _annPaz[fotoSlot] = _annF
       // Qui le due foto stanno nello stesso JSON: la rotazione del lato destro
       // si scrive nella voce del sinistro, nello stesso salvataggio.
-      if (_lat_dx && _gemellaPresente) {
+      if (_lat_dx && _rotQui && _gemellaPresente) {
         const annRif = _parseAnn(_annPaz[_coppia.gemella]) || {}
         annRif.rotazione = (window._polRot || []).slice()
         _annPaz[_coppia.gemella] = annRif

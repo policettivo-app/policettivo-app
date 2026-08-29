@@ -1473,7 +1473,7 @@
           if (ossRif.length) oss = oss.filter(v => ossRif.indexOf(v) < 0)
         }
         // La rotazione e' della COPPIA: si stampa una volta sola, dal riferimento.
-        const rot = (cop && cop.isRiferimento && Array.isArray(ann.rotazione)) ? ann.rotazione : []
+        const rot = (cop && cop.rotazione && cop.isRiferimento && Array.isArray(ann.rotazione)) ? ann.rotazione : []
         if (!oss.length && !note && !rot.length) continue
         if (oss.length) lines.push('• ' + oss.join(', ') + pp)
         if (rot.length) lines.push('• Confronto fra i profili: ' + rot.join(', ') +
@@ -3058,21 +3058,17 @@ ISTRUZIONI:
     return _lbCoppia.isRiferimento ? photos[_lbSlot] : photos[_lbCoppia.gemella]
   }
   function lbDisegnaPannello(ann) {
-    const mia    = _lbParseAnn(ann)
-    const rif    = _lbCoppia ? _lbParseAnn((_lbRecordRif() || {}).annotazioni) : mia
-    const sagSel = (rif && Array.isArray(rif.osservazioni)) ? rif.osservazioni.slice() : []
-    const rotSel = (rif && Array.isArray(rif.rotazione))    ? rif.rotazione.slice()    : []
-    const legacy = (_lbCoppia && !_lbCoppia.isRiferimento && mia && Array.isArray(mia.osservazioni))
-      ? mia.osservazioni.filter(v => sagSel.indexOf(v) < 0)
-      : []
-    const opts = {
-      sagSel, rotSel, legacy,
+    const mia = _lbParseAnn(ann)
+    const stato = window.polStatoPannello({
+      tipo: _lbSlot,
+      annPropria: mia,
+      annRiferimento: _lbCoppia ? _lbParseAnn((_lbRecordRif() || {}).annotazioni) : mia,
       gemellaPresente: !!(_lbCoppia && photos[_lbCoppia.gemella])
-    }
-    if (window.renderObsForTipo) window.renderObsForTipo(_lbSlot, opts)
-    if (window.restoreObs)       window.restoreObs(mia, opts)
+    })
+    if (window.renderObsForTipo) window.renderObsForTipo(stato)
+    if (window.restoreObs)       window.restoreObs(mia, stato)
     const nt = document.getElementById('lb-note')
-    if (nt && _lbCoppia && !_lbCoppia.isRiferimento) {
+    if (nt && _lbCoppia && !_lbCoppia.isRiferimento && _lbCoppia.modo === 'tutto') {
       nt.placeholder = 'Solo di questa foto: qualita\' dello scatto (es. paziente non perfettamente di profilo) o dettagli visibili solo da destra.'
     } else if (nt) {
       nt.placeholder = 'Note libere su questa foto...'
@@ -3085,17 +3081,23 @@ ISTRUZIONI:
     const n = (window._lbObsLegacy || []).length
     if (!n || !_lbCoppia) return
     const rec = photos[_lbCoppia.gemella]
-    if (!rec) { showToast('Manca la foto sagittale sinistra'); return }
-    if (!confirm('Sposto ' + n + ' voci sulla foto sagittale sinistra, dove ora vivono le voci condivise?\n\nNon si perde niente: cambiano posto.')) return
-    const unite = (window._lbObs || []).slice()
-    ;(window._lbObsLegacy || []).forEach(v => { if (unite.indexOf(v) < 0) unite.push(v) })
+    if (!rec) { showToast('Manca la foto ' + _lbCoppia.nomeRif); return }
+    if (!confirm('Sposto ' + n + ' voci sulla foto ' + _lbCoppia.nomeRif + ', dove ora vivono le voci condivise?\n\nNon si perde niente: cambiano posto.')) return
     const annRif = _lbParseAnn(rec.annotazioni) || {}
+    // Si parte da cio' che il riferimento ha davvero: se ha voci sue fuori
+    // elenco, restano.
+    const unite = (Array.isArray(annRif.osservazioni) ? annRif.osservazioni : []).slice()
+    ;(window._lbObsLegacy || []).forEach(v => { if (unite.indexOf(v) < 0) unite.push(v) })
     annRif.osservazioni = unite
     const { error: e1 } = await _sb.from('visit_photos').update({ annotazioni: annRif }).eq('id', rec.id)
     if (e1) { showToast('Errore spostamento'); return }
     rec.annotazioni = annRif
     const mia = _lbParseAnn(photos[_lbSlot] && photos[_lbSlot].annotazioni) || {}
-    mia.osservazioni = []
+    // Su questa foto restano le sue voci proprie e quelle fuori elenco.
+    mia.osservazioni = window.polVociDaSalvare(
+      { legacy: [], fuoriElenco: (window._lbStato || {}).fuoriElenco || [] },
+      window._lbObs || []
+    )
     const { error: e2 } = await _sb.from('visit_photos').update({ annotazioni: mia }).eq('id', lbPhotoId)
     if (e2) { showToast('Errore spostamento'); return }
     if (photos[_lbSlot]) photos[_lbSlot].annotazioni = mia
@@ -3337,16 +3339,18 @@ ISTRUZIONI:
     /* sagittale-condiviso-v1 — il lato destro non riscrive le voci sagittali
        (sono del sinistro) e non tocca le proprie voci vecchie; la rotazione la
        scrive sul record sinistro. Una copia sola. */
-    const _dx = !!(_lbCoppia && !_lbCoppia.isRiferimento)
+    const _dx    = !!(_lbCoppia && !_lbCoppia.isRiferimento)
+    const _rotQui = !!(_lbCoppia && _lbCoppia.rotazione)
     const ann = linesToJSON()
-    ann.osservazioni = _dx ? (window._lbObsLegacy || []).slice() : (window._lbObs || []).slice()
+    // Voci proprie + voci vecchie + voci fuori elenco: niente si perde.
+    ann.osservazioni = window.polVociDaSalvare(window._lbStato || {}, window._lbObs || [])
     var _nt = document.getElementById('lb-note'); ann.note = _nt ? _nt.value : ''
-    if (_lbCoppia && _lbCoppia.isRiferimento) ann.rotazione = (window._lbRot || []).slice()
+    if (_rotQui && _lbCoppia.isRiferimento) ann.rotazione = (window._lbRot || []).slice()
     const { error } = await _sb.from('visit_photos').update({ annotazioni: ann }).eq('id', lbPhotoId)
     if (error) { showToast('Errore salvataggio annotazioni'); return }
     if (lbTipo && photos[lbTipo]) photos[lbTipo].annotazioni = ann
 
-    if (_dx) {
+    if (_dx && _rotQui) {
       const rec = photos[_lbCoppia.gemella]
       if (rec && rec.id) {
         const annRif = _lbParseAnn(rec.annotazioni) || {}
@@ -4196,7 +4200,8 @@ ISTRUZIONI:
   </div>
 </div>
   <script>
-  /* sagittale-condiviso-v1 — stesso pannello di disegno.html, stesse regole.
+  /* sagittale-condiviso-v1 + vocabolario-unico-v1 — stesso pannello di
+     disegno.html, stesse regole, stesse voci (js/osservazioni.js).
      _lbObs = voci sagittali (vivono sul lato SINISTRO di riferimento)
      _lbRot = voci di rotazione (un record solo, sempre sul sinistro)
      _lbObsLegacy = voci gia' salvate su questa foto destra da prima. */
@@ -4217,30 +4222,21 @@ ISTRUZIONI:
     if(i>=0){ window._lbObs.splice(i,1); el.classList.remove('active'); }
     else { window._lbObs.push(v); el.classList.add('active'); }
   };
-  window.renderObsForTipo = function(tipo, opts){
+  window.renderObsForTipo = function(stato){
     var box=document.getElementById('lb-obs-chips'); if(!box) return;
     if(!window.polObsHtml){ box.innerHTML=''; return; }
-    opts = opts || {};
     box.innerHTML = window.polObsHtml({
-      tipo: tipo,
+      tipo: stato.tipo, stato: stato,
       chipClass: 'chip', grpClass: 'lb-obs-grp', rowClass: 'lb-obs-row',
       chipClick: 'toggleObsChipEl(this)',
-      sagSel: opts.sagSel || [], rotSel: opts.rotSel || [],
-      legacy: opts.legacy || [], legacyClick: 'lbSpostaLegacy()',
-      gemellaPresente: !!opts.gemellaPresente
+      legacyClick: 'lbSpostaLegacy()'
     });
   };
-  window.restoreObs = function(ann, opts){
-    opts = opts || {};
-    window._lbObs = (opts.sagSel || []).slice();
-    window._lbRot = (opts.rotSel || []).slice();
-    window._lbObsLegacy = (opts.legacy || []).slice();
-    var chips=document.querySelectorAll('#lb-obs-chips .chip');
-    for(var i=0;i<chips.length;i++){
-      var v=chips[i].getAttribute('data-v');
-      var lista = chips[i].getAttribute('data-rot')==='1' ? window._lbRot : window._lbObs;
-      chips[i].classList.toggle('active', lista.indexOf(v)>=0);
-    }
+  window.restoreObs = function(ann, stato){
+    window._lbStato = stato;
+    window._lbObs = (stato.editabili || []).slice();
+    window._lbRot = (stato.rot || []).slice();
+    window._lbObsLegacy = (stato.legacy || []).slice();
     var nt=document.getElementById('lb-note'); if(nt) nt.value=(ann && ann.note)?ann.note:'';
   };
   </script>

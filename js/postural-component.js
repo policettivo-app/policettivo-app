@@ -1,13 +1,25 @@
 // Shared postural data — single source of truth
 // Used by: valutazione-posturale.html, visita.html
 
-const POSTURAL_OBSERVATIONS = {
-  sagittale:        ['Allineamento sagittale neutro','Testa anteriorizzata','Testa retratta','Ipercifosi dorsale','Dorso piatto','Iperlordosi lombare','Ipolordosi lombare','Bacino in antiversione','Bacino in retroversione','Spalle anteposte','Spalle posteriorizzate','Ginocchia flesse','Ginocchia recurvate','Carico anteriore','Carico posteriore','Appoggio pronatorio','Appoggio supinatorio','Respirazione toracica','Respirazione diaframmatica','Assetto rigido','Assetto ipotonico'],
-  frontale:         ['Allineamento frontale neutro','Testa inclinata dx','Testa inclinata sx','Spalla dx elevata','Spalla sx elevata','Scapole asimmetriche','Tronco inclinato dx','Tronco inclinato sx','Scoliosi funzionale','Bacino elevato dx','Bacino elevato sx','Bacino ruotato','Ginocchio valgo','Ginocchio varo','Piede pronato dx','Piede pronato sx','Piede supinato dx','Piede supinato sx','Carico prevalente dx','Carico prevalente sx'],
-  posteriore:       ['Allineamento posteriore neutro','Testa inclinata dx','Testa inclinata sx','Spalla dx elevata','Spalla sx elevata','Scapola alata dx','Scapola alata sx','Scapole asimmetriche','Tronco deviato dx','Tronco deviato sx','Scoliosi evidente','Bacino elevato dx','Bacino elevato sx','Glutei asimmetrici','Ginocchio valgo dx','Ginocchio valgo sx','Ginocchio varo dx','Ginocchio varo sx','Tendine achilleo valgo dx','Tendine achilleo valgo sx','Tendine achilleo varo dx','Tendine achilleo varo sx','Appoggio calcaneare asimmetrico'],
-  podoscopio_sotto: ['Allineamento podalico neutro','Arco mediale ridotto','Arco mediale aumentato','Piede piatto dx','Piede piatto sx','Piede cavo dx','Piede cavo sx','Ipercarico avampiede','Ipercarico retropiede','Carico mediale prevalente','Carico laterale prevalente','Alluce valgo dx','Alluce valgo sx','Dita a griffe','Appoggio asimmetrico','Impronta pronata dx','Impronta pronata sx','Impronta supinata dx','Impronta supinata sx','Scarso appoggio dita'],
-  podoscopio_dietro:['Allineamento neutro arti inferiori','Calcagno valgo dx','Calcagno valgo sx','Calcagno varo dx','Calcagno varo sx','Tendine achilleo deviato dx','Tendine achilleo deviato sx','Retropiede pronato dx','Retropiede pronato sx','Retropiede supinato dx','Retropiede supinato sx','Asimmetria retropodalica','Carico prevalente dx','Carico prevalente sx','Rotazione tibiale interna','Rotazione tibiale esterna','Ginocchia valghe','Ginocchia vare','Appoggio instabile','Appoggio simmetrico'],
-}
+/* vocabolario-unico-v1 (29 ago 2026)
+   Le voci NON stanno piu' qui: la fonte unica e' `js/osservazioni.js`.
+   Prima c'erano due elenchi paralleli per le stesse cose — "Spalla dx elevata"
+   in questo file, "Spalla dx piu' alta" nell'altro — e la stessa crocetta
+   entrava nel database con due nomi a seconda della pagina da cui la mettevi.
+   Una crocetta che cambia nome non si conta su duecento pazienti.
+   ⚠️ Chi usa questo file deve caricare PRIMA js/osservazioni.js.
+   Se manca, si resta senza elenco invece di mostrarne uno diverso: meglio un
+   pannello vuoto che due vocabolari che si contraddicono. */
+const POSTURAL_OBSERVATIONS = (function () {
+  const piani = ['sagittale', 'frontale', 'posteriore', 'podoscopio_sotto', 'podoscopio_dietro']
+  const out = {}
+  const fonte = (typeof window !== 'undefined' && window.polVociPiano) ? window.polVociPiano : null
+  piani.forEach(p => { out[p] = fonte ? fonte(p) : [] })
+  if (!fonte && typeof console !== 'undefined') {
+    console.warn('[postural-component] js/osservazioni.js non caricato: elenco osservazioni vuoto')
+  }
+  return out
+})()
 
 // Canonical photo plane definitions
 const POSTURAL_PHOTO_PLANES = [
