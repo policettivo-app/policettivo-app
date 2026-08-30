@@ -499,6 +499,26 @@
       background: #000; color: #FFD008; font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
     }
 
+    /* ====== visita-importa-posturale-v1: scelta della posturale ====== */
+    .ipb-err { margin: 8px 0 2px; padding: 9px 11px; background: #fff1f0; border: 1.5px solid #f3c9c9;
+               border-radius: 8px; color: #b3261e; font-size: 12px; font-weight: 600; }
+    #scelta-posturale-modal { display: none; position: fixed; inset: 0; z-index: 965; background: rgba(0,0,0,.55);
+                              align-items: center; justify-content: center; padding: 20px; }
+    #scelta-posturale-modal.open { display: flex; }
+    .sp-card { background: #fff; border-radius: 16px; width: 100%; max-width: 520px; max-height: 85vh;
+               overflow-y: auto; padding: 20px; }
+    .sp-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+    .sp-sub { font-size: 12px; color: #777; line-height: 1.4; margin-bottom: 14px; }
+    .sp-item { display: block; width: 100%; text-align: left; background: #fafafa; border: 1.5px solid #e6e6e6;
+               border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; font-family: inherit; }
+    .sp-item:hover { border-color: #FFD008; background: #fffdf0; }
+    .sp-item-top { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+    .sp-item-foto { background: #000; color: #FFD008; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+    .sp-item-cfg { font-size: 11px; font-weight: 700; color: #8a7000; margin-top: 4px; }
+    .sp-item-note { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.35; }
+    .sp-cancel { width: 100%; margin-top: 6px; padding: 12px; border: none; border-radius: 10px;
+                 background: #f0f0f0; font-family: inherit; font-weight: 700; cursor: pointer; }
+
     /* ====== MENU «da dove prendo la foto» (uguale alla posturale) ====== */
     #upload-menu-modal { display: none; position: fixed; inset: 0; z-index: 960; background: rgba(0,0,0,.55); align-items: flex-end; justify-content: center; }
     #upload-menu-modal.open { display: flex; }
@@ -687,7 +707,7 @@
 
     /* Carousel */
     .s3-slot-paired {
-      position: relative; aspect-ratio: 3/4; border: 1.5px dashed #ddd;
+      position: relative; aspect-ratio: 2/3; border: 1.5px dashed #ddd;
       border-radius: 10px; overflow: hidden; background: #fafafa; transition: border-color .2s;
       min-height: 90px; cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
@@ -745,23 +765,33 @@
     /* Note per piano */
     .s3-plane-note-label { font-size: 11px; font-weight: 700; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .3px; }
 
+    /* ====== visita-layout-uguale-v1 ======
+       Stessa impaginazione della valutazione posturale (buildPhotoGrid):
+       tre gruppi in colonna — Sagittale a larghezza piena, poi Frontale +
+       Posteriore su due colonne, poi Podoscopio su due colonne.
+       Prima la visita incolonnava le sezioni e limitava ogni coppia a 380px:
+       le foto venivano larghe 380 invece di 574. */
+    .s3-pp-group + .s3-pp-group { margin-top: 28px; }
+    .s3-pp-group:first-child .s3-section-divider { border-top: none; padding-top: 0; margin-top: 0; }
+    .s3-pp-row-2 { display: flex; flex-direction: column; gap: 14px; }
+    .s3-pp-col   { display: flex; flex-direction: column; gap: 8px; }
+    .s3-pp-sublabel {
+      font-size: 10px; font-weight: 800; color: #333;
+      text-transform: uppercase; letter-spacing: .8px; padding-bottom: 4px;
+    }
+
     /* ── RESPONSIVE DESKTOP ─────────────────────────────── */
     @media (min-width: 768px) {
       .visita-main { max-width: 1200px; padding: 20px 32px 120px; }
-      .s3-pairs-row > * { max-width: 380px; }
     }
     @media (min-width: 1024px) {
-      /* Step 3: grid 2 colonne — Sagittale piena larghezza, coppie affiancate */
-      #s3-foto-grid {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-        padding: 16px 0 16px !important;
-      }
-      .s3-photo-section:first-child {
-        grid-column: 1 / -1;
-      }
+      .s3-pp-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
       .s3-slot-paired { aspect-ratio: 3/4; }
+      /* La scheda delle foto arriva ai 1200px pieni come la posturale
+         (annulla i 32px di lato di .visita-main): dentro restano i 16px del
+         grid, e la foto viene larga 574 invece di 380. Il margine si mette
+         sulla SCHEDA, non sul grid, se no i titoli escono dal riquadro. */
+      #s3-foto-card { margin-left: -32px; margin-right: -32px; }
     }
 
     /* ====== PDF PREVIEW MODAL ====== */
@@ -1218,15 +1248,17 @@
         <span class="ipb-badge" id="ipb-config"></span>
       </div>
       <div class="ipb-note" id="ipb-note"></div>
+      <div class="ipb-err" id="ipb-errore" style="display:none"></div>
       <div class="ipb-actions">
-        <button class="ipb-btn-import" onclick="importDatiPosturale()">📥 Importa dati</button>
+        <button class="ipb-btn-import" onclick="importDatiPosturale()">📥 Importa dati e foto</button>
+        <button class="ipb-btn-open" id="ipb-btn-scegli" onclick="apriSceltaPosturale()" style="display:none">Scegli valutazione…</button>
         <button class="ipb-btn-open" id="ipb-btn-open" onclick="apriValutazionePosturale()">Apri valutazione</button>
         <button class="ipb-btn-ignore" onclick="ignoraBannerPosturale()">Ignora</button>
       </div>
     </div>
 
     <!-- A) GALLERIA FOTO -->
-    <div class="field-group" style="padding:0;overflow:hidden">
+    <div class="field-group" id="s3-foto-card" style="padding:0;overflow:hidden">
       <div style="padding:18px 16px 10px;display:flex;align-items:center;justify-content:space-between">
         <label class="field-label ds-label" style="margin-bottom:0">Foto posturali</label>
         <span id="s3-foto-count" style="font-size:11px;color:#999;font-weight:600;font-family:'Montserrat',sans-serif">0 / 12</span>
@@ -1570,6 +1602,17 @@
     <div style="font-size:16px;font-weight:800;margin-bottom:14px">Scegli una foto gia in cartella</div>
     <div id="libreria-foto-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>
     <button onclick="chiudiLibreriaFoto()" style="margin-top:16px;width:100%;padding:11px;border:none;border-radius:10px;background:#f0f0f0;font-weight:700;cursor:pointer;font-family:inherit">Annulla</button>
+  </div>
+</div>
+
+<!-- ====== QUALE VALUTAZIONE POSTURALE IMPORTO ======
+     visita-importa-posturale-v1 -->
+<div id="scelta-posturale-modal" onclick="if(event.target===this)chiudiSceltaPosturale()">
+  <div class="sp-card" onclick="event.stopPropagation()">
+    <div class="sp-title">Da quale valutazione posturale importo?</div>
+    <div class="sp-sub">Vengono portate note per piano, configurazione e foto. Quello che hai gia' scritto o gia' fotografato non viene toccato.</div>
+    <div id="sp-list"></div>
+    <button class="sp-cancel" onclick="chiudiSceltaPosturale()">Annulla</button>
   </div>
 </div>
 
@@ -2991,24 +3034,51 @@
     grid.innerHTML = ''
     S3_SLOTS.forEach(s => { step3Photos[s.key] = null })
 
-    S3_SECTIONS.forEach(section => {
-      const secDiv = document.createElement('div')
-      secDiv.className = 's3-photo-section'
+    /* visita-layout-uguale-v1 — stessa impaginazione di buildPhotoGrid() nella
+       valutazione posturale: Sagittale a larghezza piena, poi Frontale +
+       Posteriore su due colonne, poi Podoscopio su due colonne. */
+    const _sec = k => S3_SECTIONS.find(s => s.sectionKey === k)
+    const _gruppo = () => { const d = document.createElement('div'); d.className = 's3-pp-group'; return d }
+    const _divisore = (parent, testo) => {
+      const d = document.createElement('div'); d.className = 's3-section-divider'
+      d.textContent = testo; parent.appendChild(d)
+    }
+    const _sottotitolo = (parent, testo) => {
+      const d = document.createElement('div'); d.className = 's3-pp-sublabel'
+      d.textContent = testo; parent.appendChild(d)
+    }
 
-      const hdr = document.createElement('div')
-      hdr.className = 's3-section-divider'
-      hdr.textContent = section.sectionLabel
-      secDiv.appendChild(hdr)
+    // GRUPPO 1 — Piano Sagittale, larghezza piena
+    const secSag = _sec('sagittale')
+    if (secSag) {
+      const g = _gruppo()
+      _divisore(g, secSag.sectionLabel)
+      const row = document.createElement('div'); row.className = 's3-pp-row-2'
+      secSag.pairs.forEach(pair => row.appendChild(s3BuildCarousel(pair)))
+      g.appendChild(row)
+      if (secSag.hasScapolare) g.appendChild(s3BuildScapolareBlock())
+      g.appendChild(s3BuildPlaneNoteSection(secSag.sectionKey, secSag.noteField, secSag.obsPiano))
+      grid.appendChild(g)
+    }
 
-      const pairsRow = document.createElement('div')
-      pairsRow.className = 's3-pairs-row'
-      section.pairs.forEach(pair => { pairsRow.appendChild(s3BuildCarousel(pair)) })
-      secDiv.appendChild(pairsRow)
-
-      if (section.hasScapolare) secDiv.appendChild(s3BuildScapolareBlock())
-
-      secDiv.appendChild(s3BuildPlaneNoteSection(section.sectionKey, section.noteField, section.obsPiano))
-      grid.appendChild(secDiv)
+    // GRUPPO 2 — Frontale + Posteriore, due colonne
+    // GRUPPO 3 — Podoscopio, due colonne
+    ;[['Piano Frontale e Posteriore', ['frontale', 'posteriore']],
+      ['Podoscopio',                  ['podoscopio_sotto', 'podoscopio_dietro']]
+    ].forEach(([titolo, chiavi]) => {
+      const g = _gruppo()
+      _divisore(g, titolo)
+      const row = document.createElement('div'); row.className = 's3-pp-row-2'
+      chiavi.forEach(k => {
+        const sec = _sec(k); if (!sec) return
+        const col = document.createElement('div'); col.className = 's3-pp-col'
+        _sottotitolo(col, sec.sectionLabel)
+        sec.pairs.forEach(pair => col.appendChild(s3BuildCarousel(pair)))
+        col.appendChild(s3BuildPlaneNoteSection(sec.sectionKey, sec.noteField, sec.obsPiano))
+        row.appendChild(col)
+      })
+      g.appendChild(row)
+      grid.appendChild(g)
     })
 
     // File inputs hidden (fuori dal carousel per evitare overflow)
@@ -3387,44 +3457,172 @@
     if (tip) tip.style.display = hasFoto ? 'none' : 'block'
   }
 
-  // ====== IMPORT POSTURALE BANNER ======
-  let _importPosturaleData = null
+  /* ====== IMPORT POSTURALE — visita-importa-posturale-v1 ======
+     Prima portava dentro DUE cose sole (le note osservazionali e la
+     configurazione) e cercava solo fra le posturali degli ultimi 30 giorni.
+     Adesso: elenca tutte le posturali del paziente, si sceglie quale, e
+     l'importazione porta note per piano + configurazione + LE FOTO.
+     Le foto NON vengono ricaricate: si aggiunge una riga in visit_photos che
+     punta allo stesso file. Percio' `_pathCondiviso()` controlla, prima di
+     cancellare un file dallo storage, che non lo stia usando anche un'altra
+     visita — altrimenti cancellare la foto dalla visita cancellerebbe anche
+     quella della posturale. */
+  let _importPosturaleData  = null   // la posturale scelta (piu' recente di default)
+  let _importPosturaleLista = []     // tutte le posturali del paziente
+
+  const _IMPORT_NOTE_FIELDS = [
+    'note_sagittale', 'note_frontale', 'note_posteriore',
+    'note_podoscopio_sotto', 'note_podoscopio_dietro'
+  ]
 
   async function checkImportPosturale() {
     if (!patientId || !visitId) return
-    const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
     const { data } = await _sb.from('visits')
-      .select('id, data_visita, configurazione_suggerita, note_osservazionali')
+      .select('id, data_visita, configurazione_suggerita, note_osservazionali, ' + _IMPORT_NOTE_FIELDS.join(', '))
       .eq('patient_id', patientId)
       .eq('tipo', 'posturale')
       .neq('id', visitId)
-      .gte('data_visita', cutoff)
       .order('data_visita', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (!data) return
-    _importPosturaleData = data
-    const dt = data.data_visita ? new Date(data.data_visita).toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'numeric' }) : '—'
-    document.getElementById('ipb-date').textContent = dt
-    document.getElementById('ipb-config').textContent = data.configurazione_suggerita || ''
-    document.getElementById('ipb-config').style.display = data.configurazione_suggerita ? '' : 'none'
-    const note = (data.note_osservazionali || '').substring(0, 80)
-    document.getElementById('ipb-note').textContent = note || 'Valutazione posturale senza note osservazionali.'
+      .limit(8)
+    if (!data || !data.length) return
+
+    // Quante foto ha ciascuna: e' il dato che serve per scegliere
+    const ids = data.map(v => v.id)
+    const { data: fts } = await _sb.from('visit_photos').select('id, visit_id, tipo, ordine, storage_path, annotazioni, data_scatto').in('visit_id', ids)
+    const perVisita = {}
+    ;(fts || []).forEach(f => { (perVisita[f.visit_id] = perVisita[f.visit_id] || []).push(f) })
+    data.forEach(v => { v._foto = perVisita[v.id] || [] })
+
+    _importPosturaleLista = data
+    _mostraBannerPosturale(data[0])
+  }
+
+  function _dataIt(iso) {
+    return iso ? new Date(iso).toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'numeric' }) : '—'
+  }
+
+  function _mostraBannerPosturale(v) {
+    _importPosturaleData = v
+    document.getElementById('ipb-date').textContent = _dataIt(v.data_visita)
+    const cfg = document.getElementById('ipb-config')
+    cfg.textContent = v.configurazione_suggerita || ''
+    cfg.style.display = v.configurazione_suggerita ? '' : 'none'
+    const nFoto = (v._foto || []).length
+    const note  = (v.note_osservazionali || '').substring(0, 80)
+    document.getElementById('ipb-note').textContent =
+      (nFoto ? nFoto + (nFoto === 1 ? ' foto' : ' foto') + ' · ' : '') +
+      (note || 'nessuna nota osservazionale')
+    const scegli = document.getElementById('ipb-btn-scegli')
+    if (scegli) scegli.style.display = _importPosturaleLista.length > 1 ? '' : 'none'
     document.getElementById('import-posturale-banner').style.display = 'block'
   }
 
-  function importDatiPosturale() {
-    if (!_importPosturaleData) return
-    const noteEl = document.getElementById('f-note-posturali')
-    if (noteEl && _importPosturaleData.note_osservazionali) {
-      noteEl.value = _importPosturaleData.note_osservazionali
+  // ── Scelta di quale posturale importare ────────────────────
+  function apriSceltaPosturale() {
+    const ov   = document.getElementById('scelta-posturale-modal')
+    const list = document.getElementById('sp-list')
+    if (!ov || !list) return
+    list.innerHTML = _importPosturaleLista.map((v, i) => {
+      const n    = (v._foto || []).length
+      const note = (v.note_osservazionali || '').substring(0, 90)
+      return '<button class="sp-item" onclick="scegliPosturale(' + i + ')">' +
+        '<div class="sp-item-top"><b>' + _dataIt(v.data_visita) + '</b>' +
+          '<span class="sp-item-foto">' + n + ' foto</span></div>' +
+        (v.configurazione_suggerita ? '<div class="sp-item-cfg">' + escH(v.configurazione_suggerita) + '</div>' : '') +
+        '<div class="sp-item-note">' + escH(note || 'nessuna nota osservazionale') + '</div>' +
+      '</button>'
+    }).join('')
+    ov.classList.add('open')
+  }
+  function chiudiSceltaPosturale() { document.getElementById('scelta-posturale-modal')?.classList.remove('open') }
+  function scegliPosturale(i) {
+    const v = _importPosturaleLista[i]; if (!v) return
+    chiudiSceltaPosturale()
+    _mostraBannerPosturale(v)
+    importDatiPosturale()
+  }
+
+  // ── L'importazione vera ────────────────────────────────────
+  async function importDatiPosturale() {
+    const v = _importPosturaleData
+    if (!v) return
+    const btn = document.querySelector('.ipb-btn-import')
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Importo…' }
+    const esiti = []
+
+    try {
+      // 1. Note osservazionali generali
+      const noteEl = document.getElementById('f-note-posturali')
+      if (noteEl && v.note_osservazionali && !noteEl.value.trim()) {
+        noteEl.value = v.note_osservazionali
+        esiti.push('note osservazionali')
+      }
+
+      // 2. Note per piano — solo dove la visita e' ancora vuota,
+      //    non si sovrascrive quello che il fisioterapista ha gia' scritto.
+      let nNote = 0
+      _IMPORT_NOTE_FIELDS.forEach(f => {
+        const ta = document.getElementById('s3-note-' + f)
+        if (ta && v[f] && !ta.value.trim()) { ta.value = v[f]; nNote++ }
+      })
+      if (nNote) esiti.push(nNote + (nNote === 1 ? ' nota di piano' : ' note di piano'))
+
+      // 3. Configurazione suggerita
+      if (v.configurazione_suggerita) {
+        visitData.ai_suggerimento_config = v.configurazione_suggerita
+        esiti.push('configurazione')
+      }
+
+      // 4. Le foto: nuova riga in visit_photos che punta allo STESSO file.
+      //    Gli slot gia' occupati non si toccano.
+      const daCopiare = []
+      for (const f of (v._foto || [])) {
+        if (!f.storage_path) continue
+        let slot = S3_SLOTS.find(s => s.tipo === f.tipo)
+        if (!slot) {
+          const k = LEGACY_SLOT_MAP[f.tipo + ':' + f.ordine] || LEGACY_SLOT_MAP[f.tipo]
+          if (k) slot = S3_SLOTS.find(s => s.key === k)
+        }
+        if (!slot) continue
+        if (step3Photos[slot.key]) continue
+        if (daCopiare.some(d => d.tipo === slot.tipo)) continue
+        daCopiare.push({
+          visit_id: visitId, tipo: slot.tipo, ordine: slot.ordine,
+          storage_path: f.storage_path, url_pubblico: null,
+          data_scatto: f.data_scatto || null, annotazioni: f.annotazioni || null
+        })
+      }
+      if (daCopiare.length) {
+        const { error: insErr } = await _sb.from('visit_photos').insert(daCopiare)
+        if (insErr) throw new Error('foto: ' + insErr.message)
+        await loadVisitPhotos()
+        esiti.push(daCopiare.length + (daCopiare.length === 1 ? ' foto' : ' foto'))
+      }
+
+      const saltate = (v._foto || []).length - daCopiare.length
       scheduleSave()
+      updateTabStates()
+      ignoraBannerPosturale()
+      showToast(esiti.length
+        ? '📥 Importati: ' + esiti.join(', ') + (saltate > 0 ? ' · ' + saltate + ' gia\' presenti, non toccate' : '')
+        : 'Niente da importare: la visita ha gia\' tutto')
+    } catch (e) {
+      // Errori scritti a schermo, non in un toast che sparisce.
+      const box = document.getElementById('ipb-errore')
+      if (box) { box.textContent = '⚠️ Importazione non riuscita — ' + e.message; box.style.display = 'block' }
+      else showToast('Importazione non riuscita: ' + e.message)
     }
-    if (_importPosturaleData.configurazione_suggerita) {
-      visitData.ai_suggerimento_config = _importPosturaleData.configurazione_suggerita
-    }
-    ignoraBannerPosturale()
-    showToast('📥 Dati posturali importati')
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Importa dati e foto' }
+  }
+
+  /* Una foto importata condivide il file con la posturale: prima di
+     cancellarlo dallo storage si controlla che nessun'altra riga lo usi. */
+  async function _pathCondiviso(storagePath, escludiId) {
+    if (!storagePath) return true
+    try {
+      const { data } = await _sb.from('visit_photos').select('id').eq('storage_path', storagePath)
+      return (data || []).some(r => r.id !== escludiId)
+    } catch (e) { return true }   // nel dubbio non si cancella niente
   }
 
   function apriValutazionePosturale() {
@@ -3434,6 +3632,8 @@
 
   function ignoraBannerPosturale() {
     document.getElementById('import-posturale-banner').style.display = 'none'
+    const box = document.getElementById('ipb-errore')
+    if (box) box.style.display = 'none'
   }
 
   // Retrocompat: map old photo tipo values → new S3_SLOTS key
@@ -3631,12 +3831,15 @@
     const ts   = Date.now()
     const path = `visits/${visitId}/${slotKey}_${ts}.jpg`
 
-    // Rimuovi foto precedente se esiste
+    // Rimuovi foto precedente se esiste. visita-importa-posturale-v1: se il
+    // file e' condiviso con la posturale da cui la foto e' stata importata,
+    // si toglie solo la riga, MAI il file.
     if (step3Photos[slotKey]?.storage_path) {
-      await _sb.storage.from(S3_BUCKET).remove([step3Photos[slotKey].storage_path]).catch(() => {})
-      if (step3Photos[slotKey]?.id) {
-        await _sb.from('visit_photos').delete().eq('id', step3Photos[slotKey].id)
+      const vecchia = step3Photos[slotKey]
+      if (!(await _pathCondiviso(vecchia.storage_path, vecchia.id))) {
+        await _sb.storage.from(S3_BUCKET).remove([vecchia.storage_path]).catch(() => {})
       }
+      if (vecchia.id) await _sb.from('visit_photos').delete().eq('id', vecchia.id)
     }
 
     const { error: upErr } = await _sb.storage.from(S3_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true })
@@ -3672,7 +3875,9 @@
 
   async function removeVisitPhoto(slotKey) {
     const photo = step3Photos[slotKey]; if (!photo) return
-    if (photo.storage_path) {
+    // visita-importa-posturale-v1 — file condiviso con la posturale: si toglie
+    // la riga di questa visita, il file resta a chi lo usa ancora.
+    if (photo.storage_path && !(await _pathCondiviso(photo.storage_path, photo.id))) {
       await _sb.storage.from(S3_BUCKET).remove([photo.storage_path]).catch(() => {})
     }
     if (photo.id) {
