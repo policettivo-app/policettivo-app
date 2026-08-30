@@ -6,6 +6,9 @@
   <meta name="hide-bottom-nav" content="true">
   <title>Policettivo® — Visita Clinica</title>
   <link rel="stylesheet" href="css/design-system.css">
+  <!-- visita-foto-uguale-v1 — stessi stili della valutazione posturale
+       (barra azioni foto .pol-fa-*). Classi con prefisso pol-, additive. -->
+  <link rel="stylesheet" href="css/policettivo-ui.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -466,6 +469,45 @@
     .s3-slot.uploading .s3-slot-up { display: flex; }
     .s3-slot-spinner { width: 20px; height: 20px; border: 2.5px solid #ddd; border-top-color: #000; border-radius: 50%; animation: s3spin 0.7s linear infinite; }
     @keyframes s3spin { to { transform: rotate(360deg); } }
+
+    /* ====== visita-foto-uguale-v1 ====== */
+    /* Il cestino della barra condivisa sta in alto a sinistra, dove pero' il
+       carosello mette i pallini PRE/POST: qui scende sotto di loro. */
+    .s3-page .s3-slot .pol-fa-trash { top: 26px; }
+    /* Gli slot della visita sono piu' stretti di quelli della posturale:
+       le etichette restano su una riga sola invece di andare a capo. */
+    .s3-slot .pol-fa-annota { font-size: 11.5px; padding: 9px 4px; white-space: nowrap; gap: 5px; }
+    .s3-slot .pol-fa-annota svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .s3-slot .pol-fa-icon { width: 34px; }
+    .s3-slot .pol-fa-icon svg { width: 17px; height: 17px; }
+    /* Targhetta PRE/POST + data: sopra la barra, non sotto il cestino. */
+    .s3-slot-meta {
+      position: absolute; left: 8px; bottom: 52px; z-index: 3;
+      background: rgba(0,0,0,0.62); color: #FFD008; font-size: 9px; font-weight: 700;
+      padding: 3px 7px; border-radius: 4px; letter-spacing: .3px; pointer-events: none;
+    }
+    /* Foto che non si carica: si legge il motivo, non si vede un riquadro rotto. */
+    .s3-slot.has-error { background: #fff8f8; border: 1.5px solid #f3c9c9 !important; }
+    .s3-slot-errbox {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 6px; padding: 10px; text-align: center;
+    }
+    .s3-slot-errbox b { font-size: 11px; font-weight: 800; color: #b3261e; }
+    .s3-slot-errbox small { font-size: 9px; color: #8a6d6d; line-height: 1.35; word-break: break-word; }
+    .s3-slot-errbox button {
+      margin-top: 2px; padding: 8px 12px; border: none; border-radius: 8px;
+      background: #000; color: #FFD008; font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
+    }
+
+    /* ====== MENU «da dove prendo la foto» (uguale alla posturale) ====== */
+    #upload-menu-modal { display: none; position: fixed; inset: 0; z-index: 960; background: rgba(0,0,0,.55); align-items: flex-end; justify-content: center; }
+    #upload-menu-modal.open { display: flex; }
+    .um-card { background: #fff; width: 100%; max-width: 480px; border-radius: 16px 16px 0 0; padding: 20px 16px 44px; display: flex; flex-direction: column; gap: 10px; }
+    .um-title { font-size: 15px; font-weight: 800; margin: 0 0 6px; text-align: center; }
+    .um-btn { width: 100%; padding: 16px 14px; border-radius: 12px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; }
+    .um-btn-cam  { background: #000; color: #FFD008; border: 2px solid #000; }
+    .um-btn-file { background: #f5f5f5; color: #222; border: 2px solid #e0e0e0; }
+    .um-btn-cancel { background: transparent; color: #888; font-weight: 600; border: none; font-size: 14px; text-align: center; padding: 10px; }
 
     /* ====== STEP 3: LIGHTBOX ====== */
     #s3-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9100; align-items: center; justify-content: center; }
@@ -1519,6 +1561,31 @@
 </div>
 
 
+<!-- ====== LIBRERIA FOTO DEL PAZIENTE ======
+     visita-foto-uguale-v1 — questo blocco era finito DENTRO la stringa di
+     printPDFPreview(): nella pagina non esisteva, quindi apriLibreriaFoto()
+     falliva su un elemento null e il PDF stampato se lo portava dietro. -->
+<div id="libreria-foto-modal" onclick="if(event.target===this)chiudiLibreriaFoto()">
+  <div style="background:#fff;border-radius:16px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;padding:20px">
+    <div style="font-size:16px;font-weight:800;margin-bottom:14px">Scegli una foto gia in cartella</div>
+    <div id="libreria-foto-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>
+    <button onclick="chiudiLibreriaFoto()" style="margin-top:16px;width:100%;padding:11px;border:none;border-radius:10px;background:#f0f0f0;font-weight:700;cursor:pointer;font-family:inherit">Annulla</button>
+  </div>
+</div>
+
+<!-- ====== DA DOVE PRENDO LA FOTO ======
+     visita-foto-uguale-v1 — stesso menu della valutazione posturale:
+     toccando uno slot non si apre piu' la fotocamera di colpo. -->
+<div id="upload-menu-modal" onclick="closeUploadMenu(event)">
+  <div class="um-card" onclick="event.stopPropagation()">
+    <div class="um-title">Come vuoi caricare la foto?</div>
+    <button class="um-btn um-btn-cam"  id="um-btn-webcam"   onclick="umChooseWebcam()">📷 Scatta con la webcam / fotocamera</button>
+    <button class="um-btn um-btn-file" id="um-btn-file"     onclick="umChooseFile()">🖼️ Scegli da galleria / file</button>
+    <button class="um-btn um-btn-file" id="um-btn-libreria" onclick="umChooseLibreria()">🗂 Scegli da foto del paziente</button>
+    <button class="um-btn um-btn-cancel" onclick="closeUploadMenu()">Annulla</button>
+  </div>
+</div>
+
 <!-- ====== TOAST ====== -->
 <div id="toast"></div>
 
@@ -1526,6 +1593,9 @@
 <!-- vocabolario-unico-v1 — le voci delle osservazioni vivono qui e SOLO qui.
      Va caricato PRIMA di postural-component.js, che ora le legge da lui. -->
 <script src="js/osservazioni.js"></script>
+<!-- visita-foto-uguale-v1 — policettivoFotoBar(): la barra azioni foto e' una
+     sola per tutta l'app (scheda paziente, posturale, visita). -->
+<script src="js/foto-actions.js"></script>
 <script src="js/postural-component.js"></script>
 
 <script>
@@ -2949,6 +3019,12 @@
       inp.addEventListener('change', function() { handleFotoUpload(s.key, this) })
       grid.appendChild(inp)
     })
+
+    /* visita-foto-uguale-v1 — lo slot lo disegna SEMPRE renderPhotoSlot, anche
+       da vuoto. Prima il carosello se lo disegnava da solo, con un suo onclick
+       che apriva la fotocamera di colpo: due punti diversi che dovevano restare
+       uguali, e infatti non lo erano piu'. */
+    S3_SLOTS.forEach(s => renderPhotoSlot(s.key))
   }
 
   function s3BuildCarousel(pair) {
@@ -2980,8 +3056,6 @@
     const slotPre = document.createElement('div')
     slotPre.className = 's3-slot'
     slotPre.id = 's3-slot-' + pair.preKey
-    slotPre.innerHTML = '<span class="s3-slot-icon">📸</span><span class="s3-slot-lbl">PRE</span><div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
-    slotPre.onclick = () => { if (!step3Photos[pair.preKey]) apriCameraVisita(pair.preKey) }
     pagePre.appendChild(slotPre)
     carousel.appendChild(pagePre)
 
@@ -2992,8 +3066,6 @@
     const slotPost = document.createElement('div')
     slotPost.className = 's3-slot'
     slotPost.id = 's3-slot-' + pair.postKey
-    slotPost.innerHTML = '<span class="s3-slot-icon">📸</span><span class="s3-slot-lbl">POST 3R</span><div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
-    slotPost.onclick = () => { if (!step3Photos[pair.postKey]) apriCameraVisita(pair.postKey) }
     pagePost.appendChild(slotPost)
     carousel.appendChild(pagePost)
 
@@ -3173,36 +3245,133 @@
     }
   })
 
+  /* visita-foto-uguale-v1 — lo slot foto della visita usa la STESSA barra
+     della valutazione posturale (js/foto-actions.js): cestino rosso in alto a
+     sinistra, schermo intero in alto a destra, barra gialla in basso con
+     «Nota rapida», «Osserva», libreria, sostituisci, scarica.
+     Prima qui c'era una fila di emoji tutta sua. */
   function renderPhotoSlot(slotKey) {
     const photo = step3Photos[slotKey]
     const slot  = S3_SLOTS.find(s => s.key === slotKey)
     const el    = document.getElementById('s3-slot-' + slotKey)
     if (!el || !slot) return
     const shortLabel = slotKey.endsWith('_post') ? 'POST 3R' : 'PRE'
+    const spinner    = '<div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
+
     if (!photo) {
       el.className = 's3-slot'
-      el.innerHTML = '<span class="s3-slot-icon">📸</span><span class="s3-slot-lbl">' + shortLabel + '</span>' +
-        '<button class="s3-slot-libr" onclick="event.stopPropagation();apriLibreriaFoto(\'' + slotKey + '\')" title="Scegli da foto del paziente">🗂</button>' +
-        '<div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
-      el.onclick = () => { apriCameraVisita(slotKey) }
+      el.innerHTML = '<span class="s3-slot-icon">📷</span><span class="s3-slot-lbl">' + shortLabel + '</span>' +
+        (window.policettivoFotoBarVuoto
+          ? window.policettivoFotoBarVuoto({ onLibreria: "apriLibreriaFoto('" + slotKey + "')" })
+          : '') +
+        spinner
+      el.onclick = () => { showUploadMenu(slotKey, false) }
+
+    } else if (!photo.url) {
+      // La foto c'e' nel database ma il link non si e' potuto generare:
+      // si scrive il motivo a schermo (mai un riquadro rotto).
+      el.className = 's3-slot has-photo has-error'
+      el.onclick   = null
+      el.innerHTML =
+        '<div class="s3-slot-errbox">' +
+          '<b>⚠️ Foto non caricabile</b>' +
+          '<small>' + escH(photo.errMsg || 'link non generato') + '</small>' +
+          '<button onclick="event.stopPropagation();s3RinnovaFoto(\'' + slotKey + '\')">Riprova</button>' +
+          '<button onclick="event.stopPropagation();showUploadMenu(\'' + slotKey + '\', true)">Sostituisci</button>' +
+        '</div>' + spinner
+
     } else {
       el.className = 's3-slot has-photo'
-      el.onclick = e => { if (!e.target.closest('.s3-bar-btn') && !e.target.closest('.s3-slot-del')) openLightbox(photo.url) }
+      el.onclick = e => { if (!e.target.closest('button')) openLightboxSlot(slotKey) }
+      const dt = photo.data_scatto
+        ? new Date(photo.data_scatto).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit' })
+        : ''
       el.innerHTML =
-        '<img src="' + escH(photo.url) + '" alt="' + shortLabel + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
-        '<span class="s3-slot-type">' + shortLabel + '</span>' +
-        '<div class="s3-slot-bar">' +
-          '<button class="s3-bar-btn" onclick="event.stopPropagation();openLightbox(\'' + escH(photo.url) + '\')" title="Schermo intero">⛶</button>' +
-          '<button class="s3-bar-btn" onclick="event.stopPropagation();annotaFotoVisita(\'' + slotKey + '\')" title="Annota">✏️</button>' +
-          '<button class="s3-bar-btn" onclick="event.stopPropagation();apriLibreriaFoto(\'' + slotKey + '\')" title="Scegli da foto del paziente">🗂</button>' +
-          '<button class="s3-bar-btn" onclick="event.stopPropagation();apriCameraVisita(\'' + slotKey + '\')" title="Sostituisci">🔄</button>' +
-          '<button class="s3-bar-btn" style="color:#ff6b6b" onclick="event.stopPropagation();removeVisitPhoto(\'' + slotKey + '\')" title="Elimina">✕</button>' +
-        '</div>' +
-        '<div class="s3-slot-up"><div class="s3-slot-spinner"></div></div>'
+        '<img src="' + escH(photo.url) + '" alt="' + shortLabel + '"' +
+          ' onerror="s3RinnovaFoto(\'' + slotKey + '\')"' +
+          ' style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
+        (window.policettivoFotoBar ? window.policettivoFotoBar({
+          onIntero:      "openLightboxSlot('" + slotKey + "')",
+          onAnnota:      "s3NotaRapida('" + slotKey + "')",
+          onOsserva:     "annotaFotoVisita('" + slotKey + "')",
+          onLibreria:    "apriLibreriaFoto('" + slotKey + "')",
+          onSostituisci: "showUploadMenu('" + slotKey + "', true)",
+          onScarica:     "scaricaFotoVisita('" + slotKey + "')",
+          onElimina:     "removeVisitPhoto('" + slotKey + "')"
+        }) : '') +
+        '<span class="s3-slot-meta">' + shortLabel + (dt ? ' · ' + dt : '') + '</span>' +
+        spinner
     }
     updateFotoCount()
     updateAIButtonState()
   }
+
+  // Apre la lightbox leggendo l'URL dallo stato: cosi' il link firmato (che
+  // contiene & e token) non deve passare dentro un attributo onclick.
+  function openLightboxSlot(slotKey) {
+    const p = step3Photos[slotKey]
+    if (p && p.url) openLightbox(p.url)
+  }
+
+  // «Nota rapida»: apre il pannello osservazioni del piano di questo slot.
+  function s3NotaRapida(slotKey) {
+    const sec = S3_SECTIONS.find(s =>
+      (s.pairs || []).some(p => p.preKey === slotKey || p.postKey === slotKey))
+    if (!sec) { showToast('Piano non riconosciuto'); return }
+    const ta = document.getElementById('s3-note-' + sec.noteField)
+    if (ta) ta.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    s3ToggleObs(sec.obsPiano)
+  }
+
+  async function scaricaFotoVisita(slotKey) {
+    const p = step3Photos[slotKey]
+    if (!p) { showToast('Foto non disponibile'); return }
+    try {
+      let url = p.url
+      if (p.storage_path) {
+        const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(p.storage_path, 300)
+        if (su && su.signedUrl) url = su.signedUrl
+      }
+      if (!url) { showToast('Foto non disponibile'); return }
+      if (window.polScaricaFile) await window.polScaricaFile(url, slotKey + '.jpg')
+      else window.open(url, '_blank')
+    } catch (e) { showToast('Download non riuscito: ' + e.message) }
+  }
+
+  /* Il link firmato dura 2 ore: su una visita lunga puo' scadere mentre la
+     pagina e' ancora aperta. Qui se ne chiede uno nuovo una volta sola; se
+     nemmeno quello arriva, lo slot passa allo stato d'errore leggibile. */
+  const _s3Rinnovi = {}
+  async function s3RinnovaFoto(slotKey) {
+    const p = step3Photos[slotKey]
+    if (!p || !p.storage_path) return
+    if (_s3Rinnovi[slotKey]) return
+    _s3Rinnovi[slotKey] = true
+    try {
+      const { data: su, error } = await _sb.storage.from(S3_BUCKET).createSignedUrl(p.storage_path, 7200)
+      if (su && su.signedUrl) { p.url = su.signedUrl; p.errMsg = '' }
+      else { p.url = ''; p.errMsg = (error && error.message) || 'il link della foto non si e\' potuto rigenerare' }
+    } catch (e) {
+      p.url = ''; p.errMsg = e.message || 'errore di rete'
+    }
+    _s3Rinnovi[slotKey] = false
+    renderPhotoSlot(slotKey)
+  }
+
+  /* ── DA DOVE PRENDO LA FOTO (uguale alla posturale) ────────── */
+  let umSlotKey = null, umIsReplace = false
+  function showUploadMenu(slotKey, isReplace) {
+    umSlotKey = slotKey; umIsReplace = !!isReplace
+    document.getElementById('upload-menu-modal')?.classList.add('open')
+  }
+  function closeUploadMenu(e) {
+    if (e && e.target !== document.getElementById('upload-menu-modal')) return
+    document.getElementById('upload-menu-modal')?.classList.remove('open')
+    umSlotKey = null
+  }
+  function umChooseWebcam()   { const k = umSlotKey; closeUploadMenu(); if (k) apriCameraVisita(k) }
+  function umChooseFile()     { const k = umSlotKey; closeUploadMenu(); if (k) document.getElementById('s3-inp-' + k)?.click() }
+  function umChooseLibreria() { const k = umSlotKey; closeUploadMenu(); if (k) apriLibreriaFoto(k) }
 
   function updateFotoCount() {
     const n = Object.values(step3Photos).filter(Boolean).length
@@ -3292,12 +3461,24 @@
         if (mapKey) slot = S3_SLOTS.find(s => s.key === mapKey)
       }
       if (!slot) continue
-      let signedUrl = p.url_pubblico || ''
+      /* visita-foto-uguale-v1 — se la foto e' nello storage, l'unico link
+         valido e' quello firmato: url_pubblico su un bucket privato non si
+         apre. Se la firma non riesce, si tiene traccia del motivo e lo slot
+         lo scrive a schermo invece di mostrare un'immagine rotta. */
+      let signedUrl = '', errMsg = ''
       if (p.storage_path) {
-        const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(p.storage_path, 7200)
+        const { data: su, error: suErr } = await _sb.storage.from(S3_BUCKET).createSignedUrl(p.storage_path, 7200)
         if (su?.signedUrl) signedUrl = su.signedUrl
+        else errMsg = (suErr && suErr.message) || 'il file non e\' piu\' nello storage'
+      } else if (p.url_pubblico) {
+        signedUrl = p.url_pubblico
+      } else {
+        errMsg = 'nessun percorso salvato per questa foto'
       }
-      step3Photos[slot.key] = { id: p.id, url: signedUrl, storage_path: p.storage_path, b64: null }
+      step3Photos[slot.key] = {
+        id: p.id, url: signedUrl, errMsg, storage_path: p.storage_path,
+        data_scatto: p.data_scatto || null, b64: null
+      }
       renderPhotoSlot(slot.key)
     }
   }
@@ -3461,19 +3642,30 @@
     const { error: upErr } = await _sb.storage.from(S3_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true })
     if (upErr) throw new Error(upErr.message)
 
-    const { data: urlData } = _sb.storage.from(S3_BUCKET).getPublicUrl(path)
-    const pubUrl = urlData?.publicUrl || ''
+    /* visita-foto-uguale-v1 — QUI stava il motivo per cui la foto appena
+       scattata restava bianca: `clinical-docs` e' un bucket PRIVATO, e
+       getPublicUrl() su un bucket privato restituisce un indirizzo che il
+       browser non puo' aprire. Adesso si chiede un link firmato; se non
+       arriva si mostra comunque l'immagine appena scattata (dataUrl), che
+       e' gia' in memoria. Nel database non si scrive piu' un link rotto. */
+    let showUrl = dataUrl
+    const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(path, 7200)
+    if (su?.signedUrl) showUrl = su.signedUrl
 
     const { data: rec, error: insErr } = await _sb.from('visit_photos').insert({
       visit_id:     visitId,
       tipo:         slot.tipo,
       storage_path: path,
-      url_pubblico: pubUrl,
+      url_pubblico: null,
       ordine:       slot.ordine
-    }).select('id').maybeSingle()
+    }).select('id, data_scatto').maybeSingle()
     if (insErr) throw new Error(insErr.message)
 
-    step3Photos[slotKey] = { id: rec?.id, url: pubUrl, storage_path: path, b64: dataUrl.split(',')[1] }
+    step3Photos[slotKey] = {
+      id: rec?.id, url: showUrl, errMsg: '', storage_path: path,
+      data_scatto: rec?.data_scatto || new Date().toISOString(),
+      b64: dataUrl.split(',')[1]
+    }
     renderPhotoSlot(slotKey)
     updateTabStates()
   }
@@ -3533,7 +3725,7 @@
       for (const slot of S3_SLOTS) {
         const ph = step3Photos[slot.key]; if (!ph) continue
         let b64 = ph.b64
-        if (!b64) {
+        if (!b64 && ph.url) {
           const res = await imgUrlToBase64(ph.url)
           if (res) { b64 = res.data; ph.b64 = b64 }
         }
@@ -4330,14 +4522,7 @@ ISTRUZIONI:
         body { margin: 0; background: #fff; }
         @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
       </style>
-    </head><body>${content}<div id="libreria-foto-modal" onclick="if(event.target===this)chiudiLibreriaFoto()">
-  <div style="background:#fff;border-radius:16px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;padding:20px">
-    <div style="font-size:16px;font-weight:800;margin-bottom:14px">Scegli una foto gia in cartella</div>
-    <div id="libreria-foto-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>
-    <button onclick="chiudiLibreriaFoto()" style="margin-top:16px;width:100%;padding:11px;border:none;border-radius:10px;background:#f0f0f0;font-weight:700;cursor:pointer;font-family:inherit">Annulla</button>
-  </div>
-</div>
-</body></html>`)
+    </head><body>${content}</body></html>`)
     w.document.close()
     w.focus()
     setTimeout(() => { w.print() }, 400)
