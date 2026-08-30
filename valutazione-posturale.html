@@ -586,6 +586,11 @@
     }
     .vp-pdf-check input { width: 20px; height: 20px; margin: 0; flex-shrink: 0; cursor: pointer; }
     .vp-pdf-modal-btn[disabled] { opacity: .45; cursor: not-allowed; }
+    .vp-pdf-modal-btn-indietro { background: #f2f2f0; color: #1a1a1a; border: 1.5px solid #ddd; }
+    .vp-pdf-aiuto { margin-top: 9px; font-size: 12px; line-height: 1.55; color: #777; }
+    #vp-pdf-esito { margin-top: 10px; border-radius: 8px; padding: 11px 13px; font-size: 13px; line-height: 1.55; }
+    #vp-pdf-esito.ok    { background: #eef8ee; border-left: 4px solid #2e7d32; color: #1b4d1f; }
+    #vp-pdf-esito.ko    { background: #fdf1f0; border-left: 4px solid #e53935; color: #5a1f1c; }
     #vp-pdf-stato {
       margin-top: 10px; background: #f6f6f4; border-left: 4px solid #FFD008; border-radius: 8px;
       padding: 11px 13px; font-size: 13px; line-height: 1.55; color: #333;
@@ -923,8 +928,9 @@
 <div id="vp-pdf-preview-modal" role="dialog" aria-modal="true" aria-label="Anteprima PDF valutazione posturale">
   <div id="vp-pdf-modal-backdrop" onclick="closeVPPDFPreview()"></div>
   <div id="vp-pdf-preview-bar">
-    <button class="vp-pdf-modal-btn vp-pdf-modal-btn-print" onclick="printVPPDFPreview()">🖨️ Stampa</button>
-    <button class="vp-pdf-modal-btn vp-pdf-modal-btn-save"  id="vp-pdf-btn-salva" onclick="saveVPPDFPreview()" disabled>💾 Salva PDF in archivio</button>
+    <button class="vp-pdf-modal-btn vp-pdf-modal-btn-indietro" onclick="closeVPPDFPreview()">← Chiudi e correggi la scheda</button>
+    <button class="vp-pdf-modal-btn vp-pdf-modal-btn-save"  id="vp-pdf-btn-salva" onclick="saveVPPDFPreview()" disabled>💾 Valida e salva in archivio</button>
+    <button class="vp-pdf-modal-btn vp-pdf-modal-btn-print" onclick="printVPPDFPreview()" title="Stampa su carta: non archivia niente">🖨️ Stampa</button>
     <button class="vp-pdf-modal-btn vp-pdf-modal-btn-close" onclick="closeVPPDFPreview()" aria-label="Chiudi anteprima">✕</button>
   </div>
   <!-- pdf-validato-v1 — niente PDF senza che il professionista abbia letto il
@@ -937,6 +943,12 @@
       <input type="checkbox" id="vp-pdf-validata" onchange="vpPdfAggiornaSalva()">
       <span>Ho letto la relazione e la valido: corrisponde a quello che ho osservato. Il documento porta la mia firma.</span>
     </label>
+    <div class="vp-pdf-aiuto">
+      Qui si corregge <b>solo il testo della relazione</b>. Per cambiare foto, osservazioni, note o
+      configurazione: <b>← Chiudi e correggi la scheda</b>, sistema quello che serve, poi rifai
+      «Genera PDF». <b>Stampa</b> fa una copia su carta e non archivia niente.
+    </div>
+    <div id="vp-pdf-esito" style="display:none"></div>
   </div>
   <div id="vp-pdf-preview-scroll">
     <div id="vp-pdf-preview-body"></div>
@@ -3566,6 +3578,15 @@ ISTRUZIONI:
     if (typeof window._vpApplyScale === 'function') window._vpApplyScale()
   }
 
+  function vpPdfEsito(tipo, html) {
+    const box = document.getElementById('vp-pdf-esito')
+    if (!box) return
+    box.className = tipo
+    box.innerHTML = html
+    box.style.display = 'block'
+    box.scrollIntoView({ block: 'nearest' })
+  }
+
   function vpPdfAggiornaSalva() {
     const chk = document.getElementById('vp-pdf-validata')
     const btn = document.getElementById('vp-pdf-btn-salva')
@@ -3665,6 +3686,10 @@ ISTRUZIONI:
       if (taRel) taRel.value = ai_relazione || ''
       const chk = document.getElementById('vp-pdf-validata')
       if (chk) chk.checked = false
+      const esito = document.getElementById('vp-pdf-esito')
+      if (esito) { esito.style.display = 'none'; esito.innerHTML = '' }
+      const btnSalva = document.getElementById('vp-pdf-btn-salva')
+      if (btnSalva) btnSalva.textContent = '💾 Valida e salva in archivio'
       vpPdfAggiornaSalva()
 
       // Avviso: la relazione e' piu' vecchia delle annotazioni sulle foto.
@@ -3810,20 +3835,37 @@ ISTRUZIONI:
         relazione_ai: _vpPdfState.ai_relazione || null
       }
       const { error: updErr } = await _sb.from('visits').update(patch).eq('id', visitId)
-      if (updErr) throw new Error('PDF caricato ma non registrato: ' + updErr.message)
+      if (updErr) {
+        // Il caso piu' probabile: la migration 037 non e' stata eseguita, quindi
+        // le colonne non esistono. Lo si dice, invece di far sparire un toast.
+        const m = (updErr.message || '').toLowerCase()
+        const manca = m.includes('column') || m.includes('schema cache') || m.includes('does not exist')
+        throw new Error('Il PDF è stato caricato ma la visita non è stata aggiornata: ' + updErr.message +
+          (manca ? '\n\n👉 Sembra che manchi la migration 037: aprila nel SQL Editor di Supabase, incollala e premi Run. Poi rifai «Valida e salva».' : ''))
+      }
 
       // La correzione fatta nell'anteprima e' quella buona: torna anche nella card.
       const elAI = document.getElementById('f-relazione-ai')
       if (elAI) elAI.value = _vpPdfState.ai_relazione || ''
       renderStatoPDF(Object.assign({}, patch))
 
+      vpPdfEsito('ok', '✅ <b>PDF validato e archiviato.</b> Lo trovi qui sotto nella visita («📄 PDF validato… Apri») ' +
+        'e nella scheda del paziente, sulla riga di questa visita. Il file è anche nella cartella Download.')
+      saveBtn.textContent = '✓ Salvato in archivio'
       showToast('✅ PDF validato e archiviato')
+      return
     } catch (e) {
       console.error('[PDF VP Save]', e)
-      showToast('Errore generazione PDF: ' + e.message)
+      vpPdfEsito('ko', '❌ ' + String(e.message || e).replace(/\n/g, '<br>'))
+      showToast('Errore: ' + e.message)
     } finally {
-      saveBtn.disabled = false
-      saveBtn.textContent = '💾 Salva PDF'
+      // Il pulsante torna com'era: acceso solo se la spunta c'e' ancora.
+      if (saveBtn.textContent !== '✓ Salvato in archivio') {
+        saveBtn.textContent = '💾 Valida e salva in archivio'
+        vpPdfAggiornaSalva()
+      } else {
+        saveBtn.disabled = true
+      }
     }
   }
 
