@@ -3491,11 +3491,16 @@
     updateTabStates()
   }
 
+  /* visita-allineata-v1 — l'editor di annotazione della visita e' lo STESSO
+     della valutazione posturale: disegno.html. Prima puntava a
+     disegno-new.html, che malgrado il nome e' la versione di giugno e non ha
+     sagittale condiviso, vocabolario unico, nota modificabile ne' analisi AI.
+     Stessi parametri (id, vp), stesso ritorno (history.back sulla visita). */
   function annotaFotoVisita(slotKey) {
     const photo = step3Photos[slotKey]
     if (!photo || !photo.id) { showToast('Foto non pronta.'); return }
     if (!patientId) { showToast('Paziente non disponibile.'); return }
-    window.location.href = 'disegno-new.html?id=' + patientId + '&vp=' + photo.id
+    window.location.href = 'disegno.html?id=' + patientId + '&vp=' + photo.id
   }
 
   function openLightbox(url) {
