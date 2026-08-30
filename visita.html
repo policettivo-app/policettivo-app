@@ -499,6 +499,56 @@
       background: #000; color: #FFD008; font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
     }
 
+    /* ====== visita-osserva-uguale-v1 ======
+       Visore foto + pannello osservazioni: stessi stili della posturale. */
+    #lightbox { display: none; position: fixed; inset: 0; z-index: 9500; background: #000; flex-direction: column; }
+    #lightbox.open { display: flex; }
+    #lb-topbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(0,0,0,.9); z-index: 2; flex-shrink: 0; }
+    #lb-close-btn { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: #fff;
+                    font-size: 16px; border-radius: 7px; width: 34px; height: 34px; cursor: pointer; }
+    .lb-btn { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: #fff; font-family: inherit;
+              font-size: 12px; font-weight: 700; border-radius: 7px; padding: 8px 12px; cursor: pointer; transition: background .15s; }
+    .lb-btn:active { background: rgba(255,255,255,.25); }
+    .lb-btn.active { background: #FFD008; color: #000; border-color: #FFD008; }
+    #lb-img-wrap { position: relative; flex: 1; overflow: hidden; }
+    #lb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+    #lb-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
+    #lb-canvas.active { display: block; }
+    #lb-grid { position: absolute; inset: 0; display: none; pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,.25) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,.25) 1px, transparent 1px);
+      background-size: 10% 10%; }
+    #lb-grid.active { display: block; }
+    #lb-obs-panel { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9600; transform: translateY(100%); transition: transform .25s ease; }
+    #lb-obs-panel.open { transform: translateY(0); }
+    .lb-obs-inner { position: relative; background: #fff; border-radius: 18px 18px 0 0;
+      padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 62vh; overflow-y: auto;
+      box-shadow: 0 -6px 24px rgba(0,0,0,.35); }
+    .lb-obs-handle { display: block; width: 44px; height: 5px; margin: 2px auto 10px; background: #d0d0cc; border-radius: 999px; cursor: pointer; }
+    .lb-obs-handle:hover { background: #b8b8b3; }
+    .lb-obs-close { position: absolute; top: 8px; right: 10px; width: 32px; height: 32px; display: inline-flex;
+      align-items: center; justify-content: center; padding: 0; border: none; background: transparent; color: #666;
+      font-size: 20px; line-height: 1; cursor: pointer; border-radius: 8px; }
+    .lb-obs-close:hover { background: #f2f2f0; color: #000; }
+    .lb-obs-title { font-size: 12px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+    .lb-obs-chips { display: block; margin-bottom: 12px; }
+    .lb-obs-grp { font-size: 10px; font-weight: 800; color: #1a1a1a; text-transform: uppercase; letter-spacing: .4px;
+                  margin: 12px 0 6px; padding-bottom: 3px; border-bottom: 1.5px solid #FFD008; }
+    .lb-obs-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 6px; }
+    .lb-chip { padding: 8px 13px; border-radius: 20px; border: 1.5px solid #ddd; font-family: inherit; font-size: 12px;
+               font-weight: 600; background: #fafafa; cursor: pointer; transition: all .15s; user-select: none;
+               display: inline-block; min-height: 34px; line-height: 1.35; }
+    .lb-chip:active { transform: scale(.95); }
+    .lb-chip.active { background: #FFD008; border-color: #FFD008; }
+    .lb-chip[aria-disabled="true"] { opacity: .62; cursor: default; background: #f1f1ef; }
+    .lb-obs-note { width: 100%; min-height: 70px; border: 1.5px solid #e3e3e0; border-radius: 10px; padding: 10px;
+                   font-family: inherit; font-size: 13px; resize: vertical; box-sizing: border-box; }
+    .lb-obs-err { margin-top: 10px; padding: 9px 11px; background: #fff1f0; border: 1.5px solid #f3c9c9;
+                  border-radius: 8px; color: #b3261e; font-size: 12px; font-weight: 600; }
+    .lb-obs-save { width: 100%; margin-top: 12px; background: #FFD008; color: #000; border: none; border-radius: 10px;
+                   padding: 13px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .lb-obs-save:disabled { background: #ddd; color: #888; }
+
     /* ====== visita-importa-posturale-v1: scelta della posturale ====== */
     .ipb-err { margin: 8px 0 2px; padding: 9px 11px; background: #fff1f0; border: 1.5px solid #f3c9c9;
                border-radius: 8px; color: #b3261e; font-size: 12px; font-weight: 600; }
@@ -1602,6 +1652,34 @@
     <div style="font-size:16px;font-weight:800;margin-bottom:14px">Scegli una foto gia in cartella</div>
     <div id="libreria-foto-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>
     <button onclick="chiudiLibreriaFoto()" style="margin-top:16px;width:100%;padding:11px;border:none;border-radius:10px;background:#f0f0f0;font-weight:700;cursor:pointer;font-family:inherit">Annulla</button>
+  </div>
+</div>
+
+<!-- ====== VISORE FOTO + PANNELLO OSSERVAZIONI ======
+     visita-osserva-uguale-v1 — stesso di valutazione-posturale.html:
+     la foto a tutto schermo e le osservazioni SOPRA la foto. -->
+<div id="lightbox">
+  <div id="lb-topbar">
+    <button id="lb-close-btn" onclick="s3CloseLightbox()" aria-label="Chiudi">✕</button>
+    <button class="lb-btn" id="lb-grid-btn" onclick="s3LbToggleGrid()">▦ Griglia</button>
+    <button class="lb-btn" onclick="s3LbAnnota()">✏️ Annota</button>
+    <button class="lb-btn" onclick="toggleObsPanelFromTap()" style="margin-left:auto">👁 Osservazioni</button>
+  </div>
+  <div id="lb-obs-panel">
+    <div class="lb-obs-inner">
+      <div class="lb-obs-handle" role="button" tabindex="0" aria-label="Chiudi pannello osservazioni" onclick="chiudiObsPanel()"></div>
+      <button type="button" class="lb-obs-close" aria-label="Chiudi pannello osservazioni" onclick="chiudiObsPanel()">✕</button>
+      <div class="lb-obs-title">Osservazioni</div>
+      <div class="lb-obs-chips" id="lb-obs-chips"></div>
+      <textarea id="lb-note" class="lb-obs-note" placeholder="Note libere su questa foto…"></textarea>
+      <div class="lb-obs-err" id="lb-obs-err" style="display:none"></div>
+      <button class="lb-obs-save" onclick="s3LbSalva()">Salva osservazioni e note</button>
+    </div>
+  </div>
+  <div id="lb-img-wrap" onclick="toggleObsPanelFromTap()">
+    <img id="lb-img" src="" alt="foto posturale">
+    <div id="lb-grid"></div>
+    <canvas id="lb-canvas"></canvas>
   </div>
 </div>
 
@@ -3223,97 +3301,45 @@
     document.querySelectorAll('[data-g="' + g + '"]').forEach(c => c.classList.toggle('active', c.dataset.v === val))
   }
 
+  /* visita-osserva-uguale-v1 — uguale a buildPlaneNoteSection() della
+     posturale: qui c'e' solo la nota rapida del piano. Le osservazioni si
+     spuntano dentro la foto («Nota rapida»), che e' l'unico posto dove valgono
+     le regole del sagittale condiviso e dove finiscono sulla foto giusta.
+     Prima c'era anche un «+ Aggiungi osservazione» sotto la foto: scriveva
+     solo nella casella di testo, senza salvare niente sulla foto. */
   function s3BuildPlaneNoteSection(sectionKey, noteField, obsPiano) {
     const wrap = document.createElement('div')
     wrap.style.cssText = 'margin-top:10px'
     wrap.innerHTML =
-      '<div class="s3-plane-note-label">📝 Note ' + sectionKey.replace(/_/g,' ') + '</div>' +
-      '<button class="s3-obs-trigger-btn" onclick="s3ToggleObs(\'' + obsPiano + '\')">' +
-        '+ Aggiungi osservazione <span>▼</span>' +
-      '</button>' +
-      '<div class="s3-obs-panel" id="s3-obs-' + obsPiano + '"></div>' +
+      '<div class="s3-plane-note-label">📝 Note rapide — ' + sectionKey.replace(/_/g,' ') +
+        ' <span onclick="s3InfoNote()" title="Informazioni" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#1a1a1a;color:#FFD008;font-size:11px;font-weight:800;margin-left:5px;vertical-align:middle;text-transform:none">i</span></div>' +
       '<textarea class="fi" id="s3-note-' + noteField + '" rows="3" maxlength="2000"' +
         ' placeholder="Osservazioni libere sul piano ' + sectionKey.replace(/_/g,' ') + '…"' +
         ' style="margin-top:6px" oninput="scheduleSave()"></textarea>'
     return wrap
   }
 
-  // Step 3 observations dropdown
-  let _s3ObsOpenPiano = null
-  function s3ToggleObs(piano) {
-    const panel = document.getElementById('s3-obs-' + piano)
-    if (!panel) return
-    const isOpen = panel.classList.contains('open')
-    document.querySelectorAll('.s3-obs-panel.open').forEach(p => p.classList.remove('open'))
-    _s3ObsOpenPiano = null
-    if (!isOpen) {
-      if (!panel.dataset.built) _s3BuildObs(panel, piano)
-      panel.classList.add('open'); _s3ObsOpenPiano = piano
-    }
-  }
-  function _s3BuildObs(panel, piano) {
-    const voci = POSTURAL_OBSERVATIONS[piano] || []
-    panel.dataset.built = '1'
-    panel.innerHTML =
-      '<div class="obs-search-wrap"><input class="obs-search" type="text" placeholder="Cerca osservazione…" oninput="_s3FilterObs(this,\'' + piano + '\')" /></div>' +
-      '<div class="obs-ctrl-row" style="display:flex;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f0f0">' +
-        '<button class="obs-ctrl-btn" onclick="_s3SelAll(\'' + piano + '\',true)" style="padding:4px 10px;border:1.5px solid #ddd;border-radius:5px;background:#fafafa;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer">Seleziona tutto</button>' +
-        '<button class="obs-ctrl-btn" onclick="_s3SelAll(\'' + piano + '\',false)" style="padding:4px 10px;border:1.5px solid #ddd;border-radius:5px;background:#fafafa;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer">Deseleziona</button>' +
-      '</div>' +
-      '<div class="s3-obs-list" id="s3-obs-list-' + piano + '">' +
-        voci.map(v => '<label class="s3-obs-item"><input type="checkbox" value="' + v + '"><span>' + v + '</span></label>').join('') +
-      '</div>' +
-      '<div class="s3-obs-footer">' +
-        '<button class="s3-obs-btn-add" id="s3-obs-add-' + piano + '" onclick="_s3AddObs(\'' + piano + '\')" disabled>✓ Aggiungi 0</button>' +
-        '<button class="s3-obs-btn-cancel" onclick="s3ToggleObs(\'' + piano + '\')">✕</button>' +
+  function s3InfoNote() {
+    if (document.getElementById('pol-note-info')) return
+    const ov = document.createElement('div')
+    ov.id = 'pol-note-info'
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px'
+    ov.onclick = e => { if (e.target === ov) ov.remove() }
+    ov.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:360px;padding:20px 22px;box-shadow:0 12px 40px rgba(0,0,0,.3)">' +
+        '<div style="font-weight:800;font-size:15px;margin-bottom:8px;color:#1a1a1a">Note rapide</div>' +
+        '<div style="font-size:13.5px;line-height:1.55;color:#444">Le osservazioni si spuntano sulla foto: premi <b>Nota rapida</b> sotto l\'immagine. Per disegnare e usare l\'analisi AI, premi <b>Osserva</b>. Qui sono solo appunti rapidi.</div>' +
+        '<button onclick="document.getElementById(&#39;pol-note-info&#39;).remove()" style="margin-top:16px;width:100%;background:#FFD008;border:none;border-radius:9px;padding:11px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer">Ho capito</button>' +
       '</div>'
-    panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
-      const n = panel.querySelectorAll('input[type=checkbox]:checked').length
-      const btn = document.getElementById('s3-obs-add-' + piano)
-      if (btn) { btn.textContent = '✓ Aggiungi ' + n; btn.disabled = n === 0 }
-    }))
+    document.body.appendChild(ov)
   }
 
-  function _s3SelAll(piano, val) {
-    const list = document.getElementById('s3-obs-list-' + piano)
-    if (!list) return
-    list.querySelectorAll('input[type=checkbox]').forEach(cb => { if (cb.closest('.s3-obs-item').style.display !== 'none') cb.checked = val })
-    const n = list.querySelectorAll('input[type=checkbox]:checked').length
-    const btn = document.getElementById('s3-obs-add-' + piano)
-    if (btn) { btn.textContent = '✓ Aggiungi ' + n; btn.disabled = n === 0 }
-  }
-  function _s3FilterObs(input, piano) {
-    const q = input.value.toLowerCase()
-    const list = document.getElementById('s3-obs-list-' + piano)
-    if (!list) return
-    list.querySelectorAll('.s3-obs-item').forEach(item => {
-      item.style.display = item.querySelector('span')?.textContent.toLowerCase().includes(q) ? '' : 'none'
-    })
-  }
-  function _s3AddObs(piano) {
-    const panel = document.getElementById('s3-obs-' + piano)
-    if (!panel) return
-    const checked = [...panel.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value)
-    if (!checked.length) return
-    const sec = S3_SECTIONS.find(s => s.obsPiano === piano)
-    if (!sec) return
-    const ta = document.getElementById('s3-note-' + sec.noteField)
-    if (ta) {
-      const existing = ta.value.trim()
-      ta.value = existing ? existing + '\n' + checked.map(v => '• ' + v).join('\n') : checked.map(v => '• ' + v).join('\n')
-      scheduleSave()
-    }
-    panel.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false)
-    const btn = document.getElementById('s3-obs-add-' + piano)
-    if (btn) { btn.textContent = '✓ Aggiungi 0'; btn.disabled = true }
-    panel.classList.remove('open'); _s3ObsOpenPiano = null
-  }
-  document.addEventListener('click', e => {
-    if (_s3ObsOpenPiano && !e.target.closest('.s3-obs-panel') && !e.target.closest('.s3-obs-trigger-btn')) {
-      document.querySelectorAll('.s3-obs-panel.open').forEach(p => p.classList.remove('open'))
-      _s3ObsOpenPiano = null
-    }
-  })
+  /* visita-osserva-uguale-v1 — qui stava il secondo elenco di osservazioni,
+     quello sotto la foto (s3ToggleObs / _s3BuildObs). Tolto: scriveva solo
+     nella casella di testo e non conosceva le regole del sagittale condiviso,
+     percio' la stessa crocetta poteva finire due volte con due significati.
+     Ora l'unico posto dove si spuntano le voci e' il pannello dentro la foto,
+     lo stesso della valutazione posturale. */
 
   /* visita-foto-uguale-v1 — lo slot foto della visita usa la STESSA barra
      della valutazione posturale (js/foto-actions.js): cestino rosso in alto a
@@ -3362,7 +3388,7 @@
           ' style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
         (window.policettivoFotoBar ? window.policettivoFotoBar({
           onIntero:      "openLightboxSlot('" + slotKey + "')",
-          onAnnota:      "s3NotaRapida('" + slotKey + "')",
+          onAnnota:      "s3ApriOsservazioni('" + slotKey + "')",
           onOsserva:     "annotaFotoVisita('" + slotKey + "')",
           onLibreria:    "apriLibreriaFoto('" + slotKey + "')",
           onSostituisci: "showUploadMenu('" + slotKey + "', true)",
@@ -3383,14 +3409,285 @@
     if (p && p.url) openLightbox(p.url)
   }
 
-  // «Nota rapida»: apre il pannello osservazioni del piano di questo slot.
-  function s3NotaRapida(slotKey) {
-    const sec = S3_SECTIONS.find(s =>
-      (s.pairs || []).some(p => p.preKey === slotKey || p.postKey === slotKey))
-    if (!sec) { showToast('Piano non riconosciuto'); return }
-    const ta = document.getElementById('s3-note-' + sec.noteField)
-    if (ta) ta.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    s3ToggleObs(sec.obsPiano)
+  /* ====== visita-osserva-uguale-v1 ======
+     «Nota rapida» apre la foto a tutto schermo con il pannello osservazioni
+     SOPRA la foto, come nella valutazione posturale (apriOsservazioni →
+     showLightbox + mostraObsPanel). Prima apriva un elenco sotto la foto,
+     che era un'altra cosa e non salvava sulla foto.
+     Le regole sono quelle di js/osservazioni.js, le stesse di disegno.html e
+     della posturale: sul SAGITTALE le voci si spuntano una volta sola, sul
+     lato di riferimento; dal lato gemello si leggono e basta, e la rotazione
+     e' un dato della coppia con un record solo. */
+  let _lbSlot = null, _lbCoppia = null, _lbPhotoId = null
+  let s3LbLines = [], s3LbCtx = null
+
+  function _lbParseAnn(a) {
+    if (!a) return null
+    if (typeof a === 'string') { try { return JSON.parse(a) } catch (e) { return null } }
+    return a
+  }
+  function _lbRecordRif() {
+    if (!_lbCoppia) return null
+    return _lbCoppia.isRiferimento ? step3Photos[_lbSlot] : step3Photos[_lbCoppia.gemella]
+  }
+
+  function lbDisegnaPannello(ann) {
+    const mia = _lbParseAnn(ann)
+    const stato = window.polStatoPannello({
+      tipo: _lbSlot,
+      annPropria: mia,
+      annRiferimento: _lbCoppia ? _lbParseAnn((_lbRecordRif() || {}).annotazioni) : mia,
+      gemellaPresente: !!(_lbCoppia && step3Photos[_lbCoppia.gemella])
+    })
+    if (window.renderObsForTipo) window.renderObsForTipo(stato)
+    if (window.restoreObs)       window.restoreObs(mia, stato)
+    const nt = document.getElementById('lb-note')
+    if (nt && _lbCoppia && !_lbCoppia.isRiferimento && _lbCoppia.modo === 'tutto') {
+      nt.placeholder = 'Solo di questa foto: qualita\' dello scatto (es. paziente non perfettamente di profilo) o dettagli visibili solo da questo lato.'
+    } else if (nt) {
+      nt.placeholder = 'Note libere su questa foto…'
+    }
+  }
+
+  function s3ApriOsservazioni(slotKey) {
+    const p = step3Photos[slotKey]
+    if (!p || !p.url) { showToast('Foto non disponibile'); return }
+    _lbSlot   = slotKey
+    _lbPhotoId = p.id
+    _lbCoppia = window.polCoppia ? window.polCoppia(slotKey) : null
+
+    document.getElementById('lb-img').src = p.url
+    document.getElementById('lightbox').classList.add('open')
+    document.body.style.overflow = 'hidden'
+    document.getElementById('lb-grid').classList.remove('active')
+    document.getElementById('lb-grid-btn').classList.remove('active')
+
+    const ann = _lbParseAnn(p.annotazioni)
+    requestAnimationFrame(() => {
+      s3LbSyncCanvas()
+      lbDisegnaPannello(ann)
+      s3LbLines = ann ? s3LbLinesFromJSON(ann) : []
+      s3LbRedraw()
+      requestAnimationFrame(() => document.getElementById('lb-obs-panel')?.classList.add('open'))
+    })
+  }
+
+  function chiudiObsPanel() { document.getElementById('lb-obs-panel')?.classList.remove('open') }
+  // Tap sulla foto → apri/chiudi il pannello, come nella posturale.
+  function toggleObsPanelFromTap() {
+    const p = document.getElementById('lb-obs-panel'); if (!p) return
+    p.classList.toggle('open')
+  }
+  function s3CloseLightbox() {
+    chiudiObsPanel()
+    document.getElementById('lightbox').classList.remove('open')
+    document.getElementById('lb-img').src = ''
+    _lbSlot = null; _lbCoppia = null; _lbPhotoId = null
+    s3LbLines = []
+    document.body.style.overflow = ''
+  }
+  function s3LbToggleGrid() {
+    const on = !document.getElementById('lb-grid').classList.contains('active')
+    document.getElementById('lb-grid').classList.toggle('active', on)
+    document.getElementById('lb-grid-btn').classList.toggle('active', on)
+  }
+  // «Annota» apre l'editor completo, come toggleDraw() nella posturale.
+  function s3LbAnnota() {
+    if (!patientId || !_lbPhotoId) { showToast('Foto non pronta.'); return }
+    window.location.href = 'disegno.html?id=' + patientId + '&vp=' + _lbPhotoId
+  }
+
+  // Il disegno gia' fatto si vede sopra la foto (sola lettura: si modifica in
+  // disegno.html). Stesse coordinate normalizzate della posturale.
+  function s3LbSyncCanvas() {
+    const cv = document.getElementById('lb-canvas')
+    const r  = document.getElementById('lb-img-wrap').getBoundingClientRect()
+    cv.width = r.width; cv.height = r.height
+    s3LbCtx = cv.getContext('2d')
+  }
+  function s3LbLinesFromJSON(stored) {
+    const cv = document.getElementById('lb-canvas')
+    const cw = cv.width, ch = cv.height
+    const arr = Array.isArray(stored) ? stored : (stored.lines || [])
+    return arr.map(l => l.type === 'point'
+      ? { type:'point', x: l.nx*cw, y: l.ny*ch, color: l.color, r: l.r }
+      : { type:'line', lt: l.lt, x1: l.nx1*cw, y1: l.ny1*ch, x2: l.nx2*cw, y2: l.ny2*ch, color: l.color, lw: l.lw })
+  }
+  function s3LbLinesToJSON() {
+    const cv = document.getElementById('lb-canvas')
+    const cw = cv.width, ch = cv.height
+    return { cw, ch, lines: s3LbLines.map(l => l.type === 'point'
+      ? { type:'point', nx: l.x/cw, ny: l.y/ch, color: l.color, r: l.r }
+      : { type:'line', lt: l.lt, nx1: l.x1/cw, ny1: l.y1/ch, nx2: l.x2/cw, ny2: l.y2/ch, color: l.color, lw: l.lw }) }
+  }
+  function s3LbRedraw() {
+    const cv = document.getElementById('lb-canvas')
+    if (!s3LbCtx) return
+    s3LbCtx.clearRect(0, 0, cv.width, cv.height)
+    if (!s3LbLines.length) { cv.classList.remove('active'); return }
+    cv.classList.add('active')
+    s3LbLines.forEach(l => {
+      if (l.type === 'point') {
+        s3LbCtx.beginPath(); s3LbCtx.fillStyle = l.color
+        s3LbCtx.arc(l.x, l.y, l.r, 0, Math.PI * 2); s3LbCtx.fill()
+      } else {
+        s3LbCtx.beginPath(); s3LbCtx.strokeStyle = l.color
+        s3LbCtx.lineWidth = l.lw; s3LbCtx.lineCap = 'round'
+        s3LbCtx.moveTo(l.x1, l.y1); s3LbCtx.lineTo(l.x2, l.y2); s3LbCtx.stroke()
+      }
+    })
+  }
+
+  /* Salvataggio — sagittale-condiviso-v1: il lato gemello non riscrive le voci
+     sagittali (sono del riferimento) e non tocca le proprie voci vecchie; la
+     rotazione si scrive sul record di riferimento. Una copia sola. */
+  async function s3LbSalva() {
+    if (!_lbPhotoId) return
+    const btn = document.querySelector('.lb-obs-save')
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvo…' }
+    try {
+      const nonRif  = !!(_lbCoppia && !_lbCoppia.isRiferimento)
+      const rotQui  = !!(_lbCoppia && _lbCoppia.rotazione)
+      const ann = s3LbLinesToJSON()
+      ann.osservazioni = window.polVociDaSalvare(window._lbStato || {}, window._lbObs || [])
+      ann.agg_il = new Date().toISOString()
+      const nt = document.getElementById('lb-note')
+      ann.note = nt ? nt.value : ''
+      if (rotQui && _lbCoppia.isRiferimento) ann.rotazione = (window._lbRot || []).slice()
+
+      const { error } = await _sb.from('visit_photos').update({ annotazioni: ann }).eq('id', _lbPhotoId)
+      if (error) throw new Error(error.message)
+      if (step3Photos[_lbSlot]) step3Photos[_lbSlot].annotazioni = ann
+
+      if (nonRif && rotQui) {
+        const rec = step3Photos[_lbCoppia.gemella]
+        if (rec && rec.id) {
+          const annRif = _lbParseAnn(rec.annotazioni) || {}
+          annRif.rotazione = (window._lbRot || []).slice()
+          const { error: e2 } = await _sb.from('visit_photos').update({ annotazioni: annRif }).eq('id', rec.id)
+          if (e2) throw new Error('rotazione: ' + e2.message)
+          rec.annotazioni = annRif
+        }
+      }
+      s3SyncNoteRapide()
+      showToast('✏️ Osservazioni salvate')
+      chiudiObsPanel()
+    } catch (e) {
+      const box = document.getElementById('lb-obs-err')
+      if (box) { box.textContent = '⚠️ Non salvato — ' + e.message; box.style.display = 'block' }
+      else showToast('Non salvato: ' + e.message)
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Salva osservazioni e note' }
+  }
+
+  /* Sposta sul lato di riferimento le voci rimaste sul gemello da prima della
+     condivisione. Non si perde niente: cambiano posto. */
+  async function lbSpostaLegacy() {
+    const n = (window._lbObsLegacy || []).length
+    if (!n || !_lbCoppia) return
+    const rec = step3Photos[_lbCoppia.gemella]
+    if (!rec) { showToast('Manca la foto ' + _lbCoppia.nomeRif); return }
+    if (!confirm('Sposto ' + n + ' voci sulla foto ' + _lbCoppia.nomeRif + ', dove ora vivono le voci condivise?\n\nNon si perde niente: cambiano posto.')) return
+    const annRif = _lbParseAnn(rec.annotazioni) || {}
+    const unite = (Array.isArray(annRif.osservazioni) ? annRif.osservazioni : []).slice()
+    ;(window._lbObsLegacy || []).forEach(v => { if (unite.indexOf(v) < 0) unite.push(v) })
+    annRif.osservazioni = unite
+    const { error: e1 } = await _sb.from('visit_photos').update({ annotazioni: annRif }).eq('id', rec.id)
+    if (e1) { showToast('Errore spostamento'); return }
+    rec.annotazioni = annRif
+    const mia = _lbParseAnn(step3Photos[_lbSlot] && step3Photos[_lbSlot].annotazioni) || {}
+    mia.osservazioni = window.polVociDaSalvare(
+      { legacy: [], fuoriElenco: (window._lbStato || {}).fuoriElenco || [] },
+      window._lbObs || []
+    )
+    const { error: e2 } = await _sb.from('visit_photos').update({ annotazioni: mia }).eq('id', _lbPhotoId)
+    if (e2) { showToast('Errore spostamento'); return }
+    if (step3Photos[_lbSlot]) step3Photos[_lbSlot].annotazioni = mia
+    lbDisegnaPannello(mia)
+    s3SyncNoteRapide()
+  }
+
+  /* Le voci spuntate sulle foto rientrano nella nota del piano, sotto un
+     titolo riconoscibile: quello che il fisioterapista ha scritto a mano resta
+     sopra e non viene mai toccato. Identica a polSyncNoteRapide(). */
+  function s3SyncNoteRapide() {
+    const MARK = '— Osservazioni (da Annota) —'
+    const PIANI = {
+      note_sagittale:         ['sagittale_sx_pre','sagittale_sx_post','sagittale_dx_pre','sagittale_dx_post'],
+      note_frontale:          ['frontale_pre','frontale_post'],
+      note_posteriore:        ['posteriore_pre','posteriore_post'],
+      note_podoscopio_sotto:  ['podoscopio_sotto_pre','podoscopio_sotto_post'],
+      note_podoscopio_dietro: ['podoscopio_dietro_pre','podoscopio_dietro_post']
+    }
+    let changed = false
+    for (const campo in PIANI) {
+      const el = document.getElementById('s3-note-' + campo)
+      if (!el) continue
+      const righe = []
+      for (const tipo of PIANI[campo]) {
+        const p = step3Photos[tipo]
+        if (!p || !p.annotazioni) continue
+        const ann = _lbParseAnn(p.annotazioni)
+        if (!ann) continue
+        let oss = Array.isArray(ann.osservazioni) ? ann.osservazioni : []
+        const note = (ann.note || '').trim()
+        const pp = tipo.endsWith('_post') ? ' (POST 3R)' : ''
+        const cop = window.polCoppia ? window.polCoppia(tipo) : null
+        // Le voci del lato gemello sono quelle del riferimento: ripeterle le
+        // farebbe leggere due volte.
+        if (cop && !cop.isRiferimento && oss.length) {
+          const annRif = _lbParseAnn(step3Photos[cop.gemella] && step3Photos[cop.gemella].annotazioni)
+          const ossRif = (annRif && Array.isArray(annRif.osservazioni)) ? annRif.osservazioni : []
+          if (ossRif.length) oss = oss.filter(v => ossRif.indexOf(v) < 0)
+        }
+        const rot = (cop && cop.rotazione && cop.isRiferimento && Array.isArray(ann.rotazione)) ? ann.rotazione : []
+        if (!oss.length && !note && !rot.length) continue
+        const notaLeHaTutte = note && oss.length && oss.every(v => note.indexOf(v) >= 0)
+        if (oss.length && !notaLeHaTutte) righe.push('• ' + oss.join(', ') + pp)
+        if (rot.length) righe.push('• Confronto fra i profili: ' + rot.join(', ') +
+                                   ' — sospetto dal sagittale, da confermare sul frontale' + pp)
+        if (note) righe.push('• ' + note + pp)
+      }
+      const cur = el.value
+      const idx = cur.indexOf(MARK)
+      const manuale = (idx >= 0 ? cur.slice(0, idx) : cur).replace(/\s+$/, '')
+      const auto = righe.join('\n')
+      const next = auto ? (manuale ? manuale + '\n\n' : '') + MARK + '\n' + auto : manuale
+      if (next !== cur) { el.value = next; changed = true }
+    }
+    if (changed) scheduleSave()
+  }
+
+  /* Ponte verso js/osservazioni.js — identico a quello della posturale.
+     _lbObs = voci del piano (sul sagittale vivono sul lato di riferimento)
+     _lbRot = voci di rotazione (un record solo, sul riferimento)
+     _lbObsLegacy = voci gia' salvate sul gemello da prima della condivisione */
+  window._lbObs = []; window._lbRot = []; window._lbObsLegacy = []
+  window.toggleObsChipEl = function (el) {
+    if (el.getAttribute('aria-disabled') === 'true') return   // lato gemello: sola lettura
+    const v = el.getAttribute('data-v')
+    const arr = el.getAttribute('data-rot') === '1' ? window._lbRot : window._lbObs
+    const i = arr.indexOf(v)
+    if (i >= 0) { arr.splice(i, 1); el.classList.remove('active') }
+    else { arr.push(v); el.classList.add('active') }
+  }
+  window.renderObsForTipo = function (stato) {
+    const box = document.getElementById('lb-obs-chips'); if (!box) return
+    if (!window.polObsHtml) { box.innerHTML = ''; return }
+    box.innerHTML = window.polObsHtml({
+      tipo: stato.tipo, stato: stato,
+      chipClass: 'lb-chip', grpClass: 'lb-obs-grp', rowClass: 'lb-obs-row',
+      chipClick: 'toggleObsChipEl(this)',
+      legacyClick: 'lbSpostaLegacy()'
+    })
+  }
+  window.restoreObs = function (ann, stato) {
+    window._lbStato     = stato
+    window._lbObs       = (stato.editabili || []).slice()
+    window._lbRot       = (stato.rot || []).slice()
+    window._lbObsLegacy = (stato.legacy || []).slice()
+    const nt = document.getElementById('lb-note'); if (nt) nt.value = (ann && ann.note) ? ann.note : ''
+    const box = document.getElementById('lb-obs-err'); if (box) box.style.display = 'none'
   }
 
   async function scaricaFotoVisita(slotKey) {
@@ -3677,10 +3974,13 @@
       }
       step3Photos[slot.key] = {
         id: p.id, url: signedUrl, errMsg, storage_path: p.storage_path,
-        data_scatto: p.data_scatto || null, b64: null
+        data_scatto: p.data_scatto || null, annotazioni: p.annotazioni || null, b64: null
       }
       renderPhotoSlot(slot.key)
     }
+    // visita-osserva-uguale-v1 — le voci spuntate sulle foto rientrano nelle
+    // note del piano, esattamente come nella valutazione posturale.
+    s3SyncNoteRapide()
   }
 
   // ── Scegli da foto gia in cartella del paziente ────────────
