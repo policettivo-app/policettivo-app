@@ -543,19 +543,40 @@
         : 'il membro'
 
       if (checked) {
-        const toAdd = visible.filter(p => !(shareState[p.id] && shareState[p.id].active))
-        if (toAdd.length === 0) { renderShareList(membroId); return }
-        if (toAdd.length > 10 && !confirm('Stai per condividere ' + toAdd.length + ' pazienti con ' + nomeMembro + '. Confermi?')) {
+        /* condivisione-riattivabile-v1 — QUI c'era «duplicate key value violates
+           unique constraint patient_shares_patient_id_shared_with_id_key».
+           Il vincolo unico e' su (patient_id, shared_with_id) e NON guarda lo
+           stato. Ma la pagina carica solo le condivisioni con stato='attivo':
+           un paziente gia' condiviso in passato e poi REVOCATO risultava «non
+           condiviso», finiva fra quelli da inserire, e la riga c'era gia'.
+           Bastava un solo paziente revocato in passato per far fallire TUTTO il
+           lotto: non se ne salvava nemmeno uno.
+           Con l'upsert la riga vecchia viene riportata ad attiva invece di
+           essere inserita di nuovo. */
+        const nuovi = visible.filter(p => !(shareState[p.id] && shareState[p.id].active))
+        const daAggiornare = visible.filter(p =>
+          shareState[p.id] && shareState[p.id].active && shareState[p.id].permesso !== globalPermesso)
+        if (nuovi.length === 0 && daAggiornare.length === 0) { renderShareList(membroId); return }
+
+        // Il permesso scelto vale per tutti i pazienti visibili, non solo per i
+        // nuovi: e' quello che dice l'etichetta «Permesso batch».
+        let msg = ''
+        if (nuovi.length)        msg += 'Condivido ' + nuovi.length + ' pazienti con ' + nomeMembro + ' in ' + globalPermesso + '.'
+        if (daAggiornare.length) msg += (msg ? '\n' : '') + 'Porto a ' + globalPermesso + ' altri ' + daAggiornare.length + ' pazienti gia\' condivisi.'
+        if ((nuovi.length + daAggiornare.length) > 10 && !confirm(msg + '\n\nConfermi?')) {
           renderShareList(membroId); return
         }
-        const rows = toAdd.map(p => ({
+        const rows = nuovi.concat(daAggiornare).map(p => ({
           patient_id: p.id,
           owner_id: mioProfId,
           shared_with_id: membroId,
           permesso: globalPermesso,
-          stato: 'attivo'
+          stato: 'attivo',
+          revoked_at: null
         }))
-        const { data, error } = await _supabase.from('patient_shares').insert(rows).select('id, patient_id, permesso')
+        const { data, error } = await _supabase.from('patient_shares')
+          .upsert(rows, { onConflict: 'patient_id,shared_with_id' })
+          .select('id, patient_id, permesso')
         if (error) { alert('Errore condivisione batch: ' + error.message); renderShareList(membroId); return }
         ;(data || []).forEach(r => {
           shareState[r.patient_id] = { active: true, permesso: r.permesso || globalPermesso, row_id: r.id }
@@ -619,15 +640,19 @@
 
     async function toggleShare(patientId, membroId, checked) {
       if (checked) {
+        // condivisione-riattivabile-v1 — stesso difetto del lotto: se questo
+        // paziente era gia' stato condiviso e poi revocato, l'insert sbatteva
+        // contro il vincolo unico. Si riattiva la riga che c'e' gia'.
         const { data, error } = await _supabase
           .from('patient_shares')
-          .insert({
+          .upsert({
             patient_id: patientId,
             owner_id: mioProfId,
             shared_with_id: membroId,
             permesso: 'lettura',
-            stato: 'attivo'
-          })
+            stato: 'attivo',
+            revoked_at: null
+          }, { onConflict: 'patient_id,shared_with_id' })
           .select()
           .single()
         if (error) {
