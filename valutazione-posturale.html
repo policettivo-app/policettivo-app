@@ -2115,9 +2115,72 @@
     document.getElementById('libreria-foto-modal').classList.remove('open')
   }
 
+  /* scheda-paziente-nel-picker-v1 — Il nome del file delle foto iniziali porta
+     dentro il momento del caricamento: {patientId}/iniziali/{slot}_{ts}.jpg.
+     E' l'unica data che abbiamo per quelle foto (patients non ha una colonna
+     per la data di scatto), e vale come «caricata il»: meglio del niente, e
+     molto meglio di mettere la data di oggi su una foto di tre settimane fa. */
+  function _dataDaPercorso(p) {
+    const m = /_(\d{10,16})\.[a-z]+$/i.exec(p || '')
+    if (!m) return null
+    const n = Number(m[1])
+    if (!isFinite(n)) return null
+    const d = new Date(n)
+    return isNaN(d.getTime()) ? null : d.toISOString()
+  }
+
+  const _SLOT_SCHEDA = {
+    'prima-sx': 'Sagittale sx (PRIMA)',  'prima-dx': 'Sagittale dx (PRIMA)',
+    'dopo-sx':  'Sagittale sx (DOPO 3R)','dopo-dx':  'Sagittale dx (DOPO 3R)',
+    'frontale': 'Frontale',              'posteriore': 'Posteriore',
+    'podo-sotto': 'Podoscopio (sotto)',  'podo-dietro': 'Podoscopio (dietro)'
+  }
+
+  // Ritorna il percorso su Storage, oppure null se la foto e' un URL diretto
+  // (base64 o http): le vecchie foto salvate in base64 esistono ancora.
+  function _percorsoScheda(v) {
+    if (!v) return null
+    if (typeof v === 'object') return v.storage_path || null
+    if (typeof v !== 'string') return null
+    if (v.indexOf('data:') === 0 || v.indexOf('http') === 0) return null
+    return v
+  }
+
   async function caricaFotoPaziente() {
     const out = []
-    // (sezione foto onboarding base64 rimossa: nel picker restano solo le foto di visita, per evitare duplicati)
+
+    /* scheda-paziente-nel-picker-v1 — QUESTA sezione era stata tolta, con la
+       nota «foto onboarding base64 rimosse per evitare duplicati»: allora le
+       foto della scheda paziente stavano in base64 dentro patients.foto_url e
+       appesantivano il picker. Da quando sono migrate su Storage
+       (scripts/migra-foto-iniziali.mjs) sono file come tutti gli altri, e
+       toglierle voleva solo dire che le foto scattate PRIMA della visita —
+       quelle fatte per i cuscini elicoidali — non si trovavano piu'. */
+    try {
+      const { data: paz } = await _sb.from('patients').select('foto_url').eq('id', patientId).maybeSingle()
+      let urls = {}
+      try { urls = JSON.parse((paz && paz.foto_url) || '{}') } catch (e) { urls = {} }
+      const slots = Object.keys(urls).filter(k => urls[k])
+      const paths = slots.map(k => _percorsoScheda(urls[k])).filter(Boolean)
+      const mapS = {}
+      if (paths.length) {
+        const { data: sl } = await _sb.storage.from('clinical-docs').createSignedUrls(paths, 7200)
+        ;(sl || []).forEach(x => { if (x && x.signedUrl && x.path) mapS[x.path] = x.signedUrl })
+      }
+      for (const k of slots) {
+        const v = urls[k]
+        const path = _percorsoScheda(v)
+        const diretto = (!path && typeof v === 'string') ? v : null
+        const u = path ? mapS[path] : diretto
+        if (!u) continue
+        out.push({
+          url: u, storage_path: path || null, id: 'scheda-' + k, source: 'scheda',
+          label: 'Scheda paziente — ' + (_SLOT_SCHEDA[k] || k.replace(/-/g, ' ')),
+          data: _dataDaPercorso(path)
+        })
+      }
+    } catch (e) {}
+
     // 2) foto delle visite del paziente (visit_photos) — signed URL al volo
     try {
       const { data: visite } = await _sb.from('visits').select('id, data_visita').eq('patient_id', patientId)
@@ -2146,11 +2209,18 @@
   function _libGridHTML(lista) {
     return lista.map((ft, i) => {
       const d = ft.data ? new Date(ft.data).toLocaleDateString('it-IT') : ''
-      const dataLine = d ? '<div style="font-size:10px;color:#999;font-weight:600">' + d + '</div>' : ''
+      const scheda = ft.source === 'scheda'
+      const dataLine = d
+        ? '<div style="font-size:10px;color:#999;font-weight:600">' + (scheda ? 'caricata il ' : '') + d + '</div>'
+        : (scheda ? '<div style="font-size:10px;color:#bbb;font-weight:600">data non registrata</div>' : '')
+      const badge = scheda
+        ? '<div style="position:absolute;top:6px;right:6px;z-index:3;background:#1a1a1a;color:#FFD008;font-size:9px;font-weight:800;letter-spacing:.3px;padding:3px 7px;border-radius:20px">SCHEDA</div>'
+        : ''
       const selP = _libPickSel.has(i)
       return '<div id="libpick-card-' + i + '" style="position:relative;border:2px solid ' + (selP ? '#c62828' : '#eee') + ';border-radius:10px;overflow:hidden;background:#fff">' +
         '<label title="Spunta per eliminare o scaricare" style="position:absolute;top:6px;left:6px;z-index:3;background:rgba(255,255,255,.95);border-radius:6px;padding:4px;display:flex;box-shadow:0 1px 3px rgba(0,0,0,.25)" onclick="event.stopPropagation()">' +
           '<input type="checkbox" ' + (selP ? 'checked' : '') + ' onchange="_libPickToggle(' + i + ',this.checked)" style="width:18px;height:18px;accent-color:#c62828;cursor:pointer"></label>' +
+        badge +
         '<div style="cursor:pointer" title="Tocca per inserire questa foto" onclick="scegliFotoLibreria(' + i + ')">' +
           '<img src="' + ft.url + '" style="width:100%;height:110px;object-fit:cover;display:block" loading="lazy">' +
           '<div style="padding:6px 8px"><div style="font-size:11px;font-weight:700;color:#000;text-transform:capitalize">' + (ft.label || 'Foto') + '</div>' + dataLine + '</div>' +
