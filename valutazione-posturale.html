@@ -714,6 +714,10 @@
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
         <button onclick="rapidChooseFase()" style="background:#FFD008;color:#000;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">📷 Acquisizione Rapida</button>
         <button onclick="openCompare()" style="background:#222;color:#fff;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">🔄 Confronto PRE/POST</button>
+        <!-- confronto-nel-tempo-v1 — il PRE/POST qui accanto sta DENTRO questa
+             seduta; questo invece mette in fila tutte le valutazioni del
+             paziente, con le foto iniziali della scheda come punto piu' vecchio. -->
+        <button onclick="apriConfrontoNelTempo()" title="Confronta questa valutazione con quelle di prima" style="background:#222;color:#fff;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">📈 Confronto nel tempo</button>
       </div>
     </div>
     <div class="photo-grid pp-layout-wide" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
@@ -4266,6 +4270,15 @@ ISTRUZIONI:
     return url
       ? '<div class="vpc-photo"><img src="'+url+'" alt="'+alt+'" onclick="openVpFullscreen(\''+url+'\')">'+vpcGridSvg()+'</div>'
       : '<div class="vpc-cell-empty">— assente —</div>'
+  }
+
+  /* confronto-nel-tempo-v1 — porta alla pagina che confronta TUTTE le
+     valutazioni posturali del paziente, non solo il PRE/POST di oggi.
+     Serve il paziente, non la visita: la pagina si costruisce la riga del
+     tempo da sola. */
+  function apriConfrontoNelTempo() {
+    if (!patientId) { showToast('Aspetta che la valutazione finisca di caricare'); return }
+    window.location.href = 'comparazione.html?id=' + patientId
   }
 
   function openCompare() {

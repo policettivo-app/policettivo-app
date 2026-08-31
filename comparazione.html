@@ -2,52 +2,141 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Policettivo® — Comparazione posturale</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Policettivo® — Confronto nel tempo</title>
   <link rel="stylesheet" href="css/design-system.css">
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/foto-resolver.js"></script>
+  <script src="js/osservazioni.js"></script>
+  <script src="js/postural-component.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Montserrat', sans-serif; background: #111; min-height: 100vh; color: #fff; }
-    .navbar { background: #000; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; }
-    .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
-    .navbar-right { display: flex; align-items: center; gap: 12px; }
-    .btn-back { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
-    .btn-print { background: #FFD008; color: #000; border: none; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
-    .main { max-width: 1200px; margin: 0 auto; padding: 24px; }
-    .patient-title { font-size: 20px; font-weight: 700; color: #FFD008; margin-bottom: 4px; }
-    .patient-sub { font-size: 13px; color: #666; margin-bottom: 24px; }
-    .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
-    .tab { padding: 8px 20px; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid #333; color: #666; background: transparent; transition: all 0.2s; }
-    .tab.active { background: #FFD008; color: #000; border-color: #FFD008; }
-    .comparazione-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #333; border: 1px solid #333; border-radius: 12px; overflow: hidden; }
-    .foto-panel { position: relative; background: #000; }
-    .foto-label-bar { background: rgba(0,0,0,0.85); color: #FFD008; font-size: 11px; font-weight: 700; padding: 6px 12px; text-transform: uppercase; letter-spacing: 1px; position: absolute; top: 0; left: 0; right: 0; z-index: 2; }
-    .foto-label-bar.dopo { color: #4CAF50; }
-    .foto-img-wrap { position: relative; width: 100%; padding-top: 80%; overflow: hidden; }
-    .foto-img-wrap img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
-    .foto-empty { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #333; font-size: 13px; }
-    .griglia { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
-    .griglia-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-    .griglia-toggle label { font-size: 13px; color: #888; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-    .griglia-toggle input { accent-color: #FFD008; width: 16px; height: 16px; cursor: pointer; }
-    .lato-label { text-align: center; font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 1px; padding: 8px; background: #0a0a0a; }
-    .header-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-bottom: 2px; }
-    .separatore { height: 2px; background: #FFD008; margin: 2px 0; }
-    .info-bar { display: flex; gap: 16px; align-items: center; background: #0a0a0a; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-    .info-item { font-size: 12px; color: #666; }
-    .info-item span { color: #fff; font-weight: 600; }
-    .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; }
-    .badge-npl { background: #FFD008; color: #000; }
-    .badge-gpl { background: #fff; color: #000; }
+    /* confronto-nel-tempo-v1 */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Montserrat',sans-serif; background:#111; min-height:100vh; color:#fff; -webkit-text-size-adjust:100%; }
+    .navbar { background:#000; padding:0 16px; height:56px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #222; position:sticky; top:0; z-index:40; }
+    .navbar-logo { background:#FFD008; color:#000; font-weight:700; font-size:11px; letter-spacing:2px; padding:4px 10px; border-radius:4px; }
+    .navbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .btn-back { background:transparent; border:1px solid #444; color:#fff; padding:7px 14px; border-radius:6px; font-family:inherit; font-size:12px; cursor:pointer; }
+    .btn-pdf { background:#FFD008; color:#000; border:none; padding:7px 14px; border-radius:6px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+    .main { max-width:1200px; margin:0 auto; padding:20px 16px 84px; }
+    .patient-title { font-size:20px; font-weight:800; color:#FFD008; margin-bottom:2px; }
+    .patient-sub { font-size:13px; color:#888; margin-bottom:18px; }
+
+    .msg { border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.5; margin-bottom:16px; display:none; }
+    .msg.ko { background:#2a1414; border:1px solid #7a2020; color:#ffb4b4; }
+    .msg.info { background:#1a1a1a; border:1px solid #333; color:#bbb; }
+
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:#0a0a0a; border:1px solid #222; border-radius:10px; padding:10px 12px; margin-bottom:14px; }
+    .seg { display:flex; background:#181818; border-radius:8px; padding:3px; gap:3px; }
+    .seg button { background:transparent; border:none; color:#888; font-family:inherit; font-size:12px; font-weight:700; padding:7px 13px; border-radius:6px; cursor:pointer; }
+    .seg button.on { background:#FFD008; color:#000; }
+    .seg-lbl { font-size:11px; color:#555; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-right:2px; }
+    .chk { font-size:12px; color:#999; cursor:pointer; display:flex; align-items:center; gap:6px; }
+    .chk input { accent-color:#FFD008; width:15px; height:15px; cursor:pointer; }
+
+    .timeline-wrap { background:#0a0a0a; border:1px solid #222; border-radius:10px; padding:12px; margin-bottom:18px; }
+    .timeline-hint { font-size:11px; color:#666; margin-bottom:10px; }
+    .timeline { display:flex; gap:8px; overflow-x:auto; padding:6px 0 4px; }
+    .tl-punto { flex:0 0 auto; min-width:120px; background:#161616; border:2px solid #2a2a2a; border-radius:10px; padding:9px 11px; cursor:pointer; text-align:left; font-family:inherit; color:#fff; position:relative; }
+    .tl-punto:hover { border-color:#444; }
+    .tl-punto.selA { border-color:#FFD008; }
+    .tl-punto.selB { border-color:#00C48C; }
+    .tl-tag { position:absolute; top:-9px; left:9px; font-size:9px; font-weight:900; letter-spacing:.5px; padding:2px 7px; border-radius:20px; }
+    .tl-punto.selA .tl-tag { background:#FFD008; color:#000; }
+    .tl-punto.selB .tl-tag { background:#00C48C; color:#000; }
+    .tl-data { font-size:13px; font-weight:800; }
+    .tl-tipo { font-size:10px; color:#777; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-top:2px; }
+    .tl-n { font-size:10px; color:#555; margin-top:2px; }
+
+    .piano { background:#0a0a0a; border:1px solid #222; border-radius:12px; padding:14px; margin-bottom:16px; }
+    .piano-hdr { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+    .piano-tit { font-size:14px; font-weight:800; color:#FFD008; text-transform:uppercase; letter-spacing:.8px; margin-right:auto; }
+    .mini { background:#1c1c1c; border:1px solid #333; color:#ccc; font-family:inherit; font-size:11px; font-weight:700; padding:6px 11px; border-radius:7px; cursor:pointer; }
+    .mini.on { background:#FFD008; border-color:#FFD008; color:#000; }
+    .mini.verde { background:#00C48C; border-color:#00C48C; color:#000; }
+    .mini:disabled { opacity:.4; cursor:not-allowed; }
+
+    .avviso-allin { font-size:11.5px; line-height:1.5; border-radius:8px; padding:8px 11px; margin-bottom:10px; }
+    .avviso-allin.no { background:#2a2214; border:1px solid #6b5313; color:#ffd98a; }
+    .avviso-allin.si { background:#12241d; border:1px solid #1d5c47; color:#7fe3c0; }
+
+    /* Le foto posturali sono verticali: a tutta larghezza il riquadro sarebbe
+       quasi tutto nero. Si tiene stretto e centrato, e si allarga solo quando
+       le due foto stanno una accanto all'altra. */
+    .visore { position:relative; width:100%; max-width:560px; margin:0 auto; background:#000; border-radius:10px; overflow:hidden; }
+    .visore.affianca { max-width:1000px; }
+    .visore.libera { max-width:none; margin:0; }
+    .visore .lastra { position:absolute; inset:0; overflow:hidden; }
+    .visore img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:block; }
+    .visore .griglia { position:absolute; inset:0; pointer-events:none; z-index:5; width:100%; height:100%; }
+    .visore .divisore { position:absolute; background:#FFD008; z-index:6; pointer-events:none; display:none; }
+    .visore .vuoto { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#777; font-size:12px; text-align:center; padding:20px; line-height:1.5; }
+    .visore.affianca { display:flex; gap:2px; }
+    .visore.affianca .lastra { position:relative; inset:auto; flex:1; min-width:0; height:100%; }
+
+    .slider-row { display:flex; align-items:center; gap:12px; max-width:560px; margin:10px auto 0; }
+    .slider-row input[type=range] { flex:1; accent-color:#FFD008; height:26px; cursor:pointer; }
+    .date-row { display:flex; justify-content:space-between; gap:10px; max-width:560px; margin:6px auto 0; font-size:12px; font-weight:700; flex-wrap:wrap; }
+    .date-a { color:#FFD008; }
+    .date-b { color:#00C48C; }
+
+    .striscia { display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; }
+    .str-cella { flex:0 0 auto; width:150px; }
+    .str-box { position:relative; width:150px; height:200px; background:#000; border-radius:8px; overflow:hidden; border:2px solid #222; cursor:pointer; }
+    .str-box img { width:100%; height:100%; object-fit:contain; }
+    .str-box .griglia { position:absolute; inset:0; pointer-events:none; width:100%; height:100%; }
+    .str-vuota { display:flex; align-items:center; justify-content:center; height:100%; color:#333; font-size:11px; }
+    .str-data { font-size:11px; font-weight:700; margin-top:5px; color:#ccc; text-align:center; }
+    .str-tipo { font-size:9.5px; color:#666; text-align:center; text-transform:uppercase; letter-spacing:.4px; }
+
+    /* La barra di console-nav.js sta a z-index 9000 e si piazzava sopra il
+       cursore dello schermo «Mostra al paziente»: i modali le vanno sopra. */
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:9500; display:none; align-items:center; justify-content:center; padding:16px; }
+    /* Davanti al paziente non ci sono menu: solo le due foto e il cursore. */
+    body.pol-paziente #cnav-bar { display:none !important; }
+    .modal.open { display:flex; }
+    .modal-card { background:#141414; border:1px solid #2a2a2a; border-radius:14px; max-width:900px; width:100%; max-height:94vh; overflow:auto; padding:18px; }
+    .modal-tit { font-size:16px; font-weight:800; color:#FFD008; margin-bottom:8px; }
+    .modal-txt { font-size:13px; color:#bbb; line-height:1.6; margin-bottom:12px; }
+    .allin-box { position:relative; background:#000; border-radius:10px; overflow:hidden; margin-bottom:12px; cursor:crosshair; touch-action:manipulation; }
+    .allin-box img { width:100%; max-height:58vh; object-fit:contain; display:block; }
+    .allin-marker { position:absolute; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%; border:2px solid #FFD008; color:#FFD008; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); pointer-events:none; }
+    .modal-azioni { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .btn-g { background:#FFD008; color:#000; border:none; padding:10px 16px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:800; cursor:pointer; }
+    .btn-g:disabled { opacity:.4; cursor:not-allowed; }
+    .btn-n { background:transparent; border:1.5px solid #444; color:#ccc; padding:10px 16px; border-radius:8px; font-family:inherit; font-size:13px; cursor:pointer; }
+    .btn-r { background:#c62828; color:#fff; border:none; padding:10px 16px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+
+    /* ── Mostra al paziente ───────────────────────────────── */
+    #paz-modal { background:#000; padding:0; }
+    .paz-wrap { width:100%; height:100%; display:flex; flex-direction:column; }
+    .paz-top { display:flex; justify-content:space-between; align-items:center; padding:12px 18px; }
+    .paz-chiudi { background:rgba(255,255,255,.12); border:none; color:#fff; font-size:22px; width:48px; height:48px; border-radius:50%; cursor:pointer; }
+    .paz-visore { flex:1; position:relative; min-height:0; }
+    .paz-visore .visore { position:absolute; inset:0; height:100%; border-radius:0; }
+    .paz-basso { padding:10px 22px 28px; }
+    .paz-date { display:flex; justify-content:space-between; gap:12px; font-size:clamp(15px,4vw,26px); font-weight:900; margin-bottom:10px; }
+    .paz-date .a { color:#FFD008; }
+    .paz-date .b { color:#00C48C; }
+    #paz-slider { width:100%; height:54px; accent-color:#FFD008; cursor:pointer; }
+
+    #pdf-body { background:#fff; color:#000; border-radius:8px; overflow:auto; margin-bottom:12px; max-height:50vh; padding:14px; }
+    #pdf-relazione { width:100%; min-height:100px; background:#0d0d0d; border:1px solid #333; border-radius:8px; color:#eee; font-family:inherit; font-size:13px; line-height:1.6; padding:10px; resize:vertical; }
+    .pdf-valida { display:flex; gap:9px; align-items:flex-start; font-size:12.5px; color:#ddd; line-height:1.5; margin:12px 0; cursor:pointer; }
+    .pdf-valida input { accent-color:#00C48C; width:19px; height:19px; margin-top:1px; flex:0 0 auto; cursor:pointer; }
+    #pdf-esito { display:none; border-radius:8px; padding:10px 12px; font-size:12.5px; line-height:1.55; margin-bottom:10px; }
+    #pdf-esito.ok { background:#12241d; border:1px solid #1d5c47; color:#7fe3c0; }
+    #pdf-esito.ko { background:#2a1414; border:1px solid #7a2020; color:#ffb4b4; }
+
+    .toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#000; border:1px solid #444; color:#fff; padding:11px 18px; border-radius:10px; font-size:13px; z-index:400; display:none; max-width:90vw; text-align:center; }
+
+    @media (max-width:640px) {
+      .piano-tit { width:100%; margin-bottom:2px; }
+    }
     @media print {
-      .navbar, .tabs, .griglia-toggle, .btn-back, .btn-print { display: none; }
-      body { background: #fff; color: #000; }
-      .foto-label-bar { color: #000; background: rgba(255,255,255,0.9); }
-      .lato-label { color: #333; background: #f5f5f5; }
-      .comparazione-grid { border-color: #ccc; background: #ccc; }
+      .navbar, .toolbar, .timeline-wrap, .piano-hdr .mini, .slider-row, .msg { display:none !important; }
+      body { background:#fff; color:#000; }
+      .piano { border-color:#ccc; background:#fff; }
     }
   </style>
 </head>
@@ -55,156 +144,1181 @@
   <nav class="navbar">
     <span class="navbar-logo">POLICETTIVO®</span>
     <div class="navbar-right">
-      <button class="btn-back" onclick="window.close()">← Chiudi</button>
-      <button class="btn-print" onclick="window.print()">🖨 Stampa</button>
+      <button class="btn-pdf" id="btn-pdf" onclick="apriPdfConfronto()">📄 PDF del confronto</button>
+      <button class="btn-back" onclick="tornaIndietro()">← Chiudi</button>
     </div>
   </nav>
 
   <div class="main">
-    <div class="patient-title" id="pt-nome">Caricamento...</div>
-    <div class="patient-sub" id="pt-sub"></div>
+    <div class="patient-title" id="pt-nome">Caricamento…</div>
+    <div class="patient-sub" id="pt-sub">Confronto delle valutazioni posturali nel tempo</div>
 
-    <div class="info-bar" id="info-bar"></div>
+    <div class="msg ko" id="banner-errore"></div>
+    <div class="msg info" id="banner-info"></div>
 
-    <div class="tabs">
-      <button class="tab active" onclick="setTab('sagittale', this)">Piano sagittale</button>
-      <button class="tab" onclick="setTab('frontale', this)">Piano frontale/posteriore</button>
-      <button class="tab" onclick="setTab('podoscopio', this)">Podoscopio</button>
+    <div class="toolbar" id="toolbar" style="display:none">
+      <span class="seg-lbl">Foto</span>
+      <div class="seg">
+        <button id="fase-pre" class="on" onclick="setFase('pre')">PRE</button>
+        <button id="fase-post" onclick="setFase('post')">POST 3R</button>
+      </div>
+      <span class="seg-lbl">Vista</span>
+      <div class="seg">
+        <button id="modo-confronto" class="on" onclick="setModo('confronto')">Confronto due</button>
+        <button id="modo-striscia" onclick="setModo('striscia')">Striscia temporale</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="cb-griglia" checked onchange="setGriglia(this.checked)"> Griglia</label>
+      <label class="chk"><input type="checkbox" id="cb-linea" onchange="setLinea(this.checked)"> Linea centrale</label>
     </div>
 
-    <div class="griglia-toggle">
-      <label><input type="checkbox" id="toggle-griglia" onchange="toggleGriglia(this.checked)" checked> Mostra griglia di riferimento</label>
-      <label style="margin-left:16px"><input type="checkbox" id="toggle-linea" onchange="toggleLinea(this.checked)"> Mostra linea centrale</label>
+    <div class="timeline-wrap" id="timeline-wrap" style="display:none">
+      <div class="timeline-hint" id="timeline-hint"></div>
+      <div class="timeline" id="timeline"></div>
     </div>
 
-    <div id="comparazione-content"></div>
+    <div id="contenuto"></div>
   </div>
 
-  <script>
-    const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
-    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-    const params = new URLSearchParams(window.location.search)
-    const patientId = params.get('id')
-    let patient = null
-    let showGriglia = true
-    let showLinea = false
-    let currentTab = 'sagittale'
-    let resolvedUrls = {}
+  <!-- ── ALLINEAMENTO ────────────────────────────────────── -->
+  <div class="modal" id="allin-modal">
+    <div class="modal-card">
+      <div class="modal-tit" id="allin-tit">Allinea le due foto</div>
+      <div class="modal-txt" id="allin-testo"></div>
+      <div class="allin-box" id="allin-box" onclick="allinClick(event)">
+        <img id="allin-img" alt="">
+      </div>
+      <div class="modal-azioni">
+        <button class="btn-n" onclick="allinRifai()">↺ Rifai i punti</button>
+        <button class="btn-r" id="allin-btn-togli" onclick="allinTogli()" style="display:none">🗑 Togli allineamento</button>
+        <button class="btn-n" onclick="chiudiAllin()">Annulla</button>
+        <button class="btn-g" id="allin-btn-avanti" onclick="allinAvanti()" disabled>Avanti →</button>
+      </div>
+    </div>
+  </div>
 
-    async function init() {
-      if (!patientId) return
-      const { data: p } = await _supabase.from('patients').select('*').eq('id', patientId).maybeSingle()
-      if (!p) return
-      patient = p
-      try { resolvedUrls = await polResolveFotoMappa(JSON.parse(p.foto_url || '{}'), _supabase) } catch(e) { resolvedUrls = {} }
-      document.getElementById('pt-nome').textContent = p.nome + ' ' + p.cognome
-      document.getElementById('pt-sub').textContent = (p.problema_principale || '') + ' — Comparazione posturale'
-      const cfg = p.configurazione_default
-      document.getElementById('info-bar').innerHTML =
-        '<div class="info-item">Configurazione: <span>' + (cfg ? '<span class="badge badge-' + cfg.toLowerCase() + '">' + cfg + '</span>' : '—') + '</span></div>' +
-        '<div class="info-item">Data: <span>' + new Date().toLocaleDateString('it-IT') + '</span></div>' +
-        (p.note_cliniche ? '<div class="info-item" style="flex:1;font-size:11px;color:#555">' + p.note_cliniche.split('\n')[0] + '</div>' : '')
-      renderTab()
+  <!-- ── MOSTRA AL PAZIENTE ──────────────────────────────── -->
+  <div class="modal" id="paz-modal">
+    <div class="paz-wrap">
+      <div class="paz-top">
+        <div style="font-size:15px;font-weight:800;color:#888" id="paz-titolo"></div>
+        <button class="paz-chiudi" onclick="chiudiPaziente()">✕</button>
+      </div>
+      <div class="paz-visore" id="paz-visore"></div>
+      <div class="paz-basso">
+        <div class="paz-date"><span class="a" id="paz-data-a"></span><span class="b" id="paz-data-b"></span></div>
+        <input type="range" id="paz-slider" min="0" max="100" value="100" oninput="pazSlider(this.value)">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PDF ─────────────────────────────────────────────── -->
+  <div class="modal" id="pdf-modal">
+    <div class="modal-card" style="max-width:980px">
+      <div class="modal-tit">Anteprima del PDF di confronto</div>
+      <div class="modal-txt">Il documento porta la tua firma: rileggilo, correggi il commento se serve, poi spunta la casella.</div>
+      <div id="pdf-esito"></div>
+      <div id="pdf-body"></div>
+      <div style="font-size:11px;color:#777;font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Commento clinico (facoltativo)</div>
+      <textarea id="pdf-relazione" placeholder="Scrivi qui il commento che vuoi sul documento, oppure lascia vuoto." oninput="pdfCambiata()"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="mini" onclick="pdfCommentoAI()" id="pdf-btn-ai">✨ Proponi un commento con l'AI</button>
+      </div>
+      <label class="pdf-valida">
+        <input type="checkbox" id="pdf-validato" onchange="pdfAggiornaSalva()">
+        <span>Ho letto il documento e lo valido. Il documento porta la mia firma.</span>
+      </label>
+      <div class="modal-azioni">
+        <button class="btn-n" onclick="chiudiPdf()">Chiudi</button>
+        <button class="btn-n" onclick="stampaPdf()">🖨 Stampa</button>
+        <button class="btn-g" id="pdf-btn-salva" onclick="salvaPdf()" disabled>💾 Valida e salva in cartella clinica</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   confronto-nel-tempo-v1 — 31 agosto 2026
+   Confronto di TUTTE le valutazioni posturali del paziente nel tempo.
+
+   Cosa entra nella riga del tempo:
+     * le foto iniziali della SCHEDA PAZIENTE (patients.foto_url) come punto
+       piu' vecchio — sono le foto scattate prima di ogni visita, quelle dei
+       cuscini elicoidali. Prima di oggi questa pagina mostrava SOLO quelle;
+     * ogni valutazione posturale del paziente (visits.tipo='posturale') con
+       le sue foto (visit_photos).
+
+   Perche' l'allineamento conta. Due foto di giorni diversi hanno distanza dal
+   muro, altezza della fotocamera e posizione dei piedi diverse: la
+   "differenza" che si vede sovrapponendole puo' essere fotografica e non
+   posturale. Il setup dello studio i riferimenti veri li ha e si vedono nelle
+   foto (filo a piombo rosso a muro, crociera del tappetino, riga graduata):
+   si toccano due punti per foto, l'app ricava scala, rotazione e spostamento
+   e porta la seconda sulla prima. Finche' non e' stato fatto, sopra il
+   confronto c'e' scritto che e' un'impressione visiva e non una misura — e la
+   stessa frase finisce sul PDF.
+   ===================================================================== */
+
+const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+const params    = new URLSearchParams(window.location.search)
+const patientId = params.get('id') || params.get('pid')
+
+/* I piani vengono da js/postural-component.js, che e' l'unico posto dove sono
+   scritti (li usano anche la posturale e la visita). Se quel file non si
+   carica NON si costruisce un secondo elenco «suo»: si dice che manca. Due
+   elenchi paralleli per la stessa cosa sono il modo sicuro per farli divergere. */
+const PLANES = (typeof POSTURAL_PHOTO_PLANES !== 'undefined') ? POSTURAL_PHOTO_PLANES : null
+
+/* Le foto iniziali della scheda paziente, portate sui piani della posturale. */
+const SLOT_SCHEDA = {
+  'prima-sx':    { plane:'sagittale_sx',      fase:'pre'  },
+  'prima-dx':    { plane:'sagittale_dx',      fase:'pre'  },
+  'dopo-sx':     { plane:'sagittale_sx',      fase:'post' },
+  'dopo-dx':     { plane:'sagittale_dx',      fase:'post' },
+  'frontale':    { plane:'frontale',          fase:'pre'  },
+  'posteriore':  { plane:'posteriore',        fase:'pre'  },
+  'podo-sotto':  { plane:'podoscopio_sotto',  fase:'pre'  },
+  'podo-dietro': { plane:'podoscopio_dietro', fase:'pre'  }
+}
+
+/* Sulle viste che guardano il corpo di fronte o di spalle una tendina
+   VERTICALE mostra meta' «prima» e meta' «dopo» dello stesso corpo e simula
+   un'asimmetria che non c'e'. Su queste la tendina parte orizzontale. */
+const PIANI_SIMMETRICI = ['frontale','posteriore','podoscopio_sotto','podoscopio_dietro']
+
+let patient = null
+let professionalId = null
+let punti = []            // riga del tempo, in ordine cronologico
+let allineamenti = {}     // storage_path -> { a:{x,y}, b:{x,y} }
+let fase = 'pre'
+let modo = 'confronto'    // 'confronto' | 'striscia'
+let selA = null, selB = null
+let showGriglia = true, showLinea = false
+let visori = {}           // plane -> visore
+let visorePaziente = null
+let _pdfStato = null
+
+// ── UTILITA' ──────────────────────────────────────────────
+function showToast(msg, ms) {
+  const t = document.getElementById('toast')
+  t.textContent = msg; t.style.display = 'block'
+  clearTimeout(window._tt); window._tt = setTimeout(() => { t.style.display = 'none' }, ms || 3400)
+}
+function errore(html) {
+  const b = document.getElementById('banner-errore')
+  b.innerHTML = html; b.style.display = 'block'
+}
+function info(html) {
+  const b = document.getElementById('banner-info')
+  b.innerHTML = html; b.style.display = html ? 'block' : 'none'
+}
+function dataIT(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' })
+}
+function dataLunga(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('it-IT', { day:'numeric', month:'long', year:'numeric' })
+}
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+function tornaIndietro() { if (history.length > 1) history.back(); else window.close() }
+
+/* Percorso su Storage di una foto della scheda paziente. Le vecchie foto
+   salvate in base64 o come URL diretto esistono ancora: quelle un percorso non
+   ce l'hanno e non si possono allineare, ma si vedono lo stesso. */
+function percorsoScheda(v) {
+  if (!v) return null
+  if (typeof v === 'object') return v.storage_path || null
+  if (typeof v !== 'string') return null
+  if (v.indexOf('data:') === 0 || v.indexOf('http') === 0) return null
+  return v
+}
+/* patients non ha una colonna con la data di scatto delle foto iniziali:
+   l'unica data disponibile e' dentro il nome del file, ed e' il momento del
+   CARICAMENTO. Vale come «caricata il», mai come «scattata il». */
+function dataDaPercorso(p) {
+  const m = /_(\d{10,16})\.[a-z]+$/i.exec(p || '')
+  if (!m) return null
+  const n = Number(m[1]); if (!isFinite(n)) return null
+  const d = new Date(n)
+  return isNaN(d.getTime()) ? null : d.toISOString()
+}
+
+// ── AVVIO ─────────────────────────────────────────────────
+async function init() {
+  if (!patientId) { errore('Indirizzo incompleto: manca il paziente (<code>?id=</code>).'); return }
+  if (!PLANES) {
+    errore('Non si è caricato <code>js/postural-component.js</code>, che è l\'unico posto dove sono scritti i piani. ' +
+           'La pagina non ne costruisce un secondo elenco per conto suo: ricarica, e se il problema resta segnalalo.')
+    return
+  }
+
+  const { data: { session } } = await _sb.auth.getSession()
+  if (!session) { window.location.href = 'login.html'; return }
+
+  const { data: prof } = await _sb.from('professionals').select('id').eq('user_id', session.user.id).maybeSingle()
+  professionalId = prof ? prof.id : null
+
+  const { data: p, error: pe } = await _sb.from('patients')
+    .select('id,nome,cognome,foto_url').eq('id', patientId).maybeSingle()
+  if (pe || !p) { errore('Paziente non trovato, oppure non è tuo. ' + esc((pe && pe.message) || '')); return }
+  patient = p
+  document.getElementById('pt-nome').textContent = ((p.nome||'') + ' ' + (p.cognome||'')).trim() || 'Paziente'
+
+  await caricaPunti()
+
+  if (!punti.length) {
+    info('Per questo paziente non ci sono ancora foto posturali, né nella scheda né nelle valutazioni. Appena ne carichi una, compare qui.')
+    document.getElementById('btn-pdf').style.display = 'none'
+    return
+  }
+
+  await caricaAllineamenti()
+
+  document.getElementById('pt-sub').textContent =
+    punti.length + (punti.length === 1 ? ' rilevazione' : ' rilevazioni') +
+    ' — dal ' + dataIT(punti[0].data) + ' al ' + dataIT(punti[punti.length - 1].data)
+
+  selA = 0
+  selB = punti.length > 1 ? punti.length - 1 : null
+  if (punti.length === 1) {
+    modo = 'striscia'
+    info('C\'è una sola rilevazione: non c\'è ancora niente da confrontare. Quando ne aggiungi un\'altra, qui compare il confronto.')
+  }
+
+  document.getElementById('toolbar').style.display = 'flex'
+  document.getElementById('timeline-wrap').style.display = 'block'
+  aggiornaSegmenti()
+  renderTimeline()
+  render()
+}
+
+// ── DATI ──────────────────────────────────────────────────
+async function caricaPunti() {
+  const daFirmare = []
+  const nuovi = []
+
+  // 1) Foto iniziali della scheda paziente — un punto solo, il piu' vecchio.
+  let urls = {}
+  try { urls = JSON.parse(patient.foto_url || '{}') } catch (e) { urls = {} }
+  const slotsScheda = Object.keys(urls).filter(k => urls[k] && SLOT_SCHEDA[k])
+  if (slotsScheda.length) {
+    const foto = {}
+    let minData = null
+    slotsScheda.forEach(k => {
+      const map  = SLOT_SCHEDA[k]
+      const path = percorsoScheda(urls[k])
+      const dir  = (!path && typeof urls[k] === 'string') ? urls[k] : null
+      if (!path && !dir) return
+      const d = dataDaPercorso(path)
+      if (d && (!minData || d < minData)) minData = d
+      foto[map.plane] = foto[map.plane] || {}
+      foto[map.plane][map.fase] = { path: path, url: dir, data: d, slot: k }
+      if (path) daFirmare.push(path)
+    })
+    if (Object.keys(foto).length) {
+      nuovi.push({ chiave:'scheda', kind:'scheda', data: minData, dataNota:'caricata il', foto })
     }
+  }
 
-    function setTab(tab, btn) {
-      currentTab = tab
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
-      btn.classList.add('active')
-      renderTab()
+  // 2) Le valutazioni posturali del paziente.
+  const { data: visite, error: ve } = await _sb
+    .from('visits').select('id,data_visita,created_at,tipo')
+    .eq('patient_id', patientId).eq('tipo', 'posturale')
+  if (ve) { errore('Non ho potuto leggere le valutazioni: ' + esc(ve.message)); return }
+
+  const ids = (visite || []).map(v => v.id)
+  let fotoVisite = []
+  if (ids.length) {
+    const { data: fts, error: fe } = await _sb.from('visit_photos').select('*').in('visit_id', ids)
+    if (fe) { errore('Non ho potuto leggere le foto delle valutazioni: ' + esc(fe.message)); return }
+    fotoVisite = fts || []
+  }
+  const perVisita = {}
+  fotoVisite.forEach(f => { (perVisita[f.visit_id] = perVisita[f.visit_id] || []).push(f) })
+
+  ;(visite || []).forEach(v => {
+    const lista = perVisita[v.id] || []
+    const foto = {}
+    PLANES.forEach(pl => {
+      const pre  = lista.find(f => f.tipo === pl.pre.tipo)
+      const post = lista.find(f => f.tipo === pl.post.tipo)
+      if (!pre && !post) return
+      foto[pl.plane] = {}
+      if (pre && pre.storage_path) {
+        foto[pl.plane].pre = { path: pre.storage_path, url: null, data: pre.data_scatto || v.data_visita, id: pre.id }
+        daFirmare.push(pre.storage_path)
+      }
+      if (post && post.storage_path) {
+        foto[pl.plane].post = { path: post.storage_path, url: null, data: post.data_scatto || v.data_visita, id: post.id }
+        daFirmare.push(post.storage_path)
+      }
+      if (!foto[pl.plane].pre && !foto[pl.plane].post) delete foto[pl.plane]
+    })
+    if (!Object.keys(foto).length) return
+    nuovi.push({ chiave:'v_' + v.id, kind:'visita', visitId:v.id, data: v.data_visita || v.created_at, dataNota:'', foto })
+  })
+
+  // 3) Un giro solo di firme per tutte le foto: e' l'unica ragione per cui il
+  //    picker della posturale non ci mette dieci secondi.
+  const mappa = {}
+  const unici = Array.from(new Set(daFirmare.filter(Boolean)))
+  for (let i = 0; i < unici.length; i += 100) {
+    const blocco = unici.slice(i, i + 100)
+    try {
+      const { data: sl } = await _sb.storage.from('clinical-docs').createSignedUrls(blocco, 7200)
+      ;(sl || []).forEach(s => { if (s && s.signedUrl && s.path) mappa[s.path] = s.signedUrl })
+    } catch (e) { /* le foto non firmate restano vuote, col motivo scritto a schermo */ }
+  }
+  let mancanti = 0
+  nuovi.forEach(pt => Object.keys(pt.foto).forEach(pl => ['pre','post'].forEach(f => {
+    const o = pt.foto[pl][f]; if (!o) return
+    if (o.path) { o.url = mappa[o.path] || null; if (!o.url) mancanti++ }
+  })))
+  if (mancanti) {
+    errore('<b>' + mancanti + (mancanti === 1 ? ' foto non si apre.' : ' foto non si aprono.') + '</b> ' +
+      'Il file è nel bucket privato <code>clinical-docs</code> e non è stato possibile firmarne l\'indirizzo: ' +
+      'può essere che il file non ci sia più, oppure che sia di un altro professionista. Le altre si vedono lo stesso.')
+  }
+
+  nuovi.sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')))
+  punti = nuovi
+}
+
+async function caricaAllineamenti() {
+  const paths = []
+  punti.forEach(pt => Object.keys(pt.foto).forEach(pl => ['pre','post'].forEach(f => {
+    const o = pt.foto[pl][f]; if (o && o.path) paths.push(o.path)
+  })))
+  if (!paths.length) return
+  const { data, error } = await _sb.from('foto_allineamenti')
+    .select('storage_path,punti').in('storage_path', Array.from(new Set(paths)))
+  if (error) {
+    // Il caso piu' probabile: la migration 038 non e' stata eseguita.
+    const m = (error.message || '').toLowerCase()
+    const manca = m.includes('does not exist') || m.includes('schema cache') || m.includes('relation') || m.includes('permission')
+    errore('<b>L\'allineamento non è disponibile.</b> ' + esc(error.message) +
+      (manca ? '<br>👉 Sembra che manchi la <b>migration 038</b>: aprila nel SQL Editor di Supabase, incollala e premi Run. Il confronto funziona lo stesso, ma resta «impressione visiva».' : ''))
+    return
+  }
+  allineamenti = {}
+  ;(data || []).forEach(r => { if (r.storage_path && r.punti) allineamenti[r.storage_path] = r.punti })
+}
+
+// ── COMANDI ───────────────────────────────────────────────
+function aggiornaSegmenti() {
+  document.getElementById('fase-pre').classList.toggle('on',  fase === 'pre')
+  document.getElementById('fase-post').classList.toggle('on', fase === 'post')
+  document.getElementById('modo-confronto').classList.toggle('on', modo === 'confronto')
+  document.getElementById('modo-striscia').classList.toggle('on',  modo === 'striscia')
+  document.getElementById('timeline-hint').innerHTML = modo === 'confronto'
+    ? 'Tocca due date: la prima diventa <b style="color:#FFD008">A</b>, la seconda <b style="color:#00C48C">B</b>.'
+    : 'Tutte le date in fila, per vedere l\'andamento. Tocca una foto per aprirla nel confronto.'
+}
+function setFase(f)    { fase = f; aggiornaSegmenti(); render() }
+function setModo(m)    { modo = m; aggiornaSegmenti(); render() }
+function setGriglia(v) { showGriglia = v; render(); if (visorePaziente) visorePaziente.ridisegnaGriglia() }
+function setLinea(v)   { showLinea   = v; render(); if (visorePaziente) visorePaziente.ridisegnaGriglia() }
+
+function scegliPunto(i) {
+  if (modo === 'striscia') { modo = 'confronto'; aggiornaSegmenti() }
+  if (selA === null || (selA !== null && selB !== null)) { selA = i; selB = null }
+  else if (i === selA) { /* la stessa: non cambia niente */ }
+  else if (i < selA)   { selB = selA; selA = i }
+  else                 { selB = i }
+  renderTimeline(); render()
+}
+
+function renderTimeline() {
+  const tl = document.getElementById('timeline')
+  tl.innerHTML = punti.map((pt, i) => {
+    const n = Object.keys(pt.foto).reduce((s, pl) => s + (pt.foto[pl].pre ? 1 : 0) + (pt.foto[pl].post ? 1 : 0), 0)
+    const cls = i === selA ? ' selA' : (i === selB ? ' selB' : '')
+    const tag = i === selA ? '<span class="tl-tag">A</span>' : (i === selB ? '<span class="tl-tag">B</span>' : '')
+    return '<button class="tl-punto' + cls + '" data-i="' + i + '" onclick="scegliPunto(' + i + ')">' + tag +
+      '<div class="tl-data">' + dataIT(pt.data) + '</div>' +
+      '<div class="tl-tipo">' + (pt.kind === 'scheda' ? 'Scheda paziente' : 'Valutazione') + '</div>' +
+      '<div class="tl-n">' + n + ' foto' + (pt.dataNota ? ' · ' + pt.dataNota : '') + '</div>' +
+    '</button>'
+  }).join('')
+}
+
+// ── DISEGNO ───────────────────────────────────────────────
+function grigliaSvg() {
+  let g = ''
+  if (showGriglia) {
+    for (let x = 10; x < 100; x += 10) g += '<line x1="'+x+'" y1="0" x2="'+x+'" y2="133" stroke="rgba(255,208,8,0.15)" stroke-width="0.3"/>'
+    for (let y = 10; y < 133; y += 10) g += '<line x1="0" y1="'+y+'" x2="100" y2="'+y+'" stroke="rgba(255,208,8,0.15)" stroke-width="0.3"/>'
+  }
+  if (showLinea) g += '<line x1="50" y1="0" x2="50" y2="133" stroke="rgba(255,100,100,0.6)" stroke-width="0.5" stroke-dasharray="2 2"/>'
+  return '<svg class="griglia" viewBox="0 0 100 133" preserveAspectRatio="none">' + g + '</svg>'
+}
+function fotoDi(i, plane) {
+  if (i === null || i === undefined || !punti[i]) return null
+  const p = punti[i].foto[plane]
+  if (!p) return null
+  return p[fase] || null
+}
+function pianiConRoba() {
+  return PLANES.filter(pl => punti.some(pt => pt.foto[pl.plane] && pt.foto[pl.plane][fase]))
+}
+
+function render() {
+  Object.keys(visori).forEach(k => visori[k].distruggi())
+  visori = {}
+  const cont = document.getElementById('contenuto')
+  cont.innerHTML = ''
+
+  const piani = pianiConRoba()
+  if (!piani.length) {
+    const d = document.createElement('div')
+    d.className = 'msg info'; d.style.display = 'block'
+    d.innerHTML = 'Nessuna foto <b>' + (fase === 'pre' ? 'PRE' : 'POST 3R') + '</b> per questo paziente. Prova a cambiare con il pulsante qui sopra.'
+    cont.appendChild(d)
+    return
+  }
+  piani.forEach(pl => cont.appendChild(modo === 'confronto' ? bloccoConfronto(pl) : bloccoStriscia(pl)))
+}
+
+// ── Blocco «striscia temporale» ───────────────────────────
+function bloccoStriscia(pl) {
+  const box = document.createElement('div')
+  box.className = 'piano'
+  const celle = punti.map((pt, i) => {
+    const f = pt.foto[pl.plane] && pt.foto[pl.plane][fase]
+    const dentro = (f && f.url)
+      ? '<img src="' + esc(f.url) + '" alt="' + esc(pl.label) + ' ' + dataIT(f.data) + '">' + grigliaSvg()
+      : '<div class="str-vuota">— assente —</div>'
+    return '<div class="str-cella"><div class="str-box" onclick="scegliPunto(' + i + ')">' + dentro + '</div>' +
+      '<div class="str-data">' + dataIT(pt.data) + '</div>' +
+      '<div class="str-tipo">' + (pt.kind === 'scheda' ? 'scheda' : 'valutazione') + '</div></div>'
+  }).join('')
+  box.innerHTML = '<div class="piano-hdr"><span class="piano-tit">' + esc(pl.label) + '</span></div>' +
+                  '<div class="striscia">' + celle + '</div>'
+  return box
+}
+
+// ── Blocco «confronto due» ────────────────────────────────
+function bloccoConfronto(pl) {
+  const box = document.createElement('div')
+  box.className = 'piano'
+  box.dataset.plane = pl.plane
+  const fa = fotoDi(selA, pl.plane), fb = fotoDi(selB, pl.plane)
+
+  const hdr = document.createElement('div')
+  hdr.className = 'piano-hdr'
+  hdr.innerHTML = '<span class="piano-tit">' + esc(pl.label) + '</span>'
+  box.appendChild(hdr)
+
+  if (!fa || !fb || !fa.url || !fb.url) {
+    const p = document.createElement('div')
+    p.className = 'msg info'; p.style.display = 'block'; p.style.marginBottom = '0'
+    if (selB === null) {
+      p.innerHTML = 'Scegli una <b>seconda data</b> nella riga qui sopra per confrontare.'
+    } else {
+      const quale = (!fa || !fa.url) ? selA : selB
+      p.innerHTML = 'Manca la foto <b>' + (fase === 'pre' ? 'PRE' : 'POST 3R') + '</b> di questo piano ' +
+        'nella rilevazione del ' + dataIT(punti[quale].data) + '.'
     }
+    box.appendChild(p)
+    return box
+  }
 
-    function renderTab() {
-      if (!patient) return
-      let urls = resolvedUrls
+  const modi = document.createElement('div')
+  modi.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap'
+  ;[['dissolvenza','Dissolvenza'],['lampeggio','Lampeggio'],['tendina','Tendina'],['affiancato','Affiancato']]
+    .forEach(function (v) {
+      const b = document.createElement('button')
+      b.className = 'mini' + (v[0] === 'dissolvenza' ? ' on' : '')
+      b.textContent = v[1]
+      b.dataset.m = v[0]
+      b.onclick = () => visori[pl.plane].setModo(v[0])
+      modi.appendChild(b)
+    })
+  hdr.appendChild(modi)
 
-      if (currentTab === 'sagittale') {
-        renderComparazione([
-          { key: 'prima-sx', label: 'PRIMA — Sinistro', tipo: 'prima' },
-          { key: 'prima-dx', label: 'PRIMA — Destro', tipo: 'prima' },
-          { key: 'dopo-sx', label: 'DOPO — Sinistro', tipo: 'dopo' },
-          { key: 'dopo-dx', label: 'DOPO — Destro', tipo: 'dopo' }
-        ], urls, true)
-      } else if (currentTab === 'frontale') {
-        renderComparazione([
-          { key: 'frontale', label: 'Piano frontale', tipo: 'prima' },
-          { key: 'posteriore', label: 'Piano posteriore', tipo: 'prima' }
-        ], urls, false)
-      } else {
-        renderComparazione([
-          { key: 'podo-sotto', label: 'Piede da sotto', tipo: 'prima' },
-          { key: 'podo-dietro', label: 'Piede da dietro', tipo: 'prima' }
-        ], urls, false)
+  const bAll = document.createElement('button')
+  bAll.className = 'mini'
+  bAll.textContent = '🎯 Allinea'
+  bAll.onclick = () => apriAllin(pl.plane)
+  hdr.appendChild(bAll)
+
+  const bPaz = document.createElement('button')
+  bPaz.className = 'mini verde'
+  bPaz.textContent = '👁 Mostra al paziente'
+  bPaz.onclick = () => mostraAlPaziente(pl.plane)
+  hdr.appendChild(bPaz)
+
+  const av = document.createElement('div')
+  const allineato = !!(fa.path && fb.path && allineamenti[fa.path] && allineamenti[fb.path])
+  av.className = 'avviso-allin ' + (allineato ? 'si' : 'no')
+  av.innerHTML = allineato
+    ? '✓ <b>Foto allineate</b> sui riferimenti dello studio: la seconda è stata scalata e ruotata sulla prima.'
+    : '⚠️ <b>Foto non allineate: quella che vedi è un\'impressione visiva, non una misura.</b> ' +
+      'Distanza dal muro, altezza della fotocamera e posizione dei piedi cambiano da un giorno all\'altro. ' +
+      'Tocca <b>🎯 Allinea</b> e indica su ciascuna foto due riferimenti fissi — filo a piombo in alto e centro della crociera.'
+  box.appendChild(av)
+
+  const v = creaVisore(pl, fa, fb)
+  visori[pl.plane] = v
+  box.appendChild(v.el)
+
+  const nota = document.createElement('div')
+  nota.className = 'nota-modo avviso-allin no'
+  nota.style.cssText = 'margin-top:10px;display:none'
+  box.appendChild(nota)
+  v.nota = nota
+
+  const sr = document.createElement('div')
+  sr.className = 'slider-row'
+  sr.innerHTML = '<span style="font-size:11px;color:#FFD008;font-weight:800">A</span>' +
+                 '<input type="range" min="0" max="100" value="100" aria-label="dissolvenza">' +
+                 '<span style="font-size:11px;color:#00C48C;font-weight:800">B</span>'
+  sr.querySelector('input').oninput = e => v.setMix(Number(e.target.value) / 100)
+  v.slider = sr.querySelector('input')
+  box.appendChild(sr)
+
+  const dr = document.createElement('div')
+  dr.className = 'date-row'
+  dr.innerHTML =
+    '<span class="date-a">A — ' + dataLunga(punti[selA].data) + (punti[selA].dataNota ? ' <span style="color:#777;font-weight:600">(' + punti[selA].dataNota + ')</span>' : '') + '</span>' +
+    '<span class="date-b">B — ' + dataLunga(punti[selB].data) + (punti[selB].dataNota ? ' <span style="color:#777;font-weight:600">(' + punti[selB].dataNota + ')</span>' : '') + '</span>'
+  box.appendChild(dr)
+  return box
+}
+
+/* creaVisore — UNA funzione disegna il visore, e la usano sia il blocco nella
+   pagina sia lo schermo intero «Mostra al paziente». Due punti che disegnano
+   la stessa cosa divergono sempre. */
+function creaVisore(pl, fa, fb) {
+  const el = document.createElement('div')
+  el.className = 'visore'
+  const lastraA = document.createElement('div'); lastraA.className = 'lastra'
+  const lastraB = document.createElement('div'); lastraB.className = 'lastra'
+  const imgA = document.createElement('img'); imgA.alt = pl.label + ' A'
+  const imgB = document.createElement('img'); imgB.alt = pl.label + ' B'
+  lastraA.appendChild(imgA); lastraB.appendChild(imgB)
+  el.appendChild(lastraA); el.appendChild(lastraB)
+
+  const gridHolder = document.createElement('div')
+  gridHolder.innerHTML = grigliaSvg()
+  const grid = gridHolder.firstChild
+  el.appendChild(grid)
+
+  const div = document.createElement('div'); div.className = 'divisore'
+  el.appendChild(div)
+
+  imgA.src = fa.url
+  imgB.src = fb.url
+
+  const stato = {
+    modo: 'dissolvenza',
+    mix: 1,
+    orient: PIANI_SIMMETRICI.indexOf(pl.plane) >= 0 ? 'h' : 'v',
+    timer: null,
+    flip: false
+  }
+
+  function altezzaAuto() {
+    if (el.classList.contains('libera')) return
+    const w = el.clientWidth || 600
+    el.style.height = Math.round(Math.min(w * 1.2, Math.max(320, window.innerHeight * 0.7))) + 'px'
+  }
+  function rettoImg(img) {
+    const bw = el.clientWidth, bh = el.clientHeight
+    const iw = img.naturalWidth || 0, ih = img.naturalHeight || 0
+    if (!iw || !ih || !bw || !bh) return null
+    const s = Math.min(bw / iw, bh / ih)
+    return { x:(bw - iw*s)/2, y:(bh - ih*s)/2, w:iw*s, h:ih*s }
+  }
+  function inBox(img, p) {
+    const r = rettoImg(img)
+    if (!r) return null
+    return { x: r.x + p.x * r.w, y: r.y + p.y * r.h }
+  }
+
+  /* Due punti bastano per scala, rotazione e spostamento: e' la
+     trasformazione che porta i riferimenti di B esattamente sopra quelli di A. */
+  function applicaAllineamento() {
+    imgB.style.transform = ''
+    if (stato.modo === 'affiancato') return false
+    const pa = fa.path && allineamenti[fa.path]
+    const pb = fb.path && allineamenti[fb.path]
+    if (!pa || !pb || !pa.a || !pa.b || !pb.a || !pb.b) return false
+    const a1 = inBox(imgA, pa.a), a2 = inBox(imgA, pa.b)
+    const b1 = inBox(imgB, pb.a), b2 = inBox(imgB, pb.b)
+    if (!a1 || !a2 || !b1 || !b2) return false
+    const dr = { x:a2.x - a1.x, y:a2.y - a1.y }
+    const dp = { x:b2.x - b1.x, y:b2.y - b1.y }
+    const lr = Math.hypot(dr.x, dr.y), lp = Math.hypot(dp.x, dp.y)
+    if (lp < 1 || lr < 1) return false
+    const s  = lr / lp
+    const th = Math.atan2(dr.y, dr.x) - Math.atan2(dp.y, dp.x)
+    const co = Math.cos(th), si = Math.sin(th)
+    const tx = a1.x - s * (co*b1.x - si*b1.y)
+    const ty = a1.y - s * (si*b1.x + co*b1.y)
+    imgB.style.transformOrigin = '0 0'
+    imgB.style.transform = 'matrix(' + (s*co) + ',' + (s*si) + ',' + (-s*si) + ',' + (s*co) + ',' + tx + ',' + ty + ')'
+    return true
+  }
+
+  function aggiorna() {
+    altezzaAuto()
+    clearInterval(stato.timer); stato.timer = null
+    el.classList.remove('affianca')
+    lastraB.style.clipPath = ''
+    lastraB.style.opacity = '1'
+    div.style.display = 'none'
+
+    if (stato.modo === 'affiancato') {
+      el.classList.add('affianca')
+      grid.style.display = 'none'
+    } else {
+      grid.style.display = ''
+      if (stato.modo === 'dissolvenza') {
+        lastraB.style.opacity = String(stato.mix)
+      } else if (stato.modo === 'lampeggio') {
+        // Si parte da B visibile e il PRIMO scatto la toglie: se si partisse da
+        // flip=false il primo mezzo secondo non cambierebbe niente e il
+        // lampeggio sembrerebbe non partire.
+        stato.flip = true
+        stato.timer = setInterval(function () {
+          stato.flip = !stato.flip
+          lastraB.style.opacity = stato.flip ? '1' : '0'
+        }, 500)
+      } else if (stato.modo === 'tendina') {
+        const pct = Math.round(stato.mix * 100)
+        if (stato.orient === 'v') {
+          lastraB.style.clipPath = 'inset(0 0 0 ' + (100 - pct) + '%)'
+          div.style.display = 'block'
+          div.style.top = '0'; div.style.bottom = '0'; div.style.height = ''
+          div.style.left = (100 - pct) + '%'; div.style.right = ''
+          div.style.width = '2px'
+        } else {
+          lastraB.style.clipPath = 'inset(' + (100 - pct) + '% 0 0 0)'
+          div.style.display = 'block'
+          div.style.left = '0'; div.style.right = '0'; div.style.width = ''
+          div.style.top = (100 - pct) + '%'; div.style.bottom = ''
+          div.style.height = '2px'
+        }
       }
     }
+    applicaAllineamento()
+  }
 
-    function renderComparazione(slots, urls, hasPrimaDopoSplit) {
-      const container = document.getElementById('comparazione-content')
-      const cols = slots.length <= 2 ? slots.length : 2
+  imgA.onload = aggiorna
+  imgB.onload = aggiorna
+  imgA.onerror = function () {
+    lastraA.innerHTML = '<div class="vuoto">La foto <b>A</b> non si è aperta: il link firmato è scaduto, oppure il file non c\'è più. Ricarica la pagina.</div>'
+  }
+  imgB.onerror = function () {
+    lastraB.innerHTML = '<div class="vuoto">La foto <b>B</b> non si è aperta: il link firmato è scaduto, oppure il file non c\'è più. Ricarica la pagina.</div>'
+  }
 
-      if (hasPrimaDopoSplit) {
-        container.innerHTML = `
-          <div class="header-row">
-            <div class="lato-label" style="color:#aaa">◀ Sinistro</div>
-            <div class="lato-label" style="color:#aaa">Destro ▶</div>
-          </div>
-          <div class="comparazione-grid" id="grid-prima" style="margin-bottom:4px">
-            ${renderPanel(slots[0], urls)}
-            ${renderPanel(slots[1], urls)}
-          </div>
-          <div class="separatore"></div>
-          <div class="comparazione-grid" id="grid-dopo">
-            ${renderPanel(slots[2], urls)}
-            ${renderPanel(slots[3], urls)}
-          </div>`
-      } else {
-        container.innerHTML = `<div class="comparazione-grid" style="grid-template-columns:${cols===1?'1fr':'1fr 1fr'}">${slots.map(s => renderPanel(s, urls)).join('')}</div>`
+  const onResize = function () { aggiorna() }
+  window.addEventListener('resize', onResize)
+
+  const v = {
+    el: el, imgA: imgA, imgB: imgB, stato: stato, pl: pl, fa: fa, fb: fb,
+    slider: null, nota: null,
+    aggiorna: aggiorna,
+    allineato: function () { return !!(fa.path && fb.path && allineamenti[fa.path] && allineamenti[fb.path]) },
+    ridisegnaGriglia: function () {
+      const nuovo = document.createElement('div')
+      nuovo.innerHTML = grigliaSvg()
+      el.replaceChild(nuovo.firstChild, grid)
+      aggiorna()
+    },
+    setMix: function (m) { stato.mix = m; aggiorna() },
+    setModo: function (m) {
+      stato.modo = m
+      const piano = el.parentElement
+      if (piano) {
+        const barra = piano.querySelector('.piano-hdr')
+        if (barra) barra.querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', b.dataset.m === m))
       }
-    }
-
-    function renderPanel(slot, urls) {
-      const src = urls[slot.key]
-      const grigliaSvg = showGriglia ? buildGriglia() : ''
-      const lineaSvg = showLinea ? buildLinea() : ''
-      return `<div class="foto-panel">
-        <div class="foto-label-bar ${slot.tipo}">${slot.label}</div>
-        <div class="foto-img-wrap">
-          ${src ? '<img src="' + src + '" alt="' + slot.label + '">' : '<div class="foto-empty">Foto non disponibile</div>'}
-          <svg class="griglia" viewBox="0 0 100 133" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-            ${grigliaSvg}${lineaSvg}
-          </svg>
-        </div>
-      </div>`
-    }
-
-    function buildGriglia() {
-      let svg = ''
-      for (let x = 10; x < 100; x += 10) {
-        svg += `<line x1="${x}" y1="0" x2="${x}" y2="133" stroke="rgba(255,208,8,0.15)" stroke-width="0.3"/>`
+      if (m === 'tendina') {
+        if (PIANI_SIMMETRICI.indexOf(pl.plane) >= 0 && stato.orient === 'v') stato.orient = 'h'
+        // Con la tendina tutta da un lato non si vede niente: si parte a meta',
+        // col divisore in mezzo alla foto.
+        if (stato.mix >= 0.99 || stato.mix <= 0.01) {
+          stato.mix = 0.5
+          if (v.slider) v.slider.value = 50
+        }
       }
-      for (let y = 10; y < 133; y += 10) {
-        svg += `<line x1="0" y1="${y}" x2="100" y2="${y}" stroke="rgba(255,208,8,0.15)" stroke-width="0.3"/>`
-      }
-      return svg
+      if (v.slider) v.slider.disabled = (m === 'lampeggio' || m === 'affiancato')
+      aggiorna()
+      notaModo(v)
+    },
+    setOrient: function (o) { stato.orient = o; aggiorna(); notaModo(v) },
+    distruggi: function () { clearInterval(stato.timer); window.removeEventListener('resize', onResize) }
+  }
+  setTimeout(aggiorna, 0)
+  return v
+}
+
+/* La nota della tendina. Su una foto frontale il divisore verticale mostra
+   meta' «prima» e meta' «dopo» dello STESSO corpo, e chi guarda ci legge
+   un'asimmetria che non c'e'. Lo si dice, e si offre il divisore orizzontale. */
+function notaModo(v) {
+  if (!v.nota) return
+  if (v.stato.modo !== 'tendina') { v.nota.style.display = 'none'; return }
+  const simm = PIANI_SIMMETRICI.indexOf(v.pl.plane) >= 0
+  v.nota.style.display = 'block'
+  v.nota.className = 'nota-modo avviso-allin ' + (simm && v.stato.orient === 'v' ? 'no' : 'si')
+  v.nota.innerHTML =
+    (simm && v.stato.orient === 'v'
+      ? '⚠️ <b>Divisore verticale su una vista frontale.</b> Stai mostrando metà «prima» e metà «dopo» dello stesso corpo: chi guarda ci legge un\'asimmetria che non c\'è. Su questa vista usa l\'orizzontale. '
+      : 'Divisore: ') +
+    '<button class="mini' + (v.stato.orient === 'h' ? ' on' : '') + '" data-o="h" style="margin-left:6px">⇕ Orizzontale</button> ' +
+    '<button class="mini' + (v.stato.orient === 'v' ? ' on' : '') + '" data-o="v">⇔ Verticale</button>'
+  v.nota.querySelectorAll('[data-o]').forEach(b => { b.onclick = () => v.setOrient(b.dataset.o) })
+}
+
+// ── MOSTRA AL PAZIENTE ────────────────────────────────────
+function mostraAlPaziente(plane) {
+  const pl = PLANES.find(p => p.plane === plane)
+  const fa = fotoDi(selA, plane), fb = fotoDi(selB, plane)
+  if (!fa || !fb || !fa.url || !fb.url) { showToast('Servono due foto per mostrarlo al paziente'); return }
+  chiudiPazienteVisore()
+  const v = creaVisore(pl, fa, fb)
+  v.el.classList.add('libera')
+  v.el.style.height = '100%'
+  visorePaziente = v
+  const host = document.getElementById('paz-visore')
+  host.innerHTML = ''
+  host.appendChild(v.el)
+  document.getElementById('paz-titolo').textContent = pl.label
+  document.getElementById('paz-data-a').textContent = 'Prima — ' + dataLunga(punti[selA].data)
+  document.getElementById('paz-data-b').textContent = 'Dopo — '  + dataLunga(punti[selB].data)
+  document.getElementById('paz-slider').value = 100
+  document.getElementById('paz-modal').classList.add('open')
+  document.body.classList.add('pol-paziente')
+  document.body.style.overflow = 'hidden'
+  setTimeout(() => v.aggiorna(), 40)
+}
+function pazSlider(val) { if (visorePaziente) visorePaziente.setMix(Number(val) / 100) }
+function chiudiPazienteVisore() { if (visorePaziente) { visorePaziente.distruggi(); visorePaziente = null } }
+function chiudiPaziente() {
+  chiudiPazienteVisore()
+  document.getElementById('paz-visore').innerHTML = ''
+  document.getElementById('paz-modal').classList.remove('open')
+  document.body.classList.remove('pol-paziente')
+  document.body.style.overflow = ''
+}
+
+// ── ALLINEAMENTO ──────────────────────────────────────────
+let allinStato = null
+
+function apriAllin(plane) {
+  const fa = fotoDi(selA, plane), fb = fotoDi(selB, plane)
+  if (!fa || !fb) { showToast('Servono due foto da allineare'); return }
+  if (!fa.path || !fb.path) {
+    showToast('Una delle due foto è vecchia e non ha un file su Storage: non si può allineare')
+    return
+  }
+  allinStato = { plane: plane, passo: 0, foto: [fa, fb], punti: [null, null] }
+  mostraPassoAllin()
+  document.getElementById('allin-modal').classList.add('open')
+  document.body.style.overflow = 'hidden'
+}
+
+function mostraPassoAllin() {
+  const s = allinStato
+  const f = s.foto[s.passo]
+  const pt = s.passo === 0 ? punti[selA] : punti[selB]
+  document.getElementById('allin-tit').textContent =
+    'Foto ' + (s.passo === 0 ? 'A' : 'B') + ' — ' + dataLunga(pt.data)
+  document.getElementById('allin-testo').innerHTML =
+    'Tocca <b>due riferimenti fissi dello studio</b>, gli stessi su tutte e due le foto: per esempio ' +
+    '<b>① il filo a piombo in alto</b> e <b>② il centro della crociera del tappetino</b>. ' +
+    'Servono a scalare e ruotare la seconda foto sulla prima, così quello che vedi cambiare è il paziente e non la fotocamera.'
+  const box = document.getElementById('allin-box')
+  box.querySelectorAll('.allin-marker').forEach(m => m.remove())
+  const img = document.getElementById('allin-img')
+  img.onload = disegnaMarker
+  img.src = f.url || ''
+  const gia = allineamenti[f.path]
+  document.getElementById('allin-btn-togli').style.display = gia ? 'inline-block' : 'none'
+  s.punti[s.passo] = gia ? { a: gia.a, b: gia.b } : null
+  setTimeout(disegnaMarker, 60)
+  aggiornaBtnAllin()
+}
+
+function allinClick(ev) {
+  const s = allinStato; if (!s) return
+  const img = document.getElementById('allin-img')
+  const r = img.getBoundingClientRect()
+  if (!r.width || !r.height) return
+  const x = (ev.clientX - r.left) / r.width
+  const y = (ev.clientY - r.top)  / r.height
+  if (x < 0 || x > 1 || y < 0 || y > 1) return
+  const cur = s.punti[s.passo]
+  if (!cur || (cur.a && cur.b)) s.punti[s.passo] = { a: { x:x, y:y }, b: null }
+  else                          s.punti[s.passo] = { a: cur.a, b: { x:x, y:y } }
+  disegnaMarker()
+  aggiornaBtnAllin()
+}
+
+function disegnaMarker() {
+  const s = allinStato; if (!s) return
+  const box = document.getElementById('allin-box')
+  const img = document.getElementById('allin-img')
+  box.querySelectorAll('.allin-marker').forEach(m => m.remove())
+  const p = s.punti[s.passo]; if (!p) return
+  const r = img.getBoundingClientRect(), br = box.getBoundingClientRect()
+  const off = { x: r.left - br.left, y: r.top - br.top }
+  ;['a','b'].forEach(function (k, i) {
+    if (!p[k]) return
+    const m = document.createElement('div')
+    m.className = 'allin-marker'
+    m.textContent = i === 0 ? '1' : '2'
+    m.style.left = (off.x + p[k].x * r.width) + 'px'
+    m.style.top  = (off.y + p[k].y * r.height) + 'px'
+    box.appendChild(m)
+  })
+}
+
+function aggiornaBtnAllin() {
+  const s = allinStato
+  const p = s.punti[s.passo]
+  const ok = !!(p && p.a && p.b)
+  const btn = document.getElementById('allin-btn-avanti')
+  btn.disabled = !ok
+  btn.textContent = s.passo === 0 ? 'Avanti →' : '✓ Salva allineamento'
+}
+
+function allinRifai() {
+  if (!allinStato) return
+  allinStato.punti[allinStato.passo] = null
+  disegnaMarker(); aggiornaBtnAllin()
+}
+
+async function allinAvanti() {
+  const s = allinStato; if (!s) return
+  if (s.passo === 0) { s.passo = 1; mostraPassoAllin(); return }
+  const righe = [0, 1].map(function (i) {
+    return {
+      patient_id: patientId,
+      storage_path: s.foto[i].path,
+      punti: s.punti[i],
+      aggiornato_il: new Date().toISOString()
+    }
+  })
+  const btn = document.getElementById('allin-btn-avanti')
+  btn.disabled = true; btn.textContent = '⏳ Salvo…'
+  const { error } = await _sb.from('foto_allineamenti').upsert(righe, { onConflict: 'storage_path' })
+  if (error) {
+    const m = (error.message || '').toLowerCase()
+    const manca = m.includes('does not exist') || m.includes('schema cache') || m.includes('relation') || m.includes('permission')
+    document.getElementById('allin-testo').innerHTML =
+      '<span style="color:#ffb4b4"><b>Non è stato salvato:</b> ' + esc(error.message) +
+      (manca ? '<br>👉 Sembra che manchi la <b>migration 038</b>: aprila nel SQL Editor di Supabase, incollala e premi Run, poi rifai.' : '') + '</span>'
+    btn.disabled = false; btn.textContent = '✓ Salva allineamento'
+    return
+  }
+  righe.forEach(function (r) { allineamenti[r.storage_path] = r.punti })
+  chiudiAllin()
+  showToast('✅ Allineamento salvato: resta sulla foto, non va rifatto')
+  render()
+}
+
+async function allinTogli() {
+  const s = allinStato; if (!s) return
+  const path = s.foto[s.passo].path
+  const { error } = await _sb.from('foto_allineamenti').delete().eq('storage_path', path)
+  if (error) { showToast('Non è stato tolto: ' + error.message); return }
+  delete allineamenti[path]
+  s.punti[s.passo] = null
+  disegnaMarker(); aggiornaBtnAllin()
+  document.getElementById('allin-btn-togli').style.display = 'none'
+  showToast('Allineamento tolto da questa foto')
+}
+
+function chiudiAllin() {
+  allinStato = null
+  document.getElementById('allin-modal').classList.remove('open')
+  document.body.style.overflow = ''
+}
+
+// ── PDF ───────────────────────────────────────────────────
+function pianiDelPdf() {
+  return pianiConRoba().filter(function (pl) {
+    const a = fotoDi(selA, pl.plane), b = fotoDi(selB, pl.plane)
+    return a && b && a.url && b.url
+  })
+}
+
+function apriPdfConfronto() {
+  if (selA === null || selB === null) { showToast('Scegli due date nella riga del tempo'); return }
+  const piani = pianiDelPdf()
+  if (!piani.length) { showToast('Nessun piano ha le foto di tutte e due le date'); return }
+  _pdfStato = { piani: piani, testo: '' }
+  document.getElementById('pdf-relazione').value = ''
+  document.getElementById('pdf-validato').checked = false
+  const es = document.getElementById('pdf-esito'); es.style.display = 'none'; es.innerHTML = ''
+  document.getElementById('pdf-btn-salva').textContent = '💾 Valida e salva in cartella clinica'
+  pdfAggiornaSalva()
+  pdfRirenderizza()
+  document.getElementById('pdf-modal').classList.add('open')
+  document.body.style.overflow = 'hidden'
+}
+
+function pdfCambiata() {
+  // Ogni correzione invalida la validazione precedente: si rilegge.
+  const chk = document.getElementById('pdf-validato')
+  if (chk.checked) { chk.checked = false; pdfAggiornaSalva() }
+  clearTimeout(window._pdfT)
+  window._pdfT = setTimeout(pdfRirenderizza, 400)
+}
+function pdfAggiornaSalva() {
+  document.getElementById('pdf-btn-salva').disabled = !document.getElementById('pdf-validato').checked
+}
+function pdfRirenderizza() {
+  if (!_pdfStato) return
+  _pdfStato.testo = document.getElementById('pdf-relazione').value.trim()
+  document.getElementById('pdf-body').innerHTML = costruisciHtmlPdf(false)
+}
+
+function costruisciHtmlPdf(completo) {
+  const nome = ((patient.nome||'') + ' ' + (patient.cognome||'')).trim() || 'Paziente'
+  const oggi = new Date().toLocaleDateString('it-IT', { day:'2-digit', month:'long', year:'numeric' })
+  const pA = punti[selA], pB = punti[selB]
+  let tuttiAllineati = true
+  let blocchi = ''
+
+  _pdfStato.piani.forEach(function (pl) {
+    const fa = fotoDi(selA, pl.plane), fb = fotoDi(selB, pl.plane)
+    const all = !!(fa.path && fb.path && allineamenti[fa.path] && allineamenti[fb.path])
+    if (!all) tuttiAllineati = false
+    const cella = function (f, lab, col) {
+      return '<div style="flex:1;min-width:0;text-align:center">' +
+        '<div style="font-size:10px;font-weight:800;color:' + col + ';margin-bottom:4px">' + lab + '</div>' +
+        '<img src="' + esc(f.url || '') + '" style="width:100%;border-radius:6px;display:block;object-fit:contain">' +
+      '</div>'
+    }
+    blocchi +=
+      '<div style="page-break-inside:avoid;margin-bottom:22px">' +
+        '<div style="color:#b8940a;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;border-bottom:1px solid #ddd;padding-bottom:5px">' + esc(pl.label) + '</div>' +
+        '<div style="font-size:9px;color:' + (all ? '#1d7a5c' : '#a06a00') + ';margin-bottom:8px;font-weight:700">' +
+          (all ? 'Foto allineate sui riferimenti dello studio.' : 'Foto non allineate: confronto visivo, non misurato.') +
+        '</div>' +
+        '<div style="display:flex;gap:12px">' +
+          cella(fa, 'A — ' + dataLunga(pA.data), '#8a7300') +
+          cella(fb, 'B — ' + dataLunga(pB.data), '#1d7a5c') +
+        '</div>' +
+      '</div>'
+  })
+
+  const avvisoFase = fase === 'pre'
+    ? 'Le foto messe a confronto sono le <b>PRE</b> di ciascuna rilevazione: lo stato del paziente all\'arrivo di quel giorno.'
+    : 'Le foto messe a confronto sono le <b>POST 3R</b> di ciascuna rilevazione.'
+
+  const notaScheda = (pA.kind === 'scheda' || pB.kind === 'scheda')
+    ? '<div style="font-size:9.5px;color:#666;margin-top:4px">Una delle due rilevazioni viene dalle foto iniziali della scheda paziente: per quelle la data disponibile è quella di <b>caricamento</b> del file, non quella di scatto.</div>'
+    : ''
+
+  const corpo =
+    '<div style="font-family:system-ui,-apple-system,sans-serif;color:#111">' +
+      '<div style="margin-bottom:18px;border-bottom:2px solid #b8940a;padding-bottom:10px">' +
+        '<div style="font-size:20px;font-weight:900;margin-bottom:3px">Confronto posturale nel tempo</div>' +
+        '<div style="font-size:13px;color:#555">' + esc(nome) + ' &nbsp;·&nbsp; ' + dataLunga(pA.data) + ' → ' + dataLunga(pB.data) + '</div>' +
+        '<div style="font-size:10px;color:#888;margin-top:4px">Documento generato il ' + oggi + '</div>' +
+      '</div>' +
+      (tuttiAllineati
+        ? '<div style="margin-bottom:16px;padding:10px 12px;background:#eef8f3;border-left:4px solid #1d7a5c;border-radius:5px;font-size:10.5px;line-height:1.55;color:#12503b">' +
+            '<b>Foto allineate.</b> Ogni coppia è stata riportata sugli stessi due riferimenti fissi dello studio (filo a piombo e crociera), correggendo scala e rotazione dello scatto.' +
+          '</div>'
+        : '<div style="margin-bottom:16px;padding:10px 12px;background:#fff6e0;border-left:4px solid #e0a800;border-radius:5px;font-size:10.5px;line-height:1.55;color:#5c4400">' +
+            '<b>Confronto visivo, non una misura.</b> Almeno una coppia di foto non è stata allineata sui riferimenti fissi dello studio. ' +
+            'Fra due scatti di giorni diversi cambiano distanza dal muro, altezza della fotocamera e posizione dei piedi: parte di ciò che si vede può dipendere da questo e non dalla postura.' +
+          '</div>') +
+      '<div style="font-size:10.5px;color:#555;margin-bottom:16px;line-height:1.5">' + avvisoFase + notaScheda + '</div>' +
+      (_pdfStato.testo
+        ? '<div style="margin-bottom:20px;padding:12px 14px;background:#fff8e0;border-left:4px solid #FFD008;border-radius:5px">' +
+            '<div style="font-size:10px;font-weight:800;color:#b8940a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Commento clinico</div>' +
+            '<div style="font-size:11.5px;line-height:1.6;color:#333;white-space:pre-wrap">' + esc(_pdfStato.testo) + '</div>' +
+          '</div>'
+        : '') +
+      blocchi +
+      '<div style="border-top:1px solid #ddd;padding-top:8px;margin-top:8px">' +
+        '<p style="margin:0;font-size:8px;color:#999;font-style:italic;line-height:1.4">Il presente documento contiene osservazioni cliniche e indicazioni fisioterapiche basate sulla valutazione professionale e non costituisce diagnosi medica.</p>' +
+        '<p style="margin:4px 0 0;font-size:8px;color:#bbb;font-style:italic;line-height:1.4">Documento elaborato con strumenti di supporto digitale e validato dal professionista firmatario.</p>' +
+      '</div>' +
+    '</div>'
+
+  if (!completo) return corpo
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
+    '*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}' +
+    'body{margin:0;padding:20px;background:#fff}img{max-width:100%}' +
+    '</style></head><body>' + corpo + '</body></html>'
+}
+
+async function pdfCommentoAI() {
+  const btn = document.getElementById('pdf-btn-ai')
+  btn.disabled = true; btn.textContent = '⏳ Sto scrivendo…'
+  try {
+    const pA = punti[selA], pB = punti[selB]
+    const piani = _pdfStato.piani.map(p => p.label).join(', ')
+    const gg = Math.round((new Date(pB.data) - new Date(pA.data)) / 86400000)
+    const allineato = _pdfStato.piani.every(function (pl) {
+      const a = fotoDi(selA, pl.plane), b = fotoDi(selB, pl.plane)
+      return a.path && b.path && allineamenti[a.path] && allineamenti[b.path]
+    })
+    const prompt =
+      'Sei un fisioterapista esperto in valutazione posturale. Scrivi un BREVE commento clinico, in italiano formale, ' +
+      'terza persona, massimo 120 parole, SENZA markdown, solo testo discorsivo, che introduca un documento di confronto ' +
+      'fotografico posturale nel tempo. NON descrivere le foto: non le vedi. NON inventare reperti. ' +
+      'Limitati a inquadrare il confronto e a ricordare i limiti di lettura.\n\n' +
+      'Intervallo fra le due rilevazioni: ' + (isFinite(gg) ? gg + ' giorni' : 'non determinabile') + '.\n' +
+      'Piani messi a confronto: ' + piani + '.\n' +
+      'Fase delle foto: ' + (fase === 'pre' ? 'PRE (stato all\'arrivo)' : 'POST 3R') + '.\n' +
+      'Allineamento sui riferimenti fissi dello studio: ' +
+        (allineato ? 'eseguito su tutte le coppie' : 'NON eseguito su tutte le coppie, quindi il confronto è visivo e non misurato') + '.'
+    const { data: { session } } = await _sb.auth.getSession()
+    const resp = await fetch('/api/ai-analisi', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + (session ? session.access_token : '') },
+      body: JSON.stringify({ prompt: prompt, max_tokens: 320 })
+    })
+    const json = await resp.json().catch(() => ({}))
+    if (!resp.ok) {
+      if (resp.status === 403 && window.policettivoHandleAI403) { window.policettivoHandleAI403(); return }
+      showToast('AI non disponibile: ' + (json.error || resp.status)); return
+    }
+    document.getElementById('pdf-relazione').value = json.testo || ''
+    pdfCambiata()
+  } catch (e) {
+    showToast('AI non disponibile: ' + e.message)
+  } finally {
+    btn.disabled = false; btn.textContent = '✨ Proponi un commento con l\'AI'
+  }
+}
+
+function stampaPdf() {
+  const w = window.open('', '_blank', 'width=880,height=1100')
+  if (!w) { showToast('Il browser ha bloccato la finestra di stampa'); return }
+  w.document.write(costruisciHtmlPdf(true))
+  w.document.close(); w.focus()
+  setTimeout(function () { w.print() }, 500)
+}
+
+function pdfEsito(tipo, html) {
+  const box = document.getElementById('pdf-esito')
+  box.className = tipo; box.innerHTML = html; box.style.display = 'block'
+  box.scrollIntoView({ block:'nearest' })
+}
+
+async function sha256Hex(buffer) {
+  const h = await crypto.subtle.digest('SHA-256', buffer)
+  const b = new Uint8Array(h); let out = ''
+  for (let i = 0; i < b.length; i++) out += b[i].toString(16).padStart(2, '0')
+  return out
+}
+
+async function salvaPdf() {
+  if (!_pdfStato) return
+  const btn = document.getElementById('pdf-btn-salva')
+  btn.disabled = true; btn.textContent = '⏳ Generazione PDF…'
+  const nomeFile = 'Confronto_' + (patient.cognome || 'paziente').toLowerCase().replace(/[^a-z0-9]/g,'') +
+                   '_' + String(punti[selA].data || '').slice(0,10) + '_' + String(punti[selB].data || '').slice(0,10) + '.pdf'
+  try {
+    const { data: { session } } = await _sb.auth.getSession()
+    const resp = await fetch('/api/pdf-render', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + (session ? session.access_token : '') },
+      body: JSON.stringify({ html: costruisciHtmlPdf(true), filename: nomeFile, patient_id: patientId })
+    })
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}))
+      if (resp.status >= 500) throw new Error('Riprova fra qualche secondo: il server del PDF si sta avviando.')
+      throw new Error(err.error || ('HTTP ' + resp.status))
+    }
+    const blob = await resp.blob()
+    const buf  = await blob.arrayBuffer()
+
+    const dl = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = dl; a.download = nomeFile; a.click()
+    URL.revokeObjectURL(dl)
+
+    if (!professionalId) throw new Error('PDF scaricato, ma il tuo profilo professionista non è stato trovato: non l\'ho messo in cartella clinica.')
+
+    const path = 'pdf-reports/' + professionalId + '/confronto_' + patientId + '_' +
+                 punti[selA].chiave + '_' + punti[selB].chiave + '.pdf'
+    const { error: upErr } = await _sb.storage.from('clinical-docs')
+      .upload(path, buf, { contentType:'application/pdf', upsert:true })
+    if (upErr) throw new Error('PDF non archiviato: ' + upErr.message)
+
+    const hash = await sha256Hex(buf)
+    const riga = {
+      patient_id: patientId,
+      professional_id: professionalId,
+      tipo: 'confronto_posturale',
+      descrizione: 'Confronto posturale nel tempo — ' + dataIT(punti[selA].data) + ' → ' + dataIT(punti[selB].data),
+      file_type: 'application/pdf',
+      file_hash: hash,
+      storage_path: path
     }
 
-    function buildLinea() {
-      return `<line x1="50" y1="0" x2="50" y2="133" stroke="rgba(255,100,100,0.6)" stroke-width="0.5" stroke-dasharray="2 2"/>`
+    // Se lo stesso confronto era gia' stato validato si sostituisce la riga,
+    // invece di aggiungerne una seconda identica.
+    const { data: gia } = await _sb.from('clinical_documents').select('id').eq('storage_path', path).maybeSingle()
+    let errDb = null
+    if (gia && gia.id) {
+      const r = await _sb.from('clinical_documents').update(riga).eq('id', gia.id)
+      errDb = r.error
+    } else {
+      riga.client_token = (crypto.randomUUID && crypto.randomUUID()) || (String(Date.now()) + Math.random())
+      const r = await _sb.from('clinical_documents').insert(riga)
+      errDb = r.error
+      if (errDb && errDb.code === '23505') errDb = null  // identico a uno gia' in cartella: va bene cosi'
+    }
+    if (errDb) {
+      const m = (errDb.message || '').toLowerCase()
+      const manca = m.includes('column') || m.includes('schema cache') || m.includes('does not exist')
+      throw new Error('Il PDF è stato caricato ma non registrato in cartella clinica: ' + errDb.message +
+        (manca ? '\n👉 Sembra che manchi la migration 038 (colonna storage_path su clinical_documents): aprila nel SQL Editor di Supabase, incollala e premi Run.' : ''))
     }
 
-    function toggleGriglia(checked) {
-      showGriglia = checked
-      renderTab()
+    pdfEsito('ok', '✅ <b>PDF validato e archiviato in cartella clinica.</b> Il file è anche nella cartella Download.')
+    btn.textContent = '✓ Salvato in cartella clinica'
+    showToast('✅ PDF validato e archiviato')
+    return
+  } catch (e) {
+    pdfEsito('ko', '❌ ' + esc(String(e.message || e)).replace(/\n/g, '<br>'))
+  } finally {
+    if (btn.textContent !== '✓ Salvato in cartella clinica') {
+      btn.textContent = '💾 Valida e salva in cartella clinica'
+      pdfAggiornaSalva()
+    } else {
+      btn.disabled = true
     }
+  }
+}
 
-    function toggleLinea(checked) {
-      showLinea = checked
-      renderTab()
-    }
+function chiudiPdf() {
+  document.getElementById('pdf-modal').classList.remove('open')
+  document.getElementById('pdf-body').innerHTML = ''
+  document.body.style.overflow = ''
+  _pdfStato = null
+}
 
-    init()
-  </script>
-  <script src="console-nav.js"></script>
+// ── TASTIERA ──────────────────────────────────────────────
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return
+  if (document.getElementById('pdf-modal').classList.contains('open'))   { chiudiPdf(); return }
+  if (document.getElementById('allin-modal').classList.contains('open')) { chiudiAllin(); return }
+  if (document.getElementById('paz-modal').classList.contains('open'))   { chiudiPaziente(); return }
+})
+
+init()
+</script>
+<script src="console-nav.js"></script>
 </body>
 </html>
