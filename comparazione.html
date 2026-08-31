@@ -350,6 +350,20 @@ function dataDaPercorso(p) {
   return isNaN(d.getTime()) ? null : d.toISOString()
 }
 
+/* confronto-nel-tempo-v2 — Non tutte le foto della scheda hanno una data: se il
+   nome del file non porta dentro il numero, la data NON C'E'. Prima qui usciva
+   un trattino e la scritta «caricata il» appesa a niente, e in cima «dal — al
+   31/08». Un trattino non e' una data: si scrive che non e' registrata. */
+function etichettaBreve(pt) { return pt.data ? dataIT(pt.data) : 'Senza data' }
+function etichettaLunga(pt) {
+  if (pt.data) return dataLunga(pt.data)
+  return pt.kind === 'scheda' ? 'foto iniziali, data non registrata' : 'data non registrata'
+}
+function notaData(pt) {
+  if (pt.kind !== 'scheda') return ''
+  return pt.data ? 'data di caricamento' : 'data non registrata'
+}
+
 // ── AVVIO ─────────────────────────────────────────────────
 async function init() {
   if (!patientId) { errore('Indirizzo incompleto: manca il paziente (<code>?id=</code>).'); return }
@@ -381,9 +395,12 @@ async function init() {
 
   await caricaAllineamenti()
 
+  const ultimo = punti[punti.length - 1]
   document.getElementById('pt-sub').textContent =
     punti.length + (punti.length === 1 ? ' rilevazione' : ' rilevazioni') +
-    ' — dal ' + dataIT(punti[0].data) + ' al ' + dataIT(punti[punti.length - 1].data)
+    (punti[0].data
+      ? ' — dal ' + dataIT(punti[0].data) + ' al ' + dataIT(ultimo.data)
+      : ' — dalle foto iniziali (senza data) al ' + dataIT(ultimo.data))
 
   selA = 0
   selB = punti.length > 1 ? punti.length - 1 : null
@@ -423,7 +440,7 @@ async function caricaPunti() {
       if (path) daFirmare.push(path)
     })
     if (Object.keys(foto).length) {
-      nuovi.push({ chiave:'scheda', kind:'scheda', data: minData, dataNota:'caricata il', foto })
+      nuovi.push({ chiave:'scheda', kind:'scheda', data: minData, foto: foto })
     }
   }
 
@@ -462,7 +479,7 @@ async function caricaPunti() {
       if (!foto[pl.plane].pre && !foto[pl.plane].post) delete foto[pl.plane]
     })
     if (!Object.keys(foto).length) return
-    nuovi.push({ chiave:'v_' + v.id, kind:'visita', visitId:v.id, data: v.data_visita || v.created_at, dataNota:'', foto })
+    nuovi.push({ chiave:'v_' + v.id, kind:'visita', visitId:v.id, data: v.data_visita || v.created_at, foto: foto })
   })
 
   // 3) Un giro solo di firme per tutte le foto: e' l'unica ragione per cui il
@@ -542,9 +559,9 @@ function renderTimeline() {
     const cls = i === selA ? ' selA' : (i === selB ? ' selB' : '')
     const tag = i === selA ? '<span class="tl-tag">A</span>' : (i === selB ? '<span class="tl-tag">B</span>' : '')
     return '<button class="tl-punto' + cls + '" data-i="' + i + '" onclick="scegliPunto(' + i + ')">' + tag +
-      '<div class="tl-data">' + dataIT(pt.data) + '</div>' +
+      '<div class="tl-data"' + (pt.data ? '' : ' style="color:#888;font-size:12px"') + '>' + etichettaBreve(pt) + '</div>' +
       '<div class="tl-tipo">' + (pt.kind === 'scheda' ? 'Scheda paziente' : 'Valutazione') + '</div>' +
-      '<div class="tl-n">' + n + ' foto' + (pt.dataNota ? ' · ' + pt.dataNota : '') + '</div>' +
+      '<div class="tl-n">' + n + ' foto' + (notaData(pt) ? ' · ' + notaData(pt) : '') + '</div>' +
     '</button>'
   }).join('')
 }
@@ -624,9 +641,33 @@ function bloccoConfronto(pl) {
     } else {
       const quale = (!fa || !fa.url) ? selA : selB
       p.innerHTML = 'Manca la foto <b>' + (fase === 'pre' ? 'PRE' : 'POST 3R') + '</b> di questo piano ' +
-        'nella rilevazione del ' + dataIT(punti[quale].data) + '.'
+        'nella rilevazione ' + (punti[quale].data ? 'del ' + dataIT(punti[quale].data) : 'senza data') + '.'
     }
     box.appendChild(p)
+    return box
+  }
+
+  /* confronto-nel-tempo-v2 — STESSO FILE dalle due parti.
+     Prendere una foto dalla libreria «foto del paziente» dentro uno slot NON
+     ricarica il file: aggiunge una riga che punta allo stesso storage_path
+     (visita-importa-posturale-v1). Da quando il picker rimostra le foto della
+     scheda, questo capita spesso — e mostrare la stessa identica immagine come
+     «prima e dopo», davanti al paziente e sotto la firma del professionista,
+     e' l'errore peggiore che questa pagina possa fare. Si dice, e non si
+     confronta niente. */
+  if (fa.path && fb.path && fa.path === fb.path) {
+    const p = document.createElement('div')
+    p.className = 'avviso-allin no'
+    p.style.marginBottom = '10px'
+    p.innerHTML = '🟰 <b>A e B sono lo stesso file: non c\'è niente da confrontare.</b> ' +
+      'Questa foto della scheda paziente è stata riusata dentro la valutazione, quindi le due immagini sono ' +
+      'la stessa. Scegli due date con foto scattate davvero in giorni diversi — questo piano <b>non entra nel PDF</b>.'
+    box.appendChild(p)
+    const solo = document.createElement('div')
+    solo.className = 'visore'
+    solo.style.height = '320px'
+    solo.innerHTML = '<div class="lastra"><img src="' + esc(fa.url) + '" alt="' + esc(pl.label) + '"></div>' + grigliaSvg()
+    box.appendChild(solo)
     return box
   }
 
@@ -686,9 +727,10 @@ function bloccoConfronto(pl) {
 
   const dr = document.createElement('div')
   dr.className = 'date-row'
-  dr.innerHTML =
-    '<span class="date-a">A — ' + dataLunga(punti[selA].data) + (punti[selA].dataNota ? ' <span style="color:#777;font-weight:600">(' + punti[selA].dataNota + ')</span>' : '') + '</span>' +
-    '<span class="date-b">B — ' + dataLunga(punti[selB].data) + (punti[selB].dataNota ? ' <span style="color:#777;font-weight:600">(' + punti[selB].dataNota + ')</span>' : '') + '</span>'
+  const etic = (pt, cls, lett) =>
+    '<span class="' + cls + '">' + lett + ' — ' + etichettaLunga(pt) +
+    (pt.data && notaData(pt) ? ' <span style="color:#777;font-weight:600">(' + notaData(pt) + ')</span>' : '') + '</span>'
+  dr.innerHTML = etic(punti[selA], 'date-a', 'A') + etic(punti[selB], 'date-b', 'B')
   box.appendChild(dr)
   return box
 }
@@ -886,6 +928,10 @@ function mostraAlPaziente(plane) {
   const pl = PLANES.find(p => p.plane === plane)
   const fa = fotoDi(selA, plane), fb = fotoDi(selB, plane)
   if (!fa || !fb || !fa.url || !fb.url) { showToast('Servono due foto per mostrarlo al paziente'); return }
+  // Mai a schermo intero davanti al paziente la stessa foto due volte.
+  if (fa.path && fb.path && fa.path === fb.path) {
+    showToast('A e B sono lo stesso file: non c\'è niente da mostrare', 4200); return
+  }
   chiudiPazienteVisore()
   const v = creaVisore(pl, fa, fb)
   v.el.classList.add('libera')
@@ -895,8 +941,8 @@ function mostraAlPaziente(plane) {
   host.innerHTML = ''
   host.appendChild(v.el)
   document.getElementById('paz-titolo').textContent = pl.label
-  document.getElementById('paz-data-a').textContent = 'Prima — ' + dataLunga(punti[selA].data)
-  document.getElementById('paz-data-b').textContent = 'Dopo — '  + dataLunga(punti[selB].data)
+  document.getElementById('paz-data-a').textContent = 'Prima — ' + (punti[selA].data ? dataLunga(punti[selA].data) : 'foto iniziali')
+  document.getElementById('paz-data-b').textContent = 'Dopo — '  + (punti[selB].data ? dataLunga(punti[selB].data) : 'foto iniziali')
   document.getElementById('paz-slider').value = 100
   document.getElementById('paz-modal').classList.add('open')
   document.body.classList.add('pol-paziente')
@@ -1051,14 +1097,31 @@ function chiudiAllin() {
 function pianiDelPdf() {
   return pianiConRoba().filter(function (pl) {
     const a = fotoDi(selA, pl.plane), b = fotoDi(selB, pl.plane)
-    return a && b && a.url && b.url
+    if (!a || !b || !a.url || !b.url) return false
+    // Stesso file dalle due parti: fuori dal PDF. Il documento porta la firma
+    // del professionista, e non puo' presentare la stessa immagine come
+    // «prima» e «dopo».
+    if (a.path && b.path && a.path === b.path) return false
+    return true
+  })
+}
+function pianiStessoFile() {
+  return pianiConRoba().filter(function (pl) {
+    const a = fotoDi(selA, pl.plane), b = fotoDi(selB, pl.plane)
+    return a && b && a.path && b.path && a.path === b.path
   })
 }
 
 function apriPdfConfronto() {
   if (selA === null || selB === null) { showToast('Scegli due date nella riga del tempo'); return }
   const piani = pianiDelPdf()
-  if (!piani.length) { showToast('Nessun piano ha le foto di tutte e due le date'); return }
+  const doppi = pianiStessoFile()
+  if (!piani.length) {
+    showToast(doppi.length
+      ? 'Le foto di A e B sono gli stessi file: non c\'è nessun confronto da mettere nel PDF'
+      : 'Nessun piano ha le foto di tutte e due le date', 4500)
+    return
+  }
   _pdfStato = { piani: piani, testo: '' }
   document.getElementById('pdf-relazione').value = ''
   document.getElementById('pdf-validato').checked = false
@@ -1110,8 +1173,8 @@ function costruisciHtmlPdf(completo) {
           (all ? 'Foto allineate sui riferimenti dello studio.' : 'Foto non allineate: confronto visivo, non misurato.') +
         '</div>' +
         '<div style="display:flex;gap:12px">' +
-          cella(fa, 'A — ' + dataLunga(pA.data), '#8a7300') +
-          cella(fb, 'B — ' + dataLunga(pB.data), '#1d7a5c') +
+          cella(fa, 'A — ' + etichettaLunga(pA), '#8a7300') +
+          cella(fb, 'B — ' + etichettaLunga(pB), '#1d7a5c') +
         '</div>' +
       '</div>'
   })
@@ -1120,15 +1183,29 @@ function costruisciHtmlPdf(completo) {
     ? 'Le foto messe a confronto sono le <b>PRE</b> di ciascuna rilevazione: lo stato del paziente all\'arrivo di quel giorno.'
     : 'Le foto messe a confronto sono le <b>POST 3R</b> di ciascuna rilevazione.'
 
-  const notaScheda = (pA.kind === 'scheda' || pB.kind === 'scheda')
-    ? '<div style="font-size:9.5px;color:#666;margin-top:4px">Una delle due rilevazioni viene dalle foto iniziali della scheda paziente: per quelle la data disponibile è quella di <b>caricamento</b> del file, non quella di scatto.</div>'
+  const scheda = (pA.kind === 'scheda' ? pA : (pB.kind === 'scheda' ? pB : null))
+  const notaScheda = !scheda ? ''
+    : '<div style="font-size:9.5px;color:#666;margin-top:4px">Una delle due rilevazioni viene dalle foto iniziali della scheda paziente: ' +
+      (scheda.data
+        ? 'per quelle la data disponibile è quella di <b>caricamento</b> del file, non quella di scatto.'
+        : 'per quelle <b>la data non è registrata</b> — il nome del file non la contiene — quindi l\'intervallo fra le due rilevazioni non è documentabile.') +
+      '</div>'
+
+  // Piani lasciati fuori perche' A e B sono lo stesso file: si scrive nel
+  // documento quali, invece di farli sparire in silenzio.
+  const fuori = (typeof pianiStessoFile === 'function' ? pianiStessoFile() : []).map(function (p) { return p.label })
+  const notaFuori = fuori.length
+    ? '<div style="margin-bottom:16px;padding:10px 12px;background:#fdeeee;border-left:4px solid #c62828;border-radius:5px;font-size:10.5px;line-height:1.55;color:#7a1e1e">' +
+        '<b>Piani esclusi da questo documento:</b> ' + esc(fuori.join(', ')) + '. ' +
+        'Per quei piani le due immagini sono lo <b>stesso file</b> (la foto della scheda paziente riusata dentro la valutazione): non c\'è nessun confronto da mostrare.' +
+      '</div>'
     : ''
 
   const corpo =
     '<div style="font-family:system-ui,-apple-system,sans-serif;color:#111">' +
       '<div style="margin-bottom:18px;border-bottom:2px solid #b8940a;padding-bottom:10px">' +
         '<div style="font-size:20px;font-weight:900;margin-bottom:3px">Confronto posturale nel tempo</div>' +
-        '<div style="font-size:13px;color:#555">' + esc(nome) + ' &nbsp;·&nbsp; ' + dataLunga(pA.data) + ' → ' + dataLunga(pB.data) + '</div>' +
+        '<div style="font-size:13px;color:#555">' + esc(nome) + ' &nbsp;·&nbsp; ' + etichettaLunga(pA) + ' → ' + etichettaLunga(pB) + '</div>' +
         '<div style="font-size:10px;color:#888;margin-top:4px">Documento generato il ' + oggi + '</div>' +
       '</div>' +
       (tuttiAllineati
@@ -1139,6 +1216,7 @@ function costruisciHtmlPdf(completo) {
             '<b>Confronto visivo, non una misura.</b> Almeno una coppia di foto non è stata allineata sui riferimenti fissi dello studio. ' +
             'Fra due scatti di giorni diversi cambiano distanza dal muro, altezza della fotocamera e posizione dei piedi: parte di ciò che si vede può dipendere da questo e non dalla postura.' +
           '</div>') +
+      notaFuori +
       '<div style="font-size:10.5px;color:#555;margin-bottom:16px;line-height:1.5">' + avvisoFase + notaScheda + '</div>' +
       (_pdfStato.testo
         ? '<div style="margin-bottom:20px;padding:12px 14px;background:#fff8e0;border-left:4px solid #FFD008;border-radius:5px">' +
@@ -1226,8 +1304,9 @@ async function salvaPdf() {
   if (!_pdfStato) return
   const btn = document.getElementById('pdf-btn-salva')
   btn.disabled = true; btn.textContent = '⏳ Generazione PDF…'
+  const pezzo = pt => (pt.data ? String(pt.data).slice(0,10) : 'iniziali')
   const nomeFile = 'Confronto_' + (patient.cognome || 'paziente').toLowerCase().replace(/[^a-z0-9]/g,'') +
-                   '_' + String(punti[selA].data || '').slice(0,10) + '_' + String(punti[selB].data || '').slice(0,10) + '.pdf'
+                   '_' + pezzo(punti[selA]) + '_' + pezzo(punti[selB]) + '.pdf'
   try {
     const { data: { session } } = await _sb.auth.getSession()
     const resp = await fetch('/api/pdf-render', {
@@ -1260,7 +1339,7 @@ async function salvaPdf() {
       patient_id: patientId,
       professional_id: professionalId,
       tipo: 'confronto_posturale',
-      descrizione: 'Confronto posturale nel tempo — ' + dataIT(punti[selA].data) + ' → ' + dataIT(punti[selB].data),
+      descrizione: 'Confronto posturale nel tempo — ' + etichettaBreve(punti[selA]) + ' → ' + etichettaBreve(punti[selB]),
       file_type: 'application/pdf',
       file_hash: hash,
       storage_path: path
