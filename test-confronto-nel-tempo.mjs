@@ -96,10 +96,36 @@ function datiBase(opts = {}) {
   }
 }
 
+/* precarica-pre-da-scheda-v1 — dati per la terza voce dell'Acquisizione
+   Rapida, dentro valutazione-posturale.html. Coprono i quattro casi veri:
+   foto con data nel nome, foto SENZA data (vecchia migrazione), casella PRE
+   gia' piena, foto vecchia salvata fuori dall'archivio. */
+const PATH_SCHEDA_POST_SENZA_DATA = PID + '/iniziali/posteriore.jpg'
+const PATH_SCHEDA_PODO_DIETRO     = PID + '/iniziali/podo-dietro_1751328000000.jpg'
+const PATH_V3_FRO_PRE             = 'visits/v3/frontale_pre_3.jpg'
+
+function datiPosturale(opts = {}) {
+  const d = datiBase(opts)
+  d.patients = [{ id: PID, nome:'Mario', cognome:'Rossi', foto_url: JSON.stringify({
+    'prima-sx':    PATH_SCHEDA_SAG,               // data nel nome
+    'frontale':    PATH_SCHEDA_FRO,               // data nel nome, ma casella gia' piena
+    'posteriore':  PATH_SCHEDA_POST_SENZA_DATA,   // ⚠️ senza data
+    'podo-dietro': PATH_SCHEDA_PODO_DIETRO,
+    'podo-sotto':  'data:image/jpeg;base64,AAAA'  // vecchia, fuori dall'archivio
+    // 'prima-dx' manca apposta: deve dire «non c'e' nella scheda»
+  }) }]
+  d.visits.push({ id:'v3', patient_id:PID, tipo:'posturale', data_visita:'2026-08-31', created_at:'2026-08-31' })
+  d.visit_photos.push({ id:'p9', visit_id:'v3', tipo:'frontale_pre', storage_path:PATH_V3_FRO_PRE, data_scatto:'2026-08-31', ordine:4 })
+  d.urlFoto[PATH_SCHEDA_POST_SENZA_DATA] = '/foto/scheda-fro.svg'
+  d.urlFoto[PATH_SCHEDA_PODO_DIETRO]     = '/foto/scheda-sag.svg'
+  d.urlFoto[PATH_V3_FRO_PRE]             = '/foto/v1-fro.svg'
+  return d
+}
+
 // ── il finto Supabase, iniettato PRIMA di ogni script della pagina ─────
 const FINTO = (DB) => {
   window.__DB = DB
-  window.__chiamate = { upsert: [], insert: [], update: [], delete: [], upload: [] }
+  window.__chiamate = { upsert: [], insert: [], update: [], delete: [], upload: [], rimossi: [] }
 
   function filtra(righe, filtri) {
     return righe.filter(r => filtri.every(f => {
@@ -136,13 +162,31 @@ const FINTO = (DB) => {
       },
       insert(riga) {
         window.__chiamate.insert.push({ tabella:nome, riga })
-        ;(DB[nome] = DB[nome] || []).push(Object.assign({ id:'new-'+Math.random() }, riga))
-        return { select: () => ({ maybeSingle: () => Promise.resolve({ data:riga, error:null }) }),
-                 then: (r) => r({ data:riga, error:null }) }
+        /* precarica-pre-da-scheda-v1 — il vero Supabase restituisce la riga
+           CON l'id generato. Prima qui tornava la riga senza id, e il codice
+           che poi usa quell'id (cancellare la casella, sostituire la foto)
+           non si poteva provare: sembrava che non facesse niente. */
+        const salvata = Object.assign({ id:'new-'+Math.random() }, riga)
+        ;(DB[nome] = DB[nome] || []).push(salvata)
+        return { select: () => ({ maybeSingle: () => Promise.resolve({ data:salvata, error:null }) }),
+                 then: (r) => r({ data:salvata, error:null }) }
       },
       update(patch) {
         window.__chiamate.update.push({ tabella:nome, patch })
-        return { eq: () => Promise.resolve({ data:null, error:null }) }
+        /* precarica-pre-da-scheda-v1 — la sostituzione di una foto usa
+           .update().eq().select().maybeSingle(): prima qui la catena si
+           fermava a .eq() e il codice vero non si poteva provare. */
+        const applica = (col, val) => {
+          const riga = (DB[nome] || []).find(r => String(r[col]) === String(val))
+          if (riga) Object.assign(riga, patch)
+          return riga || null
+        }
+        return { eq: (col, val) => {
+          const riga = applica(col, val)
+          const p = Promise.resolve({ data:riga, error:null })
+          p.select = () => ({ maybeSingle: () => Promise.resolve({ data:riga, error:null }) })
+          return p
+        } }
       },
       delete() {
         return { eq: (col, val) => {
@@ -176,7 +220,9 @@ const FINTO = (DB) => {
               createSignedUrl(p) { return Promise.resolve({ data:{ signedUrl: DB.urlFoto[p] || null }, error:null }) },
               upload(p, body, o) { window.__chiamate.upload.push(p); return Promise.resolve({ data:{ path:p }, error:null }) },
               getPublicUrl(p) { return { data:{ publicUrl:'http://pubblico/' + p } } },
-              remove() { return Promise.resolve({ data:null, error:null }) }
+              // precarica-pre-da-scheda-v1 — qui si vede se una cancellazione
+              // ha toccato un file condiviso con la scheda paziente.
+              remove(paths) { [].concat(paths).forEach(p => window.__chiamate.rimossi.push(p)); return Promise.resolve({ data:null, error:null }) }
             }
           }
         }
@@ -185,19 +231,24 @@ const FINTO = (DB) => {
   }
 }
 
-async function apri(browser, dati, query = '?id=' + PID) {
+async function apriPagina(browser, dati, file, query) {
   const ctx = await browser.newContext({ viewport:{ width:1280, height:900 } })
   // niente rete verso l'esterno: font e supabase-js dal CDN non servono al test
   await ctx.route('**://cdn.jsdelivr.net/**', r => r.fulfill({ status:200, contentType:'text/javascript', body:'/* finto */' }))
+  await ctx.route('**://cdnjs.cloudflare.com/**', r => r.fulfill({ status:200, contentType:'text/javascript', body:'/* finto */' }))
   await ctx.route('**://fonts.googleapis.com/**', r => r.fulfill({ status:200, contentType:'text/css', body:'' }))
   await ctx.route('**://fonts.gstatic.com/**', r => r.abort())
   const page = await ctx.newPage()
   const errori = []
   page.on('pageerror', e => errori.push(String(e)))
   await page.addInitScript(FINTO, dati)
-  await page.goto('http://localhost:' + PORT + '/comparazione.html' + query, { waitUntil:'networkidle' })
+  await page.goto('http://localhost:' + PORT + '/' + file + query, { waitUntil:'networkidle' })
   await page.waitForTimeout(400)
   return { page, ctx, errori }
+}
+
+async function apri(browser, dati, query = '?id=' + PID) {
+  return apriPagina(browser, dati, 'comparazione.html', query)
 }
 
 // ── VIA ────────────────────────────────────────────────────────────────
@@ -224,7 +275,12 @@ sez('Caricamento e riga del tempo')
   })))
   check('tre punti nella riga del tempo (scheda + 2 posturali)', punti.length === 3, punti)
   check('il primo punto è la SCHEDA PAZIENTE', punti[0] && punti[0].tipo === 'Scheda paziente', punti[0])
-  check('la scheda dice «caricata il», non «scattata il»', punti[0] && punti[0].n.includes('caricata il'), punti[0])
+  /* Il testo era «caricata il» in confronto-nel-tempo-v1; la v2 lo ha
+     spostato accanto alla data, dove si legge «data di caricamento». Il
+     controllo guarda la SOSTANZA — non deve mai dire «scattata» — invece
+     della parola di allora, che era rimasta indietro. */
+  check('la scheda dice che la data è di caricamento, non di scatto',
+    punti[0] && /caricat|caricament/i.test(punti[0].n) && !/scattat/i.test(punti[0].n), punti[0])
   check('punti in ordine cronologico', punti[1].data === '01/08/2026' && punti[2].data === '30/08/2026', punti)
   check('la visita fisioterapica NON entra nel confronto posturale',
     punti.every(p => p.tipo !== 'Valutazione' || ['01/08/2026','30/08/2026'].includes(p.data)))
@@ -488,6 +544,221 @@ sez('PDF del confronto')
   await page.keyboard.press('Escape')
   await page.waitForTimeout(200)
   check('Esc chiude l\'anteprima', !(await page.isVisible('#pdf-modal')))
+  await ctx.close()
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   precarica-pre-da-scheda-v1
+   ═══════════════════════════════════════════════════════════════════════ */
+
+sez('Rivalutazione — la terza voce e il suo elenco')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPosturale(), 'valutazione-posturale.html', '?id=v3')
+  check('nessun errore JS nella posturale', errori.length === 0, errori)
+
+  await page.click('text=📷 Acquisizione Rapida')
+  await page.waitForTimeout(150)
+  const voci = await page.$$eval('#rapid-fase-modal .rapid-fase-btn', els => els.map(e => e.textContent.trim()))
+  check('le voci dell\'Acquisizione Rapida sono tre', voci.length === 3, voci)
+  check('la terza è la RIVALUTAZIONE', voci[2] && voci[2].startsWith('RIVALUTAZIONE — solo le POST'), voci[2])
+  check('le prime due non sono state toccate',
+    voci[0].startsWith('PRE — Valutazione iniziale') && voci[1].startsWith('POST 3R'), voci)
+
+  await page.click('.rapid-fase-riv')
+  await page.waitForTimeout(400)
+  check('si apre la conferma, non la fotocamera',
+    await page.isVisible('#precarica-modal') && !(await page.isVisible('#webcam-modal.open')))
+
+  const righe = await page.$$eval('#prec-corpo .prec-riga', els => els.map(e => e.textContent))
+  const riga = n => righe.find(t => t.indexOf(n) === 0 || t.indexOf(n) >= 0) || ''
+  check('sei righe, una per casella PRE', righe.length === 6, righe.length)
+  check('la sagittale sx porta la SUA data, non oggi',
+    riga('Sagittale sinistra').includes('caricata il 01/07/2025'), riga('Sagittale sinistra'))
+  check('⚠️ la foto senza timestamp dice «data non registrata»',
+    riga('Posteriore').includes('data non registrata'), riga('Posteriore'))
+  check('la casella già piena dice che non la tocca',
+    riga('Frontale').includes('già piena') && riga('Frontale').includes('non la tocco'), riga('Frontale'))
+  check('la casella piena offre la sostituzione, spenta',
+    riga('Frontale').includes('sostituisci lo stesso') &&
+    !(await page.$eval('#prec-corpo input[type=checkbox]', c => c.checked)))
+  check('la foto fuori dall\'archivio non si carica da qui, e lo dice',
+    riga('Plantare').includes('fuori dall\'archivio'), riga('Plantare'))
+  check('lo slot assente dice «non c\'è nella scheda»',
+    riga('Sagittale destra').includes('non c\'è nella scheda'), riga('Sagittale destra'))
+
+  check('la conferma avverte del confronto fra giorni diversi',
+    (await page.textContent('#prec-corpo')).includes('confronto sarà fra due giorni diversi'))
+  const btn = await page.textContent('.prec-btn-ok')
+  check('il pulsante conta 3 foto (le piene e le non caricabili restano fuori)',
+    btn.includes('Carica 3 foto'), btn)
+  check('c\'è la via d\'uscita «solo le POST, senza caricare»',
+    (await page.textContent('.prec-btn-solopost')).includes('senza caricare'))
+
+  await ctx.close()
+}
+
+sez('Rivalutazione — il caricamento vero')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPosturale(), 'valutazione-posturale.html', '?id=v3')
+  await page.click('text=📷 Acquisizione Rapida')
+  await page.waitForTimeout(120)
+  await page.click('.rapid-fase-riv')
+  await page.waitForTimeout(400)
+  await page.click('.prec-btn-ok')
+  await page.waitForTimeout(900)
+
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'visit_photos').map(c => c.riga))
+  check('tre righe inserite in visit_photos', ins.length === 3, ins.map(r => r.tipo))
+  check('nessuna riga scritta sulla casella già piena', !ins.some(r => r.tipo === 'frontale_pre'), ins.map(r => r.tipo))
+  const sag = ins.find(r => r.tipo === 'sagittale_sx_pre')
+  check('la sagittale sx tiene la sua data (2025), non quella di oggi',
+    sag && String(sag.data_scatto).startsWith('2025-06-30') || String(sag && sag.data_scatto).startsWith('2025-07-01'), sag && sag.data_scatto)
+  const post = ins.find(r => r.tipo === 'posteriore_pre')
+  check('⚠️ senza data nel nome la data resta VUOTA: mai la data di oggi',
+    post && post.data_scatto === null, post && post.data_scatto)
+  check('la foto inserita è quella della scheda, non una copia nuova',
+    ins.every(r => r.storage_path.indexOf('/iniziali/') >= 0), ins.map(r => r.storage_path))
+
+  const tag = await page.$$eval('.slot-scheda-tag', els => els.map(e => e.textContent))
+  check('tre caselle portano il contrassegno SCHEDA', tag.length === 3, tag)
+  check('il contrassegno porta la data quando c\'è', tag.some(t => t.includes('01/07')), tag)
+  check('e dice «senza data» quando non c\'è', tag.some(t => t.includes('senza data')), tag)
+  check('la casella già piena NON ha il contrassegno',
+    await page.$eval('#slot-frontale_pre', el => !el.querySelector('.slot-scheda-tag')))
+
+  const avviso = await page.textContent('#vp-avviso-scheda')
+  check('l\'avviso resta a schermo mentre si lavora', await page.isVisible('#vp-avviso-scheda'))
+  check('l\'avviso dice che il confronto è fra giorni diversi',
+    avviso.includes('Confronto fra giorni diversi') && avviso.includes('non scattate in questa seduta'), avviso.slice(0,120))
+  check('l\'esito resta scritto, non in un toast',
+    (await page.textContent('#prec-corpo')).includes('3 foto caricate'))
+
+  // Da qui si passa alle POST, che si scattano oggi.
+  await page.click('.prec-btn-ok')
+  await page.waitForTimeout(300)
+  check('dopo il caricamento parte la sequenza POST 3R',
+    (await page.evaluate(() => rapidStepLabel())).includes('Step 1/6') &&
+    (await page.evaluate(() => rapidStepLabel())).includes('POST'))
+  check('si apre il menu di caricamento del primo step POST',
+    await page.isVisible('#upload-menu-modal.open'))
+  await ctx.close()
+}
+
+sez('Rivalutazione — sostituire una casella già piena si chiede prima')
+{
+  const { page, ctx } = await apriPagina(browser, datiPosturale(), 'valutazione-posturale.html', '?id=v3')
+  await page.click('text=📷 Acquisizione Rapida')
+  await page.waitForTimeout(120)
+  await page.click('.rapid-fase-riv')
+  await page.waitForTimeout(400)
+  await page.check('#prec-corpo input[type=checkbox]')
+  await page.waitForTimeout(200)
+  const btn = await page.textContent('.prec-btn-ok')
+  check('spuntando «sostituisci» il conteggio sale a 4', btn.includes('Carica 4 foto'), btn)
+
+  await page.click('.prec-btn-ok')
+  await page.waitForTimeout(900)
+  const upd = await page.evaluate(() => window.__chiamate.update.filter(c => c.tabella === 'visit_photos').map(c => c.patch))
+  check('la casella piena viene sostituita, non duplicata',
+    upd.some(p => p.storage_path && p.storage_path.indexOf('/iniziali/frontale_') >= 0), upd)
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'visit_photos').map(c => c.riga.tipo))
+  check('e non nasce una seconda riga frontale_pre', !ins.includes('frontale_pre'), ins)
+  check('ora anche la casella frontale porta il contrassegno',
+    await page.$eval('#slot-frontale_pre', el => !!el.querySelector('.slot-scheda-tag')))
+  await ctx.close()
+}
+
+sez('Rivalutazione — «solo le POST» non tocca niente')
+{
+  const { page, ctx } = await apriPagina(browser, datiPosturale(), 'valutazione-posturale.html', '?id=v3')
+  await page.click('text=📷 Acquisizione Rapida')
+  await page.waitForTimeout(120)
+  await page.click('.rapid-fase-riv')
+  await page.waitForTimeout(400)
+  await page.click('.prec-btn-solopost')
+  await page.waitForTimeout(300)
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'visit_photos'))
+  check('nessuna foto caricata', ins.length === 0, ins.length)
+  check('nessun contrassegno in giro', (await page.$$('.slot-scheda-tag')).length === 0)
+  check('l\'avviso in pagina resta spento', !(await page.isVisible('#vp-avviso-scheda')))
+  check('la sequenza POST parte lo stesso',
+    (await page.evaluate(() => rapidStepLabel())).includes('Step 1/6'))
+  await ctx.close()
+}
+
+sez('Rivalutazione — scheda senza foto iniziali')
+{
+  const dati = datiPosturale()
+  dati.patients[0].foto_url = '{}'
+  const { page, ctx } = await apriPagina(browser, dati, 'valutazione-posturale.html', '?id=v3')
+  await page.click('text=📷 Acquisizione Rapida')
+  await page.waitForTimeout(120)
+  await page.click('.rapid-fase-riv')
+  await page.waitForTimeout(400)
+  const t = await page.textContent('#prec-sub')
+  check('lo dice invece di aprire un elenco vuoto', t.includes('non ci sono foto iniziali'), t)
+  check('non offre un caricamento che non può fare', (await page.$$('.prec-btn-ok')).length === 0)
+  check('offre comunque di andare alle POST', (await page.$$('.prec-btn-solopost')).length === 1)
+  await ctx.close()
+}
+
+sez('Rivalutazione — svuotare la casella non svuota la scheda paziente')
+{
+  const { page, ctx } = await apriPagina(browser, datiPosturale(), 'valutazione-posturale.html', '?id=v3')
+  await page.click('text=📷 Acquisizione Rapida'); await page.waitForTimeout(120)
+  await page.click('.rapid-fase-riv'); await page.waitForTimeout(400)
+  await page.click('.prec-btn-ok'); await page.waitForTimeout(900)
+  await page.click('.prec-btn-annulla'); await page.waitForTimeout(200)
+
+  await page.evaluate(() => removePhoto('sagittale_sx_pre'))
+  await page.waitForTimeout(400)
+  const rimossi = await page.evaluate(() => window.__chiamate.rimossi)
+  check('⚠️ la foto della scheda NON viene cancellata da Storage',
+    !rimossi.some(p => p.indexOf('/iniziali/') >= 0), rimossi)
+  const del = await page.evaluate(() => window.__chiamate.delete.filter(c => c.tabella === 'visit_photos'))
+  check('ma la casella si svuota davvero (riga cancellata)', del.length === 1, del)
+  check('la casella torna vuota a schermo',
+    await page.$eval('#slot-sagittale_sx_pre', el => !el.classList.contains('filled')))
+
+  // Controprova: una foto scattata in questa visita si cancella eccome.
+  await page.evaluate(() => removePhoto('frontale_pre'))
+  await page.waitForTimeout(400)
+  const dopo = await page.evaluate(() => window.__chiamate.rimossi)
+  check('una foto scattata in questa visita si cancella normalmente',
+    dopo.some(p => p.indexOf('visits/v3/frontale_pre') >= 0), dopo)
+  await ctx.close()
+}
+
+sez('Rivalutazione — il contrassegno nel PDF')
+{
+  const { page, ctx } = await apriPagina(browser, datiPosturale(), 'valutazione-posturale.html', '?id=v3')
+  const html = await page.evaluate((paths) => buildPDFTemplatePosturale(
+    { data_visita:'2026-08-31' },
+    { nome:'Mario', cognome:'Rossi' },
+    { nome:'Giuliano', cognome:'B' },
+    [ { tipo:'frontale_pre',  url_pubblico:'/foto/scheda-fro.svg', storage_path: paths.scheda },
+      { tipo:'posteriore_pre',url_pubblico:'/foto/scheda-fro.svg', storage_path: paths.senzaData },
+      { tipo:'frontale_post', url_pubblico:'/foto/v2-fro-post.svg', storage_path:'visits/v3/frontale_post.jpg' } ],
+    null
+  ), { scheda: PATH_SCHEDA_FRO, senzaData: PATH_SCHEDA_POST_SENZA_DATA })
+
+  check('il PDF avverte in cima che il confronto è fra giorni diversi',
+    html.includes('CONFRONTO FRA GIORNI DIVERSI'))
+  check('il PDF dice che quelle foto non sono di questa seduta',
+    html.includes('non sono state scattate in questa seduta'))
+  check('sotto la foto c\'è «dalla scheda paziente del gg/mm/aaaa»',
+    html.includes('dalla scheda paziente del 01/07/2025'), html.includes('dalla scheda paziente'))
+  check('e «data non registrata» dove la data non c\'è',
+    html.includes('dalla scheda paziente — data non registrata'))
+  check('la foto scattata oggi non porta nessun contrassegno: due didascalie su tre foto',
+    (html.match(/dalla scheda paziente/g) || []).length === 2,
+    (html.match(/dalla scheda paziente/g) || []).length)
+
+  const pulito = await page.evaluate(() => buildPDFTemplatePosturale(
+    { data_visita:'2026-08-31' }, { nome:'Mario', cognome:'Rossi' }, { nome:'Giuliano' },
+    [ { tipo:'frontale_pre', url_pubblico:'/foto/v1-fro.svg', storage_path:'visits/v3/frontale_pre.jpg' } ], null))
+  check('senza foto della scheda l\'avviso NON compare',
+    !pulito.includes('CONFRONTO FRA GIORNI DIVERSI') && !pulito.includes('dalla scheda paziente'))
   await ctx.close()
 }
 

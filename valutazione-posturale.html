@@ -440,6 +440,33 @@
     .rapid-fase-post   { background:#222; color:#fff; }
     .rapid-fase-cancel { background:none; border:none; color:#888; font-size:13px; cursor:pointer; margin-top:4px; font-family:inherit; }
 
+    /* precarica-pre-da-scheda-v1 — terza voce dell'Acquisizione Rapida.
+       Colore diverso dalle altre due perche' non e' uno scatto: e' un
+       caricamento di foto vecchie, e non deve somigliare agli altri due. */
+    .rapid-fase-riv    { background:#0d5c3f; color:#fff; }
+    .prec-modal        { display:none; position:fixed; inset:0; z-index:1310; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:12px; }
+    .prec-modal.open   { display:flex; }
+    .prec-box          { background:#fff; border-radius:16px; padding:20px; width:100%; max-width:460px; max-height:88vh; overflow-y:auto; }
+    .prec-title        { font-size:17px; font-weight:800; margin-bottom:4px; }
+    .prec-sub          { font-size:12.5px; color:#777; margin-bottom:14px; line-height:1.45; }
+    .prec-avviso       { background:#fff8e1; border:1.5px solid #FFD008; border-radius:10px; padding:10px 12px; font-size:12px; line-height:1.5; color:#4a3b00; margin-bottom:14px; }
+    .prec-riga         { display:flex; align-items:flex-start; gap:10px; border:1px solid #eee; border-radius:10px; padding:9px 11px; margin-bottom:7px; text-align:left; }
+    .prec-riga.piena   { background:#fbfbfb; border-color:#e0e0e0; }
+    .prec-riga.manca   { opacity:.55; }
+    .prec-nome         { font-size:13px; font-weight:700; color:#111; }
+    .prec-info         { font-size:11px; color:#888; margin-top:2px; line-height:1.4; }
+    .prec-info b       { color:#b26a00; }
+    .prec-sost         { font-size:11px; color:#c62828; font-weight:700; display:flex; align-items:center; gap:5px; margin-top:5px; cursor:pointer; }
+    .prec-btn          { display:block; width:100%; border:none; border-radius:12px; padding:13px; margin-top:6px; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; line-height:1.3; }
+    .prec-btn-ok       { background:#0d5c3f; color:#fff; }
+    .prec-btn-solopost { background:#222; color:#fff; }
+    .prec-btn-annulla  { background:none; color:#888; font-size:13px; font-weight:600; }
+    .prec-esito        { font-size:12px; line-height:1.6; text-align:left; }
+    /* Contrassegno sulla casella: si vede sulla foto, non solo nel PDF. */
+    /* al centro in alto: gli angoli sono già occupati dai pulsanti foto */
+    .slot-scheda-tag   { position:absolute; top:5px; left:50%; transform:translateX(-50%); white-space:nowrap; z-index:4; background:#0d5c3f; color:#fff; font-size:9px; font-weight:800; letter-spacing:.3px; padding:3px 7px; border-radius:20px; pointer-events:none; box-shadow:0 1px 3px rgba(0,0,0,.35); }
+    #vp-avviso-scheda  { display:none; background:#fff8e1; border:1.5px solid #FFD008; border-radius:10px; padding:10px 12px; font-size:12.5px; line-height:1.55; color:#4a3b00; margin:0 0 12px; }
+
     /* ── CONFRONTO PRE/POST ──────────────────────────────────── */
     #vp-compare { display:none; position:fixed; inset:0; z-index:1250; background:#111; overflow-y:auto; padding:0 0 40px; }
     #vp-compare.open { display:block; }
@@ -720,6 +747,9 @@
         <button onclick="apriConfrontoNelTempo()" title="Confronta questa valutazione con quelle di prima" style="background:#222;color:#fff;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">📈 Confronto nel tempo</button>
       </div>
     </div>
+    <!-- precarica-pre-da-scheda-v1 — resta a schermo finché una casella di
+         questa valutazione contiene una foto della scheda paziente. -->
+    <div id="vp-avviso-scheda"></div>
     <div class="photo-grid pp-layout-wide" id="photo-grid"><!-- built by buildPhotoGrid() --></div>
   </section>
 
@@ -1862,8 +1892,19 @@
       slot.className = 'photo-slot filled'
       slot.onclick   = () => showLightbox(tipo)
       const dateStr = p.data_scatto ? new Date(p.data_scatto).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit' }) : ''
+      /* precarica-pre-da-scheda-v1 — contrassegno d'origine sulla casella.
+         Il percorso {patientId}/iniziali/... ce l'hanno solo le foto della
+         scheda paziente: vale sia per la terza voce dell'Acquisizione
+         Rapida sia per una foto inserita a mano dal picker. */
+      const _sch = _daScheda(p.storage_path)
+      const _schData = p.data_scatto || _dataDaPercorso(p.storage_path)
+      const tagScheda = _sch
+        ? '<div class="slot-scheda-tag" title="' + _etichettaScheda(p.storage_path, p.data_scatto) + '">SCHEDA ' +
+          (_schData ? new Date(_schData).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit' }) : '· senza data') + '</div>'
+        : ''
       slot.innerHTML =
         '<img class="photo-slot-thumb" src="' + p.url_pubblico + '" alt="' + label + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' +
+        tagScheda +
         (window.policettivoFotoBar ? window.policettivoFotoBar({
           onIntero: "openVpFullscreen('" + p.url_pubblico + "')",
           onAnnota: "apriOsservazioni('" + tipo + "')",
@@ -1885,6 +1926,8 @@
       if (dateEl) dateEl.textContent = ''
       if (noteRow) noteRow.classList.remove('visible')
     }
+    // precarica-pre-da-scheda-v1 — l'avviso segue le caselle, sempre.
+    try { aggiornaAvvisoScheda() } catch (e) {}
   }
 
   // FIX 4: Note breve per ogni slot — salva su visit_photos.note
@@ -2372,7 +2415,12 @@
     if (!visitId || visitId === 'null') { showToast('Errore: visita non ancora creata. Ricarica la pagina.'); return }
     setIndicator('saving', '')
     try {
-      const data_scatto = dataOriginale || new Date().toISOString()
+      /* precarica-pre-da-scheda-v1 — su una foto della scheda paziente senza
+         timestamp nel nome la data NON si conosce: scrivere oggi vorrebbe
+         dire mettere la data di oggi su una foto di tre settimane fa, dentro
+         un documento firmato. Meglio vuota: «data non registrata» si legge,
+         una data falsa no. Le altre foto restano come prima. */
+      const data_scatto = dataOriginale || (_daScheda(storage_path) ? null : new Date().toISOString())
       const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(storage_path)
       const pubUrl = urlData.publicUrl
       let dbErr, saved
@@ -2711,7 +2759,10 @@
       let dbErr, saved
 
       if (isReplace && photos[tipo]?.id) {
-        if (photos[tipo].storage_path) {
+        // precarica-pre-da-scheda-v1 — stessa regola di removePhoto: la foto
+        // vecchia si cancella solo se quel file non lo usa nessun altro.
+        // Sostituire una casella precaricata non deve svuotare la scheda.
+        if (photos[tipo].storage_path && !(await _fileCondiviso(photos[tipo].storage_path, photos[tipo].id))) {
           await _sb.storage.from('clinical-docs').remove([photos[tipo].storage_path])
         }
         const r = await _sb.from('visit_photos')
@@ -2742,13 +2793,34 @@
     }
   }
 
+  /* precarica-pre-da-scheda-v1 — una riga che punta a un file non autorizza
+     a cancellare il file. Da quando le foto della scheda paziente entrano
+     nelle caselle (dal picker e ora dalla RIVALUTAZIONE), lo stesso file su
+     Storage e' puntato da piu' posti: dalla scheda del paziente, dal picker,
+     da comparazione.html e da questa casella. Cancellarlo qui vorrebbe dire
+     far sparire la foto iniziale del paziente da tutte le altre parti.
+     Ritorna true se il file NON si puo' toccare. Nel dubbio: non si tocca. */
+  async function _fileCondiviso(storage_path, escludiId) {
+    if (!storage_path) return true
+    if (_daScheda(storage_path)) return true          // è della scheda paziente
+    try {
+      const { data, error } = await _sb.from('visit_photos').select('id').eq('storage_path', storage_path)
+      if (error) return true
+      return (data || []).some(r => String(r.id) !== String(escludiId))
+    } catch (e) { return true }
+  }
+
   async function removePhoto(tipo) {
     const p = photos[tipo]
     if (!p) return
-    if (p.storage_path) await _sb.storage.from('clinical-docs').remove([p.storage_path])
+    const scheda = _daScheda(p.storage_path)
+    if (p.storage_path && !(await _fileCondiviso(p.storage_path, p.id))) {
+      await _sb.storage.from('clinical-docs').remove([p.storage_path])
+    }
     if (p.id)           await _sb.from('visit_photos').delete().eq('id', p.id)
     delete photos[tipo]
     updatePhotoSlot(tipo)
+    if (scheda) showToast('Casella svuotata. La foto resta nella scheda del paziente.', 5000)
   }
 
   // ── FOTO LIBERE ────────────────────────────────────────────
@@ -3987,6 +4059,15 @@ ISTRUZIONI:
       const name = parts.slice(0, -1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
       return phase === 'post' ? name + ' — POST 3R' : name + ' — PRE'
     }
+    /* precarica-pre-da-scheda-v1 — la didascalia d'origine. Il percorso
+       {patientId}/iniziali/... ce l'hanno solo le foto della scheda
+       paziente, quindi il contrassegno non dipende da come sono entrate
+       nella casella. Non e' scritto in grigio piccolo come le note: e'
+       l'informazione che dice di che giorno e' la foto. */
+    function didascaliaScheda(p) {
+      if (!_daScheda(p.storage_path)) return ''
+      return `<div style="font-size:7px;font-weight:700;color:#0d5c3f;background:#eaf3ee;border:0.5px solid #0d5c3f;border-radius:3px;padding:1px 3px;margin-top:2px;display:inline-block">${_etichettaScheda(p.storage_path, p.data_scatto)}</div>`
+    }
     function photoGrid(tipi) {
       const imgs = photosByTipi(tipi)
       if (!imgs.length) return ''
@@ -3995,6 +4076,7 @@ ISTRUZIONI:
           <img src="${p.url_pubblico}" crossorigin="anonymous"
                style="max-width:220px;max-height:180px;object-fit:contain;border:1px solid #ddd;border-radius:3px;display:block;margin:0 auto">
           <div style="font-size:7px;color:#888;margin-top:3px">${photoLabel(p.tipo)}</div>
+          ${didascaliaScheda(p)}
           ${p.note ? `<div style="font-size:7px;color:#999;margin-top:1px">${p.note}</div>` : ''}
         </div>`).join('') +
       `</div>`
@@ -4014,6 +4096,23 @@ ISTRUZIONI:
     const pianiPodoSotto  = ['podoscopio_sotto_pre','podoscopio_sotto_post']
     const pianiPodoDietro = ['podoscopio_dietro_pre','podoscopio_dietro_post']
     const fotoLibere      = photos.filter(p => p.tipo === 'libera' && p.url_pubblico)
+
+    /* precarica-pre-da-scheda-v1 — «PRE» e «POST 3R» dentro una posturale
+       sono i due lati di un confronto nella stessa seduta. Se una casella
+       porta una foto della scheda paziente, quel confronto e' fra due giorni
+       diversi: va scritto sul documento, non lasciato intuire. */
+    const fotoDaScheda = photos.filter(p => p.url_pubblico && _daScheda(p.storage_path))
+    const avvisoScheda = fotoDaScheda.length ? `
+      <div style="margin:10px 20px 0;background:#fff8e1;border:1px solid #FFD008;border-radius:4px;padding:7px 9px">
+        <div style="font-size:8px;font-weight:700;color:#4a3b00;margin-bottom:2px">⚠ CONFRONTO FRA GIORNI DIVERSI</div>
+        <div style="font-size:7.5px;color:#4a3b00;line-height:1.5">
+          ${fotoDaScheda.length === 1 ? 'Una foto di questo referto proviene' : fotoDaScheda.length + ' foto di questo referto provengono'}
+          dalla scheda del paziente e <strong>non ${fotoDaScheda.length === 1 ? 'è stata scattata' : 'sono state scattate'} in questa seduta</strong>:
+          ${fotoDaScheda.map(p => `${photoLabel(p.tipo)} (${_originaBreve(p.storage_path, p.data_scatto)})`).join(' · ')}.
+          Il confronto PRE / POST 3R non è quindi fra due momenti della stessa seduta.
+          ${fotoDaScheda.some(p => !(p.data_scatto || _dataDaPercorso(p.storage_path))) ? 'Per una o più di queste foto la data di caricamento non è registrata nell\'archivio.' : ''}
+        </div>
+      </div>` : ''
 
     const sezioneA = [
       sec('Piano Sagittale'),
@@ -4092,6 +4191,8 @@ ISTRUZIONI:
     </div>
   </div>
 
+  ${avvisoScheda}
+
   <div style="padding:12px 20px 20px">
     ${sezioneA}
     ${sezioneB}
@@ -4152,6 +4253,9 @@ ISTRUZIONI:
   }
   function rapidPickFase(fase) {
     document.getElementById('rapid-fase-modal').classList.remove('open')
+    // precarica-pre-da-scheda-v1 — la terza voce non apre la fotocamera:
+    // apre la conferma. Le POST partono dopo, e solo se lui conferma.
+    if (fase === 'rivalutazione') { precaricaApri(); return }
     rapidStart(fase)
   }
 
@@ -4239,6 +4343,198 @@ ISTRUZIONI:
       fotoLibere.push(np)
       renderFotoLibere()
     } catch(e) { showToast('Errore: ' + e.message) }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     precarica-pre-da-scheda-v1 — le foto iniziali della scheda paziente
+     nelle caselle PRE, quando si rivaluta e si scattano solo le POST 3R.
+
+     Il contrassegno NON e' una colonna nuova: le foto della scheda stanno
+     su Storage in {patientId}/iniziali/..., e nessun'altra foto ha quel
+     percorso. Il percorso e' il marchio d'origine, e vale anche per le
+     foto inserite una alla volta dal picker. Nessuna migration.
+
+     Perche' `dopo-sx` e `dopo-dx` restano fuori: in questa voce le POST 3R
+     si scattano oggi. Portare qui una POST vecchia vorrebbe dire un
+     confronto fatto tutto di foto vecchie, dentro una seduta di oggi.
+     ═══════════════════════════════════════════════════════════════════ */
+  const PRECARICA_SLOT = [
+    { slot:'prima-sx',    tipo:'sagittale_sx_pre',      nome:'Sagittale sinistra' },
+    { slot:'prima-dx',    tipo:'sagittale_dx_pre',      nome:'Sagittale destra' },
+    { slot:'frontale',    tipo:'frontale_pre',          nome:'Frontale' },
+    { slot:'posteriore',  tipo:'posteriore_pre',        nome:'Posteriore' },
+    { slot:'podo-sotto',  tipo:'podoscopio_sotto_pre',  nome:'Plantare / Podoscopio' },
+    { slot:'podo-dietro', tipo:'podoscopio_dietro_pre', nome:'Arti inferiori posteriori' }
+  ]
+
+  // Una foto viene dalla scheda paziente se sta nella cartella iniziali/.
+  function _daScheda(p) { return !!p && p.indexOf('/iniziali/') >= 0 }
+
+  // ⚠️ Molte foto iniziali NON hanno la data: quelle nominate dalla vecchia
+  // migrazione sono .../iniziali/prima-sx.jpg, senza il numero. «Data non
+  // registrata» va scritto, non lasciato vuoto e non riempito con oggi.
+  function _originaBreve(p, dataIso) {
+    const d = dataIso || _dataDaPercorso(p)
+    return d ? 'del ' + new Date(d).toLocaleDateString('it-IT') : 'data non registrata'
+  }
+  function _etichettaScheda(p, dataIso) {
+    const b = _originaBreve(p, dataIso)
+    return b.indexOf('del ') === 0
+      ? 'dalla scheda paziente ' + b
+      : 'dalla scheda paziente — ' + b
+  }
+
+  let _precElenco = []
+
+  async function precaricaApri() {
+    const box = document.getElementById('precarica-modal')
+    document.getElementById('prec-sub').textContent = 'Leggo la scheda paziente…'
+    document.getElementById('prec-corpo').innerHTML = ''
+    document.getElementById('prec-azioni').innerHTML = ''
+    box.classList.add('open')
+
+    let urls = {}
+    try {
+      const { data: paz, error } = await _sb.from('patients').select('foto_url').eq('id', patientId).maybeSingle()
+      if (error) throw new Error(error.message)
+      try { urls = JSON.parse((paz && paz.foto_url) || '{}') } catch (e) { urls = {} }
+    } catch (e) {
+      document.getElementById('prec-sub').innerHTML =
+        '<span style="color:#c62828;font-weight:700">Non ho potuto leggere la scheda paziente: ' + (e.message || e) + '</span>'
+      document.getElementById('prec-azioni').innerHTML =
+        '<button class="prec-btn prec-btn-annulla" onclick="precaricaChiudi()">Chiudi</button>'
+      return
+    }
+
+    _precElenco = PRECARICA_SLOT.map(s => {
+      const v    = urls[s.slot]
+      const path = _percorsoScheda(v)
+      return {
+        slot: s.slot, tipo: s.tipo, nome: s.nome,
+        path: path,
+        data: _dataDaPercorso(path),
+        presente:   !!v,
+        caricabile: !!path,                 // le vecchie base64/URL diretti no
+        pieno:      !!photos[s.tipo],
+        sostituisci: false
+      }
+    })
+
+    precaricaRender()
+  }
+
+  function precaricaRender() {
+    const disponibili = _precElenco.filter(r => r.presente && r.caricabile)
+    const sub    = document.getElementById('prec-sub')
+    const corpo  = document.getElementById('prec-corpo')
+    const azioni = document.getElementById('prec-azioni')
+
+    if (!disponibili.length) {
+      sub.innerHTML = 'Nella scheda di questo paziente <b>non ci sono foto iniziali</b> da portare nelle caselle PRE.'
+      corpo.innerHTML = ''
+      azioni.innerHTML =
+        '<button class="prec-btn prec-btn-solopost" onclick="precaricaSoloPost()">Vai comunque alle POST 3R</button>' +
+        '<button class="prec-btn prec-btn-annulla" onclick="precaricaChiudi()">Annulla</button>'
+      return
+    }
+
+    sub.innerHTML = 'Le porto nelle caselle <b>PRE</b>, con la loro data. Poi scatti solo le <b>POST 3R</b>.'
+
+    corpo.innerHTML =
+      '<div class="prec-avviso">⚠️ <b>Il confronto sarà fra due giorni diversi.</b> Dentro una valutazione posturale «PRE» e «POST 3R» sono i due lati di un confronto nella stessa seduta. Con una foto di settimane fa in casella PRE non lo è più: resta scritto sulla casella, e finisce anche nel PDF.</div>' +
+      _precElenco.map((r, i) => {
+        if (!r.presente)   return '<div class="prec-riga manca"><div><div class="prec-nome">' + r.nome + '</div><div class="prec-info">non c\'è nella scheda paziente</div></div></div>'
+        if (!r.caricabile) return '<div class="prec-riga manca"><div><div class="prec-nome">' + r.nome + '</div><div class="prec-info">foto vecchia, salvata fuori dall\'archivio: va inserita a mano con «Scegli da foto del paziente»</div></div></div>'
+        const dataTxt = r.data
+          ? 'caricata il ' + new Date(r.data).toLocaleDateString('it-IT')
+          : '<b>data non registrata</b>'
+        const pienaTxt = r.pieno
+          ? '<div class="prec-info" style="color:#c62828">la casella PRE è già piena — <b>non la tocco</b></div>' +
+            '<label class="prec-sost"><input type="checkbox" ' + (r.sostituisci ? 'checked' : '') +
+            ' onchange="precaricaSostituisci(' + i + ',this.checked)" style="width:16px;height:16px;accent-color:#c62828"> sostituisci lo stesso</label>'
+          : ''
+        return '<div class="prec-riga' + (r.pieno ? ' piena' : '') + '">' +
+          '<div style="font-size:16px;line-height:1">' + (r.pieno && !r.sostituisci ? '⏭️' : '⬅️') + '</div>' +
+          '<div style="flex:1"><div class="prec-nome">' + r.nome + '</div>' +
+          '<div class="prec-info">' + dataTxt + '</div>' + pienaTxt + '</div></div>'
+      }).join('')
+
+    const daFare = _precElenco.filter(r => r.presente && r.caricabile && (!r.pieno || r.sostituisci)).length
+    azioni.innerHTML =
+      '<button class="prec-btn prec-btn-ok" ' + (daFare ? '' : 'disabled style="opacity:.45;cursor:default"') +
+        ' onclick="precaricaEsegui()">Carica ' + daFare + ' foto nelle PRE, poi scatta le POST 3R</button>' +
+      '<button class="prec-btn prec-btn-solopost" onclick="precaricaSoloPost()">Solo le POST 3R, senza caricare niente</button>' +
+      '<button class="prec-btn prec-btn-annulla" onclick="precaricaChiudi()">Annulla</button>'
+  }
+
+  function precaricaSostituisci(i, v) {
+    if (_precElenco[i]) _precElenco[i].sostituisci = !!v
+    precaricaRender()
+  }
+
+  function precaricaChiudi() {
+    document.getElementById('precarica-modal').classList.remove('open')
+  }
+
+  function precaricaSoloPost() {
+    precaricaChiudi()
+    rapidStart('post')
+  }
+
+  async function precaricaEsegui() {
+    const daFare = _precElenco.filter(r => r.presente && r.caricabile && (!r.pieno || r.sostituisci))
+    if (!daFare.length) return
+
+    const sub    = document.getElementById('prec-sub')
+    const corpo  = document.getElementById('prec-corpo')
+    const azioni = document.getElementById('prec-azioni')
+    azioni.innerHTML = ''
+
+    const fatte = [], fallite = []
+    for (let i = 0; i < daFare.length; i++) {
+      const r = daFare[i]
+      corpo.innerHTML = '<div class="prec-esito">Carico ' + (i + 1) + ' di ' + daFare.length + ' — ' + r.nome + '…</div>'
+      try {
+        await referenceLibraryPhoto(r.path, r.tipo, r.pieno, r.data)
+      } catch (e) { /* l'esito si legge dallo slot, sotto */ }
+      if (photos[r.tipo] && photos[r.tipo].storage_path === r.path) fatte.push(r)
+      else fallite.push(r)
+    }
+
+    aggiornaAvvisoScheda()
+
+    // L'esito resta scritto a schermo: un toast che sparisce non basta
+    // quando il documento porta la firma del professionista.
+    sub.innerHTML = fallite.length
+      ? '<span style="color:#c62828;font-weight:700">Alcune foto non sono entrate.</span>'
+      : 'Fatto.'
+    corpo.innerHTML = '<div class="prec-esito">' +
+      (fatte.length ? '✅ <b>' + fatte.length + '</b> ' + (fatte.length === 1 ? 'foto caricata' : 'foto caricate') + ' nelle caselle PRE: ' + fatte.map(r => r.nome).join(', ') + '.<br>' : '') +
+      (fallite.length ? '❌ Non caricate: <b>' + fallite.map(r => r.nome).join(', ') + '</b>. Riprova, oppure inseriscile a mano con «Scegli da foto del paziente».<br>' : '') +
+      '<div class="prec-avviso" style="margin-top:10px;margin-bottom:0">⚠️ Le caselle PRE che hai appena riempito portano il contrassegno <b>SCHEDA</b> con la loro data. Lo stesso contrassegno, e l\'avviso che il confronto è fra giorni diversi, finiscono nel PDF.</div>' +
+      '</div>'
+    azioni.innerHTML =
+      '<button class="prec-btn prec-btn-ok" onclick="precaricaSoloPost()">Vai alle POST 3R (6 step)</button>' +
+      '<button class="prec-btn prec-btn-annulla" onclick="precaricaChiudi()">Chiudi, scatto dopo</button>'
+  }
+
+  /* Avviso in pagina: finche' c'e' una foto della scheda in una casella di
+     questa valutazione, si vede mentre si lavora, non solo alla stampa. */
+  function aggiornaAvvisoScheda() {
+    const box = document.getElementById('vp-avviso-scheda')
+    if (!box) return
+    const dalla = Object.keys(photos)
+      .filter(t => photos[t] && _daScheda(photos[t].storage_path))
+      .map(t => {
+        const def = PHOTO_SLOTS_FLAT.find(s => s.tipo === t)
+        return (def ? def.label : t.replace(/_/g, ' ')) + ' (' + _originaBreve(photos[t].storage_path, photos[t].data_scatto) + ')'
+      })
+    if (!dalla.length) { box.style.display = 'none'; box.innerHTML = ''; return }
+    box.style.display = 'block'
+    box.innerHTML = '⚠️ <b>Confronto fra giorni diversi.</b> ' + dalla.length +
+      (dalla.length === 1 ? ' casella contiene una foto' : ' caselle contengono foto') +
+      ' della scheda paziente, non scattate in questa seduta: ' + dalla.join(' · ') +
+      '.<br>Il confronto PRE / POST 3R di questa valutazione non è quindi fra due momenti della stessa seduta. È scritto anche nel PDF.'
   }
 
   // ── CONFRONTO PRE/POST ────────────────────────────────────
@@ -4471,6 +4767,8 @@ ISTRUZIONI:
     if (e.key !== 'Escape') return
     if (document.getElementById('vp-pdf-preview-modal')?.style.display === 'flex') { closeVPPDFPreview(); return }
     if (document.getElementById('vp-pdf-options-modal')?.classList.contains('open')) { closeVPPDFOptionsModal(); return }
+    if (document.getElementById('precarica-modal')?.classList.contains('open')) { precaricaChiudi(); return }
+    if (document.getElementById('rapid-fase-modal')?.classList.contains('open')) { document.getElementById('rapid-fase-modal').classList.remove('open'); return }
     if (document.getElementById('vp-compare').classList.contains('open')) { closeCompare(); return }
     if (document.getElementById('vp-fullscreen').classList.contains('open')) { closeVpFullscreen(); return }
     if (document.getElementById('webcam-modal').classList.contains('open')) { closeWebcamModal(); return }
@@ -4489,7 +4787,22 @@ ISTRUZIONI:
     <div class="rapid-fase-sub">Quale fase vuoi acquisire?</div>
     <button class="rapid-fase-btn rapid-fase-pre"  onclick="rapidPickFase('pre')">PRE — Valutazione iniziale<br><small>12 step: piani + capo, visione, stomatognatico</small></button>
     <button class="rapid-fase-btn rapid-fase-post" onclick="rapidPickFase('post')">POST 3R — Dopo trattamento<br><small>6 step: solo piani posturali</small></button>
+    <!-- precarica-pre-da-scheda-v1 — terza voce. Non e' un automatismo: il
+         caricamento parte solo di qui, e la conferma arriva dopo. -->
+    <button class="rapid-fase-btn rapid-fase-riv" onclick="rapidPickFase('rivalutazione')">RIVALUTAZIONE — solo le POST<br><small>carico le foto iniziali dalla scheda paziente nelle caselle PRE e scatto solo le POST 3R</small></button>
     <button class="rapid-fase-cancel" onclick="document.getElementById('rapid-fase-modal').classList.remove('open')">Annulla</button>
+  </div>
+</div>
+
+<!-- precarica-pre-da-scheda-v1 — conferma prima di toccare le caselle PRE.
+     Le regole scritte in PIANO-confronto-nel-tempo.md: mai in automatico, mai
+     sopra una casella piena senza chiedere, la foto tiene la SUA data. -->
+<div id="precarica-modal" class="prec-modal">
+  <div class="prec-box">
+    <div class="prec-title">Foto iniziali dalla scheda paziente</div>
+    <div class="prec-sub" id="prec-sub">Carico…</div>
+    <div id="prec-corpo"></div>
+    <div id="prec-azioni"></div>
   </div>
 </div>
   <script>
