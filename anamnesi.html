@@ -69,6 +69,7 @@
       .pr-row b { font-weight: 700; }
     }
   </style>
+  <script src="js/cartella-clinica.js"></script>
   <script src="js/pol-lock.js"></script><!-- sess-lock-v1 -->
 </head>
 <body>
@@ -91,6 +92,22 @@
       <button class="btn-mini" onclick="apriTutte(false)">▴ Chiudi tutte</button>
     </div>
     <div id="sections"></div>
+
+    <!-- cartella-in-anamnesi-v1 — la Relazione clinica, senza uscire dall'anamnesi.
+         Non e' un secondo pannello: e' lo STESSO che disegna la scheda paziente,
+         da js/cartella-clinica.js. -->
+    <div class="sec" id="sec-relazione" style="margin-top:18px">
+      <div class="sec-head" onclick="toggleRelazione()">
+        <div class="sec-title"><span class="sec-num">📋</span> Relazione clinica</div>
+        <div class="sec-state"><span id="rel-conta" style="font-size:11px;color:#bbb"></span><span class="sec-arrow" id="rel-arrow">▾</span></div>
+      </div>
+      <div id="sec-relazione-body" style="display:none;padding:0 16px 18px">
+        <div style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">
+          Le stesse note della cartella clinica del paziente: quello che scrivi qui lo ritrovi là, e viceversa.
+        </div>
+        <div id="cartella-relazione-mount"></div>
+      </div>
+    </div>
   </div>
 
   <div id="print-area"></div>
@@ -415,6 +432,29 @@
       })
       pa.innerHTML = html
       window.print()
+    }
+
+    /* cartella-in-anamnesi-v1 — la scheda si disegna alla prima apertura.
+       Se il file condiviso non si e' caricato non si ripiega su una copia
+       scritta qui: si dice che manca. */
+    var _relMontata = false
+    function toggleRelazione() {
+      var body  = document.getElementById('sec-relazione-body')
+      var arrow = document.getElementById('rel-arrow')
+      var aperta = body.style.display !== 'none'
+      body.style.display = aperta ? 'none' : 'block'
+      arrow.style.transform = aperta ? '' : 'rotate(180deg)'
+      if (aperta) return
+      if (!_relMontata) {
+        if (!window.polCartellaClinica) {
+          document.getElementById('cartella-relazione-mount').innerHTML =
+            '<div style="padding:22px;text-align:center;color:#c62828;font-size:13px;font-weight:600">Non si &egrave; caricato <code>js/cartella-clinica.js</code>: la relazione clinica non &egrave; disponibile. Ricarica la pagina.</div>'
+          return
+        }
+        window.polCartellaClinica.montaRelazione({ sb: _sb, patientId: pid, mount: 'cartella-relazione-mount' })
+        _relMontata = true
+      }
+      window.polCartellaClinica.ricarica()
     }
 
     async function init() {

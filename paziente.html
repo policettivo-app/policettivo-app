@@ -12,7 +12,8 @@
   <script src="utils-premium.js"></script>
   <script src="js/osservazioni.js"></script>
   <script src="utils-ai.js"></script>
-  <script src="js/foto-actions.js"></script>
+  <script src="js/cartella-clinica.js"></script>
+<script src="js/foto-actions.js"></script>
   <script src="js/foto-paziente.js"></script>
   <script src="js/foto-resolver.js"></script>
   <script src="js/elicoidali-exercises.js"></script><!-- conteggio-completo-v1 : servono i titoli degli elicoidali -->
@@ -379,8 +380,9 @@
     .pdf-check-label { font-size: 13px; font-weight: 600; color: #222; }
     .pdf-check-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
     .pdf-modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
-    .cn-note-badge-ai { display: inline-block; background: #000; color: #FFD008; font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 7px; margin-left: 8px; letter-spacing: 0.5px; }
-    .cn-note-list { display: flex; flex-direction: column; gap: 10px; }
+    /* cartella-in-anamnesi-v1 — lo stile delle note (.cn-note-*, .cn-empty,
+       .cn-status, .cn-input, .cn-textarea) lo inietta js/cartella-clinica.js,
+       cosi' e' uguale in questa pagina e nell'anamnesi. Restano qui i .cn-tab. */
 
     /* ── Hub CTAs ─────────────────────────────────────────── */
     .hub-section { margin-bottom: 28px; }
@@ -405,21 +407,6 @@
     .hub-card-title { font-size: 15px; font-weight: 700; line-height: 1.2; }
     .hub-card.hub-cartella .hub-card-title { font-size: 13px; }
     .hub-card-desc { font-size: 11px; opacity: 0.65; line-height: 1.4; }
-    .cn-note-card { position: relative; background: #f9f9f9; border: 1.5px solid #eee; border-radius: 10px; padding: 14px 42px 14px 16px; cursor: pointer; transition: border-color 0.15s; }
-    .cn-note-card:hover { border-color: #FFD008; }
-    .cn-note-card-title { font-weight: 700; font-size: 13px; color: #000; margin-bottom: 4px; }
-    .cn-note-card-preview { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
-    .cn-note-card-meta { font-size: 11px; color: #bbb; }
-    .cn-note-card-del { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: #a15a5a; font-size: 14px; line-height: 1; cursor: pointer; border-radius: 6px; padding: 0; }
-    .cn-note-card-del:hover { background: #fee2e2; color: #7f1d1d; }
-    .cn-empty { text-align: center; padding: 32px 16px; color: #bbb; font-size: 13px; }
-    .cn-status { font-size: 11px; color: #999; height: 16px; display: inline-block; }
-    .cn-status.saved { color: #4CAF50; }
-    .cn-status.saving { color: #aaa; }
-    .cn-input { width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; }
-    .cn-input:focus { border-color: #FFD008; }
-    .cn-textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #000; outline: none; resize: vertical; min-height: 180px; line-height: 1.7; }
-    .cn-textarea:focus { border-color: #FFD008; }
 
     /* ── Nuova Visita button ── */
     .btn-nuova-visita { background: #FFD008; color: #000; border: none; border-radius: 10px; padding: 10px 18px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; box-shadow: 0 3px 12px rgba(255,208,8,0.35); transition: background 0.15s, transform 0.1s; }
@@ -1155,31 +1142,11 @@
 
         <!-- TAB: Relazione clinica -->
         <div id="cn-tab-relazione" style="display:none">
-          <!-- Lista note -->
-          <div id="cn-list-view">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-              <span style="font-size:13px;font-weight:600;color:#555">Cronologia note — più recenti prima</span>
-              <button class="btn-primary" style="font-size:12px;padding:8px 16px" onclick="clinicalNotesNewForm()">+ Nuova nota</button>
-            </div>
-            <div id="cn-note-list" class="cn-note-list">
-              <div class="cn-empty">Nessuna nota clinica ancora.</div>
-            </div>
-          </div>
-          <!-- Editor nota -->
-          <div id="cn-editor" style="display:none;flex-direction:column;gap:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:13px;font-weight:700;color:#000" id="cn-editor-label">Nuova nota</span>
-              <button onclick="clinicalNotesCancel()" style="background:transparent;border:none;color:#999;font-size:13px;cursor:pointer;font-family:Montserrat,sans-serif;padding:0">✕ Annulla</button>
-            </div>
-            <input type="text" id="cn-title" class="cn-input" placeholder="Titolo nota (opzionale)" oninput="clinicalNotesScheduleAutosave()">
-            <select id="cn-tpl-select" style="width:100%;padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-family:Montserrat,sans-serif;font-size:12px;color:#666;background:#fafafa;cursor:pointer;margin-bottom:6px" onchange="clinicalNotesTemplate(this)"><option value="">⚡ Template rapido...</option></select>
-            <textarea id="cn-content" class="cn-textarea" placeholder="Scrivi la nota clinica..." oninput="clinicalNotesScheduleAutosave()"></textarea>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span id="cn-status" class="cn-status"></span>
-              <button class="btn-primary" style="font-size:13px;padding:10px 20px" onclick="clinicalNotesSave()">Salva nota</button>
-            </div>
-          </div>
-        </div>
+          <!-- cartella-in-anamnesi-v1 — QUI non c'e' piu' markup: la
+               scheda «Relazione clinica» la disegna js/cartella-clinica.js,
+               lo stesso file che la disegna dentro anamnesi.html. Un
+               elemento, una funzione che lo disegna. -->
+                </div>
       </div>
     </div>
 
@@ -3156,17 +3123,10 @@
       if (dati.sesso && ['M','F','Altro'].includes(dati.sesso)) setEditChipSesso(dati.sesso)
     }
 
-    // ── CLINICAL NOTES (namespace: clinicalNotes*) ────────────────────────────
-    const clinicalNotesState = { profId: null, editingId: null, timer: null, loaded: false }
-
-    async function clinicalNotesGetProfId() {
-      if (clinicalNotesState.profId) return clinicalNotesState.profId
-      const { data: { session } } = await _supabase.auth.getSession()
-      if (!session) return null
-      const { data: prof } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).maybeSingle()
-      clinicalNotesState.profId = prof?.id || null
-      return clinicalNotesState.profId
-    }
+    /* cartella-in-anamnesi-v1 — clinicalNotesState e
+       clinicalNotesGetProfId() ora vivono in js/cartella-clinica.js ed
+       escono su window con gli stessi nomi: la Sintesi AI qui sotto, che
+       li chiama, non e' stata toccata. */
 
     // ── FOTO PAZIENTE (cartella clinica) ─────────────────────────────────
     let _fotoLoaded = false
@@ -3354,6 +3314,27 @@
       } catch (e) {}
     }
 
+    /* cartella-in-anamnesi-v1 — la scheda si disegna alla prima apertura.
+       Se il file condiviso non si e' caricato NON si ripiega su un secondo
+       pannello scritto qui: si dice che manca. Meglio una scheda vuota che
+       spiega, che due pannelli che col tempo divergono. */
+    var _cnMontato = false
+    function _cnMontaSeServe() {
+      if (_cnMontato) return
+      var box = document.getElementById('cn-tab-relazione')
+      if (!window.polCartellaClinica) {
+        if (box) box.innerHTML = '<div style="padding:26px;text-align:center;color:#c62828;font-size:13px;font-weight:600">Non si &egrave; caricato <code>js/cartella-clinica.js</code>: la relazione clinica non &egrave; disponibile. Ricarica la pagina.</div>'
+        return
+      }
+      window.polCartellaClinica.montaRelazione({
+        sb: _supabase,
+        patientId: patientId,
+        mount: 'cn-tab-relazione',
+        onApriAI: csAIOpenFromRelazione
+      })
+      _cnMontato = true
+    }
+
     function clinicalNotesSwitchTab(tab) {
       const docTab = document.getElementById('cn-tab-docs')
       const relTab = document.getElementById('cn-tab-relazione')
@@ -3385,6 +3366,7 @@
       } else {
         relTab.style.display = 'block'
         btnRel.classList.add('active')
+        _cnMontaSeServe()
         if (!clinicalNotesState.loaded) clinicalNotesInit()
       }
     }
@@ -3809,7 +3791,9 @@
     // ── Sintesi AI — Salvataggio persistente ─────────────────────────────────
 
     var _csaiSavedLoaded = false
-    var _cnNoteDataMap = {}
+    // cartella-in-anamnesi-v1 — _cnNoteDataMap lo riempie il modulo
+    // mentre disegna le card, e sta su window: qui si legge e basta.
+    window._cnNoteDataMap = window._cnNoteDataMap || {}
     // Id della sintesi salvata attualmente aperta nel report.
     // - null → un save farà INSERT (nuova nota)
     // - "<uuid>" → un save farà UPDATE della stessa nota (edit di una sintesi
@@ -3952,7 +3936,7 @@
     }
 
     function csAIOpenSaved(id) {
-      var rawContent = _cnNoteDataMap[id]
+      var rawContent = window._cnNoteDataMap[id]
       if (!rawContent) {
         var card = document.querySelector('.csai-saved-card[data-id="' + id + '"]')
         if (!card) return
@@ -4104,227 +4088,10 @@
       setTimeout(function() { w.print() }, 400)
     }
 
-    async function clinicalNotesInit() {
-      clinicalNotesState.loaded = true
-      const list = document.getElementById('cn-note-list')
-      list.innerHTML = '<div class="cn-empty" style="color:#bbb">Caricamento...</div>'
-      const profId = await clinicalNotesGetProfId()
-      if (!profId) {
-        console.error('[clinicalNotes] profId non disponibile')
-        list.innerHTML = '<div class="cn-empty">Errore: profilo non trovato.</div>'
-        return
-      }
-      const { data: notes, error } = await _supabase
-        .from('clinical_notes')
-        .select('id, title, content, updated_at')
-        .eq('patient_id', patientId)
-        .eq('professional_id', profId)
-        .order('updated_at', { ascending: false })
-      if (error) {
-        console.error('[clinicalNotes] errore caricamento:', error)
-        list.innerHTML = '<div class="cn-empty">Errore nel caricamento.</div>'
-        clinicalNotesState.loaded = false
-        return
-      }
-      clinicalNotesRender(notes || [])
-      // Popola select template (una sola volta)
-      const cnSel = document.getElementById('cn-tpl-select')
-      if (cnSel && cnSel.options.length === 1) {
-        CN_TEMPLATES.forEach(function(t) { const o = document.createElement('option'); o.value = t.label; o.textContent = t.label; cnSel.appendChild(o) })
-      }
-    }
+    /* cartella-in-anamnesi-v1 — init, render, editor, autosave, salva,
+       elimina e i template rapidi sono passati in js/cartella-clinica.js,
+       verbatim. Restano raggiungibili con gli stessi nomi. */
 
-    function clinicalNotesEscHtml(s) {
-      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    }
-
-    // Nasconde il marker upsert (es. " [#<uuid>]") dal titolo mostrato in cronologia.
-    // Il valore salvato nel DB e in data-title della card resta intatto per non
-    // rompere l'upsert dalla visita.
-    function _cnStripMarker(t) { return String(t || '').replace(/\s*\[#[^\]]+\]\s*$/, '').trim() }
-
-    function clinicalNotesRender(notes) {
-      const list = document.getElementById('cn-note-list')
-      if (!notes.length) {
-        list.innerHTML = '<div class="cn-empty">Nessuna nota clinica ancora.</div>'
-        return
-      }
-      list.innerHTML = notes.map(function(n) {
-        const isAI = (n.content || '').startsWith('[SINTESI_AI_V1]')
-        const rawTitle = n.title || 'Senza titolo'
-        const displayTitle = _cnStripMarker(rawTitle) || 'Senza titolo'
-        const rawPreview = isAI
-          ? (function() { try { return JSON.parse(n.content.replace('[SINTESI_AI_V1]\n','')).problema_principale || '' } catch(e) { return '' } })()
-          : n.content || ''
-        const preview = rawPreview.replace(/\n/g, ' ').substring(0, 90)
-        const d = new Date(n.updated_at)
-        const date = d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }) +
-          ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-        if (isAI) _cnNoteDataMap[n.id] = n.content
-        const dataAttr = 'data-id="' + n.id + '" data-title="' + clinicalNotesEscHtml(n.title || '') + '" data-content="' + clinicalNotesEscHtml(n.content || '') + '"'
-        const badgeAI = isAI ? '<span class="cn-note-badge-ai">AI</span>' : ''
-        const clickHandler = isAI
-          ? 'onclick="csAIOpenFromRelazione(\'' + n.id + '\')"'
-          : 'onclick="clinicalNotesEditFormFromEl(this)"'
-        const delBtn = '<button type="button" class="cn-note-card-del" title="Elimina nota" aria-label="Elimina nota" onclick="clinicalNotesDelete(event, \'' + n.id + '\')">🗑</button>'
-        return '<div class="cn-note-card" ' + dataAttr + ' ' + clickHandler + '>' +
-          delBtn +
-          '<div class="cn-note-card-title">' + clinicalNotesEscHtml(displayTitle) + badgeAI + '</div>' +
-          '<div class="cn-note-card-preview">' + clinicalNotesEscHtml(preview) + '</div>' +
-          '<div class="cn-note-card-meta">Modificato: ' + date + '</div>' +
-          '</div>'
-      }).join('')
-    }
-
-    // Elimina una nota dalla stessa tabella clinical_notes usata dal resto del tab.
-    // Ferma il bubble per non aprire l'editor della card cliccata.
-    async function clinicalNotesDelete(ev, id) {
-      if (ev) { ev.stopPropagation(); ev.preventDefault() }
-      if (!id) return
-      if (!confirm('Eliminare questa nota? Operazione non annullabile.')) return
-      try {
-        const { error } = await _supabase.from('clinical_notes').delete().eq('id', id)
-        if (error) {
-          console.error('[clinicalNotes] DELETE error:', error)
-          alert('Errore eliminazione nota: ' + (error.message || error.code || 'sconosciuto'))
-          return
-        }
-        // Se stavo modificando proprio quella nota, chiudo l'editor senza salvare.
-        if (clinicalNotesState.editingId === id) clinicalNotesCancel()
-        clinicalNotesState.loaded = false
-        await clinicalNotesInit()
-      } catch(e) {
-        console.error('[clinicalNotes] DELETE exception:', e)
-        alert('Errore eliminazione nota.')
-      }
-    }
-
-    function clinicalNotesEditFormFromEl(el) {
-      clinicalNotesEditForm({
-        id: el.getAttribute('data-id'),
-        title: el.getAttribute('data-title'),
-        content: el.getAttribute('data-content')
-      })
-    }
-
-    function clinicalNotesNewForm() {
-      clinicalNotesState.editingId = null
-      document.getElementById('cn-title').value = ''
-      document.getElementById('cn-content').value = ''
-      document.getElementById('cn-status').textContent = ''
-      document.getElementById('cn-status').className = 'cn-status'
-      document.getElementById('cn-editor-label').textContent = 'Nuova nota'
-      document.getElementById('cn-list-view').style.display = 'none'
-      document.getElementById('cn-editor').style.display = 'flex'
-      document.getElementById('cn-content').focus()
-    }
-
-    function clinicalNotesEditForm(note) {
-      clinicalNotesState.editingId = note.id
-      document.getElementById('cn-title').value = note.title || ''
-      document.getElementById('cn-content').value = note.content || ''
-      document.getElementById('cn-status').textContent = ''
-      document.getElementById('cn-status').className = 'cn-status'
-      document.getElementById('cn-editor-label').textContent = 'Modifica nota'
-      document.getElementById('cn-list-view').style.display = 'none'
-      document.getElementById('cn-editor').style.display = 'flex'
-      document.getElementById('cn-content').focus()
-    }
-
-    function clinicalNotesCancel() {
-      if (clinicalNotesState.timer) { clearTimeout(clinicalNotesState.timer); clinicalNotesState.timer = null }
-      clinicalNotesState.editingId = null
-      document.getElementById('cn-editor').style.display = 'none'
-      document.getElementById('cn-list-view').style.display = 'block'
-    }
-
-    function clinicalNotesScheduleAutosave() {
-      const statusEl = document.getElementById('cn-status')
-      statusEl.textContent = 'Modificato...'
-      statusEl.className = 'cn-status saving'
-      if (clinicalNotesState.timer) clearTimeout(clinicalNotesState.timer)
-      // Autosave silenzioso: salva senza chiudere l'editor né ricaricare la lista,
-      // così l'utente continua a scrivere senza perdere il focus.
-      clinicalNotesState.timer = setTimeout(function(){ clinicalNotesSave({ closeAfter: false }) }, 3000)
-    }
-
-    async function clinicalNotesSave(opts) {
-      const closeAfter = !(opts && opts.closeAfter === false)
-      if (clinicalNotesState.timer) { clearTimeout(clinicalNotesState.timer); clinicalNotesState.timer = null }
-      const title = document.getElementById('cn-title').value.trim()
-      const content = document.getElementById('cn-content').value.trim()
-      if (!content && !title) return
-      const statusEl = document.getElementById('cn-status')
-      statusEl.textContent = 'Salvataggio...'
-      statusEl.className = 'cn-status saving'
-      const { data: { session: _cnSession } } = await _supabase.auth.getSession()
-      const profId = await clinicalNotesGetProfId()
-      console.log('[clinicalNotes] save — patientId:', patientId, '| profId:', profId, '| editingId:', clinicalNotesState.editingId, '| user.id:', _cnSession?.user?.id)
-      if (!profId) {
-        console.error('[clinicalNotes] profId null/undefined — professional non trovato per questo utente')
-        statusEl.textContent = 'Errore: profilo non trovato.'
-        return
-      }
-      let error, newId = clinicalNotesState.editingId
-      if (clinicalNotesState.editingId) {
-        const updatePayload = { title: title || null, content, updated_at: new Date().toISOString() }
-        console.log('[clinicalNotes] UPDATE payload:', updatePayload, '| eq id:', clinicalNotesState.editingId)
-        const res = await _supabase.from('clinical_notes')
-          .update(updatePayload)
-          .eq('id', clinicalNotesState.editingId)
-        error = res.error
-        if (error) console.error('[clinicalNotes] UPDATE errore completo:', JSON.stringify(error), '| status:', error.status, '| code:', error.code, '| message:', error.message, '| details:', error.details, '| hint:', error.hint)
-      } else {
-        const insertPayload = { patient_id: patientId, professional_id: profId, title: title || null, content }
-        console.log('[clinicalNotes] INSERT payload:', insertPayload)
-        const res = await _supabase.from('clinical_notes')
-          .insert(insertPayload)
-          .select('id')
-          .maybeSingle()
-        error = res.error
-        if (error) console.error('[clinicalNotes] INSERT errore completo:', JSON.stringify(error), '| status:', error.status, '| code:', error.code, '| message:', error.message, '| details:', error.details, '| hint:', error.hint)
-        if (!error && res.data) { newId = res.data.id; clinicalNotesState.editingId = newId }
-      }
-      if (error) {
-        statusEl.textContent = 'Errore nel salvataggio.'
-        return
-      }
-      if (closeAfter) {
-        clinicalNotesState.loaded = false
-        clinicalNotesCancel()
-        await clinicalNotesInit()
-      } else {
-        // Autosave: feedback discreto, editor resta aperto per continuare a scrivere.
-        statusEl.textContent = 'Salvato'
-        statusEl.className = 'cn-status'
-      }
-    }
-    // ── TEMPLATE RAPIDI NOTE CLINICHE ────────────────────────────────────────
-    const CN_TEMPLATES = [
-      { label: 'Cervicalgia',          testo: 'Mobilizzazioni cervicali C1-C7. Stretching scaleni e trapezio superiore. Terapia manuale faccette articolari. Esercizi di stabilizzazione cervicale.' },
-      { label: 'Lombalgia',            testo: 'Mobilizzazioni lombari L4-S1. Rinforzo core: isometrici addominali e glutei. Stretching piriforme e flessori anca. Educazione posturale.' },
-      { label: 'Spalla',               testo: 'Mobilizzazione gleno-omerale. Rinforzo cuffia dei rotatori (sopraspinato, infraspinato). Stretching catena posteriore. Progressione CCC e CCA.' },
-      { label: 'Ginocchio',            testo: 'Rinforzo quadricipite e ischio-crurali. Propriocezione su pedana instabile. Mobilizzazione rotulea. Esercizi in catena cinematica chiusa.' },
-      { label: 'Terapia manuale',      testo: 'Mobilizzazione articolare grado III-IV (Maitland). Tecniche miofasciali. Soft tissue mobilization.' },
-      { label: 'Mobilità',             testo: 'Stretching attivo e passivo mirato. Mobilizzazioni accessorie. Incremento progressivo range of motion.' },
-      { label: 'Rinforzo',             testo: 'Esercizi di rinforzo muscolare progressivo. Lavoro eccentrico e concentrico. Progressione carico adeguata alla fase.' },
-      { label: 'Stabilizzazione',      testo: 'Attivazione muscoli profondi (multifido, trasverso). Progressione da supino a ortostatismo. Esercizi su superfici instabili.' },
-      { label: 'Progressione',         testo: 'Aggiunta esercizi funzionali, incremento carichi, riduzione supervisione. Valutazione obiettivi raggiunti.' },
-      { label: 'Educazione paziente',  testo: 'Spiegazione meccanismo di guarigione. Gestione autonoma del dolore. Indicazioni posturali quotidiane. Esercizi domiciliari consegnati.' }
-    ]
-
-    function clinicalNotesTemplate(sel) {
-      const val = sel.value
-      if (!val) return
-      const tpl = CN_TEMPLATES.find(t => t.label === val)
-      if (tpl) {
-        const ta = document.getElementById('cn-content')
-        ta.value = ta.value ? ta.value + '\n\n' + tpl.testo : tpl.testo
-        clinicalNotesScheduleAutosave()
-      }
-      sel.value = ''
-    }
-    // ── END TEMPLATE NOTE CLINICHE ────────────────────────────────────────────
     // ── END CLINICAL NOTES ────────────────────────────────────────────────────
 
     // ── APPUNTAMENTI (FASE 1 — Google Calendar precompilato) ─────────────────

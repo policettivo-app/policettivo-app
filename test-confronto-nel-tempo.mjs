@@ -762,6 +762,139 @@ sez('Rivalutazione — il contrassegno nel PDF')
   await ctx.close()
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   cartella-in-anamnesi-v1 — la Relazione clinica e' UN pannello solo,
+   in js/cartella-clinica.js, montato da paziente.html e da anamnesi.html.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function datiCartella(opts = {}) {
+  const d = datiBase(opts)
+  d.clinical_notes = opts.note || [
+    { id:'n1', patient_id:PID, professional_id:'prof-1', title:'Prima seduta [#abc-123]',
+      content:'Mobilizzazioni lombari L4-S1.', updated_at:'2026-08-20T10:00:00Z' },
+    { id:'n2', patient_id:PID, professional_id:'prof-1', title:'Sintesi del 25',
+      content:'[SINTESI_AI_V1]\n{"problema_principale":"Lombalgia cronica aspecifica"}', updated_at:'2026-08-25T10:00:00Z' }
+  ]
+  d.clinical_documents = []
+  return d
+}
+
+sez('Cartella in anamnesi — un pannello solo, in js/')
+{
+  const src  = fs.readFileSync(path.join(ROOT,'js/cartella-clinica.js'),'utf8')
+  const paz  = fs.readFileSync(path.join(ROOT,'paziente.html'),'utf8')
+  const anam = fs.readFileSync(path.join(ROOT,'anamnesi.html'),'utf8')
+
+  check('il file condiviso esiste e porta il marker', src.includes('cartella-in-anamnesi-v1'))
+  check('entrambe le pagine caricano lo stesso file',
+    paz.includes('js/cartella-clinica.js') && anam.includes('js/cartella-clinica.js'))
+  check('⚠️ il markup della scheda NON è più scritto in paziente.html',
+    !paz.includes('cn-tpl-select'), 'cn-tpl-select trovato in paziente.html')
+  check('⚠️ e non è stato ricopiato in anamnesi.html',
+    !anam.includes('cn-tpl-select'), 'cn-tpl-select trovato in anamnesi.html')
+  check('il markup sta nel file condiviso, una volta sola',
+    (src.match(/cn-tpl-select/g) || []).length === 2)
+  check('i template rapidi stanno in un posto solo',
+    !paz.includes('CN_TEMPLATES = [') && src.includes('CN_TEMPLATES = ['))
+  check('la Sintesi AI di paziente.html continua a chiamare gli stessi nomi',
+    paz.includes('clinicalNotesGetProfId()') && paz.includes('clinicalNotesInit()') &&
+    src.includes('window.clinicalNotesGetProfId') && src.includes('window.clinicalNotesInit'))
+  check('nessuna migration in questo blocco: la sintesi si riconosce ancora dal prefisso',
+    src.includes('[SINTESI_AI_V1]') && !src.includes("select('id, title, content, tipo"))
+}
+
+sez('Cartella in anamnesi — si scrive dall\'anamnesi')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiCartella(), 'anamnesi.html', '?pid=' + PID)
+  check('nessun errore JS nell\'anamnesi', errori.length === 0, errori)
+  check('la sezione «Relazione clinica» c\'è', await page.isVisible('#sec-relazione'))
+  check('parte chiusa, come le altre sezioni', !(await page.isVisible('#sec-relazione-body')))
+
+  await page.click('#sec-relazione .sec-head')
+  await page.waitForTimeout(500)
+  check('si apre senza uscire dall\'anamnesi', await page.isVisible('#sec-relazione-body'))
+  check('l\'indirizzo è ancora quello dell\'anamnesi', page.url().includes('anamnesi.html'))
+
+  const card = await page.$$eval('.cn-note-card .cn-note-card-title', els => els.map(e => e.textContent))
+  check('le note del paziente si leggono da qui', card.length === 2, card)
+  check('il marker [#…] non si vede nel titolo', card.some(t => t.startsWith('Prima seduta') && !t.includes('[#')), card)
+  check('ma resta intatto nel dato (se no si rompe l\'upsert dalla visita)',
+    await page.$eval('.cn-note-card', el => el.getAttribute('data-title').includes('[#abc-123]')))
+  check('la sintesi AI porta il bollino AI', (await page.$$('.cn-note-badge-ai')).length === 1)
+
+  await page.click('#sec-relazione-body .cnx-btn')
+  await page.waitForTimeout(250)
+  check('si apre l\'editor', await page.isVisible('#cn-editor'))
+  await page.fill('#cn-title', 'Nota scritta dall\'anamnesi')
+  await page.fill('#cn-content', 'Il paziente riferisce miglioramento.')
+  await page.selectOption('#cn-tpl-select', 'Lombalgia')
+  await page.waitForTimeout(200)
+  check('il template rapido funziona anche qui',
+    (await page.inputValue('#cn-content')).includes('Mobilizzazioni lombari'))
+
+  await page.click('#cn-editor .cnx-btn')
+  await page.waitForTimeout(700)
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'clinical_notes').map(c => c.riga))
+  check('la nota viene salvata in clinical_notes', ins.length === 1, ins)
+  check('col paziente e il professionista giusti',
+    ins[0] && ins[0].patient_id === PID.toString() || (ins[0] && ins[0].patient_id), ins[0] && ins[0].patient_id)
+  check('è la stessa tabella della scheda paziente, non una tabella «dell\'anamnesi»',
+    ins[0] && ins[0].professional_id === 'prof-1', ins[0])
+  check('tornata in cronologia, si vede', (await page.$$('.cn-note-card')).length === 3)
+
+  // la sintesi AI non si apre qui: si dice dove si apre, non si mostra un JSON
+  page.on('dialog', d => d.dismiss())
+  check('la card AI non apre l\'editor col JSON grezzo',
+    await page.$eval('.cn-note-badge-ai', el => el.closest('.cn-note-card').getAttribute('onclick').includes('_cnAvvisoAI')))
+  await ctx.close()
+}
+
+sez('Cartella in anamnesi — la scheda paziente disegna lo stesso pannello')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiCartella(), 'paziente.html', '?id=' + PID)
+  const gravi = errori.filter(e => /cartella|clinicalNotes|polCartella/i.test(e))
+  check('nessun errore JS che riguardi la cartella', gravi.length === 0, gravi)
+
+  await page.click('#btn-cartella')
+  await page.waitForTimeout(300)
+  await page.click('#cn-btn-relazione')
+  await page.waitForTimeout(700)
+
+  check('la scheda Relazione si disegna', await page.isVisible('#cn-note-list'))
+  check('l\'ha disegnata il file condiviso',
+    await page.evaluate(() => !!window.polCartellaClinica && window.polCartellaClinica.marker === 'cartella-in-anamnesi-v1'))
+  const t = await page.$$eval('.cn-note-card .cn-note-card-title', els => els.map(e => e.textContent))
+  check('le note ci sono, come prima', t.length === 2, t)
+  check('il bollino AI c\'è anche qui', (await page.$$('.cn-note-badge-ai')).length === 1)
+  check('qui la sintesi AI si apre nel suo visore, non con l\'avviso',
+    await page.$eval('.cn-note-badge-ai', el => el.closest('.cn-note-card').getAttribute('onclick').includes('_cnApriAI')))
+  check('la Sintesi AI legge ancora la mappa dei contenuti',
+    await page.evaluate(() => !!window._cnNoteDataMap && !!window._cnNoteDataMap['n2']))
+
+  await page.click('#cn-tab-relazione .cnx-btn')
+  await page.waitForTimeout(250)
+  await page.fill('#cn-content', 'Nota scritta dalla scheda paziente.')
+  await page.click('#cn-editor .cnx-btn')
+  await page.waitForTimeout(700)
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'clinical_notes'))
+  check('anche da qui si salva sulla stessa tabella', ins.length === 1, ins.length)
+  await ctx.close()
+}
+
+sez('Cartella in anamnesi — quando va storto si legge a schermo')
+{
+  const dati = datiCartella()
+  dati.professionals = []          // profilo professionista assente
+  const { page, ctx } = await apriPagina(browser, dati, 'anamnesi.html', '?pid=' + PID)
+  await page.click('#sec-relazione .sec-head')
+  await page.waitForTimeout(600)
+  const txt = await page.textContent('#cn-note-list')
+  check('il motivo è scritto nel pannello, non in un toast che sparisce',
+    txt.includes('Profilo professionista non trovato'), txt.slice(0,80))
+  check('e dice che le note non si salvano', txt.includes('non si possono') || txt.includes('né salvare'), txt.slice(0,120))
+  await ctx.close()
+}
+
 sez('Ingresso dalla valutazione posturale')
 {
   const src = fs.readFileSync(path.join(ROOT,'valutazione-posturale.html'),'utf8')
