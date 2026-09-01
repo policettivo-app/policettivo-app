@@ -4214,8 +4214,7 @@
 
   // ====== STEP 3: AI POSTURALE ======
   async function avviaAnalisiPosturaleVisita() {
-    /* ai-solo-premium-v1 : nessuna soglia, o Premium o non parte. */
-    if (window.policettivoRichiedePremium && !window.policettivoRichiedePremium()) return
+    if (!window.isPremium && visitAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
 
     const hasFoto = Object.values(step3Photos).some(Boolean)
     if (!hasFoto) { showToast('Carica almeno una foto'); return }
@@ -4529,8 +4528,10 @@
 
   // ====== STEP 5: AI RELAZIONE ======
   async function generaRelazioneAI() {
-    /* ai-solo-premium-v1 : nessuna soglia, o Premium o non parte. */
-    if (window.policettivoRichiedePremium && !window.policettivoRichiedePremium()) return
+    if (!window.isPremium && visitAiUses >= 5) {
+      if (window.policettivoHandleAI403) window.policettivoHandleAI403()
+      return
+    }
     const btn     = document.getElementById('s5-ai-btn')
     const spinner = document.getElementById('s5-ai-spinner')
     const result  = document.getElementById('s5-ai-result')
