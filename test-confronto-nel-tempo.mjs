@@ -1325,6 +1325,25 @@ sez("ai-solo-premium-v1 — il cancello vero sta nel server")
   }
   const dash = senzaCommentiHtml(fs.readFileSync(path.join(ROOT,'dashboard.html'),'utf8'))
   check("dashboard.html non mostra piu un residuo di analisi disponibili", !/analisi AI disponibili/.test(dash))
+
+  /* Round 2 — i punti che CONTAVANO ancora. Non si cercano le parole nei
+     testi: si cerca il conto nel codice, che e dove si era nascosto. */
+  const PAGINE_AI = ['dashboard.html','admin.html','paziente.html','visita.html','visite.html','valutazione-posturale.html']
+  for (const f of PAGINE_AI) {
+    const t = senzaCommentiHtml(fs.readFileSync(path.join(ROOT,f),'utf8'))
+    check(f + " non conta piu quante analisi restano", !/Math\.max\(0,\s*15\s*-/.test(t))
+    check(f + " non mostra piu x su 15", !/\/15/.test(t))
+    check(f + " non ha piu la soglia delle 5 analisi", !/isPremium\s*&&\s*\w*[Aa]iUses\s*>=/.test(t))
+  }
+  for (const f of ['paziente.html','visita.html','visite.html','valutazione-posturale.html','dashboard.html']) {
+    const t = fs.readFileSync(path.join(ROOT,f),'utf8')
+    check(f + " usa la guardia policettivoRichiedePremium", /policettivoRichiedePremium/.test(t))
+    check(f + " carica utils-ai.js, se no la guardia non esiste", /utils-ai\.js/.test(t))
+  }
+  const adm = senzaCommentiHtml(fs.readFileSync(path.join(ROOT,'admin.html'),'utf8'))
+  check("admin: i DUE punti che scrivono #ai-uses-label dicono la stessa frase",
+    (adm.match(/Analisi AI non disponibili \(piano Free\)/g) || []).length === 2,
+    (adm.match(/Analisi AI non disponibili \(piano Free\)/g) || []).length)
 }
 
 sez("controindicazioni-v1 — la bozza e la pagina di revisione")

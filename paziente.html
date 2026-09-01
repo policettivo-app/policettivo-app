@@ -1500,13 +1500,12 @@
       _myEmail = session.user.email
       const { profId: _profIdP } = await window.policettivoCheckPremium(_supabase, session.user.id, session.user.email)
       _myProfId = _profIdP
-      if (!window.isPremium && _profIdP) {
-        const { data: _profP } = await _supabase.from('professionals').select('ai_uses').eq('id', _profIdP).maybeSingle()
-        _pazAiUses = _profP?.ai_uses || 0
-        if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_pazAiUses)
+      if (!window.isPremium) {
+        /* ai-solo-premium-v1 : niente piu' query di ai_uses, niente conto. */
+        if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner()
         const _aiBadgeP = document.getElementById('referto-ai-badge-p')
         if (_aiBadgeP) {
-          _aiBadgeP.textContent = Math.max(0, 15 - _pazAiUses) + ' analisi AI disponibili'
+          _aiBadgeP.textContent = 'Lettura AI ⭐ Premium'
           _aiBadgeP.style.display = 'inline-block'
         }
       }
@@ -2825,7 +2824,8 @@
     }
 
     async function avviaAnalisiPosturale(base) {
-      if (!window.isPremium && _pazAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
+      /* ai-solo-premium-v1 : nessuna soglia, o Premium o non parte. */
+      if (window.policettivoRichiedePremium && !window.policettivoRichiedePremium()) return
       const scapPrima = obsSelections['scapolare-prima'] || ''
       const scapDopo  = obsSelections['scapolare-dopo']  || ''
 
@@ -3055,7 +3055,8 @@
     }
 
     async function avviaAnalisiAI() {
-      if (!window.isPremium && _pazAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
+      /* ai-solo-premium-v1 : nessuna soglia, o Premium o non parte. */
+      if (window.policettivoRichiedePremium && !window.policettivoRichiedePremium()) return
       let _ossTxt = ''
       try { if (window.polRaccogliOsservazioniVisite) _ossTxt = await window.polRaccogliOsservazioniVisite(_supabase, patientId) } catch(e) {}
       if (documentiCaricati.length === 0 && !_ossTxt) { alert('Nessun documento o osservazione da analizzare.'); return }
@@ -3227,11 +3228,9 @@
         })
         if (res.status === 403) { const e403 = await res.json(); if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const json = await res.json()
-        if (json.ai_uses !== undefined) {
-          if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
-          const _ab = document.getElementById('referto-ai-badge-p')
-          if (_ab) { _ab.textContent = Math.max(0, 15 - json.ai_uses) + ' analisi AI disponibili' }
-        }
+        /* ai-solo-premium-v1 : se la risposta e' arrivata, e' un Premium. */
+        const _ab = document.getElementById('referto-ai-badge-p')
+        if (_ab) _ab.textContent = 'Lettura AI ⭐ Premium'
         if (json.dati) compileEditFormFromReferto(json.dati)
         ok.style.display = 'block'
       } catch(e) {

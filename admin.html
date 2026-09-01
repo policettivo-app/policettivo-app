@@ -264,9 +264,9 @@
       if (!prof.attivo) return '<span class="badge-bloccato">BLOCCATO</span>'
       const piano = (prof.piano || 'free').toLowerCase()
       if (piano === 'premium') return '<span class="badge-premium">PREMIUM ⭐</span>'
-      const uses = prof.ai_uses || 0
-      const rem = Math.max(0, 15 - uses)
-      return '<span class="badge-free">Free · ' + uses + '/15 AI</span>'
+      /* ai-solo-premium-v1 : un free non ha piu' analisi da spendere,
+         quindi non c'e' piu' niente da contare. */
+      return '<span class="badge-free">Free · no AI</span>'
     }
 
     // ── Ordinamento: preferiti > ultima attività > pazienti > registrazione ──
@@ -783,16 +783,13 @@
       const isPremium = (prof.piano || '').toLowerCase() === 'premium'
       const pianoLabel = document.getElementById('piano-label')
       pianoLabel.textContent = 'Piano: ' + (isPremium ? 'PREMIUM ⭐' : 'Free')
+      /* ai-solo-premium-v1 : #ai-uses-label lo scrivono DUE punti, questo e
+         quello del cambio piano. Due punti che disegnano la stessa cosa
+         divergono sempre: devono dire la stessa frase. */
       const aiUsesLbl = document.getElementById('ai-uses-label')
       if (aiUsesLbl) {
-        if (isPremium) {
-          aiUsesLbl.textContent = 'Analisi AI illimitate'
-        } else {
-          const uses = prof.ai_uses || 0
-          const rem = Math.max(0, 15 - uses)
-          aiUsesLbl.textContent = 'Analisi AI: ' + uses + '/15 usate · ' + rem + ' disponibili'
-          aiUsesLbl.style.color = uses >= 12 ? '#c62828' : '#888'
-        }
+        aiUsesLbl.textContent = isPremium ? 'Analisi AI illimitate' : 'Analisi AI non disponibili (piano Free)'
+        aiUsesLbl.style.color = '#888'
       }
       const btnP = document.getElementById('btn-toggle-piano')
       btnP.textContent       = isPremium ? '⬇ Revoca Premium' : '⭐ Attiva Premium'

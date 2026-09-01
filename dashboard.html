@@ -848,25 +848,14 @@
           if (btnSosp) btnSosp.style.display = 'block'
         }
         if (!window.isPremium) {
-          const { data: _prof, error: _profErr } = await _supabase.from('professionals').select('ai_uses').eq('id', currentProfessionalId).maybeSingle()
-          if (_profErr) console.error('[dashboard] errore query ai_uses:', _profErr)
-          const _aiUses = _prof?.ai_uses || 0
-          if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner(_aiUses)
+          /* ai-solo-premium-v1 : non si legge piu' ai_uses. Non c'e' niente
+             da contare, e questa era una query al database a ogni apertura
+             della dashboard per scrivere un numero che oggi sarebbe falso. */
+          if (window.policettivoUpdateFreeBanner) window.policettivoUpdateFreeBanner()
           const aiBadge = document.getElementById('referto-ai-badge')
           if (aiBadge) {
-            const _rem = Math.max(0, 15 - _aiUses)
-            aiBadge.textContent = _rem + ' analisi AI disponibili'
+            aiBadge.textContent = 'Lettura AI ⭐ Premium'
             aiBadge.style.display = 'inline-block'
-          }
-          const _statAi = document.getElementById('stat-ai')
-          if (_statAi) _statAi.textContent = Math.max(0, 15 - _aiUses) + '/15'
-          if (_aiUses >= 5) {
-            const badge = document.getElementById('piano-badge')
-            if (badge) {
-              badge.textContent = 'Piano Free • AI terminate'
-              badge.style.background = '#c62828'
-              badge.style.color = '#fff'
-            }
           }
         }
         await Promise.all([loadPatients(), loadStats()])
