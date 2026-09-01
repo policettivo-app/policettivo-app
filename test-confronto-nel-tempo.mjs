@@ -136,15 +136,21 @@ const FINTO = (DB) => {
   }
 
   function tabella(nome) {
-    const stato = { filtri: [], op: 'select' }
+    const stato = { filtri: [], op: 'select', campi: '' }
     const q = {
-      select() { stato.op = 'select'; return q },
+      /* progetto-terapeutico-v1 — il finto sa anche NON avere la colonna
+         tipo, come un database dove la migration 039 non è stata lanciata:
+         PostgREST risponde 42703 e il codice deve reggere. */
+      select(campi) { stato.op = 'select'; stato.campi = campi || ''; return q },
       eq(col, val) { stato.filtri.push({ op:'eq', col, val }); return q },
       in(col, val) { stato.filtri.push({ op:'in', col, val }); return q },
       order() { return q },
       limit() { return q },
       maybeSingle() { return q.then0(true) },
       then0(single) {
+        if (DB.opts.senzaTipo && nome === 'clinical_notes' && String(stato.campi).indexOf('tipo') >= 0) {
+          return Promise.resolve({ data:null, error:{ code:'42703', message:'column clinical_notes.tipo does not exist' } })
+        }
         if (nome === 'foto_allineamenti' && DB.opts.erroreAllineamenti) {
           return Promise.resolve({ data:null, error:{ message:'relation "public.foto_allineamenti" does not exist', code:'42P01' } })
         }
@@ -162,6 +168,11 @@ const FINTO = (DB) => {
       },
       insert(riga) {
         window.__chiamate.insert.push({ tabella:nome, riga })
+        if (DB.opts.senzaTipo && nome === 'clinical_notes' && riga && Object.prototype.hasOwnProperty.call(riga, 'tipo')) {
+          const err = { code:'42703', message:'column "tipo" of relation "clinical_notes" does not exist' }
+          return { select: () => ({ maybeSingle: () => Promise.resolve({ data:null, error:err }) }),
+                   then: (r) => r({ data:null, error:err }) }
+        }
         /* precarica-pre-da-scheda-v1 — il vero Supabase restituisce la riga
            CON l'id generato. Prima qui tornava la riga senza id, e il codice
            che poi usa quell'id (cancellare la casella, sostituire la foto)
@@ -769,6 +780,16 @@ sez('Rivalutazione — il contrassegno nel PDF')
 
 function datiCartella(opts = {}) {
   const d = datiBase(opts)
+  d.patients = [{ id: PID, nome:'Mario', cognome:'Rossi',
+    foto_url: '{}',
+    red_flags: { voci:['Dolore notturno non meccanico','Calo ponderale inspiegato'], nota:'' },
+    anamnesi: JSON.stringify({
+      motivo_txt: 'Lombalgia da tre mesi',
+      obiettivi: ['Ridurre il dolore','Tornare al lavoro'],
+      obiettivi_breve: 'Ridurre il dolore notturno',
+      obiettivi_medio: 'Recuperare la flessione',
+      obiettivi_lungo: 'Tornare in palestra'
+    }) }]
   d.clinical_notes = opts.note || [
     { id:'n1', patient_id:PID, professional_id:'prof-1', title:'Prima seduta [#abc-123]',
       content:'Mobilizzazioni lombari L4-S1.', updated_at:'2026-08-20T10:00:00Z' },
@@ -799,8 +820,11 @@ sez('Cartella in anamnesi — un pannello solo, in js/')
   check('la Sintesi AI di paziente.html continua a chiamare gli stessi nomi',
     paz.includes('clinicalNotesGetProfId()') && paz.includes('clinicalNotesInit()') &&
     src.includes('window.clinicalNotesGetProfId') && src.includes('window.clinicalNotesInit'))
-  check('nessuna migration in questo blocco: la sintesi si riconosce ancora dal prefisso',
-    src.includes('[SINTESI_AI_V1]') && !src.includes("select('id, title, content, tipo"))
+  /* Aggiornato con progetto-terapeutico-v1: la 039 ora esiste, ma serve SOLO
+     al progetto. La sintesi AI continua a riconoscersi dal prefisso, e la
+     relazione clinica deve funzionare anche senza la colonna. */
+  check('la relazione regge anche senza la colonna tipo (42703 intercettato)',
+    src.includes('[SINTESI_AI_V1]') && src.includes('mancaLaColonna') && src.includes("'42703'"))
 }
 
 sez('Cartella in anamnesi — si scrive dall\'anamnesi')
@@ -822,7 +846,7 @@ sez('Cartella in anamnesi — si scrive dall\'anamnesi')
     await page.$eval('.cn-note-card', el => el.getAttribute('data-title').includes('[#abc-123]')))
   check('la sintesi AI porta il bollino AI', (await page.$$('.cn-note-badge-ai')).length === 1)
 
-  await page.click('#sec-relazione-body .cnx-btn')
+  await page.click('#cn-btn-nuova')
   await page.waitForTimeout(250)
   check('si apre l\'editor', await page.isVisible('#cn-editor'))
   await page.fill('#cn-title', 'Nota scritta dall\'anamnesi')
@@ -832,7 +856,7 @@ sez('Cartella in anamnesi — si scrive dall\'anamnesi')
   check('il template rapido funziona anche qui',
     (await page.inputValue('#cn-content')).includes('Mobilizzazioni lombari'))
 
-  await page.click('#cn-editor .cnx-btn')
+  await page.click('#cn-btn-salva')
   await page.waitForTimeout(700)
   const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'clinical_notes').map(c => c.riga))
   check('la nota viene salvata in clinical_notes', ins.length === 1, ins)
@@ -871,13 +895,223 @@ sez('Cartella in anamnesi — la scheda paziente disegna lo stesso pannello')
   check('la Sintesi AI legge ancora la mappa dei contenuti',
     await page.evaluate(() => !!window._cnNoteDataMap && !!window._cnNoteDataMap['n2']))
 
-  await page.click('#cn-tab-relazione .cnx-btn')
+  await page.click('#cn-btn-nuova')
   await page.waitForTimeout(250)
   await page.fill('#cn-content', 'Nota scritta dalla scheda paziente.')
-  await page.click('#cn-editor .cnx-btn')
+  await page.click('#cn-btn-salva')
   await page.waitForTimeout(700)
   const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'clinical_notes'))
   check('anche da qui si salva sulla stessa tabella', ins.length === 1, ins.length)
+  await ctx.close()
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   progetto-terapeutico-v1
+   ═══════════════════════════════════════════════════════════════════════ */
+
+sez('Progetto terapeutico — la migration e il vocabolario')
+{
+  const sql  = fs.readFileSync(path.join(ROOT,'db/migrations/039_clinical_notes_tipo.sql'),'utf8')
+  const ter  = fs.readFileSync(path.join(ROOT,'js/terapie.js'),'utf8')
+  const paz  = fs.readFileSync(path.join(ROOT,'paziente.html'),'utf8')
+  const anam = fs.readFileSync(path.join(ROOT,'anamnesi.html'),'utf8')
+  const mod  = fs.readFileSync(path.join(ROOT,'js/cartella-clinica.js'),'utf8')
+
+  check('la migration 039 esiste', sql.includes('clinical_notes'))
+  check('è sicura da eseguire due volte',
+    sql.includes('ADD COLUMN IF NOT EXISTS') && sql.includes('CREATE INDEX IF NOT EXISTS'))
+  check('il backfill non ri-tocca le righe alla seconda esecuzione',
+    sql.includes("AND tipo <> 'sintesi_ai'"))
+  check('i tipi ammessi sono vincolati', sql.includes('clinical_notes_tipo_check'))
+
+  check('le terapie stanno in un file solo', ter.includes('polTerapie'))
+  check('ci sono tutte e otto le macchine dello studio',
+    ['tecar','laser904','laser_alta','ultrasuoni','us_micro','emtt','tens','ems'].every(k => ter.includes("k:'" + k + "'")))
+  check('coi nomi che usa Giuliano, non quelli dei cataloghi',
+    ter.includes('Chronic Five Crio Plus') && ter.includes('EMS ad impulsi variabili'))
+  check('⚠️ le controindicazioni NON sono ancora qui: le deve rivedere lui',
+    !/controindicazion[ei]\s*:/i.test(ter))
+  check('nessuna pagina si costruisce un elenco terapie «suo»',
+    !paz.includes('Chronic Five') && !anam.includes('Chronic Five') && !mod.includes('Chronic Five'))
+  check('entrambe le pagine caricano il vocabolario',
+    paz.includes('js/terapie.js') && anam.includes('js/terapie.js'))
+}
+
+sez('Progetto terapeutico — si crea, e prende gli obiettivi dall\'anamnesi')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiCartella(), 'anamnesi.html', '?pid=' + PID)
+  check('nessun errore JS', errori.length === 0, errori)
+  await page.click('#sec-relazione .sec-head')
+  await page.waitForTimeout(700)
+
+  check('senza progetto lo dice, e offre di crearlo',
+    (await page.textContent('#cn-progetto')).includes('Nessun progetto terapeutico'))
+
+  await page.click('#pg-btn-crea')
+  await page.waitForTimeout(600)
+  check('si apre il modulo del progetto', await page.isVisible('#cn-progetto-editor'))
+  check('e la cronologia note si toglie di mezzo', !(await page.isVisible('#cn-list-view')))
+
+  check('⚠️ gli obiettivi arrivano dall\'anamnesi §28, non a mano',
+    (await page.inputValue('#pg-ob-breve')) === 'Ridurre il dolore notturno' &&
+    (await page.inputValue('#pg-ob-lungo')) === 'Tornare in palestra')
+  check('e il problema dal motivo della visita',
+    (await page.inputValue('#pg-problema')).includes('Lombalgia da tre mesi'))
+  check('⚠️ le precauzioni partono dallo screening di sicurezza §27',
+    (await page.inputValue('#pg-precauzioni')).includes('Dolore notturno non meccanico'))
+  check('e viene detto che è precompilato e correggibile',
+    (await page.textContent('#cn-progetto-editor')).includes('Ho precompilato'))
+
+  check('parte da «iniziativa autonoma»',
+    await page.$$eval('#cn-progetto-editor .pg-chip.on', els => els.some(e => e.textContent.includes('Iniziativa autonoma'))))
+  check('i campi del prescrittore sono nascosti finché non serve',
+    !(await page.isVisible('#pg-presc')))
+  await page.click('text=Su prescrizione')
+  await page.waitForTimeout(300)
+  check('scegliendo «su prescrizione» compaiono chi e quando', await page.isVisible('#pg-presc'))
+  await page.fill('#pg-prescrittore', 'Dott. Bianchi, ortopedico')
+
+  const grp = await page.$$eval('#pg-chips .pg-grp', els => els.map(e => e.textContent))
+  check('le terapie sono divise in manuali e strumentali', grp.length === 2, grp)
+  await page.click('#pg-chips .pg-chip[data-k="tecar"]')
+  await page.click('#pg-chips .pg-chip[data-k="esercizio"]')
+  await page.waitForTimeout(200)
+  check('i chip si accendono', (await page.$$('#pg-chips .pg-chip.on')).length === 2)
+
+  await page.fill('#pg-frequenza', '2 a settimana')
+  await page.fill('#pg-durata', '6 settimane')
+  await page.fill('#pg-riv-quando', 'alla 6ª seduta')
+  await page.fill('#pg-riv-data', '2026-10-15')
+
+  await page.click('#pg-btn-salva')
+  await page.waitForTimeout(900)
+
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'clinical_notes').map(c => c.riga))
+  check('viene salvata una riga sola', ins.length === 1, ins.length)
+  check('con tipo=progetto, non come nota qualsiasi', ins[0] && ins[0].tipo === 'progetto', ins[0] && ins[0].tipo)
+  const j = JSON.parse(ins[0].content)
+  check('il contenuto è a campi, non testo libero', j.origine === 'prescrizione' && j.frequenza === '2 a settimana', j)
+  check('gli interventi sono chiavi stabili, non nomi', JSON.stringify(j.interventi) === '["tecar","esercizio"]', j.interventi)
+  check('il prescrittore è registrato', j.prescrittore === 'Dott. Bianchi, ortopedico', j.prescrittore)
+  check('niente campi di servizio finiti nel database',
+    !('__id' in j) && !('__nuovo' in j) && !('__precompilato' in j), Object.keys(j))
+  await ctx.close()
+}
+
+sez('Progetto terapeutico — il riquadro e la rivalutazione scaduta')
+{
+  const scaduta = new Date(Date.now() - 20 * 86400000).toISOString().slice(0,10)
+  const dati = datiCartella()
+  dati.clinical_notes.push({ id:'pg1', patient_id:PID, professional_id:'prof-1', tipo:'progetto',
+    title:'Progetto terapeutico — 01/09/2026', updated_at:'2026-09-01T08:00:00Z',
+    content: JSON.stringify({ v:1, stato:'attivo', origine:'autonomo', problema:'Lombalgia meccanica',
+      ob_breve:'Ridurre il dolore', interventi:['tecar','terapia_manuale'], frequenza:'2 a settimana',
+      durata:'6 settimane', precauzioni:'Evitare carichi in flessione', rivaluta_quando:'alla 6ª seduta',
+      rivaluta_data: scaduta, esito:'' }) })
+
+  const { page, ctx } = await apriPagina(browser, dati, 'paziente.html', '?id=' + PID + '#relazione')
+  await page.waitForTimeout(1600)
+
+  const txt = await page.textContent('#cn-progetto')
+  check('il progetto sta IN CIMA alla scheda', await page.isVisible('.pg-box'))
+  check('è marcato ATTIVO', txt.includes('ATTIVO'))
+  check('⚖️ dice che nasce da iniziativa autonoma', txt.includes('iniziativa autonoma'))
+  check('mostra gli interventi coi nomi per esteso',
+    txt.includes('Tecar Terapia') && txt.includes('Terapia manuale'), txt.slice(0,200))
+  check('mostra frequenza e durata', txt.includes('2 a settimana') && txt.includes('6 settimane'))
+  check('⚠️ la rivalutazione scaduta viene detta, coi giorni',
+    txt.includes('sono passati 20 giorni'), (txt.match(/sono passati[^.]*/) || [''])[0])
+  check('l\'avviso è rosso, non una riga come le altre', (await page.$$('.pg-scaduto')).length === 1)
+
+  const card = await page.$$eval('.cn-note-card .cn-note-card-title', els => els.map(e => e.textContent))
+  check('⚠️ il progetto NON compare fra le note: là si vedrebbe come JSON',
+    !card.some(t => t.includes('Progetto terapeutico')), card)
+  check('le note normali restano in cronologia', card.length === 2, card)
+
+  await page.click('#pg-btn-revisione')
+  await page.waitForTimeout(600)
+  check('la revisione parte dal progetto di prima',
+    (await page.inputValue('#pg-problema')) === 'Lombalgia meccanica' &&
+    (await page.$$('#pg-chips .pg-chip.on')).length === 2)
+  check('e non si dichiara precompilata dall\'anamnesi (viene dal progetto)',
+    !(await page.textContent('#cn-progetto-editor')).includes('Ho precompilato'))
+  await page.fill('#pg-riv-data', '2026-12-01')
+  await page.click('#pg-btn-salva')
+  await page.waitForTimeout(900)
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'clinical_notes'))
+  check('la revisione è una riga NUOVA: la precedente resta in archivio', ins.length === 1, ins.length)
+  await ctx.close()
+}
+
+sez('Progetto terapeutico — se la migration 039 non è stata lanciata')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiCartella({ senzaTipo: true }), 'anamnesi.html', '?pid=' + PID)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await page.click('#sec-relazione .sec-head')
+  await page.waitForTimeout(900)
+
+  const t = await page.textContent('#cn-progetto')
+  check('⚠️ lo dice a schermo invece di rompersi in silenzio', t.includes('manca la migration 039'), t.slice(0,90))
+  check('e dice esattamente quale SQL lanciare', t.includes('039_clinical_notes_tipo.sql'))
+  check('🔴 la relazione clinica continua a funzionare lo stesso',
+    (await page.$$('.cn-note-card')).length === 2)
+  await page.click('#cn-btn-nuova')
+  await page.waitForTimeout(300)
+  check('e si possono ancora scrivere note', await page.isVisible('#cn-editor'))
+  await ctx.close()
+}
+
+sez('Andata e ritorno anamnesi ↔ cartella')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiCartella(), 'anamnesi.html', '?pid=' + PID)
+  check('nessun errore JS con la barra', errori.length === 0, errori)
+  check('il marker è in tutti e due i file',
+    fs.readFileSync(path.join(ROOT,'anamnesi.html'),'utf8').includes('nav-anamnesi-cartella-v1') &&
+    fs.readFileSync(path.join(ROOT,'paziente.html'),'utf8').includes('nav-anamnesi-cartella-v1'))
+  const voci = await page.$$eval('.navbar-rapida .nr-btn', els => els.map(e => e.textContent.trim()))
+  check('la barra «Vai a» è in cima', voci.length === 4, voci)
+  check('porta a Obiettivi, Screening e Relazione',
+    voci[0].includes('Obiettivi') && voci[1].includes('Screening') && voci[2].includes('Relazione'), voci)
+
+  // Gli obiettivi sono la sezione 28: chiusa e in fondo. Un tocco la apre.
+  check('la 28 Obiettivi parte chiusa',
+    !(await page.$eval('#sec-obiettivi', el => el.classList.contains('open'))))
+  await page.click('.navbar-rapida .nr-btn')
+  await page.waitForTimeout(700)
+  check('il salto apre davvero la sezione Obiettivi',
+    await page.$eval('#sec-obiettivi', el => el.classList.contains('open')))
+  check('e la porta dentro lo schermo, non solo la apre',
+    await page.$eval('#sec-obiettivi', el => { const r = el.getBoundingClientRect(); return r.top > -50 && r.top < window.innerHeight }))
+  check('senza chiudere quello che era già aperto',
+    (await page.$$('.sec.open')).length >= 2)
+
+  await page.click('.navbar-rapida .nr-btn:nth-child(4)')
+  await page.waitForTimeout(700)
+  check('«Relazione clinica» dalla barra apre la scheda', await page.isVisible('#cn-note-list'))
+
+  check('il ritorno alla cartella porta l\'ancora, così si riapre dov\'eri',
+    (await page.$eval('.nr-btn.scuro', el => el.getAttribute('onclick'))).includes('vaiAllaCartella'))
+  check('e punta alla scheda paziente giusta',
+    (await page.evaluate(() => { var u=''; window.location.assign = function(x){u=x}; return String(vaiAllaCartella.toString()) })).includes("'paziente.html?id=' + pid + '#cartella'"))
+  await ctx.close()
+}
+
+sez('Andata e ritorno — l\'ancora riapre la cartella')
+{
+  const { page, ctx } = await apriPagina(browser, datiCartella(), 'paziente.html', '?id=' + PID + '#cartella')
+  await page.waitForTimeout(1200)
+  check('arrivando con #cartella la card è già aperta, non chiusa',
+    await page.isVisible('#cartella-container'))
+  check('il pulsante 🩺 Anamnesi è nell\'intestazione della cartella',
+    await page.$eval('#cartella-clinica .section-header', el => el.textContent.includes('Anamnesi')))
+  check('e porta all\'anamnesi di QUESTO paziente',
+    (await page.evaluate(() => vaiAllAnamnesi.toString())).includes("'anamnesi.html?pid=' + patientId"))
+
+  // #relazione salta direttamente alla scheda giusta
+  const p2 = await apriPagina(browser, datiCartella(), 'paziente.html', '?id=' + PID + '#relazione')
+  await p2.page.waitForTimeout(1500)
+  check('con #relazione si atterra direttamente sulle note', await p2.page.isVisible('#cn-note-list'))
+  await p2.ctx.close()
   await ctx.close()
 }
 
