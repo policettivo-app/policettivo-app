@@ -1,7 +1,31 @@
 import { createClient } from '@supabase/supabase-js'
 
+/* ═══════════════════════════════════════════════════════════════════════
+   ai-solo-premium-v1 — 1 settembre 2026
+
+   LE FUNZIONI DI INTELLIGENZA ARTIFICIALE SONO RISERVATE AI PREMIUM.
+   Prima c'era una prova gratuita (FREE_LIMIT) che scalava `ai_uses`:
+   ogni analisi di un account gratuito era una chiamata a pagamento
+   verso Anthropic, pagata dallo studio. Adesso l'account free NON puo'
+   usare nessuna funzione AI: si nega qui, e si nega una volta sola per
+   tutti gli endpoint, perche' tutti passano di qua.
+
+   ⚠️ QUESTA E' LA DIFESA VERA. I controlli nelle pagine servono solo a
+   far vedere il messaggio giusto: chiunque puo' chiamare /api/ a mano.
+
+   Si continua a rispondere anche con `limitReached: true` per non
+   rompere le pagine gia' in produzione, che su quel campo aprono il
+   modale invece di mostrare un errore grezzo. Il campo nuovo, quello
+   che conta, e' `premiumRequired`.
+
+   `ai_uses` NON viene piu' incrementato: nessun account free consuma
+   crediti, quindi non c'e' piu' niente da contare. La colonna resta
+   dov'e' (la legge admin.html) e non si tocca: nessuna migration.
+   ═══════════════════════════════════════════════════════════════════ */
+
 const ADMIN_EMAIL = 'appuntamentimft@gmail.com'
-const FREE_LIMIT = 15
+
+const MSG_PREMIUM = 'Le funzioni di intelligenza artificiale sono riservate agli account Premium.'
 
 export async function checkAIAccess(req) {
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
@@ -16,7 +40,7 @@ export async function checkAIAccess(req) {
   const svc = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   const { data: prof, error: profErr } = await svc
     .from('professionals')
-    .select('id, piano, premium_scadenza, ai_uses')
+    .select('id, piano, premium_scadenza')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -27,44 +51,26 @@ export async function checkAIAccess(req) {
     if (!prof.premium_scadenza || new Date(prof.premium_scadenza) > new Date()) {
       isPremium = true
     } else {
+      // Premium scaduto: si riporta a free una volta sola, qui.
       await svc.from('professionals').update({ piano: 'free', premium_scadenza: null }).eq('id', prof.id)
     }
   }
 
   if (isPremium) return { ok: true }
 
-  // Free user: check ai_uses limit then increment atomically
-  const aiUses = prof.ai_uses || 0
-  if (aiUses >= FREE_LIMIT) {
-    return {
-      error: 'Hai esaurito le 5 analisi AI gratuite. Passa a Premium per analisi illimitate.',
-      status: 403,
-      limitReached: true,
-      ai_uses: aiUses
-    }
+  return {
+    error: MSG_PREMIUM,
+    status: 403,
+    premiumRequired: true,
+    limitReached: true   // compatibilita' con le pagine gia' pubblicate
   }
+}
 
-  // Use conditional update to prevent race conditions:
-  // only updates if ai_uses hasn't changed since we read it
-  const { data: updated } = await svc
-    .from('professionals')
-    .update({ ai_uses: aiUses + 1 })
-    .eq('id', prof.id)
-    .eq('ai_uses', aiUses)
-    .select('id')
-
-  if (!updated?.length) {
-    // Another concurrent request already incremented — recheck
-    const { data: fresh } = await svc.from('professionals').select('ai_uses').eq('id', prof.id).maybeSingle()
-    if ((fresh?.ai_uses || 0) >= FREE_LIMIT) {
-      return {
-        error: 'Hai esaurito le 5 analisi AI gratuite. Passa a Premium per analisi illimitate.',
-        status: 403,
-        limitReached: true,
-        ai_uses: fresh.ai_uses
-      }
-    }
+/* Esportata per i test: dice se una risposta di checkAIAccess e' un
+   diniego «serve il Premium» e non un problema di autenticazione. */
+export const _test = {
+  MSG_PREMIUM,
+  isPremiumDenial (esito) {
+    return !!esito && esito.ok !== true && esito.status === 403 && esito.premiumRequired === true
   }
-
-  return { ok: true, ai_uses_new: aiUses + 1 }
 }

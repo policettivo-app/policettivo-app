@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Policettivo® — Revisione controindicazioni</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!-- controindicazioni-v1 — pagina di REVISIONE, non di produzione.
+     Non tocca il database, non legge dati di pazienti, non chiama nessuna API.
+     Da qui esce il testo che poi diventa js/controindicazioni.js. -->
+<script src="js/controindicazioni-bozza.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f4f5;color:#1d1d1f;padding-bottom:120px;-webkit-text-size-adjust:100%}
+  a{color:#0a58ca}
+
+  header{position:sticky;top:0;z-index:50;background:#111;color:#fff;padding:12px 14px;border-bottom:3px solid #FFD008}
+  header h1{font-size:15px;font-weight:800;letter-spacing:.3px}
+  header .sub{font-size:11px;color:#bdbdbd;margin-top:3px;font-weight:600}
+  .hrow{display:flex;align-items:center;gap:10px;margin-top:9px}
+  .bar{flex:1;height:7px;background:#333;border-radius:5px;overflow:hidden}
+  .bar i{display:block;height:100%;background:#FFD008;width:0;transition:width .25s}
+  .cnt{font-size:11px;font-weight:800;color:#FFD008;white-space:nowrap}
+  .hbtn{background:#FFD008;color:#000;border:0;border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer}
+
+  .wrap{max-width:820px;margin:0 auto;padding:14px}
+
+  .avviso{background:#fff4f4;border:2px solid #c62828;border-radius:12px;padding:14px;margin-bottom:14px}
+  .avviso b{color:#c62828;display:block;font-size:13px;margin-bottom:6px}
+  .avviso p{font-size:12.5px;line-height:1.65;color:#4a1010}
+  .avviso p + p{margin-top:8px}
+
+  .istr{background:#fff;border:1px solid #e3e3e6;border-radius:12px;padding:13px;margin-bottom:16px;font-size:12.5px;line-height:1.7}
+  .istr b{font-weight:800}
+  .k{display:inline-block;background:#111;color:#FFD008;border-radius:5px;padding:1px 6px;font-weight:800;font-size:11px}
+
+  .card{background:#fff;border:1px solid #e3e3e6;border-radius:14px;margin-bottom:12px;overflow:hidden}
+  .card.fatto{border-color:#2e7d32}
+  .chead{display:flex;align-items:center;gap:10px;padding:14px;cursor:pointer;user-select:none}
+  .chead .num{width:26px;height:26px;border-radius:7px;background:#111;color:#FFD008;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+  .chead .nm{flex:1;font-size:13.5px;font-weight:700;line-height:1.35}
+  .chead .st{font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:20px;background:#eee;color:#666;white-space:nowrap;flex:none}
+  .card.fatto .chead .st{background:#e6f4e6;color:#2e7d32}
+  .chead .fr{font-size:12px;color:#999;flex:none}
+  .cbody{display:none;padding:0 14px 14px}
+  .card.open .cbody{display:block}
+  .card.open .chead .fr{transform:rotate(90deg)}
+  .chead .fr{display:inline-block;transition:transform .15s}
+
+  .voce{border:1px solid #e8e8ea;border-left:4px solid #d0d0d4;border-radius:10px;padding:11px;margin-bottom:9px;background:#fdfdfd}
+  .voce.ok{border-left-color:#2e7d32;background:#f6fbf6}
+  .voce.mod{border-left-color:#FFD008;background:#fffdf2}
+  .voce.tolta{border-left-color:#999;background:#f2f2f3;opacity:.62}
+  .voce.tolta .vt{text-decoration:line-through}
+  .voce.nuova{border-left-color:#0a58ca;background:#f4f8ff}
+
+  .vtop{display:flex;gap:8px;align-items:flex-start}
+  .grav{border:0;border-radius:6px;padding:3px 8px;font-family:inherit;font-size:10.5px;font-weight:800;cursor:pointer;flex:none;color:#fff}
+  .grav.A{background:#c62828}
+  .grav.R{background:#ef6c00}
+  .vt{flex:1;font-size:13px;line-height:1.55;font-weight:600}
+  .vnota{font-size:11.5px;color:#6b6b70;line-height:1.55;margin-top:6px;padding-left:2px;border-left:2px solid #e0e0e3;padding-left:8px}
+  .vfonti{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px}
+  .fchip{font-size:10px;font-weight:700;padding:3px 7px;border-radius:20px;text-decoration:none;border:1px solid transparent;cursor:pointer}
+  .fchip.alta{background:#e6f4e6;color:#1b5e20;border-color:#bcdcbc}
+  .fchip.media{background:#eef2fb;color:#26408b;border-color:#c9d4ee}
+  .fchip.bassa{background:#fdf0e6;color:#8a4b08;border-color:#f0d5bb}
+  .fchip.assente{background:#fdeaea;color:#b71c1c;border-color:#f2c4c4}
+  .vact{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap}
+  .b{border:1px solid #d5d5d9;background:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;color:#333}
+  .b:active{transform:scale(.97)}
+  .b.on{background:#111;color:#fff;border-color:#111}
+  .b.add{border-style:dashed;color:#0a58ca;border-color:#9db8e8;width:100%;padding:11px}
+  .ed{width:100%;font-family:inherit;font-size:13px;line-height:1.55;padding:9px;border:2px solid #FFD008;border-radius:8px;resize:vertical;min-height:64px}
+
+  .lacuna{background:#fff8e6;border:1px solid #f0d488;border-radius:9px;padding:10px 11px;font-size:12px;line-height:1.65;margin-bottom:9px;color:#5b4507}
+  .dubbioref{display:inline-block;background:#111;color:#FFD008;font-size:10px;font-weight:800;border-radius:5px;padding:2px 6px;margin-left:6px;text-decoration:none}
+
+  h2.sez{font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#666;margin:22px 0 10px}
+
+  .dec{background:#fff;border:1px solid #e3e3e6;border-left:5px solid #111;border-radius:12px;padding:14px;margin-bottom:12px}
+  .dec.scelto{border-left-color:#2e7d32}
+  .dec .did{font-size:10.5px;font-weight:800;color:#FFD008;background:#111;border-radius:5px;padding:2px 7px;display:inline-block}
+  .dec .dove{font-size:11px;color:#888;font-weight:700;margin-left:7px}
+  .dec h3{font-size:14px;font-weight:800;margin:9px 0 7px;line-height:1.4}
+  .dec p{font-size:12.5px;line-height:1.7;color:#444}
+  .opz{margin-top:11px;display:flex;flex-direction:column;gap:7px}
+  .opz button{text-align:left;display:flex;gap:9px;align-items:flex-start;border:1px solid #d5d5d9;background:#fff;border-radius:9px;padding:10px 11px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;line-height:1.45}
+  .opz button .l{font-weight:800;background:#eee;border-radius:5px;padding:1px 7px;flex:none}
+  .opz button.on{border-color:#2e7d32;background:#f6fbf6}
+  .opz button.on .l{background:#2e7d32;color:#fff}
+
+  .esporta{position:fixed;left:0;right:0;bottom:0;background:#111;padding:11px 14px;z-index:60;border-top:2px solid #FFD008}
+  .esporta .row{max-width:820px;margin:0 auto;display:flex;gap:8px;align-items:center}
+  .esporta .stato{flex:1;color:#bdbdbd;font-size:11px;font-weight:700;line-height:1.4}
+  .esporta button{background:#FFD008;color:#000;border:0;border-radius:9px;padding:11px 14px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;flex:none}
+  .esporta button.sec{background:#333;color:#fff}
+
+  #uscita{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:99;padding:16px;overflow:auto}
+  #uscita.open{display:block}
+  #uscita .box{max-width:820px;margin:0 auto;background:#fff;border-radius:14px;padding:16px}
+  #uscita h3{font-size:15px;font-weight:800;margin-bottom:6px}
+  #uscita p{font-size:12.5px;line-height:1.65;color:#555;margin-bottom:10px}
+  #uscita textarea{width:100%;height:46vh;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.5;padding:11px;border:1px solid #ccc;border-radius:9px;resize:vertical}
+  #uscita .u-act{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Revisione delle controindicazioni</h1>
+  <div class="sub" id="sottotit">controindicazioni-v1 · si può chiudere e riprendere fra un paziente e l'altro</div>
+  <div class="hrow">
+    <div class="bar"><i id="pbar"></i></div>
+    <div class="cnt" id="pcnt">0 / 10</div>
+    <button class="hbtn" onclick="apriUscita('corr')">📋 Rimanda</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="avviso">
+    <b>⚠️ Questa è una bozza. Non è ancora in nessun documento.</b>
+    <p>Le voci qui sotto le ho raccolte dai manuali d'uso degli apparecchi e dalla letteratura, e ognuna porta la sua fonte. <b>Nessuna è stata scritta da un fisioterapista che conosce il tuo studio.</b> Finché non le hai riviste tu, non entrano in <code>js/controindicazioni.js</code> e nessun avviso clinico le usa.</p>
+    <p>Due cose emerse dalla ricerca che vale la pena sapere subito: la <b>linea guida SIMFER 2026</b> l'ho letta, e non contiene elenchi di controindicazioni — non esiste una fonte italiana ufficiale da citare. E sull'<b>EMTT</b> Storz non pubblica le controindicazioni da nessuna parte: né sul flyer, né nel whitepaper, né nel 510(k) FDA.</p>
+  </div>
+
+  <div class="istr">
+    <b>Come si usa, in trenta secondi.</b><br>
+    Apri un blocco. Per ogni riga: <span class="k">✓ va bene</span> se la lasci com'è, <span class="k">✏️ correggi</span> se il testo va cambiato, <span class="k">✕ togli</span> se da te non vale.
+    Il quadratino rosso o arancione dice <b>A</b>ssoluta o <b>R</b>elativa: si cambia toccandolo.
+    In fondo a ogni blocco puoi <b>aggiungere</b> quello che manca — e quello che scrivi tu ha come fonte te.<br><br>
+    Quando hai finito (o quando arriva il prossimo paziente) tocca <b>📋 Rimanda</b> in alto e incollami quello che esce. Il lavoro resta salvato su questo telefono anche se chiudi la pagina.
+  </div>
+
+  <h2 class="sez">Le decisioni — dove le fonti si contraddicono</h2>
+  <div class="istr" style="margin-bottom:10px">
+    Queste non le può sciogliere né un elenco né il modello: sono i punti in cui i manuali dei produttori e la letteratura dicono cose diverse. <b>Una lettera per ognuna.</b> La scelta finisce scritta nell'elenco, così un domani si sa perché quell'avviso dice quello che dice.
+  </div>
+  <div id="decisioni"></div>
+
+  <h2 class="sez">Gli apparecchi</h2>
+  <div id="blocchi"></div>
+
+</div>
+
+<div class="esporta">
+  <div class="row">
+    <div class="stato" id="stato">Non hai ancora rivisto niente.</div>
+    <button id="btn-tutto" class="sec" onclick="apriUscita('tutto')">Tutto</button>
+    <button id="btn-rimanda" onclick="apriUscita('corr')">📋 Rimanda</button>
+  </div>
+</div>
+
+<div id="uscita">
+  <div class="box">
+    <h3>Copia questo e incollamelo in chat</h3>
+    <p id="u-desc"></p>
+    <textarea id="u-testo" readonly onclick="this.select()"></textarea>
+    <div class="u-act">
+      <button class="b on" onclick="copia()">📋 Copia</button>
+      <button class="b" onclick="document.getElementById('u-testo').select()">Seleziona tutto</button>
+      <button id="btn-chiudi-uscita" class="b" onclick="document.getElementById('uscita').classList.remove('open')">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═════════════════════════════════════════════════════════════════════
+   controindicazioni-v1 — la pagina non decide niente: registra scelte.
+   Nessuna chiamata di rete, nessun dato di paziente, nessuna API.
+   Il salvataggio locale è un di più: se il browser lo nega, la pagina
+   funziona lo stesso e il testo da rimandare si genera ugualmente.
+   ═════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict'
+  var B = window.polControindicazioniBozza
+  if (!B) { document.body.innerHTML = '<div class="wrap"><div class="avviso"><b>Manca js/controindicazioni-bozza.js</b><p>La pagina non può funzionare senza. Scaricalo nella cartella js/ del repo.</p></div></div>'; return }
+
+  var CHIAVE = 'pol-controindicazioni-v1'
+  /* stato = { voci:{id:{s:'ok'|'mod'|'tolta', t:testo, g:'A'|'R'}},
+               agg:{k:[{id,t,g}]}, dec:{D1:'A'}, aperti:{k:true} } */
+  var S = { voci:{}, agg:{}, dec:{}, aperti:{} }
+
+  function carica () {
+    try {
+      var g = window.localStorage.getItem(CHIAVE)
+      if (g) { var o = JSON.parse(g); S.voci = o.voci||{}; S.agg = o.agg||{}; S.dec = o.dec||{}; S.aperti = o.aperti||{} }
+    } catch (e) { /* private browsing, storage negato: si va avanti in memoria */ }
+  }
+  function salva () {
+    try { window.localStorage.setItem(CHIAVE, JSON.stringify(S)) } catch (e) {}
+  }
+
+  function esc (s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+  }
+
+  /* tutti i blocchi: le trasversali sono un blocco come gli altri */
+  function blocchi () {
+    var t = { k:'trasversali', nome:'Valide per tutte le terapie', famiglia:'tutte', num:'★', voci:B.trasversali, lacune:[] }
+    return [t].concat(B.apparecchi)
+  }
+  var BLOCCHI = blocchi()
+
+  function vociDi (b) {
+    var agg = (S.agg[b.k] || []).map(function (a) { return { id:a.id, g:a.g, t:a.t, f:['MIA'], mia:true } })
+    return b.voci.concat(agg)
+  }
+  function statoVoce (id) { return (S.voci[id] && S.voci[id].s) || '' }
+  function testoVoce (v) { return (S.voci[v.id] && S.voci[v.id].t) || v.t }
+  function gravVoce (v) { return (S.voci[v.id] && S.voci[v.id].g) || v.g }
+
+  function bloccoFatto (b) {
+    var vv = vociDi(b)
+    if (!vv.length) return !!S.voci['vuoto-' + b.k]
+    for (var i = 0; i < vv.length; i++) if (!statoVoce(vv[i].id)) return false
+    return true
+  }
+
+  // ── fonti ───────────────────────────────────────────────────────────
+  function chipFonte (kf) {
+    if (kf === 'MIA') return '<span class="fchip alta" title="L\'hai scritta tu">✍️ tua</span>'
+    var f = B.fonti[kf]
+    if (!f) return ''
+    var et = kf === 'NESSUNA' ? '⛔ fonte non trovata' : (f.liv === 'bassa' ? '△ ' : '') + (f.lab || kf) + (f.a ? ' ' + f.a : '')
+    var tit = esc(f.n + (f.liv === 'bassa' ? ' — fonte commerciale, si legge ma non si cita' : ''))
+    if (!f.u) return '<span class="fchip ' + f.liv + '" title="' + tit + '">' + esc(et) + '</span>'
+    return '<a class="fchip ' + f.liv + '" href="' + esc(f.u) + '" target="_blank" rel="noopener" title="' + tit + '">' + esc(et) + '</a>'
+  }
+
+  // ── disegno di una voce ─────────────────────────────────────────────
+  function htmlVoce (b, v) {
+    var st = statoVoce(v.id)
+    var cls = 'voce' + (st ? ' ' + st : '') + (v.mia ? ' nuova' : '')
+    var g = gravVoce(v)
+    var h = '<div class="' + cls + '" id="v-' + esc(v.id) + '">'
+    h +=   '<div class="vtop">'
+    h +=     '<button class="grav ' + g + '" data-g="' + esc(v.id) + '" title="Assoluta o relativa">' + g + '</button>'
+    h +=     '<div class="vt" id="t-' + esc(v.id) + '">' + esc(testoVoce(v)) + '</div>'
+    h +=   '</div>'
+    if (v.n) h += '<div class="vnota">' + esc(v.n) + '</div>'
+    h += '<div class="vfonti">'
+    for (var i = 0; i < v.f.length; i++) h += chipFonte(v.f[i])
+    if (v.dubbio) h += '<a class="dubbioref" href="#dec-' + esc(v.dubbio) + '">⚖️ decisione ' + esc(v.dubbio) + '</a>'
+    h += '</div>'
+    h += '<div class="vact">'
+    h +=   '<button class="b' + (st === 'ok' ? ' on' : '') + '" data-a="ok" data-id="' + esc(v.id) + '">✓ va bene</button>'
+    h +=   '<button class="b' + (st === 'mod' ? ' on' : '') + '" data-a="mod" data-id="' + esc(v.id) + '">✏️ correggi</button>'
+    h +=   '<button class="b' + (st === 'tolta' ? ' on' : '') + '" data-a="tolta" data-id="' + esc(v.id) + '">✕ togli</button>'
+    h += '</div></div>'
+    return h
+  }
+
+  function htmlBlocco (b) {
+    var vv = vociDi(b)
+    var fatto = bloccoFatto(b)
+    var aperto = !!S.aperti[b.k]
+    var quante = vv.filter(function (v) { return statoVoce(v.id) }).length
+    var h = '<div class="card' + (fatto ? ' fatto' : '') + (aperto ? ' open' : '') + '" id="c-' + esc(b.k) + '">'
+    h += '<div class="chead" data-t="' + esc(b.k) + '">'
+    h +=   '<span class="num">' + esc(b.num) + '</span>'
+    h +=   '<span class="nm">' + esc(b.nome) + '</span>'
+    h +=   '<span class="st">' + (fatto ? '✓ rivisto' : quante + '/' + vv.length) + '</span>'
+    h +=   '<span class="fr">▶</span>'
+    h += '</div><div class="cbody">'
+    for (var i = 0; i < (b.lacune || []).length; i++) h += '<div class="lacuna">' + esc(b.lacune[i]) + '</div>'
+    for (var j = 0; j < vv.length; j++) h += htmlVoce(b, vv[j])
+    h += '<button class="b add" data-add="' + esc(b.k) + '">+ Aggiungi una voce che manca</button>'
+    if (!vv.length) h += '<div style="height:8px"></div><button class="b" style="width:100%" data-vuoto="' + esc(b.k) + '">' + (S.voci['vuoto-' + b.k] ? '✓ segnato: va bene vuoto' : 'Va bene lasciarlo vuoto') + '</button>'
+    h += '</div></div>'
+    return h
+  }
+
+  function htmlDecisione (d) {
+    var sc = S.dec[d.id]
+    var h = '<div class="dec' + (sc ? ' scelto' : '') + '" id="dec-' + esc(d.id) + '">'
+    h += '<span class="did">' + esc(d.id) + '</span><span class="dove">' + esc(d.dove) + '</span>'
+    h += '<h3>' + esc(d.tit) + '</h3><p>' + esc(d.desc) + '</p>'
+    h += '<div class="vfonti" style="margin-top:9px">'
+    for (var i = 0; i < d.f.length; i++) h += chipFonte(d.f[i])
+    h += '</div><div class="opz">'
+    for (var j = 0; j < d.opz.length; j++) {
+      var o = d.opz[j]
+      h += '<button class="' + (sc === o.l ? 'on' : '') + '" data-d="' + esc(d.id) + '" data-l="' + esc(o.l) + '">'
+      h += '<span class="l">' + esc(o.l) + '</span><span>' + esc(o.t) + '</span></button>'
+    }
+    h += '</div></div>'
+    return h
+  }
+
+  function disegna () {
+    var hb = ''
+    for (var i = 0; i < BLOCCHI.length; i++) hb += htmlBlocco(BLOCCHI[i])
+    document.getElementById('blocchi').innerHTML = hb
+    var hd = ''
+    for (var j = 0; j < B.decisioni.length; j++) hd += htmlDecisione(B.decisioni[j])
+    document.getElementById('decisioni').innerHTML = hd
+    avanzamento()
+  }
+
+  function avanzamento () {
+    var fatti = BLOCCHI.filter(bloccoFatto).length
+    var dec = Object.keys(S.dec).length
+    document.getElementById('pcnt').textContent = fatti + ' / ' + BLOCCHI.length
+    document.getElementById('pbar').style.width = Math.round(fatti * 100 / BLOCCHI.length) + '%'
+    var s = document.getElementById('stato')
+    if (!fatti && !dec) s.textContent = 'Non hai ancora rivisto niente.'
+    else s.textContent = fatti + ' blocchi su ' + BLOCCHI.length + ' · ' + dec + ' decisioni su ' + B.decisioni.length +
+      (fatti === BLOCCHI.length && dec === B.decisioni.length ? ' · finito, rimandamelo' : '')
+  }
+
+  // ── azioni ──────────────────────────────────────────────────────────
+  function segna (id, s) {
+    var cur = S.voci[id] || {}
+    if (cur.s === s && s !== 'mod') { delete S.voci[id] } else { cur.s = s; S.voci[id] = cur }
+    salva(); disegna()
+  }
+
+  function correggi (id) {
+    var v = trovaVoce(id); if (!v) return
+    var box = document.getElementById('t-' + id)
+    if (!box || box.dataset.edit) return
+    var attuale = testoVoce(v)
+    box.dataset.edit = '1'
+    box.innerHTML = '<textarea class="ed" id="ed-' + esc(id) + '"></textarea>' +
+      '<div class="vact"><button class="b on" data-sv="' + esc(id) + '">Salva</button>' +
+      '<button class="b" data-an="' + esc(id) + '">Annulla</button></div>'
+    var ta = document.getElementById('ed-' + id)
+    ta.value = attuale
+    ta.focus()
+  }
+
+  function salvaCorrezione (id) {
+    var ta = document.getElementById('ed-' + id); if (!ta) return
+    var nuovo = ta.value.trim()
+    var v = trovaVoce(id)
+    if (!nuovo) { disegna(); return }
+    var cur = S.voci[id] || {}
+    if (v && nuovo === v.t) { cur.s = 'ok'; delete cur.t } else { cur.s = 'mod'; cur.t = nuovo }
+    S.voci[id] = cur
+    salva(); disegna()
+  }
+
+  function trovaVoce (id) {
+    for (var i = 0; i < BLOCCHI.length; i++) {
+      var vv = vociDi(BLOCCHI[i])
+      for (var j = 0; j < vv.length; j++) if (vv[j].id === id) return vv[j]
+    }
+    return null
+  }
+  function bloccoDiVoce (id) {
+    for (var i = 0; i < BLOCCHI.length; i++) {
+      var vv = vociDi(BLOCCHI[i])
+      for (var j = 0; j < vv.length; j++) if (vv[j].id === id) return BLOCCHI[i]
+    }
+    return null
+  }
+
+  function aggiungi (k) {
+    var t = window.prompt('Scrivi la controindicazione che manca:')
+    if (!t || !t.trim()) return
+    var g = window.confirm('È ASSOLUTA?\n\nOK = assoluta   ·   Annulla = relativa') ? 'A' : 'R'
+    if (!S.agg[k]) S.agg[k] = []
+    var id = k + '-mia' + (S.agg[k].length + 1)
+    S.agg[k].push({ id:id, t:t.trim(), g:g })
+    S.voci[id] = { s:'ok' }
+    S.aperti[k] = true
+    salva(); disegna()
+    var el = document.getElementById('v-' + id); if (el) el.scrollIntoView({ block:'center' })
+  }
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest ? e.target.closest('[data-a],[data-g],[data-t],[data-add],[data-d],[data-sv],[data-an],[data-vuoto]') : null
+    if (!el) return
+    if (el.dataset.t !== undefined)    { S.aperti[el.dataset.t] = !S.aperti[el.dataset.t]; salva(); disegna(); return }
+    if (el.dataset.add !== undefined)  { aggiungi(el.dataset.add); return }
+    if (el.dataset.sv !== undefined)   { salvaCorrezione(el.dataset.sv); return }
+    if (el.dataset.an !== undefined)   { disegna(); return }
+    if (el.dataset.vuoto !== undefined){ var kk = 'vuoto-' + el.dataset.vuoto
+                                         if (S.voci[kk]) delete S.voci[kk]; else S.voci[kk] = { s:'ok' }
+                                         salva(); disegna(); return }
+    if (el.dataset.g !== undefined)    { var id = el.dataset.g, v = trovaVoce(id)
+                                         var c = S.voci[id] || {}
+                                         c.g = (gravVoce(v) === 'A') ? 'R' : 'A'
+                                         if (!c.s) c.s = 'mod'
+                                         S.voci[id] = c; salva(); disegna(); return }
+    if (el.dataset.d !== undefined)    { if (S.dec[el.dataset.d] === el.dataset.l) delete S.dec[el.dataset.d]
+                                         else S.dec[el.dataset.d] = el.dataset.l
+                                         salva(); disegna(); return }
+    if (el.dataset.a === 'mod')        { correggi(el.dataset.id); return }
+    if (el.dataset.a)                  { segna(el.dataset.id, el.dataset.a); return }
+  })
+
+  // ── uscita ──────────────────────────────────────────────────────────
+  function costruisci (modo) {
+    var out = { marker:'controindicazioni-v1', data:new Date().toISOString().slice(0,10), decisioni:{}, voci:{}, aggiunte:[], non_riviste:[] }
+    for (var d in S.dec) if (S.dec.hasOwnProperty(d)) out.decisioni[d] = S.dec[d]
+
+    for (var i = 0; i < BLOCCHI.length; i++) {
+      var b = BLOCCHI[i], vv = vociDi(b), mancanti = []
+      for (var j = 0; j < vv.length; j++) {
+        var v = vv[j], st = statoVoce(v.id), c = S.voci[v.id] || {}
+        if (v.mia) { out.aggiunte.push({ blocco:b.k, t:testoVoce(v), g:gravVoce(v) }); continue }
+        if (!st) { mancanti.push(v.id); continue }
+        if (modo === 'corr' && st === 'ok' && !c.g) continue
+        var r = { s:st }
+        if (c.t) r.t = c.t
+        if (c.g) r.g = c.g
+        if (modo === 'tutto' && st === 'ok' && !c.t) r.t = v.t
+        out.voci[v.id] = r
+      }
+      if (mancanti.length) out.non_riviste.push(b.k + ': ' + mancanti.join(' '))
+      /* un blocco senza voci (manuale/esercizio) non produce «mancanti»:
+         se non lo si dichiara, sparisce dall'elenco di quello che resta da
+         fare e sembra finito senza esserlo. */
+      else if (!vv.length && !S.voci['vuoto-' + b.k]) out.non_riviste.push(b.k + ': blocco vuoto, non ancora confermato')
+    }
+    var dm = []
+    for (var q = 0; q < B.decisioni.length; q++) if (!S.dec[B.decisioni[q].id]) dm.push(B.decisioni[q].id)
+    if (dm.length) out.decisioni_non_prese = dm
+    return JSON.stringify(out, null, 1)
+  }
+
+  window.apriUscita = function (modo) {
+    document.getElementById('u-testo').value = costruisci(modo)
+    document.getElementById('u-desc').textContent = modo === 'corr'
+      ? 'Solo quello che hai cambiato, tolto, aggiunto o deciso. È la versione corta: incollala in chat così com\'è.'
+      : 'Tutto quanto, riga per riga, anche quelle confermate senza modifiche.'
+    document.getElementById('uscita').classList.add('open')
+  }
+  window.copia = function () {
+    var ta = document.getElementById('u-testo')
+    ta.select()
+    var fatto = false
+    try { fatto = document.execCommand('copy') } catch (e) {}
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(function () {}, function () {})
+      fatto = true
+    }
+    var b = event && event.target
+    if (b) { var vecchio = b.textContent; b.textContent = fatto ? '✓ copiato' : 'seleziona e copia a mano'
+             setTimeout(function () { b.textContent = vecchio }, 1800) }
+  }
+
+  carica()
+  disegna()
+  window.polRevisione = { S:S, BLOCCHI:BLOCCHI, costruisci:costruisci, marker:'controindicazioni-v1' }
+})()
+</script>
+</body>
+</html>

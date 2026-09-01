@@ -2671,6 +2671,8 @@
        ⚠️ L'estratto dice cosa il documento RIPORTA. Non è un parere e non
        è un via libera a nessuna terapia. */
     async function leggiDocumento(id) {
+      /* ai-solo-premium-v1 : lettura AI del referto = account Premium. */
+      if (window.policettivoRichiedePremium && !window.policettivoRichiedePremium()) return
       const btn = document.getElementById('btn-leggi-' + id)
       if (btn) { btn.disabled = true; btn.textContent = '⏳ Leggo…' }
       const box = document.getElementById('estratto-' + id)

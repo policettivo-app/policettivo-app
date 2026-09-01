@@ -415,7 +415,9 @@
         const ultimaStr = ultimaAttivita ? ultimaAttivita.toLocaleDateString('it-IT') : '—'
         const isFav = adminFavorites.has(prof.id)
         const isPremium = (prof.piano || '').toLowerCase() === 'premium'
-        const aiUsesStr = isPremium ? '<span style="color:#aaa;font-size:11px">—</span>' : '<span style="font-size:11px;font-weight:700;color:' + ((prof.ai_uses||0) >= 12 ? '#c62828' : '#555') + '">' + (prof.ai_uses||0) + '/15</span>'
+        /* ai-solo-premium-v1 : ai_uses e' un contatore storico, non un residuo.
+           Un free non ha piu' analisi da spendere: si mostra il divieto. */
+        const aiUsesStr = isPremium ? '<span style="color:#2e7d32;font-size:11px;font-weight:700">AI ⭐</span>' : '<span style="font-size:11px;font-weight:700;color:#999">AI no</span>'
         return '<tr>' +
           '<td><button class="fav-btn ' + (isFav?'active':'') + '" onclick="toggleFavorite(\'' + prof.id + '\')">' + (isFav?'★':'☆') + '</button></td>' +
           '<td style="text-align:center;font-size:16px">' + dot + '</td>' +
@@ -1068,7 +1070,8 @@
       // Aggiorna UI pannello
       document.getElementById('piano-label').textContent = 'Piano: ' + (nowPrem ? 'PREMIUM ⭐' : 'Free')
       const aiUsesLblT = document.getElementById('ai-uses-label')
-      if (aiUsesLblT) aiUsesLblT.textContent = nowPrem ? 'Analisi AI illimitate' : 'Analisi AI: ' + (_panelProfData?.ai_uses || 0) + '/15 usate'
+      /* ai-solo-premium-v1 */
+      if (aiUsesLblT) aiUsesLblT.textContent = nowPrem ? 'Analisi AI illimitate' : 'Analisi AI non disponibili (piano Free)'
       const btnP = document.getElementById('btn-toggle-piano')
       btnP.textContent      = nowPrem ? '⬇ Revoca Premium' : '⭐ Attiva Premium'
       btnP.style.background = nowPrem ? '#ffebee' : '#FFD008'

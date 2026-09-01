@@ -28,7 +28,12 @@
     { k:'laser_alta',   nome:'Laser alta tecnologia — Chronic Five Crio Plus',    famiglia:'laser_crio' },
     { k:'ultrasuoni',   nome:'Ultrasuoni Terapia',                                famiglia:'ultrasuoni' },
     { k:'us_micro',     nome:'Ultrasuoni con Microcorrenti Antalgiche',           famiglia:'ultrasuoni_corrente' },
-    { k:'emtt',         nome:'EMTT — magnetoterapia induttiva pulsata',           famiglia:'campo_magnetico' },
+    { k:'emtt',         nome:'EMTT — magnetoterapia induttiva pulsata',           famiglia:'campo_magnetico_emtt' },
+    /* controindicazioni-v1 (1 set) — confermato da Giuliano: la «terapia
+       magnetica» del suo elenco NON e' l'EMTT, e' un secondo apparecchio,
+       una magnetoterapia classica a solenoidi. Due macchine, due famiglie:
+       le controindicazioni si somigliano, i parametri no. */
+    { k:'magneto',      nome:'Terapia magnetica (CEMP a solenoidi)',              famiglia:'campo_magnetico_cemp' },
     { k:'tens',         nome:'TENS Antalgica',                                    famiglia:'elettro' },
     { k:'ems',          nome:'EMS ad impulsi variabili',                          famiglia:'elettro' }
   ]

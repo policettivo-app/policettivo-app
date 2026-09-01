@@ -75,6 +75,10 @@ async function handlePosturale(req, res) {
   const systemPrompt = `Sei un fisioterapista esperto specializzato in valutazione posturale, che redige referti clinici in italiano formale. Scrivi in stile referto medico: terza persona, linguaggio tecnico-clinico, sezioni distinte secondo i piani anatomici, conciso e oggettivo. NON inventare dati che non sono presenti nel materiale fornito. Se un dato manca, ometti la sezione o scrivi "Non riportato". NON fare diagnosi mediche né prognosi vincolanti — limita a osservazioni cliniche posturali e indicazioni terapeutiche/correttive. Struttura SEMPRE la relazione nelle seguenti sezioni in ordine: 1) Quadro generale, 2) Piano Sagittale, 3) Piano Frontale, 4) Piano Posteriore, 5) Esame Podoscopico, 6) Tecnica 3 Respiri (risposta PRE/POST), 7) Conclusioni e indicazioni. Usa intestazioni in grassetto markdown (**Titolo**) per ogni sezione.`
 
   let ai_relazione = null
+  /* ai-solo-premium-v1 — il PDF non e' una funzione AI: un account free
+     deve poterlo scaricare lo stesso, solo senza la relazione scritta
+     dall'AI. Prima un free riceveva 403 e restava SENZA PDF. */
+  let ai_non_disponibile = null
 
   if (relazione_modalita === 'nessuna') {
     ai_relazione = null
@@ -88,6 +92,8 @@ async function handlePosturale(req, res) {
         if (ai_relazione) {
           await svc.from('visits').update({ relazione_ai: ai_relazione }).eq('id', visit_id)
         }
+      } else if (access.premiumRequired) {
+        ai_non_disponibile = 'premium'
       } else if (access.limitReached) {
         return res.status(403).json({ error: access.error || 'Limite AI raggiunto', limitReached: true })
       } else {
@@ -110,7 +116,8 @@ async function handlePosturale(req, res) {
     patient:      patient      || {},
     professional,
     photos:       await signPhotoUrls(svc, photos),
-    ai_relazione
+    ai_relazione,
+    ai_non_disponibile
   })
 }
 
@@ -173,6 +180,9 @@ async function handleVisita(req, res) {
   const systemPrompt = `Sei un fisioterapista esperto che redige relazioni cliniche in italiano formale. Scrivi in stile referto medico: terza persona, linguaggio tecnico-clinico, sezioni distinte, conciso e oggettivo. NON inventare dati che non sono presenti nel materiale fornito. Se un dato manca, ometti la sezione o scrivi "Non riportato". NON fare diagnosi mediche né prognosi vincolanti — limita a osservazioni cliniche, valutazioni funzionali, indicazioni terapeutiche.`
 
   let ai_relazione = null
+  /* ai-solo-premium-v1 — vedi handlePosturale: il PDF resta scaricabile
+     anche senza Premium, solo senza la relazione scritta dall'AI. */
+  let ai_non_disponibile = null
 
   if (relazione_modalita === 'nessuna') {
     ai_relazione = null
@@ -186,6 +196,8 @@ async function handleVisita(req, res) {
         if (ai_relazione) {
           await svc.from('visits').update({ relazione_ai: ai_relazione }).eq('id', visit_id)
         }
+      } else if (access.premiumRequired) {
+        ai_non_disponibile = 'premium'
       } else if (access.limitReached) {
         return res.status(403).json({ error: 'Limite AI raggiunto', limitReached: true })
       }
@@ -207,6 +219,8 @@ async function handleVisita(req, res) {
         if (ai_relazione) {
           await svc.from('visits').update({ relazione_ai_storia: ai_relazione }).eq('id', visit_id)
         }
+      } else if (access.premiumRequired) {
+        ai_non_disponibile = 'premium'
       } else if (access.limitReached) {
         return res.status(403).json({ error: 'Limite AI raggiunto', limitReached: true })
       }
@@ -227,7 +241,8 @@ async function handleVisita(req, res) {
     patient:      patient      || {},
     professional,
     photos:       await signPhotoUrls(svc, photos),
-    ai_relazione
+    ai_relazione,
+    ai_non_disponibile
   })
 }
 

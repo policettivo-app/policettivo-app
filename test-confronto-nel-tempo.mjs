@@ -1239,6 +1239,10 @@ sez('Referti letti — se la lettura non riesce, il motivo resta scritto')
 {
   const { page, ctx } = await apriPagina(browser, datiDocumenti(), 'paziente.html', '?id=' + PID + '#cartella')
   await page.waitForTimeout(1400)
+  // ai-solo-premium-v1 — la lettura del referto e' riservata ai Premium:
+  // senza questo, la pagina si ferma prima della chiamata e questa prova
+  // non arriva mai a vedere l'errore che vuole controllare.
+  await page.evaluate(() => { window.isPremium = true })
   await page.route('**/api/analisi-referto', route => {
     route.fulfill({ status:502, contentType:'application/json',
       body: JSON.stringify({ error:'La risposta della lettura non è stata capita.' }) })
@@ -1251,6 +1255,99 @@ sez('Referti letti — se la lettura non riesce, il motivo resta scritto')
   check('e il pulsante torna disponibile per riprovare',
     (await page.textContent('#btn-leggi-d2')).includes('Riprova'))
   check('il documento NON risulta letto', (await page.$$eval('.doc-stato', els => els.map(e => e.textContent))).filter(x => x === 'LETTO').length === 1)
+  await ctx.close()
+}
+
+sez("ai-solo-premium-v1 — le funzioni AI sono chiuse agli account free")
+{
+  const { page, ctx } = await apriPagina(browser, datiDocumenti(), 'paziente.html', '?id=' + PID + '#cartella')
+  await page.waitForTimeout(1400)
+
+  let chiamata = false
+  await page.route('**/api/analisi-referto', route => {
+    chiamata = true
+    route.fulfill({ status:200, contentType:'application/json', body:'{"ok":true,"rilievi":[],"estratto":""}' })
+  })
+
+  await page.evaluate(() => { window.isPremium = false })
+  await page.click('.btn-doc-leggi')
+  await page.waitForTimeout(700)
+
+  check("con un account free la lettura del referto NON parte", chiamata === false)
+  check("e il motivo si vede: compare il pannello Premium", await page.isVisible('#ai-limit-modal'))
+  check("il pannello dice che serve Premium, non che le analisi sono finite",
+    (await page.textContent('#ai-limit-title')).includes('Premium'))
+  check("e non parla piu di analisi gratuite rimaste",
+    !/gratuit/i.test(await page.textContent('#ai-limit-desc')))
+  check("il pannello porta a upgrade.html",
+    (await page.getAttribute('#ai-limit-cta', 'onclick')).includes('upgrade.html'))
+  check("nel modale non resta il difetto del testo non concatenato",
+    !(await page.textContent('#ai-limit-desc')).includes('+ LIMIT +'))
+
+  await page.evaluate(() => { document.getElementById('ai-limit-modal').classList.remove('open'); window.isPremium = true })
+  await page.click('.btn-doc-leggi')
+  await page.waitForTimeout(700)
+  check("con un account Premium la stessa lettura parte", chiamata === true)
+  await ctx.close()
+}
+
+sez("ai-solo-premium-v1 — il cancello vero sta nel server")
+{
+  /* ⚠️ Una rimozione NON si verifica cercando la PAROLA: il commento che
+     spiega perche una riga e stata tolta contiene il nome della riga tolta,
+     e il conto non torna mai. Qui si tolgono prima i commenti. */
+  const senzaCommenti = t => t.replace(/\/\*[\s\S]*?\*\//g,'').replace(/^\s*\/\/.*$/gm,'')
+  const senzaCommentiHtml = t => senzaCommenti(t.replace(/<!--[\s\S]*?-->/g,''))
+
+  const srcGrezzo = fs.readFileSync(path.join(ROOT,'api/_check-ai-access.js'),'utf8')
+  const src = senzaCommenti(srcGrezzo)
+  check("non esiste piu nessuna soglia di analisi gratuite", !/FREE_LIMIT/.test(src))
+  check("il free non fa piu aumentare ai_uses, quindi non brucia crediti",
+    !/ai_uses:\s*aiUses\s*\+\s*1/.test(src))
+  check("il diniego porta premiumRequired", /premiumRequired:\s*true/.test(src))
+  check("e continua a portare limitReached, per le pagine gia pubblicate", /limitReached:\s*true/.test(src))
+  check("il marker e nel file", srcGrezzo.includes('ai-solo-premium-v1'))
+
+  const pdf = fs.readFileSync(path.join(ROOT,'api/genera-pdf.js'),'utf8')
+  check("il PDF resta scaricabile senza Premium, solo senza relazione AI",
+    (pdf.match(/access\.premiumRequired/g) || []).length === 3, (pdf.match(/access\.premiumRequired/g)||[]).length)
+  check("e il PDF dichiara perche la relazione manca", /ai_non_disponibile/.test(pdf))
+
+  const aiGrezzo = fs.readFileSync(path.join(ROOT,'utils-ai.js'),'utf8')
+  const ai = senzaCommenti(aiGrezzo)
+  check("utils-ai.js non promette piu analisi gratuite (fuori dai commenti)", !/analisi AI gratuit/i.test(ai))
+  check("e non conta piu quante ne restano", !/rimaste|Ultime/.test(ai))
+  check("c e la guardia da usare prima di partire", /policettivoRichiedePremium/.test(aiGrezzo))
+
+  for (const f of ['dashboard.html','admin.html','upgrade.html']) {
+    const t = senzaCommentiHtml(fs.readFileSync(path.join(ROOT,f),'utf8'))
+    check(f + " non promette piu analisi AI gratuite", !/analisi AI gratuit/i.test(t))
+  }
+  const dash = senzaCommentiHtml(fs.readFileSync(path.join(ROOT,'dashboard.html'),'utf8'))
+  check("dashboard.html non mostra piu un residuo di analisi disponibili", !/analisi AI disponibili/.test(dash))
+}
+
+sez("controindicazioni-v1 — la bozza e la pagina di revisione")
+{
+  const bozza = fs.readFileSync(path.join(ROOT,'js/controindicazioni-bozza.js'),'utf8')
+  const ter   = fs.readFileSync(path.join(ROOT,'js/terapie.js'),'utf8')
+  check("la terapia magnetica CEMP e un apparecchio a se", ter.includes("k:'magneto'"))
+  check("e non ha la stessa famiglia dell EMTT",
+    ter.includes('campo_magnetico_cemp') && ter.includes('campo_magnetico_emtt'))
+  check("la bozza NON e js/controindicazioni.js", !fs.existsSync(path.join(ROOT,'js/controindicazioni.js')))
+  check("e dichiara di essere una bozza da rivedere", /BOZZA DA RIVEDERE/.test(bozza))
+  check("nessuna pagina dell app carica la bozza",
+    !fs.readdirSync(ROOT).filter(f => f.endsWith('.html') && f !== 'controindicazioni-revisione.html')
+      .some(f => fs.readFileSync(path.join(ROOT,f),'utf8').includes('controindicazioni-bozza.js')))
+
+  const { page, ctx, errori } = await apriPagina(browser, {}, 'controindicazioni-revisione.html', '')
+  await page.waitForTimeout(500)
+  check("la pagina di revisione si apre senza errori", errori.length === 0, errori)
+  check("ci sono tutti gli 11 blocchi", (await page.$$('#blocchi .card')).length === 11)
+  check("ogni voce porta almeno una fonte",
+    await page.$$eval('#blocchi .voce', v => v.every(x => x.querySelectorAll('.vfonti .fchip').length > 0)))
+  check("la pagina non chiama nessuna API ne il database",
+    !fs.readFileSync(path.join(ROOT,'controindicazioni-revisione.html'),'utf8').match(/supabase|\/api\//))
   await ctx.close()
 }
 

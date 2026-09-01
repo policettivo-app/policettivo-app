@@ -365,7 +365,8 @@
 
   <!-- ── Premium banner ──────────────────────────────────── -->
   <div class="premium-banner" id="premium-banner">
-    <span class="premium-banner-text">⭐ Piano Free — 5 analisi AI gratuite per provare Policettivo®</span>
+    <!-- ai-solo-premium-v1 : niente piu' analisi AI gratuite da promettere. -->
+    <span class="premium-banner-text">⭐ Stai usando Policettivo Free — le analisi con intelligenza artificiale sono riservate a Premium</span>
     <button class="premium-banner-btn" onclick="window.location.href='upgrade.html'">Scopri Premium</button>
   </div>
 
@@ -652,7 +653,7 @@
       <div class="wizard-step active" id="wstep-0">
         <div class="wizard-badge">POLICETTIVO</div>
         <div class="wizard-title">Benvenuto nell'app! 👋</div>
-        <div class="wizard-sub">Sei nel posto giusto.<br><br>Con Policettivo gestisci la <strong>visita posturale</strong>, scatti foto, l'<strong>AI analizza la postura</strong> e suggerisce NPL o GPL, crei il <strong>protocollo esercizi</strong> e condividi il link direttamente al paziente.<br><br>Il piano Free include <strong>5 analisi AI gratuite</strong>. Con Premium le analisi AI sono illimitate.</div>
+        <div class="wizard-sub">Sei nel posto giusto.<br><br>Con Policettivo gestisci la <strong>visita posturale</strong>, scatti foto, l'<strong>AI analizza la postura</strong> e suggerisce NPL o GPL, crei il <strong>protocollo esercizi</strong> e condividi il link direttamente al paziente.<br><br>Il piano Free include tutte le funzioni base e pazienti illimitati. Le <strong>analisi con intelligenza artificiale</strong> (postura, referti, sedute, sintesi) sono riservate a <strong>Premium</strong>. <!-- ai-solo-premium-v1 --></div>
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
           <button class="btn-primary" onclick="goWizardStep(1)">Inizia il tour</button>
@@ -1383,6 +1384,9 @@
       input.value = ''
     }
     async function analizzaReferto(base64, mediaType) {
+      /* ai-solo-premium-v1 : il free vede subito il motivo, senza aspettare
+         il giro sul server. Il divieto vero resta in api/_check-ai-access.js. */
+      if (window.policettivoRichiedePremium && !window.policettivoRichiedePremium()) return
       const loading = document.getElementById('referto-loading')
       const ok = document.getElementById('referto-ok')
       const warn = document.getElementById('referto-warn')
@@ -1398,11 +1402,10 @@
         })
         if (res.status === 403) { const e403 = await res.json(); if (window.policettivoHandleAI403) window.policettivoHandleAI403(); else alert(e403.error || 'Limite AI raggiunto.'); return }
         const json = await res.json()
-        if (json.ai_uses !== undefined) {
-          if (window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
-          const _ab = document.getElementById('referto-ai-badge')
-          if (_ab) { const _r = Math.max(0, 15 - json.ai_uses); _ab.textContent = _r + ' analisi AI disponibili' }
-        }
+        /* ai-solo-premium-v1 : non si conta piu' niente. Se la risposta e'
+           arrivata, l'account e' Premium. */
+        const _ab = document.getElementById('referto-ai-badge')
+        if (_ab) _ab.textContent = 'Lettura AI ⭐ Premium'
         let count = 0
         if (json.dati) count = compileFormFromReferto(json.dati)
         if (count > 0) {
