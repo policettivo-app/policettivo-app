@@ -2677,7 +2677,10 @@
       if (box) { box.style.display = 'block'; box.innerHTML = '<div class="de-tit">Lettura in corso</div>Sto leggendo il documento…' }
       try {
         const { data: { session } } = await _supabase.auth.getSession()
-        const resp = await fetch('/api/analisi-documento', {
+        /* referti-letti-v1 — la lettura vive dentro /api/analisi-referto:
+           il piano Vercel in uso ammette 12 funzioni serverless e il repo
+           ne aveva gia' 12. Il parametro document_id sceglie il ramo. */
+        const resp = await fetch('/api/analisi-referto', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (session?.access_token || '') },
           body: JSON.stringify({ document_id: id })

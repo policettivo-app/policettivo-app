@@ -1088,7 +1088,7 @@ function datiDocumenti(opts = {}) {
 sez('Referti letti — la migration e le funzioni dell\'endpoint')
 {
   const sql = fs.readFileSync(path.join(ROOT,'db/migrations/040_documenti_letti.sql'),'utf8')
-  const api = fs.readFileSync(path.join(ROOT,'api/analisi-documento.js'),'utf8')
+  const api = fs.readFileSync(path.join(ROOT,'api/analisi-referto.js'),'utf8')
 
   check('la migration 040 esiste ed è idempotente',
     sql.includes('ADD COLUMN IF NOT EXISTS estratto_ai') && sql.includes('CREATE INDEX IF NOT EXISTS'))
@@ -1096,8 +1096,12 @@ sez('Referti letti — la migration e le funzioni dell\'endpoint')
 
   check('⚖️ l\'endpoint verifica che il documento sia di un TUO paziente',
     api.includes("professional_id !== prof.id") && api.includes('Non autorizzato su questo documento'))
+  /* L'ordine va guardato DENTRO il ramo cartella: nel file c'è anche il
+     ramo anagrafica, che chiama checkAIAccess per primo legittimamente. */
+  const ramoDoc = api.slice(api.indexOf('async function leggiDocumentoInCartella'))
   check('⚖️ un tentativo non autorizzato NON consuma un\'analisi AI',
-    api.indexOf('Non autorizzato su questo documento') < api.indexOf('checkAIAccess(req)'))
+    ramoDoc.indexOf('Non autorizzato su questo documento') < ramoDoc.indexOf('checkAIAccess(req)'),
+    { nega: ramoDoc.indexOf('Non autorizzato su questo documento'), ai: ramoDoc.indexOf('checkAIAccess(req)') })
   check('il file lo scarica il server dal bucket privato, non il browser',
     api.includes("storage.from('clinical-docs').download"))
   check('il PDF va come «document», l\'immagine come «image»',
@@ -1109,11 +1113,20 @@ sez('Referti letti — la migration e le funzioni dell\'endpoint')
   check('se la risposta non si capisce NON si salva niente',
     api.includes('un estratto che non si e\' capito e\' peggio'))
   check('se manca la 040 lo dice per nome', api.includes('040_documenti_letti.sql'))
+  /* ⚠️ Il piano Vercel ammette 12 funzioni serverless per deploy e il repo
+     ne aveva gia' 12: la tredicesima ha fatto fallire il deploy in 15s.
+     I file che iniziano con _ non contano come funzioni. */
+  const funzioni = fs.readdirSync(path.join(ROOT,'api')).filter(f => f.endsWith('.js') && !f.startsWith('_'))
+  check('⚠️ non più di 12 funzioni serverless in api/', funzioni.length <= 12, funzioni.length)
+  check('la lettura NON è una funzione a parte', !fs.existsSync(path.join(ROOT,'api/analisi-documento.js')))
+  check('i due lavori dell\'endpoint hanno prompt separati',
+    api.includes('const PROMPT_DOC') && api.includes('Sei un assistente medico') &&
+    api.includes('if (body.document_id)'))
 }
 
 sez('Referti letti — le funzioni pure, provate davvero')
 {
-  const m = await import(path.join(ROOT, 'api/analisi-documento.js'))
+  const m = await import(path.join(ROOT, 'api/analisi-referto.js'))
   const { percorsoDaUrl, tipoDaPercorso, normalizza, testoLeggibile } = m._test
 
   check('dal file_url ricava il percorso dentro il bucket',
@@ -1226,7 +1239,7 @@ sez('Referti letti — se la lettura non riesce, il motivo resta scritto')
 {
   const { page, ctx } = await apriPagina(browser, datiDocumenti(), 'paziente.html', '?id=' + PID + '#cartella')
   await page.waitForTimeout(1400)
-  await page.route('**/api/analisi-documento', route => {
+  await page.route('**/api/analisi-referto', route => {
     route.fulfill({ status:502, contentType:'application/json',
       body: JSON.stringify({ error:'La risposta della lettura non è stata capita.' }) })
   })
