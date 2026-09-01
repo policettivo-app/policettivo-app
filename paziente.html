@@ -164,6 +164,22 @@
     .doc-item-desc { font-size: 13px; font-weight: 600; color: #000; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .doc-item-date { font-size: 11px; color: #aaa; margin-top: 2px; }
     .doc-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    /* referti-letti-v1 — «letto» e «da leggere» devono vedersi senza
+       aprire niente: e' quello che dice se la Sintesi AI sa cosa c'e'
+       scritto in quel referto oppure no. */
+    .doc-wrap { display: flex; flex-direction: column; gap: 0; }
+    .doc-stato { display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: .4px; padding: 2px 7px; border-radius: 20px; margin-left: 8px; vertical-align: middle; }
+    .doc-stato.letto { background: #0d5c3f; color: #fff; }
+    .doc-stato.da-leggere { background: #eee; color: #888; }
+    .btn-doc-leggi { background: #0d5c3f; color: #fff; border: none; border-radius: 7px; padding: 7px 11px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-doc-leggi:hover { background: #0a4a32; }
+    .btn-doc-leggi:disabled { opacity: .5; cursor: default; }
+    .btn-doc-estratto { background: #fff; color: #0d5c3f; border: 1.5px solid #0d5c3f; border-radius: 7px; padding: 6px 10px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .doc-estratto { background: #f4f9f6; border: 1.5px solid #cfe3d8; border-top: none; border-radius: 0 0 10px 10px; padding: 12px 14px; font-size: 12.5px; line-height: 1.6; color: #1a1a1a; margin: -6px 0 0; }
+    .doc-estratto .de-tit { font-size: 10px; font-weight: 800; color: #0d5c3f; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .doc-estratto .de-et { font-size: 11px; font-weight: 700; color: #0d5c3f; text-transform: uppercase; letter-spacing: .3px; }
+    .doc-estratto .de-cit { background: #fff; border-left: 3px solid #cfe3d8; padding: 6px 10px; margin: 4px 0; font-size: 11.5px; font-style: italic; color: #555; }
+    .doc-nonletti { background: #fff8e1; border: 1.5px solid #FFD008; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.55; color: #4a3b00; margin-bottom: 14px; }
     .btn-doc-view { background: #FFD008; border: none; color: #000; padding: 6px 12px; border-radius: 6px; font-family: Montserrat, sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; }
     .btn-doc-del { background: transparent; border: 1px solid #ddd; color: #c62828; padding: 6px 10px; border-radius: 6px; font-family: Montserrat, sans-serif; font-size: 11px; cursor: pointer; }
     .ai-report-box { background: #f0f4ff; border: 1.5px solid #90caf9; border-radius: 12px; padding: 20px; margin-top: 16px; display: none; }
@@ -1098,6 +1114,9 @@
                 <button class="csai-action-btn" onclick="csAIAnnullaOpzioni()">✕ Annulla</button>
               </div>
             </div>
+            <!-- referti-letti-v1 — quello che la sintesi NON ha potuto leggere,
+                 scritto sopra la sintesi stessa. -->
+            <div id="csai-avviso-nonletti" class="doc-nonletti" style="display:none"></div>
             <div class="csai-report" id="csai-report">
               <div class="csai-section">
                 <div class="csai-section-label">Problema principale</div>
@@ -2607,20 +2626,121 @@
         const icon = tipoIcon[doc.tipo] || '📎'
         const label = tipoLabel[doc.tipo] || doc.tipo
         const data = new Date(doc.created_at).toLocaleDateString('it-IT', {day:'2-digit',month:'short',year:'numeric'})
+        const letto = !!doc.estratto_ai
+        html += '<div class="doc-wrap">'
         html += '<div class="doc-item">'
         html += '<div class="doc-item-icon">' + icon + '</div>'
         html += '<div class="doc-item-info">'
-        html += '<div class="doc-item-tipo">' + label + '</div>'
+        html += '<div class="doc-item-tipo">' + label +
+          '<span class="doc-stato ' + (letto ? 'letto' : 'da-leggere') + '">' + (letto ? 'LETTO' : 'DA LEGGERE') + '</span></div>'
         html += '<div class="doc-item-desc">' + doc.descrizione + '</div>'
         html += '<div class="doc-item-date">' + data + '</div>'
         html += '</div>'
         html += '<div class="doc-item-actions">'
+        // referti-letti-v1 — la lettura si chiede, non parte da sola: ogni
+        // documento letto consuma una delle analisi AI del professionista.
+        html += letto
+          ? '<button class="btn-doc-estratto" onclick="mostraEstratto(' + "'" + doc.id + "'" + ')">Cosa dice</button>'
+          : '<button class="btn-doc-leggi" id="btn-leggi-' + doc.id + '" onclick="leggiDocumento(' + "'" + doc.id + "'" + ')">🔎 Leggi</button>'
         html += '<button class="btn-doc-view" onclick="apriDocumento(' + "'" + doc.file_url + "'" + ')">Apri</button>'
         html += '<button class="btn-doc-view" onclick="scaricaDocumento(' + "'" + doc.file_url + "'" + ')">&#11015;</button>'
         html += '<button class="btn-doc-del" onclick="eliminaDocumento(' + "'" + doc.id + "','" + doc.file_url + "'" + ')">🗑</button>'
         html += '</div></div>'
+        html += '<div id="estratto-' + doc.id + '" class="doc-estratto" style="display:none"></div>'
+        html += '</div>'
       })
-      lista.innerHTML = html
+      /* ⚠️ Se dei documenti non sono stati letti va detto QUI, prima che
+         qualcuno generi una sintesi credendo che l'assistente abbia visto
+         tutto. Un'assenza che non si vede vale come un'informazione
+         sbagliata. */
+      const nonLetti = docs.filter(function (d) { return !d.estratto_ai })
+      const avviso = nonLetti.length
+        ? '<div class="doc-nonletti">⚠️ <b>' + nonLetti.length +
+          (nonLetti.length === 1 ? ' documento non è stato letto</b>: il suo contenuto' : ' documenti non sono stati letti</b>: il loro contenuto') +
+          ' non entra nella Sintesi AI. Tocca <b>🔎 Leggi</b> sulle righe che interessano.</div>'
+        : ''
+      lista.innerHTML = avviso + html
+    }
+
+    /* ── referti-letti-v1 ─────────────────────────────────────────────
+       Prima di questo blocco i documenti entravano nella Sintesi AI solo
+       come «tipo: descrizione»: il contenuto non lo leggeva nessuno, e
+       chiedere all'assistente se nei referti ci fosse qualcosa di
+       importante era una domanda senza risposta possibile.
+       Qui il referto viene letto una volta e l'estratto resta in cartella.
+       ⚠️ L'estratto dice cosa il documento RIPORTA. Non è un parere e non
+       è un via libera a nessuna terapia. */
+    async function leggiDocumento(id) {
+      const btn = document.getElementById('btn-leggi-' + id)
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Leggo…' }
+      const box = document.getElementById('estratto-' + id)
+      if (box) { box.style.display = 'block'; box.innerHTML = '<div class="de-tit">Lettura in corso</div>Sto leggendo il documento…' }
+      try {
+        const { data: { session } } = await _supabase.auth.getSession()
+        const resp = await fetch('/api/analisi-documento', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (session?.access_token || '') },
+          body: JSON.stringify({ document_id: id })
+        })
+        const json = await resp.json()
+        if (!resp.ok) {
+          if (resp.status === 403 && json.limitReached) {
+            if (window.policettivoHandleAI403) window.policettivoHandleAI403()
+          }
+          // Il motivo resta scritto sotto la riga del documento: un alert
+          // che si chiude non dice piu' quale dei documenti non è andato.
+          if (box) box.innerHTML = '<div class="de-tit" style="color:#c62828">Non sono riuscito a leggerlo</div>' +
+            '<div style="color:#8c1d1d">' + escHtmlDoc(json.error || ('Errore ' + resp.status)) + '</div>'
+          if (btn) { btn.disabled = false; btn.textContent = '🔎 Riprova' }
+          return
+        }
+        if (json.ai_uses !== undefined && window.policettivoShowAIBanner) window.policettivoShowAIBanner(json.ai_uses)
+        await caricaDocumenti()
+        mostraEstratto(id)
+      } catch (e) {
+        if (box) box.innerHTML = '<div class="de-tit" style="color:#c62828">Non sono riuscito a leggerlo</div><div style="color:#8c1d1d">' + escHtmlDoc(e.message || e) + '</div>'
+        if (btn) { btn.disabled = false; btn.textContent = '🔎 Riprova' }
+      }
+    }
+
+    function escHtmlDoc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    }
+
+    function mostraEstratto(id) {
+      const box = document.getElementById('estratto-' + id)
+      if (!box) return
+      if (box.style.display === 'block' && box.getAttribute('data-aperto') === '1') {
+        box.style.display = 'none'; box.setAttribute('data-aperto', '0'); return
+      }
+      const doc = (documentiCaricati || []).find(function (d) { return String(d.id) === String(id) })
+      if (!doc) return
+      const r = doc.rilievi || {}
+      const righe = []
+      const el = function (et, arr) {
+        if (!arr || !arr.length) return
+        righe.push('<div style="margin-top:6px"><span class="de-et">' + et + '</span><br>' + escHtmlDoc(arr.join(' · ')) + '</div>')
+      }
+      if (r.sintesi) righe.push('<div>' + escHtmlDoc(r.sintesi) + '</div>')
+      else if (doc.estratto_ai) righe.push('<div style="white-space:pre-wrap">' + escHtmlDoc(doc.estratto_ai) + '</div>')
+      el('Diagnosi riportate',   r.diagnosi)
+      el('Condizioni rilevanti', r.condizioni_rilevanti)
+      el('Dispositivi impiantati', r.dispositivi_impiantati)
+      el('Farmaci',              r.farmaci)
+      el('Esami alterati',       r.esami_alterati)
+      /* Le citazioni sono la parte che rende verificabile tutto il resto:
+         senza la frase del referto, un rilievo è una parola dell'AI. */
+      if (r.citazioni && r.citazioni.length) {
+        righe.push('<div style="margin-top:8px"><span class="de-et">Dal documento</span>' +
+          r.citazioni.map(function (c) { return '<div class="de-cit">« ' + escHtmlDoc(c) + ' »</div>' }).join('') + '</div>')
+      }
+      const quando = doc.estratto_ai_il ? new Date(doc.estratto_ai_il).toLocaleDateString('it-IT') : ''
+      righe.push('<div style="margin-top:10px;font-size:11px;color:#7a8b83;line-height:1.5">Lettura automatica del documento' +
+        (quando ? ' del ' + quando : '') + '. Riporta ciò che il documento dice: <b>non è un parere clinico e non autorizza alcuna terapia.</b></div>')
+      righe.push('<div style="margin-top:8px"><button class="btn-doc-view" onclick="leggiDocumento(' + "'" + id + "'" + ')">↻ Rileggi</button></div>')
+      box.innerHTML = '<div class="de-tit">Cosa dice questo documento</div>' + righe.join('')
+      box.style.display = 'block'
+      box.setAttribute('data-aperto', '1')
     }
 
     async function scaricaDocumento(fileUrl) {
@@ -3685,10 +3805,27 @@
       // 6) Documenti / referti + note clinica
       if (opts.documenti_referti) {
         const lines = ['\n== DOCUMENTI / REFERTI E NOTE CARTELLA ==']
+        /* referti-letti-v1 — QUI stava il difetto: entravano solo tipo e
+           descrizione, cioè quello che aveva scritto il professionista. Il
+           CONTENUTO del referto non lo vedeva nessuno, e chiedere alla
+           sintesi se nei documenti ci fosse qualcosa di importante era una
+           domanda senza risposta possibile. Ora entra l'estratto, quando
+           il documento è stato letto. */
         const docsSection = documentiCaricati && documentiCaricati.length
-          ? documentiCaricati.map(function(d){ return '- ' + (d.tipo || 'documento') + ': ' + (d.descrizione || 'senza descrizione') + ' (' + (d.created_at ? d.created_at.slice(0,10) : '') + ')' }).join('\n')
+          ? documentiCaricati.map(function(d){
+              const testa = '- ' + (d.tipo || 'documento') + ': ' + (d.descrizione || 'senza descrizione') + ' (' + (d.created_at ? d.created_at.slice(0,10) : '') + ')'
+              if (!d.estratto_ai) return testa + '\n  [NON LETTO: il contenuto di questo documento non è stato analizzato]'
+              return testa + '\n  CONTENUTO LETTO DAL DOCUMENTO:\n  ' + String(d.estratto_ai).replace(/\n/g, '\n  ')
+            }).join('\n')
           : '- (nessun documento caricato)'
         lines.push('Documenti allegati:'); lines.push(docsSection)
+        /* ⚠️ Il numero dei non letti va nel prompt, non solo a schermo:
+           altrimenti la sintesi parla dei documenti come se li avesse
+           visti tutti, e chi la legge non ha modo di accorgersene. */
+        const _nonLetti = (documentiCaricati || []).filter(function(d){ return !d.estratto_ai }).length
+        if (_nonLetti) {
+          lines.push('ATTENZIONE: ' + _nonLetti + ' di questi documenti NON sono stati letti. Il loro contenuto non ti è noto.')
+        }
         const noteLines = (noteRes.data || []).map(function(n){ return '- ' + (n.created_at ? n.created_at.slice(0,10) : '') + ' [' + (n.title || 'senza titolo') + '] ' + (n.content || '—') })
         lines.push('Note cartella (max 5):'); lines.push(noteLines.length ? noteLines.join('\n') : '- (nessuna nota)')
         bodyParts.push(lines.join('\n'))
@@ -3700,13 +3837,26 @@
 
       const schemaJSON = '{"problema_principale":"...","elementi_documentali":"...","osservazioni_cliniche":"...","protocollo_attivo":"...","criticita":"...","evoluzione_clinica":"...","nota_finale":"..."}'
 
+      // referti-letti-v1 — l'avviso a schermo, prima ancora della risposta.
+      try {
+        const _nl = (documentiCaricati || []).filter(function(d){ return !d.estratto_ai }).length
+        const _box = document.getElementById('csai-avviso-nonletti')
+        if (_box) {
+          if (opts.documenti_referti && _nl) {
+            _box.style.display = 'block'
+            _box.innerHTML = '⚠️ <b>' + _nl + (_nl === 1 ? ' documento non è stato letto</b>' : ' documenti non sono stati letti</b>') +
+              ': la sintesi non tiene conto del loro contenuto. Puoi farli leggere dalla scheda <b>Documenti</b>, con 🔎 Leggi.'
+          } else { _box.style.display = 'none'; _box.innerHTML = '' }
+        }
+      } catch (e) {}
+
       const prompt = 'Sei un assistente clinico AI per fisioterapisti e osteopati. Analizza SOLO i dati clinici forniti qui sotto (le sezioni assenti non sono state richieste dal professionista) e produci una sintesi strutturata IN ITALIANO.\n\n' +
         bodyParts.join('\n') +
         '\n\nRispondi SOLO con un oggetto JSON valido con questa struttura (ogni campo max 80 parole, linguaggio professionale, niente diagnosi mediche, non inventare dati e non riportare dati non presenti):\n' +
         schemaJSON +
         '\n\nCampi:\n' +
         '- problema_principale: quadro clinico principale, sintomi dominanti\n' +
-        '- elementi_documentali: elementi rilevanti da documenti/note in cartella; se non richiesti/assenti scrivi "Non incluso o non disponibile."\n' +
+        '- elementi_documentali: elementi rilevanti da documenti/note in cartella, basandoti sul CONTENUTO LETTO quando c\'è; se non richiesti/assenti scrivi "Non incluso o non disponibile.". Se il materiale segnala documenti NON LETTI, dillo apertamente in questo campo con il loro numero (es. "2 documenti non sono stati letti: il loro contenuto non è stato considerato") e non fare supposizioni su cosa contengano\n' +
         '- osservazioni_cliniche: sintesi delle valutazioni FT e posturali (body chart, VAS, piani, ecc.) tenendo conto delle sezioni selezionate\n' +
         '- protocollo_attivo: descrizione del protocollo terapeutico attivo e obiettivi; se assente scrivi "Nessun protocollo attivo."\n' +
         '- criticita: segnali di attenzione (red flag, plateau, peggioramenti). Se ci sono red flag ATTIVE evidenziale.\n' +

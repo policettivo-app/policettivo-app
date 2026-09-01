@@ -1061,6 +1061,186 @@ sez('Progetto terapeutico — se la migration 039 non è stata lanciata')
   await ctx.close()
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   referti-letti-v1
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function datiDocumenti(opts = {}) {
+  const d = datiCartella(opts)
+  d.clinical_documents = [
+    { id:'d1', patient_id:PID, tipo:'referto', descrizione:'RMN lombare', file_url:'https://x/storage/v1/object/public/clinical-docs/' + PID + '/docs/rmn.pdf',
+      created_at:'2026-03-12T09:00:00Z',
+      estratto_ai: 'RMN rachide lombosacrale del 2026-03-12\nProtrusione discale L5-S1.\nDispositivi impiantati: pacemaker bicamerale',
+      estratto_ai_il: '2026-08-30T10:00:00Z',
+      rilievi: { v:1, tipo_documento:'RMN rachide lombosacrale', data_documento:'2026-03-12',
+        sintesi:'Protrusione discale L5-S1 senza compressione radicolare.',
+        diagnosi:['protrusione discale L5-S1'], condizioni_rilevanti:[],
+        dispositivi_impiantati:['pacemaker bicamerale'], farmaci:['warfarin 5 mg'],
+        esami_alterati:[], citazioni:['portatore di pacemaker bicamerale dal 2019','in terapia con warfarin 5 mg'], leggibile:true } },
+    { id:'d2', patient_id:PID, tipo:'esame', descrizione:'Emocromo', file_url:'https://x/storage/v1/object/public/clinical-docs/' + PID + '/docs/emo.jpg',
+      created_at:'2026-07-01T09:00:00Z' },
+    { id:'d3', patient_id:PID, tipo:'visita', descrizione:'Visita ortopedica', file_url:'https://x/storage/v1/object/public/clinical-docs/' + PID + '/docs/orto.pdf',
+      created_at:'2026-07-20T09:00:00Z' }
+  ]
+  return d
+}
+
+sez('Referti letti — la migration e le funzioni dell\'endpoint')
+{
+  const sql = fs.readFileSync(path.join(ROOT,'db/migrations/040_documenti_letti.sql'),'utf8')
+  const api = fs.readFileSync(path.join(ROOT,'api/analisi-documento.js'),'utf8')
+
+  check('la migration 040 esiste ed è idempotente',
+    sql.includes('ADD COLUMN IF NOT EXISTS estratto_ai') && sql.includes('CREATE INDEX IF NOT EXISTS'))
+  check('l\'indice serve proprio ai «non letti»', sql.includes('WHERE estratto_ai IS NULL'))
+
+  check('⚖️ l\'endpoint verifica che il documento sia di un TUO paziente',
+    api.includes("professional_id !== prof.id") && api.includes('Non autorizzato su questo documento'))
+  check('⚖️ un tentativo non autorizzato NON consuma un\'analisi AI',
+    api.indexOf('Non autorizzato su questo documento') < api.indexOf('checkAIAccess(req)'))
+  check('il file lo scarica il server dal bucket privato, non il browser',
+    api.includes("storage.from('clinical-docs').download"))
+  check('il PDF va come «document», l\'immagine come «image»',
+    api.includes("type: 'document'") && api.includes("type: 'image'"))
+  check('⚠️ il prompt vieta di dedurre e impone le citazioni',
+    api.includes('NON inventare e NON dedurre') && api.includes('copiata alla lettera'))
+  check('⚠️ e vieta diagnosi e indicazioni terapeutiche',
+    api.includes('NON fare diagnosi tue'))
+  check('se la risposta non si capisce NON si salva niente',
+    api.includes('un estratto che non si e\' capito e\' peggio'))
+  check('se manca la 040 lo dice per nome', api.includes('040_documenti_letti.sql'))
+}
+
+sez('Referti letti — le funzioni pure, provate davvero')
+{
+  const m = await import(path.join(ROOT, 'api/analisi-documento.js'))
+  const { percorsoDaUrl, tipoDaPercorso, normalizza, testoLeggibile } = m._test
+
+  check('dal file_url ricava il percorso dentro il bucket',
+    percorsoDaUrl('https://x.supabase.co/storage/v1/object/public/clinical-docs/pid/a%20b.pdf?t=1') === 'pid/a b.pdf')
+  check('un documento fuori dall\'archivio non produce un percorso finto',
+    percorsoDaUrl('data:image/png;base64,AA') === null && percorsoDaUrl(null) === null)
+  check('il PDF è riconosciuto anche in maiuscolo', tipoDaPercorso('a/B.PDF') === 'application/pdf')
+  check('senza estensione si usa il tipo del file', tipoDaPercorso('a/b', 'image/png') === 'image/png')
+
+  const n = normalizza({ tipo_documento:'RMN', diagnosi:'ernia L5-S1', farmaci:['warfarin',''], citazioni:['protrusione L5-S1'] })
+  check('una stringa dove serviva un elenco non rompe niente', JSON.stringify(n.diagnosi) === '["ernia L5-S1"]', n.diagnosi)
+  check('le voci vuote vengono tolte', JSON.stringify(n.farmaci) === '["warfarin"]', n.farmaci)
+  check('i campi che il modello ha saltato diventano elenchi vuoti',
+    Array.isArray(n.condizioni_rilevanti) && n.condizioni_rilevanti.length === 0)
+  check('un documento illeggibile lo dice, invece di produrre un estratto vuoto',
+    testoLeggibile(normalizza({ leggibile:false, sintesi:'Foto sfocata.' })).startsWith('Documento non leggibile'))
+  check('il testo leggibile riporta i rilievi', testoLeggibile(n).includes('Diagnosi riportate: ernia L5-S1'))
+}
+
+sez('Referti letti — letto, da leggere, e cosa dice')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiDocumenti(), 'paziente.html', '?id=' + PID + '#cartella')
+  const gravi = errori.filter(e => /documento|estratto|caricaDocumenti/i.test(e))
+  check('nessun errore JS sui documenti', gravi.length === 0, gravi)
+  await page.waitForTimeout(1400)
+
+  const stati = await page.$$eval('.doc-stato', els => els.map(e => e.textContent))
+  check('ogni documento dice se è stato letto', stati.length === 3, stati)
+  check('uno letto e due da leggere',
+    stati.filter(t => t === 'LETTO').length === 1 && stati.filter(t => t === 'DA LEGGERE').length === 2, stati)
+
+  check('⚠️ l\'avviso dice quanti non sono stati letti',
+    (await page.textContent('#doc-list')).includes('2 documenti non sono stati letti'))
+  check('e dice cosa comporta: non entrano nella Sintesi AI',
+    (await page.textContent('.doc-nonletti')).includes('Sintesi AI'))
+
+  check('sul documento letto c\'è «Cosa dice», non «Leggi»',
+    (await page.$$('.btn-doc-estratto')).length === 1 && (await page.$$('.btn-doc-leggi')).length === 2)
+
+  await page.click('.btn-doc-estratto')
+  await page.waitForTimeout(400)
+  const est = await page.textContent('#estratto-d1')
+  check('l\'estratto si apre sotto la riga del documento', await page.isVisible('#estratto-d1'))
+  check('riporta la sintesi del referto', est.includes('Protrusione discale L5-S1'))
+  check('e i dispositivi impiantati, che contano per le terapie', est.includes('pacemaker bicamerale'))
+  check('⚠️ e le CITAZIONI testuali dal documento',
+    est.includes('portatore di pacemaker bicamerale dal 2019'))
+  check('le citazioni sono marcate come tali', (await page.$$('#estratto-d1 .de-cit')).length === 2)
+  check('⚖️ dichiara che NON è un parere e non autorizza terapie',
+    est.includes('non è un parere clinico e non autorizza alcuna terapia'))
+  check('si può rileggere il documento', est.includes('Rileggi'))
+
+  await page.click('.btn-doc-estratto')
+  await page.waitForTimeout(300)
+  check('e si richiude', !(await page.isVisible('#estratto-d1')))
+  await ctx.close()
+}
+
+sez('Referti letti — il contenuto entra nella Sintesi AI')
+{
+  const { page, ctx } = await apriPagina(browser, datiDocumenti(), 'paziente.html', '?id=' + PID + '#cartella')
+  await page.waitForTimeout(1400)
+
+  // si intercetta la chiamata all'AI per leggere il contesto che le arriva
+  await page.route('**/api/ai-analisi', route => {
+    route.fulfill({ status:200, contentType:'application/json',
+      body: JSON.stringify({ content:[{ text: JSON.stringify({ problema_principale:'Lombalgia', elementi_documentali:'2 documenti non sono stati letti.', osservazioni_cliniche:'', protocollo_attivo:'', criticita:'', evoluzione_clinica:'', nota_finale:'' }) }] }) })
+  })
+  let inviato = null
+  page.on('request', r => { if (r.url().includes('/api/ai-analisi')) inviato = r.postData() })
+
+  // La Sintesi AI è riservata a Premium: nel test si finge il piano, se no
+  // si apre la modale di upgrade invece del pannello delle opzioni.
+  await page.evaluate(() => { window.isPremium = true })
+  await page.click('#cn-btn-sintesi')
+  await page.waitForTimeout(400)
+  await page.click('#csai-avvia-btn')
+  await page.waitForTimeout(400)
+  await page.click('text=🧠 Genera sintesi')
+  await page.waitForTimeout(1400)
+
+  check('la sintesi è partita', !!inviato)
+  check('⚠️ il CONTENUTO del referto arriva all\'AI, non solo il titolo',
+    inviato && inviato.includes('CONTENUTO LETTO DAL DOCUMENTO') && inviato.includes('pacemaker bicamerale'), (inviato||'').slice(0,60))
+  check('i documenti non letti sono marcati uno per uno',
+    (inviato.match(/NON LETTO/g) || []).length === 2)
+  check('⚠️ e il conto dei non letti è scritto nel prompt',
+    inviato.includes('2 di questi documenti NON sono stati letti'))
+  check('all\'AI viene chiesto di dichiararlo nella sintesi',
+    inviato.includes('documenti NON LETTI, dillo apertamente'))
+  check('⚠️ e l\'avviso si vede a schermo sopra la sintesi',
+    await page.isVisible('#csai-avviso-nonletti'))
+  check('con il numero giusto',
+    (await page.textContent('#csai-avviso-nonletti')).includes('2 documenti non sono stati letti'))
+  await ctx.close()
+}
+
+sez('Referti letti — quando tutti sono letti non si avvisa a vuoto')
+{
+  const dati = datiDocumenti()
+  dati.clinical_documents = [dati.clinical_documents[0]]   // solo quello letto
+  const { page, ctx } = await apriPagina(browser, dati, 'paziente.html', '?id=' + PID + '#cartella')
+  await page.waitForTimeout(1400)
+  check('nessun avviso se non manca niente', (await page.$$('.doc-nonletti:not(#csai-avviso-nonletti)')).length === 0)
+  check('e il documento resta marcato LETTO', (await page.textContent('.doc-stato')) === 'LETTO')
+  await ctx.close()
+}
+
+sez('Referti letti — se la lettura non riesce, il motivo resta scritto')
+{
+  const { page, ctx } = await apriPagina(browser, datiDocumenti(), 'paziente.html', '?id=' + PID + '#cartella')
+  await page.waitForTimeout(1400)
+  await page.route('**/api/analisi-documento', route => {
+    route.fulfill({ status:502, contentType:'application/json',
+      body: JSON.stringify({ error:'La risposta della lettura non è stata capita.' }) })
+  })
+  await page.click('.btn-doc-leggi')
+  await page.waitForTimeout(900)
+  const t = await page.textContent('#estratto-d2')
+  check('⚠️ l\'errore resta sotto QUEL documento, non in un alert che sparisce',
+    t.includes('Non sono riuscito a leggerlo') && t.includes('non è stata capita'), t.slice(0,80))
+  check('e il pulsante torna disponibile per riprovare',
+    (await page.textContent('#btn-leggi-d2')).includes('Riprova'))
+  check('il documento NON risulta letto', (await page.$$eval('.doc-stato', els => els.map(e => e.textContent))).filter(x => x === 'LETTO').length === 1)
+  await ctx.close()
+}
+
 sez('Andata e ritorno anamnesi ↔ cartella')
 {
   const { page, ctx, errori } = await apriPagina(browser, datiCartella(), 'anamnesi.html', '?pid=' + PID)
