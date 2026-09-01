@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="utils-premium.js"></script>
   <script src="js/osservazioni.js"></script>
+  <script src="js/configurazioni.js"></script><!-- config-vocabolario-v1 : NPL/GPL si scrivono in js/configurazioni.js e da nessun'altra parte -->
   <script src="utils-ai.js"></script>
   <script src="js/terapie.js"></script>
 <script src="js/cartella-clinica.js"></script>
@@ -958,8 +959,8 @@
     <div class="section ds-card">
       <div class="section-title-plain ds-section-title-line">Configurazione cuscini</div>
       <div class="config-selector">
-        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc">Nero Posteriore Laterale</div></div>
-        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc">Giallo Posteriore Laterale</div></div>
+        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc" data-cfg-desc="NPL">Nero Posteriore Laterale</div></div>
+        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc" data-cfg-desc="GPL">Giallo Posteriore Laterale</div></div>
       </div>
       <div class="saving-indicator" id="saving-config">✓ Salvato</div>
     </div>
@@ -3040,7 +3041,8 @@
         `font-size:28px;font-weight:700;letter-spacing:4px;padding:12px 32px;border-radius:10px;` +
         `border:2px solid ${isNPL ? '#FFD008' : '#000'}">${tipo}</span>`
       document.getElementById('cuscino-label').textContent =
-        isNPL ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'
+        /* config-vocabolario-v1 */
+        (window.polConfig ? window.polConfig.desc(tipo) : (isNPL ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale'))
       document.getElementById('cuscino-visual').style.display = 'block'
     }
 

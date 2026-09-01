@@ -144,6 +144,23 @@ const FINTO = (DB) => {
       select(campi) { stato.op = 'select'; stato.campi = campi || ''; return q },
       eq(col, val) { stato.filtri.push({ op:'eq', col, val }); return q },
       in(col, val) { stato.filtri.push({ op:'in', col, val }); return q },
+      /* I confronti di data e i filtri parziali: la dashboard fa
+         .select().gte(...) per contare le visite del mese e senza questi
+         la catena si rompeva a meta'. Registrano il filtro come gli altri
+         ma non restringono le righe: al test interessa che la catena
+         arrivi in fondo, non rifare PostgREST. */
+      gte(col, val) { stato.filtri.push({ op:'gte', col, val }); return q },
+      lte(col, val) { stato.filtri.push({ op:'lte', col, val }); return q },
+      gt(col, val)  { stato.filtri.push({ op:'gt',  col, val }); return q },
+      lt(col, val)  { stato.filtri.push({ op:'lt',  col, val }); return q },
+      neq(col, val) { stato.filtri.push({ op:'neq', col, val }); return q },
+      is(col, val)  { stato.filtri.push({ op:'is',  col, val }); return q },
+      not(col, o, val) { stato.filtri.push({ op:'not', col, val:o + ':' + val }); return q },
+      like(col, val)  { stato.filtri.push({ op:'like',  col, val }); return q },
+      ilike(col, val) { stato.filtri.push({ op:'ilike', col, val }); return q },
+      or(espr) { stato.filtri.push({ op:'or', col:'*', val:espr }); return q },
+      range() { return q },
+      single() { return q.then0(true) },
       order() { return q },
       limit() { return q },
       maybeSingle() { return q.then0(true) },
@@ -216,7 +233,18 @@ const FINTO = (DB) => {
         auth: {
           getSession: () => Promise.resolve(DB.opts.senzaSessione
             ? { data:{ session:null } }
-            : { data:{ session:{ access_token:'tok', user:{ id:'user-1' } } } })
+            : { data:{ session:{ access_token:'tok', user:{ id:'user-1', email:'prova@policettivo.it' } } } }),
+          /* Il finto aveva solo getSession, e senza email. Bastava a poche
+             pagine: assegna-protocollo chiama auth.getUser() e la dashboard
+             fa session.user.email.split('@'), quindi tutte e due morivano
+             appena il test provava ad aprirle. Non era un difetto delle
+             pagine, era l'impalcatura incompleta.
+             ⚠️ L'email NON e' quella dell'amministratore: se lo fosse, ogni
+             pagina si crederebbe Premium e le prove sul piano free non
+             direbbero piu' niente. */
+          getUser: () => Promise.resolve(DB.opts.senzaSessione
+            ? { data:{ user:null }, error:new Error('nessuna sessione') }
+            : { data:{ user:{ id:'user-1', email:'prova@policettivo.it' } }, error:null })
         },
         from: tabella,
         storage: {
@@ -242,7 +270,7 @@ const FINTO = (DB) => {
   }
 }
 
-async function apriPagina(browser, dati, file, query) {
+async function apriPagina(browser, dati, file, query, opzioni) {
   const ctx = await browser.newContext({ viewport:{ width:1280, height:900 } })
   // niente rete verso l'esterno: font e supabase-js dal CDN non servono al test
   await ctx.route('**://cdn.jsdelivr.net/**', r => r.fulfill({ status:200, contentType:'text/javascript', body:'/* finto */' }))
@@ -253,6 +281,9 @@ async function apriPagina(browser, dati, file, query) {
   const errori = []
   page.on('pageerror', e => errori.push(String(e)))
   await page.addInitScript(FINTO, dati)
+  /* opzioni.blocca = elenco di indirizzi da far fallire PRIMA di aprire la
+     pagina: serve a provare cosa si vede quando un file js non arriva. */
+  for (const g of (opzioni && opzioni.blocca) || []) await page.route(g, r => r.abort())
   await page.goto('http://localhost:' + PORT + '/' + file + query, { waitUntil:'networkidle' })
   await page.waitForTimeout(400)
   return { page, ctx, errori }
@@ -1344,6 +1375,50 @@ sez("ai-solo-premium-v1 — il cancello vero sta nel server")
   check("admin: i DUE punti che scrivono #ai-uses-label dicono la stessa frase",
     (adm.match(/Analisi AI non disponibili \(piano Free\)/g) || []).length === 2,
     (adm.match(/Analisi AI non disponibili \(piano Free\)/g) || []).length)
+}
+
+sez("config-vocabolario-v1 — NPL e GPL si scrivono in un posto solo")
+{
+  const voc = fs.readFileSync(path.join(ROOT,'js/configurazioni.js'),'utf8')
+  check("il vocabolario esiste", voc.includes('polConfig'))
+  check("NPL e Nero Posteriore Laterale", voc.includes('Nero Posteriore Laterale'))
+  check("GPL e Giallo Posteriore Laterale", voc.includes('Giallo Posteriore Laterale'))
+
+  /* Le sigle sono il COLORE del cuscino. Questi due termini non esistono
+     e non devono ricomparire in nessun file, commenti esclusi. */
+  const senzaC = t => t.replace(/<!--[\s\S]*?-->/g,'').replace(/\/\*[\s\S]*?\*\//g,'')
+  const PAGINE_CFG = ['valutazione-posturale.html','dashboard.html','paziente.html','visite.html','assegna-protocollo.html','esercizio.html']
+  for (const f of PAGINE_CFG) {
+    const t = senzaC(fs.readFileSync(path.join(ROOT,f),'utf8'))
+    check(f + " non dice piu Neutra Posteriore Lombare", !/Neutra Posteriore Lombare/.test(t))
+    check(f + " non dice piu Grande Piede Laterale", !/Grande Piede Laterale/.test(t))
+    check(f + " carica js/configurazioni.js", /<script src="js\/configurazioni\.js">/.test(t))
+  }
+
+  /* La prova che conta: la pagina APERTA mostra il testo del vocabolario. */
+  for (const f of ['valutazione-posturale.html','dashboard.html','visite.html','assegna-protocollo.html']) {
+    const { page, ctx, errori } = await apriPagina(browser, datiCartella(), f, '?id=' + PID)
+    await page.waitForTimeout(600)
+    const righe = await page.$$eval('[data-cfg-desc]', els => els.map(e => [e.getAttribute('data-cfg-desc'), e.textContent.trim()]))
+    check(f + ": ci sono le due etichette agganciate al vocabolario", righe.length >= 2, righe)
+    const atteso = { NPL: 'Nero Posteriore Laterale', GPL: 'Giallo Posteriore Laterale' }
+    check(f + ": a schermo si legge il testo del vocabolario",
+      righe.length > 0 && righe.every(([k, t]) => t === atteso[k]), righe)
+    check(f + ": nessun errore JS con il vocabolario", errori.length === 0, errori)
+    await ctx.close()
+  }
+
+  /* E se il file non si carica, la riserva nell'HTML dice comunque la
+     cosa giusta: mai un buco, mai il termine sbagliato. */
+  {
+    const { page, ctx } = await apriPagina(browser, datiCartella(), 'valutazione-posturale.html', '?id=' + PID,
+      { blocca: ['**/js/configurazioni.js'] })
+    await page.waitForTimeout(600)
+    const t = await page.textContent('#cfg-npl .config-card-desc')
+    check("senza il vocabolario la riserva nell'HTML dice comunque Nero Posteriore Laterale",
+      (t || '').trim() === 'Nero Posteriore Laterale', t)
+    await ctx.close()
+  }
 }
 
 sez("controindicazioni-v1 — la bozza e la pagina di revisione")

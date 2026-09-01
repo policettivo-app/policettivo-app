@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="css/design-system.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/camera-pol.js"></script>
+  <script src="js/configurazioni.js"></script><!-- config-vocabolario-v1 : NPL/GPL si scrivono in js/configurazioni.js e da nessun'altra parte -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -931,13 +932,18 @@
     <div class="vp-sec-title ds-section-title"><span class="vp-sec-badge ds-section-badge">F</span> Conclusioni</div>
     <div class="chip-label ds-chip-label">Configurazione suggerita</div>
     <div class="config-row">
+      <!-- config-vocabolario-v1 : diceva «Neutra Posteriore Lombare» e «Grande
+           Piede Laterale». Sono due termini che non esistono: NPL e GPL sono
+           il COLORE del cuscino, Nero e Giallo. Il testo qui sotto e' la
+           riserva se js/configurazioni.js non si carica; a pagina aperta lo
+           riscrive quel file, che e' l'unico posto dove si scrive. -->
       <div class="config-card" id="cfg-npl" onclick="setConfig('NPL')">
         <div class="config-card-label">NPL</div>
-        <div class="config-card-desc">Neutra Posteriore Lombare — catena crociera</div>
+        <div class="config-card-desc" data-cfg-desc="NPL">Nero Posteriore Laterale</div>
       </div>
       <div class="config-card" id="cfg-gpl" onclick="setConfig('GPL')">
         <div class="config-card-label">GPL</div>
-        <div class="config-card-desc">Grande Piede Laterale — catena omolaterale</div>
+        <div class="config-card-desc" data-cfg-desc="GPL">Giallo Posteriore Laterale</div>
       </div>
     </div>
     <div style="margin-top:14px">
@@ -3078,10 +3084,8 @@
 
   async function generaRelazioneVP() {
     await aiDisclosureGate()
-    if (!window.isPremium && vpAiUses >= 5) {
-      if (window.policettivoHandleAI403) window.policettivoHandleAI403()
-      return
-    }
+    /* ai-solo-premium-v1 : nessuna soglia, o Premium o non parte. */
+    if (window.policettivoRichiedePremium && !window.policettivoRichiedePremium()) return
     const btn     = document.getElementById('vp-ai-btn')
     const spinner = document.getElementById('vp-ai-spinner')
     const result  = document.getElementById('vp-ai-result')

@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="utils-premium.js"></script>
   <script src="utils-ai.js"></script>
+  <script src="js/configurazioni.js"></script><!-- config-vocabolario-v1 : NPL/GPL si scrivono in js/configurazioni.js e da nessun'altra parte -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; min-height: 100vh; }
@@ -334,11 +335,11 @@
         <div class="ai-config-row" style="display:flex;gap:10px;margin-top:12px">
           <div class="config-card-nv" id="nv-cfg-npl" onclick="setConfigVisita('NPL')">
             <div class="config-card-nv-name">NPL</div>
-            <div class="config-card-nv-desc">Nero Posteriore Laterale</div>
+            <div class="config-card-nv-desc" data-cfg-desc="NPL">Nero Posteriore Laterale</div>
           </div>
           <div class="config-card-nv" id="nv-cfg-gpl" onclick="setConfigVisita('GPL')">
             <div class="config-card-nv-name">GPL</div>
-            <div class="config-card-nv-desc">Giallo Posteriore Laterale</div>
+            <div class="config-card-nv-desc" data-cfg-desc="GPL">Giallo Posteriore Laterale</div>
           </div>
         </div>
       </div>
@@ -778,7 +779,8 @@
     async function avviaAIVisita() {
       const fotos = [nvFotos['sag-sx'], nvFotos['sag-dx']].filter(Boolean)
       if (!fotos.length) { alert('Carica almeno una foto sagittale'); return }
-      if (!window.isPremium && _visitAiUses >= 5) { if (window.policettivoHandleAI403) window.policettivoHandleAI403(); return }
+      /* ai-solo-premium-v1 : nessuna soglia, o Premium o non parte. */
+      if (window.policettivoRichiedePremium && !window.policettivoRichiedePremium()) return
 
       document.getElementById('btn-ai-visita').classList.remove('visible')
       document.getElementById('ai-loading-visita').classList.add('visible')

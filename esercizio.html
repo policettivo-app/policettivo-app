@@ -31,6 +31,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
+  <script src="js/configurazioni.js"></script><!-- config-vocabolario-v1 : NPL/GPL si scrivono in js/configurazioni.js e da nessun'altra parte -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; color: #fff; }
@@ -275,7 +276,8 @@
       document.getElementById('ex-name').textContent = ex ? ex.nome : 'Esercizio'
       document.getElementById('ex-desc').textContent = ex ? (ex.descrizione_paziente || '') : ''
       document.getElementById('hint-3r').style.display = (ex && ex.slug === '0-3r') ? 'block' : 'none'
-      document.getElementById('ex-config').innerHTML = cfg ? '<span class="config-pill pill-' + cfg.toLowerCase() + '">' + cfg + ' — ' + (cfg === 'NPL' ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale') + '</span>' : ''
+      /* config-vocabolario-v1 */
+      document.getElementById('ex-config').innerHTML = cfg ? '<span class="config-pill pill-' + cfg.toLowerCase() + '">' + cfg + ' — ' + (window.polConfig ? window.polConfig.desc(cfg) : (cfg === 'NPL' ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale')) + '</span>' : ''
       document.getElementById('timer-section').style.display = 'block'
       document.getElementById('btn-pain').style.display = 'block'
       const videoBox = document.getElementById('video-box')
