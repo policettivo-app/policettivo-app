@@ -985,7 +985,13 @@
     <div class="section ds-card" id="cartella-clinica">
       <div class="section-header">
         <div class="section-title ds-section-title-line">Cartella Clinica Medica <span class="section-optional">referti • documenti • note cliniche</span></div>
-        <button class="btn-edit" onclick="toggleCartella()" id="btn-cartella">&#9660; Mostra</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <!-- nav-anamnesi-cartella-v1 — il salto all'anamnesi sta QUI, dov'è
+               la cartella: quando serve una correzione veloce si parte da
+               dove si sta leggendo, non risalendo alle azioni rapide. -->
+          <button class="btn-edit" onclick="vaiAllAnamnesi()" title="Apri l'anamnesi di questo paziente">🩺 Anamnesi</button>
+          <button class="btn-edit" onclick="toggleCartella()" id="btn-cartella">&#9660; Mostra</button>
+        </div>
       </div>
       <div id="cartella-container" style="display:none">
         <!-- Tab nav -->
@@ -2418,6 +2424,24 @@
       const hashBuf = await crypto.subtle.digest('SHA-256', buf)
       return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('')
     }
+
+    /* nav-anamnesi-cartella-v1 — andata e ritorno fra cartella e anamnesi.
+       Il ritorno porta l'ancora #cartella, così si riapre dov'eri invece di
+       ricominciare da una card chiusa. */
+    function vaiAllAnamnesi() {
+      window.location.href = 'anamnesi.html?pid=' + patientId
+    }
+
+    function _navApriDaAncora() {
+      var h = (window.location.hash || '').replace('#','')
+      if (h !== 'cartella' && h !== 'relazione') return
+      var box = document.getElementById('cartella-container')
+      if (!box) return
+      toggleCartella(true)
+      if (h === 'relazione') setTimeout(function(){ clinicalNotesSwitchTab('relazione') }, 150)
+    }
+    window.addEventListener('load', function(){ setTimeout(_navApriDaAncora, 250) })
+    window.addEventListener('hashchange', _navApriDaAncora)
 
     function toggleCartella(autoApri) {
       const container = document.getElementById('cartella-container')

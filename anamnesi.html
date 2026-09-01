@@ -52,6 +52,17 @@
     .shared-hint { font-size: 10.5px; color: #999; margin-top: 4px; }
     .concl { background: #fffde7; border: 2px solid #FFD008; }
     .toolbar-open { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    /* nav-anamnesi-cartella-v1 — le voci che si cercano sempre (obiettivi,
+       screening, relazione) stanno in fondo a 29 sezioni. Invece di
+       cambiare l'ordine dell'intervista, che è un ordine clinico, si
+       raggiungono da qui in un tocco. */
+    .navbar-rapida { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 12px; background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; align-items: center; }
+    .navbar-rapida .nr-lbl { font-size: 11px; font-weight: 800; color: #bbb; text-transform: uppercase; letter-spacing: .5px; margin-right: 2px; }
+    .nr-btn { background: #fffdf0; border: 1.5px solid #FFD008; padding: 7px 12px; border-radius: 20px; font-family: inherit; font-size: 12px; font-weight: 700; color: #000; cursor: pointer; }
+    .nr-btn:hover { background: #FFD008; }
+    .nr-btn.scuro { background: #222; border-color: #222; color: #fff; margin-left: auto; }
+    .nr-btn.scuro:hover { background: #000; }
+    .sec.evidenzia { box-shadow: 0 0 0 3px rgba(255,208,8,.85); transition: box-shadow .3s; }
     .btn-mini { background: #fff; border: 1.5px solid #ddd; padding: 7px 13px; border-radius: 8px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
     #print-area { display: none; }
     @media print {
@@ -91,6 +102,15 @@
       <button class="btn-mini" onclick="apriTutte(true)">▾ Apri tutte le sezioni</button>
       <button class="btn-mini" onclick="apriTutte(false)">▴ Chiudi tutte</button>
     </div>
+    <!-- nav-anamnesi-cartella-v1 -->
+    <div class="navbar-rapida">
+      <span class="nr-lbl">Vai a</span>
+      <button type="button" class="nr-btn" onclick="vaiA('obiettivi')">🎯 Obiettivi</button>
+      <button type="button" class="nr-btn" onclick="vaiA('redflags')">🚩 Screening di sicurezza</button>
+      <button type="button" class="nr-btn" onclick="vaiA('relazione')">📋 Relazione clinica</button>
+      <button type="button" class="nr-btn scuro" onclick="vaiAllaCartella()">📁 Cartella paziente</button>
+    </div>
+
     <div id="sections"></div>
 
     <!-- cartella-in-anamnesi-v1 — la Relazione clinica, senza uscire dall'anamnesi.
@@ -457,6 +477,37 @@
       window.polCartellaClinica.ricarica()
     }
 
+    /* nav-anamnesi-cartella-v1 — apre la sezione (senza chiudere quello che
+       è già aperto), ci porta sopra e la illumina un attimo: se non si vede
+       cosa è cambiato, il salto sembra non aver fatto niente. */
+    function vaiA(id) {
+      if (id === 'relazione') {
+        var body = document.getElementById('sec-relazione-body')
+        if (body && body.style.display === 'none') toggleRelazione()
+      } else {
+        var sec = document.getElementById('sec-' + id)
+        if (!sec) return
+        sec.classList.add('open')
+      }
+      var box = document.getElementById(id === 'relazione' ? 'sec-relazione' : 'sec-' + id)
+      if (!box) return
+      box.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      box.classList.add('evidenzia')
+      setTimeout(function(){ box.classList.remove('evidenzia') }, 1400)
+    }
+
+    // Ritorno alla cartella: l'ancora la riapre già aperta, invece di
+    // lasciare una card chiusa da ricliccare.
+    function vaiAllaCartella() {
+      window.location.href = 'paziente.html?id=' + pid + '#cartella'
+    }
+
+    function _navDaAncora() {
+      var h = (window.location.hash || '').replace('#','')
+      if (['obiettivi','redflags','relazione'].indexOf(h) >= 0) setTimeout(function(){ vaiA(h) }, 300)
+    }
+    window.addEventListener('hashchange', _navDaAncora)
+
     async function init() {
       if (!pid) { alert('Manca il paziente (?pid=...)'); return }
       const { data: { session } } = await _sb.auth.getSession()
@@ -496,6 +547,7 @@
       const first = SECTIONS.find(s => !secCompilata(s)) || SECTIONS[0]
       const el = document.getElementById('sec-' + first.id)
       if (el) el.classList.add('open')
+      _navDaAncora()   // nav-anamnesi-cartella-v1 — anamnesi.html?pid=…#obiettivi
     }
 
     init()
