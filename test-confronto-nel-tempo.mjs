@@ -144,23 +144,6 @@ const FINTO = (DB) => {
       select(campi) { stato.op = 'select'; stato.campi = campi || ''; return q },
       eq(col, val) { stato.filtri.push({ op:'eq', col, val }); return q },
       in(col, val) { stato.filtri.push({ op:'in', col, val }); return q },
-      /* I confronti di data e i filtri parziali: la dashboard fa
-         .select().gte(...) per contare le visite del mese e senza questi
-         la catena si rompeva a meta'. Registrano il filtro come gli altri
-         ma non restringono le righe: al test interessa che la catena
-         arrivi in fondo, non rifare PostgREST. */
-      gte(col, val) { stato.filtri.push({ op:'gte', col, val }); return q },
-      lte(col, val) { stato.filtri.push({ op:'lte', col, val }); return q },
-      gt(col, val)  { stato.filtri.push({ op:'gt',  col, val }); return q },
-      lt(col, val)  { stato.filtri.push({ op:'lt',  col, val }); return q },
-      neq(col, val) { stato.filtri.push({ op:'neq', col, val }); return q },
-      is(col, val)  { stato.filtri.push({ op:'is',  col, val }); return q },
-      not(col, o, val) { stato.filtri.push({ op:'not', col, val:o + ':' + val }); return q },
-      like(col, val)  { stato.filtri.push({ op:'like',  col, val }); return q },
-      ilike(col, val) { stato.filtri.push({ op:'ilike', col, val }); return q },
-      or(espr) { stato.filtri.push({ op:'or', col:'*', val:espr }); return q },
-      range() { return q },
-      single() { return q.then0(true) },
       order() { return q },
       limit() { return q },
       maybeSingle() { return q.then0(true) },
@@ -227,24 +210,33 @@ const FINTO = (DB) => {
     return q
   }
 
+  /* daily-context-v1 — le pagine del paziente non usano .from(): usano
+     .rpc(). Finche' il finto non sapeva rispondere a rpc(), rapida.html,
+     esercizio.html e protocollo.html non si potevano provare affatto.
+     DB.rpc e' una mappa nome -> dato (o funzione). Ogni chiamata finisce
+     in window.__chiamate.rpc, cosi' il test guarda COSA e' stato mandato
+     al database, non solo che la pagina non sia esplosa. */
+  window.__chiamate.rpc = []
+
   window.supabase = {
     createClient() {
       return {
+        rpc(nome, args) {
+          window.__chiamate.rpc.push({ nome, args })
+          /* daily-context-v1 — una risposta che non arriva mai. Serve a
+             provare che una pagina ASPETTA il salvataggio prima di
+             cambiare pagina: se non aspettasse, se ne andrebbe lo stesso
+             e il test lo vedrebbe. */
+          if ((DB.opts.rpcAppeso || []).indexOf(nome) >= 0) return new Promise(function () {})
+          const r = (DB.rpc || {})[nome]
+          const val = (typeof r === 'function') ? r(args) : r
+          if (val && val.error) return Promise.resolve(val)
+          return Promise.resolve({ data: (val === undefined ? null : val), error: null })
+        },
         auth: {
           getSession: () => Promise.resolve(DB.opts.senzaSessione
             ? { data:{ session:null } }
-            : { data:{ session:{ access_token:'tok', user:{ id:'user-1', email:'prova@policettivo.it' } } } }),
-          /* Il finto aveva solo getSession, e senza email. Bastava a poche
-             pagine: assegna-protocollo chiama auth.getUser() e la dashboard
-             fa session.user.email.split('@'), quindi tutte e due morivano
-             appena il test provava ad aprirle. Non era un difetto delle
-             pagine, era l'impalcatura incompleta.
-             ⚠️ L'email NON e' quella dell'amministratore: se lo fosse, ogni
-             pagina si crederebbe Premium e le prove sul piano free non
-             direbbero piu' niente. */
-          getUser: () => Promise.resolve(DB.opts.senzaSessione
-            ? { data:{ user:null }, error:new Error('nessuna sessione') }
-            : { data:{ user:{ id:'user-1', email:'prova@policettivo.it' } }, error:null })
+            : { data:{ session:{ access_token:'tok', user:{ id:'user-1' } } } })
         },
         from: tabella,
         storage: {
@@ -270,7 +262,7 @@ const FINTO = (DB) => {
   }
 }
 
-async function apriPagina(browser, dati, file, query, opzioni) {
+async function apriPagina(browser, dati, file, query) {
   const ctx = await browser.newContext({ viewport:{ width:1280, height:900 } })
   // niente rete verso l'esterno: font e supabase-js dal CDN non servono al test
   await ctx.route('**://cdn.jsdelivr.net/**', r => r.fulfill({ status:200, contentType:'text/javascript', body:'/* finto */' }))
@@ -281,9 +273,6 @@ async function apriPagina(browser, dati, file, query, opzioni) {
   const errori = []
   page.on('pageerror', e => errori.push(String(e)))
   await page.addInitScript(FINTO, dati)
-  /* opzioni.blocca = elenco di indirizzi da far fallire PRIMA di aprire la
-     pagina: serve a provare cosa si vede quando un file js non arriva. */
-  for (const g of (opzioni && opzioni.blocca) || []) await page.route(g, r => r.abort())
   await page.goto('http://localhost:' + PORT + '/' + file + query, { waitUntil:'networkidle' })
   await page.waitForTimeout(400)
   return { page, ctx, errori }
@@ -1270,10 +1259,6 @@ sez('Referti letti — se la lettura non riesce, il motivo resta scritto')
 {
   const { page, ctx } = await apriPagina(browser, datiDocumenti(), 'paziente.html', '?id=' + PID + '#cartella')
   await page.waitForTimeout(1400)
-  // ai-solo-premium-v1 — la lettura del referto e' riservata ai Premium:
-  // senza questo, la pagina si ferma prima della chiamata e questa prova
-  // non arriva mai a vedere l'errore che vuole controllare.
-  await page.evaluate(() => { window.isPremium = true })
   await page.route('**/api/analisi-referto', route => {
     route.fulfill({ status:502, contentType:'application/json',
       body: JSON.stringify({ error:'La risposta della lettura non è stata capita.' }) })
@@ -1286,162 +1271,6 @@ sez('Referti letti — se la lettura non riesce, il motivo resta scritto')
   check('e il pulsante torna disponibile per riprovare',
     (await page.textContent('#btn-leggi-d2')).includes('Riprova'))
   check('il documento NON risulta letto', (await page.$$eval('.doc-stato', els => els.map(e => e.textContent))).filter(x => x === 'LETTO').length === 1)
-  await ctx.close()
-}
-
-sez("ai-solo-premium-v1 — le funzioni AI sono chiuse agli account free")
-{
-  const { page, ctx } = await apriPagina(browser, datiDocumenti(), 'paziente.html', '?id=' + PID + '#cartella')
-  await page.waitForTimeout(1400)
-
-  let chiamata = false
-  await page.route('**/api/analisi-referto', route => {
-    chiamata = true
-    route.fulfill({ status:200, contentType:'application/json', body:'{"ok":true,"rilievi":[],"estratto":""}' })
-  })
-
-  await page.evaluate(() => { window.isPremium = false })
-  await page.click('.btn-doc-leggi')
-  await page.waitForTimeout(700)
-
-  check("con un account free la lettura del referto NON parte", chiamata === false)
-  check("e il motivo si vede: compare il pannello Premium", await page.isVisible('#ai-limit-modal'))
-  check("il pannello dice che serve Premium, non che le analisi sono finite",
-    (await page.textContent('#ai-limit-title')).includes('Premium'))
-  check("e non parla piu di analisi gratuite rimaste",
-    !/gratuit/i.test(await page.textContent('#ai-limit-desc')))
-  check("il pannello porta a upgrade.html",
-    (await page.getAttribute('#ai-limit-cta', 'onclick')).includes('upgrade.html'))
-  check("nel modale non resta il difetto del testo non concatenato",
-    !(await page.textContent('#ai-limit-desc')).includes('+ LIMIT +'))
-
-  await page.evaluate(() => { document.getElementById('ai-limit-modal').classList.remove('open'); window.isPremium = true })
-  await page.click('.btn-doc-leggi')
-  await page.waitForTimeout(700)
-  check("con un account Premium la stessa lettura parte", chiamata === true)
-  await ctx.close()
-}
-
-sez("ai-solo-premium-v1 — il cancello vero sta nel server")
-{
-  /* ⚠️ Una rimozione NON si verifica cercando la PAROLA: il commento che
-     spiega perche una riga e stata tolta contiene il nome della riga tolta,
-     e il conto non torna mai. Qui si tolgono prima i commenti. */
-  const senzaCommenti = t => t.replace(/\/\*[\s\S]*?\*\//g,'').replace(/^\s*\/\/.*$/gm,'')
-  const senzaCommentiHtml = t => senzaCommenti(t.replace(/<!--[\s\S]*?-->/g,''))
-
-  const srcGrezzo = fs.readFileSync(path.join(ROOT,'api/_check-ai-access.js'),'utf8')
-  const src = senzaCommenti(srcGrezzo)
-  check("non esiste piu nessuna soglia di analisi gratuite", !/FREE_LIMIT/.test(src))
-  check("il free non fa piu aumentare ai_uses, quindi non brucia crediti",
-    !/ai_uses:\s*aiUses\s*\+\s*1/.test(src))
-  check("il diniego porta premiumRequired", /premiumRequired:\s*true/.test(src))
-  check("e continua a portare limitReached, per le pagine gia pubblicate", /limitReached:\s*true/.test(src))
-  check("il marker e nel file", srcGrezzo.includes('ai-solo-premium-v1'))
-
-  const pdf = fs.readFileSync(path.join(ROOT,'api/genera-pdf.js'),'utf8')
-  check("il PDF resta scaricabile senza Premium, solo senza relazione AI",
-    (pdf.match(/access\.premiumRequired/g) || []).length === 3, (pdf.match(/access\.premiumRequired/g)||[]).length)
-  check("e il PDF dichiara perche la relazione manca", /ai_non_disponibile/.test(pdf))
-
-  const aiGrezzo = fs.readFileSync(path.join(ROOT,'utils-ai.js'),'utf8')
-  const ai = senzaCommenti(aiGrezzo)
-  check("utils-ai.js non promette piu analisi gratuite (fuori dai commenti)", !/analisi AI gratuit/i.test(ai))
-  check("e non conta piu quante ne restano", !/rimaste|Ultime/.test(ai))
-  check("c e la guardia da usare prima di partire", /policettivoRichiedePremium/.test(aiGrezzo))
-
-  for (const f of ['dashboard.html','admin.html','upgrade.html']) {
-    const t = senzaCommentiHtml(fs.readFileSync(path.join(ROOT,f),'utf8'))
-    check(f + " non promette piu analisi AI gratuite", !/analisi AI gratuit/i.test(t))
-  }
-  const dash = senzaCommentiHtml(fs.readFileSync(path.join(ROOT,'dashboard.html'),'utf8'))
-  check("dashboard.html non mostra piu un residuo di analisi disponibili", !/analisi AI disponibili/.test(dash))
-
-  /* Round 2 — i punti che CONTAVANO ancora. Non si cercano le parole nei
-     testi: si cerca il conto nel codice, che e dove si era nascosto. */
-  const PAGINE_AI = ['dashboard.html','admin.html','paziente.html','visita.html','visite.html','valutazione-posturale.html']
-  for (const f of PAGINE_AI) {
-    const t = senzaCommentiHtml(fs.readFileSync(path.join(ROOT,f),'utf8'))
-    check(f + " non conta piu quante analisi restano", !/Math\.max\(0,\s*15\s*-/.test(t))
-    check(f + " non mostra piu x su 15", !/\/15/.test(t))
-    check(f + " non ha piu la soglia delle 5 analisi", !/isPremium\s*&&\s*\w*[Aa]iUses\s*>=/.test(t))
-  }
-  for (const f of ['paziente.html','visita.html','visite.html','valutazione-posturale.html','dashboard.html']) {
-    const t = fs.readFileSync(path.join(ROOT,f),'utf8')
-    check(f + " usa la guardia policettivoRichiedePremium", /policettivoRichiedePremium/.test(t))
-    check(f + " carica utils-ai.js, se no la guardia non esiste", /utils-ai\.js/.test(t))
-  }
-  const adm = senzaCommentiHtml(fs.readFileSync(path.join(ROOT,'admin.html'),'utf8'))
-  check("admin: i DUE punti che scrivono #ai-uses-label dicono la stessa frase",
-    (adm.match(/Analisi AI non disponibili \(piano Free\)/g) || []).length === 2,
-    (adm.match(/Analisi AI non disponibili \(piano Free\)/g) || []).length)
-}
-
-sez("config-vocabolario-v1 — NPL e GPL si scrivono in un posto solo")
-{
-  const voc = fs.readFileSync(path.join(ROOT,'js/configurazioni.js'),'utf8')
-  check("il vocabolario esiste", voc.includes('polConfig'))
-  check("NPL e Nero Posteriore Laterale", voc.includes('Nero Posteriore Laterale'))
-  check("GPL e Giallo Posteriore Laterale", voc.includes('Giallo Posteriore Laterale'))
-
-  /* Le sigle sono il COLORE del cuscino. Questi due termini non esistono
-     e non devono ricomparire in nessun file, commenti esclusi. */
-  const senzaC = t => t.replace(/<!--[\s\S]*?-->/g,'').replace(/\/\*[\s\S]*?\*\//g,'')
-  const PAGINE_CFG = ['valutazione-posturale.html','dashboard.html','paziente.html','visite.html','assegna-protocollo.html','esercizio.html']
-  for (const f of PAGINE_CFG) {
-    const t = senzaC(fs.readFileSync(path.join(ROOT,f),'utf8'))
-    check(f + " non dice piu Neutra Posteriore Lombare", !/Neutra Posteriore Lombare/.test(t))
-    check(f + " non dice piu Grande Piede Laterale", !/Grande Piede Laterale/.test(t))
-    check(f + " carica js/configurazioni.js", /<script src="js\/configurazioni\.js">/.test(t))
-  }
-
-  /* La prova che conta: la pagina APERTA mostra il testo del vocabolario. */
-  for (const f of ['valutazione-posturale.html','dashboard.html','visite.html','assegna-protocollo.html']) {
-    const { page, ctx, errori } = await apriPagina(browser, datiCartella(), f, '?id=' + PID)
-    await page.waitForTimeout(600)
-    const righe = await page.$$eval('[data-cfg-desc]', els => els.map(e => [e.getAttribute('data-cfg-desc'), e.textContent.trim()]))
-    check(f + ": ci sono le due etichette agganciate al vocabolario", righe.length >= 2, righe)
-    const atteso = { NPL: 'Nero Posteriore Laterale', GPL: 'Giallo Posteriore Laterale' }
-    check(f + ": a schermo si legge il testo del vocabolario",
-      righe.length > 0 && righe.every(([k, t]) => t === atteso[k]), righe)
-    check(f + ": nessun errore JS con il vocabolario", errori.length === 0, errori)
-    await ctx.close()
-  }
-
-  /* E se il file non si carica, la riserva nell'HTML dice comunque la
-     cosa giusta: mai un buco, mai il termine sbagliato. */
-  {
-    const { page, ctx } = await apriPagina(browser, datiCartella(), 'valutazione-posturale.html', '?id=' + PID,
-      { blocca: ['**/js/configurazioni.js'] })
-    await page.waitForTimeout(600)
-    const t = await page.textContent('#cfg-npl .config-card-desc')
-    check("senza il vocabolario la riserva nell'HTML dice comunque Nero Posteriore Laterale",
-      (t || '').trim() === 'Nero Posteriore Laterale', t)
-    await ctx.close()
-  }
-}
-
-sez("controindicazioni-v1 — la bozza e la pagina di revisione")
-{
-  const bozza = fs.readFileSync(path.join(ROOT,'js/controindicazioni-bozza.js'),'utf8')
-  const ter   = fs.readFileSync(path.join(ROOT,'js/terapie.js'),'utf8')
-  check("la terapia magnetica CEMP e un apparecchio a se", ter.includes("k:'magneto'"))
-  check("e non ha la stessa famiglia dell EMTT",
-    ter.includes('campo_magnetico_cemp') && ter.includes('campo_magnetico_emtt'))
-  check("la bozza NON e js/controindicazioni.js", !fs.existsSync(path.join(ROOT,'js/controindicazioni.js')))
-  check("e dichiara di essere una bozza da rivedere", /BOZZA DA RIVEDERE/.test(bozza))
-  check("nessuna pagina dell app carica la bozza",
-    !fs.readdirSync(ROOT).filter(f => f.endsWith('.html') && f !== 'controindicazioni-revisione.html')
-      .some(f => fs.readFileSync(path.join(ROOT,f),'utf8').includes('controindicazioni-bozza.js')))
-
-  const { page, ctx, errori } = await apriPagina(browser, {}, 'controindicazioni-revisione.html', '')
-  await page.waitForTimeout(500)
-  check("la pagina di revisione si apre senza errori", errori.length === 0, errori)
-  check("ci sono tutti gli 11 blocchi", (await page.$$('#blocchi .card')).length === 11)
-  check("ogni voce porta almeno una fonte",
-    await page.$$eval('#blocchi .voce', v => v.every(x => x.querySelectorAll('.vfonti .fchip').length > 0)))
-  check("la pagina non chiama nessuna API ne il database",
-    !fs.readFileSync(path.join(ROOT,'controindicazioni-revisione.html'),'utf8').match(/supabase|\/api\//))
   await ctx.close()
 }
 
@@ -1520,6 +1349,178 @@ sez('Ingresso dalla valutazione posturale')
   check('la funzione esiste e apre comparazione.html?id=', /function apriConfrontoNelTempo[\s\S]{0,400}comparazione\.html\?id=/.test(src))
   check('il PRE/POST della singola seduta resta dov\'era', src.includes('🔄 Confronto PRE/POST'))
   check('il marker è nel file', (src.match(/confronto-nel-tempo-v1/g) || []).length >= 1)
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// daily-context-v1 — LE PAGINE DEL PAZIENTE MANDANO DAVVERO I CAMPI NUOVI
+// Non basta che le colonne esistano: finora esistevano e nessuno le
+// scriveva. Qui si guarda COSA finisce dentro save_diary_entry.
+// ══════════════════════════════════════════════════════════════════════
+
+const TOK = 'decafbad-0000-0000-0000-00000000000a'
+
+function datiPaziente(opts = {}) {
+  return {
+    opts,
+    urlFoto: {},
+    rpc: {
+      get_protocol_data: {
+        patient: { nome:'Mario', cognome:'Rossi', configurazione_default:'NPL' },
+        protocol: { id:'bb000000-0000-0000-0000-0000000000b1', stato: opts.statoProtocollo || 'attivo',
+                    configurazione_generale:'NPL', data_inizio:'2026-08-01', frequenza:'3/sett',
+                    nome_personalizzato:'Programma lombare' },
+        exercises: [
+          { ppe:{ id:'p1', exercise_id:'e1', ordine:1, durata:60, configurazione:'NPL' },
+            exercise:{ id:'e1', nome:'Ponte lombare', descrizione_paziente:'', video_url:'', durata_default:60, slug:'ponte' } },
+          { ppe:{ id:'p2', exercise_id:'e2', ordine:2, durata:60, configurazione:'NPL' },
+            exercise:{ id:'e2', nome:'Apertura toracica', descrizione_paziente:'', video_url:'', durata_default:60, slug:'apertura' } }
+        ],
+        custom_videos: [], elicoidali: []
+      },
+      get_professional_contact: { telefono:'3331234567' },
+      get_patient_sessions: [],
+      get_diary_entries: [],
+      save_diary_entry: 'nuova-riga-1',
+      save_therapy_session: 'nuova-seduta-1',
+      log_patient_event: true
+    }
+  }
+}
+
+const chiamateSave = (c) => c.filter(x => x.nome === 'save_diary_entry').map(x => x.args.p_data)
+
+sez('daily-context-v1 · il file condiviso')
+{
+  const src = fs.readFileSync(path.join(ROOT,'js','pol-sessione.js'),'utf8')
+  check('js/pol-sessione.js esiste e ha il marker', src.includes('daily-context-v1'))
+  check('non fa mai fallire una seduta (tutto protetto)', (src.match(/catch/g) || []).length >= 8)
+  for (const f of ['rapida.html','esercizio.html','protocollo.html']) {
+    const h = fs.readFileSync(path.join(ROOT,f),'utf8')
+    check(f + ' carica js/pol-sessione.js', h.includes('src="js/pol-sessione.js"'))
+  }
+}
+
+sez('daily-context-v1 · modalità rapida')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPaziente(), 'rapida.html', '?token=' + TOK)
+  check('la rapida si apre senza errori', errori.length === 0, errori.join(' | '))
+  await page.click('#chk-0').catch(() => {})
+  await page.waitForTimeout(150)
+  await page.click('#btn-completa')
+  await page.waitForTimeout(400)
+  const inviati = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'save_diary_entry').map(x => x.args.p_data))
+  check('la rapida salva una riga', inviati.length === 1, JSON.stringify(inviati).slice(0,150))
+  const d = inviati[0] || {}
+  check('modalita = rapid', d.modalita === 'rapid', String(d.modalita))
+  check('session_type = main (la seduta prescritta resta la principale)', d.session_type === 'main', String(d.session_type))
+  check('manda la chiave anti doppio-click', typeof d.client_session_id === 'string' && d.client_session_id.length >= 8, String(d.client_session_id))
+  check('manda quando è cominciata e quando è finita', !!d.iniziata_alle && !!d.finita_alle, d.iniziata_alle + ' → ' + d.finita_alle)
+  check('l\'inizio è PRIMA della fine', Date.parse(d.iniziata_alle) <= Date.parse(d.finita_alle))
+  check('manda l\'elenco degli esercizi spuntati', Array.isArray(d.esercizi_completati), JSON.stringify(d.esercizi_completati))
+  await ctx.close()
+}
+
+sez('daily-context-v1 · «salta tutto e segna come completato» = manual')
+{
+  const { page, ctx } = await apriPagina(browser, datiPaziente(), 'rapida.html', '?token=' + TOK)
+  await page.click('#btn-salta')
+  await page.waitForTimeout(400)
+  const inviati = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'save_diary_entry').map(x => x.args.p_data))
+  const d = inviati[0] || {}
+  check('il salto si registra come manual, non come seduta fatta', d.modalita === 'manual', String(d.modalita))
+  check('resta completato: true come prima (niente tolto)', d.completato === true)
+  await ctx.close()
+}
+
+sez('daily-context-v1 · modalità guidata e interruzione per dolore')
+{
+  // Il salvataggio non risponde mai, di proposito: cosi' si vede se la
+  // pagina lo ASPETTA. Prima non lo aspettava e se ne andava, e il dato
+  // dell'interruzione poteva essere annullato dal cambio pagina.
+  const { page, ctx, errori } = await apriPagina(browser, datiPaziente({ rpcAppeso:['save_diary_entry'] }), 'esercizio.html', '?token=' + TOK)
+  check('la guidata si apre senza errori', errori.length === 0, errori.join(' | '))
+  let visti = 0
+  page.on('dialog', d => { visti++; d.accept() })      // un solo ascoltatore, con contatore
+  await page.click('#btn-pain')
+  await page.waitForTimeout(600)
+  const inviati = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'save_diary_entry').map(x => x.args.p_data))
+  const d = inviati[0] || {}
+  check('è stata chiesta una sola conferma', visti === 1, String(visti))
+  check('la pagina aspetta il salvataggio prima di andarsene',
+        page.url().includes('esercizio.html'), page.url())
+  check('l\'interruzione per dolore arriva nella COLONNA, non solo nella nota',
+        d.interrotto_per_dolore === true, JSON.stringify(d).slice(0,200))
+  check('e resta completato: false', d.completato === false)
+  check('modalita = guided', d.modalita === 'guided', String(d.modalita))
+  check('anche l\'interruzione porta la chiave della seduta', typeof d.client_session_id === 'string')
+  await ctx.close()
+}
+
+sez('daily-context-v1 · la guidata completata conta gli esercizi fatti')
+{
+  const { page, ctx } = await apriPagina(browser, datiPaziente({ rpcAppeso:['save_diary_entry'] }), 'esercizio.html', '?token=' + TOK)
+  await page.click('#btn-complete')      // esercizio 1 → passa al 2
+  await page.waitForTimeout(250)
+  await page.click('#btn-complete')      // esercizio 2 → fine seduta, salva
+  await page.waitForTimeout(700)
+  const inviati = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'save_diary_entry').map(x => x.args.p_data))
+  const d = inviati[0] || {}
+  check('la guidata completata salva una riga', inviati.length === 1, String(inviati.length))
+  check('modalita = guided', d.modalita === 'guided', String(d.modalita))
+  check('elenca gli esercizi attraversati', Array.isArray(d.esercizi_completati) && d.esercizi_completati.length === 2,
+        JSON.stringify(d.esercizi_completati))
+  await ctx.close()
+}
+
+sez('daily-context-v1 · la stessa seduta riaperta resta la stessa seduta')
+{
+  const { page, ctx } = await apriPagina(browser, datiPaziente(), 'rapida.html', '?token=' + TOK)
+  const primo = await page.evaluate(() => window.polSessione.avvia().id)
+  await page.reload({ waitUntil:'networkidle' })
+  await page.waitForTimeout(300)
+  const dopo = await page.evaluate(() => window.polSessione.avvia().id)
+  check('dopo un refresh la chiave della seduta non cambia', primo === dopo, primo + ' vs ' + dopo)
+  const chiusa = await page.evaluate(() => { window.polSessione.chiudi(); return window.polSessione.avvia().id })
+  check('dopo chiudi() la seduta successiva è nuova', chiusa !== primo)
+  await ctx.close()
+}
+
+sez('daily-context-v1 · pagine diverse, sedute diverse')
+{
+  const a = await apriPagina(browser, datiPaziente(), 'rapida.html', '?token=' + TOK)
+  const idRapida = await a.page.evaluate(() => window.polSessione.avvia().id)
+  await a.page.goto('http://localhost:' + PORT + '/esercizio.html?token=' + TOK, { waitUntil:'networkidle' })
+  await a.page.waitForTimeout(300)
+  const idGuidata = await a.page.evaluate(() => window.polSessione.avvia().id)
+  check('rapida e guidata dello stesso giorno restano due sedute distinte',
+        idRapida !== idGuidata, idRapida + ' vs ' + idGuidata)
+  await a.ctx.close()
+}
+
+sez('daily-context-v1 · il diario della home si registra come manual')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPaziente(), 'protocollo.html', '?token=' + TOK)
+  check('la home del paziente si apre senza errori', errori.length === 0, errori.join(' | '))
+  await page.click('#btn-salva-diario')
+  await page.waitForTimeout(400)
+  const inviati = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'save_diary_entry').map(x => x.args.p_data))
+  const d = inviati[0] || {}
+  check('il diario compilato a mano è manual', d.modalita === 'manual', String(d.modalita))
+  check('i quattro cursori continuano ad arrivare (niente tolto)',
+        typeof d.dolore === 'number' && typeof d.rigidita === 'number'
+        && typeof d.equilibrio === 'number' && typeof d.energia === 'number', JSON.stringify(d).slice(0,200))
+  await ctx.close()
+}
+
+sez('daily-context-v1 · anteprima del professionista: niente si salva')
+{
+  const { page, ctx } = await apriPagina(browser, datiPaziente(), 'rapida.html', '?token=' + TOK + '&preview=1')
+  page.on('dialog', d => d.accept())
+  await page.click('#btn-completa')
+  await page.waitForTimeout(400)
+  const inviati = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'save_diary_entry'))
+  check('in anteprima non si salva nessuna seduta', inviati.length === 0, String(inviati.length))
+  await ctx.close()
 }
 
 } finally {

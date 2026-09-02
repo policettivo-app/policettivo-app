@@ -42,6 +42,9 @@ DROP FUNCTION IF EXISTS get_diary_entries(text, int);
 DROP FUNCTION IF EXISTS save_diary_entry(text, jsonb);
 DROP FUNCTION IF EXISTS save_therapy_session(text, jsonb);
 DROP FUNCTION IF EXISTS update_session_feedback(text, uuid, text);
+-- daily-context-v1
+DROP FUNCTION IF EXISTS get_daily_context(text);
+DROP FUNCTION IF EXISTS segna_messaggio_letto(text, uuid);
 
 
 -- ============================================================
@@ -492,6 +495,22 @@ DECLARE
   v_equilibrio  int     := 5;
   v_energia     int     := 5;
   v_completato  boolean := false;
+  -- daily-context-v1 — i campi della 036 e della 041
+  v_modalita    text;
+  v_risposta    text;
+  v_difficolta  text;
+  v_interrotto  boolean := false;
+  v_stelle      smallint;
+  v_versione    integer;
+  v_iniziata    timestamptz;
+  v_finita      timestamptz;
+  v_esercizi    jsonb;
+  v_video       jsonb;
+  v_sessione    text;
+  v_tipo        text;
+  v_zona        text;
+  v_attivita    text;
+  v_cuscini     boolean;
 BEGIN
   -- Token guard
   IF p_token IS NULL OR LENGTH(TRIM(p_token)) = 0 THEN
@@ -548,6 +567,97 @@ BEGIN
   -- Safe boolean cast: anything non-boolean falls back to false
   BEGIN v_completato := (p_data->>'completato')::boolean; EXCEPTION WHEN OTHERS THEN v_completato := false; END;
 
+  -- ==================================================================
+  -- daily-context-v1 — I CAMPI DELLA SEDUTA (migration 036 e 041)
+  -- ==================================================================
+  -- Le colonne c'erano dal 29 agosto e nessuno le scriveva: la home non
+  -- ha mai avuto niente a cui reagire. Da qui in poi ce l'ha.
+  --
+  -- LA REGOLA, UGUALE PER TUTTI I CAMPI NUOVI: un valore che non va bene
+  -- diventa NULL, non un errore. Una seduta di un paziente non si ferma
+  -- mai per un campo di misura scritto storto. Vale gia' cosi' per
+  -- log_patient_event nella 036, ed e' la stessa ragione.
+
+  v_modalita := NULLIF(LOWER(TRIM(COALESCE(p_data->>'modalita', ''))), '');
+  IF v_modalita IS NOT NULL AND v_modalita NOT IN ('rapid','guided','manual') THEN
+    v_modalita := NULL;
+  END IF;
+
+  -- risposta_post e' la risposta PERCEPITA alla seduta (better/same/worse).
+  -- Non e' la stessa cosa delle stelle, che sono la soddisfazione: la 036
+  -- dice esplicitamente di non mescolarle mai.
+  v_risposta := NULLIF(LOWER(TRIM(COALESCE(p_data->>'risposta_post', ''))), '');
+  IF v_risposta IS NOT NULL AND v_risposta NOT IN ('better','same','worse') THEN
+    v_risposta := NULL;
+  END IF;
+
+  v_difficolta := NULLIF(LOWER(TRIM(COALESCE(p_data->>'difficolta', ''))), '');
+  IF v_difficolta IS NOT NULL AND v_difficolta NOT IN ('easy','normal','difficult') THEN
+    v_difficolta := NULL;
+  END IF;
+
+  BEGIN v_interrotto := (p_data->>'interrotto_per_dolore')::boolean; EXCEPTION WHEN OTHERS THEN v_interrotto := false; END;
+  v_interrotto := COALESCE(v_interrotto, false);
+
+  BEGIN v_stelle := (p_data->>'stelle')::smallint; EXCEPTION WHEN OTHERS THEN v_stelle := NULL; END;
+  IF v_stelle IS NOT NULL AND (v_stelle < 1 OR v_stelle > 5) THEN v_stelle := NULL; END IF;
+
+  BEGIN v_iniziata := (p_data->>'iniziata_alle')::timestamptz; EXCEPTION WHEN OTHERS THEN v_iniziata := NULL; END;
+  BEGIN v_finita   := (p_data->>'finita_alle')::timestamptz;   EXCEPTION WHEN OTHERS THEN v_finita   := NULL; END;
+  -- Un orario nel futuro e' un orologio sbagliato, non un dato. E una
+  -- seduta non puo' finire prima di essere cominciata: se il telefono
+  -- dice cosi', si tiene l'inizio e si butta la fine.
+  IF v_iniziata IS NOT NULL AND v_iniziata > now() + INTERVAL '1 hour' THEN v_iniziata := NULL; END IF;
+  IF v_finita   IS NOT NULL AND v_finita   > now() + INTERVAL '1 hour' THEN v_finita   := NULL; END IF;
+  IF v_iniziata IS NOT NULL AND v_finita IS NOT NULL AND v_finita < v_iniziata THEN v_finita := NULL; END IF;
+
+  -- Gli elenchi di cosa e' stato fatto: solo se sono davvero elenchi, e
+  -- con un tetto alla dimensione (nessun payload bombing).
+  v_esercizi := p_data->'esercizi_completati';
+  IF v_esercizi IS NOT NULL AND (jsonb_typeof(v_esercizi) NOT IN ('array','object')
+                                 OR LENGTH(v_esercizi::text) > 4000) THEN
+    v_esercizi := NULL;
+  END IF;
+
+  v_video := p_data->'video_visti';
+  IF v_video IS NOT NULL AND (jsonb_typeof(v_video) NOT IN ('array','object')
+                              OR LENGTH(v_video::text) > 4000) THEN
+    v_video := NULL;
+  END IF;
+
+  -- La chiave che tiene UNA sola riga per seduta. Forma obbligata: cosi'
+  -- un browser non puo' inventarsi una chiave lunga un chilometro.
+  v_sessione := NULLIF(TRIM(COALESCE(p_data->>'client_session_id', '')), '');
+  IF v_sessione IS NOT NULL AND v_sessione !~ '^[A-Za-z0-9_-]{8,64}$' THEN
+    v_sessione := NULL;
+  END IF;
+
+  -- session_type: se non lo dicono, e' la seduta prescritta. E' il default
+  -- perche' e' la prima azione della home, e le routine libere sono un
+  -- servizio secondario (decisione di Giuliano, 2 settembre).
+  v_tipo := NULLIF(LOWER(TRIM(COALESCE(p_data->>'session_type', ''))), '');
+  IF v_tipo IS NULL OR v_tipo NOT IN ('main','routine') THEN v_tipo := 'main'; END IF;
+
+  v_zona := NULLIF(LOWER(TRIM(COALESCE(p_data->>'body_area', ''))), '');
+  IF v_zona IS NOT NULL AND v_zona !~ '^[a-z][a-z0-9_]{1,39}$' THEN v_zona := NULL; END IF;
+
+  v_attivita := NULLIF(LOWER(TRIM(COALESCE(p_data->>'activity_type', ''))), '');
+  IF v_attivita IS NOT NULL AND v_attivita !~ '^[a-z][a-z0-9_]{1,39}$' THEN v_attivita := NULL; END IF;
+
+  BEGIN v_cuscini := (p_data->>'with_cushions')::boolean; EXCEPTION WHEN OTHERS THEN v_cuscini := NULL; END;
+
+  -- La versione del protocollo NON arriva dal browser: la si legge qui.
+  -- Serve a sapere, guardando due sedute lontane, se in mezzo il
+  -- programma era cambiato.
+  IF v_protocol_id IS NOT NULL THEN
+    BEGIN
+      SELECT pp.versione INTO v_versione FROM patient_protocols pp WHERE pp.id = v_protocol_id;
+    EXCEPTION WHEN undefined_column THEN
+      -- migration 041 non lanciata: si continua senza, non si rompe niente
+      v_versione := NULL;
+    END;
+  END IF;
+
   INSERT INTO diary_entries (
     patient_id,
     patient_protocol_id,
@@ -557,7 +667,22 @@ BEGIN
     equilibrio,
     energia,
     note,
-    completato
+    completato,
+    modalita,
+    risposta_post,
+    interrotto_per_dolore,
+    difficolta,
+    stelle,
+    protocol_version,
+    iniziata_alle,
+    finita_alle,
+    esercizi_completati,
+    video_visti,
+    client_session_id,
+    session_type,
+    body_area,
+    activity_type,
+    with_cushions
   ) VALUES (
     v_patient_id,
     v_protocol_id,
@@ -568,8 +693,55 @@ BEGIN
     GREATEST(0, LEAST(COALESCE(v_equilibrio, 5), 10)),
     GREATEST(0, LEAST(COALESCE(v_energia,    5), 10)),
     LEFT(p_data->>'note', 2000),
-    COALESCE(v_completato, false)
+    COALESCE(v_completato, false),
+    v_modalita,
+    v_risposta,
+    v_interrotto,
+    v_difficolta,
+    v_stelle,
+    v_versione,
+    v_iniziata,
+    v_finita,
+    v_esercizi,
+    v_video,
+    v_sessione,
+    v_tipo,
+    v_zona,
+    v_attivita,
+    v_cuscini
   )
+  -- ANTI DOPPIO-CLICK, ANTI REFRESH, ANTI «ho riaperto la pagina».
+  -- L'indice univoco parziale della 036 vale solo dove client_session_id
+  -- non e' nullo: qui si dichiara lo stesso filtro, se no PostgreSQL non
+  -- sa quale indice guardare. Senza questo, il secondo salvataggio della
+  -- STESSA seduta non dava un doppione: dava un errore in faccia al
+  -- paziente a fine seduta.
+  ON CONFLICT (patient_id, client_session_id) WHERE client_session_id IS NOT NULL
+  DO UPDATE SET
+    patient_protocol_id   = COALESCE(EXCLUDED.patient_protocol_id, diary_entries.patient_protocol_id),
+    dolore                = EXCLUDED.dolore,
+    rigidita              = EXCLUDED.rigidita,
+    equilibrio            = EXCLUDED.equilibrio,
+    energia               = EXCLUDED.energia,
+    note                  = COALESCE(EXCLUDED.note, diary_entries.note),
+    -- Una seduta fatta non torna «non fatta», e un'interruzione per
+    -- dolore non si cancella con un secondo salvataggio: sono due cose
+    -- successe davvero, e un salvataggio dopo non le disfa.
+    completato            = diary_entries.completato OR EXCLUDED.completato,
+    interrotto_per_dolore = diary_entries.interrotto_per_dolore OR EXCLUDED.interrotto_per_dolore,
+    modalita              = COALESCE(EXCLUDED.modalita,      diary_entries.modalita),
+    risposta_post         = COALESCE(EXCLUDED.risposta_post, diary_entries.risposta_post),
+    difficolta            = COALESCE(EXCLUDED.difficolta,    diary_entries.difficolta),
+    stelle                = COALESCE(EXCLUDED.stelle,        diary_entries.stelle),
+    protocol_version      = COALESCE(EXCLUDED.protocol_version, diary_entries.protocol_version),
+    iniziata_alle         = COALESCE(diary_entries.iniziata_alle, EXCLUDED.iniziata_alle),
+    finita_alle           = COALESCE(EXCLUDED.finita_alle,   diary_entries.finita_alle),
+    esercizi_completati   = COALESCE(EXCLUDED.esercizi_completati, diary_entries.esercizi_completati),
+    video_visti           = COALESCE(EXCLUDED.video_visti,   diary_entries.video_visti),
+    session_type          = COALESCE(EXCLUDED.session_type,  diary_entries.session_type),
+    body_area             = COALESCE(EXCLUDED.body_area,     diary_entries.body_area),
+    activity_type         = COALESCE(EXCLUDED.activity_type, diary_entries.activity_type),
+    with_cushions         = COALESCE(EXCLUDED.with_cushions, diary_entries.with_cushions)
   RETURNING id INTO v_new_id;
 
   RETURN v_new_id;
@@ -747,6 +919,403 @@ GRANT  EXECUTE ON FUNCTION update_session_feedback(text, uuid, text) TO anon;
 
 
 -- ============================================================
+-- FUNCTION 8: get_daily_context            [daily-context-v1]
+-- ============================================================
+-- Purpose : Tutto quello che la home del paziente deve sapere per
+--           aprirsi giusta, in UNA sola chiamata: in che stato e' il
+--           paziente oggi, cosa e' successo ieri, con che modalita'
+--           ha lavorato l'ultima volta, se il professionista gli ha
+--           lasciato un messaggio, quando e' stato aggiornato il
+--           programma.
+--
+-- ⚠️ QUESTA FUNZIONE NON SCRIVE UNA SOLA PAROLA RIVOLTA AL PAZIENTE.
+--    Restituisce CHIAVI ('dolore_ieri', 'in_pausa'), non frasi. Le
+--    parole che il paziente legge stanno in un file solo, riletto da
+--    Giuliano, come le osservazioni e le terapie. Se le frasi stessero
+--    qui dentro, per correggere una parola servirebbe una migration -
+--    e prima o poi due punti direbbero due cose diverse.
+--
+-- ⚠️ UNA SOLA REAZIONE, MAI CINQUE AVVISI INSIEME.
+--    'reazione' e' una chiave sola, scelta per priorita'. E' la regola
+--    che impedisce a questa funzione di diventare rumore.
+--
+-- ⚠️ NESSUN GIUDIZIO CLINICO. Qui dentro non si dice mai «stai meglio»
+--    ne' «la terapia funziona»: si riporta solo quello che il paziente
+--    HA RIFERITO, e la home lo ripete con le sue parole.
+--
+-- Tables  : READ patients, patient_protocols, diary_entries,
+--                patient_messages
+-- Returns : JSONB (tutte le chiavi sempre presenti), oppure NULL se il
+--           token non e' valido - stessa risposta di get_protocol_data,
+--           nessun oracolo sull'esistenza del paziente.
+--
+-- Se la migration 041 non e' stata lanciata la funzione NON fallisce:
+-- restituisce quello che puo' e mette il nome del file mancante in
+-- 'manca_sql', che la pagina fa vedere a schermo (lezione: una
+-- migration non lanciata non deve produrre un guasto muto).
+-- ============================================================
+
+CREATE FUNCTION get_daily_context(p_token text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_token        uuid;
+  v_patient_id   uuid;
+  v_nome         text;
+  v_proto        record;
+  -- Ieri e il messaggio NON sono record: le loro SELECT stanno dentro un
+  -- blocco che puo' saltare (migration 041 non lanciata), e un record che
+  -- non e' mai stato assegnato esplode alla prima volta che lo si legge.
+  -- Con le variabili semplici restano NULL, che e' esattamente cio' che
+  -- si vuole dire.
+  v_ieri_data    date;
+  v_ieri_compl   boolean;
+  v_ieri_dolore  int;
+  v_ieri_stop    boolean;
+  v_ieri_risp    text;
+  v_ieri_mod     text;
+  v_msg_id       uuid;
+  v_msg_testo    text;
+  v_msg_audio    text;
+  v_msg_autore   text;
+  v_msg_creato   timestamptz;
+  v_msg_letto    timestamptz;
+  v_oggi_fatto   boolean := false;
+  v_ultima_mod   text;
+  v_ultima_data  date;
+  v_giorni       int;
+  v_streak       int := 0;
+  v_giorno       date;
+  v_main_sett    int := 0;
+  v_routine_sett int := 0;
+  v_stelle_sett  boolean := false;
+  v_stato        text;
+  v_reazione     text;
+  v_manca        text := NULL;
+  v_aggiornato   timestamptz;
+  v_versione     int;
+BEGIN
+  IF p_token IS NULL OR LENGTH(TRIM(p_token)) = 0 THEN
+    RETURN NULL;
+  END IF;
+
+  BEGIN
+    v_token := p_token::uuid;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN NULL;
+  END;
+
+  SELECT pat.id, pat.nome INTO v_patient_id, v_nome
+    FROM patients pat
+   WHERE pat.access_token = v_token
+   LIMIT 1;
+
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  -- ---- Il protocollo: attivo per primo, se no il piu' recente.
+  -- Stessa scelta di get_protocol_data: due punti che scelgono il
+  -- protocollo in modo diverso prima o poi divergono.
+  SELECT pp.id, pp.stato, pp.data_inizio, pp.data_fine, pp.frequenza,
+         pp.nome_personalizzato, pp.created_at
+    INTO v_proto
+    FROM patient_protocols pp
+   WHERE pp.patient_id = v_patient_id
+     AND pp.stato = 'attivo'
+   ORDER BY pp.created_at DESC
+   LIMIT 1;
+
+  IF NOT FOUND THEN
+    SELECT pp.id, pp.stato, pp.data_inizio, pp.data_fine, pp.frequenza,
+           pp.nome_personalizzato, pp.created_at
+      INTO v_proto
+      FROM patient_protocols pp
+     WHERE pp.patient_id = v_patient_id
+     ORDER BY pp.created_at DESC
+     LIMIT 1;
+  END IF;
+
+  -- updated_at e versione arrivano dalla 041. Se non c'e', si mostra
+  -- created_at: la data piu' vera che si sappia, mai una inventata.
+  IF v_proto.id IS NOT NULL THEN
+    BEGIN
+      SELECT pp.updated_at, pp.versione INTO v_aggiornato, v_versione
+        FROM patient_protocols pp WHERE pp.id = v_proto.id;
+    EXCEPTION WHEN undefined_column THEN
+      v_manca := 'db/migrations/041_daily_context.sql';
+    END;
+    v_aggiornato := COALESCE(v_aggiornato, v_proto.created_at);
+  END IF;
+
+  -- ---- I CINQUE STATI, in quest'ordine.
+  -- L'ordine e' la funzione: un protocollo sospeso resta sospeso anche
+  -- se il paziente ha fatto qualcosa oggi.
+  IF v_proto.id IS NULL THEN
+    v_stato := 'nessun_protocollo';
+  ELSIF v_proto.stato IS DISTINCT FROM 'attivo' THEN
+    v_stato := 'in_pausa';
+  ELSIF v_proto.data_fine IS NOT NULL AND v_proto.data_fine < CURRENT_DATE THEN
+    v_stato := 'protocollo_finito';
+  END IF;
+
+  -- ---- Ieri, e la seduta di oggi.
+  -- session_type arriva dalla 041: se manca, si contano tutte le righe
+  -- come se fossero sedute del protocollo, che e' quello che erano.
+  BEGIN
+    SELECT (de.data = CURRENT_DATE) INTO v_oggi_fatto
+      FROM diary_entries de
+     WHERE de.patient_id = v_patient_id
+       AND de.data = CURRENT_DATE
+       AND de.completato = true
+       AND COALESCE(de.session_type, 'main') = 'main'
+     LIMIT 1;
+  EXCEPTION WHEN undefined_column THEN
+    v_manca := 'db/migrations/041_daily_context.sql';
+    SELECT true INTO v_oggi_fatto
+      FROM diary_entries de
+     WHERE de.patient_id = v_patient_id
+       AND de.data = CURRENT_DATE
+       AND de.completato = true
+     LIMIT 1;
+  END;
+  v_oggi_fatto := COALESCE(v_oggi_fatto, false);
+
+  IF v_stato IS NULL THEN
+    v_stato := CASE WHEN v_oggi_fatto THEN 'gia_fatto_oggi' ELSE 'da_fare' END;
+  END IF;
+
+  -- La riga di ieri. Non «l'ultima riga»: ieri. La home dice «ieri hai
+  -- riferito...», e una riga di tre giorni fa spacciata per ieri
+  -- sarebbe una data scritta a caso.
+  BEGIN
+    SELECT de.data, de.completato, de.interrotto_per_dolore, de.risposta_post,
+           de.dolore, de.modalita
+      INTO v_ieri_data, v_ieri_compl, v_ieri_stop, v_ieri_risp,
+           v_ieri_dolore, v_ieri_mod
+      FROM diary_entries de
+     WHERE de.patient_id = v_patient_id
+       AND de.data = CURRENT_DATE - 1
+     ORDER BY de.created_at DESC NULLS LAST
+     LIMIT 1;
+  EXCEPTION WHEN undefined_column THEN
+    v_manca := 'db/migrations/041_daily_context.sql';
+  END;
+
+  -- Ultima modalita' usata: serve al pulsante unico INIZIA, che riparte
+  -- come l'ultima volta invece di far scegliere ogni mattina.
+  BEGIN
+    SELECT de.modalita, de.data INTO v_ultima_mod, v_ultima_data
+      FROM diary_entries de
+     WHERE de.patient_id = v_patient_id
+       AND de.modalita IN ('rapid','guided')
+     ORDER BY de.data DESC, de.created_at DESC NULLS LAST
+     LIMIT 1;
+  EXCEPTION WHEN undefined_column THEN
+    v_manca := 'db/migrations/041_daily_context.sql';
+  END;
+
+  -- Da quanti giorni non fa una seduta (completata).
+  SELECT MAX(de.data) INTO v_ultima_data
+    FROM diary_entries de
+   WHERE de.patient_id = v_patient_id
+     AND de.completato = true;
+  IF v_ultima_data IS NOT NULL THEN
+    v_giorni := CURRENT_DATE - v_ultima_data;
+  END IF;
+
+  -- Striscia di giorni consecutivi. Si guarda indietro al massimo 60
+  -- giorni: oltre non serve a nessuno e un ciclo senza fondo su una
+  -- tabella di un paziente qualsiasi non si scrive.
+  v_giorno := CASE WHEN v_oggi_fatto THEN CURRENT_DATE ELSE CURRENT_DATE - 1 END;
+  WHILE v_streak < 60 LOOP
+    IF EXISTS (SELECT 1 FROM diary_entries de
+                WHERE de.patient_id = v_patient_id
+                  AND de.data = v_giorno
+                  AND de.completato = true) THEN
+      v_streak := v_streak + 1;
+      v_giorno := v_giorno - 1;
+    ELSE
+      EXIT;
+    END IF;
+  END LOOP;
+
+  -- Questa settimana (ultimi 7 giorni). main e routine si contano
+  -- SEPARATE: una routine breve scelta dal paziente non e' la seduta
+  -- prescritta, e sommarle farebbe dire all'aderenza cose che non sono.
+  BEGIN
+    SELECT
+      COUNT(*) FILTER (WHERE COALESCE(de.session_type,'main') = 'main'),
+      COUNT(*) FILTER (WHERE de.session_type = 'routine'),
+      BOOL_OR(de.stelle IS NOT NULL)
+      INTO v_main_sett, v_routine_sett, v_stelle_sett
+      FROM diary_entries de
+     WHERE de.patient_id = v_patient_id
+       AND de.completato = true
+       AND de.data > CURRENT_DATE - 7;
+  EXCEPTION WHEN undefined_column THEN
+    v_manca := 'db/migrations/041_daily_context.sql';
+    SELECT COUNT(*), 0, false INTO v_main_sett, v_routine_sett, v_stelle_sett
+      FROM diary_entries de
+     WHERE de.patient_id = v_patient_id
+       AND de.completato = true
+       AND de.data > CURRENT_DATE - 7;
+  END;
+
+  -- ---- IL MESSAGGIO DEL PROFESSIONISTA
+  BEGIN
+    SELECT pm.id, pm.testo, pm.audio_url, pm.autore, pm.creato_il, pm.letto_il
+      INTO v_msg_id, v_msg_testo, v_msg_audio, v_msg_autore, v_msg_creato, v_msg_letto
+      FROM patient_messages pm
+     WHERE pm.patient_id = v_patient_id
+       AND pm.archiviato = false
+     ORDER BY pm.creato_il DESC
+     LIMIT 1;
+  EXCEPTION WHEN undefined_table THEN
+    v_manca := 'db/migrations/041_daily_context.sql';
+  END;
+
+  -- ---- LA REAZIONE: UNA SOLA, PER PRIORITA'
+  -- Prima quello che fa male, poi quello che va storto, poi l'assenza,
+  -- e solo alla fine la lode. Se domani se ne aggiunge una, si aggiunge
+  -- QUI: e' l'unico punto dove l'ordine e' scritto.
+  IF COALESCE(v_ieri_stop, false) THEN
+    v_reazione := 'dolore_ieri';
+  ELSIF v_ieri_risp = 'worse' THEN
+    v_reazione := 'peggio_ieri';
+  ELSIF v_ieri_data IS NOT NULL AND v_ieri_compl = false THEN
+    v_reazione := 'ieri_non_finita';
+  ELSIF v_giorni IS NOT NULL AND v_giorni >= 3 THEN
+    v_reazione := 'assente_da_un_po';
+  ELSIF v_streak >= 3 THEN
+    v_reazione := 'costanza';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'oggi',            CURRENT_DATE,
+    'nome',            v_nome,
+    'stato',           v_stato,
+
+    'protocollo', CASE WHEN v_proto.id IS NULL THEN NULL ELSE jsonb_build_object(
+      'id',            v_proto.id,
+      'stato',         v_proto.stato,
+      'nome',          v_proto.nome_personalizzato,
+      'data_inizio',   v_proto.data_inizio,
+      'data_fine',     v_proto.data_fine,
+      'frequenza',     v_proto.frequenza,
+      'versione',      v_versione,
+      'aggiornato_il', v_aggiornato
+    ) END,
+
+    'ultima_modalita', v_ultima_mod,
+
+    'ieri', CASE WHEN v_ieri_data IS NULL THEN NULL ELSE jsonb_build_object(
+      'data',                  v_ieri_data,
+      'completato',            v_ieri_compl,
+      'interrotto_per_dolore', v_ieri_stop,
+      'risposta_post',         v_ieri_risp,
+      'dolore',                v_ieri_dolore,
+      'modalita',              v_ieri_mod
+    ) END,
+
+    'reazione',                v_reazione,
+    'giorni_da_ultima_seduta', v_giorni,
+    'streak',                  v_streak,
+
+    'settimana', jsonb_build_object(
+      'main',    COALESCE(v_main_sett, 0),
+      'routine', COALESCE(v_routine_sett, 0)
+    ),
+
+    -- Le stelle si chiedono UNA VOLTA A SETTIMANA (036), non ogni
+    -- giorno: un dato chiesto tutti i giorni smette di essere
+    -- compilato dopo due settimane.
+    'chiedi_stelle', (NOT COALESCE(v_stelle_sett, false)) AND COALESCE(v_main_sett, 0) > 0,
+
+    'messaggio', CASE WHEN v_msg_id IS NULL THEN NULL ELSE jsonb_build_object(
+      'id',        v_msg_id,
+      'testo',     v_msg_testo,
+      'audio_url', v_msg_audio,
+      'autore',    v_msg_autore,
+      'creato_il', v_msg_creato,
+      'letto_il',  v_msg_letto
+    ) END,
+
+    'manca_sql', v_manca
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION get_daily_context(text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION get_daily_context(text) TO anon;
+
+
+-- ============================================================
+-- FUNCTION 9: segna_messaggio_letto        [daily-context-v1]
+-- ============================================================
+-- Purpose : Il paziente ha aperto il messaggio del professionista.
+--           Serve al professionista per sapere se e' arrivato.
+-- Returns : true se ha segnato qualcosa, false se il messaggio non
+--           esiste o non e' suo. Mai un errore: se questa cosa non
+--           funziona, il paziente non se ne deve accorgere.
+--
+-- ⚠️ Scrive SOLO letto_il, e solo se e' ancora nullo: la prima volta
+--    e' l'unica che conta, e un refresh non deve spostare la data.
+--    Nient'altro di questa tabella e' scrivibile dal token.
+-- ============================================================
+
+CREATE FUNCTION segna_messaggio_letto(p_token text, p_message_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_token      uuid;
+  v_patient_id uuid;
+BEGIN
+  IF p_token IS NULL OR LENGTH(TRIM(p_token)) = 0 OR p_message_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  BEGIN
+    v_token := p_token::uuid;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN false;
+  END;
+
+  SELECT pat.id INTO v_patient_id
+    FROM patients pat
+   WHERE pat.access_token = v_token
+   LIMIT 1;
+
+  IF NOT FOUND THEN
+    RETURN false;
+  END IF;
+
+  -- Il WHERE fa da permesso: un messaggio di un altro paziente non
+  -- trova nessuna riga, quindi false. Nessun errore, nessuna fuga.
+  UPDATE patient_messages
+     SET letto_il = now()
+   WHERE id         = p_message_id
+     AND patient_id = v_patient_id
+     AND letto_il IS NULL;
+
+  RETURN FOUND;
+EXCEPTION WHEN undefined_table THEN
+  -- migration 041 non lanciata
+  RETURN false;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION segna_messaggio_letto(text, uuid) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION segna_messaggio_letto(text, uuid) TO anon;
+
+
+-- ============================================================
 -- VERIFICATION QUERIES
 -- Run these immediately after deployment to confirm the
 -- functions exist with the correct owner and no PUBLIC grant.
@@ -768,7 +1337,9 @@ WHERE n.nspname = 'public'
     'get_diary_entries',
     'save_diary_entry',
     'save_therapy_session',
-    'update_session_feedback'
+    'update_session_feedback',
+    'get_daily_context',
+    'segna_messaggio_letto'
   )
 ORDER BY p.proname;
 
@@ -784,7 +1355,9 @@ WHERE routine_name IN (
   'get_diary_entries',
   'save_diary_entry',
   'save_therapy_session',
-  'update_session_feedback'
+  'update_session_feedback',
+  'get_daily_context',
+  'segna_messaggio_letto'
 )
 ORDER BY routine_name, grantee;
 -- Expected: only 'anon' appears for each function.

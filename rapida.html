@@ -102,6 +102,7 @@ input[type=range] { width: 100%; accent-color: #FFD008; }
 .motivational { background: #111; border-radius: 12px; padding: 16px 20px; font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 24px; font-style: italic; }
 </style>
   <script src="js/pol-eventi.js"></script><!-- pol-eventi-v1 : misura come viene usata l'area paziente. Vedi js/pol-eventi.js -->
+  <script src="js/pol-sessione.js"></script><!-- daily-context-v1 : una seduta, una riga. Vedi js/pol-sessione.js -->
 </head>
 <body>
 <nav class="navbar">
@@ -130,8 +131,8 @@ input[type=range] { width: 100%; accent-color: #FFD008; }
     </div>
     <textarea class="note-input" id="note" rows="2" placeholder="Note libere (opzionale)..."></textarea>
   </div>
-  <button class="btn-completa" onclick="completaSeduta()">✅ Completa seduta</button>
-  <button class="btn-salta" onclick="saltaECompleta()">Salta tutto e segna come completato</button>
+  <button class="btn-completa" id="btn-completa" onclick="completaSeduta()">✅ Completa seduta</button>
+  <button class="btn-salta" id="btn-salta" onclick="saltaECompleta()">Salta tutto e segna come completato</button>
 </div>
 
 <div class="completed-overlay" id="completed-overlay">
@@ -190,6 +191,8 @@ async function init() {
   const _eli = (pd.elicoidali || []).map(function(e){ const def = (typeof EXERCISES_ELICOIDALI !== 'undefined') ? EXERCISES_ELICOIDALI.find(function(x){ return x.id === e.elicoidale_id }) : null; return { name: def ? def.title : e.elicoidale_id, durata: e.durata || 60, video: videoDa(e.video_url || (def ? def.video_url : null)) } })
   const _cust = (pd.custom_videos || []).map(function(v){ return { name: v.titolo || 'Contenuto personalizzato', durata: v.durata || 60, video: v.url ? { tipo: (v.tipo === 'foto' ? 'foto' : 'file'), url: v.url } : null } })
   exercises = _std.concat(_eli).concat(_cust)
+  // daily-context-v1 : la seduta comincia adesso, non quando premera' Salva.
+  try { polSessione.avvia() } catch (e) {}
   renderExercises()
 }
 
@@ -243,7 +246,7 @@ function renderExercises() {
     const nome = e.name || ('Esercizio ' + (i+1))
     const isDone = checkedItems.has(i)
     return '<div class="ex-item' + (isDone ? ' done' : '') + '" id="ex-item-' + i + '">' +
-      '<div class="ex-check" onclick="toggleCheck(' + i + ')">' + (isDone ? '✓' : '') + '</div>' +
+      '<div class="ex-check" id="chk-' + i + '" onclick="toggleCheck(' + i + ')">' + (isDone ? '✓' : '') + '</div>' +
       '<div class="ex-info">' +
         '<div class="ex-name">' + nome + '</div>' +
         '<div class="ex-meta">' + durata + ' sec</div>' +
@@ -318,24 +321,32 @@ async function completaSeduta() {
   const eseguiti = eseguitiText()
   const noteFinale = eseguiti + (note ? ('. Note: ' + note) : '')
   if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
-  await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
+  // daily-context-v1 : i campi della seduta li prepara js/pol-sessione.js,
+  // un punto solo per tutte e tre le pagine.
+  const eseguitiNomi = exercises.filter(function(_, i){ return checkedItems.has(i) }).map(function(e){ return e.name })
+  await _supabase.rpc('save_diary_entry', { p_token: token, p_data: Object.assign({
     patient_protocol_id: protocol.id, data: today,
     dolore, rigidita: 0, equilibrio: 5, energia,
-    note: noteFinale, completato: true
-  }})
+    note: noteFinale, completato: true, session_type: 'main'
+  }, polSessione.campi('rapid', { esercizi_completati: eseguitiNomi })) })
   try{polEvento('session_completed',{modalita:'rapid'})}catch(e){}
+  try{polSessione.chiudi()}catch(e){}
   mostraCompletato()
 }
 
 async function saltaECompleta() {
   const today = new Date().toISOString().split('T')[0]
   if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
-  await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
+  // daily-context-v1 : «salta tutto e segna come completato» si registra
+  // come 'manual', che e' quello che e'. Finora finiva nel mucchio delle
+  // sedute fatte ed e' il motivo per cui l'aderenza era piu' bella del vero.
+  await _supabase.rpc('save_diary_entry', { p_token: token, p_data: Object.assign({
     patient_protocol_id: protocol.id, data: today,
     dolore: 0, rigidita: 0, equilibrio: 5, energia: 5,
-    note: eseguitiText(), completato: true
-  }})
+    note: eseguitiText(), completato: true, session_type: 'main'
+  }, polSessione.campi('manual')) })
   try{polEvento('session_completed',{modalita:'manual'})}catch(e){}
+  try{polSessione.chiudi()}catch(e){}
   mostraCompletato()
 }
 

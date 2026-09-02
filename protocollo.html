@@ -105,6 +105,7 @@
     .star-label { text-align: center; font-size: 13px; color: #888; margin-bottom: 12px; min-height: 20px; }
   </style>
   <script src="js/pol-eventi.js"></script><!-- pol-eventi-v1 : misura come viene usata l'area paziente. Vedi js/pol-eventi.js -->
+  <script src="js/pol-sessione.js"></script><!-- daily-context-v1 : una seduta, una riga. Vedi js/pol-sessione.js -->
 </head>
 <body>
   <nav class="navbar">
@@ -423,7 +424,7 @@
         '<div class="slider-group"><div class="slider-label"><span class="slider-name">Equilibrio</span><span class="slider-value" id="val-equilibrio">5</span></div><input type="range" id="sl-equilibrio" min="0" max="10" value="5" oninput="updateSlider(\'equilibrio\',this.value)"><div id="bar-equilibrio" style="height:4px;border-radius:2px;margin-top:4px;background:#FF9800;width:50%;transition:all 0.3s"></div></div>' +
         '<div class="slider-group"><div class="slider-label"><span class="slider-name">Energia</span><span class="slider-value" id="val-energia">5</span></div><input type="range" id="sl-energia" min="0" max="10" value="5" oninput="updateSlider(\'energia\',this.value)"><div id="bar-energia" style="height:4px;border-radius:2px;margin-top:4px;background:#FF9800;width:50%;transition:all 0.3s"></div></div>' +
         '<textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea>' +
-        '<button class="btn-diary" onclick="salvaDiario()">Salva diario di oggi</button>' +
+        '<button class="btn-diary" id="btn-salva-diario" onclick="salvaDiario()">Salva diario di oggi</button>' +
         '<button class="btn-wa" onclick="contattaProfessionista()">Scrivi al professionista</button>' +
         '<div class="success-msg" id="diary-success">Diario salvato! Ottimo lavoro.</div></div>'
     }
@@ -470,15 +471,19 @@
     async function salvaDiario() {
       const today = new Date().toISOString().split('T')[0]
       if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
-      const { error } = await _supabase.rpc('save_diary_entry', { p_token: token, p_data: {
+      // daily-context-v1 : questo e' il diario compilato a mano dalla home,
+      // senza passare dagli esercizi: si registra come 'manual'. Non toglie
+      // niente a nessuno - la riga resta identica a prima - ma da qui in poi
+      // l'aderenza sa distinguerla da una seduta davvero eseguita.
+      const { error } = await _supabase.rpc('save_diary_entry', { p_token: token, p_data: Object.assign({
         patient_protocol_id: protocol.id, data: today,
         dolore: parseInt(document.getElementById('sl-dolore').value),
         rigidita: parseInt(document.getElementById('sl-rigidita').value),
         equilibrio: parseInt(document.getElementById('sl-equilibrio').value),
         energia: parseInt(document.getElementById('sl-energia').value),
         note: document.getElementById('diary-note').value.trim() || null,
-        completato: true
-      }})
+        completato: true, session_type: 'main'
+      }, polSessione.campi('manual')) })
       if (error) { alert('Errore: ' + error.message); return }
       document.getElementById('diary-success').classList.add('visible')
       loadSmile()
