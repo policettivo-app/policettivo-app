@@ -224,7 +224,15 @@ const FINTO = (DB) => {
            CON l'id generato. Prima qui tornava la riga senza id, e il codice
            che poi usa quell'id (cancellare la casella, sostituire la foto)
            non si poteva provare: sembrava che non facesse niente. */
-        const salvata = Object.assign({ id:'new-'+Math.random() }, riga)
+        /* messaggio-scade-v1 — il database mette anche i suoi valori di
+           default. Senza `creato_il`, il pannello ricaricato dopo l'invio
+           calcolava la scadenza su una data che non c'era: nel finto si
+           vedeva «ancora null giorni», nel vero no. Il finto deve mentire
+           il meno possibile. */
+        const difetti = (nome === 'patient_messages')
+          ? { creato_il: new Date().toISOString(), letto_il: null, archiviato: false }
+          : {}
+        const salvata = Object.assign({ id:'new-'+Math.random() }, difetti, riga)
         ;(DB[nome] = DB[nome] || []).push(salvata)
         return { select: () => ({ maybeSingle: () => Promise.resolve({ data:salvata, error:null }) }),
                  then: (r) => r({ data:salvata, error:null }) }
@@ -1986,6 +1994,74 @@ sez('messaggio-professionista-v1 · se manca la migration, si legge quale file l
   check('e anche provando a inviare, il motivo resta scritto',
     (await page.textContent('#mp-esito')).includes('041_daily_context.sql'),
     await page.textContent('#mp-esito'))
+  await ctx.close()
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   messaggio-scade-v1 — sette giorni, poi non arriva più
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const giorniFa = (n) => new Date(Date.now() - n * 864e5).toISOString()
+
+sez('messaggio-scade-v1 · chi decide è la RPC, non la pagina')
+{
+  const sql = fs.readFileSync(path.join(ROOT,'rpc_patient_functions.sql'),'utf8')
+  const blocco = sql.split('IL MESSAGGIO DEL PROFESSIONISTA')[1].split('END;')[0]
+  check('get_daily_context non manda più i messaggi vecchi',
+    /creato_il\s*>\s*now\(\)\s*-\s*interval\s*'7 days'/.test(blocco), blocco.slice(-260))
+  check('e la riga porta il marker', blocco.includes('messaggio-scade-v1'))
+  const h = fs.readFileSync(path.join(ROOT,'paziente.html'),'utf8')
+  check('⚠️ il numero sta in un punto solo nella pagina (una costante, non sparso)',
+    (senzaCommentiHtml(h).match(/const MP_GIORNI = 7/g) || []).length === 1)
+  check('e il professionista legge la regola prima di scrivere, non dopo',
+    h.includes('per <strong>7 giorni</strong>; poi sparisce da solo'))
+}
+
+sez('messaggio-scade-v1 · il pannello dice quanti giorni restano')
+{
+  const dati = datiMessaggi({ messaggi: [
+    Object.assign({}, MSG_NUOVO, { id:'m-fresco', creato_il: giorniFa(3), letto_il:null }),
+    Object.assign({}, MSG_VECCHIO, { id:'m-scaduto', creato_il: giorniFa(9), letto_il:null })
+  ] })
+  const { page, ctx, errori } = await apriPagina(browser, dati, 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(700)
+  check('nessun errore JS', errori.length === 0, errori.join(' | '))
+  const el = await page.textContent('#mp-elenco')
+  check('di quello di 3 giorni fa dice che lo vede ancora', el.includes('lo vede adesso nella sua app'), el.slice(0,240))
+  check('e quanti giorni gli restano', el.includes('ancora 4 giorni'), el.slice(0,240))
+  check('⚠️ quello di 9 giorni fa è marcato scaduto', el.includes('scaduto dopo 7 giorni — non lo vede più'), el.slice(0,300))
+  check('e su uno scaduto non si offre di toglierlo: è già sparito',
+    (await page.locator('#mp-arch-m-scaduto').count()) === 0)
+  check('mentre su quello vivo il pulsante c\'è',
+    (await page.locator('#mp-arch-m-fresco').count()) === 1)
+  await ctx.close()
+}
+
+sez('messaggio-scade-v1 · se il più recente è scaduto, non è «quello che vede»')
+{
+  const dati = datiMessaggi({ messaggi: [
+    Object.assign({}, MSG_NUOVO, { id:'m-a', creato_il: giorniFa(8) }),
+    Object.assign({}, MSG_VECCHIO, { id:'m-b', creato_il: giorniFa(20) })
+  ] })
+  const { page, ctx } = await apriPagina(browser, dati, 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(700)
+  const el = await page.textContent('#mp-elenco')
+  check('⚠️ nessuno risulta «lo vede adesso»: il database non gli manda più niente',
+    !el.includes('lo vede adesso nella sua app'), el.slice(0,300))
+  check('e sono scaduti tutti e due', (el.match(/scaduto dopo 7 giorni/g) || []).length === 2, el.slice(0,300))
+  await ctx.close()
+}
+
+sez('messaggio-scade-v1 · appena inviato, sette giorni pieni')
+{
+  const { page, ctx } = await apriPagina(browser, datiMessaggi({ messaggi: [] }), 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(600)
+  await page.fill('#mp-testo', 'Ci vediamo giovedì.')
+  await page.click('#btn-mp-invia')
+  await page.waitForTimeout(600)
+  const el = await page.textContent('#mp-elenco')
+  check('subito dopo l\'invio dice che lo vede', el.includes('lo vede adesso nella sua app'), el.slice(0,240))
+  check('con sette giorni davanti', el.includes('ancora 7 giorni'), el.slice(0,240))
   await ctx.close()
 }
 

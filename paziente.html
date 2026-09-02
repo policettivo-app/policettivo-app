@@ -1238,7 +1238,9 @@
          commenti della migration 041. -->
     <div class="section ds-card" id="sez-messaggi">
       <div class="section-title-plain ds-section-title-line">💬 Messaggio nell'app del paziente</div>
-      <p style="font-size:13px;color:#666;margin-bottom:14px">Lo legge nella sua app, sopra il programma. <strong>Non può rispondere qui</strong>: per una risposta resta WhatsApp.</p>
+      <!-- messaggio-scade-v1 : i 7 giorni si scrivono qui perché il professionista
+           li sappia PRIMA di scrivere, non dopo. Il numero vero sta nella RPC. -->
+      <p style="font-size:13px;color:#666;margin-bottom:14px">Lo legge nella sua app, sopra il programma, per <strong>7 giorni</strong>; poi sparisce da solo. <strong>Non può rispondere qui</strong>: per una risposta resta WhatsApp.</p>
       <textarea id="mp-testo" rows="3" maxlength="600" placeholder="Es. Ho aggiornato il programma: da oggi tre volte a settimana. Se il dolore torna, fermati e scrivimi." style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-family:Montserrat,sans-serif;font-size:14px;resize:vertical;outline:none"></textarea>
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 14px">
         <span id="mp-conta" style="font-size:12px;color:#999">0/600</span>
@@ -2369,8 +2371,24 @@
        3. L'AUTORE SI SCRIVE PER ESTESO ADESSO. Va nella colonna cosi'
           com'e': chi ha scritto quel messaggio QUEL giorno non deve
           cambiare se domani cambia un profilo.
+       4. messaggio-scade-v1 — DOPO SETTE GIORNI NON ARRIVA PIU'.
+          ⚠️ Chi decide non e' questa pagina: e' la riga
+          «pm.creato_il > now() - interval '7 days'» dentro get_daily_context
+          (rpc_patient_functions.sql). Qui il numero si ripete solo per
+          SCRIVERLO a schermo. Se cambia, cambia prima li'.
     */
+    const MP_GIORNI = 7
     let _mpInvioInCorso = false
+
+    /* messaggio-scade-v1 — quanti giorni gli restano. Si conta dal momento
+       dell'invio, come fa il database. */
+    function _mpScadenza(iso) {
+      const d = Date.parse(iso)
+      if (isNaN(d)) return { scaduto: false, restano: null }
+      const passati = (Date.now() - d) / 864e5
+      const restano = Math.ceil(MP_GIORNI - passati)
+      return { scaduto: passati >= MP_GIORNI, restano: restano }
+    }
 
     function _mpEsc(s) {
       return String(s == null ? '' : s)
@@ -2445,26 +2463,34 @@
       const righe = data || []
       if (!righe.length) { box.innerHTML = '<div style="font-size:13px;color:#999">Nessun messaggio inviato.</div>'; return }
 
-      /* Quale vede DAVVERO adesso: il primo non archiviato, nessun altro. */
-      const vivo = righe.find(r => !r.archiviato)
+      /* Quale vede DAVVERO adesso: il primo non archiviato E non scaduto.
+         messaggio-scade-v1 — senza il secondo pezzo il pannello direbbe «lo
+         vede adesso» su un messaggio che il database non gli manda piu'. */
+      const vivo = righe.find(r => !r.archiviato && !_mpScadenza(r.creato_il).scaduto)
       let html = '<div style="font-size:12px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Inviati</div>'
       righe.forEach(function (r) {
         const eIlVivo = vivo && r.id === vivo.id
+        const sc = _mpScadenza(r.creato_il)
         const stato = r.archiviato
           ? '<span style="color:#999">archiviato</span>'
           : (eIlVivo
-              ? '<span style="color:#1b5e20;font-weight:700">lo vede adesso nella sua app</span>'
-              : '<span style="color:#e65100">sostituito da uno più recente — non lo vede più</span>')
+              ? '<span style="color:#1b5e20;font-weight:700">lo vede adesso nella sua app</span><span style="color:#666"> · ancora ' + sc.restano + (sc.restano === 1 ? ' giorno' : ' giorni') + '</span>'
+              : (sc.scaduto
+                  ? '<span style="color:#999">scaduto dopo ' + MP_GIORNI + ' giorni — non lo vede più</span>'
+                  : '<span style="color:#e65100">sostituito da uno più recente — non lo vede più</span>'))
         const letto = r.letto_il
           ? '<span style="color:#1b5e20">letto il ' + _mpEsc(_mpQuando(r.letto_il)) + '</span>'
           : '<span style="color:#999">non ancora letto</span>'
         html +=
           '<div style="border:1px solid ' + (eIlVivo ? '#a5d6a7' : '#eee') + ';border-radius:10px;padding:12px 14px;margin-bottom:10px;background:' + (r.archiviato ? '#fafafa' : '#fff') + '">' +
             '<div style="font-size:11px;color:#888;margin-bottom:6px">' + _mpEsc(_mpQuando(r.creato_il)) + (r.autore ? ' · firmato ' + _mpEsc(r.autore) : '') + '</div>' +
-            '<div style="font-size:14px;color:' + (r.archiviato ? '#888' : '#111') + ';line-height:1.5;white-space:pre-wrap;word-break:break-word">' + _mpEsc(r.testo || '') + (r.audio_url ? ' 🎧' : '') + '</div>' +
+            '<div style="font-size:14px;color:' + ((r.archiviato || sc.scaduto) ? '#888' : '#111') + ';line-height:1.5;white-space:pre-wrap;word-break:break-word">' + _mpEsc(r.testo || '') + (r.audio_url ? ' 🎧' : '') + '</div>' +
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px">' +
               '<span>' + stato + ' · ' + letto + '</span>' +
-              (r.archiviato ? '' : '<button id="mp-arch-' + _mpEsc(r.id) + '" onclick="mpArchivia(\'' + _mpEsc(r.id) + '\')" style="background:#fff;border:1px solid #ddd;color:#666;border-radius:6px;padding:5px 12px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">Togli dall\'app</button>') +
+              /* messaggio-scade-v1 — su uno scaduto il pulsante non serve:
+                 dall'app e' gia' sparito da solo, e offrire di togliere una
+                 cosa gia' tolta fa dubitare che sia davvero sparita. */
+              ((r.archiviato || sc.scaduto) ? '' : '<button id="mp-arch-' + _mpEsc(r.id) + '" onclick="mpArchivia(\'' + _mpEsc(r.id) + '\')" style="background:#fff;border:1px solid #ddd;color:#666;border-radius:6px;padding:5px 12px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">Togli dall\'app</button>') +
             '</div>' +
           '</div>'
       })

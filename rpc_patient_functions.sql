@@ -1166,12 +1166,25 @@ BEGIN
   END;
 
   -- ---- IL MESSAGGIO DEL PROFESSIONISTA
+  --
+  -- messaggio-scade-v1 — SETTE GIORNI, POI NON ARRIVA PIU'.
+  -- Un messaggio operativo («ci vediamo giovedi'») dopo tre settimane e'
+  -- sbagliato, e un'app che mostra una cosa vecchia sembra abbandonata.
+  -- La riga sparisce dalla HOME, non dal database: nella scheda resta,
+  -- marcata «scaduto», perche' e' documentazione di cosa e' stato detto
+  -- e a un messaggio gia' letto non si toglie la traccia.
+  --
+  -- ⚠️ La scadenza sta QUI e in nessun altro punto. Il pannello del
+  --    professionista la ricalcola per scriverla a schermo, ma chi decide
+  --    cosa arriva al paziente e' questa riga: se un giorno cambia, cambia
+  --    qui, e la pagina segue.
   BEGIN
     SELECT pm.id, pm.testo, pm.audio_url, pm.autore, pm.creato_il, pm.letto_il
       INTO v_msg_id, v_msg_testo, v_msg_audio, v_msg_autore, v_msg_creato, v_msg_letto
       FROM patient_messages pm
      WHERE pm.patient_id = v_patient_id
        AND pm.archiviato = false
+       AND pm.creato_il > now() - interval '7 days'   -- messaggio-scade-v1
      ORDER BY pm.creato_il DESC
      LIMIT 1;
   EXCEPTION WHEN undefined_table THEN
