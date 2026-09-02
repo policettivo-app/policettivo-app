@@ -90,6 +90,30 @@
     .install-banner { background: #1a1a00; border: 1px solid #FFD008; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: none; }
     .news-banner { background: #0d2620; border: 1px solid #1de9b6; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: none; }
     .btn-install { background: #FFD008; color: #000; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    /* video-guida-v1 — una card discreta, in fondo: non deve mai competere
+       con «Inizia gli esercizi», che resta la prima azione della home. */
+    .vg-card { background: #0e0e0e; border: 1px solid #222; border-radius: 16px; padding: 18px 20px; margin-bottom: 20px; }
+    .vg-titolo { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .vg-sub { font-size: 12px; color: #777; line-height: 1.5; margin-bottom: 14px; }
+    .btn-vg { width: 100%; padding: 12px; background: transparent; border: 1px solid #444; color: #ccc; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-vg:hover { border-color: #FFD008; color: #FFD008; }
+    .vg-pannello { position: fixed; inset: 0; background: #000; z-index: 9000; overflow-y: auto; display: none; }
+    .vg-pannello.aperto { display: block; }
+    .vg-testa { position: sticky; top: 0; background: #000; border-bottom: 1px solid #222; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .vg-testa h2 { font-size: 16px; font-weight: 700; color: #FFD008; }
+    .btn-vg-chiudi { background: #1a1a1a; border: 1px solid #333; color: #ccc; border-radius: 8px; padding: 8px 14px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+    .vg-corpo { max-width: 480px; margin: 0 auto; padding: 20px 20px 60px; }
+    .vg-gruppo { font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 22px 0 10px; }
+    .vg-voce { background: #111; border: 1px solid #222; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+    .vg-voce-titolo { font-size: 14px; font-weight: 600; color: #fff; }
+    .vg-voce-nota { font-size: 12px; color: #666; margin-top: 2px; }
+    .vg-azioni { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .btn-vg-play { background: #FFD008; color: #000; border: none; border-radius: 8px; padding: 9px 16px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-vg-yt { background: transparent; border: 1px solid #444; color: #999; border-radius: 8px; padding: 9px 16px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; text-decoration: none; display: inline-block; }
+    .vg-media { margin-top: 12px; display: none; }
+    .vg-media.aperto { display: block; }
+    .vg-media iframe { width: 100%; aspect-ratio: 16/9; border: 0; border-radius: 10px; background: #000; }
+    .vg-avviso { background: #1a1a00; border: 1px solid #4a4a00; border-radius: 12px; padding: 14px 16px; margin-top: 26px; font-size: 12px; color: #d6cf8a; line-height: 1.6; }
     .feedback-card { background: #111; border: 1px solid #333; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
     .feedback-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px; }
     .feedback-sub { font-size: 12px; color: #666; margin-bottom: 16px; }
@@ -106,6 +130,7 @@
   </style>
   <script src="js/pol-eventi.js"></script><!-- pol-eventi-v1 : misura come viene usata l'area paziente. Vedi js/pol-eventi.js -->
   <script src="js/pol-sessione.js"></script><!-- daily-context-v1 : una seduta, una riga. Vedi js/pol-sessione.js -->
+  <script src="js/video-guida.js"></script><!-- video-guida-v1 : l'elenco dei video sta li dentro, non qui. -->
 </head>
 <body>
   <nav class="navbar">
@@ -426,7 +451,97 @@
         '<textarea class="diary-note" id="diary-note" rows="3" placeholder="Come ti senti? Note libere..."></textarea>' +
         '<button class="btn-diary" id="btn-salva-diario" onclick="salvaDiario()">Salva diario di oggi</button>' +
         '<button class="btn-wa" onclick="contattaProfessionista()">Scrivi al professionista</button>' +
-        '<div class="success-msg" id="diary-success">Diario salvato! Ottimo lavoro.</div></div>'
+        '<div class="success-msg" id="diary-success">Diario salvato! Ottimo lavoro.</div></div>' +
+        cardVideoGuida()
+      montaVideoGuida()
+    }
+
+    /* video-guida-v1 — LA CARD.
+       Sta in fondo, dopo il diario, e non ha il colore dei pulsanti che
+       avviano una seduta: e' un servizio, non un compito. La prima azione
+       della home resta il programma prescritto.
+       Se js/video-guida.js non arriva, qui non compare niente e la home
+       funziona identica: una sezione informativa non deve poter rompere
+       la pagina da cui si fanno gli esercizi. */
+    function cardVideoGuida() {
+      try {
+        var V = window.VIDEO_GUIDA
+        if (!V || !V.gruppi || !V.gruppi.length) return ''
+        var n = 0
+        V.gruppi.forEach(function(g) { n += (g.video || []).length })
+        if (!n) return ''
+        return '<div class="vg-card">' +
+          '<div class="vg-titolo">&#128250; ' + V.titolo + '</div>' +
+          '<div class="vg-sub">' + V.sottotitolo + ' &middot; ' + n + ' video</div>' +
+          '<button class="btn-vg" id="btn-video-guida" onclick="apriVideoGuida()">Guarda i video</button>' +
+          '</div>'
+      } catch (e) { return '' }
+    }
+
+    /* Il pannello si disegna UNA VOLTA SOLA, alla prima apertura, sempre
+       dallo stesso elenco: due punti che disegnano la stessa cosa
+       divergono sempre. */
+    function montaVideoGuida() {
+      try {
+        var V = window.VIDEO_GUIDA
+        var box = document.getElementById('vg-corpo')
+        if (!V || !box || box.getAttribute('data-pronto') === '1') return
+        var html = ''
+        V.gruppi.forEach(function(g) {
+          if (!g.video || !g.video.length) return
+          html += '<div class="vg-gruppo">' + g.nome + '</div>'
+          g.video.forEach(function(v) {
+            html += '<div class="vg-voce">' +
+              '<div class="vg-voce-titolo">' + v.titolo + '</div>' +
+              (v.nota ? '<div class="vg-voce-nota">' + v.nota + '</div>' : '') +
+              '<div class="vg-azioni">' +
+                '<button class="btn-vg-play" id="vg-play-' + v.id + '" onclick="riproduciVideoGuida(\'' + v.id + '\')">&#9654; Guarda qui</button>' +
+                '<a class="btn-vg-yt" href="https://youtu.be/' + v.id + '" target="_blank" rel="noopener">Apri su YouTube</a>' +
+              '</div>' +
+              '<div class="vg-media" id="vg-media-' + v.id + '"></div>' +
+              '</div>'
+          })
+        })
+        if (V.avviso) html += '<div class="vg-avviso">&#9888;&#65039; ' + V.avviso + '</div>'
+        box.innerHTML = html
+        box.setAttribute('data-pronto', '1')
+      } catch (e) {}
+    }
+
+    function apriVideoGuida() {
+      montaVideoGuida()
+      document.getElementById('vg-pannello').classList.add('aperto')
+      document.body.style.overflow = 'hidden'
+      try { polEvento('video_guida_aperta') } catch (e) {}
+    }
+
+    /* Chiudendo si svuota ogni riquadro: se no l'audio di YouTube
+       continuerebbe a suonare dietro la home. Stessa lezione della
+       modalita' rapida. */
+    function chiudiVideoGuida() {
+      try {
+        var box = document.getElementById('vg-corpo')
+        if (box) {
+          var media = box.querySelectorAll('.vg-media')
+          for (var i = 0; i < media.length; i++) { media[i].innerHTML = ''; media[i].classList.remove('aperto') }
+        }
+      } catch (e) {}
+      document.getElementById('vg-pannello').classList.remove('aperto')
+      document.body.style.overflow = ''
+    }
+
+    /* Un video per volta: aprendone un altro il precedente si spegne. */
+    function riproduciVideoGuida(id) {
+      try {
+        var box = document.getElementById('vg-corpo')
+        var media = box.querySelectorAll('.vg-media')
+        for (var i = 0; i < media.length; i++) { media[i].innerHTML = ''; media[i].classList.remove('aperto') }
+        var q = document.getElementById('vg-media-' + id)
+        if (!q) return
+        q.innerHTML = '<iframe src="https://www.youtube.com/embed/' + id + '?playsinline=1&rel=0" allowfullscreen allow="autoplay"></iframe>'
+        q.classList.add('aperto')
+        try { polEvento('video_guida_riprodotto') } catch (e) {}
+      } catch (e) {}
     }
 
     function modalitaRapida() {
@@ -532,6 +647,15 @@
 
     init()
   </script>
+<!-- video-guida-v1 : il pannello. Vuoto: lo riempie montaVideoGuida()
+     leggendo js/video-guida.js. Nessun elenco di video scritto qui dentro. -->
+<div class="vg-pannello" id="vg-pannello" role="dialog" aria-label="Video guida">
+  <div class="vg-testa">
+    <h2 id="vg-testa-titolo">&#128250; Video guida</h2>
+    <button class="btn-vg-chiudi" id="btn-vg-chiudi" onclick="chiudiVideoGuida()">Chiudi</button>
+  </div>
+  <div class="vg-corpo" id="vg-corpo"></div>
+</div>
 <script>/* pol-eventi-apertura */try{polEvento('app_open');polEvento('daily_protocol_view')}catch(e){}</script>
 </body>
 </html>

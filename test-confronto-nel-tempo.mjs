@@ -52,6 +52,12 @@ function check(nome, cond, extra) {
 }
 const sez = t => console.log('\n── ' + t + ' ' + '─'.repeat(Math.max(0, 60 - t.length)))
 
+/* Una rimozione non si verifica cercando la PAROLA: il commento che spiega
+   perché una riga è stata tolta contiene il nome della riga tolta, e il conto
+   non torna mai. Si guarda il codice senza commenti. */
+const senzaCommenti = (t) => String(t).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+const senzaCommentiHtml = (t) => String(t).replace(/<!--[\s\S]*?-->/g, '')
+
 // ── dati finti ─────────────────────────────────────────────────────────
 const PID  = '8585ba1c-a34b-4336-9a19-187310245cdd'
 const PATH_SCHEDA_SAG = PID + '/iniziali/prima-sx_1751328000000.jpg'   // 01/07/2025-ish
@@ -262,8 +268,13 @@ const FINTO = (DB) => {
   }
 }
 
-async function apriPagina(browser, dati, file, query) {
+async function apriPagina(browser, dati, file, query, opts = {}) {
   const ctx = await browser.newContext({ viewport:{ width:1280, height:900 } })
+  // daily-context-v1 / video-guida-v1 — `blocca` fa sparire un file dalla
+  // rete: serve a vedere cosa succede quando un js condiviso non arriva.
+  // Una sezione informativa non deve poter rompere la pagina da cui il
+  // paziente fa gli esercizi.
+  for (const p of (opts.blocca || [])) await ctx.route(p, r => r.abort())
   // niente rete verso l'esterno: font e supabase-js dal CDN non servono al test
   await ctx.route('**://cdn.jsdelivr.net/**', r => r.fulfill({ status:200, contentType:'text/javascript', body:'/* finto */' }))
   await ctx.route('**://cdnjs.cloudflare.com/**', r => r.fulfill({ status:200, contentType:'text/javascript', body:'/* finto */' }))
@@ -1520,6 +1531,132 @@ sez('daily-context-v1 · anteprima del professionista: niente si salva')
   await page.waitForTimeout(400)
   const inviati = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'save_diary_entry'))
   check('in anteprima non si salva nessuna seduta', inviati.length === 0, String(inviati.length))
+  await ctx.close()
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// video-guida-v1 — LA SEZIONE CHE SPIEGA IL METODO
+// ══════════════════════════════════════════════════════════════════════
+
+sez('video-guida-v1 · il vocabolario dei video')
+{
+  const src = fs.readFileSync(path.join(ROOT,'js','video-guida.js'),'utf8')
+  check('js/video-guida.js esiste e ha il marker', src.includes('video-guida-v1'))
+  // Si contano gli id DENTRO l'elenco, non quello dell'esempio nel commento
+  // in cima: contando tutto il file venivano 7 e il numero atteso mentiva.
+  const elenco = senzaCommenti(src.slice(src.indexOf('gruppi:')))
+  const ids = [...new Set((elenco.match(/id: '[A-Za-z0-9_-]{8,}'/g) || []))]
+  check('ci sono i 5 video attivi', ids.length === 5, String(ids.length) + ' -> ' + ids.join(','))
+  // Quello che e' stato messo da parte deve restare NEL FILE ma FUORI
+  // dall'elenco. Si controlla dopo aver tolto i commenti, se no il conto
+  // non tornerebbe mai (lezione del METODO sulle rimozioni).
+  check('le tre lezioni sono messe da parte, non cancellate',
+        src.includes('vmPyz39cvdo') && !elenco.includes('vmPyz39cvdo'))
+  // ⚖️ Il controllo che conta: nessuno SCHEMA finisce nella card. Sono
+  // esercizi, e in una sezione aperta a tutti sarebbero esercizi dati a
+  // chi non li ha ricevuti da nessuno.
+  for (const schema of ['mB7A5iJ68hI','gUeRn0nIheA','nRtbWXgxYos','A429Dfpz78g','wtH60FI6EWk']) {
+    check('lo schema ' + schema + ' NON è nella card', !elenco.includes(schema))
+  }
+  check('e restano scritti nel file, per assegnarli al singolo paziente',
+        ['mB7A5iJ68hI','gUeRn0nIheA','nRtbWXgxYos','A429Dfpz78g','wtH60FI6EWk'].every(x => src.includes(x)))
+  check('l\'inquadramento posturale (materiale per professionisti) resta fuori',
+        !elenco.includes('AjCXsu9uPyQ'))
+  check('il primo è «Uso generale»', src.indexOf('4Rr9da0nrZQ') > 0 && src.indexOf('4Rr9da0nrZQ') < src.indexOf('y5QjsQDtjMw'))
+  check('c\'è l\'avviso che il programma resta quello del professionista',
+        src.includes('chiedi al tuo') && src.includes('fisioterapista'))
+  const home = fs.readFileSync(path.join(ROOT,'protocollo.html'),'utf8')
+  check('nessun id di YouTube scritto dentro protocollo.html (un elenco solo)',
+        !/[?&]v=|youtu\.be\/[A-Za-z0-9_-]{8}|embed\/[A-Za-z0-9_-]{8}/.test(home.replace(/embed\/' \+ id/g,'')),
+        'trovato un video scritto a mano nella pagina')
+  check('protocollo.html carica js/video-guida.js', home.includes('src="js/video-guida.js"'))
+}
+
+sez('video-guida-v1 · la card nella home')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPaziente(), 'protocollo.html', '?token=' + TOK)
+  check('la home si apre senza errori', errori.length === 0, errori.join(' | '))
+  check('la card c\'è', await page.isVisible('#btn-video-guida'))
+  const testo = await page.textContent('.vg-card')
+  check('dice quanti video sono', testo.includes('5 video'), testo.slice(0,90))
+
+  // la prima azione della home resta il programma: la card dei video sta DOPO
+  const yStart = await page.evaluate(() => document.querySelector('.btn-start').getBoundingClientRect().top + window.scrollY)
+  const yVideo = await page.evaluate(() => document.querySelector('.vg-card').getBoundingClientRect().top + window.scrollY)
+  check('la card dei video sta sotto «Inizia gli esercizi», non sopra', yVideo > yStart, yVideo + ' vs ' + yStart)
+
+  check('il pannello parte chiuso', !(await page.isVisible('#vg-corpo')))
+  await page.click('#btn-video-guida')
+  await page.waitForTimeout(300)
+  check('si apre', await page.isVisible('#vg-corpo'))
+  const voci = await page.locator('.vg-voce').count()
+  check('elenca i 5 video', voci === 5, String(voci))
+  check('l\'avviso è dentro il pannello', await page.isVisible('.vg-avviso'))
+  check('ogni video ha anche il link a YouTube', (await page.locator('.btn-vg-yt').count()) === 5)
+
+  await page.click('#vg-play-4Rr9da0nrZQ')
+  await page.waitForTimeout(300)
+  const src1 = await page.getAttribute('#vg-media-4Rr9da0nrZQ iframe', 'src')
+  check('parte il video giusto', (src1 || '').includes('embed/4Rr9da0nrZQ'), String(src1))
+  check('senza video correlati di altri', (src1 || '').includes('rel=0'))
+
+  await page.click('#vg-play-t1FelAlItF0')
+  await page.waitForTimeout(300)
+  check('aprendone un altro il primo si spegne',
+        (await page.locator('#vg-media-4Rr9da0nrZQ iframe').count()) === 0)
+  check('e parte il secondo', (await page.locator('#vg-media-t1FelAlItF0 iframe').count()) === 1)
+
+  await page.click('#btn-vg-chiudi')
+  await page.waitForTimeout(300)
+  check('chiudendo non resta nessun video acceso dietro',
+        (await page.locator('.vg-media iframe').count()) === 0)
+  check('il pannello è chiuso', !(await page.isVisible('#vg-corpo')))
+  await ctx.close()
+}
+
+sez('video-guida-v1 · se il file dei video non arriva, la home regge')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPaziente(), 'protocollo.html', '?token=' + TOK, { blocca: ['**/js/video-guida.js'] })
+  check('la home si apre lo stesso, senza errori', errori.length === 0, errori.join(' | '))
+  check('il programma si vede comunque', await page.isVisible('.btn-start'))
+  check('il diario si vede comunque', await page.isVisible('#btn-salva-diario'))
+  check('la card dei video semplicemente non compare', (await page.locator('.vg-card').count()) === 0)
+  await ctx.close()
+}
+
+sez('rapida-un-click-v1 · un click per finire, e l\'anteprima non blocca più')
+{
+  const { page, ctx } = await apriPagina(browser, datiPaziente(), 'rapida.html', '?token=' + TOK)
+  let avvisi = 0
+  page.on('dialog', d => { avvisi++; d.accept() })
+  await page.click('#btn-completa')
+  await page.waitForTimeout(400)
+  check('nessun avviso da chiudere', avvisi === 0, String(avvisi))
+  check('si vede la schermata del trofeo', await page.isVisible('#completed-overlay'))
+  check('e dice che è stata registrata', (await page.textContent('#completed-sub')).includes('registrata'))
+  await page.waitForTimeout(2800)
+  check('dopo 2,5 secondi torna da sola al protocollo, senza cliccare',
+        page.url().includes('protocollo.html'), page.url())
+  await ctx.close()
+}
+
+sez('rapida-un-click-v1 · in anteprima si arriva in fondo e si legge come uscirne')
+{
+  const { page, ctx } = await apriPagina(browser, datiPaziente(), 'rapida.html', '?token=' + TOK + '&preview=1')
+  let avvisi = 0
+  page.on('dialog', d => { avvisi++; d.accept() })
+  await page.click('#btn-completa')
+  await page.waitForTimeout(400)
+  check('niente avviso che blocca', avvisi === 0, String(avvisi))
+  const sub = await page.textContent('#completed-sub')
+  check('si vede la schermata finale, come la vede il paziente', await page.isVisible('#completed-overlay'))
+  check('dice che è un\'anteprima', sub.includes('ANTEPRIMA'), sub.slice(0,80))
+  check('e dice COME uscirne', sub.includes('preview=1'), sub.slice(0,120))
+  const inviati = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'save_diary_entry'))
+  check('e continua a non salvare niente', inviati.length === 0, String(inviati.length))
+  await page.waitForTimeout(2800)
+  check('in anteprima NON torna da sola: il professionista sta guardando',
+        page.url().includes('rapida.html'), page.url())
   await ctx.close()
 }
 

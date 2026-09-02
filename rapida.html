@@ -138,7 +138,7 @@ input[type=range] { width: 100%; accent-color: #FFD008; }
 <div class="completed-overlay" id="completed-overlay">
   <div class="completed-icon">🏆</div>
   <div class="completed-title">Ottimo lavoro!</div>
-  <div class="completed-sub">Seduta registrata con successo</div>
+  <div class="completed-sub" id="completed-sub">Seduta registrata con successo</div>
   <div class="motivational" id="motivational-msg"></div>
   <button class="btn-torna" onclick="torna()">Torna al protocollo</button>
 </div>
@@ -320,7 +320,7 @@ async function completaSeduta() {
   const today = new Date().toISOString().split('T')[0]
   const eseguiti = eseguitiText()
   const noteFinale = eseguiti + (note ? ('. Note: ' + note) : '')
-  if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
+  if (isPreview) { mostraCompletato(true); return }
   // daily-context-v1 : i campi della seduta li prepara js/pol-sessione.js,
   // un punto solo per tutte e tre le pagine.
   const eseguitiNomi = exercises.filter(function(_, i){ return checkedItems.has(i) }).map(function(e){ return e.name })
@@ -336,7 +336,7 @@ async function completaSeduta() {
 
 async function saltaECompleta() {
   const today = new Date().toISOString().split('T')[0]
-  if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
+  if (isPreview) { mostraCompletato(true); return }
   // daily-context-v1 : «salta tutto e segna come completato» si registra
   // come 'manual', che e' quello che e'. Finora finiva nel mucchio delle
   // sedute fatte ed e' il motivo per cui l'aderenza era piu' bella del vero.
@@ -350,15 +350,40 @@ async function saltaECompleta() {
   mostraCompletato()
 }
 
-function mostraCompletato() {
+/* rapida-un-click-v1 [video-guida-v1] — LA RAPIDA DEVE COSTARE UN CLICK, NON DUE.
+   Prima: «Completa seduta» apriva questa schermata e poi bisognava
+   premere «Torna al protocollo». Due tocchi per finire una modalita'
+   che esiste apposta per essere veloce. Adesso torna da sola dopo
+   2,5 secondi - il tempo di vedere il trofeo e leggere la frase, che
+   restano: quella e' la ricompensa, toglierla sarebbe togliere
+   qualcosa. Il pulsante resta li' per chi non vuole aspettare.
+
+   In ANTEPRIMA non torna da sola (il professionista sta guardando) e
+   al posto dell'avviso che bloccava a meta' si vede la stessa
+   schermata del paziente, con scritto come uscire dall'anteprima.
+   Prima un alert fermava la prova e non diceva come proseguire: ci e'
+   cascato anche chi l'app l'ha fatta. */
+let tornaSolo = null
+function mostraCompletato(anteprima) {
   const frase = frasi[Math.floor(Math.random() * frasi.length)]
   document.getElementById('motivational-msg').textContent = frase
+  const sub = document.getElementById('completed-sub')
+  if (anteprima) {
+    sub.innerHTML = 'ANTEPRIMA &mdash; niente e stato salvato.<br>' +
+      '<span style="font-size:12px;opacity:.8">Togli <b>&amp;preview=1</b> dal link per provare davvero.</span>'
+  } else {
+    sub.textContent = 'Seduta registrata con successo'
+  }
   document.getElementById('completed-overlay').classList.add('show')
   try {
     const audio = new Audio('magnific_epic-victory.mp3')
     audio.volume = 0.7
     audio.play()
   } catch(e) {}
+  if (!anteprima) {
+    if (tornaSolo) clearTimeout(tornaSolo)
+    tornaSolo = setTimeout(torna, 2500)
+  }
 }
 
 init()
