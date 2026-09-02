@@ -131,6 +131,7 @@
   <script src="js/pol-eventi.js"></script><!-- pol-eventi-v1 : misura come viene usata l'area paziente. Vedi js/pol-eventi.js -->
   <script src="js/pol-sessione.js"></script><!-- daily-context-v1 : una seduta, una riga. Vedi js/pol-sessione.js -->
   <script src="js/video-guida.js"></script><!-- video-guida-v1 : l'elenco dei video sta li dentro, non qui. -->
+  <script src="js/messaggio-paziente.js"></script><!-- messaggio-professionista-v1 : la card e le sue parole stanno li dentro, non qui. -->
 </head>
 <body>
   <nav class="navbar">
@@ -171,9 +172,22 @@
       <h1 id="greeting-title">Ciao</h1>
       <p id="greeting-sub">Il tuo programma di oggi</p>
     </div>
+    <!-- messaggio-professionista-v1 — QUI, sopra il programma, e non in fondo.
+         Non e' una contraddizione con la regola «la prima azione della home
+         resta il programma prescritto»: questa card non ha nessun pulsante,
+         quindi non compete con «Inizia gli esercizi», che resta l'unica
+         azione gialla della pagina. Il video, che invece porta altrove, sta
+         giu' in fondo apposta. Un messaggio del professionista che il
+         paziente scorre senza vedere non serve a niente: era il punto. -->
+    <div id="mp-card-paziente"></div>
     <div id="content-area">
       <div class="no-protocol"><h2>Caricamento...</h2></div>
     </div>
+    <!-- messaggio-professionista-v1 — l'avviso «manca la SQL» lo vede SOLO il
+         professionista in anteprima. Una migration non lanciata non deve
+         produrre un guasto muto, ma il nome di un file .sql non e' una cosa
+         che si mette davanti a un paziente. -->
+    <div id="mp-manca" style="display:none;background:#2a1a00;border:1px solid #7a4a00;border-radius:12px;padding:12px 14px;margin-bottom:20px;font-size:12px;color:#ffcf8a;line-height:1.5"></div>
 
     <!-- FEEDBACK SEDUTA -->
     <div class="feedback-card" id="feedback-card" style="display:none">
@@ -307,6 +321,12 @@
       const btnRapida = document.getElementById('btn-rapida'); if(btnRapida) btnRapida.style.display = 'block'
       try { const { data: _pc } = await _supabase.rpc('get_professional_contact', { p_token: token }); window.__profTel = (_pc && _pc.telefono) ? _pc.telefono : '' } catch(e) { window.__profTel = '' }
 
+      /* messaggio-professionista-v1 — NON si aspetta. Il messaggio arriva
+         quando arriva: il programma non deve stare fermo per un saluto, e
+         un paziente senza protocollo deve vederlo lo stesso (qui sotto
+         c'e' un return che se ne va). */
+      caricaMessaggio()
+
       // 2. Protocollo (attivo o più recente come fallback)
       if (!pd.protocol) { showNoProtocol(); return }
       protocol = pd.protocol
@@ -333,6 +353,33 @@
       renderProtocol()
       loadSmile()
       caricaUltimaSeduta()
+    }
+
+    /* messaggio-professionista-v1 — UNA CHIAMATA, NESSUNA PAROLA QUI DENTRO.
+       get_daily_context restituisce chiavi e dati, mai frasi: le parole che
+       il paziente legge stanno in js/messaggio-paziente.js, in un punto solo.
+       Questa funzione non sa disegnare niente, e la card non sa interrogare
+       il database. Se salta, salta da sola: la home resta in piedi. */
+    async function caricaMessaggio() {
+      try {
+        const { data: ctx, error } = await _supabase.rpc('get_daily_context', { p_token: token })
+        if (error || !ctx) return
+        if (ctx.manca_sql && isPreview) {
+          const box = document.getElementById('mp-manca')
+          if (box) {
+            box.textContent = "⚠️ Anteprima: manca la SQL " + ctx.manca_sql + " — finché non viene lanciata, il messaggio al paziente non arriva."
+            box.style.display = 'block'
+          }
+        }
+        if (!window.montaMessaggioPaziente) return
+        window.montaMessaggioPaziente({
+          messaggio:   ctx.messaggio,
+          contenitore: document.getElementById('mp-card-paziente'),
+          supabase:    _supabase,
+          token:       token,
+          preview:     isPreview
+        })
+      } catch (e) { /* la home non si rompe per un saluto */ }
     }
 
     async function caricaUltimaSeduta() {
@@ -481,7 +528,6 @@
     /* Il pannello si disegna UNA VOLTA SOLA, alla prima apertura, sempre
        dallo stesso elenco: due punti che disegnano la stessa cosa
        divergono sempre. */
-    var vgSenzaProgramma = false
     function montaVideoGuida() {
       try {
         var V = window.VIDEO_GUIDA
@@ -503,8 +549,7 @@
               '</div>'
           })
         })
-        var testoAvviso = vgSenzaProgramma ? (V.avvisoSenzaProgramma || V.avviso) : V.avviso
-        if (testoAvviso) html += '<div class="vg-avviso">&#9888;&#65039; ' + testoAvviso + '</div>'
+        if (V.avviso) html += '<div class="vg-avviso">&#9888;&#65039; ' + V.avviso + '</div>'
         box.innerHTML = html
         box.setAttribute('data-pronto', '1')
       } catch (e) {}
@@ -642,20 +687,9 @@
         '</div>'
     }
 
-    /* video-guida-v1 — CHI NON HA ANCORA UN PROTOCOLLO E' L'UNICO CHE
-       RESTAVA DAVANTI A UNA PAGINA VUOTA.
-       Il link glielo ha mandato il professionista, quindi l'app la apre:
-       trovava tre righe e nient'altro. Adesso trova la card, che qui e'
-       l'unica cosa che ha senso mostrargli — capire i cuscini e il metodo
-       non richiede un programma assegnato, eseguire un esercizio si'.
-       Per questo l'avviso cambia: vedi js/video-guida.js. */
     function showNoProtocol() {
       document.getElementById('greeting-sub').textContent = 'Nessun protocollo attivo'
-      vgSenzaProgramma = true
-      document.getElementById('content-area').innerHTML =
-        '<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>' +
-        cardVideoGuida()
-      montaVideoGuida()
+      document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>'
     }
 
     init()

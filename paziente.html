@@ -1229,6 +1229,29 @@
       </div>
       <div class="link-box" id="link-box"></div>
     </div>
+
+    <!-- messaggio-professionista-v1 — IL MESSAGGIO NELL'APP DEL PAZIENTE.
+         ⚠️ NON E' UNA CHAT, ED E' UNA SCELTA. Il paziente non ha un login:
+         l'unica chiave e' il token nell'indirizzo, quindi chiunque abbia il
+         link e' il paziente. Qui scrive solo chi una sessione ce l'ha.
+         Il perche' per esteso sta in PIANO-comunicazione-paziente.md e nei
+         commenti della migration 041. -->
+    <div class="section ds-card" id="sez-messaggi">
+      <div class="section-title-plain ds-section-title-line">💬 Messaggio nell'app del paziente</div>
+      <p style="font-size:13px;color:#666;margin-bottom:14px">Lo legge nella sua app, sopra il programma. <strong>Non può rispondere qui</strong>: per una risposta resta WhatsApp.</p>
+      <textarea id="mp-testo" rows="3" maxlength="600" placeholder="Es. Ho aggiornato il programma: da oggi tre volte a settimana. Se il dolore torna, fermati e scrivimi." style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-family:Montserrat,sans-serif;font-size:14px;resize:vertical;outline:none"></textarea>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 14px">
+        <span id="mp-conta" style="font-size:12px;color:#999">0/600</span>
+        <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:6px">Firma
+          <input id="mp-firma" type="text" maxlength="60" placeholder="Dott. Baron" style="padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-family:Montserrat,sans-serif;font-size:13px;outline:none;width:170px">
+        </label>
+      </div>
+      <div class="actions-row">
+        <button class="btn-primary" id="btn-mp-invia" onclick="mpInvia()">Invia al paziente</button>
+      </div>
+      <div id="mp-esito" style="display:none;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:12px"></div>
+      <div id="mp-elenco" style="margin-top:18px"></div>
+    </div>
   </div>
 
   <script>
@@ -1518,6 +1541,7 @@
       caricaProtocollo()
       loadVisite()
       aggiornaBadgeConsenso()
+      mpInit()                    // messaggio-professionista-v1
     }
 
     function apriConsenso() {
@@ -2326,6 +2350,178 @@
       if (num.length < 8) { alert('Numero di telefono non valido in anagrafica.'); return }
       const link = window.location.origin + '/consenso.html?token=' + patient.access_token
       _waOpen(num, 'Ciao ' + patient.nome + ', ecco il tuo protocollo Policettivo®. Aprilo da qui: ' + link)
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       messaggio-professionista-v1 — IL MESSAGGIO NELL'APP DEL PAZIENTE
+       ══════════════════════════════════════════════════════════════════
+       Tre cose che sembrano dettagli e non lo sono:
+
+       1. IL PAZIENTE NE VEDE UNO SOLO. get_daily_context prende il piu'
+          recente non archiviato: gli altri, anche se non archiviati,
+          spariscono dalla sua home. L'elenco qui sotto lo dice a chiare
+          lettere, se no si crede di avergliene lasciati tre.
+       2. NON SI RISCRIVE, SI ARCHIVIA. La RLS della 041 non permette di
+          cambiare il testo, di proposito: un messaggio gia' letto che
+          cambia parole dopo e' documentazione che si riscrive da sola.
+          Per questo non c'e' nessun «modifica», e per questo l'archivio
+          non chiede conferma: e' l'annulla.
+       3. L'AUTORE SI SCRIVE PER ESTESO ADESSO. Va nella colonna cosi'
+          com'e': chi ha scritto quel messaggio QUEL giorno non deve
+          cambiare se domani cambia un profilo.
+    */
+    let _mpInvioInCorso = false
+
+    function _mpEsc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+    }
+
+    function _mpQuando(iso) {
+      if (!iso) return 'data non registrata'
+      const d = new Date(iso)
+      if (isNaN(d.getTime())) return 'data non registrata'
+      const p = n => String(n).padStart(2, '0')
+      return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' alle ' + p(d.getHours()) + ':' + p(d.getMinutes())
+    }
+
+    /* Un errore si legge a schermo, col motivo. Se manca la migration il
+       codice di PostgREST e' 42P01: si dice QUALE file .sql manca, per nome,
+       se no diventa un guasto muto. */
+    function _mpErrore(err) {
+      if (!err) return 'Errore sconosciuto.'
+      if (err.code === '42P01') return 'Manca la tabella: lancia db/migrations/041_daily_context.sql in Supabase.'
+      if (err.code === '42501' || /row-level security/i.test(err.message || '')) return 'Permesso negato: questo paziente non risulta tuo.'
+      return err.message || 'Errore sconosciuto.'
+    }
+
+    function _mpMostraEsito(testo, buono) {
+      const box = document.getElementById('mp-esito')
+      if (!box) return
+      box.textContent = testo
+      box.style.display = 'block'
+      box.style.background   = buono ? '#e8f5e9' : '#ffebee'
+      box.style.border       = '1px solid ' + (buono ? '#a5d6a7' : '#ef9a9a')
+      box.style.color        = buono ? '#1b5e20' : '#b71c1c'
+    }
+
+    function mpContaTesto() {
+      const t = document.getElementById('mp-testo')
+      const c = document.getElementById('mp-conta')
+      if (t && c) c.textContent = t.value.length + '/600'
+    }
+
+    async function mpInit() {
+      const t = document.getElementById('mp-testo')
+      if (t) t.addEventListener('input', mpContaTesto)
+      const f = document.getElementById('mp-firma')
+      if (f) {
+        let firma = ''
+        try { firma = localStorage.getItem('mp_firma') || '' } catch (e) {}
+        if (!firma) {
+          try {
+            const { data: { session } } = await _supabase.auth.getSession()
+            const { data: pr } = await _supabase.from('professionals')
+              .select('id, profiles(nome, cognome)').eq('user_id', session.user.id).maybeSingle()
+            firma = ((pr && pr.profiles && pr.profiles.nome) || '') + ' ' + ((pr && pr.profiles && pr.profiles.cognome) || '')
+            firma = firma.trim()
+          } catch (e) { firma = '' }
+        }
+        f.value = firma
+      }
+      mpCarica()
+    }
+
+    async function mpCarica() {
+      const box = document.getElementById('mp-elenco')
+      if (!box) return
+      const { data, error } = await _supabase.from('patient_messages')
+        .select('id, testo, audio_url, autore, creato_il, letto_il, archiviato')
+        .eq('patient_id', patientId)
+        .order('creato_il', { ascending: false })
+        .limit(20)
+      if (error) { box.innerHTML = '<div style="font-size:13px;color:#b71c1c">' + _mpEsc(_mpErrore(error)) + '</div>'; return }
+      const righe = data || []
+      if (!righe.length) { box.innerHTML = '<div style="font-size:13px;color:#999">Nessun messaggio inviato.</div>'; return }
+
+      /* Quale vede DAVVERO adesso: il primo non archiviato, nessun altro. */
+      const vivo = righe.find(r => !r.archiviato)
+      let html = '<div style="font-size:12px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Inviati</div>'
+      righe.forEach(function (r) {
+        const eIlVivo = vivo && r.id === vivo.id
+        const stato = r.archiviato
+          ? '<span style="color:#999">archiviato</span>'
+          : (eIlVivo
+              ? '<span style="color:#1b5e20;font-weight:700">lo vede adesso nella sua app</span>'
+              : '<span style="color:#e65100">sostituito da uno più recente — non lo vede più</span>')
+        const letto = r.letto_il
+          ? '<span style="color:#1b5e20">letto il ' + _mpEsc(_mpQuando(r.letto_il)) + '</span>'
+          : '<span style="color:#999">non ancora letto</span>'
+        html +=
+          '<div style="border:1px solid ' + (eIlVivo ? '#a5d6a7' : '#eee') + ';border-radius:10px;padding:12px 14px;margin-bottom:10px;background:' + (r.archiviato ? '#fafafa' : '#fff') + '">' +
+            '<div style="font-size:11px;color:#888;margin-bottom:6px">' + _mpEsc(_mpQuando(r.creato_il)) + (r.autore ? ' · firmato ' + _mpEsc(r.autore) : '') + '</div>' +
+            '<div style="font-size:14px;color:' + (r.archiviato ? '#888' : '#111') + ';line-height:1.5;white-space:pre-wrap;word-break:break-word">' + _mpEsc(r.testo || '') + (r.audio_url ? ' 🎧' : '') + '</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px">' +
+              '<span>' + stato + ' · ' + letto + '</span>' +
+              (r.archiviato ? '' : '<button id="mp-arch-' + _mpEsc(r.id) + '" onclick="mpArchivia(\'' + _mpEsc(r.id) + '\')" style="background:#fff;border:1px solid #ddd;color:#666;border-radius:6px;padding:5px 12px;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer">Togli dall\'app</button>') +
+            '</div>' +
+          '</div>'
+      })
+      box.innerHTML = html
+    }
+
+    async function mpInvia() {
+      if (_mpInvioInCorso) return                 // doppio click: uno solo passa
+      const t = document.getElementById('mp-testo')
+      const f = document.getElementById('mp-firma')
+      const btn = document.getElementById('btn-mp-invia')
+      const testo = (t ? t.value : '').trim()
+      if (!testo) { _mpMostraEsito('Scrivi il messaggio prima di inviarlo.', false); return }
+      const autore = (f ? f.value : '').trim()
+
+      _mpInvioInCorso = true
+      if (btn) { btn.disabled = true; btn.textContent = 'Invio…' }
+
+      const { data: { session } } = await _supabase.auth.getSession()
+      let profId = _myProfId
+      if (!profId) {
+        const { data: pr } = await _supabase.from('professionals').select('id').eq('user_id', session.user.id).maybeSingle()
+        profId = pr ? pr.id : null
+      }
+      if (!profId) {
+        _mpMostraEsito('Profilo professionista non trovato: il messaggio non è stato inviato.', false)
+        _mpInvioInCorso = false
+        if (btn) { btn.disabled = false; btn.textContent = 'Invia al paziente' }
+        return
+      }
+
+      const { error } = await _supabase.from('patient_messages').insert({
+        patient_id:      patientId,
+        professional_id: profId,
+        testo:           testo,
+        autore:          autore || null
+      })
+
+      _mpInvioInCorso = false
+      if (btn) { btn.disabled = false; btn.textContent = 'Invia al paziente' }
+      if (error) { _mpMostraEsito(_mpErrore(error), false); return }
+
+      try { if (autore) localStorage.setItem('mp_firma', autore) } catch (e) {}
+      if (t) { t.value = ''; mpContaTesto() }
+      _mpMostraEsito('Inviato. Lo vedrà alla prossima apertura dell\'app.', true)
+      mpCarica()
+    }
+
+    /* Nessuna conferma: archiviare e' l'annulla, e si rifa' in un secondo.
+       Quello che NON si puo' fare e' riscrivere il testo (RLS della 041). */
+    async function mpArchivia(id) {
+      const b = document.getElementById('mp-arch-' + id)
+      if (b) { b.disabled = true; b.textContent = '…' }
+      const { error } = await _supabase.from('patient_messages').update({ archiviato: true }).eq('id', id)
+      if (error) { _mpMostraEsito(_mpErrore(error), false); if (b) { b.disabled = false; b.textContent = 'Togli dall\'app' } ; return }
+      _mpMostraEsito('Tolto dall\'app del paziente.', true)
+      mpCarica()
     }
 
     async function toggleStorico() {

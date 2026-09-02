@@ -74,7 +74,15 @@ function datiBase(opts = {}) {
     patients: [{ id: PID, nome:'Mario', cognome:'Rossi', foto_url: JSON.stringify({
       'prima-sx': PATH_SCHEDA_SAG, 'frontale': PATH_SCHEDA_FRO
     }) }],
-    professionals: [{ id:'prof-1', user_id:'user-1' }],
+    /* messaggio-professionista-v1 — «piano: premium» e «profiles» NON sono
+       un abbellimento. Da ai-solo-premium-v1 in poi il finto professionista
+       senza piano non passava piu' il cancello Premium, e due controlli sui
+       referti (l'errore che deve restare SCRITTO sotto il documento) erano
+       gia' ROSSI nello zip di partenza: non era il codice, era il finto
+       rimasto indietro. L'account vero di Giuliano e' l'admin, quindi
+       Premium sempre. `profiles` serve alla firma del messaggio. */
+    professionals: [{ id:'prof-1', user_id:'user-1', piano:'premium', premium_scadenza:null,
+                      profiles:{ nome:'Giuliano', cognome:'Baron' } }],
     visits: [
       { id:'v1', patient_id:PID, tipo:'posturale', data_visita:'2026-08-01', created_at:'2026-08-01' },
       { id:'v2', patient_id:PID, tipo:'posturale', data_visita:'2026-08-30', created_at:'2026-08-30' },
@@ -150,8 +158,18 @@ const FINTO = (DB) => {
       select(campi) { stato.op = 'select'; stato.campi = campi || ''; return q },
       eq(col, val) { stato.filtri.push({ op:'eq', col, val }); return q },
       in(col, val) { stato.filtri.push({ op:'in', col, val }); return q },
-      order() { return q },
-      limit() { return q },
+      /* messaggio-professionista-v1 — order() e limit() ORDINANO e TAGLIANO
+         davvero. Prima erano due scatole vuote: qualunque cosa chiedesse la
+         pagina, il finto restituiva le righe nell'ordine in cui stavano nel
+         fixture. Con i messaggi quell'ordine E' il comportamento — «quale
+         messaggio vede adesso il paziente» e' il primo non archiviato in
+         ordine di data — e un finto che non ordina avrebbe detto sempre di
+         sì. Le tabelle vecchie non passano order(), quindi non cambia niente
+         per loro.
+         ⚠️ tabella per il database, mai la lista del fixture: si ordina una
+         COPIA (slice), se no il finto riordina i dati sotto agli altri test. */
+      order(col, o) { stato.ordine = { col, asc: !(o && o.ascending === false) }; return q },
+      limit(n) { stato.limite = n; return q },
       maybeSingle() { return q.then0(true) },
       then0(single) {
         if (DB.opts.senzaTipo && nome === 'clinical_notes' && String(stato.campi).indexOf('tipo') >= 0) {
@@ -160,7 +178,21 @@ const FINTO = (DB) => {
         if (nome === 'foto_allineamenti' && DB.opts.erroreAllineamenti) {
           return Promise.resolve({ data:null, error:{ message:'relation "public.foto_allineamenti" does not exist', code:'42P01' } })
         }
-        const righe = filtra(DB[nome] || [], stato.filtri)
+        if (nome === 'patient_messages' && DB.opts.senzaMessaggi) {
+          return Promise.resolve({ data:null, error:{ code:'42P01', message:'relation "public.patient_messages" does not exist' } })
+        }
+        let righe = filtra(DB[nome] || [], stato.filtri)
+        if (stato.ordine) {
+          const c = stato.ordine.col, segno = stato.ordine.asc ? 1 : -1
+          righe = righe.slice().sort((a, b) => {
+            const x = a[c], y = b[c]
+            if (x === y) return 0
+            if (x == null) return 1
+            if (y == null) return -1
+            return (x > y ? 1 : -1) * segno
+          })
+        }
+        if (stato.limite != null) righe = righe.slice(0, stato.limite)
         return Promise.resolve(single ? { data: righe[0] || null, error:null } : { data: righe, error:null })
       },
       then(res, rej) { return q.then0(false).then(res, rej) },
@@ -176,6 +208,15 @@ const FINTO = (DB) => {
         window.__chiamate.insert.push({ tabella:nome, riga })
         if (DB.opts.senzaTipo && nome === 'clinical_notes' && riga && Object.prototype.hasOwnProperty.call(riga, 'tipo')) {
           const err = { code:'42703', message:'column "tipo" of relation "clinical_notes" does not exist' }
+          return { select: () => ({ maybeSingle: () => Promise.resolve({ data:null, error:err }) }),
+                   then: (r) => r({ data:null, error:err }) }
+        }
+        /* messaggio-professionista-v1 — una tabella che non esiste non
+           esiste nemmeno in scrittura. Senza questo la prova diceva
+           «Inviato» su un database dove la 041 non e' stata lanciata:
+           esattamente il guasto muto che si vuole evitare. */
+        if (DB.opts.senzaMessaggi && nome === 'patient_messages') {
+          const err = { code:'42P01', message:'relation "public.patient_messages" does not exist' }
           return { select: () => ({ maybeSingle: () => Promise.resolve({ data:null, error:err }) }),
                    then: (r) => r({ data:null, error:err }) }
         }
@@ -873,8 +914,13 @@ sez('Cartella in anamnesi — si scrive dall\'anamnesi')
   const card = await page.$$eval('.cn-note-card .cn-note-card-title', els => els.map(e => e.textContent))
   check('le note del paziente si leggono da qui', card.length === 2, card)
   check('il marker [#…] non si vede nel titolo', card.some(t => t.startsWith('Prima seduta') && !t.includes('[#')), card)
+  /* messaggio-professionista-v1 — era `.cn-note-card`, cioe' «la prima card
+     che capita». Da quando il finto ORDINA come il database (updated_at
+     desc) la prima e' la sintesi del 25, non la Prima seduta: il controllo
+     diceva rosso su un codice giusto. Un selettore e' un indirizzo. */
   check('ma resta intatto nel dato (se no si rompe l\'upsert dalla visita)',
-    await page.$eval('.cn-note-card', el => el.getAttribute('data-title').includes('[#abc-123]')))
+    (await page.$$eval('.cn-note-card', els => els.map(e => e.getAttribute('data-title') || '')))
+      .some(t => t.includes('[#abc-123]')))
   check('la sintesi AI porta il bollino AI', (await page.$$('.cn-note-badge-ai')).length === 1)
 
   await page.click('#cn-btn-nuova')
@@ -1274,7 +1320,11 @@ sez('Referti letti — se la lettura non riesce, il motivo resta scritto')
     route.fulfill({ status:502, contentType:'application/json',
       body: JSON.stringify({ error:'La risposta della lettura non è stata capita.' }) })
   })
-  await page.click('.btn-doc-leggi')
+  /* messaggio-professionista-v1 — era `.btn-doc-leggi`, «il primo pulsante
+     che capita». Da quando il finto ordina i documenti come il database
+     (created_at desc) il primo e' d3, ma le righe sotto guardano d2. Si
+     clicca l'indirizzo esatto. */
+  await page.click('#btn-leggi-d2')
   await page.waitForTimeout(900)
   const t = await page.textContent('#estratto-d2')
   check('⚠️ l\'errore resta sotto QUEL documento, non in un alert che sparisce',
@@ -1657,6 +1707,295 @@ sez('rapida-un-click-v1 · in anteprima si arriva in fondo e si legge come uscir
   await page.waitForTimeout(2800)
   check('in anteprima NON torna da sola: il professionista sta guardando',
         page.url().includes('rapida.html'), page.url())
+  await ctx.close()
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   messaggio-professionista-v1
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const MSG_VECCHIO = { id:'m-vecchio', patient_id:PID, professional_id:'prof-1',
+  testo:'Il primo messaggio.', audio_url:null, autore:'Dott. Baron',
+  creato_il:'2026-08-28T09:00:00Z', letto_il:'2026-08-28T18:30:00Z', archiviato:false }
+const MSG_NUOVO = { id:'m-nuovo', patient_id:PID, professional_id:'prof-1',
+  testo:'Ho aggiornato il programma: da oggi tre volte a settimana.', audio_url:null,
+  autore:'Dott. Baron', creato_il:'2026-09-01T09:00:00Z', letto_il:null, archiviato:false }
+const MSG_ARCH = { id:'m-arch', patient_id:PID, professional_id:'prof-1',
+  testo:'Messaggio archiviato.', audio_url:null, autore:'Dott. Baron',
+  creato_il:'2026-08-20T09:00:00Z', letto_il:null, archiviato:true }
+
+function datiMessaggi(opts = {}) {
+  const d = datiCartella(opts)
+  d.patient_messages = opts.messaggi || [MSG_VECCHIO, MSG_NUOVO, MSG_ARCH]
+  return d
+}
+
+/* Lato paziente il messaggio NON arriva da una tabella: arriva dalla chiave
+   'messaggio' di get_daily_context, gia' scelta dal database. */
+function datiPazienteMsg(opts = {}) {
+  const d = datiPaziente(opts)
+  d.rpc.get_daily_context = Object.prototype.hasOwnProperty.call(opts, 'contesto')
+    ? opts.contesto
+    : { oggi:'2026-09-02', nome:'Mario', stato:'attivo', reazione:null,
+        messaggio: opts.messaggio === undefined ? MSG_NUOVO : opts.messaggio,
+        manca_sql: opts.manca || null }
+  d.rpc.segna_messaggio_letto = true
+  return d
+}
+
+const rpcLette = (c) => c.filter(x => x.nome === 'segna_messaggio_letto')
+
+sez('messaggio-professionista-v1 · il file condiviso e le sue parole')
+{
+  const src = fs.readFileSync(path.join(ROOT,'js','messaggio-paziente.js'),'utf8')
+  check('js/messaggio-paziente.js esiste e ha il marker', src.includes('messaggio-professionista-v1'))
+  check('le parole rivolte al paziente stanno in un punto solo', src.includes('var PAROLE = {'))
+  check('non interroga il database da solo (nessun .from())', !senzaCommenti(src).includes('.from('))
+  check('non rompe mai la home: ogni via d\'ingresso è protetta',
+    (senzaCommenti(src).match(/catch/g) || []).length >= 3)
+  check('protocollo.html lo carica', fs.readFileSync(path.join(ROOT,'protocollo.html'),'utf8').includes('src="js/messaggio-paziente.js"'))
+  const mig = fs.readFileSync(path.join(ROOT,'db/migrations/041_daily_context.sql'),'utf8')
+  check('⚠️ la tabella non ha nessuna colonna «risposta»: non e\' una chat',
+    !/\brisposta\b\s+text/i.test(mig.split('create table if not exists public.patient_messages')[1].split(');')[0]))
+}
+
+sez('messaggio-professionista-v1 · il paziente lo vede, e sopra il programma')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPazienteMsg(), 'protocollo.html', '?token=' + TOK)
+  check('la home si apre senza errori', errori.length === 0, errori.join(' | '))
+  check('la card c\'è', await page.isVisible('#mp-card'))
+  const t = await page.textContent('#mp-card')
+  check('si legge il messaggio', t.includes('tre volte a settimana'), t.slice(0,90))
+  check('e si legge da CHI arriva', t.includes('Dott. Baron'), t.slice(0,90))
+
+  /* 📏 «sopra» si misura. */
+  const pos = await page.evaluate(() => {
+    const c = document.getElementById('mp-card')
+    const b = document.querySelector('.btn-start')
+    const v = document.querySelector('.vg-card')
+    return { card: c ? c.getBoundingClientRect().top : null,
+             inizia: b ? b.getBoundingClientRect().top : null,
+             video: v ? v.getBoundingClientRect().top : null }
+  })
+  check('il messaggio sta SOPRA «Inizia gli esercizi»', pos.card < pos.inizia, JSON.stringify(pos))
+  check('e la card dei video resta sotto, dov\'era', pos.video > pos.inizia, JSON.stringify(pos))
+
+  /* ⚠️ La regola di Giuliano e' «la prima AZIONE resta il programma». La card
+     regge solo se non ha nessuna azione: nessun pulsante, nessun link. */
+  const azioni = await page.evaluate(() => document.querySelectorAll('#mp-card button, #mp-card a').length)
+  check('⚠️ la card non ha nessun pulsante: non compete con l\'unica azione gialla', azioni === 0, String(azioni))
+  check('e «Inizia gli esercizi» e\' ancora l\'unico pulsante giallo della home',
+    (await page.evaluate(() => document.querySelectorAll('.btn-start').length)) === 1)
+
+  const lette = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'segna_messaggio_letto'))
+  check('lo segna come letto una volta sola', lette.length === 1, JSON.stringify(lette))
+  check('e segna QUEL messaggio', (lette[0] || {}).args?.p_message_id === 'm-nuovo', JSON.stringify(lette[0]))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · un messaggio gia\' letto non si rimarca')
+{
+  const { page, ctx } = await apriPagina(browser, datiPazienteMsg({ messaggio: MSG_VECCHIO }), 'protocollo.html', '?token=' + TOK)
+  check('la card c\'è lo stesso', await page.isVisible('#mp-card'))
+  const lette = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'segna_messaggio_letto'))
+  check('⚠️ la prima volta e\' l\'unica che conta: non si riscrive la data', lette.length === 0, JSON.stringify(lette))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · in anteprima non si salva niente')
+{
+  const { page, ctx } = await apriPagina(browser, datiPazienteMsg(), 'protocollo.html', '?token=' + TOK + '&preview=1')
+  check('il professionista lo vede come lo vede il paziente', await page.isVisible('#mp-card'))
+  const lette = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'segna_messaggio_letto'))
+  check('ma NON risulta letto: la barra gialla promette che non si salva niente', lette.length === 0, JSON.stringify(lette))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · niente messaggio, niente card')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPazienteMsg({ messaggio: null }), 'protocollo.html', '?token=' + TOK)
+  check('nessun errore', errori.length === 0, errori.join(' | '))
+  check('nessuna card', (await page.locator('#mp-card').count()) === 0)
+  check('e nessuno spazio vuoto lasciato lì',
+    (await page.evaluate(() => document.getElementById('mp-card-paziente').getBoundingClientRect().height)) === 0)
+  check('il programma resta al suo posto', await page.isVisible('.btn-start'))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · un messaggio senza testo non è un messaggio')
+{
+  const vuoto = Object.assign({}, MSG_NUOVO, { testo:'   ', audio_url:null })
+  const { page, ctx, errori } = await apriPagina(browser, datiPazienteMsg({ messaggio: vuoto }), 'protocollo.html', '?token=' + TOK)
+  check('nessun errore', errori.length === 0, errori.join(' | '))
+  check('non compare una card vuota', (await page.locator('#mp-card').count()) === 0)
+  const lette = await page.evaluate(() => window.__chiamate.rpc.filter(x => x.nome === 'segna_messaggio_letto'))
+  check('e non si segna letto qualcosa che non si è visto', lette.length === 0)
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · l\'audio, quando arriverà, si sente già')
+{
+  const conAudio = Object.assign({}, MSG_NUOVO, { testo:null, audio_url:'/mp3/x.mp3' })
+  const { page, ctx } = await apriPagina(browser, datiPazienteMsg({ messaggio: conAudio }), 'protocollo.html', '?token=' + TOK)
+  check('la card compare anche col solo audio', await page.isVisible('#mp-card'))
+  check('e c\'è il lettore', (await page.locator('#mp-card audio').count()) === 1)
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · il testo del messaggio non è markup')
+{
+  const cattivo = Object.assign({}, MSG_NUOVO, { testo:'<img src=x onerror="window.__bum=1">grassetto', autore:'<b>Dott.</b>' })
+  const { page, ctx } = await apriPagina(browser, datiPazienteMsg({ messaggio: cattivo }), 'protocollo.html', '?token=' + TOK)
+  check('non è finito niente in esecuzione', (await page.evaluate(() => window.__bum)) === undefined)
+  check('nessun tag entrato nella pagina', (await page.locator('#mp-card img, #mp-card b').count()) === 0)
+  check('il testo si legge com\'è stato scritto', (await page.textContent('#mp-card')).includes('grassetto'))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · se la SQL manca, lo legge il professionista e non il paziente')
+{
+  const q = { messaggio: null, manca: 'db/migrations/041_daily_context.sql' }
+  const a = await apriPagina(browser, datiPazienteMsg(q), 'protocollo.html', '?token=' + TOK + '&preview=1')
+  check('in anteprima si legge QUALE file .sql manca',
+    (await a.page.textContent('#mp-manca')).includes('041_daily_context.sql'))
+  await a.ctx.close()
+  const b = await apriPagina(browser, datiPazienteMsg(q), 'protocollo.html', '?token=' + TOK)
+  check('⚠️ al paziente non si mostra il nome di un file .sql', !(await b.page.isVisible('#mp-manca')))
+  check('e la sua home resta intera', await b.page.isVisible('.btn-start'))
+  await b.ctx.close()
+}
+
+sez('messaggio-professionista-v1 · se il contesto va storto, la home regge')
+{
+  const rotto = datiPazienteMsg()
+  rotto.rpc.get_daily_context = { error:{ code:'42883', message:'function get_daily_context does not exist' } }
+  const { page, ctx, errori } = await apriPagina(browser, rotto, 'protocollo.html', '?token=' + TOK)
+  check('nessun errore JS', errori.length === 0, errori.join(' | '))
+  check('il programma si vede comunque', await page.isVisible('.btn-start'))
+  check('nessuna card a metà', (await page.locator('#mp-card').count()) === 0)
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · se il file della card non arriva, la home regge')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPazienteMsg(), 'protocollo.html', '?token=' + TOK,
+    { blocca: ['**/js/messaggio-paziente.js'] })
+  check('la home si apre lo stesso, senza errori', errori.length === 0, errori.join(' | '))
+  check('il programma si vede comunque', await page.isVisible('.btn-start'))
+  check('il diario si vede comunque', await page.isVisible('#btn-salva-diario'))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · il professionista scrive')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiMessaggi(), 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(600)
+  check('nessun errore JS', errori.length === 0, errori.join(' | '))
+  check('il pannello c\'è', await page.isVisible('#sez-messaggi'))
+  check('la firma arriva già scritta dal profilo',
+    (await page.inputValue('#mp-firma')) === 'Giuliano Baron', await page.inputValue('#mp-firma'))
+  check('e si dice a chiare lettere che il paziente non può rispondere',
+    (await page.textContent('#sez-messaggi')).includes('Non può rispondere'))
+
+  await page.fill('#mp-testo', 'Fermati se il dolore torna.')
+  await page.click('#btn-mp-invia')
+  await page.waitForTimeout(500)
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'patient_messages').map(c => c.riga))
+  check('scrive una riga in patient_messages', ins.length === 1, JSON.stringify(ins))
+  const r = ins[0] || {}
+  check('col paziente giusto', r.patient_id === PID, String(r.patient_id))
+  check('col professionista giusto', r.professional_id === 'prof-1', String(r.professional_id))
+  check('col testo scritto', r.testo === 'Fermati se il dolore torna.', String(r.testo))
+  check('⚠️ e l\'autore per esteso, congelato adesso', r.autore === 'Giuliano Baron', String(r.autore))
+  check('nessuna colonna «letto» o «risposta» scritta da qui',
+    !('letto_il' in r) && !('risposta' in r), JSON.stringify(r))
+  check('il campo si svuota, così non si manda due volte lo stesso',
+    (await page.inputValue('#mp-testo')) === '')
+  check('e si legge a schermo che è andata', (await page.textContent('#mp-esito')).includes('Inviato'))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · un messaggio vuoto non parte')
+{
+  const { page, ctx } = await apriPagina(browser, datiMessaggi(), 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(600)
+  await page.fill('#mp-testo', '    ')
+  await page.click('#btn-mp-invia')
+  await page.waitForTimeout(300)
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'patient_messages'))
+  check('non scrive niente', ins.length === 0, JSON.stringify(ins))
+  check('e dice perché, a schermo', (await page.textContent('#mp-esito')).includes('Scrivi il messaggio'))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · doppio click, un messaggio solo')
+{
+  const { page, ctx } = await apriPagina(browser, datiMessaggi(), 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(600)
+  await page.fill('#mp-testo', 'Ci vediamo giovedì.')
+  await page.evaluate(() => { const b = document.getElementById('btn-mp-invia'); b.click(); b.click(); b.click() })
+  await page.waitForTimeout(600)
+  const ins = await page.evaluate(() => window.__chiamate.insert.filter(c => c.tabella === 'patient_messages'))
+  check('tre click, una riga sola', ins.length === 1, String(ins.length))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · l\'elenco dice QUALE messaggio vede davvero')
+{
+  const { page, ctx } = await apriPagina(browser, datiMessaggi(), 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(700)
+  const el = await page.textContent('#mp-elenco')
+  check('⚠️ dice quale sta vedendo adesso', el.includes('lo vede adesso nella sua app'), el.slice(0,200))
+  check('⚠️ e dice che gli altri non li vede più', el.includes('non lo vede più'), el.slice(0,200))
+  check('uno solo è quello in evidenza',
+    (el.match(/lo vede adesso nella sua app/g) || []).length === 1)
+  check('di quello letto si legge quando', el.includes('letto il 28/08/2026'), el.slice(0,300))
+  check('e di quello nuovo che non è ancora stato aperto', el.includes('non ancora letto'))
+  check('l\'archiviato resta nell\'elenco, marcato', el.includes('archiviato'))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · «togli dall\'app» archivia, non riscrive e non cancella')
+{
+  const { page, ctx } = await apriPagina(browser, datiMessaggi(), 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(700)
+  await page.click('#mp-arch-m-nuovo')
+  await page.waitForTimeout(500)
+  const upd = await page.evaluate(() => window.__chiamate.update.filter(c => c.tabella === 'patient_messages').map(c => c.patch))
+  check('scrive solo archiviato: true', upd.length === 1 && upd[0].archiviato === true, JSON.stringify(upd))
+  check('⚠️ non tocca il testo: un messaggio letto che cambia parole è documentazione riscritta',
+    !('testo' in (upd[0] || {})) && !('autore' in (upd[0] || {})), JSON.stringify(upd))
+  const del = await page.evaluate(() => window.__chiamate.delete.filter(c => c.tabella === 'patient_messages'))
+  check('e non cancella niente', del.length === 0, JSON.stringify(del))
+  const el = await page.textContent('#mp-elenco')
+  check('ora il paziente vede quello prima', el.includes('lo vede adesso nella sua app'))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · se manca la migration, si legge quale file lanciare')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiMessaggi({ senzaMessaggi:true }), 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(700)
+  check('la scheda non esplode', errori.length === 0, errori.join(' | '))
+  check('⚠️ e si legge il nome del file .sql da lanciare',
+    (await page.textContent('#mp-elenco')).includes('041_daily_context.sql'),
+    await page.textContent('#mp-elenco'))
+  await page.fill('#mp-testo', 'Prova.')
+  await page.click('#btn-mp-invia')
+  await page.waitForTimeout(500)
+  check('e anche provando a inviare, il motivo resta scritto',
+    (await page.textContent('#mp-esito')).includes('041_daily_context.sql'),
+    await page.textContent('#mp-esito'))
+  await ctx.close()
+}
+
+sez('messaggio-professionista-v1 · quello che scrive il professionista non è markup')
+{
+  const dati = datiMessaggi({ messaggi: [Object.assign({}, MSG_NUOVO, { testo:'<img src=x onerror="window.__bum=1">ciao' })] })
+  const { page, ctx } = await apriPagina(browser, dati, 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(700)
+  check('non è finito niente in esecuzione', (await page.evaluate(() => window.__bum)) === undefined)
+  check('il testo si rilegge com\'è stato scritto', (await page.textContent('#mp-elenco')).includes('ciao'))
   await ctx.close()
 }
 
