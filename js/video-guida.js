@@ -98,5 +98,14 @@ window.VIDEO_GUIDA = {
      in cui questa sezione puo' fare danno. */
   avviso: 'Questi video spiegano il metodo. Il tuo programma è quello che trovi qui sopra: ' +
           'se in un video vedi un esercizio che nel tuo programma non c’è, chiedi al tuo ' +
-          'fisioterapista prima di farlo.'
+          'fisioterapista prima di farlo.',
+
+  /* ⚖️ Stessa riga per chi un programma non ce l'ha ancora. Rimandare al
+     «qui sopra» quando sopra non c'e' niente sarebbe falso, e sarebbe
+     falso proprio con la persona che ha meno riferimenti di tutte: puo'
+     capire di doversi arrangiare con quello che vede. Qui la frase deve
+     dire l'opposto, e dirlo per primo. */
+  avvisoSenzaProgramma: 'Questi video spiegano il metodo: non sono il tuo programma. ' +
+          'Gli esercizi te li assegna il tuo fisioterapista — finché non li hai, ' +
+          'non eseguire da solo quello che vedi qui dentro.'
 };

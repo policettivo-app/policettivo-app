@@ -481,6 +481,7 @@
     /* Il pannello si disegna UNA VOLTA SOLA, alla prima apertura, sempre
        dallo stesso elenco: due punti che disegnano la stessa cosa
        divergono sempre. */
+    var vgSenzaProgramma = false
     function montaVideoGuida() {
       try {
         var V = window.VIDEO_GUIDA
@@ -502,7 +503,8 @@
               '</div>'
           })
         })
-        if (V.avviso) html += '<div class="vg-avviso">&#9888;&#65039; ' + V.avviso + '</div>'
+        var testoAvviso = vgSenzaProgramma ? (V.avvisoSenzaProgramma || V.avviso) : V.avviso
+        if (testoAvviso) html += '<div class="vg-avviso">&#9888;&#65039; ' + testoAvviso + '</div>'
         box.innerHTML = html
         box.setAttribute('data-pronto', '1')
       } catch (e) {}
@@ -640,9 +642,20 @@
         '</div>'
     }
 
+    /* video-guida-v1 — CHI NON HA ANCORA UN PROTOCOLLO E' L'UNICO CHE
+       RESTAVA DAVANTI A UNA PAGINA VUOTA.
+       Il link glielo ha mandato il professionista, quindi l'app la apre:
+       trovava tre righe e nient'altro. Adesso trova la card, che qui e'
+       l'unica cosa che ha senso mostrargli — capire i cuscini e il metodo
+       non richiede un programma assegnato, eseguire un esercizio si'.
+       Per questo l'avviso cambia: vedi js/video-guida.js. */
     function showNoProtocol() {
       document.getElementById('greeting-sub').textContent = 'Nessun protocollo attivo'
-      document.getElementById('content-area').innerHTML = '<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>'
+      vgSenzaProgramma = true
+      document.getElementById('content-area').innerHTML =
+        '<div class="no-protocol"><h2>Nessun protocollo attivo</h2><p>Contatta il tuo professionista.</p></div>' +
+        cardVideoGuida()
+      montaVideoGuida()
     }
 
     init()
