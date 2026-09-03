@@ -2222,6 +2222,96 @@ sez('contatti-del-paziente-v1 · senza niente da scartare, nessun avviso')
   await ctx.close()
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   indirizzo-completo-v1 — la via e il CAP mancavano dalla scheda paziente
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function datiAnagrafica(patch = {}) {
+  const d = datiCartella()
+  d.patients = [Object.assign({
+    id: PID, nome:'Mario', cognome:'Rossi', foto_url:'{}',
+    email:'mario@esempio.it', telefono:'3331234567',
+    indirizzo:'Via Roma 1', citta:'Portogruaro', cap:'30026',
+    problema_principale:'Lombalgia', consenso_privacy:true
+  }, patch)]
+  return d
+}
+
+sez('indirizzo-completo-v1 · la via si vede nella scheda')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiAnagrafica(), 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(700)
+  check('nessun errore JS', errori.length === 0, errori.join(' | '))
+  check('la riga «Indirizzo» adesso esiste', (await page.locator('#info-indirizzo').count()) === 1)
+  check('e si legge via, CAP e città in una riga sola',
+    (await page.textContent('#info-indirizzo')) === 'Via Roma 1, 30026 Portogruaro',
+    await page.textContent('#info-indirizzo'))
+  await ctx.close()
+}
+
+sez('indirizzo-completo-v1 · un indirizzo a pezzi non produce virgole vuote')
+{
+  const casi = [
+    [{ indirizzo:'Via Roma 1', cap:null, citta:null },        'Via Roma 1'],
+    [{ indirizzo:null, cap:null, citta:'Caorle' },            'Caorle'],
+    [{ indirizzo:null, cap:'30021', citta:'Caorle' },         '30021 Caorle'],
+    [{ indirizzo:'Via Verdi 9', cap:null, citta:'Caorle' },   'Via Verdi 9, Caorle'],
+    [{ indirizzo:null, cap:null, citta:null },                '—']
+  ]
+  for (const [patch, atteso] of casi) {
+    const { page, ctx } = await apriPagina(browser, datiAnagrafica(patch), 'paziente.html', '?id=' + PID)
+    await page.waitForTimeout(500)
+    const t = await page.textContent('#info-indirizzo')
+    check('«' + JSON.stringify(patch).slice(0,46) + '…» → ' + atteso, t === atteso, t)
+    await ctx.close()
+  }
+}
+
+sez('indirizzo-completo-v1 · si apre in modifica, si salva, e torna a schermo')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiAnagrafica(), 'paziente.html', '?id=' + PID)
+  await page.waitForTimeout(700)
+  await page.click('.btn-edit')
+  await page.waitForTimeout(300)
+  check('il campo Indirizzo c\'è nel modulo', (await page.locator('#edit-indirizzo').count()) === 1)
+  check('e il CAP pure', (await page.locator('#edit-cap').count()) === 1)
+  check('arrivano già compilati con quello che c\'era',
+    (await page.inputValue('#edit-indirizzo')) === 'Via Roma 1' &&
+    (await page.inputValue('#edit-cap')) === '30026',
+    (await page.inputValue('#edit-indirizzo')) + ' / ' + (await page.inputValue('#edit-cap')))
+
+  await page.fill('#edit-indirizzo', 'Via Garibaldi 14')
+  await page.fill('#edit-cap', '30027')
+  await page.fill('#edit-citta', 'San Donà')
+  await page.check('#edit-consenso-privacy')
+  await page.click('.btn-save')
+  await page.waitForTimeout(600)
+
+  const upd = await page.evaluate(() => window.__chiamate.update.filter(c => c.tabella === 'patients').map(c => c.patch))
+  check('il salvataggio manda l\'indirizzo al database', (upd[0] || {}).indirizzo === 'Via Garibaldi 14', JSON.stringify(upd[0] && upd[0].indirizzo))
+  check('e il CAP', (upd[0] || {}).cap === '30027', String(upd[0] && upd[0].cap))
+  check('⚠️ e non ha perso la città, che c\'era già prima', (upd[0] || {}).citta === 'San Donà', String(upd[0] && upd[0].citta))
+  check('la riga a schermo si aggiorna subito, senza ricaricare',
+    (await page.textContent('#info-indirizzo')) === 'Via Garibaldi 14, 30027 San Donà',
+    await page.textContent('#info-indirizzo'))
+  await ctx.close()
+}
+
+sez('indirizzo-completo-v1 · la scheda e la creazione paziente chiedono le stesse cose')
+{
+  const dash = fs.readFileSync(path.join(ROOT,'dashboard.html'),'utf8')
+  const paz  = fs.readFileSync(path.join(ROOT,'paziente.html'),'utf8')
+  for (const campo of ['indirizzo','citta','cap']) {
+    check('dashboard.html chiede ' + campo, dash.includes('id="f-' + campo + '"'))
+    check('e adesso lo chiede anche la scheda paziente', paz.includes('id="edit-' + campo + '"'))
+  }
+  check('⚠️ e la scheda lo SALVA davvero (non solo lo mostra)',
+    /indirizzo:\s*document\.getElementById\('edit-indirizzo'\)/.test(paz) &&
+    /cap:\s*document\.getElementById\('edit-cap'\)/.test(paz))
+  check('la riga si compone in UN punto solo',
+    (senzaCommentiHtml(paz).match(/function _rigaIndirizzo/g) || []).length === 1)
+}
+
 } finally {
   await browser.close()
   server.close()

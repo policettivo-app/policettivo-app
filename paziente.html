@@ -691,6 +691,10 @@
       <div class="info-grid">
         <div class="info-item"><label>Email</label><span id="info-email">—</span></div>
         <div class="info-item"><label>Telefono</label><span id="info-tel">—</span></div>
+        <!-- indirizzo-completo-v1 : l'indirizzo c'era nel database e nella
+             creazione del paziente, ma NON in questa scheda: non si vedeva e
+             non si poteva correggere. Serve alla fattura. -->
+        <div class="info-item"><label>Indirizzo</label><span id="info-indirizzo">—</span></div>
         <div class="info-item"><label>Problema principale</label><span id="info-problema">—</span></div>
       </div>
       <div class="note-box" id="info-note" style="display:none"></div>
@@ -737,6 +741,13 @@
         <div class="edit-grid" style="margin-bottom:12px">
           <div class="edit-group"><label>Email</label><input id="edit-email" type="email"></div>
           <div class="edit-group"><label>Città</label><input id="edit-citta" type="text"></div>
+        </div>
+        <!-- indirizzo-completo-v1 : la via e il CAP mancavano del tutto qui.
+             Stessi nomi e stesso ordine della creazione paziente in
+             dashboard.html, cosi' le due schermate non divergono. -->
+        <div class="edit-grid" style="margin-bottom:12px">
+          <div class="edit-group"><label>Indirizzo</label><input id="edit-indirizzo" type="text" placeholder="Via Roma 1"></div>
+          <div class="edit-group"><label>CAP</label><input id="edit-cap" type="text" maxlength="5" inputmode="numeric" placeholder="30026"></div>
         </div>
 
         <!-- INQUADRAMENTO CLINICO -->
@@ -1627,11 +1638,26 @@
       }
     }
 
+    /* indirizzo-completo-v1 — via, CAP e citta' su una riga sola.
+       UNA funzione che la scrive, chiamata sia all'apertura sia dopo il
+       salvataggio: due punti che compongono lo stesso indirizzo con le
+       proprie regole prima o poi lo scrivono in due modi diversi.
+       Se manca un pezzo si scrive quello che c'e', mai una virgola vuota. */
+    function _rigaIndirizzo(p) {
+      const via = (p && p.indirizzo ? String(p.indirizzo).trim() : '')
+      const cap = (p && p.cap ? String(p.cap).trim() : '')
+      const cit = (p && p.citta ? String(p.citta).trim() : '')
+      const dopo = [cap, cit].filter(Boolean).join(' ')
+      const tutto = [via, dopo].filter(Boolean).join(', ')
+      return tutto || '—'
+    }
+
     function renderPatient() {
       document.getElementById('ph-nome').textContent = patient.nome + ' ' + patient.cognome
       document.getElementById('ph-sub').textContent = patient.problema_principale || ''
       document.getElementById('info-email').textContent = patient.email || '—'
       document.getElementById('info-tel').textContent = patient.telefono || '—'
+      document.getElementById('info-indirizzo').textContent = _rigaIndirizzo(patient)   // indirizzo-completo-v1
       document.getElementById('info-problema').textContent = patient.problema_principale || '—'
       renderRedFlagsBanner(patient.red_flags)
       if (patient.note_cliniche) {
@@ -1700,6 +1726,8 @@
         document.getElementById('edit-data-nascita').value = patient.data_nascita || ''
         document.getElementById('edit-codice-fiscale').value = patient.codice_fiscale || ''
         document.getElementById('edit-citta').value = patient.citta || ''
+        document.getElementById('edit-indirizzo').value = patient.indirizzo || ''   // indirizzo-completo-v1
+        document.getElementById('edit-cap').value = patient.cap || ''               // indirizzo-completo-v1
         document.getElementById('edit-allergie').value = patient.allergie || ''
         document.getElementById('edit-farmaci').value = patient.farmaci_in_uso || ''
         document.getElementById('edit-patologie').value = patient.patologie_pregresse || ''
@@ -1744,6 +1772,8 @@
         sesso: document.getElementById('edit-sesso').value || null,
         codice_fiscale: document.getElementById('edit-codice-fiscale').value.trim().toUpperCase() || null,
         citta: document.getElementById('edit-citta').value.trim() || null,
+        indirizzo: document.getElementById('edit-indirizzo').value.trim() || null,   // indirizzo-completo-v1
+        cap: document.getElementById('edit-cap').value.trim() || null,               // indirizzo-completo-v1
         mano_dominante: document.getElementById('edit-mano-dominante').value || null,
         attivita_sportiva: document.getElementById('edit-attivita-sportiva').value || null,
         sport_praticato: document.getElementById('edit-sport-praticato').value.trim() || null,
@@ -1783,6 +1813,7 @@
       document.getElementById('ph-sub').textContent = updates.problema_principale || ''
       document.getElementById('info-email').textContent = email || '—'
       document.getElementById('info-tel').textContent = telefono || '—'
+      document.getElementById('info-indirizzo').textContent = _rigaIndirizzo(patient)   // indirizzo-completo-v1
       document.getElementById('info-problema').textContent = updates.problema_principale || '—'
       btn.textContent = '✓ Salvato'
       setTimeout(function() { document.getElementById('edit-form').style.display = 'none'; btn.disabled = false; btn.textContent = '✓ Salva' }, 1500)
@@ -3477,6 +3508,8 @@
         'edit-telefono':       dati.telefono,
         'edit-email':          dati.email,
         'edit-citta':          dati.citta,
+        'edit-indirizzo':      dati.indirizzo,   // indirizzo-completo-v1
+        'edit-cap':            dati.cap,         // indirizzo-completo-v1
         'edit-allergie':       dati.allergie,
         'edit-farmaci':        dati.farmaci || dati.farmaci_in_uso,
         'edit-patologie':      dati.patologie || dati.patologie_pregresse,
