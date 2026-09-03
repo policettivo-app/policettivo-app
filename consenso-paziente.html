@@ -251,6 +251,13 @@
               <button class="btn-firma-confirm" id="firma-confirm" onclick="firmaConferma()" disabled>Conferma firma →</button>
             </div>
           </div>
+          <!-- firma-diagnosi-v1 -->
+          <div id="firma-errore" style="display:none; margin-top:14px; border:2px solid #e11; border-radius:12px; background:#fff5f5; padding:12px 14px;">
+            <div style="font-weight:700; color:#b00; font-size:14px; margin-bottom:6px;" id="firma-errore-titolo">Non sono riuscito a completare</div>
+            <div style="font-size:13px; color:#333; line-height:1.45;" id="firma-errore-frase">La firma è ancora qui sotto: non è andata persa. Puoi premere di nuovo «Conferma firma».</div>
+            <div style="margin-top:10px; font-size:11px; color:#666;">Dettaglio tecnico (fanne uno screenshot e mandamelo):</div>
+            <pre id="firma-errore-testo" style="margin:6px 0 0; white-space:pre-wrap; word-break:break-word; font-size:11px; line-height:1.5; color:#444; background:#fff; border:1px solid #f0c9c9; border-radius:8px; padding:8px;"></pre>
+          </div>
           <div id="firma-refuse-block" style="display:none; margin-top:16px; padding-top:14px; border-top:1px dashed #eee; text-align:center;">
             <div style="font-size:12px; color:#666; margin-bottom:8px;">Il consenso foto/video è facoltativo. Se il paziente non desidera concederlo:</div>
             <button class="btn-firma-refuse" onclick="firmaRifiuta()">Non acconsento a foto/video</button>
@@ -693,6 +700,7 @@
       _firmaLast = null
     }
     function firmaCancella() {
+      firmaErroreNascondi() // firma-diagnosi-v1
       const c = document.getElementById('firma-canvas')
       if (!c || !_firmaCtx) return
       _firmaCtx.clearRect(0, 0, c.width, c.height)
@@ -780,10 +788,83 @@
       }
     }
 
+    // ── firma-diagnosi-v1 — l'errore dice a che punto si è fermato ──
+    function firmaErroreNascondi() {
+      const box = document.getElementById('firma-errore')
+      if (box) box.style.display = 'none'
+    }
+
+    function firmaErroreMostra(passo, frase, e) {
+      const box = document.getElementById('firma-errore')
+      if (!box) return
+      const msg  = (e && e.message) ? String(e.message) : String(e == null ? 'sconosciuto' : e)
+      const nome = (e && e.name) ? String(e.name) : 'Errore'
+      const righe = []
+      righe.push('passo:      ' + passo)
+      righe.push('tipo:       ' + nome)
+      righe.push('messaggio:  ' + msg)
+      if (e && (e.status || e.statusCode)) righe.push('http:       ' + (e.status || e.statusCode))
+      if (e && e.code) righe.push('codice:     ' + e.code)
+      if (e && e.tentativi) righe.push('tentativi:  ' + e.tentativi)
+      righe.push('rete:       ' + (navigator.onLine ? 'online' : 'OFFLINE'))
+      righe.push('sw:         ' + ((navigator.serviceWorker && navigator.serviceWorker.controller) ? 'attivo' : 'assente'))
+      righe.push('ora:        ' + new Date().toLocaleString('it-IT'))
+      document.getElementById('firma-errore-titolo').textContent = 'Non sono riuscito a completare: ' + passo
+      document.getElementById('firma-errore-frase').textContent  = frase
+      document.getElementById('firma-errore-testo').textContent  = righe.join('\n')
+      box.style.display = ''
+      box.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    // firma-diagnosi-v1 — la richiesta del PDF: tempo massimo e due tentativi in più.
+    // Una connessione che fa i capricci per un secondo non deve bloccare una firma
+    // davanti al paziente.
+    async function firmaChiamaPdfRender(corpo, token) {
+      let ultimo = null
+      for (let tentativo = 1; tentativo <= 3; tentativo++) {
+        const ctrl = new AbortController()
+        const stop = setTimeout(function(){ ctrl.abort() }, 45000)
+        try {
+          const resp = await fetch('/api/pdf-render', {
+            method:  'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body:   JSON.stringify(corpo),
+            cache:  'no-store',
+            signal: ctrl.signal
+          })
+          clearTimeout(stop)
+          if (resp.ok) return resp
+          const err = await resp.json().catch(function(){ return {} })
+          const e2 = new Error(err.error || ('HTTP ' + resp.status))
+          e2.status = resp.status
+          // 4xx: è la richiesta a non andare bene. Riprovare non cambia niente.
+          if (resp.status >= 400 && resp.status < 500) { e2.tentativi = tentativo; throw e2 }
+          ultimo = e2
+        } catch (e) {
+          clearTimeout(stop)
+          if (e && e.status && e.status >= 400 && e.status < 500) throw e
+          ultimo = (e && e.name === 'AbortError')
+            ? new Error('Il server non ha risposto entro 45 secondi')
+            : e
+        }
+        if (tentativo < 3) {
+          progress(true, 'Il PDF non è partito. Riprovo (' + (tentativo + 1) + ' di 3)…')
+          await new Promise(function(r){ setTimeout(r, 1500 * tentativo) })
+        }
+      }
+      if (!ultimo) ultimo = new Error('Richiesta PDF fallita')
+      ultimo.tentativi = 3
+      throw ultimo
+    }
+
     async function firmaConferma() {
       const tipo = _firmaSeq[_firmaIdx]
       const v = _versioni[tipo]
       if (!_firmaHasStrokes) { toast('Firma vuota'); return }
+      firmaErroreNascondi()
 
       const canvas = document.getElementById('firma-canvas')
       const firmaDataUrl = canvas.toDataURL('image/png')
@@ -806,25 +887,28 @@
         firmaDataUrl: firmaDataUrl
       })
 
+      // firma-diagnosi-v1 — si tiene il conto del passo, così l'errore dice DOVE si è fermato
+      let _passo = 'avvio'
+      let _frase = 'La firma è ancora qui sotto: non è andata persa. Puoi premere di nuovo «Conferma firma».'
       try {
+        _passo = 'controllo della sessione'
+        _frase = 'La sessione dello studio sembra scaduta. Ricarica la pagina, rientra e rifai la firma.'
         progress(true, 'Generazione PDF…')
         const { data: { session } } = await _sb.auth.getSession()
-        const resp = await fetch('/api/pdf-render', {
-          method:  'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + (session ? session.access_token : '')
-          },
-          body:    JSON.stringify({ html: html, filename: 'consenso.pdf', patient_id: patientId })
-        })
-        if (!resp.ok) {
-          const err = await resp.json().catch(function(){ return {} })
-          throw new Error(err.error || ('HTTP ' + resp.status))
-        }
+        if (!session || !session.access_token) throw new Error('Sessione dello studio non attiva')
+
+        _passo = 'generazione del PDF'
+        _frase = 'Il PDF non è stato generato, quindi il consenso NON è stato registrato. La firma è ancora qui sotto: prova a premere di nuovo «Conferma firma». Se non passa, il consenso va raccolto su carta.'
+        const resp = await firmaChiamaPdfRender(
+          { html: html, filename: 'consenso.pdf', patient_id: patientId },
+          session.access_token
+        )
         const pdfBlob = await resp.blob()
         const pdfBuf  = await pdfBlob.arrayBuffer()
         const pdfHash = await sha256Hex(pdfBuf)
 
+        _passo = 'caricamento del PDF nell\'archivio'
+        _frase = 'Il PDF è stato creato ma non è stato archiviato, quindi il consenso NON è stato registrato. La firma è ancora qui sotto: prova a premere di nuovo «Conferma firma».'
         progress(true, 'Caricamento nel bucket…')
         const ts   = Date.now()
         const path = 'consensi/' + patientId + '/' + tipo + '_' + ts + '.pdf'
@@ -837,6 +921,8 @@
         const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
         const fileUrl = (urlData && urlData.publicUrl) || null
 
+        _passo = 'registrazione del consenso'
+        _frase = 'Il PDF c\'è, ma la riga del consenso non è stata scritta: il consenso NON risulta registrato. La firma è ancora qui sotto: prova a premere di nuovo «Conferma firma».'
         progress(true, 'Registrazione consenso…')
         const { data: consInserted, error: insErr } = await _sb.from('consensi').insert({
           patient_id: patientId,
@@ -905,9 +991,11 @@
           mostraDocCorrente()
         }
       } catch(e) {
+        // firma-diagnosi-v1 — niente più «Errore: Load failed» da solo:
+        // si dice a che punto si è fermato e che la firma è ancora a schermo.
         progress(false)
-        console.error('[firma]', e)
-        alert('Errore: ' + (e && e.message ? e.message : 'sconosciuto'))
+        console.error('[firma] passo:', _passo, e)
+        firmaErroreMostra(_passo, _frase, e)
       }
     }
 
