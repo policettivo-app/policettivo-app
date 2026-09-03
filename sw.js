@@ -1,5 +1,4 @@
-// firma-diagnosi-v1
-const CACHE = 'policettivo-v3'
+const CACHE = 'policettivo-v2'
 const STATIC_FILES = ['/manifest.json']
 
 self.addEventListener('install', e => {
@@ -17,12 +16,6 @@ self.addEventListener('activate', e => {
 })
 
 self.addEventListener('fetch', e => {
-  // firma-diagnosi-v1 — il service worker non tocca piu' le richieste che non sono GET.
-  // Una POST non e' mettibile in cache: farla passare di qui non serviva a niente e la
-  // esponeva a fallire prima di partire. Senza respondWith la richiesta la fa il browser,
-  // esattamente come se il service worker non ci fosse.
-  if (e.request.method !== 'GET') return
-
   const url = new URL(e.request.url)
 
   // Navigation requests (HTML pages): network-first, cache as fallback
