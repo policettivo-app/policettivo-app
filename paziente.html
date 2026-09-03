@@ -3456,6 +3456,11 @@
         const _ab = document.getElementById('referto-ai-badge-p')
         if (_ab) _ab.textContent = 'Lettura AI ⭐ Premium'
         if (json.dati) compileEditFormFromReferto(json.dati)
+        /* contatti-del-paziente-v1 — stessa cosa della dashboard, e con la
+           STESSA frase, che arriva dal server. Due punti che scrivono la
+           stessa cosa con parole loro divergono sempre. */
+        ok.textContent = '✓ Dati estratti — verifica e completa i campi qui sotto'
+        if (json.avviso) ok.textContent += '  ⚠️ ' + json.avviso
         ok.style.display = 'block'
       } catch(e) {
         alert('Errore analisi referto: ' + e.message)

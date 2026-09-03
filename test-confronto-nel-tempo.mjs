@@ -141,10 +141,25 @@ const FINTO = (DB) => {
   window.__DB = DB
   window.__chiamate = { upsert: [], insert: [], update: [], delete: [], upload: [], rimossi: [] }
 
+  /* contatti-del-paziente-v1 — gte/lte/gt/lt/neq FILTRANO davvero.
+     dashboard.html usa .gte() e senza questi il finto esplodeva con
+     «.gte is not a function»: la dashboard non si era mai potuta aprire in
+     un test. Metterli come scatole vuote sarebbe stato peggio che non
+     averli — un filtro che non filtra fa passare qualunque cosa. */
   function filtra(righe, filtri) {
     return righe.filter(r => filtri.every(f => {
-      if (f.op === 'eq') return String(r[f.col]) === String(f.val)
-      if (f.op === 'in') return f.val.map(String).indexOf(String(r[f.col])) >= 0
+      if (f.op === 'eq')  return String(r[f.col]) === String(f.val)
+      if (f.op === 'neq') return String(r[f.col]) !== String(f.val)
+      if (f.op === 'in')  return f.val.map(String).indexOf(String(r[f.col])) >= 0
+      if (f.op === 'is')  return f.val === null ? (r[f.col] == null) : (r[f.col] === f.val)
+      if (f.op === 'gte' || f.op === 'lte' || f.op === 'gt' || f.op === 'lt') {
+        const a = r[f.col], b = f.val
+        if (a == null) return false
+        if (f.op === 'gte') return a >= b
+        if (f.op === 'lte') return a <= b
+        if (f.op === 'gt')  return a >  b
+        return a < b
+      }
       return true
     }))
   }
@@ -156,8 +171,14 @@ const FINTO = (DB) => {
          tipo, come un database dove la migration 039 non è stata lanciata:
          PostgREST risponde 42703 e il codice deve reggere. */
       select(campi) { stato.op = 'select'; stato.campi = campi || ''; return q },
-      eq(col, val) { stato.filtri.push({ op:'eq', col, val }); return q },
-      in(col, val) { stato.filtri.push({ op:'in', col, val }); return q },
+      eq(col, val)  { stato.filtri.push({ op:'eq',  col, val }); return q },
+      neq(col, val) { stato.filtri.push({ op:'neq', col, val }); return q },
+      in(col, val)  { stato.filtri.push({ op:'in',  col, val }); return q },
+      is(col, val)  { stato.filtri.push({ op:'is',  col, val }); return q },
+      gte(col, val) { stato.filtri.push({ op:'gte', col, val }); return q },
+      lte(col, val) { stato.filtri.push({ op:'lte', col, val }); return q },
+      gt(col, val)  { stato.filtri.push({ op:'gt',  col, val }); return q },
+      lt(col, val)  { stato.filtri.push({ op:'lt',  col, val }); return q },
       /* messaggio-professionista-v1 — order() e limit() ORDINANO e TAGLIANO
          davvero. Prima erano due scatole vuote: qualunque cosa chiedesse la
          pagina, il finto restituiva le righe nell'ordine in cui stavano nel
@@ -289,9 +310,15 @@ const FINTO = (DB) => {
           return Promise.resolve({ data: (val === undefined ? null : val), error: null })
         },
         auth: {
+          /* contatti-del-paziente-v1 — l'email nella sessione NON e' un
+             dettaglio: dashboard.html fa session.user.email.split('@') e
+             senza email l'init muore con un TypeError. Era cosi' anche
+             nello zip di partenza — nessun test apriva la dashboard.
+             Email finta NON admin, se no utils-premium.js darebbe Premium
+             per l'email e il piano non verrebbe piu' provato. */
           getSession: () => Promise.resolve(DB.opts.senzaSessione
             ? { data:{ session:null } }
-            : { data:{ session:{ access_token:'tok', user:{ id:'user-1' } } } })
+            : { data:{ session:{ access_token:'tok', user:{ id:'user-1', email:'studio@esempio.it' } } } })
         },
         from: tabella,
         storage: {
@@ -2072,6 +2099,126 @@ sez('messaggio-professionista-v1 · quello che scrive il professionista non è m
   await page.waitForTimeout(700)
   check('non è finito niente in esecuzione', (await page.evaluate(() => window.__bum)) === undefined)
   check('il testo si rilegge com\'è stato scritto', (await page.textContent('#mp-elenco')).includes('ciao'))
+  await ctx.close()
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   contatti-del-paziente-v1 — il telefono della struttura non è il suo
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const { filtraContatti, fraseScartati } = await import('./api/analisi-referto.js')
+
+sez('contatti-del-paziente-v1 · il cancello nel server, non nel prompt')
+{
+  const src = fs.readFileSync(path.join(ROOT,'api','analisi-referto.js'),'utf8')
+  check('il prompt dice DI CHI devono essere i recapiti',
+    src.includes('devono essere QUELLI DEL PAZIENTE'))
+  check('e nomina intestazione, piè di pagina e timbro, che è dove sta l\'inganno',
+    src.includes('pie\' di pagina') && src.includes('timbro'))
+  check('chiede al modello di dichiarare di chi è ogni recapito',
+    src.includes('telefono_di') && src.includes('email_di') && src.includes('indirizzo_di'))
+
+  /* Il caso vero visto in studio: referto con il numero dell'ambulatorio. */
+  const referto = filtraContatti({
+    nome:'Mario', cognome:'Rossi', telefono:'0421 555111', telefono_di:'struttura',
+    email:'info@poliambulatorio.it', email_di:'struttura',
+    indirizzo:'Via Roma 1', citta:'Portogruaro', cap:'30026', indirizzo_di:'struttura',
+    diagnosi_principale:'Lombalgia'
+  })
+  check('⚠️ il telefono dell\'ambulatorio NON entra in scheda', referto.dati.telefono === '', referto.dati.telefono)
+  check('⚠️ e nemmeno la sua email', referto.dati.email === '', referto.dati.email)
+  check('⚠️ né il suo indirizzo, che finirebbe in fattura',
+    referto.dati.indirizzo === '' && referto.dati.citta === '' && referto.dati.cap === '',
+    JSON.stringify([referto.dati.indirizzo, referto.dati.citta, referto.dati.cap]))
+  check('il resto dei dati resta tutto',
+    referto.dati.nome === 'Mario' && referto.dati.diagnosi_principale === 'Lombalgia')
+  check('e si sa cosa è stato scartato',
+    JSON.stringify(referto.scartati) === JSON.stringify(['telefono','email','indirizzo']),
+    JSON.stringify(referto.scartati))
+
+  /* Una carta d'identità: i recapiti sono davvero suoi e devono passare. */
+  const carta = filtraContatti({
+    nome:'Mario', telefono:'3331234567', telefono_di:'paziente',
+    indirizzo:'Via Verdi 9', citta:'Caorle', cap:'30021', indirizzo_di:'paziente'
+  })
+  check('quando il recapito È del paziente, entra', carta.dati.telefono === '3331234567')
+  check('e anche il suo indirizzo', carta.dati.citta === 'Caorle')
+  check('e non si scarta niente', carta.scartati.length === 0, JSON.stringify(carta.scartati))
+
+  /* «incerto» vale come no: meglio vuoto che sbagliato (regola di Giuliano). */
+  const incerto = filtraContatti({ telefono:'0421 555111', telefono_di:'incerto' })
+  check('⚠️ «incerto» vale come no: meglio vuoto che sbagliato', incerto.dati.telefono === '')
+
+  /* Se il modello si dimentica di dichiararlo, il recapito cade. */
+  const muto = filtraContatti({ telefono:'0421 555111', email:'x@y.it' })
+  check('⚠️ senza dichiarazione il recapito cade, non passa',
+    muto.dati.telefono === '' && muto.dati.email === '')
+
+  /* I campi di servizio non devono arrivare alla scheda. */
+  check('i campi _di non escono dal server',
+    !('telefono_di' in referto.dati) && !('email_di' in referto.dati) && !('indirizzo_di' in referto.dati),
+    JSON.stringify(Object.keys(referto.dati)))
+
+  /* Un documento senza recapiti non deve produrre un avviso a vuoto. */
+  const nulla = filtraContatti({ nome:'Mario', telefono:'', indirizzo:'' })
+  check('nessun recapito sul foglio = nessun avviso a vuoto', nulla.scartati.length === 0)
+  check('e niente da leggere', fraseScartati(nulla.scartati) === '')
+
+  check('la frase per un recapito solo è in italiano giusto',
+    fraseScartati(['telefono']) === 'Non ho inserito il telefono: sul documento non risultava del paziente. Scrivilo a mano.',
+    fraseScartati(['telefono']))
+  check('e per tre è ancora in italiano giusto',
+    fraseScartati(['telefono','email','indirizzo']).includes('il telefono, l’email e l’indirizzo') &&
+    fraseScartati(['telefono','email','indirizzo']).includes('non risultavano del paziente'),
+    fraseScartati(['telefono','email','indirizzo']))
+}
+
+sez('contatti-del-paziente-v1 · a schermo si legge PERCHÉ il campo è vuoto')
+{
+  const RISPOSTA = {
+    dati: { nome:'Mario', cognome:'Rossi', telefono:'', email:'', indirizzo:'', citta:'', cap:'',
+            diagnosi_principale:'Lombalgia' },
+    scartati: ['telefono','indirizzo'],
+    avviso: fraseScartati(['telefono','indirizzo'])
+  }
+
+  const dati = datiCartella()
+  dati.professionals[0].piano = 'premium'
+  const { page, ctx, errori } = await apriPagina(browser, dati, 'dashboard.html', '')
+  await page.route('**/api/analisi-referto', r => r.fulfill({
+    status:200, contentType:'application/json', body: JSON.stringify(RISPOSTA)
+  }))
+  check('nessun errore JS', errori.length === 0, errori.join(' | '))
+
+  await page.evaluate(async () => { await window.analizzaReferto('AAAA', 'image/jpeg') })
+  await page.waitForTimeout(300)
+  const t = await page.textContent('#referto-ok')
+  /* La riga sta dentro il modale «nuovo paziente», che qui e' chiuso: si
+     guarda che sia stata accesa, non che sia sullo schermo. */
+  check('la riga verde viene accesa lo stesso',
+    (await page.evaluate(() => document.getElementById('referto-ok').style.display)) === 'block')
+  check('⚠️ e dice che il telefono non è stato inserito', t.includes('Non ho inserito il telefono'), t)
+  check('e dice il motivo', t.includes('non risultavano del paziente'), t)
+  check('il telefono a schermo resta vuoto',
+    (await page.inputValue('#f-telefono')) === '', await page.inputValue('#f-telefono'))
+  check('ma il nome è stato compilato', (await page.inputValue('#f-nome')) === 'Mario')
+  await ctx.close()
+}
+
+sez('contatti-del-paziente-v1 · senza niente da scartare, nessun avviso')
+{
+  const dati = datiCartella()
+  dati.professionals[0].piano = 'premium'
+  const { page, ctx } = await apriPagina(browser, dati, 'dashboard.html', '')
+  await page.route('**/api/analisi-referto', r => r.fulfill({
+    status:200, contentType:'application/json',
+    body: JSON.stringify({ dati:{ nome:'Mario', telefono:'3331234567' }, scartati:[], avviso:'' })
+  }))
+  await page.evaluate(async () => { await window.analizzaReferto('AAAA', 'image/jpeg') })
+  await page.waitForTimeout(300)
+  const t = await page.textContent('#referto-ok')
+  check('nessun avviso appiccicato quando non serve', !t.includes('⚠️'), t)
+  check('e il telefono buono entra', (await page.inputValue('#f-telefono')) === '3331234567')
   await ctx.close()
 }
 

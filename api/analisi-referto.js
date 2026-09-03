@@ -25,6 +25,71 @@ import { checkAIAccess } from './_check-ai-access.js'
                                 clinical_documents.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════════════
+   contatti-del-paziente-v1 — IL TELEFONO DELLA STRUTTURA NON E' IL SUO.
+
+   IL GUASTO, visto in studio il 3 settembre: fotografando un referto per
+   precompilare la scheda, nel telefono del paziente finiva il numero
+   dell'ambulatorio che aveva emesso il referto. E' ovvio perche': su un
+   referto l'intestazione, il pie' di pagina e il timbro sono spesso gli
+   UNICI recapiti scritti sul foglio, e al prompt era stato chiesto di
+   estrarre «TUTTI i dati presenti» senza mai dire DI CHI.
+
+   ⚠️ NON RIGUARDA SOLO IL TELEFONO. Lo stesso identico difetto vale per
+   email, indirizzo, citta' e cap — e un indirizzo sbagliato e' peggio,
+   perche' finisce sulla fattura.
+
+   LA REGOLA DI GIULIANO: «bisogna accertarsi che il numero di telefono e'
+   quello del paziente, piuttosto e' meglio che non lo metta».
+   Quindi: nel dubbio, VUOTO. Un campo vuoto si compila in dieci secondi;
+   un recapito sbagliato in cartella non lo vede piu' nessuno.
+
+   COME: il modello dichiara di CHI e' ogni recapito (telefono_di,
+   email_di, indirizzo_di) e il server tiene solo quelli marcati
+   "paziente". Il cancello sta nel SERVER, non nel prompt: un prompt e'
+   una richiesta, questa e' una regola. E se il modello si dimentica di
+   dichiararlo, il recapito cade — nella direzione giusta.
+
+   Quello che e' stato scartato torna al browser in `scartati`, e la
+   pagina lo SCRIVE a schermo: un campo vuoto senza spiegazione sembra un
+   documento illeggibile, e Giuliano perderebbe tempo a rifotografarlo.
+   ═══════════════════════════════════════════════════════════════════════ */
+export function filtraContatti (dati) {
+  const d = Object.assign({}, dati || {})
+  const scartati = []
+  const delPaziente = (v) => String(v == null ? '' : v).trim().toLowerCase() === 'paziente'
+  const pieno = (v) => String(v == null ? '' : v).trim().length > 0
+
+  if (pieno(d.telefono) && !delPaziente(d.telefono_di)) { d.telefono = ''; scartati.push('telefono') }
+  if (pieno(d.email)    && !delPaziente(d.email_di))    { d.email = '';    scartati.push('email') }
+
+  // indirizzo, citta e cap sono un blocco solo: sul foglio stanno insieme,
+  // e mezzo indirizzo giusto e mezzo dell'ambulatorio e' il peggio dei due.
+  if (!delPaziente(d.indirizzo_di)) {
+    if (pieno(d.indirizzo) || pieno(d.citta) || pieno(d.cap)) scartati.push('indirizzo')
+    d.indirizzo = ''; d.citta = ''; d.cap = ''
+  }
+
+  // I campi di servizio non escono da qui: la scheda non li conosce.
+  delete d.telefono_di; delete d.email_di; delete d.indirizzo_di
+  return { dati: d, scartati }
+}
+
+/* Le parole che legge Giuliano quando un recapito viene scartato.
+   Un punto solo: le pagine non scrivono frasi loro. */
+export function fraseScartati (scartati) {
+  const s = (scartati || []).filter(Boolean)
+  if (!s.length) return ''
+  const nomi = { telefono: 'il telefono', email: 'l’email', indirizzo: 'l’indirizzo' }
+  const elenco = s.map(x => nomi[x] || x)
+  const testo = elenco.length === 1
+    ? elenco[0]
+    : elenco.slice(0, -1).join(', ') + ' e ' + elenco[elenco.length - 1]
+  return 'Non ho inserito ' + testo + ': sul documento non risultava' +
+         (elenco.length === 1 ? '' : 'no') + ' del paziente. Scrivil' +
+         (elenco.length === 1 ? 'o' : 'i') + ' a mano.'
+}
+
 export default async function handler (req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const body = req.body || {}
@@ -44,7 +109,7 @@ async function analizzaImmagineAnagrafica (req, res) {
   if (!image || !image.data) return res.status(400).json({ error: 'Image mancante' })
 
   const prompt = `Sei un assistente medico. Estrai da questo documento medico italiano TUTTI i dati presenti. Rispondi SOLO con un oggetto JSON valido, senza testo aggiuntivo, con esattamente questi campi:
-{"nome":"","cognome":"","data_nascita":"","sesso":"","codice_fiscale":"","telefono":"","email":"","indirizzo":"","citta":"","cap":"","professione":"","diagnosi_principale":"","patologie":"","farmaci":"","allergie":"","interventi_chirurgici":"","medico_curante":"","specialista_inviante":"","note_cliniche":""}
+{"nome":"","cognome":"","data_nascita":"","sesso":"","codice_fiscale":"","telefono":"","telefono_di":"","email":"","email_di":"","indirizzo":"","citta":"","cap":"","indirizzo_di":"","professione":"","diagnosi_principale":"","patologie":"","farmaci":"","allergie":"","interventi_chirurgici":"","medico_curante":"","specialista_inviante":"","note_cliniche":""}
 Regole:
 - data_nascita: formato YYYY-MM-DD se presente, altrimenti stringa vuota
 - sesso: solo "M", "F", "Altro" oppure stringa vuota
@@ -53,7 +118,13 @@ Regole:
 - patologie: elenco patologie pregresse o croniche
 - farmaci: farmaci in uso con dosaggio se presente
 - note_cliniche: testo descrittivo libero (anamnesi, storia clinica, referto) che non rientra negli altri campi
-- Se un campo non è leggibile o non presente, lascia la stringa vuota. NON inventare dati.`
+- Se un campo non è leggibile o non presente, lascia la stringa vuota. NON inventare dati.
+
+CONTATTI - la regola piu' importante di tutte:
+- telefono, email, indirizzo, citta e cap devono essere QUELLI DEL PAZIENTE. Mai quelli della struttura che ha emesso il documento, mai quelli del medico.
+- Su un referto l'intestazione in alto, il pie' di pagina e il timbro contengono i recapiti dell'ambulatorio, dell'ospedale o del laboratorio: NON usarli MAI come recapiti del paziente. Spessissimo sono gli unici numeri di telefono scritti sul foglio.
+- telefono_di, email_di, indirizzo_di: scrivi "paziente" SOLO se sei sicuro che quel recapito sia del paziente, per esempio perche' sta nel riquadro dei suoi dati anagrafici, oppure perche' il documento e' una carta d'identita', una tessera sanitaria o un modulo compilato dal paziente. Scrivi "struttura" se e' dell'ambulatorio, dell'ospedale o del laboratorio. Scrivi "medico" se e' del medico. Scrivi "incerto" se non riesci a stabilirlo.
+- Nel dubbio scrivi "incerto": un recapito sbagliato in cartella e' molto peggio di un campo vuoto.`
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -102,7 +173,17 @@ Regole:
       console.error('[analisi-referto] no JSON match found — text length:', text.length, 'preview:', text.substring(0, 200))
     }
 
-    return res.status(200).json({ dati, ai_uses: access.ai_uses_new, parseError })
+    /* contatti-del-paziente-v1 — il cancello sta QUI, nel server, non nel
+       prompt. Il prompt e' una richiesta; questa e' una regola. */
+    const filtrati = filtraContatti(dati)
+
+    return res.status(200).json({
+      dati: filtrati.dati,
+      scartati: filtrati.scartati,
+      avviso: fraseScartati(filtrati.scartati),   // la frase la scrive il server: un punto solo
+      ai_uses: access.ai_uses_new,
+      parseError
+    })
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }

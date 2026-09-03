@@ -1398,7 +1398,13 @@
         if (_ab) _ab.textContent = 'Lettura AI ⭐ Premium'
         let count = 0
         if (json.dati) count = compileFormFromReferto(json.dati)
-        if (count > 0) {
+        /* contatti-del-paziente-v1 — un campo vuoto SENZA spiegazione sembra
+           un documento illeggibile, e si finisce a rifotografarlo per niente.
+           Qui si dice perche' e' vuoto. La frase la scrive il server: un
+           punto solo, come per il vocabolario. */
+        ok.textContent = '✓ Dati estratti — verifica e modifica i campi se necessario'
+        if (json.avviso) ok.textContent += '  ⚠️ ' + json.avviso
+        if (count > 0 || json.avviso) {
           ok.style.display = 'block'
         } else {
           warn.style.display = 'block'
