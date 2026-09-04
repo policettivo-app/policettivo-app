@@ -35,7 +35,7 @@ const senzaCommenti = (t) => String(t).replace(/\/\*[\s\S]*?\*\//g, '').replace(
 
 // ── il finto Supabase ──────────────────────────────────────────────────
 const FINTO = (DB) => {
-  window.__chiamate = { insert: [], upload: [] }
+  window.__chiamate = { insert: [], upload: [], rpc: [] }
 
   function risultato(rows) {
     const p = {
@@ -52,6 +52,13 @@ const FINTO = (DB) => {
     createClient() {
       return {
         auth: { getSession: async () => ({ data: { session: DB.session } }) },
+        // firma-prima-v1 — la RPC che allega il PDF alla riga gia' scritta
+        rpc(nome, args) {
+          window.__chiamate.rpc.push({ nome, args })
+          const guasto = DB.guasti['rpc:' + nome]
+          if (guasto) return Promise.resolve({ data: null, error: (typeof guasto === 'string' ? { message: guasto, name: 'TypeError' } : guasto) })
+          return Promise.resolve({ data: true, error: null })
+        },
         from(tabella) {
           return {
             select(){ return risultato(DB.tabelle[tabella] || []) },
@@ -151,20 +158,19 @@ sez('I marker sono nei file')
 {
   const html = fs.readFileSync(path.join(ROOT, 'consenso-paziente.html'), 'utf8')
   const sw   = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8')
+  const sql  = fs.readFileSync(path.join(ROOT, 'db/migrations/043_consenso_allega_pdf.sql'), 'utf8')
   check('marker firma-diagnosi-v1 in consenso-paziente.html', html.includes('firma-diagnosi-v1'))
-  check('marker firma-diagnosi-v1 in sw.js', sw.includes('firma-diagnosi-v1'))
+  check('marker firma-prima-v1 in consenso-paziente.html', html.includes('firma-prima-v1'))
+  check('marker firma-prima-v1 nella migration 043', sql.includes('firma-prima-v1'))
+  // ⛔ sw.js NON si tocca: il 3 settembre una modifica a quel file ha rotto la
+  // registrazione degli incassi per tre ore. E' stato riportato indietro
+  // APPOSTA, quindi qui NON deve esserci il marker di firma-diagnosi-v1.
+  check('sw.js resta quello tornato indietro (nessun marker di blocco)',
+    !sw.includes('firma-diagnosi-v1') && !sw.includes('firma-prima-v1'))
 }
 
-sez('Il service worker non tocca più le richieste che non sono GET')
+sez('Il service worker si registra ancora (non lo tocchiamo, ma deve reggere)')
 {
-  const sw = senzaCommenti(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8'))
-  check("c'è la guardia sul metodo prima di ogni respondWith",
-    /method\s*!==\s*'GET'\s*\)\s*return/.test(sw))
-  const posGuardia = sw.indexOf("!== 'GET'")
-  const posPrimoRespond = sw.indexOf('respondWith')
-  check('la guardia viene PRIMA del primo respondWith', posGuardia > 0 && posGuardia < posPrimoRespond,
-    { posGuardia, posPrimoRespond })
-  // la prova vera: un service worker vero, con una POST vera
   const risposta = await (async () => {
     const ctx = await browser.newContext()
     const page = await ctx.newPage()
@@ -181,7 +187,7 @@ sez('Il service worker non tocca più le richieste che non sono GET')
   check('il service worker si registra ancora senza errori', risposta === 'registrato')
 }
 
-sez('Quando il PDF non parte: la firma resta e si legge il perché')
+sez('🔴 IL PUNTO DEL BLOCCO — il PDF non parte, ma il consenso RESTA REGISTRATO')
 {
   let tentativi = 0
   const { page, ctx, errori } = await apri(browser, dati(), {
@@ -192,15 +198,33 @@ sez('Quando il PDF non parte: la firma resta e si legge il perché')
 
   check('nessun errore JS in pagina', errori.length === 0, errori)
   check('ha riprovato 3 volte prima di arrendersi', tentativi === 3, { tentativi })
+
+  // ⬇️ QUESTO è il controllo che il 3 settembre non c'era, ed è la ragione del blocco
+  const righe = await page.evaluate(() => window.__chiamate.insert.filter(i => i.tabella === 'consensi' && i.riga.evento === 'firma'))
+  check('la riga del consenso È STATA SCRITTA anche se il PDF è saltato', righe.length === 1, { righe: righe.length })
+  check('la riga porta la firma png', righe[0] && typeof righe[0].riga.firma_png === 'string' && righe[0].riga.firma_png.startsWith('data:image/png'))
+  check('la riga è stata scritta con pdf_storage_path null', righe[0] && righe[0].riga.pdf_storage_path === null)
+  check('la riga è stata scritta con pdf_hash null', righe[0] && righe[0].riga.pdf_hash === null)
+  check('la riga porta la versione del documento', righe[0] && righe[0].riga.documento_versione_id === 'v-2')
+  check("la riga porta l'ora della firma nel meta", righe[0] && typeof righe[0].riga.meta.data_ora_firma === 'string' && righe[0].riga.meta.data_ora_firma.length > 6)
+  check('la RPC di allegatura non è stata chiamata (non c’è nessun PDF)',
+    (await page.evaluate(() => window.__chiamate.rpc.length)) === 0)
+
   const titolo = await page.textContent('#firma-errore-titolo')
-  check('il titolo dice a che punto si è fermato', /generazione del PDF/.test(titolo), titolo)
+  check('il titolo dice che il consenso È REGISTRATO', /REGISTRATO/.test(titolo), titolo)
+  check('il titolo dice comunque a che punto si è fermato', /generazione del PDF/.test(titolo), titolo)
   const frase = await page.textContent('#firma-errore-frase')
-  check('dice che il consenso NON è stato registrato', /NON è stato registrato/.test(frase), frase)
-  check('dice che la firma è ancora lì', /firma è ancora/i.test(frase), frase)
+  check('dice che il consenso È REGISTRATO', /consenso È REGISTRATO/.test(frase), frase)
+  check('dice di NON far rifirmare il paziente', /NON far rifirmare il paziente/.test(frase), frase)
+  check('NON dice più che il consenso non è stato registrato', !/consenso NON è stato registrato/.test(frase), frase)
   const dett = await page.textContent('#firma-errore-testo')
   check('il dettaglio riporta il passo', /passo:\s+generazione del PDF/.test(dett), dett)
   check('il dettaglio riporta se il service worker è attivo', /sw:\s+(attivo|assente)/.test(dett), dett)
   check('il dettaglio riporta lo stato della rete', /rete:\s+(online|OFFLINE)/.test(dett), dett)
+
+  check('compare il pulsante «Vai avanti →»', await page.isVisible('#firma-errore-avanti'))
+  const bordo = await page.evaluate(() => getComputedStyle(document.getElementById('firma-errore')).borderTopColor)
+  check('il riquadro NON è più rosso (è l’avviso ambra)', bordo !== 'rgb(238, 17, 17)', bordo)
 
   check('il canvas della firma è ancora a schermo', await page.isVisible('#firma-canvas'))
   const vuoto = await page.evaluate(() => {
@@ -212,9 +236,101 @@ sez('Quando il PDF non parte: la firma resta e si legge il perché')
   check('la firma disegnata NON è stata cancellata', vuoto === false)
   check('il pulsante «Conferma firma» è di nuovo premibile',
     await page.isEnabled('#firma-confirm'))
-  check('nessuna riga è finita in consensi',
-    (await page.evaluate(() => window.__chiamate.insert.filter(i => i.tabella === 'consensi' && i.riga.evento === 'firma').length)) === 0)
   check("l'overlay di attesa è stato chiuso", !(await page.isVisible('.progress-overlay.open')))
+  await ctx.close()
+}
+
+sez('Ripremere «Conferma firma» NON scrive un secondo consenso')
+{
+  // `consensi` è append-only: un doppione resta lì per sempre. Alla ripresa
+  // si riparte dal PDF, non dalla riga.
+  let tentativi = 0
+  const { page, ctx, errori } = await apri(browser, dati(), {
+    pdfRender: r => {
+      tentativi++
+      return tentativi <= 3 ? r.abort('failed')
+        : r.fulfill({ status: 200, contentType: 'application/pdf', body: Buffer.from('%PDF-1.4 finto') })
+    }
+  })
+  await firmaEConferma(page)
+  await page.waitForSelector('#firma-errore:visible', { timeout: 20000 })
+  check('primo giro: una riga di firma sola', (await page.evaluate(() => window.__chiamate.insert.filter(i => i.tabella === 'consensi' && i.riga.evento === 'firma').length)) === 1)
+
+  await page.click('#firma-confirm')                      // secondo giro: il PDF adesso passa
+  await page.waitForFunction(() => window.__chiamate.rpc.length > 0, null, { timeout: 25000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const tot = await page.evaluate(() => window.__chiamate.insert.filter(i => i.tabella === 'consensi' && i.riga.evento === 'firma').length)
+  check('dopo il secondo tentativo le righe di firma sono ANCORA una sola', tot === 1, { tot })
+
+  const rpc = await page.evaluate(() => window.__chiamate.rpc[0])
+  check('è stata chiamata consenso_allega_pdf', rpc && rpc.nome === 'consenso_allega_pdf', rpc && rpc.nome)
+  check('allega al consenso appena scritto', rpc && rpc.args.p_consenso_id === 'nuovo-consensi', rpc && rpc.args)
+  check('allega un percorso dentro consensi/', rpc && /^consensi\//.test(rpc.args.p_path || ''), rpc && rpc.args.p_path)
+  check("allega l'hash sha256 del PDF", rpc && /^[0-9a-f]{64}$/.test(rpc.args.p_hash || ''), rpc && rpc.args.p_hash)
+  check('il riquadro si è chiuso', !(await page.isVisible('#firma-errore')))
+  await ctx.close()
+}
+
+sez('«Vai avanti →» passa al documento dopo, senza rifar firmare')
+{
+  const { page, ctx, errori } = await apri(browser, dati(), {
+    pdfRender: r => r.abort('failed')
+  })
+  await firmaEConferma(page)                               // step 2 di 3 (consenso informato)
+  await page.waitForSelector('#firma-errore-avanti:visible', { timeout: 20000 })
+  await page.click('#firma-errore-avanti')
+  await page.waitForTimeout(400)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const badge = await page.textContent('#firma-step-badge')
+  check('è passato allo step successivo', /Step 3 di 3/.test(badge), badge)
+  check('il riquadro è sparito', !(await page.isVisible('#firma-errore')))
+  check('non ha scritto altre righe di firma', (await page.evaluate(() => window.__chiamate.insert.filter(i => i.tabella === 'consensi' && i.riga.evento === 'firma').length)) === 1)
+  const vuoto = await page.evaluate(() => {
+    const c = document.getElementById('firma-canvas')
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+    for (let i = 3; i < d.length; i += 4) if (d[i] !== 0) return false
+    return true
+  })
+  check('il canvas del documento nuovo è pulito', vuoto === true)
+  await ctx.close()
+}
+
+sez('Se manca la migration 043 il guasto NON è muto: dice quale file lanciare')
+{
+  const { page, ctx, errori } = await apri(browser, dati({ 'rpc:consenso_allega_pdf': { code: '42883', message: 'function public.consenso_allega_pdf(uuid, text, text) does not exist', name: 'PostgrestError' } }), {
+    pdfRender: r => r.fulfill({ status: 200, contentType: 'application/pdf', body: Buffer.from('%PDF-1.4 finto') })
+  })
+  await firmaEConferma(page)
+  await page.waitForSelector('#firma-errore:visible', { timeout: 20000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const dett = await page.textContent('#firma-errore-testo')
+  check('il messaggio nomina il file SQL da lanciare', /043_consenso_allega_pdf\.sql/.test(dett), dett)
+  const frase = await page.textContent('#firma-errore-frase')
+  check('e intanto dice che il consenso è comunque registrato', /consenso È REGISTRATO/.test(frase), frase)
+  check('la riga era stata scritta lo stesso',
+    (await page.evaluate(() => window.__chiamate.insert.filter(i => i.tabella === 'consensi' && i.riga.evento === 'firma').length)) === 1)
+  await ctx.close()
+}
+
+sez('In elenco un consenso firmato senza PDF si vede, e si vede COS’È')
+{
+  const DB = dati()
+  DB.tabelle.consensi = [
+    { id: 'c1', documento_tipo: 'consenso_informato', documento_versione_id: 'v-2', evento: 'firma',        pdf_storage_path: null,              created_at: '2026-09-04T09:00:00Z', meta: { versione: '1.0' } },
+    { id: 'c2', documento_tipo: 'consenso_foto_video', documento_versione_id: 'v-3', evento: 'firma',        pdf_storage_path: 'consensi/x.pdf',  created_at: '2026-09-04T08:00:00Z', meta: { versione: '1.0' } },
+    { id: 'c3', documento_tipo: 'informativa_privacy', documento_versione_id: 'v-1', evento: 'presa_visione', pdf_storage_path: null,             created_at: '2026-09-04T07:00:00Z', meta: { versione: '1.0' } }
+  ]
+  const { page, ctx, errori } = await apri(browser, DB)
+  const lista = await page.innerHTML('#cons-list')
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('la firma senza PDF è marcata «PDF da rigenerare»', /PDF da rigenerare/.test(lista))
+  check('compare una volta sola (non su tutte le righe)', (lista.match(/PDF da rigenerare/g) || []).length === 1, (lista.match(/PDF da rigenerare/g) || []).length)
+  check('la firma col PDF ha ancora il suo pulsante 📥 PDF', /📥 PDF/.test(lista))
+  check('la presa visione NON viene marcata (non ha mai avuto un PDF)',
+    !/presa[\s\S]{0,400}PDF da rigenerare/.test(lista))
+  check('la riga senza PDF resta visibile, non nascosta', /Consenso trattamento/.test(lista))
+  const rigaSenzaPdf = lista.split('cons-row"').find(x => /PDF da rigenerare/.test(x)) || ''
+  check('il marchio sta proprio sulla firma senza PDF', /Consenso trattamento/.test(rigaSenzaPdf), rigaSenzaPdf.slice(0, 200))
   await ctx.close()
 }
 
@@ -235,8 +351,14 @@ sez('Una connessione che fa i capricci un attimo non blocca la firma')
   check('il riquadro rosso non compare', !(await page.isVisible('#firma-errore')))
   const riga = await page.evaluate(() => window.__chiamate.insert.find(i => i.tabella === 'consensi' && i.riga.evento === 'firma').riga)
   check('la riga ha la firma png', typeof riga.firma_png === 'string' && riga.firma_png.startsWith('data:image/png'))
-  check('la riga ha il percorso del pdf', /^consensi\//.test(riga.pdf_storage_path || ''))
-  check('la riga ha l\'hash del pdf', /^[0-9a-f]{64}$/.test(riga.pdf_hash || ''))
+  // firma-prima-v1 — il percorso e l'hash NON stanno più nell'insert: ci
+  // arrivano dopo, con la RPC. La riga nasce senza PDF, apposta.
+  check('la riga nasce SENZA percorso del pdf', riga.pdf_storage_path === null)
+  check('la riga nasce SENZA hash del pdf', riga.pdf_hash === null)
+  await page.waitForFunction(() => window.__chiamate.rpc.length > 0, null, { timeout: 15000 })
+  const rpc = await page.evaluate(() => window.__chiamate.rpc[0])
+  check('il percorso del pdf arriva con la RPC', /^consensi\//.test(rpc.args.p_path || ''), rpc.args.p_path)
+  check("l'hash del pdf arriva con la RPC", /^[0-9a-f]{64}$/.test(rpc.args.p_hash || ''), rpc.args.p_hash)
   await ctx.close()
 }
 
@@ -267,6 +389,11 @@ sez('Se si rompe l\'archivio, l\'errore lo dice — e non parla di PDF')
   const titolo = await page.textContent('#firma-errore-titolo')
   check('il titolo parla del caricamento nell\'archivio', /archivio/.test(titolo), titolo)
   check('NON dà la colpa alla generazione del PDF', !/generazione del PDF/.test(titolo), titolo)
+  // firma-prima-v1 — anche qui il consenso c'è già
+  check('dice che il consenso è comunque registrato',
+    /consenso È REGISTRATO/.test(await page.textContent('#firma-errore-frase')))
+  check('la riga in consensi c’è',
+    (await page.evaluate(() => window.__chiamate.insert.filter(i => i.tabella === 'consensi' && i.riga.evento === 'firma').length)) === 1)
   await ctx.close()
 }
 
@@ -280,6 +407,13 @@ sez('Se si rompe la scrittura del consenso, l\'errore lo dice')
   check('nessun errore JS in pagina', errori.length === 0, errori)
   const titolo = await page.textContent('#firma-errore-titolo')
   check('il titolo parla della registrazione del consenso', /registrazione del consenso/.test(titolo), titolo)
+  // Qui sì che il consenso NON c'è: il riquadro deve restare rosso e severo
+  check('NON dice che è registrato', !/REGISTRATO/.test(titolo), titolo)
+  const frase = await page.textContent('#firma-errore-frase')
+  check('dice che il consenso NON risulta registrato', /NON risulta registrato/.test(frase), frase)
+  check('non offre di andare avanti', !(await page.isVisible('#firma-errore-avanti')))
+  check('il PDF non è stato nemmeno chiesto (prima la riga, poi il PDF)',
+    (await page.evaluate(() => window.__chiamate.upload.length)) === 0)
   await ctx.close()
 }
 

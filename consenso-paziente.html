@@ -257,6 +257,8 @@
             <div style="font-size:13px; color:#333; line-height:1.45;" id="firma-errore-frase">La firma è ancora qui sotto: non è andata persa. Puoi premere di nuovo «Conferma firma».</div>
             <div style="margin-top:10px; font-size:11px; color:#666;">Dettaglio tecnico (fanne uno screenshot e mandamelo):</div>
             <pre id="firma-errore-testo" style="margin:6px 0 0; white-space:pre-wrap; word-break:break-word; font-size:11px; line-height:1.5; color:#444; background:#fff; border:1px solid #f0c9c9; border-radius:8px; padding:8px;"></pre>
+            <!-- firma-prima-v1 — compare solo quando il consenso E' registrato e manca il PDF -->
+            <button id="firma-errore-avanti" style="display:none; margin-top:12px; width:100%; padding:12px; border:0; border-radius:10px; background:#0a7d33; color:#fff; font-size:14px; font-weight:700; cursor:pointer;" onclick="firmaAvantiSenzaPdf()">Vai avanti →</button>
           </div>
           <div id="firma-refuse-block" style="display:none; margin-top:16px; padding-top:14px; border-top:1px dashed #eee; text-align:center;">
             <div style="font-size:12px; color:#666; margin-bottom:8px;">Il consenso foto/video è facoltativo. Se il paziente non desidera concederlo:</div>
@@ -331,6 +333,11 @@
     let _firmaHasStrokes = false
     let _firmaDrawing = false
     let _firmaLast = null
+
+    // firma-prima-v1 — il consenso di QUESTO documento, gia' scritto nel
+    // database, quando manca solo il PDF. Serve a non scrivere una seconda
+    // riga se si ripreme «Conferma firma»: `consensi` e' append-only.
+    let _consensoInCorso = null   // { id, tipo, ts, dataOra, firmaDataUrl }
 
     // Stato corrente (ultima riga per documento_tipo)
     let _statoCorrente = {}    // { tipo: { evento, created_at, versione, versione_id, pdf_storage_path } }
@@ -491,9 +498,13 @@
         const evt = r.evento || '—'
         const evtLab = LABEL_EVT[evt] || evt.replace('_', ' ')
         const badge = '<span class="badge-evt badge-' + esc(evt) + '">' + esc(evtLab) + '</span>'
+        // firma-prima-v1 — una firma senza PDF e' un consenso VALIDO a cui
+        // manca la stampa. Si mostra come tale, non si nasconde.
         const dl = r.pdf_storage_path
           ? '<button class="btn-cons-view" onclick="scaricaPdf(\'' + esc(r.pdf_storage_path) + '\')">📥 PDF</button>'
-          : ''
+          : (evt === 'firma'
+              ? '<span title="Il consenso è registrato: la firma è nel database con data, ora e versione. Manca solo la stampa PDF." style="display:inline-block;font-size:11px;font-weight:700;color:#8a5d00;background:#fff6d8;border:1px solid #f0dd9a;border-radius:999px;padding:4px 9px;white-space:nowrap">PDF da rigenerare</span>'
+              : '')
         return '<div class="cons-row">' +
                  '<div class="cons-row-ico">' + (iconEvt[evt] || '📎') + '</div>' +
                  '<div class="cons-row-info">' +
@@ -626,6 +637,7 @@
     function mostraDocCorrente() {
       const tipo = _firmaSeq[_firmaIdx]
       const v = _versioni[tipo]
+      _consensoInCorso = null   // firma-prima-v1 — documento nuovo, ripresa chiusa
       const label = LABEL_TIPO[tipo] || tipo
       document.getElementById('firma-step-badge').textContent = 'Step ' + (_firmaIdx + 1) + ' di ' + _firmaSeq.length
       document.getElementById('firma-titolare').textContent = _titolareStr || 'Titolare del trattamento: (compila i dati studio in Profilo)'
@@ -792,11 +804,22 @@
     function firmaErroreNascondi() {
       const box = document.getElementById('firma-errore')
       if (box) box.style.display = 'none'
+      const av = document.getElementById('firma-errore-avanti')
+      if (av) av.style.display = 'none'
     }
 
-    function firmaErroreMostra(passo, frase, e) {
+    // firma-prima-v1 — `registrato` = la riga del consenso c'e' gia' e manca
+    // solo il PDF. Non e' lo stesso guasto: il riquadro cambia colore, dice
+    // che NON si deve far rifirmare il paziente, e offre di andare avanti.
+    function firmaErroreMostra(passo, frase, e, registrato) {
       const box = document.getElementById('firma-errore')
       if (!box) return
+      box.style.borderColor = registrato ? '#e6a100' : '#e11'
+      box.style.background  = registrato ? '#fffaf0' : '#fff5f5'
+      const tit = document.getElementById('firma-errore-titolo')
+      if (tit) tit.style.color = registrato ? '#8a5d00' : '#b00'
+      const av = document.getElementById('firma-errore-avanti')
+      if (av) av.style.display = registrato ? '' : 'none'
       const msg  = (e && e.message) ? String(e.message) : String(e == null ? 'sconosciuto' : e)
       const nome = (e && e.name) ? String(e.name) : 'Errore'
       const righe = []
@@ -809,7 +832,9 @@
       righe.push('rete:       ' + (navigator.onLine ? 'online' : 'OFFLINE'))
       righe.push('sw:         ' + ((navigator.serviceWorker && navigator.serviceWorker.controller) ? 'attivo' : 'assente'))
       righe.push('ora:        ' + new Date().toLocaleString('it-IT'))
-      document.getElementById('firma-errore-titolo').textContent = 'Non sono riuscito a completare: ' + passo
+      document.getElementById('firma-errore-titolo').textContent = registrato
+        ? ('⚠️ Consenso REGISTRATO — manca solo il PDF (' + passo + ')')
+        : ('Non sono riuscito a completare: ' + passo)
       document.getElementById('firma-errore-frase').textContent  = frase
       document.getElementById('firma-errore-testo').textContent  = righe.join('\n')
       box.style.display = ''
@@ -860,19 +885,35 @@
       throw ultimo
     }
 
+    // firma-prima-v1 — il consenso e' registrato, il PDF no: si va avanti.
+    // Non si rifa' firmare il paziente: la firma e' gia' nel database.
+    function firmaAvantiSenzaPdf() {
+      _consensoInCorso = null
+      firmaErroreNascondi()
+      firmaCancella()
+      _firmaIdx++
+      if (_firmaIdx >= _firmaSeq.length) finishFlussoFirma()
+      else mostraDocCorrente()
+    }
+
     async function firmaConferma() {
       const tipo = _firmaSeq[_firmaIdx]
       const v = _versioni[tipo]
-      if (!_firmaHasStrokes) { toast('Firma vuota'); return }
+      // firma-prima-v1 — «ripresa»: la riga c'e' gia', si riprova solo il PDF.
+      const ripresa = !!(_consensoInCorso && _consensoInCorso.tipo === tipo && _consensoInCorso.id)
+      if (!ripresa && !_firmaHasStrokes) { toast('Firma vuota'); return }
       firmaErroreNascondi()
 
       const canvas = document.getElementById('firma-canvas')
-      const firmaDataUrl = canvas.toDataURL('image/png')
+      const firmaDataUrl = ripresa ? _consensoInCorso.firmaDataUrl : canvas.toDataURL('image/png')
 
       const label = LABEL_TIPO[tipo] || tipo
 
       const nomePaz = (_patient.nome || '') + ' ' + (_patient.cognome || '')
-      const dataOra = new Date().toLocaleString('it-IT', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
+      // Alla ripresa si riusa la data della firma vera, non quella del secondo
+      // tentativo: sul PDF deve stare l'ora scritta nel database.
+      const dataOra = ripresa ? _consensoInCorso.dataOra
+        : new Date().toLocaleString('it-IT', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
       const html = buildPdfHtml({
         titolareStr: _titolareStr,
         titoloDoc:   v.titolo || label,
@@ -890,15 +931,76 @@
       // firma-diagnosi-v1 — si tiene il conto del passo, così l'errore dice DOVE si è fermato
       let _passo = 'avvio'
       let _frase = 'La firma è ancora qui sotto: non è andata persa. Puoi premere di nuovo «Conferma firma».'
+      // firma-prima-v1 — da qui in poi «registrato» vuol dire: la riga c'e',
+      // il consenso vale, e qualunque cosa vada storta NON si rifa' firmare.
+      let _registrato = ripresa
+      const FRASE_PDF_MANCA = 'Il consenso È REGISTRATO: la firma è salvata nel database con data, ora, versione del documento e paziente. NON far rifirmare il paziente. Manca solo la stampa PDF: in elenco la vedi come «PDF da rigenerare». Puoi riprovare adesso con «Conferma firma», oppure andare avanti e rigenerarla più tardi.'
       try {
         _passo = 'controllo della sessione'
         _frase = 'La sessione dello studio sembra scaduta. Ricarica la pagina, rientra e rifai la firma.'
-        progress(true, 'Generazione PDF…')
+        progress(true, 'Registrazione consenso…')
         const { data: { session } } = await _sb.auth.getSession()
         if (!session || !session.access_token) throw new Error('Sessione dello studio non attiva')
 
+        // ── firma-prima-v1 — L'ORDINE E' INVERTITO, ED E' IL PUNTO DEL BLOCCO ──
+        // Il dato che vale e' la firma con data, versione, paziente e
+        // professionista. Il PDF e' una STAMPA di quel dato, non il dato.
+        // Prima si scrive la riga (pdf a null), poi si fa il PDF e lo si
+        // allega con la RPC della migration 043. Se il PDF salta, il consenso
+        // resta registrato: e' quello che il 3 settembre non e' successo.
+        const ts = ripresa ? _consensoInCorso.ts : Date.now()
+
+        if (!ripresa) {
+          _passo = 'registrazione del consenso'
+          _frase = 'La riga del consenso non è stata scritta: il consenso NON risulta registrato. La firma è ancora qui sotto: prova a premere di nuovo «Conferma firma». Se non passa, il consenso va raccolto su carta.'
+          const { data: consInserted, error: insErr } = await _sb.from('consensi').insert({
+            patient_id: patientId,
+            professional_id: _authUid,
+            visit_id: null,
+            documento_tipo: tipo,
+            documento_versione_id: v.id,
+            evento: 'firma',
+            firma_png: firmaDataUrl,
+            pdf_storage_path: null,
+            pdf_hash: null,
+            ip: null,
+            user_agent: navigator.userAgent,
+            meta: {
+              nome_paziente: nomePaz,
+              versione: v.versione || null,
+              titolo:   v.titolo || null,
+              filename: 'consenso_' + tipo + '_' + ts + '.pdf',
+              data_ora_firma: dataOra
+            }
+          }).select('id').maybeSingle()
+          if (insErr) throw insErr
+          const nuovoId = (consInserted && consInserted.id) || null
+          if (!nuovoId) throw new Error('Il database non ha restituito l\'identificativo del consenso')
+          _consensoInCorso = { id: nuovoId, tipo: tipo, ts: ts, dataOra: dataOra, firmaDataUrl: firmaDataUrl }
+          _registrato = true
+
+          // Audit best-effort: FIRMA consenso via endpoint dedicato (bypass RLS controllato)
+          try {
+            const auditResp = await fetch('/api/genera-pdf?tipo=log_firma', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + session.access_token
+              },
+              body: JSON.stringify({ consenso_id: nuovoId })
+            })
+            if (!auditResp.ok) {
+              const auditErr = await auditResp.json().catch(function(){ return {} })
+              console.warn('[audit_log] log-firma fallito:', auditResp.status, auditErr.error || '')
+            }
+          } catch (e) {
+            console.warn('[audit_log] log-firma throw:', e && e.message ? e.message : e)
+          }
+        }
+
         _passo = 'generazione del PDF'
-        _frase = 'Il PDF non è stato generato, quindi il consenso NON è stato registrato. La firma è ancora qui sotto: prova a premere di nuovo «Conferma firma». Se non passa, il consenso va raccolto su carta.'
+        _frase = FRASE_PDF_MANCA
+        progress(true, 'Generazione PDF…')
         const resp = await firmaChiamaPdfRender(
           { html: html, filename: 'consenso.pdf', patient_id: patientId },
           session.access_token
@@ -908,9 +1010,8 @@
         const pdfHash = await sha256Hex(pdfBuf)
 
         _passo = 'caricamento del PDF nell\'archivio'
-        _frase = 'Il PDF è stato creato ma non è stato archiviato, quindi il consenso NON è stato registrato. La firma è ancora qui sotto: prova a premere di nuovo «Conferma firma».'
+        _frase = FRASE_PDF_MANCA
         progress(true, 'Caricamento nel bucket…')
-        const ts   = Date.now()
         const path = 'consensi/' + patientId + '/' + tipo + '_' + ts + '.pdf'
         const { error: upErr } = await _sb.storage
           .from('clinical-docs')
@@ -921,52 +1022,27 @@
         const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
         const fileUrl = (urlData && urlData.publicUrl) || null
 
-        _passo = 'registrazione del consenso'
-        _frase = 'Il PDF c\'è, ma la riga del consenso non è stata scritta: il consenso NON risulta registrato. La firma è ancora qui sotto: prova a premere di nuovo «Conferma firma».'
-        progress(true, 'Registrazione consenso…')
-        const { data: consInserted, error: insErr } = await _sb.from('consensi').insert({
-          patient_id: patientId,
-          professional_id: _authUid,
-          visit_id: null,
-          documento_tipo: tipo,
-          documento_versione_id: v.id,
-          evento: 'firma',
-          firma_png: firmaDataUrl,
-          pdf_storage_path: path,
-          pdf_hash: pdfHash,
-          ip: null,
-          user_agent: navigator.userAgent,
-          meta: {
-            nome_paziente: nomePaz,
-            versione: v.versione || null,
-            titolo:   v.titolo || null,
-            filename: 'consenso_' + tipo + '_' + ts + '.pdf'
+        // firma-prima-v1 — la RPC della 043: allega il PDF alla riga gia'
+        // scritta. Riempie solo se i campi sono ancora NULL (si allega una
+        // volta sola, mai si riscrive) e solo a chi ha raccolto la firma:
+        // `consensi` resta append-only, nessuna policy di UPDATE aggiunta.
+        _passo = 'collegamento del PDF al consenso'
+        _frase = FRASE_PDF_MANCA
+        progress(true, 'Collegamento del PDF…')
+        const { data: allegato, error: rpcErr } = await _sb.rpc('consenso_allega_pdf', {
+          p_consenso_id: _consensoInCorso.id,
+          p_path: path,
+          p_hash: pdfHash
+        })
+        if (rpcErr) {
+          // 42883 = la funzione non esiste: la migration 043 non e' stata lanciata.
+          // Guasto muto mai: si dice al professionista QUALE file manca.
+          if (rpcErr.code === '42883' || /consenso_allega_pdf/.test(rpcErr.message || '')) {
+            rpcErr.message = 'Manca la funzione consenso_allega_pdf nel database: lancia db/migrations/043_consenso_allega_pdf.sql. (' + (rpcErr.message || '') + ')'
           }
-        }).select('id').maybeSingle()
-        if (insErr) throw insErr
-
-        // Audit best-effort: FIRMA consenso via endpoint dedicato (bypass RLS controllato)
-        try {
-          const consensoId = (consInserted && consInserted.id) || null
-          if (consensoId && session) {
-            const auditResp = await fetch('/api/genera-pdf?tipo=log_firma', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + session.access_token
-              },
-              body: JSON.stringify({ consenso_id: consensoId })
-            })
-            if (!auditResp.ok) {
-              const auditErr = await auditResp.json().catch(function(){ return {} })
-              console.warn('[audit_log] log-firma fallito:', auditResp.status, auditErr.error || '')
-            }
-          } else {
-            console.warn('[audit_log] log-firma skip: consenso_id o session mancante')
-          }
-        } catch (e) {
-          console.warn('[audit_log] log-firma throw:', e && e.message ? e.message : e)
+          throw rpcErr
         }
+        if (allegato === false) console.warn('[consenso] il PDF risultava già allegato: non lo riscrivo (append-only)')
 
         // Registrazione anche in clinical_documents (cartella clinica)
         const clientToken = (crypto.randomUUID && crypto.randomUUID()) || (String(Date.now()) + Math.random())
@@ -983,6 +1059,7 @@
         if (cdErr && cdErr.code !== '23505') console.warn('[clinical_documents] insert non bloccante:', cdErr)
 
         progress(false)
+        _consensoInCorso = null
         firmaCancella()
         _firmaIdx++
         if (_firmaIdx >= _firmaSeq.length) {
@@ -993,9 +1070,10 @@
       } catch(e) {
         // firma-diagnosi-v1 — niente più «Errore: Load failed» da solo:
         // si dice a che punto si è fermato e che la firma è ancora a schermo.
+        // firma-prima-v1 — e si dice se il consenso è comunque registrato.
         progress(false)
         console.error('[firma] passo:', _passo, e)
-        firmaErroreMostra(_passo, _frase, e)
+        firmaErroreMostra(_passo, _frase, e, _registrato)
       }
     }
 
