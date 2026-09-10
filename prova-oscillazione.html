@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>Prova del banco — Oscillazione della Tavola</title>
+<!-- prova-oscillazione-v1
+     PAGINA DI PROVA. Non e' uno strumento clinico e non e' collegata a nessun menu.
+     Non tocca il database, non scrive niente, non chiede il login: misura e basta.
+     Serve a rispondere a tre domande PRIMA di costruire il modulo vero:
+       1. quanto vale il rumore di fondo (telefono fermo sulla tavola ferma)
+       2. quanto ripete (stessa persona, tre prove di fila)
+       3. vede la differenza fra occhi aperti e occhi chiusi?
+     Vedi claude/PIANO-stabilometria-tavola.md, Fase 0. -->
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#fafafa;color:#111;
+       font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       font-size:16px;line-height:1.5;padding:16px;padding-bottom:60px}
+  .wrap{max-width:560px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{font-size:13px;color:#666;margin-bottom:14px}
+  .avviso{background:#fff8e6;border:1px solid #f0dd9a;border-radius:12px;
+          padding:12px 14px;font-size:13px;color:#5c4300;margin-bottom:18px}
+  .card{background:#fff;border:1px solid #eee;border-radius:18px;padding:18px;margin-bottom:16px;
+        box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .card h2{font-size:16px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.6px;color:#444}
+  label{display:block;font-size:13px;color:#666;margin:12px 0 6px;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1.5px solid #ddd;background:#fff;border-radius:999px;padding:9px 14px;
+        font-size:14px;cursor:pointer;font-family:inherit}
+  .chip.on{border-color:#111;background:#111;color:#fff;font-weight:700}
+  input[type=text],select{width:100%;padding:12px;border:1.5px solid #ddd;border-radius:10px;
+        font-size:16px;font-family:inherit;background:#fff}
+  .btn{display:block;width:100%;padding:17px;border:0;border-radius:14px;background:#111;color:#fff;
+       font-size:17px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:16px}
+  .btn:disabled{background:#bbb}
+  .btn.giallo{background:#FFD008;color:#111}
+  .btn.vuoto{background:#fff;color:#111;border:1.5px solid #ddd;font-weight:600;font-size:15px;padding:13px}
+  canvas{display:block;width:100%;max-width:100%;background:#fff;border:1px solid #eee;border-radius:14px}
+  .metriche{width:100%;border-collapse:collapse;font-size:14px;margin-top:12px}
+  .metriche th,.metriche td{padding:8px 6px;border-bottom:1px solid #f0f0f0;text-align:right}
+  .metriche th:first-child,.metriche td:first-child{text-align:left;color:#555}
+  .metriche thead th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#888}
+  .big{font-size:44px;font-weight:800;text-align:center;margin:10px 0;font-variant-numeric:tabular-nums}
+  .stato{text-align:center;font-size:15px;color:#666;min-height:24px}
+  .guard{position:fixed;inset:0;background:transparent;display:none;z-index:50}
+  .guard.on{display:block}
+  .run{border:1px solid #eee;border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13px;background:#fff}
+  .run b{font-size:14px}
+  .run .num{color:#555;font-variant-numeric:tabular-nums}
+  textarea{width:100%;height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;
+           border:1.5px solid #ddd;border-radius:10px;padding:10px}
+  .nota{font-size:12px;color:#777;margin-top:10px}
+  .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;
+       font-size:14px;color:#b00;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="guard" id="guard"></div>
+<div class="wrap">
+
+  <h1>Prova del banco</h1>
+  <div class="sub">Oscillazione della Tavola — misura grezza, senza salvataggi</div>
+
+  <div class="avviso">
+    <b>Questa non è una stabilometria e non è uno strumento clinico.</b>
+    Misura l'<b>inclinazione della tavola</b>, non il centro di pressione del paziente.
+    Serve a capire, prima di costruire il modulo vero, se lo strumento misura qualcosa di reale:
+    quanto vale il rumore di fondo, quanto ripete, e se vede la differenza fra occhi aperti e chiusi.
+    Niente esce da questo telefono finché non premi «Copia i dati».
+  </div>
+
+  <div class="card" id="c-setup">
+    <h2>1 · Prepara la prova</h2>
+    <label>Che prova stai facendo</label>
+    <div class="chips" id="chips">
+      <button class="chip on" data-e="telefono fermo">telefono fermo</button>
+      <button class="chip" data-e="occhi aperti">occhi aperti</button>
+      <button class="chip" data-e="occhi chiusi">occhi chiusi</button>
+      <button class="chip" data-e="libera">libera</button>
+    </div>
+    <label for="nota">Nota (tavola, cuscini, chi è sopra…)</label>
+    <input type="text" id="nota" placeholder="es. tavola rettangolare, CEP, Giuliano, scarpe da ginnastica">
+    <label for="durata">Durata della misura</label>
+    <select id="durata">
+      <option value="10">10 secondi</option>
+      <option value="30" selected>30 secondi</option>
+      <option value="60">60 secondi</option>
+    </select>
+    <button class="btn" id="btn-start">Appoggia il telefono e parti →</button>
+    <div class="nota">
+      Telefono <b>al centro della tavola, schermo in su</b>, sempre nello stesso verso.
+      Dopo il via ci sono 3 secondi per togliere le mani, poi parte la misura.
+    </div>
+    <div class="err" id="err" style="display:none"></div>
+  </div>
+
+  <div class="card" id="c-misura" style="display:none">
+    <h2>2 · Misura in corso</h2>
+    <div class="big" id="countdown">3</div>
+    <div class="stato" id="stato">Togli le mani dalla tavola</div>
+    <canvas id="live" width="600" height="600" style="margin-top:14px"></canvas>
+    <div class="stato" id="live-info" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card" id="c-esito" style="display:none">
+    <h2>3 · Risultato</h2>
+    <canvas id="traccia" width="600" height="600"></canvas>
+    <table class="metriche">
+      <thead><tr><th>Misura</th><th>da orientamento</th><th>da accelerometro</th></tr></thead>
+      <tbody id="tab-metriche"></tbody>
+    </table>
+    <div class="nota" id="nota-freq"></div>
+    <button class="btn giallo" id="btn-ancora">Rifai questa stessa prova →</button>
+    <button class="btn vuoto" id="btn-nuova">Cambia prova</button>
+  </div>
+
+  <div class="card" id="c-storico" style="display:none">
+    <h2>4 · Le prove di oggi</h2>
+    <div id="lista"></div>
+    <button class="btn vuoto" id="btn-copia">Copia i dati per Claude</button>
+    <textarea id="export" readonly style="display:none;margin-top:12px"></textarea>
+    <div class="nota">
+      Il riassunto è corto e si incolla in chat. I campioni grezzi restano solo qui:
+      chiudendo la pagina si perdono.
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  'use strict'
+
+  // ── parametri di prova (solo per i controlli automatici, non per l'uso vero) ──
+  var Q = new URLSearchParams(location.search)
+  var FORZA_DUR = Number(Q.get('dur')) || 0          // durata in secondi
+  var SALTA_ASSESTAMENTO = Q.get('via') === '1'
+
+  var evento = 'telefono fermo'
+  var prove = []          // le prove fatte in questa pagina
+  var actx = null
+
+  function $(id){ return document.getElementById(id) }
+  function mostra(id, si){ $(id).style.display = si ? '' : 'none' }
+  function r2(x){ return Math.round(x*100)/100 }
+  function r1(x){ return Math.round(x*10)/10 }
+
+  function bip(freq, durMs){
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)()
+      var o = actx.createOscillator(), g = actx.createGain()
+      o.frequency.value = freq; o.type = 'sine'; o.connect(g); g.connect(actx.destination)
+      g.gain.setValueAtTime(0.22, actx.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + durMs/1000)
+      o.start(); o.stop(actx.currentTime + durMs/1000)
+    } catch(e){}
+  }
+
+  // ── le metriche ───────────────────────────────────────────────────────
+  // Tutte in GRADI. Nessun indice sintetico inventato: solo grandezze
+  // che si possono ricalcolare a mano dai campioni grezzi.
+  function metriche(xs, ys, durataS){
+    var n = xs.length
+    if (n < 3) return null
+    var i, mx = 0, my = 0
+    for (i=0;i<n;i++){ mx += xs[i]; my += ys[i] }
+    mx /= n; my /= n
+
+    var percorso = 0
+    for (i=1;i<n;i++) percorso += Math.hypot(xs[i]-xs[i-1], ys[i]-ys[i-1])
+
+    var sxx=0, syy=0, sxy=0, raggio=0, rmax=0
+    for (i=0;i<n;i++){
+      var dx = xs[i]-mx, dy = ys[i]-my
+      sxx += dx*dx; syy += dy*dy; sxy += dx*dy
+      var r = Math.hypot(dx,dy); raggio += r; if (r > rmax) rmax = r
+    }
+    sxx/=n; syy/=n; sxy/=n; raggio/=n
+
+    // Ellisse di confidenza al 95%: area = pi * chi2(0.95, 2 gdl) * sqrt(det(covarianza))
+    // chi2(0.95, 2) = 5.991. Si usa l'ellisse e NON il guscio convesso: un solo
+    // campione sporco gonfia il guscio, l'ellisse no.
+    var det = Math.max(0, sxx*syy - sxy*sxy)
+    var area = Math.PI * 5.991 * Math.sqrt(det)
+
+    return {
+      n: n,
+      percorso: percorso,
+      area: area,
+      velocita: durataS > 0 ? percorso/durataS : 0,
+      raggio: raggio,
+      raggioMax: rmax,
+      stdX: Math.sqrt(sxx),
+      stdY: Math.sqrt(syy),
+      // la grandezza che autotest.html gia' calcola, per poterle confrontare
+      gradi: Math.sqrt(sxx + syy)
+    }
+  }
+
+  // ── il disegno ────────────────────────────────────────────────────────
+  function disegna(cv, xs, ys, semiScala){
+    var ctx = cv.getContext('2d')
+    var W = cv.width, H = cv.height, cx = W/2, cy = H/2
+    ctx.clearRect(0,0,W,H)
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H)
+
+    var s = semiScala || 5
+    var k = (Math.min(W,H)/2 - 24) / s
+
+    // griglia a 1 grado
+    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 1
+    for (var g = 1; g <= Math.ceil(s); g++){
+      ctx.beginPath(); ctx.arc(cx, cy, g*k, 0, Math.PI*2); ctx.stroke()
+    }
+    ctx.strokeStyle = '#e4e4e4'
+    ctx.beginPath(); ctx.moveTo(12,cy); ctx.lineTo(W-12,cy)
+    ctx.moveTo(cx,12); ctx.lineTo(cx,H-12); ctx.stroke()
+
+    // la traccia, dal blu al rosso nel tempo
+    var n = xs.length
+    if (n > 1){
+      ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+      for (var i=1;i<n;i++){
+        var t = i/(n-1)
+        ctx.strokeStyle = 'rgb(' + Math.round(40 + 200*t) + ',' + Math.round(90 - 60*t) + ',' + Math.round(220 - 180*t) + ')'
+        ctx.beginPath()
+        ctx.moveTo(cx + xs[i-1]*k, cy - ys[i-1]*k)
+        ctx.lineTo(cx + xs[i]*k,   cy - ys[i]*k)
+        ctx.stroke()
+      }
+    }
+    // il centro
+    ctx.fillStyle = '#111'
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI*2); ctx.fill()
+
+    ctx.fillStyle = '#999'; ctx.font = '20px sans-serif'
+    ctx.fillText(r1(s) + '°', W - 62, H - 16)
+  }
+
+  // ── la misura ─────────────────────────────────────────────────────────
+  function chiediPermessi(){
+    var p = []
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function')
+      p.push(DeviceOrientationEvent.requestPermission().then(function(r){ return r === 'granted' }).catch(function(){ return false }))
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function')
+      p.push(DeviceMotionEvent.requestPermission().then(function(r){ return r === 'granted' }).catch(function(){ return false }))
+    if (!p.length) return Promise.resolve(true)
+    return Promise.all(p).then(function(esiti){
+      return esiti.every(function(x){ return x })
+    })
+  }
+
+  function misura(durataMs, onTick){
+    return new Promise(function(resolve){
+      var t = [], ob = [], og = [], ab = [], ag = [], accMod = []
+      var t0 = performance.now()
+      var ultimoOr = null, ultimoAc = null
+
+      function onOrient(e){
+        if (e.beta == null || e.gamma == null) return
+        ultimoOr = { b: e.beta, g: e.gamma }
+      }
+      function onMotion(e){
+        var a = e.accelerationIncludingGravity
+        if (!a || a.x == null) return
+        var ax = a.x||0, ay = a.y||0, az = a.z||0
+        // inclinazione dal vettore gravita': niente integrazione, niente deriva
+        ultimoAc = {
+          x: Math.atan2(ax, Math.hypot(ay, az)) * 180/Math.PI,
+          y: Math.atan2(ay, Math.hypot(ax, az)) * 180/Math.PI
+        }
+        var m = e.acceleration && e.acceleration.x !== null ? e.acceleration : null
+        accMod.push(m ? Math.hypot(m.x||0, m.y||0, m.z||0) : Math.hypot(ax,ay,az) - 9.81)
+        // un campione per evento di movimento: e' la sorgente piu' regolare
+        t.push(performance.now() - t0)
+        ob.push(ultimoOr ? ultimoOr.b : 0)
+        og.push(ultimoOr ? ultimoOr.g : 0)
+        ab.push(ultimoAc.y)
+        ag.push(ultimoAc.x)
+      }
+
+      window.addEventListener('deviceorientation', onOrient)
+      window.addEventListener('devicemotion', onMotion)
+
+      var tick = setInterval(function(){
+        var restanti = Math.ceil((durataMs - (performance.now() - t0))/1000)
+        if (onTick) onTick(Math.max(0, restanti), og, ob, t.length)
+      }, 100)
+
+      setTimeout(function(){
+        clearInterval(tick)
+        window.removeEventListener('deviceorientation', onOrient)
+        window.removeEventListener('devicemotion', onMotion)
+        // La durata vera e' l'arco fra il PRIMO e l'ULTIMO campione, non la
+        // finestra nominale: i sensori possono partire in ritardo (su iPhone
+        // succede dopo il permesso). Usando la finestra, velocita' e frequenza
+        // uscirebbero piu' basse del vero.
+        var durataReale = (t.length > 1) ? (t[t.length-1] - t[0]) / 1000 : 0
+        resolve({ t:t, ob:ob, og:og, ab:ab, ag:ag, accMod:accMod,
+                  durataS: durataMs/1000, durataReale: durataReale,
+                  ritardoAvvioS: t.length ? t[0]/1000 : 0 })
+      }, durataMs)
+    })
+  }
+
+  function countdown(secondi){
+    return new Promise(function(res){
+      if (SALTA_ASSESTAMENTO) return res()
+      var n = secondi
+      $('countdown').textContent = n
+      bip(520, 150)
+      var iv = setInterval(function(){
+        n--
+        if (n <= 0){ clearInterval(iv); $('countdown').textContent = ''; res(); return }
+        $('countdown').textContent = n
+        bip(520, 150)
+      }, 1000)
+    })
+  }
+
+  // ── il giro completo ──────────────────────────────────────────────────
+  var inCorso = false
+  async function avvia(){
+    if (inCorso) return
+    inCorso = true
+    $('err').style.display = 'none'
+    bip(660, 60)   // sblocca l'audio dentro il gesto dell'utente
+
+    var ok = await chiediPermessi()
+    if (!ok){
+      inCorso = false
+      $('err').textContent = 'Il telefono non ha dato il permesso ai sensori di movimento. Su iPhone: Impostazioni → Safari → Movimento e orientamento → attivo, poi ricarica la pagina. Su iPhone controlla anche che il Risparmio energetico sia spento: spegne i sensori.'
+      $('err').style.display = ''
+      return
+    }
+
+    var durata = FORZA_DUR || Number($('durata').value) || 30
+    mostra('c-setup', false); mostra('c-esito', false); mostra('c-misura', true)
+    $('guard').classList.add('on')
+
+    var wl = null
+    try { if (navigator.wakeLock) wl = await navigator.wakeLock.request('screen') } catch(e){}
+
+    $('stato').textContent = 'Togli le mani dalla tavola'
+    await countdown(3)
+
+    $('stato').textContent = 'Sto misurando — non toccare niente'
+    bip(880, 220)
+
+    var live = $('live')
+    var dati = await misura(durata*1000, function(restanti, xs, ys, n){
+      $('countdown').textContent = restanti
+      var s = 5, i
+      for (i=0;i<xs.length;i++) s = Math.max(s, Math.abs(xs[i]), Math.abs(ys[i]))
+      disegna(live, xs, ys, s)
+      $('live-info').textContent = n + ' campioni'
+    })
+
+    bip(440, 320)
+    try { if (wl) wl.release() } catch(e){}
+    $('guard').classList.remove('on')
+
+    concludi(dati, durata)
+    inCorso = false
+  }
+
+  function concludi(dati, durata){
+    var mOr = metriche(dati.og, dati.ob, dati.durataReale || durata)
+    var mAc = metriche(dati.ag, dati.ab, dati.durataReale || durata)
+    // n campioni coprono n-1 intervalli: la frequenza si calcola su quelli
+    var hz  = (dati.durataReale > 0) ? (dati.t.length - 1) / dati.durataReale : 0
+
+    var prova = {
+      quando: new Date().toISOString(),
+      evento: evento,
+      nota: $('nota').value || '',
+      durata_s: durata,
+      durata_reale_s: r2(dati.durataReale),
+      campioni: dati.t.length,
+      hz_reale: r1(hz),
+      ritardo_avvio_s: r2(dati.ritardoAvvioS || 0),
+      orientamento: mOr,
+      accelerometro: mAc,
+      grezzi: { t: dati.t, beta: dati.ob, gamma: dati.og }
+    }
+    prove.push(prova)
+
+    var s = 5, i
+    for (i=0;i<dati.og.length;i++) s = Math.max(s, Math.abs(dati.og[i]), Math.abs(dati.ob[i]))
+    disegna($('traccia'), dati.og, dati.ob, s)
+
+    var righe = [
+      ['Percorso totale', 'percorso', '°'],
+      ['Ellisse al 95%',  'area',     '°²'],
+      ['Velocità media',  'velocita', '°/s'],
+      ['Raggio medio',    'raggio',   '°'],
+      ['Raggio massimo',  'raggioMax','°'],
+      ['Dispersione (gradi)', 'gradi','°']
+    ]
+    $('tab-metriche').innerHTML = righe.map(function(r){
+      var a = mOr ? r2(mOr[r[1]]) : '—'
+      var b = mAc ? r2(mAc[r[1]]) : '—'
+      return '<tr><td>' + r[0] + '</td><td class="num">' + a + ' ' + r[2] +
+             '</td><td class="num">' + b + ' ' + r[2] + '</td></tr>'
+    }).join('')
+
+    $('nota-freq').innerHTML = '<b>' + dati.t.length + ' campioni in ' + r2(dati.durataReale) +
+      ' s = ' + r1(hz) + ' Hz reali.</b> Questo numero va guardato: se cambia molto da un telefono ' +
+      'all’altro, i confronti fra telefoni diversi non valgono.' +
+      (prova.ritardo_avvio_s > 0.3
+        ? ' I sensori hanno cominciato a rispondere dopo <b>' + prova.ritardo_avvio_s +
+          ' s</b>: la durata usata per i conti è quella vera dei campioni, non i ' + durata + ' s nominali.'
+        : '')
+
+    mostra('c-misura', false)
+    mostra('c-esito', true)
+    aggiornaStorico()
+    $('c-esito').scrollIntoView({ behavior:'smooth', block:'start' })
+  }
+
+  function aggiornaStorico(){
+    if (!prove.length) return
+    mostra('c-storico', true)
+    var perEvento = {}
+    prove.forEach(function(p){ (perEvento[p.evento] = perEvento[p.evento] || []).push(p) })
+
+    $('lista').innerHTML = Object.keys(perEvento).map(function(ev){
+      var lista = perEvento[ev]
+      var aree = lista.map(function(p){ return p.orientamento ? p.orientamento.area : 0 })
+      var media = aree.reduce(function(a,b){ return a+b }, 0) / aree.length
+      var spread = ''
+      if (aree.length > 1 && media > 0){
+        var mn = Math.min.apply(null, aree), mx = Math.max.apply(null, aree)
+        spread = ' · scarto fra la più piccola e la più grande: <b>' +
+                 Math.round(100*(mx-mn)/media) + '%</b>'
+      }
+      return '<div class="run"><b>' + ev + '</b> — ' + lista.length + ' prov' +
+        (lista.length === 1 ? 'a' : 'e') + spread +
+        '<div class="num">ellisse 95%: ' + aree.map(function(a){ return r2(a) }).join(' · ') + ' °²</div>' +
+        '<div class="num">percorso: ' + lista.map(function(p){ return p.orientamento ? r2(p.orientamento.percorso) : '—' }).join(' · ') + ' °</div>' +
+        '</div>'
+    }).join('')
+  }
+
+  function riassunto(){
+    return prove.map(function(p){
+      var o = p.orientamento || {}, a = p.accelerometro || {}
+      return [
+        '— ' + p.evento + (p.nota ? ' (' + p.nota + ')' : ''),
+        '  ' + p.durata_s + 's nominali, ' + p.durata_reale_s + 's reali, ' +
+          p.campioni + ' campioni, ' + p.hz_reale + ' Hz reali, ritardo avvio ' + p.ritardo_avvio_s + 's',
+        '  orientamento: ellisse ' + r2(o.area) + ' deg2, percorso ' + r2(o.percorso) +
+          ' deg, velocita ' + r2(o.velocita) + ' deg/s, raggio ' + r2(o.raggio) + ' deg',
+        '  accelerometro: ellisse ' + r2(a.area) + ' deg2, percorso ' + r2(a.percorso) + ' deg'
+      ].join('\n')
+    }).join('\n')
+  }
+
+  // ── i comandi ─────────────────────────────────────────────────────────
+  Array.prototype.forEach.call(document.querySelectorAll('#chips .chip'), function(c){
+    c.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#chips .chip'), function(x){ x.classList.remove('on') })
+      c.classList.add('on'); evento = c.getAttribute('data-e')
+    })
+  })
+  $('btn-start').addEventListener('click', avvia)
+  $('btn-ancora').addEventListener('click', avvia)
+  $('btn-nuova').addEventListener('click', function(){
+    mostra('c-esito', false); mostra('c-setup', true)
+    $('c-setup').scrollIntoView({ behavior:'smooth', block:'start' })
+  })
+  $('btn-copia').addEventListener('click', function(){
+    var t = $('export')
+    t.style.display = ''
+    t.value = 'PROVA DEL BANCO — oscillazione della tavola\n' +
+              new Date().toLocaleString('it-IT') + '\n' +
+              (navigator.userAgent || '') + '\n\n' + riassunto()
+    t.focus(); t.select()
+    try { document.execCommand('copy') } catch(e){}
+    $('btn-copia').textContent = 'Copiato — incollalo in chat'
+  })
+
+  // per i controlli automatici
+  window.__prova = {
+    metriche: metriche,
+    prove: function(){ return prove },
+    ultima: function(){ return prove[prove.length-1] || null }
+  }
+})()
+</script>
+</body>
+</html>
