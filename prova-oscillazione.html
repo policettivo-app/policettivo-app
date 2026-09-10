@@ -12,7 +12,12 @@
        1. quanto vale il rumore di fondo (telefono fermo sulla tavola ferma)
        2. quanto ripete (stessa persona, tre prove di fila)
        3. vede la differenza fra occhi aperti e occhi chiusi?
-     Vedi claude/PIANO-stabilometria-tavola.md, Fase 0. -->
+     Vedi claude/PIANO-stabilometria-tavola.md, Fase 0.
+
+     prova-oscillazione-v2 (10 set): «telefono fermo» era incomprensibile ed e'
+     diventato «zero (sul pavimento)», con la spiegazione a schermo. Assestamento
+     portato a 5 secondi. E soprattutto LA VOCE: a occhi chiusi lo schermo non si
+     vede, quindi il conto alla rovescia e l'etichetta della prova si SENTONO. -->
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -53,6 +58,10 @@
   textarea{width:100%;height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;
            border:1.5px solid #ddd;border-radius:10px;padding:10px}
   .nota{font-size:12px;color:#777;margin-top:10px}
+  .spiega{background:#f6f6f6;border-left:3px solid #FFD008;border-radius:0 10px 10px 0;
+          padding:10px 12px;font-size:13px;color:#444;margin-top:10px}
+  .etichetta{text-align:center;font-size:20px;font-weight:800;letter-spacing:.5px;
+             text-transform:uppercase;color:#111;margin-bottom:4px}
   .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;
        font-size:14px;color:#b00;margin-top:14px}
 </style>
@@ -76,10 +85,16 @@
     <h2>1 · Prepara la prova</h2>
     <label>Che prova stai facendo</label>
     <div class="chips" id="chips">
-      <button class="chip on" data-e="telefono fermo">telefono fermo</button>
+      <button class="chip on" data-e="zero (sul pavimento)">zero (sul pavimento)</button>
       <button class="chip" data-e="occhi aperti">occhi aperti</button>
       <button class="chip" data-e="occhi chiusi">occhi chiusi</button>
       <button class="chip" data-e="libera">libera</button>
+    </div>
+    <div class="spiega" id="spiega"></div>
+    <label>Piedi</label>
+    <div class="chips" id="piedi">
+      <button class="chip on" data-p="scalzo">scalzo</button>
+      <button class="chip" data-p="con scarpe">con scarpe</button>
     </div>
     <label for="nota">Nota (tavola, cuscini, chi è sopra…)</label>
     <input type="text" id="nota" placeholder="es. tavola rettangolare, CEP, Giuliano, scarpe da ginnastica">
@@ -89,17 +104,26 @@
       <option value="30" selected>30 secondi</option>
       <option value="60">60 secondi</option>
     </select>
+    <label for="attesa">Tempo per salire e stabilizzarti, prima che parta</label>
+    <select id="attesa">
+      <option value="5" selected>5 secondi</option>
+      <option value="10">10 secondi</option>
+      <option value="15">15 secondi</option>
+    </select>
     <button class="btn" id="btn-start">Appoggia il telefono e parti →</button>
     <div class="nota">
       Telefono <b>al centro della tavola, schermo in su</b>, sempre nello stesso verso.
-      Dopo il via ci sono 3 secondi per togliere le mani, poi parte la misura.
+      <b>La voce ti dice tutto</b>: che prova stai facendo, il conto alla rovescia, quando
+      parte e quando finisce. Non serve guardare lo schermo — <b>a occhi chiusi non lo vedresti</b>.
+      Alza il volume e togli il silenzioso.
     </div>
     <div class="err" id="err" style="display:none"></div>
   </div>
 
   <div class="card" id="c-misura" style="display:none">
     <h2>2 · Misura in corso</h2>
-    <div class="big" id="countdown">3</div>
+    <div class="etichetta" id="etichetta-viva"></div>
+    <div class="big" id="countdown">5</div>
     <div class="stato" id="stato">Togli le mani dalla tavola</div>
     <canvas id="live" width="600" height="600" style="margin-top:14px"></canvas>
     <div class="stato" id="live-info" style="margin-top:8px"></div>
@@ -139,9 +163,29 @@
   var FORZA_DUR = Number(Q.get('dur')) || 0          // durata in secondi
   var SALTA_ASSESTAMENTO = Q.get('via') === '1'
 
-  var evento = 'telefono fermo'
+  var evento = 'zero (sul pavimento)'
+  var piedi  = 'scalzo'
   var prove = []          // le prove fatte in questa pagina
   var actx = null
+
+  // prova-oscillazione-v2 — «telefono fermo» non si capiva. Ogni prova adesso
+  // dice a schermo COSA misura e COME si fa, con parole sue.
+  var SPIEGA = {
+    'zero (sul pavimento)':
+      'È la misura dello ZERO: quanto rumore fa lo strumento quando non c’è niente da misurare. ' +
+      'Appoggia il telefono sul PAVIMENTO o su un tavolo — non sulla tavola, che da sola dondola — ' +
+      'e non toccarlo per tutta la misura. Nessuno sopra niente. ' +
+      'Tutto quello che nelle altre prove esce più piccolo di questo numero NON è il paziente: è il sensore.',
+    'occhi aperti':
+      'Sali sulla tavola e resta fermo guardando un punto davanti a te, all’altezza degli occhi. ' +
+      'Telefono al centro della tavola, sempre nello stesso verso.',
+    'occhi chiusi':
+      'Come sopra ma a occhi chiusi. ⚠️ Qualcuno accanto pronto a sostenerti. ' +
+      'Lo schermo non lo vedrai: ci pensa la voce a dirti quando parte e quando finisce.',
+    'libera':
+      'Prova libera: scrivi tu nella nota che cosa stai facendo, se no fra un mese non si capisce più.'
+  }
+  function aggiornaSpiega(){ $('spiega').textContent = SPIEGA[evento] || '' }
 
   function $(id){ return document.getElementById(id) }
   function mostra(id, si){ $(id).style.display = si ? '' : 'none' }
@@ -158,6 +202,22 @@
       o.start(); o.stop(actx.currentTime + durMs/1000)
     } catch(e){}
   }
+
+  // prova-oscillazione-v2 — LA VOCE.
+  // A occhi chiusi lo schermo non si vede: il conto alla rovescia, l'etichetta
+  // della prova e il «finito» devono ARRIVARE ALL'ORECCHIO. Se la sintesi vocale
+  // non c'e' restano i bip, che il senso lo danno lo stesso.
+  var vocePronta = false
+  function voce(testo){
+    try {
+      if (!window.speechSynthesis) return
+      var u = new SpeechSynthesisUtterance(testo)
+      u.lang = 'it-IT'; u.rate = 1.0; u.volume = 1
+      window.speechSynthesis.speak(u)
+      vocePronta = true
+    } catch(e){}
+  }
+  function zittisci(){ try { if (window.speechSynthesis) window.speechSynthesis.cancel() } catch(e){} }
 
   // ── le metriche ───────────────────────────────────────────────────────
   // Tutte in GRADI. Nessun indice sintetico inventato: solo grandezze
@@ -311,12 +371,15 @@
       if (SALTA_ASSESTAMENTO) return res()
       var n = secondi
       $('countdown').textContent = n
+      voce(n + '')
       bip(520, 150)
       var iv = setInterval(function(){
         n--
         if (n <= 0){ clearInterval(iv); $('countdown').textContent = ''; res(); return }
         $('countdown').textContent = n
-        bip(520, 150)
+        // gli ultimi cinque si contano a voce, prima solo un bip al secondo
+        if (n <= 5) voce(n + '')
+        bip(n <= 5 ? 700 : 520, 150)
       }, 1000)
     })
   }
@@ -338,16 +401,24 @@
     }
 
     var durata = FORZA_DUR || Number($('durata').value) || 30
+    var attesa = Number($('attesa').value) || 5
+    $('etichetta-viva').textContent = evento + ' · ' + piedi
     mostra('c-setup', false); mostra('c-esito', false); mostra('c-misura', true)
     $('guard').classList.add('on')
 
     var wl = null
     try { if (navigator.wakeLock) wl = await navigator.wakeLock.request('screen') } catch(e){}
 
-    $('stato').textContent = 'Togli le mani dalla tavola'
-    await countdown(3)
+    var comeSiSale = (evento === 'zero (sul pavimento)')
+      ? 'Non toccare il telefono.'
+      : 'Sali sulla tavola e trova la posizione.'
+    $('stato').textContent = comeSiSale
+    voce(evento + '. ' + comeSiSale + ' Comincio fra ' + attesa + ' secondi.')
+    await new Promise(function(r){ setTimeout(r, SALTA_ASSESTAMENTO ? 0 : 1800) })
+    await countdown(attesa)
 
     $('stato').textContent = 'Sto misurando — non toccare niente'
+    voce('Via')
     bip(880, 220)
 
     var live = $('live')
@@ -360,6 +431,7 @@
     })
 
     bip(440, 320)
+    voce('Finito. Puoi scendere.')
     try { if (wl) wl.release() } catch(e){}
     $('guard').classList.remove('on')
 
@@ -376,8 +448,10 @@
     var prova = {
       quando: new Date().toISOString(),
       evento: evento,
+      piedi: piedi,
       nota: $('nota').value || '',
       durata_s: durata,
+      attesa_s: Number($('attesa').value) || 5,
       durata_reale_s: r2(dati.durataReale),
       campioni: dati.t.length,
       hz_reale: r1(hz),
@@ -449,7 +523,7 @@
     return prove.map(function(p){
       var o = p.orientamento || {}, a = p.accelerometro || {}
       return [
-        '— ' + p.evento + (p.nota ? ' (' + p.nota + ')' : ''),
+        '— ' + p.evento + ', ' + p.piedi + (p.nota ? ' (' + p.nota + ')' : ''),
         '  ' + p.durata_s + 's nominali, ' + p.durata_reale_s + 's reali, ' +
           p.campioni + ' campioni, ' + p.hz_reale + ' Hz reali, ritardo avvio ' + p.ritardo_avvio_s + 's',
         '  orientamento: ellisse ' + r2(o.area) + ' deg2, percorso ' + r2(o.percorso) +
@@ -464,11 +538,20 @@
     c.addEventListener('click', function(){
       Array.prototype.forEach.call(document.querySelectorAll('#chips .chip'), function(x){ x.classList.remove('on') })
       c.classList.add('on'); evento = c.getAttribute('data-e')
+      aggiornaSpiega()
     })
   })
+  Array.prototype.forEach.call(document.querySelectorAll('#piedi .chip'), function(c){
+    c.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#piedi .chip'), function(x){ x.classList.remove('on') })
+      c.classList.add('on'); piedi = c.getAttribute('data-p')
+    })
+  })
+  aggiornaSpiega()
   $('btn-start').addEventListener('click', avvia)
   $('btn-ancora').addEventListener('click', avvia)
   $('btn-nuova').addEventListener('click', function(){
+    zittisci()
     mostra('c-esito', false); mostra('c-setup', true)
     $('c-setup').scrollIntoView({ behavior:'smooth', block:'start' })
   })
@@ -486,6 +569,7 @@
   // per i controlli automatici
   window.__prova = {
     metriche: metriche,
+    spiega: SPIEGA,
     prove: function(){ return prove },
     ultima: function(){ return prove[prove.length-1] || null }
   }

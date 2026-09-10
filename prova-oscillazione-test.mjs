@@ -86,6 +86,7 @@ sez('La pagina è davvero isolata dall’app in uso')
 {
   const src = fs.readFileSync(path.join(ROOT, PAGINA), 'utf8')
   check('marker prova-oscillazione-v1', src.includes('prova-oscillazione-v1'))
+  check('marker prova-oscillazione-v2', src.includes('prova-oscillazione-v2'))
   check('non carica nessuno script dell’app', !/<script[^>]*\ssrc=/i.test(src))
   check('non parla con Supabase', !/supabase/i.test(src))
   check('non fa nessuna fetch', !/fetch\s*\(/.test(src))
@@ -180,7 +181,9 @@ sez('Il giro completo, con i sensori finti')
 
   check('salva i campioni grezzi col loro tempo', Array.isArray(p.grezzi.t) && p.grezzi.t.length === p.campioni)
   check('i tempi crescono', p.grezzi.t[10] > p.grezzi.t[0])
-  check('l’etichetta della prova è salvata', p.evento === 'telefono fermo', p.evento)
+  check('l’etichetta della prova è salvata', p.evento === 'zero (sul pavimento)', p.evento)
+  check('i piedi sono salvati', p.piedi === 'scalzo', p.piedi)
+  check('l’attesa scelta è salvata', p.attesa_s === 5, p.attesa_s)
 
   const freq = await page.textContent('#nota-freq')
   check('a schermo compare la frequenza reale', /Hz reali/.test(freq), freq)
@@ -215,6 +218,61 @@ sez('Due prove di fila: lo scarto si vede da solo')
   const testo = await page.inputValue('#export')
   check('il riassunto da copiare contiene le due prove', (testo.match(/ellisse/g) || []).length >= 2)
   check('il riassunto contiene la frequenza reale', /Hz reali/.test(testo), testo.slice(0, 200))
+  await ctx.close()
+}
+
+sez('v2 · «zero» si spiega da solo, e la voce parla')
+{
+  const { page, ctx, errori } = await apri(browser)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('la voce «telefono fermo» è sparita', !(await page.content()).includes('>telefono fermo<'))
+  check('c’è la prova «zero (sul pavimento)»', await page.isVisible('text=zero (sul pavimento)'))
+
+  const sp0 = await page.textContent('#spiega')
+  check('lo zero è spiegato appena si apre', /misura dello ZERO/.test(sp0), sp0)
+  check('dice di metterlo sul PAVIMENTO, non sulla tavola', /PAVIMENTO/.test(sp0) && /non sulla tavola/.test(sp0), sp0)
+  check('spiega a cosa serve il numero', /NON è il paziente/.test(sp0), sp0)
+
+  await page.click('#chips .chip[data-e="occhi chiusi"]')
+  const sp1 = await page.textContent('#spiega')
+  check('cambiando prova cambia la spiegazione', /occhi chiusi/.test(sp1), sp1)
+  check('per gli occhi chiusi avvisa di farsi sostenere', /sostenerti/.test(sp1), sp1)
+  check('e ricorda che ci pensa la voce', /voce/.test(sp1), sp1)
+
+  check('i piedi si scelgono, e parte da scalzo',
+    (await page.getAttribute('#piedi .chip.on', 'data-p')) === 'scalzo')
+  check('l’attesa parte da 5 secondi', (await page.inputValue('#attesa')) === '5')
+  check('l’attesa arriva a 15 secondi',
+    (await page.$$eval('#attesa option', o => o.map(x => x.value))).includes('15'))
+  await ctx.close()
+}
+
+sez('v2 · la voce dice la prova, il conto e la fine')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2')
+  // si intercetta la sintesi vocale per sentire cosa avrebbe detto
+  await page.evaluate(() => {
+    window.__detto = []
+    window.speechSynthesis.speak = u => window.__detto.push(String(u.text))
+  })
+  await page.click('#chips .chip[data-e="occhi chiusi"]')
+  await page.click('#btn-start')
+  await page.waitForTimeout(2600)
+  const detto1 = await page.evaluate(() => window.__detto.join(' | '))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('annuncia CHE prova è', /occhi chiusi/.test(detto1), detto1)
+  check('dice cosa fare', /Sali sulla tavola/.test(detto1), detto1)
+  check('dice fra quanto comincia', /fra 5 secondi/.test(detto1), detto1)
+
+  await page.evaluate(GUIDA, { raggio: 2, giriAlSecondo: 1, passoMs: 20, durataMs: 9000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 20000 })
+  const detto2 = await page.evaluate(() => window.__detto.join(' | '))
+  check('conta alla rovescia a voce', /\| 5 \|/.test(' | ' + detto2 + ' | '), detto2)
+  check('dice «Via» quando parte', /Via/.test(detto2), detto2)
+  check('dice quando è finito', /Finito/.test(detto2), detto2)
+  check('l’attesa di 5 s NON è finita nella misura',
+    (await page.evaluate(() => window.__prova.ultima().durata_reale_s)) < 4,
+    await page.evaluate(() => window.__prova.ultima().durata_reale_s))
   await ctx.close()
 }
 
