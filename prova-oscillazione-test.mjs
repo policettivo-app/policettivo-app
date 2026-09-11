@@ -114,6 +114,7 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('marker prova-oscillazione-v3', src.includes('prova-oscillazione-v3'))
   check('marker prova-oscillazione-v4', src.includes('prova-oscillazione-v4'))
   check('marker prova-oscillazione-v5', src.includes('prova-oscillazione-v5'))
+  check('marker prova-oscillazione-v6', src.includes('prova-oscillazione-v6'))
   check('non carica nessuno script dell’app', !/<script[^>]*\ssrc=/i.test(src))
   check('non parla con Supabase', !/supabase/i.test(src))
   check('non fa nessuna fetch', !/fetch\s*\(/.test(src))
@@ -245,6 +246,32 @@ sez('Due prove di fila: lo scarto si vede da solo')
   const testo = await page.inputValue('#export')
   check('il riassunto da copiare contiene le due prove', (testo.match(/ellisse/g) || []).length >= 2)
   check('il riassunto contiene la frequenza reale', /Hz reali/.test(testo), testo.slice(0, 200))
+  await ctx.close()
+}
+
+sez('⭐ v6 · la scheda non si sbiadisce mai (la pagina sembrava rotta)')
+{
+  // La v5 metteva opacity 0.45 sull'INTERA card invece che sul gruppetto degli
+  // occhi. I controlli non l'hanno preso perche' guardavano il comportamento e
+  // non l'aspetto: da qui in poi si guarda anche l'aspetto.
+  const { page, ctx, errori } = await apri(browser)
+  const opacita = async (sel) => page.evaluate(s => getComputedStyle(document.querySelector(s)).opacity, sel)
+  for (const ev of ['zero tavola', 'beccheggio', 'rollio', 'taratura avanti', 'taratura destra']) {
+    await page.click('#chips .chip[data-e="' + ev + '"]')
+    await page.waitForTimeout(60)
+    check('con «' + ev + '» la scheda resta piena', (await opacita('#c-setup')) === '1', await opacita('#c-setup'))
+  }
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await page.click('#chips .chip[data-e="zero tavola"]')
+  check('...e solo il gruppetto degli occhi si sbiadisce',
+    Number(await opacita('#blocco-occhi')) < 0.6, await opacita('#blocco-occhi'))
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  check('che torna pieno su un test vero', (await opacita('#blocco-occhi')) === '1')
+
+  // e tutto quello che serve resta visibile e cliccabile
+  for (const sel of ['#chips', '#blocco-occhi', '#piedi', '#config', '#soglia', '#durata', '#btn-start'])
+    check('resta visibile: ' + sel, await page.isVisible(sel))
+  check('il pulsante è premibile', await page.isEnabled('#btn-start'))
   await ctx.close()
 }
 
