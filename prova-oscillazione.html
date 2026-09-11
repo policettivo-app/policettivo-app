@@ -37,7 +37,19 @@
      2) L'ellisse e' la misura che RIPETE PEGGIO (CV 35% contro 9% del raggio
         medio). Adesso il CV lo calcola la pagina, per ogni misura.
      3) Giuliano vuole confrontare configurazioni diverse di tavola e cuscini:
-        serviva un campo CONFIGURAZIONE che raggruppi le prove. -->
+        serviva un campo CONFIGURAZIONE che raggruppi le prove.
+
+     prova-oscillazione-v5 (11 set): due TEST distinti, beccheggio e rollio,
+     scelti ruotando il cuscino di 90 gradi (giallo = 25 kg = cede, nero = 65 kg
+     = tiene). E soprattutto il numero che mancava: il CARICO MEDIO, cioe' DOVE
+     sta il paziente, non solo quanto oscilla. Tutte le misure di prima
+     sottraevano la media prima di calcolare, quindi la posizione veniva buttata
+     via ogni volta: e' il parametro X-medio / Y-medio della stabilometria.
+     Il carico si misura rispetto allo ZERO TAVOLA della stessa configurazione,
+     perche' la tavola scarica non sta a 0 gradi ma all'angolo in cui la lascia
+     il cuscino. L'ellisse RESTA, come Giuliano ha chiesto, ma affiancata dalle
+     oscillazioni sui due assi separati: l'area e' il prodotto di due semiassi e
+     uno dei due e' quasi solo rumore, per questo balla (CV 119% misurato). -->
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -83,6 +95,19 @@
   .etichetta{text-align:center;font-size:20px;font-weight:800;letter-spacing:.5px;
              text-transform:uppercase;color:#111;margin-bottom:4px}
   .quando{text-align:center;font-size:13px;color:#555;margin-top:10px;font-weight:600}
+  .carico{border-radius:16px;padding:16px;text-align:center;margin-bottom:14px;border:2px solid}
+  .carico .tit{font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.75;font-weight:700}
+  .carico .val{font-size:38px;font-weight:800;line-height:1.15;margin:4px 0;font-variant-numeric:tabular-nums}
+  .carico .sec{font-size:14px;opacity:.85}
+  .omini{display:flex;gap:8px;margin-bottom:14px}
+  .omino{flex:1;border:1px solid #eee;border-radius:14px;padding:8px 4px;text-align:center;background:#fff}
+  .omino .cap{font-size:10px;color:#777;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+  .osc{display:flex;gap:8px;margin:12px 0}
+  .osc div{flex:1;border:1px solid #eee;border-radius:12px;padding:10px;text-align:center}
+  .osc b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+  .osc span{font-size:11px;color:#777}
+  .warn{background:#fff8e6;border:1.5px solid #e6a100;border-radius:12px;padding:10px 12px;
+        font-size:13px;color:#7a5200;margin-top:12px}
   .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;
        font-size:14px;color:#b00;margin-top:14px}
 </style>
@@ -104,16 +129,21 @@
 
   <div class="card" id="c-setup">
     <h2>1 · Prepara la prova</h2>
-    <label>Che prova stai facendo</label>
+    <label>1 · Che test</label>
     <div class="chips" id="chips">
-      <button class="chip on" data-e="zero (sul pavimento)">zero sensore (pavimento)</button>
-      <button class="chip" data-e="zero tavola (nessuno sopra)">zero tavola (nessuno sopra)</button>
-      <button class="chip" data-e="occhi aperti">occhi aperti</button>
-      <button class="chip" data-e="occhi chiusi">occhi chiusi</button>
-      <button class="chip" data-e="libera">libera</button>
+      <button class="chip on" data-e="zero tavola">zero tavola</button>
+      <button class="chip" data-e="beccheggio">beccheggio</button>
+      <button class="chip" data-e="rollio">rollio</button>
+      <button class="chip" data-e="taratura avanti">taratura: mi sporgo AVANTI</button>
+      <button class="chip" data-e="taratura destra">taratura: mi sporgo a DESTRA</button>
     </div>
     <div class="spiega" id="spiega"></div>
-    <label>Piedi</label>
+    <label>2 · Occhi</label>
+    <div class="chips" id="occhi">
+      <button class="chip on" data-o="aperti">aperti</button>
+      <button class="chip" data-o="chiusi">chiusi</button>
+    </div>
+    <label>3 · Piedi</label>
     <div class="chips" id="piedi">
       <button class="chip on" data-p="scalzo">scalzo</button>
       <button class="chip" data-p="con scarpe">con scarpe</button>
@@ -128,6 +158,14 @@
       <option value="30" selected>30 secondi</option>
       <option value="60">60 secondi</option>
     </select>
+    <label for="soglia">Soglia di carico per il colore (gradi)</label>
+    <input type="text" id="soglia" value="2" inputmode="decimal">
+    <div class="nota" style="margin-top:4px">
+      ⚠️ <b>Questo 2° non viene da nessuna norma.</b> Nelle linee guida nazionali sulla postura
+      non ci sono soglie numeriche di oscillazione, e quelle della stabilometria su pedana sono
+      in mm² di centro di pressione: un'altra grandezza, non trasferibile ai gradi di una tavola.
+      È un valore di lavoro nostro, da sostituire quando avrai misurato abbastanza persone.
+    </div>
     <label for="attesa">Tempo per salire e stabilizzarti, prima che parta</label>
     <select id="attesa">
       <option value="5" selected>5 secondi</option>
@@ -155,7 +193,10 @@
 
   <div class="card" id="c-esito" style="display:none">
     <h2>3 · Risultato</h2>
+    <div id="carico-box"></div>
+    <div id="omini"></div>
     <canvas id="traccia" width="600" height="600"></canvas>
+    <div id="avviso-asse"></div>
     <table class="metriche">
       <thead><tr><th>Misura</th><th>da orientamento</th><th>da accelerometro</th></tr></thead>
       <tbody id="tab-metriche"></tbody>
@@ -190,33 +231,57 @@
   var FORZA_DUR = Number(Q.get('dur')) || 0          // durata in secondi
   var SALTA_ASSESTAMENTO = Q.get('via') === '1'
 
-  var evento = 'zero (sul pavimento)'
+  var evento = 'zero tavola'
+  var occhi  = 'aperti'
   var piedi  = 'scalzo'
-  var prove = []          // le prove fatte in questa pagina
+  var prove = []
   var actx = null
 
-  // prova-oscillazione-v2 — «telefono fermo» non si capiva. Ogni prova adesso
-  // dice a schermo COSA misura e COME si fa, con parole sue.
+  // Lo ZERO della tavola, per configurazione: e' l'angolo a cui la tavola
+  // scarica si appoggia sul cuscino. Senza, «carica in avanti» non ha
+  // riferimento: e' il punto zero del righello.
+  var zeriTavola = {}
+  // Il VERSO dei due assi, imparato dalle prove di taratura.
+  var verso = { beta: 1, gamma: 1 }
+
   var SPIEGA = {
-    'zero (sul pavimento)':
-      'È la misura dello ZERO: quanto rumore fa lo strumento quando non c’è niente da misurare. ' +
-      'Appoggia il telefono sul PAVIMENTO o su un tavolo — non sulla tavola, che da sola dondola — ' +
-      'e non toccarlo per tutta la misura. Nessuno sopra niente. ' +
-      'Tutto quello che nelle altre prove esce più piccolo di questo numero NON è il paziente: è il sensore.',
-    'zero tavola (nessuno sopra)':
-      'Telefono al centro della TAVOLA con i cuscini, ma NESSUNO sopra, e non la tocchi. ' +
-      'Dice se la tavola scarica da sola resta ferma o se si assesta lentamente. ' +
-      'È lo zero di tutta la catena — sensore più tavola — e va tenuto separato dallo zero del solo sensore.',
-    'occhi aperti':
-      'Sali sulla tavola e resta fermo guardando un punto davanti a te, all’altezza degli occhi. ' +
-      'Telefono al centro della tavola, sempre nello stesso verso.',
-    'occhi chiusi':
-      'Come sopra ma a occhi chiusi. ⚠️ Qualcuno accanto pronto a sostenerti. ' +
-      'Lo schermo non lo vedrai: ci pensa la voce a dirti quando parte e quando finisce.',
-    'libera':
-      'Prova libera: scrivi tu nella nota che cosa stai facendo, se no fra un mese non si capisce più.'
+    'zero tavola':
+      'NESSUNO sopra, non la tocchi. Serve a sapere a che angolo si appoggia la tavola scarica ' +
+      'su questo cuscino: è lo zero da cui si misura il carico. Va rifatto a ogni cambio di ' +
+      'configurazione, se no «carica in avanti» non ha un riferimento.',
+    'beccheggio':
+      'Cuscino col GIALLO davanti e dietro (25 kg: cede) e il NERO ai lati (65 kg: tiene). ' +
+      'La tavola cede avanti-indietro, quindi il test dice se il carico va sulle PUNTE o sul TALLONE.',
+    'rollio':
+      'Cuscino ruotato di 90°: GIALLO ai lati, NERO davanti e dietro. ' +
+      'La tavola cede a destra-sinistra, quindi il test dice se il carico va a DESTRA o a SINISTRA.',
+    'taratura avanti':
+      'Sali e sporgiti deliberatamente IN AVANTI per tutta la misura, senza cadere. ' +
+      'Serve una volta sola: la pagina impara da che parte è il «+» del sensore e da lì in poi ' +
+      'scrive «avanti» e «indietro» al posto di un segno.',
+    'taratura destra':
+      'Sali e sposta deliberatamente il peso a DESTRA per tutta la misura. ' +
+      'Stessa cosa dell’altra taratura, ma per l’asse destra-sinistra.'
   }
-  function aggiornaSpiega(){ $('spiega').textContent = SPIEGA[evento] || '' }
+  function assePrincipale(ev){ return ev === 'rollio' ? 'gamma' : 'beta' }
+  function eTest(ev){ return ev === 'beccheggio' || ev === 'rollio' }
+
+  function aggiornaSpiega(){
+    $('spiega').textContent = SPIEGA[evento] || ''
+    var g = document.getElementById('occhi')
+    if (g) g.parentNode.style.opacity = eTest(evento) ? '1' : '0.45'
+  }
+  function parolaAsse(asse, v){
+    if (asse === 'gamma') return v >= 0 ? 'DESTRA' : 'SINISTRA'
+    return v >= 0 ? 'AVANTI' : 'INDIETRO'
+  }
+  function coloreSoglia(v, soglia){
+    var a = Math.abs(v)
+    if (!soglia || soglia <= 0) return { c:'#555', f:'#f6f6f6', b:'#ddd', n:'nessuna soglia impostata' }
+    if (a <= soglia)       return { c:'#0a7d33', f:'#eef9f0', b:'#0a7d33', n:'dentro la soglia' }
+    if (a <= soglia * 1.5) return { c:'#b07500', f:'#fff8e6', b:'#e6a100', n:'oltre la soglia' }
+    return { c:'#c0392b', f:'#fff3f2', b:'#c0392b', n:'molto oltre la soglia' }
+  }
 
   function $(id){ return document.getElementById(id) }
   function mostra(id, si){ $(id).style.display = si ? '' : 'none' }
@@ -332,8 +397,61 @@
     }
   }
 
+  // ── i tre omini: si leggono in un colpo d'occhio sul referto ──────────
+  // 1) di profilo: avanti / indietro   2) di fronte: destra / sinistra
+  // 3) dall'alto: il punto di carico dentro i quattro quadranti
+  function ominoProfilo(v, col){
+    var d = v >= 0 ? 1 : -1, a = Math.min(1, Math.abs(v) / 4)
+    var inc = d * a * 14
+    return '<svg viewBox="0 0 100 120" width="100%" height="86">' +
+      '<line x1="8" y1="108" x2="92" y2="108" stroke="#ddd" stroke-width="3"/>' +
+      '<g transform="rotate(' + inc + ' 50 108)">' +
+        '<circle cx="50" cy="22" r="11" fill="' + col + '"/>' +
+        '<line x1="50" y1="33" x2="50" y2="72" stroke="' + col + '" stroke-width="7" stroke-linecap="round"/>' +
+        '<line x1="50" y1="45" x2="66" y2="62" stroke="' + col + '" stroke-width="5" stroke-linecap="round"/>' +
+        '<line x1="50" y1="72" x2="50" y2="104" stroke="' + col + '" stroke-width="7" stroke-linecap="round"/>' +
+        '<line x1="50" y1="104" x2="66" y2="104" stroke="' + col + '" stroke-width="6" stroke-linecap="round"/>' +
+      '</g>' +
+      '<path d="' + (d > 0 ? 'M70 88 L86 88 M80 82 L86 88 L80 94' : 'M30 88 L14 88 M20 82 L14 88 L20 94') +
+        '" stroke="' + col + '" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>'
+  }
+  function ominoFronte(v, col){
+    var d = v >= 0 ? 1 : -1, a = Math.min(1, Math.abs(v) / 4)
+    var inc = d * a * 14
+    return '<svg viewBox="0 0 100 120" width="100%" height="86">' +
+      '<line x1="8" y1="108" x2="92" y2="108" stroke="#ddd" stroke-width="3"/>' +
+      '<g transform="rotate(' + inc + ' 50 108)">' +
+        '<circle cx="50" cy="22" r="11" fill="' + col + '"/>' +
+        '<line x1="50" y1="33" x2="50" y2="70" stroke="' + col + '" stroke-width="7" stroke-linecap="round"/>' +
+        '<line x1="32" y1="46" x2="68" y2="46" stroke="' + col + '" stroke-width="5" stroke-linecap="round"/>' +
+        '<line x1="50" y1="70" x2="38" y2="104" stroke="' + col + '" stroke-width="6" stroke-linecap="round"/>' +
+        '<line x1="50" y1="70" x2="62" y2="104" stroke="' + col + '" stroke-width="6" stroke-linecap="round"/>' +
+      '</g>' +
+      '<path d="' + (d > 0 ? 'M74 60 L90 60 M84 54 L90 60 L84 66' : 'M26 60 L10 60 M16 54 L10 60 L16 66') +
+        '" stroke="' + col + '" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>'
+  }
+  function ominoAlto(dx, dy, col, soglia){
+    var k = 30 / Math.max(2, (soglia || 2) * 2)
+    var px = Math.max(-32, Math.min(32, dx * k))
+    var py = Math.max(-32, Math.min(32, -dy * k))
+    var r  = (soglia || 0) > 0 ? (soglia * k) : 0
+    return '<svg viewBox="0 0 100 120" width="100%" height="86">' +
+      '<rect x="14" y="24" width="72" height="72" rx="8" fill="#fafafa" stroke="#ddd" stroke-width="2"/>' +
+      '<line x1="50" y1="24" x2="50" y2="96" stroke="#e8e8e8" stroke-width="2"/>' +
+      '<line x1="14" y1="60" x2="86" y2="60" stroke="#e8e8e8" stroke-width="2"/>' +
+      '<ellipse cx="40" cy="60" rx="6" ry="13" fill="#eee" stroke="#ccc"/>' +
+      '<ellipse cx="60" cy="60" rx="6" ry="13" fill="#eee" stroke="#ccc"/>' +
+      (r > 0 ? '<circle cx="50" cy="60" r="' + r + '" fill="none" stroke="#0a7d33" stroke-width="1.5" stroke-dasharray="4 3"/>' : '') +
+      '<circle cx="' + (50 + px) + '" cy="' + (60 + py) + '" r="7" fill="' + col + '"/>' +
+      '<text x="50" y="16" font-size="9" text-anchor="middle" fill="#999">AVANTI</text>' +
+      '<text x="50" y="112" font-size="9" text-anchor="middle" fill="#999">INDIETRO</text>' +
+      '</svg>'
+  }
+
   // ── il disegno ────────────────────────────────────────────────────────
-  function disegna(cv, xs, ys, semiScala, m){
+  function disegna(cv, xs, ys, semiScala, m, o){
     var ctx = cv.getContext('2d')
     var W = cv.width, H = cv.height, cx = W/2, cy = H/2
     ctx.clearRect(0,0,W,H)
@@ -388,6 +506,30 @@
 
     ctx.fillStyle = '#999'; ctx.font = '20px sans-serif'
     ctx.fillText(r1(s) + '°', W - 62, H - 16)
+
+    // prova-oscillazione-v5 — le parole sugli assi e il punto di carico.
+    // Il centro e' la tavola SCARICA: cosi' il disegno si legge senza spiegazioni.
+    if (o && o.parole){
+      ctx.fillStyle = '#aaa'; ctx.font = 'bold 19px sans-serif'; ctx.textAlign = 'center'
+      ctx.fillText('AVANTI', cx, 26)
+      ctx.fillText('INDIETRO', cx, H - 34)
+      ctx.textAlign = 'left';  ctx.fillText('SX', 12, cy - 8)
+      ctx.textAlign = 'right'; ctx.fillText('DX', W - 12, cy - 8)
+      ctx.textAlign = 'left'
+    }
+    if (o && o.soglia > 0){
+      ctx.strokeStyle = '#0a7d33'; ctx.lineWidth = 2; ctx.setLineDash([8,6])
+      ctx.beginPath(); ctx.arc(cx, cy, o.soglia * k, 0, Math.PI*2); ctx.stroke()
+      ctx.setLineDash([])
+    }
+    if (o && o.carico){
+      var px = cx + o.carico.x * k, py = cy - o.carico.y * k
+      ctx.strokeStyle = o.colore || '#c0392b'; ctx.lineWidth = 3
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke()
+      ctx.fillStyle = o.colore || '#c0392b'
+      ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI*2); ctx.fill()
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke()
+    }
   }
 
   // ── la misura ─────────────────────────────────────────────────────────
@@ -493,18 +635,19 @@
 
     var durata = FORZA_DUR || Number($('durata').value) || 30
     var attesa = Number($('attesa').value) || 5
-    $('etichetta-viva').textContent = evento + ' · ' + piedi
+    $('etichetta-viva').textContent = evento + (eTest(evento) ? ' · occhi ' + occhi : '') + ' · ' + piedi
     mostra('c-setup', false); mostra('c-esito', false); mostra('c-misura', true)
     $('guard').classList.add('on')
 
     var wl = null
     try { if (navigator.wakeLock) wl = await navigator.wakeLock.request('screen') } catch(e){}
 
-    var comeSiSale = (evento === 'zero (sul pavimento)')
+    var comeSiSale = (evento === 'zero tavola')
       ? 'Non toccare il telefono.'
       : 'Sali sulla tavola e trova la posizione.'
     $('stato').textContent = comeSiSale
-    voce(evento + '. ' + comeSiSale + ' Comincio fra ' + attesa + ' secondi.')
+    voce(evento + (eTest(evento) ? ', occhi ' + occhi : '') + '. ' + comeSiSale +
+         ' Comincio fra ' + attesa + ' secondi.')
     await new Promise(function(r){ setTimeout(r, SALTA_ASSESTAMENTO ? 0 : 1800) })
     await countdown(attesa)
 
@@ -534,34 +677,119 @@
 
   function concludi(dati, durata){
     var durUso = dati.durataReale || durata
-    var freq = (durUso > 0) ? (dati.t.length - 1) / durUso : 60
-    var mOr = metriche(dati.og, dati.ob, durUso, freq)
-    var mAc = metriche(dati.ag, dati.ab, durUso, freq)
-    // n campioni coprono n-1 intervalli: la frequenza si calcola su quelli
-    var hz  = (dati.durataReale > 0) ? (dati.t.length - 1) / dati.durataReale : 0
+    var hz  = (durUso > 0) ? (dati.t.length - 1) / durUso : 0
+    var conf = $('config').value || '(non indicata)'
+    var soglia = Math.abs(parseFloat(String($('soglia').value).replace(',', '.'))) || 0
+    var i
+
+    // le misure assolute servono a registrare lo zero della tavola
+    var mAbs = metriche(dati.og, dati.ob, durUso, hz)
+    var zt = zeriTavola[conf] || null
+    var usaRif = eTest(evento) || /taratura/.test(evento)
+    var rifB = (usaRif && zt) ? zt.beta  : 0
+    var rifG = (usaRif && zt) ? zt.gamma : 0
+
+    if (evento === 'zero tavola' && mAbs) {
+      zeriTavola[conf] = { beta: mAbs.my, gamma: mAbs.mx }
+    }
+    // la taratura impara da che parte e' il «+» del sensore
+    if (mAbs && evento === 'taratura avanti')  verso.beta  = (mAbs.my - rifB) >= 0 ? 1 : -1
+    if (mAbs && evento === 'taratura destra')  verso.gamma = (mAbs.mx - rifG) >= 0 ? 1 : -1
+
+    // tutto riportato allo zero e col verso tarato: su = AVANTI, destra = DESTRA
+    var xs = [], ys = []
+    for (i = 0; i < dati.og.length; i++){
+      xs.push((dati.og[i] - rifG) * verso.gamma)
+      ys.push((dati.ob[i] - rifB) * verso.beta)
+    }
+    var m   = metriche(xs, ys, durUso, hz)
+    var mAc = metriche(dati.ag, dati.ab, durUso, hz)
+
+    var carB = m ? m.my : 0        // + avanti
+    var carG = m ? m.mx : 0        // + destra
+    var asse = assePrincipale(evento)
+    var carPrin = (asse === 'gamma') ? carG : carB
+    var carSec  = (asse === 'gamma') ? carB : carG
+    var col = coloreSoglia(carPrin, soglia)
 
     var prova = {
       quando: new Date().toISOString(),
-      evento: evento,
-      configurazione: $('config').value || '(non indicata)',
-      piedi: piedi,
-      nota: $('nota').value || '',
-      nota_dopo: '',
-      durata_s: durata,
-      attesa_s: Number($('attesa').value) || 5,
-      durata_reale_s: r2(dati.durataReale),
-      campioni: dati.t.length,
-      hz_reale: r1(hz),
+      evento: evento, occhi: eTest(evento) ? occhi : '-',
+      configurazione: conf, piedi: piedi,
+      nota: $('nota').value || '', nota_dopo: '',
+      durata_s: durata, attesa_s: Number($('attesa').value) || 5,
+      durata_reale_s: r2(durUso), campioni: dati.t.length, hz_reale: r1(hz),
       ritardo_avvio_s: r2(dati.ritardoAvvioS || 0),
-      orientamento: mOr,
-      accelerometro: mAc,
+      soglia: soglia, ha_zero_tavola: !!zt,
+      carico_avanti: m ? r2(carB) : null,
+      carico_destra: m ? r2(carG) : null,
+      carico_principale: m ? r2(carPrin) : null,
+      osc_avanti_dietro: m ? r2(m.stdY) : null,
+      osc_destra_sinistra: m ? r2(m.stdX) : null,
+      orientamento: m, accelerometro: mAc,
       grezzi: { t: dati.t, beta: dati.ob, gamma: dati.og }
     }
     prove.push(prova)
 
-    var s = 5, i
-    for (i=0;i<dati.og.length;i++) s = Math.max(s, Math.abs(dati.og[i]), Math.abs(dati.ob[i]))
-    disegna($('traccia'), dati.og, dati.ob, s, mOr)
+    // ── il disegno ──
+    var sc = 1.2
+    for (i = 0; i < xs.length; i++) sc = Math.max(sc, Math.abs(xs[i]), Math.abs(ys[i]))
+    if (soglia > 0) sc = Math.max(sc, soglia * 1.25)
+    disegna($('traccia'), xs, ys, sc, m, {
+      parole: true, soglia: soglia,
+      carico: m ? { x: carG, y: carB } : null,
+      colore: col.c
+    })
+
+    // ── il carico: il numero che risponde alla domanda clinica ──
+    if (!m) {
+      $('carico-box').innerHTML = '<div class="carico" style="border-color:#ddd;background:#f6f6f6">' +
+        '<div class="tit">nessun campione</div><div class="val">—</div></div>'
+      $('omini').innerHTML = ''
+    } else if (eTest(evento)) {
+      var pPrin = parolaAsse(asse, carPrin), pSec = parolaAsse(asse === 'gamma' ? 'beta' : 'gamma', carSec)
+      $('carico-box').innerHTML =
+        '<div class="carico" style="border-color:' + col.b + ';background:' + col.f + ';color:' + col.c + '">' +
+          '<div class="tit">carico medio · ' + evento + ' · occhi ' + prova.occhi + '</div>' +
+          '<div class="val">' + pPrin + ' ' + r2(Math.abs(carPrin)) + '°</div>' +
+          '<div class="sec">e ' + pSec.toLowerCase() + ' di ' + r2(Math.abs(carSec)) + '° &nbsp;·&nbsp; ' + col.n + '</div>' +
+        '</div>' +
+        '<div class="osc">' +
+          '<div><b>' + r2(m.stdY) + '°</b><span>oscillazione avanti-dietro</span></div>' +
+          '<div><b>' + r2(m.stdX) + '°</b><span>oscillazione destra-sinistra</span></div>' +
+          '<div><b>' + r2(m.area) + '°²</b><span>ellisse 95%</span></div>' +
+        '</div>' +
+        (!zt ? '<div class="warn">Manca lo <b>zero tavola</b> per «' + conf + '»: il carico è misurato ' +
+               'dall’orizzontale, non dalla tavola scarica. Fai una prova «zero tavola» e rifai questa.</div>' : '')
+      $('omini').innerHTML = '<div class="omini">' +
+        '<div class="omino">' + ominoProfilo(carB, col.c) + '<div class="cap">' + parolaAsse('beta', carB) + '</div></div>' +
+        '<div class="omino">' + ominoFronte(carG, col.c) + '<div class="cap">' + parolaAsse('gamma', carG) + '</div></div>' +
+        '<div class="omino">' + ominoAlto(carG, carB, col.c, soglia) + '<div class="cap">dall’alto</div></div>' +
+        '</div>'
+    } else {
+      var testo = (evento === 'zero tavola')
+        ? 'zero registrato per «' + conf + '»'
+        : 'verso tarato: avanti = beta ' + (verso.beta > 0 ? '+' : '−') +
+          ', destra = gamma ' + (verso.gamma > 0 ? '+' : '−')
+      $('carico-box').innerHTML =
+        '<div class="carico" style="border-color:#0a7d33;background:#eef9f0;color:#0a7d33">' +
+          '<div class="tit">' + evento + '</div>' +
+          '<div class="val">✓</div><div class="sec">' + testo + '</div></div>'
+      $('omini').innerHTML = ''
+    }
+
+    // ── l'asse sbagliato: il cuscino o il telefono sono girati ──
+    var av = ''
+    if (m && eTest(evento)) {
+      var atteso = (asse === 'gamma') ? m.stdX : m.stdY
+      var altro  = (asse === 'gamma') ? m.stdY : m.stdX
+      if (altro > atteso * 1.2) {
+        av = '<div class="warn">⚠️ Hai scelto <b>' + evento + '</b>, ma la tavola si è mossa di più ' +
+             'sull’altro asse (' + r2(altro) + '° contro ' + r2(atteso) + '°). ' +
+             'Controlla il verso del cuscino e come è appoggiato il telefono.</div>'
+      }
+    }
+    $('avviso-asse').innerHTML = av
 
     var righe = [
       ['Percorso totale', 'percorso', '°'],
@@ -569,27 +797,24 @@
       ['Ellisse al 95%',  'area',     '°²'],
       ['Velocità media',  'velocita', '°/s'],
       ['Raggio medio',    'raggio',   '°'],
-      ['Raggio massimo',  'raggioMax','°'],
-      ['Dispersione (gradi)', 'gradi','°']
+      ['Raggio massimo',  'raggioMax','°']
     ]
     $('tab-metriche').innerHTML = righe.map(function(r){
-      var a = mOr ? r2(mOr[r[1]]) : '—'
-      var b = mAc ? r2(mAc[r[1]]) : '—'
+      var a = m ? r2(m[r[1]]) : '—', c = mAc ? r2(mAc[r[1]]) : '—'
       return '<tr><td>' + r[0] + '</td><td class="num">' + a + ' ' + r[2] +
-             '</td><td class="num">' + b + ' ' + r[2] + '</td></tr>'
+             '</td><td class="num">' + c + ' ' + r[2] + '</td></tr>'
     }).join('')
 
-    $('nota-freq').innerHTML = '<b>' + dati.t.length + ' campioni in ' + r2(dati.durataReale) +
-      ' s = ' + r1(hz) + ' Hz reali.</b> Questo numero va guardato: se cambia molto da un telefono ' +
-      'all’altro, i confronti fra telefoni diversi non valgono.' +
+    $('nota-freq').innerHTML = '<b>' + dati.t.length + ' campioni in ' + r2(durUso) +
+      ' s = ' + r1(hz) + ' Hz reali.</b> Se cambia molto da un telefono all’altro, i confronti ' +
+      'fra telefoni diversi non valgono.' +
       (prova.ritardo_avvio_s > 0.3
         ? ' I sensori hanno cominciato a rispondere dopo <b>' + prova.ritardo_avvio_s +
-          ' s</b>: la durata usata per i conti è quella vera dei campioni, non i ' + durata + ' s nominali.'
-        : '')
+          ' s</b>: la durata usata per i conti è quella vera dei campioni.' : '')
 
     $('quando').textContent = new Date(prova.quando).toLocaleString('it-IT', {
       weekday:'long', day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
-    }) + '  ·  ' + prova.evento + '  ·  ' + prova.piedi
+    }) + '  ·  ' + conf + '  ·  ' + prova.piedi
     $('nota-dopo').value = ''
     mostra('c-misura', false)
     mostra('c-esito', true)
@@ -621,11 +846,15 @@
 
     var gruppi = {}
     prove.forEach(function(p){
-      var k = (p.configurazione || '(non indicata)') + ' · ' + p.evento
+      var k = (p.configurazione || '(non indicata)') + ' · ' + p.evento +
+              (p.occhi && p.occhi !== '-' ? ' · occhi ' + p.occhi : '')
       ;(gruppi[k] = gruppi[k] || []).push(p)
     })
 
     var righe = [
+      ['CARICO (asse del test)', function(p){ return p.carico_principale },   '°'],
+      ['oscillazione avanti-dietro', function(p){ return p.osc_avanti_dietro },'°'],
+      ['oscillazione destra-sinistra', function(p){ return p.osc_destra_sinistra },'°'],
       ['ellisse 95%', function(p){ return p.orientamento.area },              '°²'],
       ['percorso lisciato', function(p){ return p.orientamento.percorsoLisciato }, '°'],
       ['raggio medio', function(p){ return p.orientamento.raggio },           '°'],
@@ -633,7 +862,7 @@
     ]
 
     $('lista').innerHTML = Object.keys(gruppi).map(function(k){
-      var lista = gruppi[k].filter(function(p){ return p.orientamento })
+      var lista = gruppi[k].filter(function(p){ return p.orientamento && p.carico_principale !== null })
       if (!lista.length) return '<div class="run"><b>' + k + '</b> — nessun campione</div>'
       var corpo = righe.map(function(r){
         var vals = lista.map(r[1])
@@ -660,12 +889,18 @@
     return prove.map(function(p){
       var o = p.orientamento || {}, a = p.accelerometro || {}
       return [
-        '— [' + (p.configurazione || '(non indicata)') + '] ' + p.evento + ', ' + p.piedi +
+        '— [' + (p.configurazione || '(non indicata)') + '] ' + p.evento +
+          (p.occhi && p.occhi !== '-' ? ', occhi ' + p.occhi : '') + ', ' + p.piedi +
           '  [' + new Date(p.quando).toLocaleString('it-IT') + ']' +
           (p.nota ? ' (' + p.nota + ')' : '') +
           (p.nota_dopo ? ' — nota: ' + p.nota_dopo : ''),
         '  ' + p.durata_s + 's nominali, ' + p.durata_reale_s + 's reali, ' +
           p.campioni + ' campioni, ' + p.hz_reale + ' Hz reali, ritardo avvio ' + p.ritardo_avvio_s + 's',
+        '  CARICO: avanti ' + p.carico_avanti + ' deg, destra ' + p.carico_destra +
+          ' deg (asse del test: ' + p.carico_principale + ' deg)' +
+          (p.ha_zero_tavola ? '' : '  [SENZA zero tavola]'),
+        '  oscillazione: avanti-dietro ' + p.osc_avanti_dietro +
+          ' deg, destra-sinistra ' + p.osc_destra_sinistra + ' deg',
         '  orientamento: ellisse ' + r2(o.area) + ' deg2, percorso ' + r2(o.percorso) +
           ' deg, LISCIATO ' + r2(o.percorsoLisciato) + ' deg, velocita ' + r2(o.velocita) +
           ' deg/s, raggio ' + r2(o.raggio) + ' deg',
@@ -681,6 +916,12 @@
       Array.prototype.forEach.call(document.querySelectorAll('#chips .chip'), function(x){ x.classList.remove('on') })
       c.classList.add('on'); evento = c.getAttribute('data-e')
       aggiornaSpiega()
+    })
+  })
+  Array.prototype.forEach.call(document.querySelectorAll('#occhi .chip'), function(c){
+    c.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#occhi .chip'), function(x){ x.classList.remove('on') })
+      c.classList.add('on'); occhi = c.getAttribute('data-o')
     })
   })
   Array.prototype.forEach.call(document.querySelectorAll('#piedi .chip'), function(c){
@@ -706,7 +947,9 @@
     t.style.display = ''
     t.value = 'PROVA DEL BANCO — oscillazione della tavola\n' +
               new Date().toLocaleString('it-IT') + '\n' +
-              (navigator.userAgent || '') + '\n\n' + riassunto()
+              (navigator.userAgent || '') + '\n' +
+              'verso tarato: avanti=' + (verso.beta > 0 ? '+' : '-') +
+              ' destra=' + (verso.gamma > 0 ? '+' : '-') + '\n\n' + riassunto()
     t.focus(); t.select()
     try { document.execCommand('copy') } catch(e){}
     $('btn-copia').textContent = 'Copiato — incollalo in chat'
@@ -716,6 +959,9 @@
   window.__prova = {
     metriche: metriche,
     statistiche: statistiche,
+    zeri: function(){ return zeriTavola },
+    colore: coloreSoglia,
+    verso: function(){ return verso },
     spiega: SPIEGA,
     prove: function(){ return prove },
     ultima: function(){ return prove[prove.length-1] || null }
