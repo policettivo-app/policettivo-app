@@ -127,12 +127,21 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('marker taratura-dopo-v1', src.includes('taratura-dopo-v1'))
   check('marker prova-oscillazione-v8', src.includes('prova-oscillazione-v8'))
   check('marker referto-v1', src.includes('referto-v1'))
+  check('marker taratura-unica-v1', src.includes('taratura-unica-v1'))
+  check('marker prova-oscillazione-v9', src.includes('prova-oscillazione-v9'))
   check('⭐ il nome nuovo è nel titolo', /<title>Oscillazione Policettiva/.test(src))
   check('e nell’intestazione della pagina', /<h1>Oscillazione Policettiva<\/h1>/.test(src))
   check('non carica nessuno script dell’app', !/<script[^>]*\ssrc=/i.test(src))
   check('non parla con Supabase', !/supabase/i.test(src))
   check('non fa nessuna fetch', !/fetch\s*\(/.test(src))
-  check('non scrive in localStorage', !/localStorage|sessionStorage|indexedDB/i.test(src))
+  // taratura-unica-v1 — adesso salva UNA cosa sola, e deve restare una sola:
+  // due segni e una data. Nessuna misura, nessun dato di paziente.
+  check('non usa sessionStorage né indexedDB', !/sessionStorage|indexedDB/i.test(src))
+  check('⭐ l’unica chiave salvata è quella del verso',
+    (src.match(/localStorage\.(setItem|getItem|removeItem)/g) || []).length === 3 &&
+    (src.match(/CHIAVE_TARATURA/g) || []).length >= 4, src.match(/localStorage\.\w+/g))
+  check('⛔ e non salva né prove né campioni',
+    !/localStorage\.setItem\([^)]*prove/.test(src) && !/localStorage\.setItem\([^)]*grezz/.test(src))
   check('è noindex', /name="robots"[^>]*noindex/.test(src))
   const altre = fs.readdirSync(ROOT).filter(f => f.endsWith('.html') && f !== PAGINA)
   const linkata = altre.some(f => fs.readFileSync(path.join(ROOT, f), 'utf8').includes(PAGINA))
@@ -270,7 +279,7 @@ sez('⭐ v6 · la scheda non si sbiadisce mai (la pagina sembrava rotta)')
   // non l'aspetto: da qui in poi si guarda anche l'aspetto.
   const { page, ctx, errori } = await apri(browser)
   const opacita = async (sel) => page.evaluate(s => getComputedStyle(document.querySelector(s)).opacity, sel)
-  for (const ev of ['zero tavola (beccheggio)', 'zero tavola (rollio)', 'beccheggio', 'rollio', 'taratura avanti', 'taratura destra']) {
+  for (const ev of ['zero tavola (beccheggio)', 'zero tavola (rollio)', 'beccheggio', 'rollio', 'taratura']) {
     await page.click('#chips .chip[data-e="' + ev + '"]')
     await page.waitForTimeout(60)
     check('con «' + ev + '» la scheda resta piena', (await opacita('#c-setup')) === '1', await opacita('#c-setup'))
@@ -295,7 +304,7 @@ sez('v5 · i due test, e le spiegazioni')
   check('nessun errore JS in pagina', errori.length === 0, errori)
   for (const t of ['zero tavola (beccheggio)', 'zero tavola (rollio)', 'beccheggio', 'rollio'])
     check('c’è il test «' + t + '»', await page.isVisible('#chips .chip[data-e="' + t + '"]'))
-  check('c’è la taratura del verso', await page.isVisible('#chips .chip[data-e="taratura avanti"]'))
+  check('c’è la taratura del verso', await page.isVisible('#chips .chip[data-e="taratura"]'))
   check('gli occhi si scelgono a parte', await page.isVisible('#occhi .chip[data-o="chiusi"]'))
 
   const z = await page.textContent('#spiega')
@@ -556,9 +565,9 @@ sez('⭐ v5 · la taratura impara da che parte è «avanti»')
   const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
   await page.fill('#config', 'tarata')
   // il sensore di questo telefono ha il verso INVERTITO: sporgendosi avanti beta scende
-  await page.click('#chips .chip[data-e="taratura avanti"]')
+  await page.click('#chips .chip[data-e="taratura"]')
   await page.click('#btn-start'); await page.waitForTimeout(120)
-  await page.evaluate(GUIDA2, { offB: -6, offG: 0, ampB: 0.3, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.evaluate(GUIDA2, { offB: -6, offG: 5, ampB: 0.3, ampG: 0.3, passoMs: 20, durataMs: 3000 })
   await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
   check('nessun errore JS in pagina', errori.length === 0, errori)
   check('⭐ ha capito che il verso è invertito',
@@ -674,7 +683,7 @@ sez('⭐ v7 · la taratura fatta ALLA FINE corregge le prove già registrate')
   check('senza taratura il verso è solo indovinato', prima.tarato === false)
   check('e legge «avanti» perché beta è positivo', prima.avanti > 0, prima.avanti)
   const boxPrima = await page.textContent('#carico-box')
-  check('⭐ lo GRIDA a schermo: TARATURA NON FATTA', /TARATURA NON FATTA/.test(boxPrima), boxPrima)
+  check('⭐ lo GRIDA a schermo: TARATURA MAI FATTA', /TARATURA MAI FATTA/.test(boxPrima), boxPrima)
   check('e dice che si può tarare dopo', /adesso, alla fine|si correggono da sole/.test(boxPrima), boxPrima)
   await page.click('#btn-copia')
   check('e l’export lo marca prova per prova',
@@ -682,9 +691,9 @@ sez('⭐ v7 · la taratura fatta ALLA FINE corregge le prove già registrate')
 
   // 2) la taratura, DOPO: sporgendosi avanti beta SCENDE (telefono girato)
   await page.click('#btn-nuova')
-  await page.click('#chips .chip[data-e="taratura avanti"]')
+  await page.click('#chips .chip[data-e="taratura"]')
   await page.click('#btn-start'); await page.waitForTimeout(120)
-  await page.evaluate(GUIDA2, { offB: -6, offG: 0, ampB: 0.3, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.evaluate(GUIDA2, { offB: -6, offG: 5, ampB: 0.3, ampG: 0.3, passoMs: 20, durataMs: 3000 })
   await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
   check('la taratura ha imparato il verso invertito',
     (await page.evaluate(() => window.__prova.verso().beta)) === -1)
@@ -696,25 +705,16 @@ sez('⭐ v7 · la taratura fatta ALLA FINE corregge le prove già registrate')
   check('⭐ e il valore assoluto non è cambiato: è solo il verso',
     Math.abs(Math.abs(dopo.avanti) - Math.abs(prima.avanti)) < 0.01,
     { prima: prima.avanti, dopo: dopo.avanti })
-  // finche' manca l'altro asse, l'export lo dice ancora — ma nomina QUALE asse
-  await page.click('#btn-copia')
-  const mezzo = (await page.inputValue('#export')).split('\n').filter(r => /CARICO/.test(r))[0]
-  check('⭐ l’avviso resta, ma dice quale asse manca',
-    /NON TARATO: destra\/sinistra/.test(mezzo) && !/avanti\/indietro/.test(mezzo), mezzo)
-
-  // 4) si completa la taratura anche sull'altro asse
-  await page.click('#btn-nuova')
-  await page.click('#chips .chip[data-e="taratura destra"]')
-  await page.click('#btn-start'); await page.waitForTimeout(120)
-  await page.evaluate(GUIDA2, { offB: 0, offG: 6, ampB: 0.1, ampG: 0.3, passoMs: 20, durataMs: 3000 })
-  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  // ⭐ taratura-unica-v1: UN gesto diagonale ha imparato TUTTI E DUE i versi
+  check('⭐ un gesto solo ha tarato anche destra-sinistra',
+    (await page.evaluate(() => window.__prova.tarato().gamma)) === true)
   await page.click('#btn-copia')
   const exp = await page.inputValue('#export')
-  check('⭐ tarati tutti e due gli assi, l’export è pulito',
+  check('⭐ l’export è pulito, senza più avvisi di taratura',
     !/NON TARATO/.test(exp.split('\n').filter(r => /CARICO/.test(r))[0]),
     exp.split('\n').filter(r => /CARICO/.test(r))[0])
-  check('l’intestazione dichiara che la taratura è stata fatta', /taratura avanti\/indietro: FATTA/.test(exp))
-  check('e anche per l’altro asse', /destra\/sinistra: FATTA/.test(exp))
+  check('l’intestazione dichiara che la taratura è stata fatta', /taratura: FATTA/.test(exp))
+  check('e porta la data', /taratura: FATTA il \d/.test(exp), exp.split('\n')[3])
   await ctx.close()
 }
 
@@ -806,7 +806,7 @@ sez('⭐ v7 · beccheggio e rollio hanno due zeri distinti')
 sez('⭐ v7 · una taratura poco netta viene RIFIUTATA, non creduta')
 {
   const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
-  await page.click('#chips .chip[data-e="taratura avanti"]')
+  await page.click('#chips .chip[data-e="taratura"]')
   await page.click('#btn-start'); await page.waitForTimeout(120)
   // si sposta di mezzo grado: sotto la soglia, il segno lo deciderebbe il rumore
   await page.evaluate(GUIDA2, { offB: -0.5, offG: 0, ampB: 0.2, ampG: 0.1, passoMs: 20, durataMs: 3000 })
@@ -817,18 +817,19 @@ sez('⭐ v7 · una taratura poco netta viene RIFIUTATA, non creduta')
   check('il verso resta quello di partenza',
     (await page.evaluate(() => window.__prova.verso().beta)) === 1)
   const box = await page.textContent('#carico-box')
-  check('e lo dice, con la ragione', /meno di 1\.5/.test(box) && /NON è stato imparato/.test(box), box)
+  check('e lo dice, con la ragione e con l’asse che manca',
+    /meno di 1\.5/.test(box) && /NON è stato imparato/.test(box) && /in avanti e a destra/.test(box), box)
 
   // la stessa taratura fatta come si deve passa
   await page.click('#btn-nuova')
-  await page.click('#chips .chip[data-e="taratura avanti"]')
+  await page.click('#chips .chip[data-e="taratura"]')
   await page.click('#btn-start'); await page.waitForTimeout(120)
-  await page.evaluate(GUIDA2, { offB: -6, offG: 0, ampB: 0.3, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.evaluate(GUIDA2, { offB: -6, offG: 5, ampB: 0.3, ampG: 0.3, passoMs: 20, durataMs: 3000 })
   await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
   check('fatta come si deve, il verso si impara',
     (await page.evaluate(() => window.__prova.tarato().beta)) === true)
-  check('e il banner dell’asse tarato sparisce',
-    !/TARATURA NON FATTA[^]*avanti\/indietro e destra/.test(await page.textContent('#carico-box')))
+  check('e il banner della taratura sparisce',
+    !/TARATURA MAI FATTA/.test(await page.textContent('#carico-box')))
   await ctx.close()
 }
 
@@ -933,9 +934,9 @@ sez('⭐ v7 · lo storico ricalcola anche lui dopo la taratura')
   check('lo storico mostra il carico', primaVal > 0, primaVal)
 
   await page.click('#btn-nuova')
-  await page.click('#chips .chip[data-e="taratura avanti"]')
+  await page.click('#chips .chip[data-e="taratura"]')
   await page.click('#btn-start'); await page.waitForTimeout(120)
-  await page.evaluate(GUIDA2, { offB: -6, offG: 0, ampB: 0.3, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.evaluate(GUIDA2, { offB: -6, offG: 5, ampB: 0.3, ampG: 0.3, passoMs: 20, durataMs: 3000 })
   await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
   const dopoTxt = await page.textContent('#lista')
   const dopoVal = Number((dopoTxt.match(/CARICO \(asse del test\): (-?[\d.]+)/) || [])[1])
@@ -1142,6 +1143,139 @@ sez('⭐ v8 · referto da stampare e campioni grezzi')
   check('e una riga per campione', righe.length > 50, righe.length)
   check('i campioni sono quelli grezzi, non quelli girati dal verso',
     righe[1].split(';').length === 7, righe[1])
+  await ctx.close()
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// taratura-unica-v1 — la taratura e' una proprieta' del TELEFONO, non della
+// sessione: un gesto diagonale da 5 s, una volta, e la pagina se la ricorda.
+// ═══════════════════════════════════════════════════════════════════════
+
+const TARA = async (page, { b = -6, g = 5 } = {}) => {
+  await page.click('#chips .chip[data-e="taratura"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: b, offG: g, ampB: 0.3, ampG: 0.3, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+}
+
+sez('⭐ taratura-unica · un gesto diagonale impara TUTTI E DUE i versi')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  // telefono col beta invertito e il gamma dritto: la diagonale li separa
+  await TARA(page, { b: -6, g: 5 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const v = await page.evaluate(() => window.__prova.verso())
+  const t = await page.evaluate(() => window.__prova.tarato())
+  check('⭐ ha capito che avanti-indietro è invertito', v.beta === -1, v)
+  check('⭐ e che destra-sinistra è dritto', v.gamma === 1, v)
+  check('tutti e due gli assi risultano tarati', t.beta === true && t.gamma === true, t)
+  const box = await page.textContent('#carico-box')
+  check('lo dice, e dice che non si rifà più', /non la rifarai più/i.test(box), box)
+  await ctx.close()
+}
+
+sez('⭐ taratura-unica · si ricorda, e sopravvive alla pagina ricaricata')
+{
+  const ctx = await browser.newContext({ viewport: { width: 420, height: 900 } })
+  const page = await ctx.newPage()
+  const errori = []
+  page.on('pageerror', e => errori.push(String(e)))
+  await page.goto('http://localhost:' + PORT + '/' + PAGINA + '?dur=2&via=1', { waitUntil: 'load' })
+  await page.waitForTimeout(150)
+  check('all’apertura dice che la taratura manca',
+    /mai fatta/i.test(await page.textContent('#stato-taratura')), await page.textContent('#stato-taratura'))
+  await TARA(page, { b: -6, g: 5 })
+  check('dopo la taratura la riga diventa verde',
+    /Verso tarato/.test(await page.textContent('#stato-taratura')))
+
+  // ⭐ si ricarica la pagina da zero: la taratura deve esserci ancora
+  await page.reload({ waitUntil: 'load' })
+  await page.waitForTimeout(200)
+  const v = await page.evaluate(() => window.__prova.verso())
+  const t = await page.evaluate(() => window.__prova.tarato())
+  check('⭐⭐ dopo il ricaricamento il verso è ancora quello imparato', v.beta === -1 && v.gamma === 1, v)
+  check('e risulta tarata', t.beta && t.gamma, t)
+  const riga = await page.textContent('#stato-taratura')
+  check('la riga dice quando è stata fatta', /Verso tarato/.test(riga) && /\d{1,2}\/\d{1,2}\/\d{4}/.test(riga), riga)
+  check('e non chiede più di rifarla', !/mai fatta/i.test(riga), riga)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+
+  // ⛔ ma NON deve essersi salvata nessuna prova
+  check('⛔ le prove non sono state salvate sul telefono',
+    (await page.evaluate(() => window.__prova.prove().length)) === 0)
+  check('⛔ e in localStorage c’è una chiave sola',
+    (await page.evaluate(() => Object.keys(localStorage).length)) === 1,
+    await page.evaluate(() => Object.keys(localStorage)))
+
+  // il pulsante «rifai» la dimentica
+  await page.click('#btn-scorda')
+  await page.waitForTimeout(100)
+  const dopo = await page.evaluate(() => window.__prova.tarato())
+  check('«rifai» dimentica la taratura', dopo.beta === false && dopo.gamma === false, dopo)
+  check('e il verso torna a quello di partenza',
+    (await page.evaluate(() => window.__prova.verso().beta)) === 1)
+  await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(200)
+  check('⭐ e resta dimenticata anche dopo il ricaricamento',
+    (await page.evaluate(() => window.__prova.tarato().beta)) === false)
+  await ctx.close()
+}
+
+sez('⭐ taratura-unica · un gesto storto non insegna niente')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  // si sporge solo in avanti: manca l'asse destra-sinistra
+  await TARA(page, { b: -6, g: 0.3 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const t = await page.evaluate(() => window.__prova.tarato())
+  check('⭐ mezza diagonale non basta: NON impara niente', t.beta === false && t.gamma === false, t)
+  check('e il verso resta quello di partenza',
+    (await page.evaluate(() => window.__prova.verso().beta)) === 1)
+  const box = await page.textContent('#carico-box')
+  check('dice quale metà è mancata', /a destra/.test(box) && !/in avanti e a destra/.test(box), box)
+  check('⛔ e non ha salvato niente sul telefono',
+    (await page.evaluate(() => Object.keys(localStorage).length)) === 0)
+  await ctx.close()
+}
+
+sez('⭐ taratura-unica · il telefono fuori piano viene detto, non misurato zitto')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await TARA(page, { b: -6, g: 5 })
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  // telefono quasi in piedi: 55 gradi
+  await page.evaluate(GUIDA2, { offB: 55, offG: 2, ampB: 1, ampG: 0.3, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const av = await page.textContent('#avviso-asse')
+  check('⭐ avvisa che il telefono non è in piano', /non è appoggiato in piano/i.test(av), av)
+  check('e dice perché conta (oltre i 30° la lettura non tiene)', /30°/.test(av), av)
+
+  // e in piano non avvisa
+  await page.click('#btn-ancora'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 3, offG: 0.5, ampB: 1, ampG: 0.3, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('in piano non avvisa', !/non è appoggiato in piano/i.test(await page.textContent('#avviso-asse')))
+  await ctx.close()
+}
+
+sez('⭐ taratura-unica · il disegno dell’appoggio e le parole giuste')
+{
+  const { page, ctx, errori } = await apri(browser)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const svg = await page.innerHTML('#appoggio')
+  check('c’è il disegno dell’appoggio', /<svg/.test(svg), svg.slice(0, 60))
+  check('e dice da che parte sta il paziente', /VERSO IL PAZIENTE/.test(svg))
+  const testo = await page.textContent('#c-setup')
+  for (const parola of ['in piano sulla tavola', 'schermo in su', 'in verticale (ritratto)',
+                        'al centro', 'lato corto rivolto verso il paziente'])
+    check('l’istruzione dice «' + parola + '»', testo.includes(parola), testo.slice(-400))
+  await page.click('#chips .chip[data-e="taratura"]')
+  const sp = await page.textContent('#spiega')
+  check('la taratura spiega il gesto diagonale', /DIAGONALE/.test(sp), sp)
+  check('e che è una volta sola', /UNA VOLTA SOLA/.test(sp), sp)
+  check('e quanto dura', /cinque secondi/.test(sp), sp)
   await ctx.close()
 }
 } finally {

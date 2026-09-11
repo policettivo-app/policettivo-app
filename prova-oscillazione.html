@@ -107,7 +107,28 @@
         modello: stesso dato, stessa frase, e si puo' provare. Descrive i numeri
         e non da' mai un giudizio clinico.
      5) Referto da stampare (foglio A4 via stampa del browser) ed esportazione
-        dei campioni grezzi in CSV. -->
+        dei campioni grezzi in CSV.
+
+     prova-oscillazione-v9 / taratura-unica-v1 (11 set, su richiesta di Giuliano):
+     la taratura era diventata un peso: due prove da 10 s a ogni sessione.
+     Ma il verso NON e' una proprieta' della sessione: e' una proprieta' del
+     TELEFONO e di come lo si appoggia. Quindi si fa una volta e si ricorda.
+     1) UN GESTO SOLO, in diagonale (avanti + destra insieme), 5 secondi:
+        da li' escono tutti e due i versi. Prima servivano due gesti da 10 s.
+     2) MEMORIZZATA sul telefono. E' l'UNICA cosa che questa pagina salva:
+        due segni e una data. Nessuna misura, nessun dato di paziente — un
+        controllo automatico verifica che in localStorage ci sia una chiave sola.
+        Se la memoria si azzera (navigazione privata, dati del sito cancellati)
+        la pagina RICHIEDE la taratura invece di indovinare il verso.
+     3) Il DISEGNO dell'appoggio nella scheda di preparazione, perche' il verso
+        imparato vale solo per quell'appoggio: telefono in piano, schermo in su,
+        in verticale, al centro dell'incrocio di nastro, lato corto verso il
+        paziente. Se il telefono viene girato di mezzo giro, avanti e indietro
+        si scambiano e non se ne accorge nessuno.
+     4) CONTROLLO DELL'APPOGGIO: se durante la prova il telefono e' inclinato
+        piu' di 30 gradi, la pagina lo dice. Oltre quell'angolo gli angoli di
+        Eulero che leggiamo sono mal condizionati e destra-sinistra non tiene
+        piu': meglio dirlo che dare un numero che sembra buono. -->
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -168,6 +189,14 @@
         font-size:13px;color:#7a5200;margin-top:12px}
   .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;
        font-size:14px;color:#b00;margin-top:14px}
+  /* taratura-unica-v1 */
+  .appoggio{margin:10px 0 4px;text-align:center}
+  .tar-ok{background:#eef9f0;border:1px solid #bfe3c9;color:#0a5e26}
+  .tar-no{background:#fff3f2;border:1px solid #f3c4bf;color:#a3271c}
+  .tar-riga{border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0;
+            display:flex;gap:10px;align-items:center;justify-content:space-between}
+  .tar-riga button{border:1px solid currentColor;background:transparent;color:inherit;
+                   border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;flex:none}
   /* referto-v1 */
   .spiegazione{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;
                padding:14px 16px;margin:12px 0;font-size:15px;line-height:1.62}
@@ -208,8 +237,7 @@
       <button class="chip" data-e="zero tavola (rollio)">zero tavola · rollio</button>
       <button class="chip" data-e="beccheggio">beccheggio</button>
       <button class="chip" data-e="rollio">rollio</button>
-      <button class="chip" data-e="taratura avanti">taratura: mi sporgo AVANTI</button>
-      <button class="chip" data-e="taratura destra">taratura: mi sporgo a DESTRA</button>
+      <button class="chip" data-e="taratura">taratura del verso (una volta sola)</button>
     </div>
     <div class="spiega" id="spiega"></div>
     <div id="blocco-occhi">
@@ -248,9 +276,14 @@
       <option value="10">10 secondi</option>
       <option value="15">15 secondi</option>
     </select>
+    <div id="stato-taratura"></div>
+    <div class="appoggio" id="appoggio"></div>
     <button class="btn" id="btn-start">Appoggia il telefono e parti →</button>
     <div class="nota">
-      Telefono <b>al centro della tavola, schermo in su</b>, sempre nello stesso verso.
+      <b>Come si appoggia il telefono</b> — sempre così, se no il verso cambia:
+      <b>in piano sulla tavola</b>, schermo in su, <b>in verticale (ritratto)</b>,
+      <b>al centro</b> sull’incrocio del nastro, col <b>lato corto rivolto verso il paziente</b>,
+      e i piedi ai due lati senza toccarlo.
       <b>La voce ti dice tutto</b>: che prova stai facendo, il conto alla rovescia, quando
       parte e quando finisce. Non serve guardare lo schermo — <b>a occhi chiusi non lo vedresti</b>.
       Alza il volume e togli il silenzioso.
@@ -339,6 +372,34 @@
   // Sotto questo sbilanciamento la taratura non insegna niente: il segno
   // verrebbe deciso dal rumore invece che dal movimento.
   var TARATURA_MINIMA = 1.5
+  // taratura-unica-v1 — la taratura e' una proprieta' del TELEFONO e di come lo
+  // si appoggia, non della sessione: si fa una volta e si ricorda.
+  // ⚠️ E' l'UNICA cosa che questa pagina salva sul telefono. Nessuna misura,
+  // nessun dato di paziente: solo due segni e la data.
+  var CHIAVE_TARATURA = 'policettivo.oscillazione.verso.v1'
+  var tarQuando = null
+  function leggiTaratura(){
+    try {
+      var g = JSON.parse(localStorage.getItem(CHIAVE_TARATURA) || 'null')
+      if (!g || (g.beta !== 1 && g.beta !== -1) || (g.gamma !== 1 && g.gamma !== -1)) return
+      verso.beta = g.beta; verso.gamma = g.gamma
+      tarato.beta = true; tarato.gamma = true
+      tarQuando = g.quando || null
+    } catch(e){}
+  }
+  function salvaTaratura(){
+    tarQuando = new Date().toISOString()
+    try {
+      localStorage.setItem(CHIAVE_TARATURA, JSON.stringify({
+        beta: verso.beta, gamma: verso.gamma, quando: tarQuando
+      }))
+    } catch(e){}   // in navigazione privata non si puo': la taratura vale per questa sessione
+  }
+  function scordaTaratura(){
+    try { localStorage.removeItem(CHIAVE_TARATURA) } catch(e){}
+    verso.beta = 1; verso.gamma = 1
+    tarato.beta = false; tarato.gamma = false; tarQuando = null
+  }
 
   var SPIEGA = {
     'zero tavola (beccheggio)':
@@ -354,16 +415,13 @@
     'rollio':
       'Cuscino ruotato di 90°: GIALLO ai lati, NERO davanti e dietro. ' +
       'La tavola cede a destra-sinistra, quindi il test dice se il carico va a DESTRA o a SINISTRA.',
-    'taratura avanti':
-      'Sali e sporgiti deliberatamente IN AVANTI per tutta la misura, senza cadere. ' +
-      'Serve una volta sola: la pagina impara da che parte è il «+» del sensore e da lì in poi ' +
-      'scrive «avanti» e «indietro» al posto di un segno. ' +
-      'Puoi farla anche ALLA FINE: le prove già registrate si correggono da sole. ' +
-      'Sporgiti in modo netto — sotto 1,5° la pagina rifiuta la taratura, perché il segno lo ' +
-      'deciderebbe il rumore.',
-    'taratura destra':
-      'Sali e sposta deliberatamente il peso a DESTRA per tutta la misura. ' +
-      'Stessa cosa dell’altra taratura, ma per l’asse destra-sinistra.'
+    'taratura':
+      'UNA VOLTA SOLA per questo telefono, cinque secondi. Sali e sporgiti in DIAGONALE — ' +
+      'AVANTI e a DESTRA insieme — e resta lì fino alla fine. Da quel movimento la pagina impara ' +
+      'il verso di tutti e due gli assi, e da lì in poi scrive «avanti», «indietro», «destra» e ' +
+      '«sinistra» al posto di un segno. Poi se la ricorda: non la rifarai più. ' +
+      'Sporgiti in modo netto — sotto 1,5° su un asse la taratura viene rifiutata, perché il segno ' +
+      'lo deciderebbe il rumore invece del movimento.'
   }
   function assePrincipale(ev){ return ev === 'rollio' ? 'gamma' : 'beta' }
   function eTest(ev){ return ev === 'beccheggio' || ev === 'rollio' }
@@ -402,13 +460,44 @@
   // possono essere scambiati, ed e' esattamente quello che e' successo.
   function avvisoTaratura(){
     if (tarato.beta && tarato.gamma) return ''
-    var manca = []
-    if (!tarato.beta)  manca.push('avanti/indietro')
-    if (!tarato.gamma) manca.push('destra/sinistra')
     return '<div class="warn" style="border-color:#c0392b;background:#fff3f2;color:#c0392b">' +
-      '🔴 <b>TARATURA NON FATTA</b> per ' + manca.join(' e ') + '. ' +
-      'Il verso di questi assi è indovinato, non misurato: <b>«avanti» può voler dire «indietro»</b>. ' +
-      'Falla anche <b>adesso, alla fine</b>: le prove già registrate si correggono da sole.</div>'
+      '🔴 <b>TARATURA MAI FATTA su questo telefono.</b> ' +
+      'Il verso degli assi è indovinato, non misurato: <b>«avanti» può voler dire «indietro»</b>. ' +
+      'Sono <b>cinque secondi, una volta sola</b>, e la puoi fare anche <b>adesso, alla fine</b>: ' +
+      'le prove già registrate si correggono da sole.</div>'
+  }
+
+  // taratura-unica-v1 — il disegno dell'appoggio. Sta nella scheda di preparazione
+  // perche' il verso imparato vale SOLO per questo appoggio: se il telefono viene
+  // girato di mezzo giro, avanti e indietro si scambiano e non se ne accorge nessuno.
+  function disegnoAppoggio(){
+    return '<svg viewBox="0 0 260 150" width="100%" style="max-width:260px" aria-label="come appoggiare il telefono">' +
+      '<text x="130" y="12" text-anchor="middle" font-size="11" fill="#0a7d33" font-weight="bold">VERSO IL PAZIENTE</text>' +
+      '<path d="M130 16 l-6 9 h12 z" fill="#0a7d33"/>' +
+      '<rect x="18" y="42" width="224" height="62" rx="4" fill="#2b2b2b"/>' +
+      '<line x1="130" y1="42" x2="130" y2="104" stroke="#fff" stroke-width="1.5" opacity="0.8"/>' +
+      '<line x1="18" y1="73" x2="242" y2="73" stroke="#fff" stroke-width="1.5" opacity="0.8"/>' +
+      '<rect x="119" y="52" width="22" height="42" rx="4" fill="#f2f2f2" stroke="#888"/>' +
+      '<ellipse cx="92" cy="73" rx="13" ry="20" fill="#f0c9a8" stroke="#c89b76"/>' +
+      '<ellipse cx="168" cy="73" rx="13" ry="20" fill="#f0c9a8" stroke="#c89b76"/>' +
+      '<text x="130" y="124" text-anchor="middle" font-size="10" fill="#777">telefono in piano, schermo in su,</text>' +
+      '<text x="130" y="137" text-anchor="middle" font-size="10" fill="#777">in verticale, al centro dell’incrocio</text>' +
+      '</svg>'
+  }
+  function aggiornaStatoTaratura(){
+    var el = $('stato-taratura'); if (!el) return
+    if (tarato.beta && tarato.gamma){
+      el.innerHTML = '<div class="tar-riga tar-ok"><span>✓ <b>Verso tarato</b> su questo telefono' +
+        (tarQuando ? ' il ' + new Date(tarQuando).toLocaleDateString('it-IT') : '') +
+        '. Non serve rifarla.</span><button type="button" id="btn-scorda">rifai</button></div>'
+      var b = $('btn-scorda')
+      if (b) b.addEventListener('click', function(){
+        scordaTaratura(); aggiornaStatoTaratura(); aggiornaStorico()
+      })
+    } else {
+      el.innerHTML = '<div class="tar-riga tar-no"><span>🔴 <b>Taratura mai fatta</b> su questo ' +
+        'telefono: cinque secondi, una volta sola. Scegli «taratura del verso».</span></div>'
+    }
   }
 
   function aggiornaSpiega(){
@@ -1009,15 +1098,29 @@
     // Sotto TARATURA_MINIMA non si impara niente, e lo si dice a schermo.
     // Non si sottrae lo zero della tavola: lo sbilanciamento deliberato e' di
     // un ordine di grandezza piu' grande (misurato: 9,5° contro 0,78°).
-    var tarValida = null
-    if (mAbs && /taratura/.test(evento)){
-      var scost = (evento === 'taratura avanti') ? mAbs.my : mAbs.mx
-      tarValida = Math.abs(scost) >= TARATURA_MINIMA
+    var tarValida = null, tarMancante = ''
+    if (mAbs && evento === 'taratura'){
+      // taratura-unica-v1 — un solo gesto in DIAGONALE insegna tutti e due i
+      // versi: sporgendosi avanti E a destra, beta e gamma si muovono insieme.
+      // Prima servivano due prove da 10 s; adesso una da 5.
+      var sB = mAbs.my, sG = mAbs.mx
+      var okB = Math.abs(sB) >= TARATURA_MINIMA, okG = Math.abs(sG) >= TARATURA_MINIMA
+      tarValida = okB && okG
       if (tarValida){
-        if (evento === 'taratura avanti'){ verso.beta  = scost >= 0 ? 1 : -1; tarato.beta  = true }
-        else                             { verso.gamma = scost >= 0 ? 1 : -1; tarato.gamma = true }
+        verso.beta  = sB >= 0 ? 1 : -1; tarato.beta  = true
+        verso.gamma = sG >= 0 ? 1 : -1; tarato.gamma = true
+        salvaTaratura()
+      } else {
+        tarMancante = !okB && !okG ? 'in avanti e a destra'
+                    : (!okB ? 'in avanti' : 'a destra')
       }
     }
+
+    // taratura-unica-v1 — il telefono e' appoggiato in piano?
+    // Il verso imparato vale per QUELL'appoggio. E oltre i 30 gradi gli angoli
+    // che leggiamo diventano mal condizionati: vicino ai 90 destra-sinistra
+    // non e' piu' affidabile. Meglio dirlo che dare un numero che sembra buono.
+    var fuoriPiano = mAbs && (Math.abs(mAbs.my) > 30 || Math.abs(mAbs.mx) > 30)
 
     var ztUsato = (eTest(evento) && chZero) ? (zeriTavola[chZero] || null) : null
     var rifB = ztUsato ? ztUsato.beta  : 0
@@ -1123,16 +1226,15 @@
       $('carico-box').innerHTML =
         '<div class="carico" style="border-color:#c0392b;background:#fff3f2;color:#c0392b">' +
           '<div class="tit">' + evento + '</div><div class="val">✗</div>' +
-          '<div class="sec">ti sei spostato di meno di ' + TARATURA_MINIMA + '°: ' +
-          'il verso NON è stato imparato. Rifalla sporgendoti di più.</div></div>' +
+          '<div class="sec">ti sei spostato di meno di ' + TARATURA_MINIMA + '° ' + tarMancante +
+          ': il verso NON è stato imparato. Rifalla sporgendoti di più, in diagonale.</div></div>' +
         avvisoTaratura()
       $('omini').innerHTML = ''
     } else {
       var testo = eZero(evento)
         ? 'zero registrato per il cuscino in ' + chZero + ' («' + conf + '»)'
-        : 'verso tarato: avanti = beta ' + (verso.beta > 0 ? '+' : '−') +
-          ', destra = gamma ' + (verso.gamma > 0 ? '+' : '−') +
-          (tarato.beta && tarato.gamma ? ' — le prove già fatte sono state ricalcolate' : '')
+        : 'verso imparato e ricordato su questo telefono. Non la rifarai più' +
+          (prove.length > 1 ? ' — e le prove già fatte sono state ricalcolate' : '') + '.'
       $('carico-box').innerHTML =
         '<div class="carico" style="border-color:#0a7d33;background:#eef9f0;color:#0a7d33">' +
           '<div class="tit">' + evento + '</div>' +
@@ -1151,6 +1253,13 @@
              'sull’altro asse (' + r2(altro) + '° contro ' + r2(atteso) + '°). ' +
              'Controlla il verso del cuscino e come è appoggiato il telefono.</div>'
       }
+    }
+    if (fuoriPiano){
+      av = '<div class="warn" style="border-color:#c0392b;background:#fff3f2;color:#c0392b">' +
+           '🔴 <b>Il telefono non è appoggiato in piano</b> (inclinazione media ' +
+           r1(Math.max(Math.abs(mAbs.my), Math.abs(mAbs.mx))) + '°). ' +
+           'Il verso tarato vale solo per l’appoggio del disegno, e oltre i 30° la lettura ' +
+           'destra-sinistra non è più affidabile. Rimettilo in piano e rifai la prova.</div>' + av
     }
     $('avviso-asse').innerHTML = av
 
@@ -1197,6 +1306,11 @@
     $('ref-quando').textContent = new Date(prova.quando).toLocaleString('it-IT') +
       '  ·  ' + conf + '  ·  ' + prova.evento +
       (prova.occhi !== '-' ? ', occhi ' + prova.occhi : '')
+    if (tarato.beta && tarato.gamma && tarQuando){
+      $('quando').textContent += '  ·  verso tarato il ' +
+        new Date(tarQuando).toLocaleDateString('it-IT')
+    }
+    aggiornaStatoTaratura()
     $('nota-dopo').value = ''
     mostra('c-misura', false)
     mostra('c-esito', true)
@@ -1303,8 +1417,9 @@
            ', ' + p.piedi + ', ' + numIt(p.durata_reale_s, 0) + ' secondi.')
 
     if (!c.tarato){
-      f.push('Attenzione: la taratura non è stata fatta, quindi avanti e indietro ' +
-             'potrebbero essere scambiati. Fai le due prove di taratura: i numeri si correggono da soli.')
+      f.push('Attenzione: la taratura non è mai stata fatta su questo telefono, quindi avanti ' +
+             'e indietro potrebbero essere scambiati. Sono cinque secondi, una volta sola, ' +
+             'e i numeri già presi si correggono da soli.')
     }
     if (c && c.zero){
       var forte = Math.abs(c.principale)
@@ -1425,6 +1540,9 @@
       c.classList.add('on'); piedi = c.getAttribute('data-p')
     })
   })
+  leggiTaratura()                                   // taratura-unica-v1
+  $('appoggio').innerHTML = disegnoAppoggio()
+  aggiornaStatoTaratura()
   aggiornaSpiega()
   $('btn-start').addEventListener('click', avvia)
   $('btn-ancora').addEventListener('click', avvia)
@@ -1488,8 +1606,9 @@
               (navigator.userAgent || '') + '\n' +
               'verso: avanti=' + (verso.beta > 0 ? '+' : '-') +
               ' destra=' + (verso.gamma > 0 ? '+' : '-') +
-              ' — taratura avanti/indietro: ' + (tarato.beta ? 'FATTA' : 'MAI FATTA') +
-              ', destra/sinistra: ' + (tarato.gamma ? 'FATTA' : 'MAI FATTA') + '\n' +
+              ' — taratura: ' + (tarato.beta && tarato.gamma
+                  ? 'FATTA' + (tarQuando ? ' il ' + new Date(tarQuando).toLocaleString('it-IT') : '')
+                  : 'MAI FATTA') + '\n' +
               'zeri tavola registrati: ' + (Object.keys(zeriTavola).join(', ') || 'nessuno') + '\n\n' +
               riassunto()
     t.focus(); t.select()
