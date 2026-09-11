@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="robots" content="noindex, nofollow">
-<title>Prova del banco — Oscillazione della Tavola</title>
+<title>Oscillazione Policettiva — prova del banco</title>
 <!-- prova-oscillazione-v1
      PAGINA DI PROVA. Non e' uno strumento clinico e non e' collegata a nessun menu.
      Non tocca il database, non scrive niente, non chiede il login: misura e basta.
@@ -83,7 +83,31 @@
         banda e finestra viaggiano scritte insieme al numero, se no due prove
         non sono confrontabili. In piu' il ritmo dominante, che non richiede
         nessuna integrazione ed e' fra le poche cose che questi sensori
-        misurano davvero bene. -->
+        misurano davvero bene.
+
+     prova-oscillazione-v8 / referto-v1 (11 set, dopo il giro da 5+5 su beccheggio
+     e rollio). ⭐ I DATI HANNO RIBALTATO LA MISURA PRINCIPALE.
+     1) Su 5 prove ripetute nella stessa condizione: velocita' CV 10-13%,
+        percorso lisciato 13%, oscillazione 27%, raggio 35%, ellisse 42%, e il
+        CARICO peggio di tutti. La misura di testa del referto diventa la
+        VELOCITA' MEDIA sul percorso lisciato. Si sceglie il lisciato (CV 13%)
+        e non il grezzo (CV 10%) perche' il grezzo porta dentro il rumore del
+        singolo telefono: piu' ripetibile sullo stesso telefono, non
+        confrontabile fra telefoni diversi.
+     2) Il CONTEGGIO delle oscillazioni della v7 era al contrario: la banda
+        morta era proporzionale allo scarto tipo, e lo scarto tipo e' gonfiato
+        dalla deriva lenta. Adesso la deriva si toglie prima (media mobile 4 s)
+        e diventa un DATO A SE': quanto il carico si e' spostato dall'inizio
+        alla fine. Il ritmo dominante si cerca da 0,15 Hz in su, perche' a 0,1
+        si incollava sul bordo della finestra in cinque prove su otto.
+     3) Il CUNEO dietro il gomitolo: mostra da che parte si oscilla di piu',
+        largo in proporzione a quanto quell'asse domina. Se l'oscillazione e'
+        rotonda, sparisce.
+     4) LE FRASI: la pagina scrive e legge a voce com'e' andata. Regole, non un
+        modello: stesso dato, stessa frase, e si puo' provare. Descrive i numeri
+        e non da' mai un giudizio clinico.
+     5) Referto da stampare (foglio A4 via stampa del browser) ed esportazione
+        dei campioni grezzi in CSV. -->
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -144,16 +168,31 @@
         font-size:13px;color:#7a5200;margin-top:12px}
   .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;
        font-size:14px;color:#b00;margin-top:14px}
+  /* referto-v1 */
+  .spiegazione{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;
+               padding:14px 16px;margin:12px 0;font-size:15px;line-height:1.62}
+  .spiegazione p{margin:0 0 8px}
+  .spiegazione p:last-child{margin:0;color:#667;font-style:italic}
+  .intest-referto{display:none}
+  @media print{
+    body{padding:0;background:#fff;font-size:11pt}
+    .card{break-inside:avoid;box-shadow:none;border:1px solid #ddd;margin-bottom:10px}
+    #c-setup,#c-misura,#avviso-iniziale,.btn,#nota-dopo,label[for="nota-dopo"],#export{display:none!important}
+    #c-esito,#c-storico{display:block!important}
+    .intest-referto{display:block;margin-bottom:10px}
+    canvas{max-width:420px}
+    h1{font-size:18pt}
+  }
 </style>
 </head>
 <body>
 <div class="guard" id="guard"></div>
 <div class="wrap">
 
-  <h1>Prova del banco</h1>
-  <div class="sub">Oscillazione della Tavola — misura grezza, senza salvataggi</div>
+  <h1>Oscillazione Policettiva</h1>
+  <div class="sub">Beccheggio e Rollio &middot; prova del banco, senza salvataggi</div>
 
-  <div class="avviso">
+  <div class="avviso" id="avviso-iniziale">
     <b>Questa non è una stabilometria e non è uno strumento clinico.</b>
     Misura l'<b>inclinazione della tavola</b>, non il centro di pressione del paziente.
     Serve a capire, prima di costruire il modulo vero, se lo strumento misura qualcosa di reale:
@@ -228,12 +267,21 @@
     <div class="stato" id="live-info" style="margin-top:8px"></div>
   </div>
 
+  <div class="intest-referto">
+    <b>Oscillazione Policettiva</b> — referto della prova del banco<br>
+    <span id="ref-quando"></span><br>
+    <span style="color:#666">Misura l’inclinazione della tavola, non il centro di pressione.
+    Non è uno strumento clinico: i valori di riferimento non esistono ancora e la soglia del
+    colore è un valore di lavoro provvisorio, non una norma.</span>
+  </div>
   <div class="card" id="c-esito" style="display:none">
     <h2>3 · Risultato</h2>
     <div id="carico-box"></div>
     <div id="omini"></div>
     <canvas id="traccia" width="600" height="600"></canvas>
     <div id="avviso-asse"></div>
+    <button class="btn vuoto" id="btn-spiega">🔊 Spiegami com’è andato</button>
+    <div id="spiegazione" class="spiegazione" style="display:none"></div>
     <table class="metriche">
       <thead><tr><th>Misura</th><th>da orientamento</th><th>da accelerometro</th></tr></thead>
       <tbody id="tab-metriche"></tbody>
@@ -244,12 +292,14 @@
     <input type="text" id="nota-dopo" placeholder="es. mi sono mosso al 15esimo secondo">
     <button class="btn giallo" id="btn-ancora">Rifai questa stessa prova →</button>
     <button class="btn vuoto" id="btn-nuova">Cambia prova</button>
+    <button class="btn vuoto" id="btn-referto">🖨 Referto da stampare / PDF</button>
   </div>
 
   <div class="card" id="c-storico" style="display:none">
     <h2>4 · Le prove di oggi</h2>
     <div id="lista"></div>
     <button class="btn vuoto" id="btn-copia">Copia i dati per Claude</button>
+    <button class="btn vuoto" id="btn-grezzi">Esporta i campioni grezzi (CSV)</button>
     <textarea id="export" readonly style="display:none;margin-top:12px"></textarea>
     <div class="nota">
       Il riassunto è corto e si incolla in chat. I campioni grezzi restano solo qui:
@@ -367,6 +417,15 @@
     var g = document.getElementById('blocco-occhi')
     if (g) g.style.opacity = eTest(evento) ? '1' : '0.45'
   }
+  // referto-v1 — l'asse maggiore dell'ellisse, detto a parole
+  function versoCuneo(m){
+    var dx = Math.abs(Math.cos(m.angolo)), dy = Math.abs(Math.sin(m.angolo))
+    return dy >= dx ? 'avanti e indietro' : 'a destra e sinistra'
+  }
+  function numIt(x, dec){
+    var s = (Math.round(x * Math.pow(10,dec)) / Math.pow(10,dec)).toFixed(dec)
+    return s.replace('.', ',')
+  }
   function parolaAsse(asse, v){
     if (asse === 'gamma') return v >= 0 ? 'DESTRA' : 'SINISTRA'
     return v >= 0 ? 'AVANTI' : 'INDIETRO'
@@ -447,6 +506,38 @@
     return Math.sqrt(q/n)
   }
 
+  // ── la DERIVA: quanto il carico si e' spostato dall'inizio alla fine ──  referto-v1
+  // E' una domanda diversa da «quanto oscilla»: dice se la posizione TIENE.
+  // Si confronta il primo quinto della prova con l'ultimo quinto.
+  function deriva(v){
+    var n = v.length
+    if (n < 10) return 0
+    var q = Math.max(3, Math.round(n*0.2)), i, a = 0, b = 0
+    for (i=0;i<q;i++)   a += v[i]
+    for (i=n-q;i<n;i++) b += v[i]
+    return (b - a) / q
+  }
+
+  // ── toglie la deriva lenta prima di contare ──────────────────────────  referto-v1
+  // ⚠️ Era il difetto della v7: la banda morta e' proporzionale allo scarto
+  // tipo, e lo scarto tipo e' gonfiato dalla deriva. Risultato: un'escursione
+  // ampia e lenta produceva una banda enorme che NASCONDEVA le oscillazioni
+  // vere, e l'asse che oscillava di piu' contava di meno. Misurato sui dati
+  // dell'11 settembre: beccheggio 2,50° -> 2 oscillazioni, 0,58° -> 6.
+  // Si sottrae una media mobile lunga (4 s): quello che resta e' oscillazione.
+  function passaAlto(v, w){
+    var n = v.length
+    if (w < 3 || n < w) return v.slice()
+    var pref = [0], i
+    for (i=0;i<n;i++) pref.push(pref[i] + v[i])
+    var mezzo = Math.floor(w/2), out = []
+    for (i=0;i<n;i++){
+      var a = Math.max(0, i - mezzo), b = Math.min(n, i - mezzo + w)
+      out.push(v[i] - (pref[b]-pref[a])/(b-a))
+    }
+    return out
+  }
+
   // ── quante oscillazioni, e a che ritmo ───────────────────────────────  taratura-dopo-v1
   // Si conta sul segnale LISCIATO, per la stessa ragione del percorso: sul
   // grezzo si conterebbe il tremolio del sensore, non il paziente.
@@ -525,12 +616,16 @@
     var lx = liscia(xs, w), ly = liscia(ys, w), percorsoL = 0
     for (i = 1; i < lx.length; i++) percorsoL += Math.hypot(lx[i]-lx[i-1], ly[i]-ly[i-1])
 
-    // conteggio delle oscillazioni sui due assi, sul segnale lisciato  taratura-dopo-v1
-    var bandaX = Math.max(0.02, 0.2 * sdSerie(lx))
-    var bandaY = Math.max(0.02, 0.2 * sdSerie(ly))
-    var cicliX = contaOscillazioni(lx, bandaX)
-    var cicliY = contaOscillazioni(ly, bandaY)
+    // conteggio delle oscillazioni sui due assi — referto-v1: PRIMA si toglie
+    // la deriva lenta, se no si conta il contrario di quello che si vuole.
+    var wDer = Math.max(3, Math.round(4 * freq))          // 4 secondi
+    var fx = passaAlto(lx, wDer), fy = passaAlto(ly, wDer)
+    var bandaX = Math.max(0.05, 0.15 * sdSerie(fx))
+    var bandaY = Math.max(0.05, 0.15 * sdSerie(fy))
+    var cicliX = contaOscillazioni(fx, bandaX)
+    var cicliY = contaOscillazioni(fy, bandaY)
     var durL = (freq > 0) ? lx.length / freq : 0
+    var derX = deriva(xs), derY = deriva(ys)
 
     // semiassi e inclinazione dell'ellisse: servono a disegnarla.
     // pi * semiA * semiB deve tornare esattamente `area`.
@@ -557,8 +652,21 @@
       bandaX: bandaX, bandaY: bandaY,
       cicliAlMinX: durL > 0 ? cicliX * 60 / durL : 0,
       cicliAlMinY: durL > 0 ? cicliY * 60 / durL : 0,
-      freqX: freqDominante(lx, freq, 0.1, 3.0, 0.05),
-      freqY: freqDominante(ly, freq, 0.1, 3.0, 0.05),
+      // referto-v1 — il ritmo si cerca sul segnale SENZA deriva, e a partire
+      // da 0,15 Hz. Nella v7 partiva da 0,1 Hz e si incollava li' in cinque
+      // prove su otto: quando un numero si schiaccia sul bordo della finestra,
+      // e' la finestra a essere sbagliata.
+      freqX: freqDominante(fx, freq, 0.15, 2.0, 0.05),
+      freqY: freqDominante(fy, freq, 0.15, 2.0, 0.05),
+      derivaX: derX, derivaY: derY,
+      deriva: Math.hypot(derX, derY),
+      // ⭐ referto-v1 — la velocita' calcolata sul percorso LISCIATO.
+      // Misurato su 5+5 prove l'11 settembre: e' la misura piu' ripetibile che
+      // abbiamo (CV 13%), contro il 27% dell'oscillazione, il 35% del raggio e
+      // il 42% dell'ellisse. Si usa il lisciato e non il grezzo (CV 10%) perche'
+      // il grezzo porta dentro il rumore del singolo telefono: piu' ripetibile
+      // sullo stesso telefono, non confrontabile fra telefoni diversi.
+      velocitaLisciata: durataS > 0 ? percorsoL/durataS : 0,
       // la grandezza che autotest.html gia' calcola, per poterle confrontare
       gradi: Math.sqrt(sxx + syy)
     }
@@ -636,6 +744,32 @@
     ctx.beginPath(); ctx.moveTo(12,cy); ctx.lineTo(W-12,cy)
     ctx.moveTo(cx,12); ctx.lineTo(cx,H-12); ctx.stroke()
 
+    // ── referto-v1 · IL CUNEO: da che parte si oscilla di piu' ───────────
+    // Sta DIETRO la traccia e tiene un'opacita' bassa: deve farsi capire senza
+    // farsi guardare. Punta nei due versi dell'asse maggiore dell'ellisse, ed
+    // e' largo in proporzione a quanto quell'asse domina sull'altro: se la
+    // persona oscilla in tondo il cuneo quasi sparisce, ed e' giusto cosi'.
+    if (o && o.cuneo && m && m.semiA > 0){
+      var rapp = m.semiB > 0 ? m.semiA/m.semiB : 3
+      var forza = Math.max(0, Math.min(1, (rapp - 1) / 2))     // 1:1 -> 0, 3:1 -> 1
+      if (forza > 0.05){
+        var L  = m.semiA * k * 1.18
+        var Wb = Math.max(7, m.semiB * k * 0.7)
+        ctx.save()
+        ctx.translate(cx + m.mx*k, cy - m.my*k)
+        ctx.rotate(-m.angolo)
+        ctx.fillStyle = 'rgba(40,90,220,' + (0.05 + 0.13*forza).toFixed(3) + ')'
+        for (var d = -1; d <= 1; d += 2){
+          ctx.beginPath()
+          ctx.moveTo(d*L, 0)
+          ctx.lineTo(d*L*0.3,  Wb)
+          ctx.lineTo(d*L*0.3, -Wb)
+          ctx.closePath(); ctx.fill()
+        }
+        ctx.restore()
+      }
+    }
+
     // la traccia, dal blu al rosso nel tempo
     var n = xs.length
     if (n > 1){
@@ -683,6 +817,12 @@
       ctx.textAlign = 'left';  ctx.fillText('SX', 12, cy - 8)
       ctx.textAlign = 'right'; ctx.fillText('DX', W - 12, cy - 8)
       ctx.textAlign = 'left'
+      // referto-v1 — la parola del cuneo, piccola: dice in una riga cosa mostra
+      if (o.cuneo && m && m.semiA > 0 && m.semiB > 0 && m.semiA/m.semiB > 1.15){
+        ctx.fillStyle = '#8a9bd0'; ctx.font = '17px sans-serif'; ctx.textAlign = 'center'
+        ctx.fillText('oscilla soprattutto ' + versoCuneo(m), cx, 50)
+        ctx.textAlign = 'left'
+      }
     }
     if (o && o.soglia > 0){
       ctx.strokeStyle = '#0a7d33'; ctx.lineWidth = 2; ctx.setLineDash([8,6])
@@ -933,7 +1073,7 @@
     for (i = 0; i < xs.length; i++) sc = Math.max(sc, Math.abs(xs[i]), Math.abs(ys[i]))
     if (soglia > 0) sc = Math.max(sc, soglia * 1.25)
     disegna($('traccia'), xs, ys, sc, m, {
-      parole: true, soglia: soglia,
+      parole: true, soglia: soglia, cuneo: eTest(evento),
       carico: m ? { x: carG, y: carB } : null,
       colore: col.c
     })
@@ -956,12 +1096,14 @@
           '<div><b>' + r2(m.stdX) + '°</b><span>oscillazione destra-sinistra</span></div>' +
           '<div><b>' + r2(m.area) + '°²</b><span>ellisse 95%</span></div>' +
         '</div>' +
+        // ⭐ referto-v1 — la velocità è la misura più ripetibile: sta per prima
         '<div class="osc">' +
-          '<div><b>' + m.cicliY + '</b><span>oscillazioni avanti-dietro</span></div>' +
-          '<div><b>' + m.cicliX + '</b><span>oscillazioni destra-sinistra</span></div>' +
-          '<div><b>' + (m[asse === 'gamma' ? 'freqX' : 'freqY'] != null
-              ? r2(m[asse === 'gamma' ? 'freqX' : 'freqY']) + ' Hz' : '—') +
-            '</b><span>ritmo dominante</span></div>' +
+          '<div style="border-color:#0a7d33"><b>' + r2(m.velocitaLisciata) + ' °/s</b>' +
+            '<span>velocità media ⭐</span></div>' +
+          '<div><b>' + (asse === 'gamma' ? m.cicliX : m.cicliY) + '</b>' +
+            '<span>oscillazioni sull’asse del test</span></div>' +
+          '<div><b>' + r2(m.deriva) + '°</b><span>deriva nei ' +
+            Math.round(prova.durata_reale_s) + ' s</span></div>' +
         '</div>' +
         avvisoTaratura() +
         (!zt ? '<div class="warn">Manca lo <b>zero tavola</b> per il cuscino in <b>' + chZero +
@@ -1019,6 +1161,8 @@
       ['Velocità media',  'velocita', '°/s'],
       ['Raggio medio',    'raggio',   '°'],
       ['Raggio massimo',  'raggioMax','°'],
+      ['Velocità media (lisciata) ⭐', 'velocitaLisciata', '°/s'],
+      ['Deriva del carico', 'deriva', '°'],
       ['Oscillazioni avanti-dietro',   'cicliY', ''],
       ['Oscillazioni destra-sinistra', 'cicliX', ''],
       ['Ritmo dominante avanti-dietro',   'freqY', 'Hz'],
@@ -1045,6 +1189,14 @@
     $('quando').textContent = new Date(prova.quando).toLocaleString('it-IT', {
       weekday:'long', day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
     }) + '  ·  ' + conf + '  ·  ' + prova.piedi
+    // referto-v1 — le frasi si scrivono sempre; il pulsante le legge a voce
+    var fr = frasiEsito(prova)
+    $('spiegazione').innerHTML = fr.map(function(t){ return '<p>' + t + '</p>' }).join('')
+    $('spiegazione').style.display = ''
+    $('btn-spiega').textContent = '🔊 Spiegami com’è andato'
+    $('ref-quando').textContent = new Date(prova.quando).toLocaleString('it-IT') +
+      '  ·  ' + conf + '  ·  ' + prova.evento +
+      (prova.occhi !== '-' ? ', occhi ' + prova.occhi : '')
     $('nota-dopo').value = ''
     mostra('c-misura', false)
     mostra('c-esito', true)
@@ -1082,7 +1234,9 @@
     })
 
     var righe = [
+      ['⭐ VELOCITÀ media (lisciata)', function(p){ return p.orientamento.velocitaLisciata }, '°/s'],
       ['CARICO (asse del test)', function(p){ var c = caricoDi(p); return c ? c.principale : null }, '°'],
+      ['deriva del carico', function(p){ return p.orientamento.deriva },   '°'],
       ['oscillazione avanti-dietro', function(p){ return p.osc_avanti_dietro },'°'],
       ['oscillazione destra-sinistra', function(p){ return p.osc_destra_sinistra },'°'],
       ['ellisse 95%', function(p){ return p.orientamento.area },              '°²'],
@@ -1118,6 +1272,101 @@
     }).join('')
   }
 
+  // ═══ referto-v1 · LE FRASI ═══════════════════════════════════════════
+  // Il testo che la pagina dice a voce ed e' scritto a schermo e sul referto.
+  // ⛔ REGOLA CHE NON SI TOCCA: descrive i NUMERI, non dà giudizi clinici.
+  // «Hai oscillato due volte e mezzo di più a occhi chiusi» si può dire.
+  // «La tua propriocezione è deficitaria» no, mai — l'interpretazione è del
+  // professionista. Una frase detta a voce davanti al paziente pesa il doppio
+  // di una scritta, quindi qui la regola vale più che altrove.
+  // Le frasi le costruiscono REGOLE, non un modello: lo stesso dato dà sempre
+  // la stessa frase, e si può provare con un controllo automatico.
+  function chiaveCondizione(p){
+    return (p.configurazione || '(non indicata)') + ' · ' + p.evento +
+           (p.occhi && p.occhi !== '-' ? ' · occhi ' + p.occhi : '')
+  }
+  function rumoreSessione(){
+    var z = prove.filter(function(p){ return eZero(p.evento) && p.orientamento })
+    if (!z.length) return null
+    return statistiche(z.map(function(p){ return p.orientamento.velocitaLisciata })).media
+  }
+  function frasiEsito(p){
+    var f = [], o = p.orientamento
+    if (!o) return ['La misura non ha raccolto nessun campione, quindi non c’è niente da leggere.']
+    var c = caricoDi(p), asse = assePrincipale(p.evento)
+    var suTest = asse === 'gamma' ? o.stdX : o.stdY
+    var altro  = asse === 'gamma' ? o.stdY : o.stdX
+    var cicli  = asse === 'gamma' ? o.cicliX : o.cicliY
+    var ritmo  = asse === 'gamma' ? o.freqX : o.freqY
+
+    f.push('Test di ' + p.evento + (p.occhi !== '-' ? ', occhi ' + p.occhi : '') +
+           ', ' + p.piedi + ', ' + numIt(p.durata_reale_s, 0) + ' secondi.')
+
+    if (!c.tarato){
+      f.push('Attenzione: la taratura non è stata fatta, quindi avanti e indietro ' +
+             'potrebbero essere scambiati. Fai le due prove di taratura: i numeri si correggono da soli.')
+    }
+    if (c && c.zero){
+      var forte = Math.abs(c.principale)
+      if (forte < 1.5){
+        f.push('Il carico medio è ' + numIt(forte,1) + ' gradi, cioè praticamente al centro. ' +
+               'Sotto un grado e mezzo la misura non distingue: si può dire che sei centrato, non da che parte.')
+      } else {
+        f.push('Il carico medio è ' + parolaAsse(asse, c.principale).toLowerCase() +
+               ' di ' + numIt(forte,1) + ' gradi, più o meno mezzo grado di incertezza.')
+      }
+    } else {
+      f.push('Manca lo zero della tavola, quindi il carico non ha un riferimento e non lo leggo.')
+    }
+
+    f.push('Sull’asse del test hai oscillato ' + numIt(suTest,1) + ' gradi, contro ' +
+           numIt(altro,1) + ' sull’altro asse.')
+    if (suTest > altro * 1.5){
+      f.push('Il cuscino sta cedendo dove deve.')
+    } else if (altro > suTest * 1.2){
+      f.push('Ma la tavola si è mossa di più sull’altro asse: controlla il verso del cuscino ' +
+             'e come è appoggiato il telefono.')
+    }
+
+    f.push('La velocità media è ' + numIt(o.velocitaLisciata,1) + ' gradi al secondo. ' +
+           'È il numero più affidabile che abbiamo: ripete meglio di tutti gli altri.')
+
+    if (cicli > 0){
+      f.push('Hai fatto ' + cicli + ' oscillazion' + (cicli === 1 ? 'e' : 'i') +
+             ' sull’asse del test' + (ritmo ? ', a un ritmo di ' + numIt(ritmo,2) + ' al secondo' : '') + '.')
+    }
+    if (o.deriva >= 1){
+      f.push('Durante la prova il carico si è spostato di ' + numIt(o.deriva,1) +
+             ' gradi dall’inizio alla fine: la posizione non è rimasta ferma.')
+    }
+    var rum = rumoreSessione()
+    if (rum && rum > 0 && !eZero(p.evento)){
+      f.push('Il segnale è ' + Math.round(o.velocitaLisciata/rum) + ' volte il rumore della tavola ferma.')
+    }
+
+    // quante volte questa stessa condizione e' stata ripetuta oggi
+    var k = chiaveCondizione(p)
+    var stesse = prove.filter(function(q){ return q.orientamento && chiaveCondizione(q) === k })
+    if (stesse.length < 3){
+      f.push(stesse.length === 1
+        ? 'Di questa condizione c’è una prova sola. Per un confronto nel tempo ne servono ' +
+          'almeno tre: su una prova sola non si può leggere un cambiamento sotto il ' +
+          'trentacinque per cento.'
+        : 'Di questa condizione ci sono ' + stesse.length + ' prove. Per un confronto nel tempo ' +
+          'ne servono almeno tre.')
+    } else {
+      var s = statistiche(stesse.map(function(q){ return q.orientamento.velocitaLisciata }))
+      f.push('Di questa condizione ci sono ' + stesse.length + ' prove: velocità media ' +
+             numIt(s.media,1) + ', con uno scarto del ' + Math.round(s.cv) + ' per cento.')
+      if (s.cv > 20){
+        f.push('Uno scarto così alto vuol dire che le condizioni non erano proprio uguali: ' +
+               'guarda i piedi, l’appoggio del telefono e la stanchezza.')
+      }
+    }
+    f.push('Questi sono i numeri della misura. L’interpretazione clinica la scrivi tu.')
+    return f
+  }
+
   function riassunto(){
     return prove.map(function(p){
       var o = p.orientamento || {}, a = p.accelerometro || {}
@@ -1145,6 +1394,8 @@
           o.finestraLisciata + ' campioni)' +
           '; ritmo dominante ' + (o.freqY != null ? r2(o.freqY) : '—') + '/' +
           (o.freqX != null ? r2(o.freqX) : '—') + ' Hz',
+        '  VELOCITA LISCIATA ' + r2(o.velocitaLisciata) + ' deg/s (la misura piu ripetibile)' +
+          ', deriva ' + r2(o.deriva) + ' deg (X ' + r2(o.derivaX) + ', Y ' + r2(o.derivaY) + ')',
         '  orientamento: ellisse ' + r2(o.area) + ' deg2, percorso ' + r2(o.percorso) +
           ' deg, LISCIATO ' + r2(o.percorsoLisciato) + ' deg, velocita ' + r2(o.velocita) +
           ' deg/s, raggio ' + r2(o.raggio) + ' deg',
@@ -1186,6 +1437,49 @@
     var u = prove[prove.length-1]
     if (u) { u.nota_dopo = $('nota-dopo').value; aggiornaStorico() }
   })
+  // referto-v1 — la voce legge le stesse frasi che sono scritte a schermo.
+  // Nessuna rete, nessun costo, e lo stesso dato dà sempre la stessa frase.
+  $('btn-spiega').addEventListener('click', function(){
+    var u = prove[prove.length-1]
+    if (!u) return
+    if (window.speechSynthesis && window.speechSynthesis.speaking){
+      zittisci(); $('btn-spiega').textContent = '🔊 Spiegami com’è andato'; return
+    }
+    $('btn-spiega').textContent = '⏹ Ferma la spiegazione'
+    var fr = frasiEsito(u)
+    fr.forEach(function(t){ voce(t) })
+    var fine = setInterval(function(){
+      if (!window.speechSynthesis || !window.speechSynthesis.speaking){
+        clearInterval(fine); $('btn-spiega').textContent = '🔊 Spiegami com’è andato'
+      }
+    }, 500)
+  })
+
+  $('btn-referto').addEventListener('click', function(){
+    zittisci()
+    aggiornaStorico()
+    setTimeout(function(){ window.print() }, 120)
+  })
+
+  // referto-v1 — i campioni grezzi, per controllare cose che il riassunto non
+  // può dire: per esempio se la tavola è andata in battuta sul pavimento.
+  $('btn-grezzi').addEventListener('click', function(){
+    var righe = ['prova;t_s;beta_grezzo;gamma_grezzo;evento;occhi;configurazione']
+    prove.forEach(function(p, i){
+      if (!p.grezzi || !p.grezzi.t) return
+      for (var j = 0; j < p.grezzi.t.length; j++){
+        righe.push([i+1, r2(p.grezzi.t[j]), p.grezzi.beta[j], p.grezzi.gamma[j],
+                    p.evento, p.occhi, (p.configurazione || '')].join(';'))
+      }
+    })
+    var t = $('export')
+    t.style.display = ''
+    t.value = righe.join('\n')
+    t.focus(); t.select()
+    try { document.execCommand('copy') } catch(e){}
+    $('btn-grezzi').textContent = 'Copiato — ' + (righe.length-1) + ' righe, incollale in chat'
+  })
+
   $('btn-copia').addEventListener('click', function(){
     var t = $('export')
     t.style.display = ''

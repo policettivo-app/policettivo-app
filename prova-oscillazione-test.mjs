@@ -125,6 +125,10 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('marker prova-oscillazione-v6', src.includes('prova-oscillazione-v6'))
   check('marker prova-oscillazione-v7', src.includes('prova-oscillazione-v7'))
   check('marker taratura-dopo-v1', src.includes('taratura-dopo-v1'))
+  check('marker prova-oscillazione-v8', src.includes('prova-oscillazione-v8'))
+  check('marker referto-v1', src.includes('referto-v1'))
+  check('⭐ il nome nuovo è nel titolo', /<title>Oscillazione Policettiva/.test(src))
+  check('e nell’intestazione della pagina', /<h1>Oscillazione Policettiva<\/h1>/.test(src))
   check('non carica nessuno script dell’app', !/<script[^>]*\ssrc=/i.test(src))
   check('non parla con Supabase', !/supabase/i.test(src))
   check('non fa nessuna fetch', !/fetch\s*\(/.test(src))
@@ -898,8 +902,8 @@ sez('⭐ v7 · il conteggio arriva a schermo e nell’export')
   await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
   check('nessun errore JS in pagina', errori.length === 0, errori)
   const box = await page.textContent('#carico-box')
-  check('a schermo ci sono le oscillazioni contate', /oscillazioni avanti-dietro/.test(box), box)
-  check('e il ritmo dominante', /ritmo dominante/.test(box), box)
+  check('a schermo ci sono le oscillazioni contate', /oscillazioni sull’asse del test/.test(box), box)
+  check('e la velocità, che nella v8 è la misura di testa', /velocità media/.test(box), box)
   const tab = await page.textContent('#tab-metriche')
   check('la tabella le riporta', /Oscillazioni avanti-dietro/.test(tab), tab)
   check('e riporta il ritmo in Hz', /Hz/.test(tab), tab)
@@ -940,6 +944,206 @@ sez('⭐ v7 · lo storico ricalcola anche lui dopo la taratura')
   await ctx.close()
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════
+// v8 / referto-v1 — dopo il giro da 5+5 dell'11 settembre 2026
+// ═══════════════════════════════════════════════════════════════════════
+
+sez('⭐ v8 · il conteggio NON è più al contrario')
+{
+  const { page, ctx, errori } = await apri(browser)
+  // Il caso vero: un asse con un'ampia DERIVA lenta e poche oscillazioni,
+  // e un altro con poca ampiezza e molte oscillazioni. Nella v7 usciva il
+  // contrario: l'asse che oscillava di più contava di meno.
+  const m = await page.evaluate(() => {
+    const xs = [], ys = [], hz = 60, sec = 30
+    for (let i = 0; i < hz*sec; i++) {
+      const t = i/hz
+      // Y: deriva lenta ampia (6 gradi in 30 s) + 6 oscillazioni vere piccole
+      ys.push(6*(t/30) + 0.4*Math.sin(2*Math.PI*0.2*t))
+      // X: nessuna deriva, 15 oscillazioni piccole
+      xs.push(0.3*Math.sin(2*Math.PI*0.5*t))
+    }
+    return window.__prova.metriche(xs, ys, sec, hz)
+  })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ conta ~6 oscillazioni sull’asse con la deriva', m.cicliY >= 5 && m.cicliY <= 7, m.cicliY)
+  check('⭐ e ~15 sull’asse senza deriva', m.cicliX >= 13 && m.cicliX <= 16, m.cicliX)
+  check('il ritmo dell’asse con la deriva è 0,2 Hz', vicino(m.freqY, 0.2, 20), m.freqY)
+  check('e quello dell’altro 0,5 Hz', vicino(m.freqX, 0.5, 15), m.freqX)
+  check('⭐ la deriva è misurata a parte: ~4,8 gradi su Y', vicino(m.derivaY, 4.8, 20), m.derivaY)
+  check('e su X è ~0', Math.abs(m.derivaX) < 0.3, m.derivaX)
+
+  // ⚠️ il caso che nella v7 falliva: ampiezza grande = conteggio piccolo
+  const v7 = await page.evaluate(() => {
+    const xs = [], ys = [], hz = 60, sec = 30
+    for (let i = 0; i < hz*sec; i++) {
+      const t = i/hz
+      ys.push(2.5*Math.sin(2*Math.PI*0.3*t))   // ampia, 9 oscillazioni
+      xs.push(0.5*Math.sin(2*Math.PI*0.3*t))   // piccola, 9 oscillazioni
+    }
+    return window.__prova.metriche(xs, ys, sec, hz)
+  })
+  check('⭐⭐ stessa frequenza e ampiezze diverse danno lo STESSO conteggio',
+    Math.abs(v7.cicliY - v7.cicliX) <= 1, { ampia: v7.cicliY, piccola: v7.cicliX })
+  check('e sono ~9', v7.cicliY >= 8 && v7.cicliY <= 10, v7.cicliY)
+
+  // fermo: zero, e nessuna deriva inventata
+  const f = await page.evaluate(() => {
+    const xs = [], ys = []
+    for (let i = 0; i < 1800; i++) { xs.push(1); ys.push(1) }
+    return window.__prova.metriche(xs, ys, 30, 60)
+  })
+  check('fermo: zero oscillazioni e zero deriva',
+    f.cicliX === 0 && f.cicliY === 0 && Math.abs(f.deriva) < 0.01, { c: f.cicliX, d: f.deriva })
+  await ctx.close()
+}
+
+sez('⭐ v8 · la velocità lisciata, la misura di testa')
+{
+  const { page, ctx, errori } = await apri(browser)
+  // cerchio r=2 a 0,2 giri/s (la banda dell'oscillazione posturale vera):
+  // percorso = 2*pi*2*0,2 = 2,513 gradi al secondo
+  const m = await page.evaluate(() => {
+    const xs = [], ys = [], hz = 60, sec = 30
+    for (let i = 0; i < hz*sec; i++) { const a = 2*Math.PI*0.2*(i/hz); xs.push(2*Math.cos(a)); ys.push(2*Math.sin(a)) }
+    return window.__prova.metriche(xs, ys, sec, hz)
+  })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('la velocità lisciata torna col conto a mano (2,51 °/s)',
+    vicino(m.velocitaLisciata, 2.513, 4), m.velocitaLisciata)
+  check('ed è il percorso lisciato diviso la durata',
+    Math.abs(m.velocitaLisciata - m.percorsoLisciato/30) < 0.01)
+  // ⚠️ e si dichiara il limite: la media mobile da 0,25 s taglia le frequenze
+  // alte. A 1 Hz l'attenuazione e' gia' del 10-15%. Sotto 0,5 Hz, dove sta
+  // l'oscillazione posturale, e' trascurabile — ma va saputo, non scoperto.
+  const alto = await page.evaluate(() => {
+    const xs = [], ys = [], hz = 60, sec = 10
+    for (let i = 0; i < hz*sec; i++) { const a = 2*Math.PI*(i/hz); xs.push(2*Math.cos(a)); ys.push(2*Math.sin(a)) }
+    return window.__prova.metriche(xs, ys, sec, hz)
+  })
+  check('⚠️ a 1 Hz la lisciatura attenua, ed è documentato',
+    alto.velocitaLisciata < 12.57 * 0.95 && alto.velocitaLisciata > 12.57 * 0.75,
+    { atteso_grezzo: 12.57, lisciato: alto.velocitaLisciata })
+  await ctx.close()
+}
+
+sez('⭐ v8 · il cuneo: si vede se l’oscillazione ha una direzione, no se è tonda')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  const pixelBlu = () => page.evaluate(() => {
+    const c = document.getElementById('traccia'), x = c.getContext('2d')
+    const d = x.getImageData(0, 0, c.width, c.height).data
+    // il cuneo e' volutamente chiarissimo: si cerca la TINTA azzurrina su
+    // fondo bianco (blu > rosso), non il blu pieno della traccia (R = 40)
+    let n = 0
+    for (let i = 0; i < d.length; i += 4)
+      if (d[i] > 185 && d[i] < 250 && d[i+2] - d[i] > 6) n++
+    return n
+  })
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0, offG: 0, ampB: 3, ampG: 0.25, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  const conCuneo = await pixelBlu()
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ con un’oscillazione tutta avanti-indietro il cuneo si disegna', conCuneo > 400, conCuneo)
+  const testo = await page.textContent('#carico-box')
+  check('il risultato mostra la velocità per prima', /velocità media/.test(testo), testo)
+  check('e la deriva', /deriva/.test(testo), testo)
+
+  // ⭐ oscillazione TONDA: il cuneo non ha niente da dire e deve sparire
+  await page.click('#btn-ancora'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0, offG: 0, ampB: 2, ampG: 2, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(150)
+  const tondo = await pixelBlu()
+  check('⭐ su un’oscillazione tonda il cuneo quasi sparisce', tondo < conCuneo/3,
+    { direzionale: conCuneo, tondo })
+  await ctx.close()
+}
+
+sez('⭐ v8 · le frasi: descrivono i numeri, MAI un giudizio clinico')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.fill('#config', 'tavola 1 cuscino')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0.5, offG: 0, ampB: 0, ampG: 0, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 4, offG: 0.2, ampB: 2, ampG: 0.3, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+
+  const sp = await page.textContent('#spiegazione')
+  check('le frasi sono a schermo senza premere niente', sp.length > 80, sp.length)
+  check('dicono che test è', /beccheggio/.test(sp), sp)
+  check('dicono la velocità', /velocità media/i.test(sp), sp)
+  check('dicono quante prove servono per confrontare', /almeno tre/.test(sp), sp)
+  check('⚠️ e l’italiano è giusto: mai «ci sono 1 prova»', !/ci sono 1 prov/.test(sp), sp)
+  check('⭐ chiudono dicendo che l’interpretazione è del professionista',
+    /interpretazione clinica la scrivi tu/i.test(sp), sp)
+  // ⛔ il confine che non si passa
+  for (const vietata of ['propriocezion', 'deficit', 'patolog', 'diagnos', 'terapia',
+                         'devi ', 'guarit', 'normale per la tua età', 'nella norma'])
+    check('⛔ non contiene «' + vietata + '»', !new RegExp(vietata, 'i').test(sp), sp)
+
+  check('il pulsante della voce c’è', await page.isVisible('#btn-spiega'))
+  await page.click('#btn-spiega')
+  await page.waitForTimeout(200)
+  check('premendolo non esplode niente', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐ v8 · la frase cambia col dato, e avvisa quando il carico è troppo piccolo')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0, offG: 0, ampB: 0, ampG: 0, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  // carico minuscolo: 0,5 gradi
+  await page.evaluate(GUIDA2, { offB: 0.5, offG: 0, ampB: 1.5, ampG: 0.2, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const sp = await page.textContent('#spiegazione')
+  check('⭐ con un carico piccolo dice che non si può leggere da che parte',
+    /praticamente al centro/.test(sp) && /non distingue/.test(sp), sp)
+  check('e non scrive una parola di direzione', !/indietro di/.test(sp), sp)
+  await ctx.close()
+}
+
+sez('⭐ v8 · referto da stampare e campioni grezzi')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 3, offG: 0, ampB: 1.5, ampG: 0.2, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('il pulsante del referto c’è', await page.isVisible('#btn-referto'))
+  check('l’intestazione del referto è compilata',
+    (await page.textContent('#ref-quando')).includes('beccheggio'), await page.textContent('#ref-quando'))
+  const ref = await page.textContent('.intest-referto')
+  check('⭐ il referto dichiara cosa NON è', /non è uno strumento clinico/i.test(ref), ref)
+  check('e che misura l’inclinazione, non il centro di pressione',
+    /non il centro di pressione/i.test(ref), ref)
+
+  await page.click('#btn-grezzi')
+  const csv = await page.inputValue('#export')
+  const righe = csv.trim().split('\n')
+  check('il CSV ha l’intestazione giusta', righe[0] === 'prova;t_s;beta_grezzo;gamma_grezzo;evento;occhi;configurazione', righe[0])
+  check('e una riga per campione', righe.length > 50, righe.length)
+  check('i campioni sono quelli grezzi, non quelli girati dal verso',
+    righe[1].split(';').length === 7, righe[1])
+  await ctx.close()
+}
 } finally {
   await browser.close()
   server.close()
