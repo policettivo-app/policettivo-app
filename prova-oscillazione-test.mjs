@@ -87,6 +87,8 @@ sez('La pagina è davvero isolata dall’app in uso')
   const src = fs.readFileSync(path.join(ROOT, PAGINA), 'utf8')
   check('marker prova-oscillazione-v1', src.includes('prova-oscillazione-v1'))
   check('marker prova-oscillazione-v2', src.includes('prova-oscillazione-v2'))
+  check('marker prova-oscillazione-v3', src.includes('prova-oscillazione-v3'))
+  check('marker prova-oscillazione-v4', src.includes('prova-oscillazione-v4'))
   check('non carica nessuno script dell’app', !/<script[^>]*\ssrc=/i.test(src))
   check('non parla con Supabase', !/supabase/i.test(src))
   check('non fa nessuna fetch', !/fetch\s*\(/.test(src))
@@ -209,10 +211,10 @@ sez('Due prove di fila: lo scarto si vede da solo')
   check('lo storico è comparso', await page.isVisible('#c-storico'))
   const lista = await page.textContent('#lista')
   check('lo storico dice quante prove', /2 prove/.test(lista), lista)
-  check('lo storico calcola lo scarto fra la più piccola e la più grande', /scarto/.test(lista), lista)
-  // r=3 → 84.7 ; r=3.3 → 102.5 : lo scarto vero e' ~19%
-  const perc = Number((lista.match(/scarto[^0-9]*(\d+)%/) || [])[1])
-  check('e lo scarto è quello giusto (~19%)', perc >= 14 && perc <= 24, perc)
+  check('lo storico calcola il CV', /CV/.test(lista), lista)
+  // r=3 → ellisse 84.7 ; r=3.3 → 102.5 : media 93.6, sd 12.6, CV ~13%
+  const perc = Number((lista.match(/ellisse[^]*?CV\s*(\d+)%/) || [])[1])
+  check('e il CV dell’ellisse è quello giusto (~13%)', perc >= 9 && perc <= 18, perc)
 
   await page.click('#btn-copia')
   const testo = await page.inputValue('#export')
@@ -226,7 +228,7 @@ sez('v2 · «zero» si spiega da solo, e la voce parla')
   const { page, ctx, errori } = await apri(browser)
   check('nessun errore JS in pagina', errori.length === 0, errori)
   check('la voce «telefono fermo» è sparita', !(await page.content()).includes('>telefono fermo<'))
-  check('c’è la prova «zero (sul pavimento)»', await page.isVisible('text=zero (sul pavimento)'))
+  check('c’è la prova «zero sensore (pavimento)»', await page.isVisible('text=zero sensore (pavimento)'))
 
   const sp0 = await page.textContent('#spiega')
   check('lo zero è spiegato appena si apre', /misura dello ZERO/.test(sp0), sp0)
@@ -273,6 +275,150 @@ sez('v2 · la voce dice la prova, il conto e la fine')
   check('l’attesa di 5 s NON è finita nella misura',
     (await page.evaluate(() => window.__prova.ultima().durata_reale_s)) < 4,
     await page.evaluate(() => window.__prova.ultima().durata_reale_s))
+  await ctx.close()
+}
+
+sez('v3 · l’ellisse si può disegnare, e i conti tornano')
+{
+  const { page, ctx, errori } = await apri(browser)
+  const c = await page.evaluate(() => {
+    const xs = [], ys = []
+    const N = 720
+    // ellisse vera: 4° su un asse, 1° sull'altro
+    for (let i = 0; i < N; i++) { const a = 2*Math.PI*i/N; xs.push(4*Math.cos(a)); ys.push(1*Math.sin(a)) }
+    return window.__prova.metriche(xs, ys, 30)
+  })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  // π·semiA·semiB DEVE tornare esattamente l'area calcolata: e' la stessa misura
+  check('π · semiA · semiB = area dell’ellisse',
+    vicino(Math.PI * c.semiA * c.semiB, c.area, 0.1), { disegnata: Math.PI*c.semiA*c.semiB, calcolata: c.area })
+  check('il semiasse lungo sta sull’asse lungo', c.semiA > c.semiB, { a: c.semiA, b: c.semiB })
+  check('su un’ellisse orizzontale l’inclinazione è ~0', Math.abs(c.angolo) < 0.02, c.angolo)
+  check('il centro è dove deve stare', Math.abs(c.mx) < 0.01 && Math.abs(c.my) < 0.01, { mx: c.mx, my: c.my })
+  await ctx.close()
+}
+
+sez('v3 · data e ora, nota dopo l’esito, e lo zero della tavola')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  check('c’è lo zero del sensore', await page.isVisible('text=zero sensore (pavimento)'))
+  check('e lo zero della tavola, distinto', await page.isVisible('text=zero tavola (nessuno sopra)'))
+  await page.click('#chips .chip[data-e="zero tavola (nessuno sopra)"]')
+  const sp = await page.textContent('#spiega')
+  check('lo zero della tavola è spiegato', /NESSUNO sopra/.test(sp), sp)
+  check('e dice che va tenuto separato dall’altro', /separato/.test(sp), sp)
+
+  await page.click('#btn-start')
+  await page.waitForTimeout(120)
+  await page.evaluate(GUIDA, { raggio: 2, giriAlSecondo: 1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+
+  const q = await page.textContent('#quando')
+  check('il risultato mostra data e ora', /20\d\d/.test(q) && /:/.test(q), q)
+  check('e ripete quale prova era', /zero tavola/.test(q), q)
+
+  await page.fill('#nota-dopo', 'mi sono mosso al quindicesimo secondo')
+  await page.waitForTimeout(120)
+  await page.click('#btn-copia')
+  const testo = await page.inputValue('#export')
+  check('la nota scritta DOPO finisce nel riassunto', /quindicesimo secondo/.test(testo), testo.slice(0,300))
+  check('il riassunto porta data e ora della prova', /\d{2}\/\d{2}\/20\d\d/.test(testo), testo.slice(0,300))
+  await ctx.close()
+}
+
+sez('v3 · la voce si sblocca DENTRO il tocco (se no iPhone la zittisce)')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=1&via=1')
+  await page.evaluate(() => {
+    window.__ordine = []
+    const vero = window.speechSynthesis.speak.bind(window.speechSynthesis)
+    window.speechSynthesis.speak = u => { window.__ordine.push({ t: String(u.text), dopoAwait: window.__awaited === true }); }
+    const permOrig = window.DeviceOrientationEvent
+    // si finge un permesso ASINCRONO, come su iPhone
+    window.DeviceOrientationEvent = window.DeviceOrientationEvent || function(){}
+    window.DeviceOrientationEvent.requestPermission = () =>
+      new Promise(r => setTimeout(() => { window.__awaited = true; r('granted') }, 200))
+  })
+  await page.click('#btn-start')
+  await page.waitForTimeout(600)
+  const ord = await page.evaluate(() => window.__ordine)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('il primo speak parte PRIMA dell’await del permesso',
+    ord.length > 0 && ord[0].dopoAwait === false, ord)
+  check('e le frasi vere arrivano dopo', ord.length > 1, ord.map(o => o.t))
+  await ctx.close()
+}
+
+sez('v4 · il percorso lisciato toglie il tremolio del sensore')
+{
+  const { page, ctx, errori } = await apri(browser)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  // un cerchio PULITO: lisciato e grezzo devono quasi coincidere
+  const pulito = await page.evaluate(() => {
+    const xs = [], ys = []
+    for (let i = 0; i < 1800; i++) { const a = 2*Math.PI*2*i/1800; xs.push(3*Math.cos(a)); ys.push(3*Math.sin(a)) }
+    return window.__prova.metriche(xs, ys, 30, 60)
+  })
+  check('su un segnale pulito il lisciato ≈ il grezzo',
+    vicino(pulito.percorsoLisciato, pulito.percorso, 6),
+    { grezzo: pulito.percorso, lisciato: pulito.percorsoLisciato })
+
+  // lo stesso cerchio SPORCATO con un tremolio da sensore
+  const sporco = await page.evaluate(() => {
+    const xs = [], ys = []
+    let sx = 12345
+    const rnd = () => { sx = (sx * 1103515245 + 12345) & 0x7fffffff; return sx / 0x7fffffff - 0.5 }
+    for (let i = 0; i < 1800; i++) {
+      const a = 2*Math.PI*2*i/1800
+      xs.push(3*Math.cos(a) + rnd()*0.12)
+      ys.push(3*Math.sin(a) + rnd()*0.12)
+    }
+    return window.__prova.metriche(xs, ys, 30, 60)
+  })
+  check('⭐ il tremolio gonfia moltissimo il percorso GREZZO',
+    sporco.percorso > pulito.percorso * 3,
+    { pulito: pulito.percorso, sporco: sporco.percorso })
+  check('⭐ ma il LISCIATO resta vicino al vero',
+    vicino(sporco.percorsoLisciato, pulito.percorso, 15),
+    { vero: pulito.percorso, lisciato: sporco.percorsoLisciato })
+  check('e l’ellisse quasi non se ne accorge (è una varianza, non una somma)',
+    vicino(sporco.area, pulito.area, 10), { pulito: pulito.area, sporco: sporco.area })
+  check('la finestra di lisciatura è 0,25 s a 60 Hz = 15 campioni',
+    pulito.finestraLisciata === 15, pulito.finestraLisciata)
+  await ctx.close()
+}
+
+sez('v4 · il CV, e il confronto col rumore')
+{
+  const { page, ctx, errori } = await apri(browser)
+  const st = await page.evaluate(() => window.__prova.statistiche([28.98, 20.21, 14.44]))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  // gli occhi aperti veri del 10 settembre: media 21.21, sd 7.32, CV 34.5%
+  check('media giusta sui dati veri', vicino(st.media, 21.21, 0.5), st.media)
+  check('scarto tipo giusto', vicino(st.sd, 7.32, 1), st.sd)
+  check('CV giusto', vicino(st.cv, 34.5, 1), st.cv)
+  check('con una prova sola il CV non si inventa',
+    (await page.evaluate(() => window.__prova.statistiche([5]).cv)) === null)
+  await ctx.close()
+}
+
+sez('v4 · la configurazione raggruppa le prove')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  check('c’è il campo configurazione', await page.isVisible('#config'))
+  await page.fill('#config', 'tavola 1 cuscino')
+  await page.click('#btn-start')
+  await page.waitForTimeout(120)
+  await page.evaluate(GUIDA, { raggio: 2, giriAlSecondo: 1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const lista = await page.textContent('#lista')
+  check('lo storico raggruppa per configurazione', /tavola 1 cuscino/.test(lista), lista)
+  await page.click('#btn-copia')
+  const testo = await page.inputValue('#export')
+  check('la configurazione finisce nel riassunto', /\[tavola 1 cuscino\]/.test(testo), testo.slice(0,300))
+  check('e anche il percorso lisciato', /LISCIATO/.test(testo), testo.slice(0,400))
   await ctx.close()
 }
 

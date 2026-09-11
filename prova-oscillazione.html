@@ -17,7 +17,27 @@
      prova-oscillazione-v2 (10 set): «telefono fermo» era incomprensibile ed e'
      diventato «zero (sul pavimento)», con la spiegazione a schermo. Assestamento
      portato a 5 secondi. E soprattutto LA VOCE: a occhi chiusi lo schermo non si
-     vede, quindi il conto alla rovescia e l'etichetta della prova si SENTONO. -->
+     vede, quindi il conto alla rovescia e l'etichetta della prova si SENTONO.
+
+     prova-oscillazione-v3 (10 set): la voce su iPhone NON partiva. Safari sblocca
+     la sintesi vocale solo se il PRIMO speak() parte dentro il tocco dell'utente:
+     il nostro partiva dopo l'await del permesso sensori, cioe' fuori dal tocco, e
+     veniva zittito. Ora si sblocca nel gesto. Aggiunti: bip diversi per «via» e
+     «finito», lo zero della TAVOLA distinto dallo zero del SENSORE, data e ora
+     nel risultato, la nota scrivibile DOPO aver visto l'esito, e l'ellisse al 95%
+     disegnata sopra la traccia.
+
+     prova-oscillazione-v4 (10 set, dopo il PRIMO giro di misure vere):
+     i dati hanno detto tre cose e il codice le segue.
+     1) Il PERCORSO grezzo e' mangiato dal rumore del sensore: sullo zero
+        l'accelerometro dava 115 gradi di percorso contro 2,2 dell'orientamento,
+        cioe' 53 volte tanto, mentre l'ELLISSE delle due strade coincideva.
+        Quindi si aggiunge il percorso LISCIATO (media mobile 0,25 s), e si
+        mostrano tutti e due: la differenza fra i due E' il rumore.
+     2) L'ellisse e' la misura che RIPETE PEGGIO (CV 35% contro 9% del raggio
+        medio). Adesso il CV lo calcola la pagina, per ogni misura.
+     3) Giuliano vuole confrontare configurazioni diverse di tavola e cuscini:
+        serviva un campo CONFIGURAZIONE che raggruppi le prove. -->
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -62,6 +82,7 @@
           padding:10px 12px;font-size:13px;color:#444;margin-top:10px}
   .etichetta{text-align:center;font-size:20px;font-weight:800;letter-spacing:.5px;
              text-transform:uppercase;color:#111;margin-bottom:4px}
+  .quando{text-align:center;font-size:13px;color:#555;margin-top:10px;font-weight:600}
   .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;
        font-size:14px;color:#b00;margin-top:14px}
 </style>
@@ -85,7 +106,8 @@
     <h2>1 · Prepara la prova</h2>
     <label>Che prova stai facendo</label>
     <div class="chips" id="chips">
-      <button class="chip on" data-e="zero (sul pavimento)">zero (sul pavimento)</button>
+      <button class="chip on" data-e="zero (sul pavimento)">zero sensore (pavimento)</button>
+      <button class="chip" data-e="zero tavola (nessuno sopra)">zero tavola (nessuno sopra)</button>
       <button class="chip" data-e="occhi aperti">occhi aperti</button>
       <button class="chip" data-e="occhi chiusi">occhi chiusi</button>
       <button class="chip" data-e="libera">libera</button>
@@ -96,7 +118,9 @@
       <button class="chip on" data-p="scalzo">scalzo</button>
       <button class="chip" data-p="con scarpe">con scarpe</button>
     </div>
-    <label for="nota">Nota (tavola, cuscini, chi è sopra…)</label>
+    <label for="config">Configurazione (tavola e cuscini) — è la cosa che confronteremo</label>
+    <input type="text" id="config" placeholder="es. tavola rettangolare, 1 cuscino sotto al centro">
+    <label for="nota">Nota (chi è sopra, appoggi, altro…)</label>
     <input type="text" id="nota" placeholder="es. tavola rettangolare, CEP, Giuliano, scarpe da ginnastica">
     <label for="durata">Durata della misura</label>
     <select id="durata">
@@ -136,7 +160,10 @@
       <thead><tr><th>Misura</th><th>da orientamento</th><th>da accelerometro</th></tr></thead>
       <tbody id="tab-metriche"></tbody>
     </table>
+    <div class="quando" id="quando"></div>
     <div class="nota" id="nota-freq"></div>
+    <label for="nota-dopo">Nota su questa prova (puoi scriverla adesso che hai visto il risultato)</label>
+    <input type="text" id="nota-dopo" placeholder="es. mi sono mosso al 15esimo secondo">
     <button class="btn giallo" id="btn-ancora">Rifai questa stessa prova →</button>
     <button class="btn vuoto" id="btn-nuova">Cambia prova</button>
   </div>
@@ -176,6 +203,10 @@
       'Appoggia il telefono sul PAVIMENTO o su un tavolo — non sulla tavola, che da sola dondola — ' +
       'e non toccarlo per tutta la misura. Nessuno sopra niente. ' +
       'Tutto quello che nelle altre prove esce più piccolo di questo numero NON è il paziente: è il sensore.',
+    'zero tavola (nessuno sopra)':
+      'Telefono al centro della TAVOLA con i cuscini, ma NESSUNO sopra, e non la tocchi. ' +
+      'Dice se la tavola scarica da sola resta ferma o se si assesta lentamente. ' +
+      'È lo zero di tutta la catena — sensore più tavola — e va tenuto separato dallo zero del solo sensore.',
     'occhi aperti':
       'Sali sulla tavola e resta fermo guardando un punto davanti a te, all’altezza degli occhi. ' +
       'Telefono al centro della tavola, sempre nello stesso verso.',
@@ -207,7 +238,17 @@
   // A occhi chiusi lo schermo non si vede: il conto alla rovescia, l'etichetta
   // della prova e il «finito» devono ARRIVARE ALL'ORECCHIO. Se la sintesi vocale
   // non c'e' restano i bip, che il senso lo danno lo stesso.
-  var vocePronta = false
+  // ⚠️ iOS: la sintesi vocale si sblocca SOLO se il primo speak() parte dentro
+  // il tocco dell'utente. Dopo un await il tocco e' finito e Safari zittisce
+  // tutto in silenzio, senza errori. Questa si chiama nel gestore del click.
+  function sbloccaVoce(){
+    try {
+      if (!window.speechSynthesis) return
+      var u = new SpeechSynthesisUtterance(' ')
+      u.lang = 'it-IT'; u.volume = 0.01
+      window.speechSynthesis.speak(u)
+    } catch(e){}
+  }
   function voce(testo){
     try {
       if (!window.speechSynthesis) return
@@ -222,7 +263,21 @@
   // ── le metriche ───────────────────────────────────────────────────────
   // Tutte in GRADI. Nessun indice sintetico inventato: solo grandezze
   // che si possono ricalcolare a mano dai campioni grezzi.
-  function metriche(xs, ys, durataS){
+  // Media mobile: serve a togliere il tremolio del sensore dal PERCORSO.
+  // Il percorso somma le differenze fra campioni vicini, quindi e' la misura
+  // piu' sensibile al rumore che esista: senza lisciare, misura il telefono.
+  function liscia(v, w){
+    if (w < 2) return v.slice()
+    var out = [], somma = 0, i
+    for (i = 0; i < v.length; i++){
+      somma += v[i]
+      if (i >= w) somma -= v[i-w]
+      if (i >= w-1) out.push(somma / w)
+    }
+    return out
+  }
+
+  function metriche(xs, ys, durataS, hz){
     var n = xs.length
     if (n < 3) return null
     var i, mx = 0, my = 0
@@ -246,10 +301,27 @@
     var det = Math.max(0, sxx*syy - sxy*sxy)
     var area = Math.PI * 5.991 * Math.sqrt(det)
 
+    // percorso lisciato su 0,25 secondi: quello che resta e' movimento vero
+    var freq = hz || (durataS > 0 ? n/durataS : 60)
+    var w = Math.max(2, Math.round(0.25 * freq))
+    var lx = liscia(xs, w), ly = liscia(ys, w), percorsoL = 0
+    for (i = 1; i < lx.length; i++) percorsoL += Math.hypot(lx[i]-lx[i-1], ly[i]-ly[i-1])
+
+    // semiassi e inclinazione dell'ellisse: servono a disegnarla.
+    // pi * semiA * semiB deve tornare esattamente `area`.
+    var mez = (sxx + syy) / 2
+    var dif = Math.sqrt(Math.pow((sxx - syy)/2, 2) + sxy*sxy)
+    var l1 = Math.max(0, mez + dif), l2 = Math.max(0, mez - dif)
     return {
       n: n,
       percorso: percorso,
+      percorsoLisciato: percorsoL,
+      finestraLisciata: w,
       area: area,
+      mx: mx, my: my,
+      semiA: Math.sqrt(5.991 * l1),
+      semiB: Math.sqrt(5.991 * l2),
+      angolo: 0.5 * Math.atan2(2*sxy, sxx - syy),
       velocita: durataS > 0 ? percorso/durataS : 0,
       raggio: raggio,
       raggioMax: rmax,
@@ -261,7 +333,7 @@
   }
 
   // ── il disegno ────────────────────────────────────────────────────────
-  function disegna(cv, xs, ys, semiScala){
+  function disegna(cv, xs, ys, semiScala, m){
     var ctx = cv.getContext('2d')
     var W = cv.width, H = cv.height, cx = W/2, cy = H/2
     ctx.clearRect(0,0,W,H)
@@ -291,6 +363,24 @@
         ctx.lineTo(cx + xs[i]*k,   cy - ys[i]*k)
         ctx.stroke()
       }
+    }
+    // l'ellisse al 95%: e' la misura, disegnata. Chi guarda il foglio vede
+    // subito QUANTO grande e' e in che direzione oscilla.
+    if (m && m.semiA > 0){
+      ctx.save()
+      ctx.translate(cx + m.mx*k, cy - m.my*k)
+      ctx.rotate(-m.angolo)
+      ctx.beginPath(); ctx.ellipse(0, 0, m.semiA*k, m.semiB*k, 0, 0, Math.PI*2)
+      ctx.fillStyle = 'rgba(255,208,8,0.16)'; ctx.fill()
+      ctx.strokeStyle = '#e0b400'; ctx.lineWidth = 2; ctx.setLineDash([7,5]); ctx.stroke()
+      ctx.setLineDash([]); ctx.restore()
+    }
+    // dove comincia e dove finisce
+    if (n > 1){
+      ctx.fillStyle = '#2864dc'
+      ctx.beginPath(); ctx.arc(cx + xs[0]*k, cy - ys[0]*k, 7, 0, Math.PI*2); ctx.fill()
+      ctx.fillStyle = '#d9342b'
+      ctx.beginPath(); ctx.arc(cx + xs[n-1]*k, cy - ys[n-1]*k, 7, 0, Math.PI*2); ctx.fill()
     }
     // il centro
     ctx.fillStyle = '#111'
@@ -390,7 +480,8 @@
     if (inCorso) return
     inCorso = true
     $('err').style.display = 'none'
-    bip(660, 60)   // sblocca l'audio dentro il gesto dell'utente
+    bip(660, 60)      // sblocca l'AudioContext dentro il gesto
+    sbloccaVoce()     // e la sintesi vocale, che su iPhone vuole lo stesso trattamento
 
     var ok = await chiediPermessi()
     if (!ok){
@@ -419,7 +510,8 @@
 
     $('stato').textContent = 'Sto misurando — non toccare niente'
     voce('Via')
-    bip(880, 220)
+    // tre bip che salgono: si riconoscono anche se la voce non parte
+    bip(660, 130); setTimeout(function(){ bip(880, 130) }, 150); setTimeout(function(){ bip(1320, 260) }, 300)
 
     var live = $('live')
     var dati = await misura(durata*1000, function(restanti, xs, ys, n){
@@ -430,7 +522,8 @@
       $('live-info').textContent = n + ' campioni'
     })
 
-    bip(440, 320)
+    // due bip che scendono: e' finita
+    bip(660, 200); setTimeout(function(){ bip(392, 420) }, 230)
     voce('Finito. Puoi scendere.')
     try { if (wl) wl.release() } catch(e){}
     $('guard').classList.remove('on')
@@ -440,16 +533,20 @@
   }
 
   function concludi(dati, durata){
-    var mOr = metriche(dati.og, dati.ob, dati.durataReale || durata)
-    var mAc = metriche(dati.ag, dati.ab, dati.durataReale || durata)
+    var durUso = dati.durataReale || durata
+    var freq = (durUso > 0) ? (dati.t.length - 1) / durUso : 60
+    var mOr = metriche(dati.og, dati.ob, durUso, freq)
+    var mAc = metriche(dati.ag, dati.ab, durUso, freq)
     // n campioni coprono n-1 intervalli: la frequenza si calcola su quelli
     var hz  = (dati.durataReale > 0) ? (dati.t.length - 1) / dati.durataReale : 0
 
     var prova = {
       quando: new Date().toISOString(),
       evento: evento,
+      configurazione: $('config').value || '(non indicata)',
       piedi: piedi,
       nota: $('nota').value || '',
+      nota_dopo: '',
       durata_s: durata,
       attesa_s: Number($('attesa').value) || 5,
       durata_reale_s: r2(dati.durataReale),
@@ -464,10 +561,11 @@
 
     var s = 5, i
     for (i=0;i<dati.og.length;i++) s = Math.max(s, Math.abs(dati.og[i]), Math.abs(dati.ob[i]))
-    disegna($('traccia'), dati.og, dati.ob, s)
+    disegna($('traccia'), dati.og, dati.ob, s, mOr)
 
     var righe = [
       ['Percorso totale', 'percorso', '°'],
+      ['Percorso lisciato (0,25 s)', 'percorsoLisciato', '°'],
       ['Ellisse al 95%',  'area',     '°²'],
       ['Velocità media',  'velocita', '°/s'],
       ['Raggio medio',    'raggio',   '°'],
@@ -489,33 +587,72 @@
           ' s</b>: la durata usata per i conti è quella vera dei campioni, non i ' + durata + ' s nominali.'
         : '')
 
+    $('quando').textContent = new Date(prova.quando).toLocaleString('it-IT', {
+      weekday:'long', day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
+    }) + '  ·  ' + prova.evento + '  ·  ' + prova.piedi
+    $('nota-dopo').value = ''
     mostra('c-misura', false)
     mostra('c-esito', true)
     aggiornaStorico()
     $('c-esito').scrollIntoView({ behavior:'smooth', block:'start' })
   }
 
+  // Il CV (scarto tipo diviso la media) e' IL numero che dice se un confronto
+  // nel tempo puo' funzionare: se la stessa prova ripetuta balla del 30%, un
+  // «+15% dopo un mese» non vuol dire niente.
+  function statistiche(valori){
+    var n = valori.length
+    if (!n) return null
+    var m = valori.reduce(function(a,b){ return a+b }, 0) / n
+    if (n < 2) return { media:m, sd:0, cv:null, n:n }
+    var q = 0
+    valori.forEach(function(v){ q += (v-m)*(v-m) })
+    var sd = Math.sqrt(q/(n-1))
+    return { media:m, sd:sd, cv: (m !== 0 ? 100*sd/m : null), n:n }
+  }
+
   function aggiornaStorico(){
     if (!prove.length) return
     mostra('c-storico', true)
-    var perEvento = {}
-    prove.forEach(function(p){ (perEvento[p.evento] = perEvento[p.evento] || []).push(p) })
 
-    $('lista').innerHTML = Object.keys(perEvento).map(function(ev){
-      var lista = perEvento[ev]
-      var aree = lista.map(function(p){ return p.orientamento ? p.orientamento.area : 0 })
-      var media = aree.reduce(function(a,b){ return a+b }, 0) / aree.length
-      var spread = ''
-      if (aree.length > 1 && media > 0){
-        var mn = Math.min.apply(null, aree), mx = Math.max.apply(null, aree)
-        spread = ' · scarto fra la più piccola e la più grande: <b>' +
-                 Math.round(100*(mx-mn)/media) + '%</b>'
+    // il rumore di fondo di questa sessione, se una prova «zero» c'e' stata
+    var zeri = prove.filter(function(p){ return /^zero/.test(p.evento) && p.orientamento })
+    var rumore = zeri.length ? statistiche(zeri.map(function(p){ return p.orientamento.raggio })).media : null
+
+    var gruppi = {}
+    prove.forEach(function(p){
+      var k = (p.configurazione || '(non indicata)') + ' · ' + p.evento
+      ;(gruppi[k] = gruppi[k] || []).push(p)
+    })
+
+    var righe = [
+      ['ellisse 95%', function(p){ return p.orientamento.area },              '°²'],
+      ['percorso lisciato', function(p){ return p.orientamento.percorsoLisciato }, '°'],
+      ['raggio medio', function(p){ return p.orientamento.raggio },           '°'],
+      ['velocità', function(p){ return p.orientamento.velocita },             '°/s']
+    ]
+
+    $('lista').innerHTML = Object.keys(gruppi).map(function(k){
+      var lista = gruppi[k].filter(function(p){ return p.orientamento })
+      if (!lista.length) return '<div class="run"><b>' + k + '</b> — nessun campione</div>'
+      var corpo = righe.map(function(r){
+        var vals = lista.map(r[1])
+        var st = statistiche(vals)
+        var cvTxt = (st.cv == null) ? '<span style="color:#999">serve una seconda prova</span>'
+          : ('CV <b style="color:' + (st.cv <= 15 ? '#0a7d33' : (st.cv <= 30 ? '#b07500' : '#c0392b')) + '">' +
+             Math.round(st.cv) + '%</b>')
+        return '<div class="num">' + r[0] + ': ' +
+               vals.map(function(v){ return r2(v) }).join(' · ') + ' ' + r[2] +
+               '  →  media ' + r2(st.media) + ' · ' + cvTxt + '</div>'
+      }).join('')
+      var vsRumore = ''
+      if (rumore && rumore > 0 && !/zero/.test(k)) {
+        var rag = statistiche(lista.map(function(p){ return p.orientamento.raggio })).media
+        vsRumore = '<div class="num" style="margin-top:4px">segnale = <b>' +
+                   Math.round(rag/rumore) + '×</b> il rumore di fondo misurato oggi</div>'
       }
-      return '<div class="run"><b>' + ev + '</b> — ' + lista.length + ' prov' +
-        (lista.length === 1 ? 'a' : 'e') + spread +
-        '<div class="num">ellisse 95%: ' + aree.map(function(a){ return r2(a) }).join(' · ') + ' °²</div>' +
-        '<div class="num">percorso: ' + lista.map(function(p){ return p.orientamento ? r2(p.orientamento.percorso) : '—' }).join(' · ') + ' °</div>' +
-        '</div>'
+      return '<div class="run"><b>' + k + '</b> — ' + lista.length + ' prov' +
+             (lista.length === 1 ? 'a' : 'e') + corpo + vsRumore + '</div>'
     }).join('')
   }
 
@@ -523,12 +660,17 @@
     return prove.map(function(p){
       var o = p.orientamento || {}, a = p.accelerometro || {}
       return [
-        '— ' + p.evento + ', ' + p.piedi + (p.nota ? ' (' + p.nota + ')' : ''),
+        '— [' + (p.configurazione || '(non indicata)') + '] ' + p.evento + ', ' + p.piedi +
+          '  [' + new Date(p.quando).toLocaleString('it-IT') + ']' +
+          (p.nota ? ' (' + p.nota + ')' : '') +
+          (p.nota_dopo ? ' — nota: ' + p.nota_dopo : ''),
         '  ' + p.durata_s + 's nominali, ' + p.durata_reale_s + 's reali, ' +
           p.campioni + ' campioni, ' + p.hz_reale + ' Hz reali, ritardo avvio ' + p.ritardo_avvio_s + 's',
         '  orientamento: ellisse ' + r2(o.area) + ' deg2, percorso ' + r2(o.percorso) +
-          ' deg, velocita ' + r2(o.velocita) + ' deg/s, raggio ' + r2(o.raggio) + ' deg',
-        '  accelerometro: ellisse ' + r2(a.area) + ' deg2, percorso ' + r2(a.percorso) + ' deg'
+          ' deg, LISCIATO ' + r2(o.percorsoLisciato) + ' deg, velocita ' + r2(o.velocita) +
+          ' deg/s, raggio ' + r2(o.raggio) + ' deg',
+        '  accelerometro: ellisse ' + r2(a.area) + ' deg2, percorso ' + r2(a.percorso) +
+          ' deg, LISCIATO ' + r2(a.percorsoLisciato) + ' deg'
       ].join('\n')
     }).join('\n')
   }
@@ -555,6 +697,10 @@
     mostra('c-esito', false); mostra('c-setup', true)
     $('c-setup').scrollIntoView({ behavior:'smooth', block:'start' })
   })
+  $('nota-dopo').addEventListener('input', function(){
+    var u = prove[prove.length-1]
+    if (u) { u.nota_dopo = $('nota-dopo').value; aggiornaStorico() }
+  })
   $('btn-copia').addEventListener('click', function(){
     var t = $('export')
     t.style.display = ''
@@ -569,6 +715,7 @@
   // per i controlli automatici
   window.__prova = {
     metriche: metriche,
+    statistiche: statistiche,
     spiega: SPIEGA,
     prove: function(){ return prove },
     ultima: function(){ return prove[prove.length-1] || null }
