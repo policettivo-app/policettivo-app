@@ -39,6 +39,11 @@ const sez = t => console.log('\n── ' + t + ' ' + '─'.repeat(Math.max(0, 62
 // A giri al secondo costanti la velocità è costante = 2·π·r·giri, e quella
 // si può confrontare con un numero calcolato a mano.
 const GUIDA = ({ raggio, giriAlSecondo, passoMs, durataMs }) => {
+  // ⚠️ v7 — si SPEGNE il flusso della prova precedente prima di accenderne uno
+  // nuovo. Senza, una guida con durataMs piu' lunga della finestra di misura
+  // continua a sparare eventi dentro la prova DOPO, e la media esce sporca di
+  // qualche decimo senza che si capisca perche'. E' costato un rosso vero.
+  if (window.__ivFinto) clearInterval(window.__ivFinto)
   window.__finto = { mandati: 0 }
   const t0 = performance.now()
   const iv = setInterval(() => {
@@ -62,11 +67,13 @@ const GUIDA = ({ raggio, giriAlSecondo, passoMs, durataMs }) => {
     window.dispatchEvent(em)
     window.__finto.mandati++
   }, passoMs)
+  window.__ivFinto = iv
 }
 
 // pilota con un OFFSET fisso piu' un'oscillazione scelta su un asse:
 // serve a provare il carico medio, che l'offset lo misura di sicuro.
 const GUIDA2 = ({ offB, offG, ampB, ampG, passoMs, durataMs }) => {
+  if (window.__ivFinto) clearInterval(window.__ivFinto)   // v7, vedi GUIDA
   const t0 = performance.now()
   const iv = setInterval(() => {
     const tr = performance.now() - t0
@@ -86,6 +93,7 @@ const GUIDA2 = ({ offB, offG, ampB, ampG, passoMs, durataMs }) => {
     Object.defineProperty(em, 'acceleration', { value: { x: 0, y: 0, z: 0 } })
     window.dispatchEvent(em)
   }, passoMs)
+  window.__ivFinto = iv
 }
 
 async function apri(browser, query = '') {
@@ -115,6 +123,8 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('marker prova-oscillazione-v4', src.includes('prova-oscillazione-v4'))
   check('marker prova-oscillazione-v5', src.includes('prova-oscillazione-v5'))
   check('marker prova-oscillazione-v6', src.includes('prova-oscillazione-v6'))
+  check('marker prova-oscillazione-v7', src.includes('prova-oscillazione-v7'))
+  check('marker taratura-dopo-v1', src.includes('taratura-dopo-v1'))
   check('non carica nessuno script dell’app', !/<script[^>]*\ssrc=/i.test(src))
   check('non parla con Supabase', !/supabase/i.test(src))
   check('non fa nessuna fetch', !/fetch\s*\(/.test(src))
@@ -209,7 +219,7 @@ sez('Il giro completo, con i sensori finti')
 
   check('salva i campioni grezzi col loro tempo', Array.isArray(p.grezzi.t) && p.grezzi.t.length === p.campioni)
   check('i tempi crescono', p.grezzi.t[10] > p.grezzi.t[0])
-  check('l’etichetta della prova è salvata', p.evento === 'zero tavola', p.evento)
+  check('l’etichetta della prova è salvata', p.evento === 'zero tavola (beccheggio)', p.evento)
   check('i piedi sono salvati', p.piedi === 'scalzo', p.piedi)
   check('l’attesa scelta è salvata', p.attesa_s === 5, p.attesa_s)
 
@@ -256,13 +266,13 @@ sez('⭐ v6 · la scheda non si sbiadisce mai (la pagina sembrava rotta)')
   // non l'aspetto: da qui in poi si guarda anche l'aspetto.
   const { page, ctx, errori } = await apri(browser)
   const opacita = async (sel) => page.evaluate(s => getComputedStyle(document.querySelector(s)).opacity, sel)
-  for (const ev of ['zero tavola', 'beccheggio', 'rollio', 'taratura avanti', 'taratura destra']) {
+  for (const ev of ['zero tavola (beccheggio)', 'zero tavola (rollio)', 'beccheggio', 'rollio', 'taratura avanti', 'taratura destra']) {
     await page.click('#chips .chip[data-e="' + ev + '"]')
     await page.waitForTimeout(60)
     check('con «' + ev + '» la scheda resta piena', (await opacita('#c-setup')) === '1', await opacita('#c-setup'))
   }
   check('nessun errore JS in pagina', errori.length === 0, errori)
-  await page.click('#chips .chip[data-e="zero tavola"]')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
   check('...e solo il gruppetto degli occhi si sbiadisce',
     Number(await opacita('#blocco-occhi')) < 0.6, await opacita('#blocco-occhi'))
   await page.click('#chips .chip[data-e="beccheggio"]')
@@ -279,7 +289,7 @@ sez('v5 · i due test, e le spiegazioni')
 {
   const { page, ctx, errori } = await apri(browser)
   check('nessun errore JS in pagina', errori.length === 0, errori)
-  for (const t of ['zero tavola', 'beccheggio', 'rollio'])
+  for (const t of ['zero tavola (beccheggio)', 'zero tavola (rollio)', 'beccheggio', 'rollio'])
     check('c’è il test «' + t + '»', await page.isVisible('#chips .chip[data-e="' + t + '"]'))
   check('c’è la taratura del verso', await page.isVisible('#chips .chip[data-e="taratura avanti"]'))
   check('gli occhi si scelgono a parte', await page.isVisible('#occhi .chip[data-o="chiusi"]'))
@@ -478,14 +488,17 @@ sez('⭐ v5 · IL CARICO: lo zero tavola fa da riferimento')
   await page.fill('#config', 'giallo avanti-dietro')
 
   // 1) zero tavola: la tavola scarica sta a beta +3, gamma -1
-  await page.click('#chips .chip[data-e="zero tavola"]')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
   await page.click('#btn-start'); await page.waitForTimeout(120)
   await page.evaluate(GUIDA2, { offB: 3, offG: -1, ampB: 0, ampG: 0, passoMs: 20, durataMs: 3000 })
   await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
   const zeri = await page.evaluate(() => window.__prova.zeri())
   check('nessun errore JS in pagina', errori.length === 0, errori)
-  check('lo zero della tavola è registrato per quella configurazione',
-    zeri['giallo avanti-dietro'] && vicino(zeri['giallo avanti-dietro'].beta, 3, 3), zeri)
+  check('lo zero è registrato sotto l’ORIENTAMENTO del cuscino, non sotto il testo libero',
+    !!zeri['beccheggio'] && vicino(zeri['beccheggio'].beta, 3, 3), zeri)
+  check('e non sotto il campo «configurazione»', zeri['giallo avanti-dietro'] === undefined, Object.keys(zeri))
+  check('lo zero si porta dietro la configurazione con cui è stato preso',
+    zeri['beccheggio'].conf === 'giallo avanti-dietro', zeri['beccheggio'].conf)
 
   // 2) beccheggio: adesso la tavola sta a beta +5 -> carico avanti = 5 - 3 = 2 gradi
   await page.click('#btn-nuova')
@@ -493,13 +506,13 @@ sez('⭐ v5 · IL CARICO: lo zero tavola fa da riferimento')
   await page.click('#btn-start'); await page.waitForTimeout(120)
   await page.evaluate(GUIDA2, { offB: 5, offG: -1, ampB: 1.2, ampG: 0.15, passoMs: 20, durataMs: 3000 })
   await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
-  const p = await page.evaluate(() => window.__prova.ultima())
+  const c1 = await page.evaluate(() => window.__prova.carico(window.__prova.ultima()))
   check('⭐ il carico è la differenza dallo zero, non il valore assoluto',
-    vicino(p.carico_avanti, 2, 15), { atteso: 2, avuto: p.carico_avanti })
+    vicino(c1.avanti, 2, 15), { atteso: 2, avuto: c1.avanti })
   check('sull’altro asse il carico è ~0 (stesso offset dello zero)',
-    Math.abs(p.carico_destra) < 0.4, p.carico_destra)
+    Math.abs(c1.destra) < 0.4, c1.destra)
   check('il carico dell’asse del test è quello del beccheggio',
-    p.carico_principale === p.carico_avanti)
+    c1.principale === c1.avanti)
 
   const box = await page.textContent('#carico-box')
   check('a schermo scrive la PAROLA, non un segno', /AVANTI/.test(box), box)
@@ -527,8 +540,8 @@ sez('⭐ v5 · senza zero tavola lo dice, invece di dare un numero falso')
   const box = await page.textContent('#carico-box')
   check('avvisa che manca lo zero tavola', /Manca lo/.test(box) && /zero tavola/.test(box), box)
   check('e dice che il carico è misurato dall’orizzontale', /orizzontale/.test(box), box)
-  const p = await page.evaluate(() => window.__prova.ultima())
-  check('e lo registra nel dato', p.ha_zero_tavola === false)
+  const cz = await page.evaluate(() => window.__prova.carico(window.__prova.ultima()))
+  check('e lo registra nel dato', cz.zero === null, cz.zero)
   await page.click('#btn-copia')
   check('il riassunto lo marca', /SENZA zero tavola/.test(await page.inputValue('#export')))
   await ctx.close()
@@ -555,8 +568,8 @@ sez('⭐ v5 · la taratura impara da che parte è «avanti»')
   await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
   const box = await page.textContent('#carico-box')
   check('⭐ col verso tarato legge AVANTI, non INDIETRO', /AVANTI/.test(box), box)
-  const p = await page.evaluate(() => window.__prova.ultima())
-  check('e il numero è positivo', p.carico_avanti > 0, p.carico_avanti)
+  const ct = await page.evaluate(() => window.__prova.carico(window.__prova.ultima()))
+  check('e il numero è positivo', ct.avanti > 0, ct.avanti)
   await ctx.close()
 }
 
@@ -631,6 +644,299 @@ sez('Il permesso negato lo dice, e dice cosa fare')
   check('spiega dove si riattiva su iPhone', /Movimento e orientamento/.test(t), t)
   check('avvisa del Risparmio energetico', /Risparmio energetico/i.test(t), t)
   check('non è partita nessuna misura', !(await page.isVisible('#c-misura')))
+  await ctx.close()
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// v7 / taratura-dopo-v1 — il guasto vero dell'11 settembre 2026:
+// le tarature furono fatte PER ULTIME e tutte le prove prese prima uscirono
+// con l'asse avanti-indietro INVERTITO. Nessun controllo lo vedeva perche'
+// nessuno faceva la taratura DOPO una prova.
+// ═══════════════════════════════════════════════════════════════════════
+
+sez('⭐ v7 · la taratura fatta ALLA FINE corregge le prove già registrate')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.fill('#config', 'assetto A')
+
+  // 1) un test PRIMA di qualsiasi taratura: la tavola sta a beta +4
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 4, offG: 0, ampB: 1, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  const prima = await page.evaluate(() => window.__prova.carico(window.__prova.prove()[0]))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('senza taratura il verso è solo indovinato', prima.tarato === false)
+  check('e legge «avanti» perché beta è positivo', prima.avanti > 0, prima.avanti)
+  const boxPrima = await page.textContent('#carico-box')
+  check('⭐ lo GRIDA a schermo: TARATURA NON FATTA', /TARATURA NON FATTA/.test(boxPrima), boxPrima)
+  check('e dice che si può tarare dopo', /adesso, alla fine|si correggono da sole/.test(boxPrima), boxPrima)
+  await page.click('#btn-copia')
+  check('e l’export lo marca prova per prova',
+    /NON TARATO/.test(await page.inputValue('#export')))
+
+  // 2) la taratura, DOPO: sporgendosi avanti beta SCENDE (telefono girato)
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="taratura avanti"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: -6, offG: 0, ampB: 0.3, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('la taratura ha imparato il verso invertito',
+    (await page.evaluate(() => window.__prova.verso().beta)) === -1)
+
+  // 3) ⭐ la prova di prima, riletta ADESSO, deve essersi ribaltata
+  const dopo = await page.evaluate(() => window.__prova.carico(window.__prova.prove()[0]))
+  check('⭐⭐ la prova già presa si è RIBALTATA da sola: adesso è INDIETRO',
+    dopo.avanti < 0, { prima: prima.avanti, dopo: dopo.avanti })
+  check('⭐ e il valore assoluto non è cambiato: è solo il verso',
+    Math.abs(Math.abs(dopo.avanti) - Math.abs(prima.avanti)) < 0.01,
+    { prima: prima.avanti, dopo: dopo.avanti })
+  // finche' manca l'altro asse, l'export lo dice ancora — ma nomina QUALE asse
+  await page.click('#btn-copia')
+  const mezzo = (await page.inputValue('#export')).split('\n').filter(r => /CARICO/.test(r))[0]
+  check('⭐ l’avviso resta, ma dice quale asse manca',
+    /NON TARATO: destra\/sinistra/.test(mezzo) && !/avanti\/indietro/.test(mezzo), mezzo)
+
+  // 4) si completa la taratura anche sull'altro asse
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="taratura destra"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0, offG: 6, ampB: 0.1, ampG: 0.3, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.click('#btn-copia')
+  const exp = await page.inputValue('#export')
+  check('⭐ tarati tutti e due gli assi, l’export è pulito',
+    !/NON TARATO/.test(exp.split('\n').filter(r => /CARICO/.test(r))[0]),
+    exp.split('\n').filter(r => /CARICO/.test(r))[0])
+  check('l’intestazione dichiara che la taratura è stata fatta', /taratura avanti\/indietro: FATTA/.test(exp))
+  check('e anche per l’altro asse', /destra\/sinistra: FATTA/.test(exp))
+  await ctx.close()
+}
+
+sez('⭐ v7 · anche lo ZERO fatto dopo corregge le prove già registrate')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.fill('#config', 'assetto B')
+  // test senza zero: tavola a beta +5
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 5, offG: 0, ampB: 1, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  const senza = await page.evaluate(() => window.__prova.carico(window.__prova.prove()[0]))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('senza zero misura dall’orizzontale', vicino(senza.avanti, 5, 12), senza.avanti)
+  check('e dichiara che lo zero manca', senza.zero === null)
+
+  // lo zero, DOPO: tavola scarica a beta +3
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 3, offG: 0, ampB: 0, ampG: 0, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  const con = await page.evaluate(() => window.__prova.carico(window.__prova.prove()[0]))
+  check('⭐ la prova di prima adesso è misurata dalla tavola scarica (5-3=2)',
+    vicino(con.avanti, 2, 20), { prima: senza.avanti, dopo: con.avanti })
+  await ctx.close()
+}
+
+sez('⭐ v7 · lo zero non si perde più se il testo della configurazione cambia')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.fill('#config', 'scritto bene')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 3, offG: 0, ampB: 0, ampG: 0, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+
+  // ⚠️ e' il caso dell'11 settembre: zero sotto «(non indicata)», prove sotto «Beccheggio »
+  await page.click('#btn-nuova')
+  await page.fill('#config', 'Beccheggio ')
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  // ⚠️ ampiezza piccola di proposito: con l'oscillazione grande il sensore finto
+  // non campiona il seno in modo uniforme e la media esce di qualche decimo.
+  // Qui si sta provando lo ZERO, non la media: il rumore del finto va tolto.
+  await page.evaluate(GUIDA2, { offB: 5, offG: 0, ampB: 0.2, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const c = await page.evaluate(() => window.__prova.carico(window.__prova.ultima()))
+  check('⭐ lo zero vale lo stesso: il testo non è più la chiave', c.zero !== null)
+  check('e il carico è la differenza (5-3=2)', vicino(c.avanti, 2, 20), c.avanti)
+  const box = await page.textContent('#carico-box')
+  check('⭐ ma avvisa che la configurazione scritta è cambiata',
+    /configurazione/.test(box) && /scritto bene/.test(box), box)
+  await ctx.close()
+}
+
+sez('⭐ v7 · beccheggio e rollio hanno due zeri distinti')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 3, offG: 0, ampB: 0, ampG: 0, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="zero tavola (rollio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0, offG: 4, ampB: 0, ampG: 0, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  const zeri = await page.evaluate(() => window.__prova.zeri())
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('sono due zeri separati', !!zeri.beccheggio && !!zeri.rollio, Object.keys(zeri))
+  check('quello del beccheggio ha beta 3', vicino(zeri.beccheggio.beta, 3, 5), zeri.beccheggio)
+  check('quello del rollio ha gamma 4', vicino(zeri.rollio.gamma, 4, 5), zeri.rollio)
+
+  // un test di rollio deve usare lo zero del ROLLIO, non quello del beccheggio
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="rollio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0, offG: 6, ampB: 0.1, ampG: 1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  const c = await page.evaluate(() => window.__prova.carico(window.__prova.ultima()))
+  check('⭐ il rollio usa lo zero del rollio (6-4=2)', vicino(c.destra, 2, 20), c.destra)
+  check('e non quello del beccheggio (che darebbe 6)', Math.abs(c.destra - 6) > 1, c.destra)
+  await ctx.close()
+}
+
+sez('⭐ v7 · una taratura poco netta viene RIFIUTATA, non creduta')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.click('#chips .chip[data-e="taratura avanti"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  // si sposta di mezzo grado: sotto la soglia, il segno lo deciderebbe il rumore
+  await page.evaluate(GUIDA2, { offB: -0.5, offG: 0, ampB: 0.2, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ il verso NON è stato imparato',
+    (await page.evaluate(() => window.__prova.tarato().beta)) === false)
+  check('il verso resta quello di partenza',
+    (await page.evaluate(() => window.__prova.verso().beta)) === 1)
+  const box = await page.textContent('#carico-box')
+  check('e lo dice, con la ragione', /meno di 1\.5/.test(box) && /NON è stato imparato/.test(box), box)
+
+  // la stessa taratura fatta come si deve passa
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="taratura avanti"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: -6, offG: 0, ampB: 0.3, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('fatta come si deve, il verso si impara',
+    (await page.evaluate(() => window.__prova.tarato().beta)) === true)
+  check('e il banner dell’asse tarato sparisce',
+    !/TARATURA NON FATTA[^]*avanti\/indietro e destra/.test(await page.textContent('#carico-box')))
+  await ctx.close()
+}
+
+sez('⭐ v7 · quante oscillazioni, e a che ritmo')
+{
+  const { page, ctx, errori } = await apri(browser)
+  // 10 giri in 10 secondi a 1 giro al secondo: 10 cicli per asse, 1 Hz
+  const m = await page.evaluate(() => {
+    const xs = [], ys = [], hz = 60, sec = 10
+    for (let i = 0; i < hz*sec; i++) {
+      const a = 2*Math.PI*1*(i/hz)
+      xs.push(2*Math.cos(a)); ys.push(2*Math.sin(a))
+    }
+    return window.__prova.metriche(xs, ys, sec, hz)
+  })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('conta ~10 oscillazioni avanti-dietro in 10 s a 1 Hz', m.cicliY >= 9 && m.cicliY <= 10, m.cicliY)
+  check('e altrettante destra-sinistra', m.cicliX >= 9 && m.cicliX <= 10, m.cicliX)
+  check('il ritmo dominante è 1 Hz', vicino(m.freqY, 1, 8), m.freqY)
+  check('~60 oscillazioni al minuto', vicino(m.cicliAlMinY, 60, 12), m.cicliAlMinY)
+
+  // mezza frequenza: meta' delle oscillazioni
+  const m2 = await page.evaluate(() => {
+    const xs = [], ys = [], hz = 60, sec = 10
+    for (let i = 0; i < hz*sec; i++) {
+      const a = 2*Math.PI*0.5*(i/hz)
+      xs.push(2*Math.cos(a)); ys.push(2*Math.sin(a))
+    }
+    return window.__prova.metriche(xs, ys, sec, hz)
+  })
+  check('a metà ritmo conta ~5 oscillazioni', m2.cicliY >= 4 && m2.cicliY <= 5, m2.cicliY)
+  check('e il ritmo dominante è 0,5 Hz', vicino(m2.freqY, 0.5, 12), m2.freqY)
+
+  // ⭐ fermo = zero. Se qui uscisse un numero, il conteggio misurerebbe il rumore.
+  const m3 = await page.evaluate(() => {
+    const xs = [], ys = []
+    for (let i = 0; i < 600; i++) { xs.push(1); ys.push(1) }
+    return window.__prova.metriche(xs, ys, 10, 60)
+  })
+  check('⭐ fermo: zero oscillazioni, non un numero inventato', m3.cicliX === 0 && m3.cicliY === 0,
+    { x: m3.cicliX, y: m3.cicliY })
+
+  // ⭐ il tremolio del sensore NON deve moltiplicare il conteggio:
+  // stesso segnale di prima piu' rumore, il numero deve restare vicino.
+  const m4 = await page.evaluate(() => {
+    const xs = [], ys = [], hz = 60, sec = 10
+    let sem = 7
+    const rnd = () => { sem = (sem*1103515245 + 12345) % 2147483648; return sem/2147483648 - 0.5 }
+    for (let i = 0; i < hz*sec; i++) {
+      const a = 2*Math.PI*1*(i/hz)
+      xs.push(2*Math.cos(a) + rnd()*0.5); ys.push(2*Math.sin(a) + rnd()*0.5)
+    }
+    return window.__prova.metriche(xs, ys, sec, hz)
+  })
+  check('⭐ col rumore addosso il conteggio non esplode', m4.cicliY >= 9 && m4.cicliY <= 12, m4.cicliY)
+  check('e il ritmo dominante resta 1 Hz', vicino(m4.freqY, 1, 10), m4.freqY)
+
+  // la banda morta e la finestra viaggiano col numero: senza, due conteggi
+  // fatti con parametri diversi non sono confrontabili
+  check('la banda morta è dichiarata', m.bandaX > 0 && m.bandaY > 0, { x: m.bandaX, y: m.bandaY })
+  check('e anche la finestra di lisciatura', m.finestraLisciata > 1, m.finestraLisciata)
+  await ctx.close()
+}
+
+sez('⭐ v7 · il conteggio arriva a schermo e nell’export')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 4, offG: 0, ampB: 1.5, ampG: 0.2, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const box = await page.textContent('#carico-box')
+  check('a schermo ci sono le oscillazioni contate', /oscillazioni avanti-dietro/.test(box), box)
+  check('e il ritmo dominante', /ritmo dominante/.test(box), box)
+  const tab = await page.textContent('#tab-metriche')
+  check('la tabella le riporta', /Oscillazioni avanti-dietro/.test(tab), tab)
+  check('e riporta il ritmo in Hz', /Hz/.test(tab), tab)
+  await page.click('#btn-copia')
+  const exp = await page.inputValue('#export')
+  check('l’export porta il conteggio', /oscillazioni contate/.test(exp), exp.slice(0, 400))
+  check('⭐ e porta anche banda e finestra, se no due conteggi non si confrontano',
+    /banda morta/.test(exp) && /lisciato su/.test(exp))
+  check('l’intestazione elenca gli zeri registrati', /zeri tavola registrati/.test(exp))
+  await ctx.close()
+}
+
+sez('⭐ v7 · lo storico ricalcola anche lui dopo la taratura')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  for (const off of [4, 4.4]) {
+    await page.click(off === 4 ? '#btn-start' : '#btn-ancora')
+    await page.waitForTimeout(120)
+    await page.evaluate(GUIDA2, { offB: off, offG: 0, ampB: 0.6, ampG: 0.1, passoMs: 20, durataMs: 2500 })
+    await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+    await page.waitForTimeout(100)
+  }
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const primaTxt = await page.textContent('#lista')
+  const primaVal = Number((primaTxt.match(/CARICO \(asse del test\): (-?[\d.]+)/) || [])[1])
+  check('lo storico mostra il carico', primaVal > 0, primaVal)
+
+  await page.click('#btn-nuova')
+  await page.click('#chips .chip[data-e="taratura avanti"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: -6, offG: 0, ampB: 0.3, ampG: 0.1, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  const dopoTxt = await page.textContent('#lista')
+  const dopoVal = Number((dopoTxt.match(/CARICO \(asse del test\): (-?[\d.]+)/) || [])[1])
+  check('⭐ e dopo la taratura lo storico si è ribaltato anche lui', dopoVal < 0, { prima: primaVal, dopo: dopoVal })
+  check('lo storico riporta anche le oscillazioni contate', /oscillazioni contate/.test(dopoTxt))
   await ctx.close()
 }
 
