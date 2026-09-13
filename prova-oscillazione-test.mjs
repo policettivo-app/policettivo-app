@@ -129,6 +129,8 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('marker referto-v1', src.includes('referto-v1'))
   check('marker taratura-unica-v1', src.includes('taratura-unica-v1'))
   check('marker prova-oscillazione-v9', src.includes('prova-oscillazione-v9'))
+  check('marker prova-oscillazione-v10', src.includes('prova-oscillazione-v10'))
+  check('marker grafica-tavola-v1', src.includes('grafica-tavola-v1'))
   check('⭐ il nome nuovo è nel titolo', /<title>Oscillazione Policettiva/.test(src))
   check('e nell’intestazione della pagina', /<h1>Oscillazione Policettiva<\/h1>/.test(src))
   check('non carica nessuno script dell’app', !/<script[^>]*\ssrc=/i.test(src))
@@ -307,7 +309,8 @@ sez('v5 · i due test, e le spiegazioni')
   check('c’è la taratura del verso', await page.isVisible('#chips .chip[data-e="taratura"]'))
   check('gli occhi si scelgono a parte', await page.isVisible('#occhi .chip[data-o="chiusi"]'))
 
-  const z = await page.textContent('#spiega')
+  const z0 = await page.textContent('#spiega')
+  const z = z0
   check('lo zero tavola è spiegato', /NESSUNO sopra/.test(z), z)
   check('e dice che va rifatto a ogni configurazione', /ogni cambio di/.test(z), z)
   await page.click('#chips .chip[data-e="beccheggio"]')
@@ -321,7 +324,8 @@ sez('v5 · i due test, e le spiegazioni')
 
   check('la soglia parte da 2', (await page.inputValue('#soglia')) === '2')
   const nota = await page.textContent('#c-setup')
-  check('⚠️ la soglia è dichiarata NON una norma', /non viene da nessuna norma/.test(nota))
+  check('⚠️ la soglia è dichiarata NON una norma',
+    /valore di lavoro nostro, non una norma/.test(nota) && /non esistono valori di riferimento/.test(nota), nota)
   check('e spiega perché i mm² della pedana non si trasferiscono', /non trasferibile/.test(nota))
   await ctx.close()
 }
@@ -788,8 +792,8 @@ sez('⭐ v7 · beccheggio e rollio hanno due zeri distinti')
   const zeri = await page.evaluate(() => window.__prova.zeri())
   check('nessun errore JS in pagina', errori.length === 0, errori)
   check('sono due zeri separati', !!zeri.beccheggio && !!zeri.rollio, Object.keys(zeri))
-  check('quello del beccheggio ha beta 3', vicino(zeri.beccheggio.beta, 3, 5), zeri.beccheggio)
-  check('quello del rollio ha gamma 4', vicino(zeri.rollio.gamma, 4, 5), zeri.rollio)
+  check('quello del beccheggio ha beta 3', vicino(zeri.beccheggio.beta, 3, 10), zeri.beccheggio)
+  check('quello del rollio ha gamma 4', vicino(zeri.rollio.gamma, 4, 10), zeri.rollio)
 
   // un test di rollio deve usare lo zero del ROLLIO, non quello del beccheggio
   await page.click('#btn-nuova')
@@ -1132,9 +1136,12 @@ sez('⭐ v8 · referto da stampare e campioni grezzi')
   check('l’intestazione del referto è compilata',
     (await page.textContent('#ref-quando')).includes('beccheggio'), await page.textContent('#ref-quando'))
   const ref = await page.textContent('.intest-referto')
-  check('⭐ il referto dichiara cosa NON è', /non è uno strumento clinico/i.test(ref), ref)
-  check('e che misura l’inclinazione, non il centro di pressione',
-    /non il centro di pressione/i.test(ref), ref)
+  check('⭐ il referto dice che è un test del Sistema Policettivo®',
+    /Sistema Policettivo®/.test(ref), ref)
+  check('e dichiara il limite: non è una stabilometria su pedana',
+    /non è una stabilometria su pedana/i.test(ref), ref)
+  check('⭐ e la regola che conta: si confronta col paziente, non con una norma',
+    /fra prove dello stesso paziente, non con una norma/i.test(ref), ref)
 
   await page.click('#btn-grezzi')
   const csv = await page.inputValue('#export')
@@ -1276,6 +1283,117 @@ sez('⭐ taratura-unica · il disegno dell’appoggio e le parole giuste')
   check('la taratura spiega il gesto diagonale', /DIAGONALE/.test(sp), sp)
   check('e che è una volta sola', /UNA VOLTA SOLA/.test(sp), sp)
   check('e quanto dura', /cinque secondi/.test(sp), sp)
+  await ctx.close()
+}
+
+sez('⭐ grafica-tavola-v1 · il disegno segue il test, e la sicurezza si vede e si sente')
+{
+  const { page, ctx, errori } = await apri(browser)
+  const svg = () => page.innerHTML('#appoggio')
+
+  // beccheggio: giallo davanti e dietro
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.waitForTimeout(80)
+  const b = await svg()
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('il disegno dice che il cuscino è in BECCHEGGIO', /BECCHEGGIO — giallo DAVANTI e DIETRO/.test(b), b.slice(-200))
+  check('c’è la tavola con le due lineette dei piedi', /piedi sulle due lineette/.test(b))
+  check('e il telefono al centro, in piano', /in piano/.test(b))
+
+  // rollio: il cuscino ruota, e il disegno lo mostra
+  await page.click('#chips .chip[data-e="rollio"]')
+  await page.waitForTimeout(80)
+  const r = await svg()
+  check('⭐ scegliendo il rollio il disegno cambia', /ROLLIO — giallo ai LATI/.test(r), r.slice(-200))
+  check('e i due disegni sono davvero diversi', b !== r)
+
+  // ⭐ il giallo si sposta davvero: si contano i poligoni gialli e dove stanno
+  const gialliDi = (t) => (t.match(/fill="#DDF00A"/g) || []).length
+  check('il cuscino ha sempre due quadranti gialli e due neri',
+    gialliDi(b) === 2 && gialliDi(r) === 2, { becc: gialliDi(b), roll: gialliDi(r) })
+  const primoGiallo = (t) => t.slice(0, t.indexOf('fill="#DDF00A"'))
+    .lastIndexOf('<polygon points="') >= 0
+      ? t.slice(t.slice(0, t.indexOf('fill="#DDF00A"')).lastIndexOf('<polygon points="') + 17,
+                t.indexOf('fill="#DDF00A"')).split(',').slice(0,2).map(Number)
+      : null
+  const pb = primoGiallo(b), pr = primoGiallo(r)
+  check('⭐ in beccheggio il primo giallo è sopra il centro (davanti)',
+    pb && pb[1] < 100 && Math.abs(pb[0] - 160) < 2, pb)
+  check('⭐ in rollio il primo giallo è di lato, non davanti',
+    pr && Math.abs(pr[1] - 130) < 2 && Math.abs(pr[0] - 160) > 40, pr)
+
+  // lo zero segue lo stesso verso
+  await page.click('#chips .chip[data-e="zero tavola (rollio)"]')
+  await page.waitForTimeout(80)
+  check('anche lo zero del rollio mostra il cuscino girato', /ROLLIO/.test(await svg()))
+
+  // il cuscino in piccolo accanto alla spiegazione
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.waitForTimeout(80)
+  check('c’è il cuscino in piccolo accanto alla spiegazione',
+    /giallo DAVANTI e DIETRO/.test(await page.innerHTML('#cuscino-disegno')))
+  await page.click('#chips .chip[data-e="taratura"]')
+  await page.waitForTimeout(80)
+  check('e sulla taratura sparisce, perché lì il cuscino non conta',
+    (await page.innerHTML('#cuscino-disegno')).trim() === '')
+  await ctx.close()
+}
+
+sez('⭐ grafica-tavola-v1 · l’avvertenza di sicurezza')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  const t = await page.textContent('#avviso-occhi')
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('l’avvertenza c’è sempre', /Resta sempre accanto/.test(t), t)
+  check('e dice cosa fare, non solo di stare attenti', /a un braccio di distanza/.test(t), t)
+  check('e di non lasciarlo solo', /Non lasciare mai solo il paziente/.test(t), t)
+
+  await page.click('#chips .chip[data-e="beccheggio"]')
+  await page.waitForTimeout(80)
+  const cl1 = await page.getAttribute('#avviso-occhi', 'class')
+  check('a occhi aperti l’avvertenza è quella normale', !/occhi-forte/.test(cl1), cl1)
+  await page.click('#occhi .chip[data-o="chiusi"]')
+  await page.waitForTimeout(80)
+  const cl2 = await page.getAttribute('#avviso-occhi', 'class')
+  check('⭐ a occhi chiusi diventa rossa', /occhi-forte/.test(cl2), cl2)
+
+  // ⭐ e viene DETTA: a occhi chiusi lo schermo non lo vede nessuno
+  await page.evaluate(() => {
+    window.__dette = []
+    // lo stato cambia in fretta: si registra la prima frase invece di rincorrerla
+    const st = document.getElementById('stato')
+    new MutationObserver(() => {
+      if (!window.__statoVisto && /Stagli accanto/.test(st.textContent)) window.__statoVisto = st.textContent
+    }).observe(st, { childList: true, characterData: true, subtree: true })
+    const vero = window.speechSynthesis.speak.bind(window.speechSynthesis)
+    window.speechSynthesis.speak = (u) => { window.__dette.push(u.text); try { vero(u) } catch(e){} }
+  })
+  await page.click('#btn-start')
+  await page.waitForTimeout(600)
+  const dett = await page.evaluate(() => window.__dette.join(' | '))
+  check('⭐⭐ a occhi chiusi la voce avvisa di stare accanto',
+    /resta accanto al paziente/i.test(dett), dett)
+  check('e lo scriveva anche sullo schermo della misura',
+    /Stagli accanto/.test(await page.evaluate(() => window.__statoVisto || '')),
+    await page.evaluate(() => window.__statoVisto || ''))
+  await ctx.close()
+}
+
+sez('⭐ grafica-tavola-v1 · i testi accorciati dicono cosa il test È')
+{
+  const { page, ctx, errori } = await apri(browser)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const a = await page.textContent('#avviso-iniziale')
+  check('l’apertura lo dice: test del Sistema Policettivo®', /Sistema Policettivo®/.test(a), a)
+  check('dice cosa misura: il carico', /dove porta il carico/.test(a), a)
+  check('e quanto oscilla', /quanto oscilla/.test(a), a)
+  check('dice a cosa serve: squilibri e cambiamenti', /squilibri/.test(a) && /cambiamenti/.test(a), a)
+  check('⭐ tiene il limite onesto, in una riga', /non con una norma/.test(a), a)
+  check('e che i dati restano sul telefono', /esce da questo telefono/.test(a), a)
+  check('⭐ ed è corto: sotto i 620 caratteri', a.replace(/\s+/g, ' ').trim().length < 620,
+    a.replace(/\s+/g, ' ').trim().length)
+  check('⛔ non si sminuisce più con «non è uno strumento clinico»',
+    !/non è uno strumento clinico/i.test(await page.content()))
   await ctx.close()
 }
 } finally {

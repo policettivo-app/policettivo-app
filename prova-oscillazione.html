@@ -128,7 +128,21 @@
      4) CONTROLLO DELL'APPOGGIO: se durante la prova il telefono e' inclinato
         piu' di 30 gradi, la pagina lo dice. Oltre quell'angolo gli angoli di
         Eulero che leggiamo sono mal condizionati e destra-sinistra non tiene
-        piu': meglio dirlo che dare un numero che sembra buono. -->
+        piu': meglio dirlo che dare un numero che sembra buono.
+
+     prova-oscillazione-v10 / grafica-tavola-v1 (13 set, sulle foto di Giuliano):
+     1) Il disegno della tavola e' ricalcato sulla Tavola Policettiva vera: la
+        riga lunga, la riga centrale e le DUE LINEETTE dove vanno i piedi. Il
+        cuscino sta sotto, a ROMBO, e sporge davanti e dietro: cosi' il verso si
+        VEDE invece di doverlo leggere. E il disegno CAMBIA col test scelto —
+        beccheggio (giallo davanti e dietro) o rollio (giallo ai lati).
+     2) Avviso di SICUREZZA: restare accanto a chi sale, a un braccio di
+        distanza. A occhi chiusi diventa rosso E VIENE DETTO A VOCE, perche' chi
+        ha gli occhi chiusi lo schermo non lo vede.
+     3) I testi accorciati: l'apertura dice cosa il test E' — un test del Sistema
+        Policettivo che misura dove va il carico e quanto si oscilla — invece di
+        elencare cosa non e'. Il limite onesto resta, in una riga sola: i numeri
+        si confrontano fra prove dello stesso paziente, non con una norma. -->
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -189,6 +203,9 @@
         font-size:13px;color:#7a5200;margin-top:12px}
   .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;
        font-size:14px;color:#b00;margin-top:14px}
+  /* grafica-tavola-v1 */
+  .occhi-forte{background:#fff3f2!important;border-color:#c0392b!important;color:#a3271c!important;
+               font-weight:600}
   /* taratura-unica-v1 */
   .appoggio{margin:10px 0 4px;text-align:center}
   .tar-ok{background:#eef9f0;border:1px solid #bfe3c9;color:#0a5e26}
@@ -222,11 +239,14 @@
   <div class="sub">Beccheggio e Rollio &middot; prova del banco, senza salvataggi</div>
 
   <div class="avviso" id="avviso-iniziale">
-    <b>Questa non è una stabilometria e non è uno strumento clinico.</b>
-    Misura l'<b>inclinazione della tavola</b>, non il centro di pressione del paziente.
-    Serve a capire, prima di costruire il modulo vero, se lo strumento misura qualcosa di reale:
-    quanto vale il rumore di fondo, quanto ripete, e se vede la differenza fra occhi aperti e chiusi.
-    Niente esce da questo telefono finché non premi «Copia i dati».
+    <b>Test del Sistema Policettivo®.</b> In 30 secondi misura come il corpo si organizza sulla
+    Tavola Policettiva: <b>dove porta il carico</b> e <b>quanto oscilla</b>, avanti-indietro o
+    destra-sinistra. Serve a vedere gli squilibri e a seguirne i cambiamenti lungo il percorso.
+    <div style="margin-top:7px">
+      Misura l’inclinazione della tavola, non la pressione sotto i piedi: i numeri si confrontano
+      <b>fra prove dello stesso paziente</b>, non con una norma. Niente esce da questo telefono
+      finché non premi «Copia i dati».
+    </div>
   </div>
 
   <div class="card" id="c-setup">
@@ -240,11 +260,17 @@
       <button class="chip" data-e="taratura">taratura del verso (una volta sola)</button>
     </div>
     <div class="spiega" id="spiega"></div>
+    <div id="cuscino-disegno" style="text-align:center;margin:6px 0 2px"></div>
     <div id="blocco-occhi">
       <label>2 · Occhi</label>
       <div class="chips" id="occhi">
         <button class="chip on" data-o="aperti">aperti</button>
         <button class="chip" data-o="chiusi">chiusi</button>
+      </div>
+      <div class="warn" id="avviso-occhi">
+        ⚠️ <b>Resta sempre accanto a chi sale sulla tavola.</b> A <b>occhi chiusi</b> l’equilibrio
+        si perde senza preavviso: stai a fianco, a un braccio di distanza, pronto a sostenere.
+        Non lasciare mai solo il paziente durante la prova.
       </div>
     </div>
     <label>3 · Piedi</label>
@@ -265,10 +291,10 @@
     <label for="soglia">Soglia di carico per il colore (gradi)</label>
     <input type="text" id="soglia" value="2" inputmode="decimal">
     <div class="nota" style="margin-top:4px">
-      ⚠️ <b>Questo 2° non viene da nessuna norma.</b> Nelle linee guida nazionali sulla postura
-      non ci sono soglie numeriche di oscillazione, e quelle della stabilometria su pedana sono
-      in mm² di centro di pressione: un'altra grandezza, non trasferibile ai gradi di una tavola.
-      È un valore di lavoro nostro, da sostituire quando avrai misurato abbastanza persone.
+      ⚠️ <b>Questo 2° è un valore di lavoro nostro, non una norma.</b> Per l’inclinazione di una
+      tavola non esistono valori di riferimento pubblicati, e quelli della stabilometria su pedana
+      sono in mm² di centro di pressione: un’altra grandezza, non trasferibile ai gradi.
+      Si sostituirà quando avrai misurato abbastanza persone.
     </div>
     <label for="attesa">Tempo per salire e stabilizzarti, prima che parta</label>
     <select id="attesa">
@@ -303,9 +329,9 @@
   <div class="intest-referto">
     <b>Oscillazione Policettiva</b> — referto della prova del banco<br>
     <span id="ref-quando"></span><br>
-    <span style="color:#666">Misura l’inclinazione della tavola, non il centro di pressione.
-    Non è uno strumento clinico: i valori di riferimento non esistono ancora e la soglia del
-    colore è un valore di lavoro provvisorio, non una norma.</span>
+    <span style="color:#666">Test del Sistema Policettivo®: misura l’inclinazione della Tavola
+    Policettiva — dove va il carico e quanto oscilla. Non è una stabilometria su pedana: i numeri
+    si confrontano fra prove dello stesso paziente, non con una norma.</span>
   </div>
   <div class="card" id="c-esito" style="display:none">
     <h2>3 · Risultato</h2>
@@ -470,20 +496,68 @@
   // taratura-unica-v1 — il disegno dell'appoggio. Sta nella scheda di preparazione
   // perche' il verso imparato vale SOLO per questo appoggio: se il telefono viene
   // girato di mezzo giro, avanti e indietro si scambiano e non se ne accorge nessuno.
-  function disegnoAppoggio(){
-    return '<svg viewBox="0 0 260 150" width="100%" style="max-width:260px" aria-label="come appoggiare il telefono">' +
-      '<text x="130" y="12" text-anchor="middle" font-size="11" fill="#0a7d33" font-weight="bold">VERSO IL PAZIENTE</text>' +
-      '<path d="M130 16 l-6 9 h12 z" fill="#0a7d33"/>' +
-      '<rect x="18" y="42" width="224" height="62" rx="4" fill="#2b2b2b"/>' +
-      '<line x1="130" y1="42" x2="130" y2="104" stroke="#fff" stroke-width="1.5" opacity="0.8"/>' +
-      '<line x1="18" y1="73" x2="242" y2="73" stroke="#fff" stroke-width="1.5" opacity="0.8"/>' +
-      '<rect x="119" y="52" width="22" height="42" rx="4" fill="#f2f2f2" stroke="#888"/>' +
-      '<ellipse cx="92" cy="73" rx="13" ry="20" fill="#f0c9a8" stroke="#c89b76"/>' +
-      '<ellipse cx="168" cy="73" rx="13" ry="20" fill="#f0c9a8" stroke="#c89b76"/>' +
-      '<text x="130" y="124" text-anchor="middle" font-size="10" fill="#777">telefono in piano, schermo in su,</text>' +
-      '<text x="130" y="137" text-anchor="middle" font-size="10" fill="#777">in verticale, al centro dell’incrocio</text>' +
+  // grafica-tavola-v1 — ricalcato sulle foto della Tavola Policettiva:
+  // riga bianca lunga, riga centrale, e le DUE LINEETTE dove vanno i piedi.
+  // Il cuscino sta SOTTO, a rombo, e sporge davanti e dietro: si vede il verso.
+  var GIALLO_CUSCINO = '#DDF00A', NERO_CUSCINO = '#151515'
+
+  // I quattro quadranti del cuscino a rombo. In beccheggio il giallo (25 kg,
+  // cede) sta davanti e dietro; in rollio il cuscino e' ruotato di 90 gradi.
+  function cuscinoRombo(cx, cy, R, verso, opacita){
+    var q = [
+      [cx, cy-R, cx+R/2, cy-R/2, cx, cy, cx-R/2, cy-R/2],   // davanti
+      [cx+R, cy, cx+R/2, cy+R/2, cx, cy, cx+R/2, cy-R/2],   // destra
+      [cx, cy+R, cx-R/2, cy+R/2, cx, cy, cx+R/2, cy+R/2],   // dietro
+      [cx-R, cy, cx-R/2, cy-R/2, cx, cy, cx-R/2, cy+R/2]    // sinistra
+    ]
+    var gialli = verso === 'rollio' ? [1,3] : [0,2]
+    var out = ''
+    for (var i = 0; i < 4; i++){
+      var c = gialli.indexOf(i) >= 0 ? GIALLO_CUSCINO : NERO_CUSCINO
+      out += '<polygon points="' + q[i].join(',') + '" fill="' + c +
+             '" stroke="#00000022" stroke-width="0.8"' +
+             (opacita ? ' opacity="' + opacita + '"' : '') + '/>'
+    }
+    return out
+  }
+
+  function disegnoCuscino(verso){
+    var g = verso === 'rollio' ? 'ai LATI' : 'DAVANTI e DIETRO'
+    return '<svg viewBox="0 0 150 118" width="100%" style="max-width:132px">' +
+      cuscinoRombo(75, 56, 52, verso) +
+      '<text x="75" y="108" text-anchor="middle" font-size="11" fill="#666">giallo ' + g + '</text>' +
       '</svg>'
   }
+
+  // Il verso imparato dalla taratura vale SOLO per questo appoggio: se il
+  // telefono viene girato di mezzo giro, avanti e indietro si scambiano e non
+  // se ne accorge nessuno. Per questo il disegno sta nella scheda di partenza.
+  function disegnoAppoggio(verso){
+    var cx = 160, cy = 130, R = 60
+    var rol = verso === 'rollio'
+    // ⚠️ La tavola e' disegnata SEMITRASPARENTE apposta: in rollio il giallo sta
+    // ai lati, cioe' proprio sotto la tavola. Con la tavola piena si vedeva un
+    // rombo nero e il verso del cuscino spariva — che e' l'unica cosa che quel
+    // disegno deve far capire.
+    return '<svg viewBox="0 0 320 248" width="100%" style="max-width:320px" aria-label="come si prepara la tavola">' +
+      '<text x="160" y="13" text-anchor="middle" font-size="12" fill="#0a7d33" font-weight="bold" letter-spacing="0.5">VERSO IL PAZIENTE</text>' +
+      '<path d="M160 20 l-7 11 h14 z" fill="#0a7d33"/>' +
+      cuscinoRombo(cx, cy, R, verso || 'beccheggio') +
+      '<rect x="22" y="104" width="276" height="52" rx="5" fill="#2b2b2b" opacity="0.74"/>' +
+      '<line x1="28" y1="130" x2="292" y2="130" stroke="#fff" stroke-width="2" opacity="0.95"/>' +
+      '<line x1="160" y1="104" x2="160" y2="156" stroke="#fff" stroke-width="2" opacity="0.95"/>' +
+      '<ellipse cx="86" cy="130" rx="13" ry="21" fill="#f0c9a8" stroke="#b98d69" stroke-width="1.2"/>' +
+      '<ellipse cx="234" cy="130" rx="13" ry="21" fill="#f0c9a8" stroke="#b98d69" stroke-width="1.2"/>' +
+      '<line x1="86" y1="106" x2="86" y2="154" stroke="#fff" stroke-width="2.2" opacity="0.95"/>' +
+      '<line x1="234" y1="106" x2="234" y2="154" stroke="#fff" stroke-width="2.2" opacity="0.95"/>' +
+      '<rect x="150" y="111" width="20" height="38" rx="3" fill="#fafafa" stroke="#555" stroke-width="1.2"/>' +
+      '<text x="160" y="206" text-anchor="middle" font-size="11" fill="#555">i piedi sulle due lineette · il telefono al centro, in piano,</text>' +
+      '<text x="160" y="221" text-anchor="middle" font-size="11" fill="#555">schermo in su, in verticale, lato corto verso il paziente</text>' +
+      '<text x="160" y="240" text-anchor="middle" font-size="11.5" fill="#333" font-weight="bold">sotto: cuscino in ' +
+        (rol ? 'ROLLIO — giallo ai LATI' : 'BECCHEGGIO — giallo DAVANTI e DIETRO') + '</text>' +
+      '</svg>'
+  }
+
   function aggiornaStatoTaratura(){
     var el = $('stato-taratura'); if (!el) return
     if (tarato.beta && tarato.gamma){
@@ -500,8 +574,19 @@
     }
   }
 
+  function versoDelTest(ev){
+    return (ev === 'rollio' || ev === 'zero tavola (rollio)') ? 'rollio' : 'beccheggio'
+  }
   function aggiornaSpiega(){
     $('spiega').textContent = SPIEGA[evento] || ''
+    // grafica-tavola-v1 — il disegno cambia col test: e' l'unico modo per non
+    // sbagliare il verso del cuscino senza doverlo leggere ogni volta.
+    var ap = $('appoggio')
+    if (ap) ap.innerHTML = disegnoAppoggio(versoDelTest(evento))
+    var cu = $('cuscino-disegno')
+    if (cu) cu.innerHTML = (evento === 'taratura') ? '' : disegnoCuscino(versoDelTest(evento))
+    var av = $('avviso-occhi')
+    if (av) av.className = (occhi === 'chiusi' && eTest(evento)) ? 'warn occhi-forte' : 'warn'
     // ⚠️ solo il gruppetto degli occhi, MAI la scheda intera (errore della v5)
     var g = document.getElementById('blocco-occhi')
     if (g) g.style.opacity = eTest(evento) ? '1' : '0.45'
@@ -1041,8 +1126,12 @@
     var comeSiSale = eZero(evento)
       ? 'Non toccare il telefono.'
       : 'Sali sulla tavola e trova la posizione.'
-    $('stato').textContent = comeSiSale
-    voce(evento + (eTest(evento) ? ', occhi ' + occhi : '') + '. ' + comeSiSale +
+    // grafica-tavola-v1 — a occhi chiusi l'avvertenza la DICE, non la scrive
+    // soltanto: chi tiene gli occhi chiusi lo schermo non lo vede.
+    var sicurezza = (eTest(evento) && occhi === 'chiusi')
+      ? ' Attenzione: resta accanto al paziente, a un braccio di distanza.' : ''
+    $('stato').textContent = comeSiSale + (sicurezza ? ' ⚠️ Stagli accanto.' : '')
+    voce(evento + (eTest(evento) ? ', occhi ' + occhi : '') + '. ' + comeSiSale + sicurezza +
          ' Comincio fra ' + attesa + ' secondi.')
     await new Promise(function(r){ setTimeout(r, SALTA_ASSESTAMENTO ? 0 : 1800) })
     await countdown(attesa)
@@ -1532,6 +1621,7 @@
     c.addEventListener('click', function(){
       Array.prototype.forEach.call(document.querySelectorAll('#occhi .chip'), function(x){ x.classList.remove('on') })
       c.classList.add('on'); occhi = c.getAttribute('data-o')
+      aggiornaSpiega()
     })
   })
   Array.prototype.forEach.call(document.querySelectorAll('#piedi .chip'), function(c){
