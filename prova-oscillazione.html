@@ -142,7 +142,24 @@
      3) I testi accorciati: l'apertura dice cosa il test E' — un test del Sistema
         Policettivo che misura dove va il carico e quanto si oscilla — invece di
         elencare cosa non e'. Il limite onesto resta, in una riga sola: i numeri
-        si confrontano fra prove dello stesso paziente, non con una norma. -->
+        si confrontano fra prove dello stesso paziente, non con una norma.
+
+     prova-oscillazione-v11 / confronto-v1 (13 set):
+     1) CONFRONTO PRIMA/DOPO. Due prove a scelta, le stesse misure affiancate
+        con la differenza in percento, e — la parte che conta — le DUE BANDE:
+        sotto il 35% fra due prove singole, e sotto 1,5 gradi di carico, la
+        differenza NON si distingue dal rumore e resta grigia. Il 35% non e'
+        scelto: viene dal CV del 13% misurato sul giro da 5+5 (13·√2 ≈ 18% di
+        scarto sulla differenza, 95% entro ±36%). Con tre prove per parte la
+        soglia scende al 20%. Se le due prove non sono nella stessa condizione
+        lo dice, e chiama la cosa col suo nome: confronto fra situazioni
+        diverse, non cambiamento nel tempo.
+        I due gomitoli si disegnano alla STESSA scala, se no il confronto
+        inganna l'occhio anche coi numeri giusti.
+     2) Le spiegazioni non escono piu' su TARATURA e ZERO: sono preparazioni,
+        non prove. Prima usciva il discorso completo anche li'.
+     3) Gli omini piu' grandi, col numero sotto e un titolo sopra: sono la
+        figura che si guarda per prima sul referto e passavano inosservati. -->
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -203,6 +220,21 @@
         font-size:13px;color:#7a5200;margin-top:12px}
   .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;
        font-size:14px;color:#b00;margin-top:14px}
+  /* confronto-v1 */
+  .titolo-omini{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#888;
+                font-weight:700;margin:2px 0 6px}
+  .cap-num{font-size:19px;font-weight:800;margin-top:2px}
+  .cap-min{font-size:11px;color:#999}
+  .cfr{border:1px solid #eee;border-radius:14px;padding:12px;margin-top:10px;background:#fff}
+  .cfr-riga{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+            padding:7px 0;border-bottom:1px solid #f3f3f3;font-size:14px}
+  .cfr-riga:last-child{border-bottom:0}
+  .cfr-val{font-variant-numeric:tabular-nums;color:#555;font-size:13px}
+  .cfr-d{font-weight:800;font-variant-numeric:tabular-nums;min-width:74px;text-align:right}
+  .cfr-tele{display:flex;gap:8px;margin-top:10px}
+  .cfr-tele>div{flex:1;text-align:center;font-size:11px;color:#888}
+  .cfr-sel{display:flex;gap:8px}
+  .cfr-sel>div{flex:1}
   /* grafica-tavola-v1 */
   .occhi-forte{background:#fff3f2!important;border-color:#c0392b!important;color:#a3271c!important;
                font-weight:600}
@@ -224,7 +256,7 @@
     body{padding:0;background:#fff;font-size:11pt}
     .card{break-inside:avoid;box-shadow:none;border:1px solid #ddd;margin-bottom:10px}
     #c-setup,#c-misura,#avviso-iniziale,.btn,#nota-dopo,label[for="nota-dopo"],#export{display:none!important}
-    #c-esito,#c-storico{display:block!important}
+    #c-esito,#c-storico,#c-confronto{display:block!important}
     .intest-referto{display:block;margin-bottom:10px}
     canvas{max-width:420px}
     h1{font-size:18pt}
@@ -352,6 +384,32 @@
     <button class="btn giallo" id="btn-ancora">Rifai questa stessa prova →</button>
     <button class="btn vuoto" id="btn-nuova">Cambia prova</button>
     <button class="btn vuoto" id="btn-referto">🖨 Referto da stampare / PDF</button>
+  </div>
+
+  <div class="card" id="c-confronto" style="display:none">
+    <h2>5 · Confronto prima / dopo</h2>
+    <div class="nota" style="margin-bottom:10px">
+      Due prove a confronto: prima e dopo un trattamento, o due giornate diverse.
+      <b>Il confronto vale solo a parità di condizioni</b> — stessa tavola, stesso cuscino,
+      stessi piedi, stessi occhi.
+    </div>
+    <div class="cfr-sel">
+      <div><label for="conf-pre">PRIMA</label><select id="conf-pre"></select></div>
+      <div><label for="conf-post">DOPO</label><select id="conf-post"></select></div>
+    </div>
+    <div id="conf-esito"></div>
+    <button class="btn vuoto" id="btn-spiega-cfr">🔊 Spiegami il confronto</button>
+    <div id="conf-frasi" class="spiegazione" style="display:none"></div>
+    <div class="cfr-tele" id="cfr-tele" style="display:none">
+      <div><b style="color:#555;font-size:12px;letter-spacing:.5px">PRIMA</b>
+        <canvas id="cfr-pre" width="600" height="600"></canvas></div>
+      <div><b style="color:#555;font-size:12px;letter-spacing:.5px">DOPO</b>
+        <canvas id="cfr-post" width="600" height="600"></canvas></div>
+    </div>
+    <div class="nota" id="cfr-nota-scala" style="display:none">
+      I due disegni sono <b>alla stessa scala</b>: la differenza che vedi è vera, non un effetto
+      dello zoom.
+    </div>
   </div>
 
   <div class="card" id="c-storico" style="display:none">
@@ -852,7 +910,7 @@
   function ominoProfilo(v, col){
     var d = v >= 0 ? 1 : -1, a = Math.min(1, Math.abs(v) / 4)
     var inc = d * a * 14
-    return '<svg viewBox="0 0 100 120" width="100%" height="86">' +
+    return '<svg viewBox="0 0 100 120" width="100%" height="112">' +
       '<line x1="8" y1="108" x2="92" y2="108" stroke="#ddd" stroke-width="3"/>' +
       '<g transform="rotate(' + inc + ' 50 108)">' +
         '<circle cx="50" cy="22" r="11" fill="' + col + '"/>' +
@@ -868,7 +926,7 @@
   function ominoFronte(v, col){
     var d = v >= 0 ? 1 : -1, a = Math.min(1, Math.abs(v) / 4)
     var inc = d * a * 14
-    return '<svg viewBox="0 0 100 120" width="100%" height="86">' +
+    return '<svg viewBox="0 0 100 120" width="100%" height="112">' +
       '<line x1="8" y1="108" x2="92" y2="108" stroke="#ddd" stroke-width="3"/>' +
       '<g transform="rotate(' + inc + ' 50 108)">' +
         '<circle cx="50" cy="22" r="11" fill="' + col + '"/>' +
@@ -886,7 +944,7 @@
     var px = Math.max(-32, Math.min(32, dx * k))
     var py = Math.max(-32, Math.min(32, -dy * k))
     var r  = (soglia || 0) > 0 ? (soglia * k) : 0
-    return '<svg viewBox="0 0 100 120" width="100%" height="86">' +
+    return '<svg viewBox="0 0 100 120" width="100%" height="112">' +
       '<rect x="14" y="24" width="72" height="72" rx="8" fill="#fafafa" stroke="#ddd" stroke-width="2"/>' +
       '<line x1="50" y1="24" x2="50" y2="96" stroke="#e8e8e8" stroke-width="2"/>' +
       '<line x1="14" y1="60" x2="86" y2="60" stroke="#e8e8e8" stroke-width="2"/>' +
@@ -1305,10 +1363,21 @@
                 ? '<div class="warn">⚠️ Lo zero di questo cuscino è stato preso con la configurazione ' +
                   '«' + zt.conf + '», adesso hai scritto «' + conf + '». Se hai cambiato tavola o cuscini, ' +
                   'rifai lo zero.</div>' : ''))
-      $('omini').innerHTML = '<div class="omini">' +
-        '<div class="omino">' + ominoProfilo(carB, col.c) + '<div class="cap">' + parolaAsse('beta', carB) + '</div></div>' +
-        '<div class="omino">' + ominoFronte(carG, col.c) + '<div class="cap">' + parolaAsse('gamma', carG) + '</div></div>' +
-        '<div class="omino">' + ominoAlto(carG, carB, col.c, soglia) + '<div class="cap">dall’alto</div></div>' +
+      // confronto-v1 — più grandi e col numero sotto: è la figura che si guarda
+      // per prima sul referto, e prima passava inosservata.
+      $('omini').innerHTML = '<div class="titolo-omini">Dove sta il carico</div><div class="omini">' +
+        '<div class="omino">' + ominoProfilo(carB, col.c) +
+          '<div class="cap">' + parolaAsse('beta', carB) + '</div>' +
+          '<div class="cap-num" style="color:' + col.c + '">' + r2(Math.abs(carB)) + '°</div>' +
+          '<div class="cap-min">di profilo</div></div>' +
+        '<div class="omino">' + ominoFronte(carG, col.c) +
+          '<div class="cap">' + parolaAsse('gamma', carG) + '</div>' +
+          '<div class="cap-num" style="color:' + col.c + '">' + r2(Math.abs(carG)) + '°</div>' +
+          '<div class="cap-min">di fronte</div></div>' +
+        '<div class="omino">' + ominoAlto(carG, carB, col.c, soglia) +
+          '<div class="cap">DALL’ALTO</div>' +
+          '<div class="cap-num" style="color:' + col.c + '">' + r2(Math.hypot(carB, carG)) + '°</div>' +
+          '<div class="cap-min">dal centro</div></div>' +
         '</div>'
     } else if (tarValida === false) {
       // taratura rifiutata: meglio nessuna taratura che una decisa dal rumore
@@ -1387,11 +1456,20 @@
     $('quando').textContent = new Date(prova.quando).toLocaleString('it-IT', {
       weekday:'long', day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
     }) + '  ·  ' + conf + '  ·  ' + prova.piedi
-    // referto-v1 — le frasi si scrivono sempre; il pulsante le legge a voce
-    var fr = frasiEsito(prova)
-    $('spiegazione').innerHTML = fr.map(function(t){ return '<p>' + t + '</p>' }).join('')
-    $('spiegazione').style.display = ''
-    $('btn-spiega').textContent = '🔊 Spiegami com’è andato'
+    // confronto-v1 — la spiegazione è del TEST. Su una taratura o su uno zero
+    // non c'è niente da raccontare: sono preparazioni, non prove. Prima usciva
+    // il discorso completo («hai oscillato…») anche lì, e non aveva senso.
+    if (eTest(evento)){
+      var fr = frasiEsito(prova)
+      $('spiegazione').innerHTML = fr.map(function(t){ return '<p>' + t + '</p>' }).join('')
+      $('spiegazione').style.display = ''
+      mostra('btn-spiega', true)
+      $('btn-spiega').textContent = '🔊 Spiegami com’è andato'
+    } else {
+      $('spiegazione').innerHTML = ''
+      $('spiegazione').style.display = 'none'
+      mostra('btn-spiega', false)
+    }
     $('ref-quando').textContent = new Date(prova.quando).toLocaleString('it-IT') +
       '  ·  ' + conf + '  ·  ' + prova.evento +
       (prova.occhi !== '-' ? ', occhi ' + prova.occhi : '')
@@ -1400,6 +1478,7 @@
         new Date(tarQuando).toLocaleDateString('it-IT')
     }
     aggiornaStatoTaratura()
+    aggiornaConfronto()
     $('nota-dopo').value = ''
     mostra('c-misura', false)
     mostra('c-esito', true)
@@ -1571,6 +1650,162 @@
     return f
   }
 
+  // ═══ confronto-v1 · PRIMA / DOPO ═════════════════════════════════════
+  // ⚠️ LE DUE BANDE. Sono la cosa più importante di questa pagina, e sono
+  // MISURATE, non scelte: dal giro da 5+5 dell'11 settembre 2026 la velocità
+  // ripete con un CV del 13%. La differenza fra DUE prove singole ha quindi
+  // uno scarto di 13·√2 ≈ 18%, e il 95% sta entro ±36%.
+  // ➡️ Sotto il 35% due prove singole NON distinguono un cambiamento dal rumore.
+  // Con la media di tre prove per parte si scende a circa il 20%.
+  // ⚠️ Misurate su UNA persona: sono valori di lavoro, da rifare con più gente.
+  var BANDA_SINGOLA = 35, BANDA_TRE = 20
+  // Il carico ripete a ±0,5° (scarto tipo, occhi aperti): la differenza fra due
+  // prove sta entro ±1,4°. Si arrotonda a 1,5 e si dichiara.
+  var BANDA_CARICO = 1.5
+
+  // Rifà la serie dai campioni grezzi col verso e lo zero di ADESSO: così il
+  // disegno di una prova vecchia è giusto anche se la taratura è arrivata dopo.
+  function serieDi(p){
+    var xs = [], ys = [], i
+    if (!p || !p.grezzi || !p.grezzi.t) return { xs: xs, ys: ys }
+    var zt = p.chiaveZero ? (zeriTavola[p.chiaveZero] || null) : null
+    var rb = zt ? zt.beta : 0, rg = zt ? zt.gamma : 0
+    for (i = 0; i < p.grezzi.beta.length; i++){
+      xs.push((p.grezzi.gamma[i] - rg) * verso.gamma)
+      ys.push((p.grezzi.beta[i]  - rb) * verso.beta)
+    }
+    return { xs: xs, ys: ys }
+  }
+
+  function etichettaProva(p, i){
+    return (i+1) + ') ' + new Date(p.quando).toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}) +
+      ' · ' + p.evento + ' · occhi ' + p.occhi +
+      (p.configurazione && p.configurazione !== '(non indicata)' ? ' · ' + p.configurazione : '')
+  }
+
+  function indiceTest(){
+    var out = []
+    prove.forEach(function(p, i){ if (eTest(p.evento) && p.orientamento) out.push(i) })
+    return out
+  }
+
+  function aggiornaConfronto(){
+    var idx = indiceTest()
+    if (idx.length < 2){ mostra('c-confronto', false); return }
+    mostra('c-confronto', true)
+    var pre = $('conf-pre'), post = $('conf-post')
+    var vPre = pre.value, vPost = post.value
+    var opt = idx.map(function(i){ return '<option value="' + i + '">' + etichettaProva(prove[i], i) + '</option>' }).join('')
+    pre.innerHTML = opt; post.innerHTML = opt
+    pre.value  = (vPre  !== '' && idx.indexOf(Number(vPre))  >= 0) ? vPre  : String(idx[0])
+    post.value = (vPost !== '' && idx.indexOf(Number(vPost)) >= 0) ? vPost : String(idx[idx.length-1])
+    disegnaConfronto()
+  }
+
+  function frasiConfronto(a, b){
+    if (!a || !b || a === b) return ['Scegli due prove diverse.']
+    var f = [], oa = a.orientamento, ob = b.orientamento
+    var stessa = chiaveCondizione(a) === chiaveCondizione(b)
+    var nPre = prove.filter(function(q){ return q.orientamento && chiaveCondizione(q) === chiaveCondizione(a) }).length
+    var banda = (stessa && nPre >= 3) ? BANDA_TRE : BANDA_SINGOLA
+
+    f.push('Confronto fra la prova delle ' +
+      new Date(a.quando).toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}) + ' e quella delle ' +
+      new Date(b.quando).toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}) + '.')
+
+    if (!stessa){
+      f.push('Attenzione: le due prove NON sono nella stessa condizione. ' +
+             'Questo è un confronto fra situazioni diverse, non un cambiamento nel tempo.')
+    }
+
+    var dv = oa.velocitaLisciata > 0 ? 100*(ob.velocitaLisciata - oa.velocitaLisciata)/oa.velocitaLisciata : 0
+    f.push('La velocità media è passata da ' + numIt(oa.velocitaLisciata,1) + ' a ' +
+           numIt(ob.velocitaLisciata,1) + ' gradi al secondo: ' +
+           (dv >= 0 ? 'più ' : 'meno ') + numIt(Math.abs(dv),0) + ' per cento.')
+    f.push(Math.abs(dv) >= banda
+      ? 'È una differenza più grande della variabilità della misura, che su questo confronto vale ' +
+        banda + ' per cento.'
+      : 'Ma sotto il ' + banda + ' per cento non si distingue dal rumore della misura: ' +
+        'due prove uguali possono ballare di tanto. Per leggere una differenza più piccola ' +
+        'servono almeno tre prove per parte.')
+
+    var ca = caricoDi(a), cb = caricoDi(b)
+    if (ca && cb){
+      var dc = cb.principale - ca.principale
+      f.push('Il carico si è spostato di ' + numIt(Math.abs(dc),1) + ' gradi verso ' +
+             parolaAsse(ca.asse, dc).toLowerCase() + '.')
+      if (Math.abs(dc) < BANDA_CARICO){
+        f.push('Anche qui però siamo sotto il grado e mezzo, che è quanto il carico si sposta ' +
+               'da solo ripetendo la stessa prova.')
+      }
+    }
+    f.push('Questi sono i numeri del confronto. L’interpretazione clinica la scrivi tu.')
+    return f
+  }
+
+  function disegnaConfronto(){
+    var ia = Number($('conf-pre').value), ib = Number($('conf-post').value)
+    var a = prove[ia], b = prove[ib]
+    if (!a || !b || !a.orientamento || !b.orientamento){ $('conf-esito').innerHTML = ''; return }
+    var oa = a.orientamento, ob = b.orientamento
+    var ca = caricoDi(a), cb = caricoDi(b)
+    var stessa = chiaveCondizione(a) === chiaveCondizione(b)
+    var nPre = prove.filter(function(q){ return q.orientamento && chiaveCondizione(q) === chiaveCondizione(a) }).length
+    var banda = (stessa && nPre >= 3) ? BANDA_TRE : BANDA_SINGOLA
+
+    var righe = [
+      ['⭐ Velocità media', oa.velocitaLisciata, ob.velocitaLisciata, '°/s', true],
+      ['Oscillazione asse del test',
+        assePrincipale(a.evento) === 'gamma' ? oa.stdX : oa.stdY,
+        assePrincipale(b.evento) === 'gamma' ? ob.stdX : ob.stdY, '°', true],
+      ['Raggio medio', oa.raggio, ob.raggio, '°', true],
+      ['Ellisse 95%', oa.area, ob.area, '°²', true],
+      ['Deriva del carico', oa.deriva, ob.deriva, '°', true]
+    ]
+    var html = (!stessa
+      ? '<div class="warn">⚠️ Le due prove <b>non sono nella stessa condizione</b> (' +
+        chiaveCondizione(a) + ' contro ' + chiaveCondizione(b) + '). È un confronto fra ' +
+        'situazioni diverse, <b>non</b> un cambiamento nel tempo.</div>' : '') +
+      '<div class="cfr">'
+
+    righe.forEach(function(r){
+      var d = r[1] > 0 ? 100*(r[2]-r[1])/r[1] : 0
+      var oltre = Math.abs(d) >= banda
+      var col = !oltre ? '#999' : (d < 0 ? '#0a7d33' : '#c0392b')
+      html += '<div class="cfr-riga"><span>' + r[0] + '</span>' +
+              '<span class="cfr-val">' + r2(r[1]) + ' → ' + r2(r[2]) + ' ' + r[3] + '</span>' +
+              '<span class="cfr-d" style="color:' + col + '">' + (d >= 0 ? '+' : '−') +
+              Math.round(Math.abs(d)) + '%</span></div>'
+    })
+    if (ca && cb){
+      var dc = cb.principale - ca.principale
+      var oltreC = Math.abs(dc) >= BANDA_CARICO
+      html += '<div class="cfr-riga"><span>CARICO (asse del test)</span>' +
+              '<span class="cfr-val">' + r2(ca.principale) + ' → ' + r2(cb.principale) + ' °</span>' +
+              '<span class="cfr-d" style="color:' + (oltreC ? '#111' : '#999') + '">' +
+              (dc >= 0 ? '+' : '−') + numIt(Math.abs(dc),1) + '°</span></div>'
+    }
+    html += '</div>' +
+      '<div class="nota" style="margin-top:8px">Sotto il <b>' + banda + '%</b> (e sotto <b>' +
+      numIt(BANDA_CARICO,1) + '°</b> di carico) la differenza <b>non si distingue dal rumore ' +
+      'della misura</b>: è grigia. ' +
+      (banda === BANDA_SINGOLA
+        ? 'Con almeno tre prove per parte la soglia scende al ' + BANDA_TRE + '%.'
+        : 'Qui vale la soglia ridotta perché ci sono tre prove o più.') +
+      ' Valori misurati su una persona sola: provvisori.</div>'
+    $('conf-esito').innerHTML = html
+
+    // i due gomitoli, alla STESSA scala: se no il confronto inganna l'occhio
+    var sa = serieDi(a), sb = serieDi(b), i, sc = 1.2
+    for (i=0;i<sa.xs.length;i++) sc = Math.max(sc, Math.abs(sa.xs[i]), Math.abs(sa.ys[i]))
+    for (i=0;i<sb.xs.length;i++) sc = Math.max(sc, Math.abs(sb.xs[i]), Math.abs(sb.ys[i]))
+    mostra('cfr-tele', true); mostra('cfr-nota-scala', true)
+    disegna($('cfr-pre'),  sa.xs, sa.ys, sc, oa, { parole: true, cuneo: true })
+    disegna($('cfr-post'), sb.xs, sb.ys, sc, ob, { parole: true, cuneo: true })
+    $('conf-frasi').innerHTML = frasiConfronto(a, b).map(function(t){ return '<p>' + t + '</p>' }).join('')
+    $('conf-frasi').style.display = ''
+  }
+
   function riassunto(){
     return prove.map(function(p){
       var o = p.orientamento || {}, a = p.accelerometro || {}
@@ -1686,6 +1921,14 @@
     t.focus(); t.select()
     try { document.execCommand('copy') } catch(e){}
     $('btn-grezzi').textContent = 'Copiato — ' + (righe.length-1) + ' righe, incollale in chat'
+  })
+
+  $('conf-pre').addEventListener('change', disegnaConfronto)
+  $('conf-post').addEventListener('change', disegnaConfronto)
+  $('btn-spiega-cfr').addEventListener('click', function(){
+    if (window.speechSynthesis && window.speechSynthesis.speaking){ zittisci(); return }
+    var a = prove[Number($('conf-pre').value)], b = prove[Number($('conf-post').value)]
+    frasiConfronto(a, b).forEach(function(t){ voce(t) })
   })
 
   $('btn-copia').addEventListener('click', function(){

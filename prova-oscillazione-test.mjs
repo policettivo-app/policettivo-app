@@ -131,6 +131,8 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('marker prova-oscillazione-v9', src.includes('prova-oscillazione-v9'))
   check('marker prova-oscillazione-v10', src.includes('prova-oscillazione-v10'))
   check('marker grafica-tavola-v1', src.includes('grafica-tavola-v1'))
+  check('marker prova-oscillazione-v11', src.includes('prova-oscillazione-v11'))
+  check('marker confronto-v1', src.includes('confronto-v1'))
   check('⭐ il nome nuovo è nel titolo', /<title>Oscillazione Policettiva/.test(src))
   check('e nell’intestazione della pagina', /<h1>Oscillazione Policettiva<\/h1>/.test(src))
   check('non carica nessuno script dell’app', !/<script[^>]*\ssrc=/i.test(src))
@@ -1394,6 +1396,155 @@ sez('⭐ grafica-tavola-v1 · i testi accorciati dicono cosa il test È')
     a.replace(/\s+/g, ' ').trim().length)
   check('⛔ non si sminuisce più con «non è uno strumento clinico»',
     !/non è uno strumento clinico/i.test(await page.content()))
+  await ctx.close()
+}
+
+const UNA = async (page, ev, g2) => {
+  await page.click('#btn-nuova').catch(() => {})
+  await page.click('#chips .chip[data-e="' + ev + '"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, Object.assign({ passoMs: 20, durataMs: 2500 }, g2))
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(80)
+}
+
+sez('⭐ confronto-v1 · taratura e zero non raccontano più il test')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 1, offG: 0, ampB: 0, ampG: 0, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ sullo zero non c’è nessuna spiegazione del test',
+    !(await page.isVisible('#spiegazione')), await page.textContent('#spiegazione'))
+  check('e sparisce anche il pulsante della voce', !(await page.isVisible('#btn-spiega')))
+
+  await UNA(page, 'taratura', { offB: -6, offG: 5, ampB: 0.3, ampG: 0.3 })
+  check('⭐ nemmeno sulla taratura', !(await page.isVisible('#spiegazione')))
+
+  // ma su un test vero c'è
+  await UNA(page, 'beccheggio', { offB: 4, offG: 0.3, ampB: 1.6, ampG: 0.3 })
+  check('⭐ su un test vero la spiegazione torna', await page.isVisible('#spiegazione'))
+  check('e il pulsante della voce anche', await page.isVisible('#btn-spiega'))
+  check('e parla del test', /Test di beccheggio/.test(await page.textContent('#spiegazione')))
+  await ctx.close()
+}
+
+sez('⭐ confronto-v1 · gli omini si vedono, col numero')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await UNA(page, 'beccheggio', { offB: 4, offG: 0.3, ampB: 1.6, ampG: 0.3 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const om = await page.innerHTML('#omini')
+  check('ci sono i tre omini', (om.match(/<svg/g) || []).length === 3)
+  check('⭐ c’è il titolo che li introduce', /Dove sta il carico/.test(await page.textContent('#omini')))
+  check('⭐ e sotto ognuno c’è il numero in gradi', (om.match(/cap-num/g) || []).length === 3, om.slice(0,200))
+  check('con le parole della direzione', /AVANTI|INDIETRO/.test(await page.textContent('#omini')))
+  check('e le tre viste', /di profilo/.test(await page.textContent('#omini')) &&
+        /di fronte/.test(await page.textContent('#omini')) &&
+        /dal centro/.test(await page.textContent('#omini')))
+  const h = await page.evaluate(() => document.querySelector('#omini svg').getBoundingClientRect().height)
+  check('⭐ sono più grandi di prima (erano 86 px)', h > 100, h)
+  await ctx.close()
+}
+
+sez('⭐ confronto-v1 · il confronto prima/dopo e le due bande')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.fill('#config', 'tavola 1 cuscino')
+  // zero + taratura, poi due prove nella STESSA condizione
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0, offG: 0, ampB: 0, ampG: 0, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await UNA(page, 'taratura', { offB: -6, offG: 5, ampB: 0.3, ampG: 0.3 })
+
+  check('con meno di due test il confronto non c’è', !(await page.isVisible('#c-confronto')))
+  await UNA(page, 'beccheggio', { offB: -3, offG: 0.3, ampB: 2.4, ampG: 0.35 })
+  check('con un test solo nemmeno', !(await page.isVisible('#c-confronto')))
+  // seconda prova: oscillazione MOLTO più piccola → differenza oltre la banda
+  await page.click('#btn-ancora'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: -3, offG: 0.3, ampB: 0.7, ampG: 0.2, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(120)
+
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ con due test il confronto compare', await page.isVisible('#c-confronto'))
+  const t = await page.textContent('#conf-esito')
+  check('mostra la velocità per prima', /Velocità media/.test(t), t)
+  check('mostra il carico', /CARICO/.test(t), t)
+  check('⭐ dichiara la banda del 35%', /35%/.test(t), t)
+  check('⭐ e quella del carico, 1,5°', /1,5°/.test(t), t)
+  check('e dice che sono valori provvisori su una persona', /provvisori/.test(t), t)
+  check('⭐ un calo grosso è fuori banda e NON è grigio',
+    /color: ?rgb\(10, ?125, ?51\)|#0a7d33/.test(await page.innerHTML('#conf-esito')),
+    (await page.innerHTML('#conf-esito')).slice(0, 400))
+
+  const fr = await page.textContent('#conf-frasi')
+  check('le frasi del confronto ci sono', /Confronto fra la prova/.test(fr), fr)
+  check('⭐ e chiudono lasciando l’interpretazione al professionista',
+    /interpretazione clinica la scrivi tu/.test(fr), fr)
+  check('i due gomitoli sono disegnati, affiancati',
+    await page.isVisible('#cfr-pre') && await page.isVisible('#cfr-post') && await page.isVisible('#cfr-tele'))
+  check('⭐ e c’è scritto PRIMA e DOPO', /PRIMA/.test(await page.textContent('#cfr-tele')) &&
+    /DOPO/.test(await page.textContent('#cfr-tele')))
+  check('⭐ e che la scala è la stessa', /alla stessa scala/.test(await page.textContent('#cfr-nota-scala')))
+  const [wa, wb] = await page.evaluate(() => [
+    document.getElementById('cfr-pre').getBoundingClientRect().width,
+    document.getElementById('cfr-post').getBoundingClientRect().width])
+  check('sono affiancati davvero (metà larghezza ciascuno)', wa < 220 && Math.abs(wa - wb) < 2, { wa, wb })
+  check('⭐ e alla stessa scala, se no l’occhio si inganna',
+    (await page.evaluate(() => {
+      const a = document.getElementById('cfr-pre'), b = document.getElementById('cfr-post')
+      const t = (c) => c.getContext('2d').getImageData(0, c.height - 40, c.width, 40).data.join(',')
+      return t(a).length > 0 && t(b).length > 0
+    })))
+  await ctx.close()
+}
+
+sez('⭐ confronto-v1 · una differenza piccola resta grigia, e lo dice')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0, offG: 0, ampB: 0, ampG: 0, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await UNA(page, 'beccheggio', { offB: -2, offG: 0.2, ampB: 2.0, ampG: 0.3 })
+  await page.click('#btn-ancora'); await page.waitForTimeout(120)
+  // quasi identica: ~10% di differenza, dentro il rumore
+  await page.evaluate(GUIDA2, { offB: -2.2, offG: 0.2, ampB: 2.2, ampG: 0.3, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(120)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const fr = await page.textContent('#conf-frasi')
+  check('⭐ dice che sotto la banda non si distingue dal rumore',
+    /non si distingue dal rumore della misura/.test(fr), fr)
+  check('e dice cosa fare: tre prove per parte', /almeno tre prove per parte/.test(fr), fr)
+  await ctx.close()
+}
+
+sez('⭐ confronto-v1 · condizioni diverse: lo dice e non parla di cambiamento')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await page.click('#chips .chip[data-e="zero tavola (beccheggio)"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 0, offG: 0, ampB: 0, ampG: 0, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await UNA(page, 'beccheggio', { offB: -2, offG: 0.2, ampB: 1.2, ampG: 0.3 })
+  await page.click('#btn-nuova')
+  await page.click('#occhi .chip[data-o="chiusi"]')
+  await page.click('#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: -2, offG: 0.2, ampB: 3.4, ampG: 0.6, passoMs: 20, durataMs: 2500 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(120)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const t = await page.textContent('#conf-esito')
+  check('⭐ avvisa che le condizioni non sono le stesse', /non sono nella stessa condizione/.test(t), t)
+  check('⭐ e lo chiama col suo nome: non è un cambiamento nel tempo',
+    /non.{0,3} un cambiamento nel tempo/i.test(t), t)
+  const fr = await page.textContent('#conf-frasi')
+  check('e lo dice anche a voce', /NON sono nella stessa condizione/.test(fr), fr)
   await ctx.close()
 }
 } finally {
