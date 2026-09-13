@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Vista in diretta — Oscillazione Policettiva</title>
+<!-- oscillazione-live-v1 — IL VISORE.
+     Sta su un computer, un tablet, una TV: qualunque cosa apra una pagina web.
+     Non misura niente e non salva niente: ascolta e disegna.
+
+     PERCHE' ESISTE COSI'
+       AirPlay e' solo Apple, Miracast e' solo Windows, il cast di Android e'
+       un'altra cosa ancora: non esiste un modo senza codice che vada per tutti.
+       Un indirizzo web invece lo apre chiunque. E l'aggancio non e' un link da
+       copiare ma l'ACCOUNT: chi misura e chi guarda sono lo stesso
+       professionista, e la pagina trova il canale da sola.
+
+     ⚠️ QUELLO CHE ARRIVA SUL CANALE SONO SOLO ANGOLI. Nessun nome, nessun
+        identificativo di paziente. Per questo un ospite col codice puo'
+        guardare senza vedere di chi si tratta.
+
+     ⚠️ IL CANE DA GUARDIA. Se il telefono si blocca o cambia pagina, i dati
+        smettono di arrivare. Un disegno fermo che sembra vivo e' peggio di
+        nessun disegno: dopo 3 secondi di silenzio la pagina lo DICE. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/oscillazione.js"></script>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#fafafa;color:#111;
+       font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       font-size:16px;line-height:1.5}
+  .barra{display:flex;align-items:center;justify-content:space-between;gap:14px;
+         padding:12px 20px;background:#fff;border-bottom:1px solid #eee}
+  .tit{font-size:17px;font-weight:800;letter-spacing:.2px}
+  .sub{font-size:12px;color:#888}
+  .stato{font-size:14px;font-weight:700;padding:6px 13px;border-radius:999px;
+         background:#f2f2f2;color:#666;white-space:nowrap}
+  .stato.attesa{background:#f2f2f2;color:#777}
+  .stato.viva{background:#eef9f0;color:#0a5e26}
+  .stato.rotta{background:#fff3f2;color:#a3271c}
+  .scena{display:flex;align-items:center;justify-content:center;padding:18px;
+         min-height:calc(100vh - 62px)}
+  canvas{background:#fff;border:1px solid #eee;border-radius:20px;
+         width:min(86vh,92vw);height:min(86vh,92vw);max-width:900px;max-height:900px;
+         box-shadow:0 2px 16px rgba(0,0,0,.05)}
+  .numeri{position:fixed;right:20px;bottom:20px;background:#fff;border:1px solid #eee;
+          border-radius:16px;padding:14px 16px;box-shadow:0 2px 16px rgba(0,0,0,.07);
+          display:none;min-width:210px}
+  .numeri.on{display:block}
+  .nr{display:flex;justify-content:space-between;gap:16px;font-size:14px;padding:3px 0}
+  .nr b{font-variant-numeric:tabular-nums}
+  .sw{position:fixed;left:20px;bottom:20px;background:#fff;border:1px solid #ddd;
+      border-radius:999px;padding:9px 15px;font-size:13px;font-family:inherit;cursor:pointer}
+  .centro{max-width:460px;margin:14vh auto;text-align:center;padding:0 20px}
+  .centro h1{font-size:22px;margin:0 0 8px}
+  .centro p{color:#666;font-size:15px}
+  input[type=text]{width:100%;padding:15px;border:1.5px solid #ddd;border-radius:12px;
+                   font-size:26px;font-family:ui-monospace,Menlo,monospace;text-align:center;
+                   letter-spacing:8px;text-transform:uppercase;margin:14px 0}
+  .btn{display:block;width:100%;padding:16px;border:0;border-radius:14px;background:#111;color:#fff;
+       font-size:16px;font-weight:700;font-family:inherit;cursor:pointer}
+  .err{background:#fff5f5;border:1.5px solid #e11;border-radius:12px;padding:11px 13px;
+       font-size:14px;color:#900;margin-top:12px}
+</style>
+</head>
+<body>
+
+<div id="app-ingresso" class="centro" style="display:none">
+  <h1>Vista in diretta</h1>
+  <p id="ing-testo">Scrivi il codice che ti ha dato il professionista.</p>
+  <input type="text" id="cod" maxlength="7" placeholder="ABC123" autocomplete="off"
+         autocapitalize="characters" spellcheck="false">
+  <button class="btn" id="btn-guarda">Guarda</button>
+  <div class="err" id="ing-err" style="display:none"></div>
+</div>
+
+<div id="app-visore" style="display:none">
+  <div class="barra">
+    <div>
+      <div class="tit">Oscillazione Policettiva</div>
+      <div class="sub" id="v-sub">vista in diretta</div>
+    </div>
+    <div class="stato attesa" id="v-stato">in attesa del telefono…</div>
+  </div>
+  <div class="scena"><canvas id="v-canvas" width="900" height="900"></canvas></div>
+  <button class="sw" id="btn-numeri">Mostra i numeri</button>
+  <div class="numeri" id="v-numeri"></div>
+</div>
+
+<script>
+(function(){
+  'use strict'
+  var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  var SILENZIO_MS = 3000        // oltre, la diretta si considera interrotta
+
+  var P = window.PolOscillazione
+  var $ = function(id){ return document.getElementById(id) }
+  var SB = null, sub = null
+  var xs = [], ys = [], scala = 3, soglia = 0, inCorso = false
+  var ultimoDato = 0, guardia = null, mostraNumeri = false, ultimoFine = null
+
+  function stato(testo, classe){
+    var el = $('v-stato'); el.textContent = testo
+    el.className = 'stato ' + (classe || 'attesa')
+  }
+  function ridisegna(){
+    var m = null
+    P.disegna($('v-canvas'), xs, ys, scala, m, { parole: true, soglia: soglia, cuneo: false })
+  }
+  function numeri(f){
+    ultimoFine = f
+    if (!f){ $('v-numeri').innerHTML = ''; return }
+    var r = [
+      ['⭐ Velocità media', f.velocita + ' °/s'],
+      ['Carico', (f.parola || '') + ' ' + Math.abs(f.carico || 0) + '°'],
+      ['Osc. avanti-dietro', f.osc_ap + '°'],
+      ['Osc. destra-sinistra', f.osc_ds + '°'],
+      ['Ellisse 95%', f.ellisse + ' °²'],
+      ['Deriva', f.deriva + '°'],
+      ['Oscillazioni', f.cicli]
+    ]
+    $('v-numeri').innerHTML = r.map(function(x){
+      return '<div class="nr"><span>' + x[0] + '</span><b>' + x[1] + '</b></div>' }).join('')
+  }
+
+  function ascolta(canale){
+    $('app-ingresso').style.display = 'none'
+    $('app-visore').style.display = ''
+    ridisegna()
+    sub = SB.channel('oscillazione:' + canale, { config: { broadcast: { self: false } } })
+    sub.on('broadcast', { event: 'via' }, function(m){
+      var p = m.payload || {}
+      xs = []; ys = []; scala = 3; inCorso = true
+      soglia = p.soglia || 0
+      ultimoDato = Date.now()
+      $('v-sub').textContent = (p.evento || '') + (p.occhi && p.occhi !== '-' ? ' · occhi ' + p.occhi : '')
+      stato('misura in corso', 'viva')
+      numeri(null)
+      ridisegna()
+    })
+    sub.on('broadcast', { event: 'punti' }, function(m){
+      var p = m.payload || {}, i
+      if (!p.x) return
+      ultimoDato = Date.now()
+      if (!inCorso){ inCorso = true; stato('misura in corso', 'viva') }
+      for (i = 0; i < p.x.length; i++){
+        xs.push(p.x[i]); ys.push(p.y[i])
+        scala = Math.max(scala, Math.abs(p.x[i]), Math.abs(p.y[i]))
+      }
+      ridisegna()
+    })
+    sub.on('broadcast', { event: 'fine' }, function(m){
+      inCorso = false
+      stato('finito', 'viva')
+      numeri(m.payload || null)
+      if (mostraNumeri) $('v-numeri').classList.add('on')
+      ridisegna()
+    })
+    sub.subscribe(function(st){
+      if (st === 'SUBSCRIBED') stato('in attesa del telefono…', 'attesa')
+      else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') stato('collegamento non riuscito', 'rotta')
+    })
+
+    // ⚠️ il cane da guardia: un disegno fermo che sembra vivo inganna
+    guardia = setInterval(function(){
+      if (inCorso && Date.now() - ultimoDato > SILENZIO_MS){
+        inCorso = false
+        stato('diretta interrotta — guarda il telefono', 'rotta')
+      }
+    }, 700)
+  }
+
+  function errore(t){ var e = $('ing-err'); e.textContent = t; e.style.display = '' }
+
+  async function conCodice(cod){
+    var r = await SB.rpc('oscillazione_risolvi', { p_codice: cod })
+    if (r.error || !r.data){ errore('Codice non valido o scaduto. Fattene dare uno nuovo.'); return }
+    ascolta(r.data)
+  }
+
+  async function avvia(){
+    if (!window.supabase || !window.supabase.createClient){
+      $('app-ingresso').style.display = ''
+      errore('Questa pagina non è riuscita a caricare le sue librerie. Controlla la rete.')
+      return
+    }
+    SB = window.supabase.createClient(SB_URL, SB_KEY)
+    var cod = new URLSearchParams(location.search).get('c')
+    if (cod){ $('app-ingresso').style.display = ''; $('cod').value = cod.toUpperCase(); await conCodice(cod); return }
+
+    var ses = null
+    try { var r = await SB.auth.getSession(); ses = r && r.data ? r.data.session : null } catch(e){}
+    if (ses){
+      var c = await SB.rpc('oscillazione_canale')
+      if (!c.error && c.data){ ascolta(c.data); return }
+      $('app-ingresso').style.display = ''
+      $('ing-testo').textContent = 'Sul telefono, nella pagina del test, accendi «Mostra sul computer». ' +
+        'Poi ricarica questa pagina. Oppure scrivi qui un codice ospite.'
+      return
+    }
+    $('app-ingresso').style.display = ''
+  }
+
+  $('btn-guarda').addEventListener('click', function(){
+    $('ing-err').style.display = 'none'
+    var c = ($('cod').value || '').trim()
+    if (c.length < 6){ errore('Il codice è di sei caratteri.'); return }
+    conCodice(c)
+  })
+  $('cod').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btn-guarda').click() })
+  $('btn-numeri').addEventListener('click', function(){
+    mostraNumeri = !mostraNumeri
+    $('v-numeri').classList.toggle('on', mostraNumeri && !!ultimoFine)
+    $('btn-numeri').textContent = mostraNumeri ? 'Nascondi i numeri' : 'Mostra i numeri'
+  })
+
+  avvia()
+
+  window.__live = {
+    stato: function(){ return { xs: xs, ys: ys, inCorso: inCorso, scala: scala, fine: ultimoFine } },
+    ascolta: ascolta,
+    silenzio: SILENZIO_MS
+  }
+})()
+</script>
+</body>
+</html>

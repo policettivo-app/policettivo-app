@@ -160,6 +160,8 @@
         non prove. Prima usciva il discorso completo anche li'.
      3) Gli omini piu' grandi, col numero sotto e un titolo sopra: sono la
         figura che si guarda per prima sul referto e passavano inosservati. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/oscillazione.js"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -220,6 +222,14 @@
         font-size:13px;color:#7a5200;margin-top:12px}
   .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;
        font-size:14px;color:#b00;margin-top:14px}
+  /* oscillazione-live-v1 */
+  .live{border-radius:12px;padding:11px 13px;margin:10px 0;font-size:14px;
+        border:1px solid #ddd;background:#fafafa}
+  .live.on{border-color:#0a7d33;background:#eef9f0;color:#0a5e26}
+  .live-riga{display:flex;gap:10px;align-items:center;justify-content:space-between}
+  .live b.cod{font-family:ui-monospace,Menlo,monospace;font-size:22px;letter-spacing:3px}
+  .live button{border:1px solid currentColor;background:transparent;color:inherit;border-radius:8px;
+               padding:6px 11px;font-size:13px;font-family:inherit;cursor:pointer;flex:none}
   /* confronto-v1 */
   .titolo-omini{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#888;
                 font-weight:700;margin:2px 0 6px}
@@ -334,6 +344,7 @@
       <option value="10">10 secondi</option>
       <option value="15">15 secondi</option>
     </select>
+    <div id="diretta-box"></div>
     <div id="stato-taratura"></div>
     <div class="appoggio" id="appoggio"></div>
     <button class="btn" id="btn-start">Appoggia il telefono e parti →</button>
@@ -649,11 +660,6 @@
     var g = document.getElementById('blocco-occhi')
     if (g) g.style.opacity = eTest(evento) ? '1' : '0.45'
   }
-  // referto-v1 — l'asse maggiore dell'ellisse, detto a parole
-  function versoCuneo(m){
-    var dx = Math.abs(Math.cos(m.angolo)), dy = Math.abs(Math.sin(m.angolo))
-    return dy >= dx ? 'avanti e indietro' : 'a destra e sinistra'
-  }
   function numIt(x, dec){
     var s = (Math.round(x * Math.pow(10,dec)) / Math.pow(10,dec)).toFixed(dec)
     return s.replace('.', ',')
@@ -958,118 +964,11 @@
   }
 
   // ── il disegno ────────────────────────────────────────────────────────
-  function disegna(cv, xs, ys, semiScala, m, o){
-    var ctx = cv.getContext('2d')
-    var W = cv.width, H = cv.height, cx = W/2, cy = H/2
-    ctx.clearRect(0,0,W,H)
-    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H)
-
-    var s = semiScala || 5
-    var k = (Math.min(W,H)/2 - 24) / s
-
-    // griglia a 1 grado
-    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 1
-    for (var g = 1; g <= Math.ceil(s); g++){
-      ctx.beginPath(); ctx.arc(cx, cy, g*k, 0, Math.PI*2); ctx.stroke()
-    }
-    ctx.strokeStyle = '#e4e4e4'
-    ctx.beginPath(); ctx.moveTo(12,cy); ctx.lineTo(W-12,cy)
-    ctx.moveTo(cx,12); ctx.lineTo(cx,H-12); ctx.stroke()
-
-    // ── referto-v1 · IL CUNEO: da che parte si oscilla di piu' ───────────
-    // Sta DIETRO la traccia e tiene un'opacita' bassa: deve farsi capire senza
-    // farsi guardare. Punta nei due versi dell'asse maggiore dell'ellisse, ed
-    // e' largo in proporzione a quanto quell'asse domina sull'altro: se la
-    // persona oscilla in tondo il cuneo quasi sparisce, ed e' giusto cosi'.
-    if (o && o.cuneo && m && m.semiA > 0){
-      var rapp = m.semiB > 0 ? m.semiA/m.semiB : 3
-      var forza = Math.max(0, Math.min(1, (rapp - 1) / 2))     // 1:1 -> 0, 3:1 -> 1
-      if (forza > 0.05){
-        var L  = m.semiA * k * 1.18
-        var Wb = Math.max(7, m.semiB * k * 0.7)
-        ctx.save()
-        ctx.translate(cx + m.mx*k, cy - m.my*k)
-        ctx.rotate(-m.angolo)
-        ctx.fillStyle = 'rgba(40,90,220,' + (0.05 + 0.13*forza).toFixed(3) + ')'
-        for (var d = -1; d <= 1; d += 2){
-          ctx.beginPath()
-          ctx.moveTo(d*L, 0)
-          ctx.lineTo(d*L*0.3,  Wb)
-          ctx.lineTo(d*L*0.3, -Wb)
-          ctx.closePath(); ctx.fill()
-        }
-        ctx.restore()
-      }
-    }
-
-    // la traccia, dal blu al rosso nel tempo
-    var n = xs.length
-    if (n > 1){
-      ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
-      for (var i=1;i<n;i++){
-        var t = i/(n-1)
-        ctx.strokeStyle = 'rgb(' + Math.round(40 + 200*t) + ',' + Math.round(90 - 60*t) + ',' + Math.round(220 - 180*t) + ')'
-        ctx.beginPath()
-        ctx.moveTo(cx + xs[i-1]*k, cy - ys[i-1]*k)
-        ctx.lineTo(cx + xs[i]*k,   cy - ys[i]*k)
-        ctx.stroke()
-      }
-    }
-    // l'ellisse al 95%: e' la misura, disegnata. Chi guarda il foglio vede
-    // subito QUANTO grande e' e in che direzione oscilla.
-    if (m && m.semiA > 0){
-      ctx.save()
-      ctx.translate(cx + m.mx*k, cy - m.my*k)
-      ctx.rotate(-m.angolo)
-      ctx.beginPath(); ctx.ellipse(0, 0, m.semiA*k, m.semiB*k, 0, 0, Math.PI*2)
-      ctx.fillStyle = 'rgba(255,208,8,0.16)'; ctx.fill()
-      ctx.strokeStyle = '#e0b400'; ctx.lineWidth = 2; ctx.setLineDash([7,5]); ctx.stroke()
-      ctx.setLineDash([]); ctx.restore()
-    }
-    // dove comincia e dove finisce
-    if (n > 1){
-      ctx.fillStyle = '#2864dc'
-      ctx.beginPath(); ctx.arc(cx + xs[0]*k, cy - ys[0]*k, 7, 0, Math.PI*2); ctx.fill()
-      ctx.fillStyle = '#d9342b'
-      ctx.beginPath(); ctx.arc(cx + xs[n-1]*k, cy - ys[n-1]*k, 7, 0, Math.PI*2); ctx.fill()
-    }
-    // il centro
-    ctx.fillStyle = '#111'
-    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI*2); ctx.fill()
-
-    ctx.fillStyle = '#999'; ctx.font = '20px sans-serif'
-    ctx.fillText(r1(s) + '°', W - 62, H - 16)
-
-    // prova-oscillazione-v5 — le parole sugli assi e il punto di carico.
-    // Il centro e' la tavola SCARICA: cosi' il disegno si legge senza spiegazioni.
-    if (o && o.parole){
-      ctx.fillStyle = '#aaa'; ctx.font = 'bold 19px sans-serif'; ctx.textAlign = 'center'
-      ctx.fillText('AVANTI', cx, 26)
-      ctx.fillText('INDIETRO', cx, H - 34)
-      ctx.textAlign = 'left';  ctx.fillText('SX', 12, cy - 8)
-      ctx.textAlign = 'right'; ctx.fillText('DX', W - 12, cy - 8)
-      ctx.textAlign = 'left'
-      // referto-v1 — la parola del cuneo, piccola: dice in una riga cosa mostra
-      if (o.cuneo && m && m.semiA > 0 && m.semiB > 0 && m.semiA/m.semiB > 1.15){
-        ctx.fillStyle = '#8a9bd0'; ctx.font = '17px sans-serif'; ctx.textAlign = 'center'
-        ctx.fillText('oscilla soprattutto ' + versoCuneo(m), cx, 50)
-        ctx.textAlign = 'left'
-      }
-    }
-    if (o && o.soglia > 0){
-      ctx.strokeStyle = '#0a7d33'; ctx.lineWidth = 2; ctx.setLineDash([8,6])
-      ctx.beginPath(); ctx.arc(cx, cy, o.soglia * k, 0, Math.PI*2); ctx.stroke()
-      ctx.setLineDash([])
-    }
-    if (o && o.carico){
-      var px = cx + o.carico.x * k, py = cy - o.carico.y * k
-      ctx.strokeStyle = o.colore || '#c0392b'; ctx.lineWidth = 3
-      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke()
-      ctx.fillStyle = o.colore || '#c0392b'
-      ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI*2); ctx.fill()
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke()
-    }
-  }
+  // oscillazione-live-v1 — il disegno sta in js/oscillazione.js, un file solo,
+  // condiviso con la pagina della diretta. Se stesse in due punti, i due
+  // gomitoli divergerebbero senza che nessuno se ne accorga.
+  var disegna    = window.PolOscillazione.disegna
+  var versoCuneo = window.PolOscillazione.versoCuneo
 
   // ── la misura ─────────────────────────────────────────────────────────
   function chiediPermessi(){
@@ -1200,7 +1099,9 @@
     bip(660, 130); setTimeout(function(){ bip(880, 130) }, 150); setTimeout(function(){ bip(1320, 260) }, 300)
 
     var live = $('live')
+    mandaVia(durata)
     var dati = await misura(durata*1000, function(restanti, xs, ys, n){
+      mandaPunti(xs, ys, false)
       $('countdown').textContent = restanti
       var s = 5, i
       for (i=0;i<xs.length;i++) s = Math.max(s, Math.abs(xs[i]), Math.abs(ys[i]))
@@ -1215,6 +1116,7 @@
     $('guard').classList.remove('on')
 
     concludi(dati, durata)
+    mandaFine(prove[prove.length-1])
     inCorso = false
   }
 
@@ -1844,6 +1746,123 @@
     }).join('\n')
   }
 
+  // ═══ oscillazione-live-v1 · LA DIRETTA SUL COMPUTER ══════════════════
+  // Il telefono che misura e il computer che guarda si trovano perché sono lo
+  // STESSO account: niente link da copiare, niente codice da digitare.
+  // ⚠️ Sul canale viaggiano SOLO angoli di inclinazione della tavola. Nessun
+  //    nome, nessun identificativo di paziente, niente che permetta di
+  //    risalire a una persona. È una scelta, non una dimenticanza.
+  // ⚠️ E la pagina resta USABILE SENZA LOGIN: se Supabase non c'è o non c'è
+  //    sessione, la diretta è spenta e tutto il resto funziona come prima.
+  var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  var SB = null, haiSessione = false, canale = null, canaleSub = null
+  var DECIMA = 3                       // 60 Hz / 3 = 20 punti al secondo in diretta
+  var MS_INVIO = 120                   // un messaggio ogni 120 ms, non uno per campione
+  var ultimoInvio = 0, inviatiFino = 0
+
+  async function avviaSupabase(){
+    try {
+      if (!window.supabase || !window.supabase.createClient) return
+      SB = window.supabase.createClient(SB_URL, SB_KEY)
+      var r = await SB.auth.getSession()
+      haiSessione = !!(r && r.data && r.data.session)
+    } catch(e){ SB = null; haiSessione = false }
+    disegnaDiretta()
+  }
+
+  function disegnaDiretta(msg){
+    var el = $('diretta-box'); if (!el) return
+    if (!SB || !haiSessione){
+      el.innerHTML = '<div class="live"><div class="live-riga"><span>📺 <b>Mostra sul computer</b> — ' +
+        'entra con il tuo account per usarla.</span>' +
+        '<button type="button" onclick="location.href=\'login.html\'">Entra</button></div></div>'
+      return
+    }
+    if (!canale){
+      el.innerHTML = '<div class="live"><div class="live-riga">' +
+        '<span>📺 <b>Mostra sul computer</b> — apri l’applicazione sul computer con lo stesso ' +
+        'account: si accende da sola.</span>' +
+        '<button type="button" id="btn-live-on">Accendi</button></div></div>'
+      $('btn-live-on').addEventListener('click', accendiDiretta)
+      return
+    }
+    el.innerHTML = '<div class="live on"><div class="live-riga">' +
+      '<span>📺 <b>Diretta accesa.</b> Sul computer, stesso account: <b>Vista in diretta</b>.</span>' +
+      '<button type="button" id="btn-live-off">Spegni</button></div>' +
+      '<div class="live-riga" style="margin-top:9px">' +
+      '<span id="live-cod">Vuoi farla guardare a qualcun altro?</span>' +
+      '<button type="button" id="btn-live-cod">Codice</button></div>' +
+      (msg ? '<div style="margin-top:8px;font-size:13px">' + msg + '</div>' : '') + '</div>'
+    $('btn-live-off').addEventListener('click', spegniDiretta)
+    $('btn-live-cod').addEventListener('click', creaCodice)
+  }
+
+  async function accendiDiretta(){
+    try {
+      var r = await SB.rpc('oscillazione_apri_canale')
+      if (r.error || !r.data){ disegnaDiretta('⚠️ Non sono riuscito ad aprire il canale. Riprova.'); return }
+      canale = r.data
+      canaleSub = SB.channel('oscillazione:' + canale, { config: { broadcast: { self: false } } })
+      await canaleSub.subscribe()
+      disegnaDiretta()
+    } catch(e){ disegnaDiretta('⚠️ ' + (e && e.message ? e.message : 'diretta non disponibile')) }
+  }
+
+  function spegniDiretta(){
+    try { if (canaleSub && SB) SB.removeChannel(canaleSub) } catch(e){}
+    canaleSub = null; canale = null
+    disegnaDiretta()
+  }
+
+  async function creaCodice(){
+    try {
+      var r = await SB.rpc('oscillazione_codice_crea', { p_minuti: 30 })
+      var riga = r.data && r.data[0]
+      if (r.error || !riga){ disegnaDiretta('⚠️ Codice non creato. Riprova.'); return }
+      disegnaDiretta('Chi guarda apre <b>' + location.host + '/oscillazione-live.html</b> e scrive ' +
+        '<b class="cod">' + riga.codice + '</b> — vale 30 minuti, poi scade da solo.')
+    } catch(e){ disegnaDiretta('⚠️ Codice non creato.') }
+  }
+
+  function mandaVia(dur){
+    ultimoInvio = 0; inviatiFino = 0
+    if (!canaleSub) return
+    try {
+      canaleSub.send({ type:'broadcast', event:'via', payload:{
+        evento: evento, occhi: eTest(evento) ? occhi : '-', durata: dur,
+        soglia: Math.abs(parseFloat(String($('soglia').value).replace(',', '.'))) || 0
+      }})
+    } catch(e){}
+  }
+  function mandaPunti(xs, ys, chiudi){
+    if (!canaleSub) return
+    var ora = Date.now()
+    if (!chiudi && ora - ultimoInvio < MS_INVIO) return
+    ultimoInvio = ora
+    var px = [], py = [], i
+    for (i = inviatiFino; i < xs.length; i += DECIMA){ px.push(r2(xs[i])); py.push(r2(ys[i])) }
+    inviatiFino = xs.length
+    if (!px.length && !chiudi) return
+    try { canaleSub.send({ type:'broadcast', event:'punti', payload:{ x:px, y:py } }) } catch(e){}
+  }
+  function mandaFine(p){
+    if (!canaleSub || !p || !p.orientamento) return
+    var c = caricoDi(p), o = p.orientamento
+    var asse = assePrincipale(p.evento)
+    try {
+      canaleSub.send({ type:'broadcast', event:'fine', payload:{
+        velocita: r2(o.velocitaLisciata),
+        osc_ap: p.osc_avanti_dietro, osc_ds: p.osc_destra_sinistra,
+        ellisse: r2(o.area), deriva: r2(o.deriva),
+        cicli: asse === 'gamma' ? o.cicliX : o.cicliY,
+        carico: c ? r2(c.principale) : null,
+        parola: c ? parolaAsse(asse, c.principale) : '',
+        evento: p.evento, occhi: p.occhi
+      }})
+    } catch(e){}
+  }
+
   // ── i comandi ─────────────────────────────────────────────────────────
   Array.prototype.forEach.call(document.querySelectorAll('#chips .chip'), function(c){
     c.addEventListener('click', function(){
@@ -1865,6 +1884,7 @@
       c.classList.add('on'); piedi = c.getAttribute('data-p')
     })
   })
+  avviaSupabase()                                   // oscillazione-live-v1
   leggiTaratura()                                   // taratura-unica-v1
   $('appoggio').innerHTML = disegnoAppoggio()
   aggiornaStatoTaratura()

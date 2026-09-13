@@ -135,9 +135,36 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('marker confronto-v1', src.includes('confronto-v1'))
   check('⭐ il nome nuovo è nel titolo', /<title>Oscillazione Policettiva/.test(src))
   check('e nell’intestazione della pagina', /<h1>Oscillazione Policettiva<\/h1>/.test(src))
-  check('non carica nessuno script dell’app', !/<script[^>]*\ssrc=/i.test(src))
-  check('non parla con Supabase', !/supabase/i.test(src))
-  check('non fa nessuna fetch', !/fetch\s*\(/.test(src))
+  // oscillazione-live-v1 — carica UN solo file esterno: il motore del disegno,
+  // condiviso con la pagina della diretta perché i due gomitoli non divergano.
+  const esterni = (src.match(/<script[^>]*\ssrc="([^"]+)"/gi) || [])
+  check('⭐ carica due file esterni: il motore e la libreria del database', esterni.length === 2, esterni)
+  check('⭐ uno è il motore del disegno', esterni.some(e => /js\/oscillazione\.js/.test(e)), esterni)
+  check('⭐ l’altro è supabase-js', esterni.some(e => /supabase-js/.test(e)), esterni)
+  // ⚠️ Si guarda il CODICE, non il testo: il commento che spiega perché il
+  // motore non parla col database contiene la parola «Supabase». Cercare la
+  // parola avrebbe fatto fallire il controllo sulla spiegazione stessa.
+  const senzaCommenti = (t) => t.replace(/\/\*[^]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+  const mot = senzaCommenti(fs.readFileSync(path.join(ROOT, 'js/oscillazione.js'), 'utf8'))
+  check('⛔ il motore non parla con Supabase', !/supabase/i.test(mot))
+  check('⛔ non fa nessuna fetch', !/fetch\s*\(|XMLHttpRequest/.test(mot))
+  check('⛔ e non tocca la memoria del telefono', !/localStorage|sessionStorage|indexedDB/i.test(mot))
+  check('il motore espone il disegno', /PolOscillazione/.test(mot) && /disegna:/.test(mot))
+  check('⚠️ e il controllo guarda il codice, non i commenti',
+    /supabase/i.test(fs.readFileSync(path.join(ROOT, 'js/oscillazione.js'), 'utf8')))
+  // oscillazione-live-v1 — la pagina ADESSO parla col database, ma per una
+  // cosa sola: la vista in diretta. Non legge e non scrive dati di paziente,
+  // e le uniche funzioni che chiama sono quelle della diretta.
+  const rpc = [...src.matchAll(/\.rpc\(\s*'([^']+)'/g)].map(m => m[1])
+  check('⭐ chiama solo le funzioni della diretta',
+    rpc.length > 0 && rpc.every(n => /^oscillazione_/.test(n)), rpc)
+  check('⛔ non legge nessuna tabella del database', !/\.from\(/.test(src))
+  check('⛔ non fa nessuna fetch a mano', !/fetch\s*\(|XMLHttpRequest/.test(src))
+  check('⛔ e sul canale non manda nomi né identificativi di paziente',
+    !/patient|paziente_id|nome:|cognome/i.test(
+      (src.match(/canaleSub\.send\([^]*?\}\}\)/g) || []).join(' ')))
+  check('⭐ senza sessione la diretta resta spenta e il resto funziona',
+    /haiSessione = false/.test(src) && /if \(!SB \|\| !haiSessione\)/.test(src))
   // taratura-unica-v1 — adesso salva UNA cosa sola, e deve restare una sola:
   // due segni e una data. Nessuna misura, nessun dato di paziente.
   check('non usa sessionStorage né indexedDB', !/sessionStorage|indexedDB/i.test(src))
