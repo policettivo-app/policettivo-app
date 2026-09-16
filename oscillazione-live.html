@@ -60,6 +60,29 @@
                    letter-spacing:8px;text-transform:uppercase;margin:14px 0}
   .btn{display:block;width:100%;padding:16px;border:0;border-radius:14px;background:#111;color:#fff;
        font-size:16px;font-weight:700;font-family:inherit;cursor:pointer}
+  /* oscillazione-esito-v1 — la schermata di fine, uguale a quella del telefono */
+  .esito{max-width:1100px;margin:0 auto;padding:0 18px 26px;display:none}
+  .esito.on{display:block}
+  .carico{border:2px solid;border-radius:20px;padding:18px;text-align:center;margin-bottom:14px}
+  .carico .tit{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;opacity:.75;font-weight:700}
+  .carico .val{font-size:44px;font-weight:800;line-height:1.15;margin:2px 0}
+  .carico .sec{font-size:14px;opacity:.85}
+  .tiles{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .tiles>div{flex:1 1 150px;border:1px solid #eee;border-radius:14px;padding:11px;text-align:center;background:#fff}
+  .tiles b{display:block;font-size:23px;font-weight:800}
+  .tiles span{font-size:11px;color:#888}
+  .titolo-omini{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#888;
+                font-weight:700;margin:2px 0 6px}
+  .omini{display:flex;gap:8px;margin-bottom:14px}
+  .omino{flex:1;border:1px solid #eee;border-radius:14px;padding:8px 4px;text-align:center;background:#fff}
+  .cap{font-size:12px;color:#666;letter-spacing:.5px;margin-top:4px}
+  .cap-num{font-size:19px;font-weight:800;margin-top:2px}
+  .cap-min{font-size:11px;color:#999}
+  .frasi{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:14px 16px;
+         font-size:15px;line-height:1.6;display:none}
+  .frasi.on{display:block}
+  .frasi p{margin:0 0 8px}
+  .frasi p:last-child{margin:0;color:#667;font-style:italic}
   .err{background:#fff5f5;border:1.5px solid #e11;border-radius:12px;padding:11px 13px;
        font-size:14px;color:#900;margin-top:12px}
 </style>
@@ -83,7 +106,17 @@
     </div>
     <div class="stato attesa" id="v-stato">in attesa del telefono…</div>
   </div>
-  <div class="scena"><canvas id="v-canvas" width="900" height="900"></canvas></div>
+  <div class="scena" id="v-scena"><canvas id="v-canvas" width="900" height="900"></canvas></div>
+  <div class="esito" id="v-esito">
+    <div class="scena" style="min-height:0;padding:0 0 16px">
+      <canvas id="v-canvas2" width="900" height="900" style="width:min(52vh,64vw);height:min(52vh,64vw)"></canvas>
+    </div>
+    <div id="v-carico"></div>
+    <div id="v-tiles"></div>
+    <div id="v-omini"></div>
+    <button class="sw" id="btn-frasi" style="position:static;width:100%;margin-bottom:12px">Leggi la spiegazione</button>
+    <div class="frasi" id="v-frasi"></div>
+  </div>
   <button class="sw" id="btn-numeri">Mostra i numeri</button>
   <div class="numeri" id="v-numeri"></div>
 </div>
@@ -125,6 +158,57 @@
       return '<div class="nr"><span>' + x[0] + '</span><b>' + x[1] + '</b></div>' }).join('')
   }
 
+  // ═══ oscillazione-esito-v1 · LA SCHERMATA DI FINE ════════════════════
+  // Stessa schermata del telefono: il carico grande, i tre omini, quattro
+  // numeri e la spiegazione.
+  // ⚠️ Il computer NON ricalcola e NON chiede niente al database: disegna
+  //    quello che è arrivato nel messaggio di fine. Un pezzo in meno che si
+  //    possa inceppare, e nessuna possibilità che i due schermi dicano due
+  //    cose diverse.
+  // ⚠️ Se il messaggio di fine NON arriva (telefono bloccato), non succede
+  //    niente: resta il disegno e il cane da guardia dice che si è interrotta.
+  function nascondiEsito(){
+    $('v-esito').classList.remove('on')
+    $('v-scena').style.display = ''
+    $('v-frasi').classList.remove('on')
+    $('btn-frasi').textContent = 'Leggi la spiegazione'
+  }
+  function mostraEsito(f){
+    if (!f){ nascondiEsito(); return }
+    var col = f.colore || '#555'
+    var chiaro = col === '#0a7d33' ? '#eef9f0' : (col === '#c0392b' ? '#fff3f2'
+                : (col === '#b07500' ? '#fff8e6' : '#f6f6f6'))
+    $('v-scena').style.display = 'none'
+    $('v-esito').classList.add('on')
+
+    // lo stesso gomitolo, più piccolo, sopra al risultato
+    P.disegna($('v-canvas2'), xs, ys, scala, null, { parole: true, soglia: f.soglia || 0, cuneo: false })
+
+    var secondo = f.asse === 'gamma' ? f.carico_avanti : f.carico_destra
+    var parolaSec = f.asse === 'gamma'
+      ? (secondo >= 0 ? 'avanti' : 'indietro')
+      : (secondo >= 0 ? 'a destra' : 'a sinistra')
+    $('v-carico').innerHTML =
+      '<div class="carico" style="border-color:' + col + ';background:' + chiaro + ';color:' + col + '">' +
+        '<div class="tit">carico medio · ' + (f.evento || '') +
+          (f.occhi && f.occhi !== '-' ? ' · occhi ' + f.occhi : '') + '</div>' +
+        '<div class="val">' + (f.parola || '') + ' ' + Math.abs(f.carico == null ? 0 : f.carico) + '°</div>' +
+        '<div class="sec">e ' + parolaSec + ' di ' + Math.abs(secondo || 0) + '°</div>' +
+      '</div>'
+
+    $('v-tiles').innerHTML = '<div class="tiles">' +
+      '<div style="border-color:#0a7d33"><b>' + f.velocita + ' °/s</b><span>velocità media ⭐</span></div>' +
+      '<div><b>' + f.osc_ap + '°</b><span>oscillazione avanti-dietro</span></div>' +
+      '<div><b>' + f.osc_ds + '°</b><span>oscillazione destra-sinistra</span></div>' +
+      '<div><b>' + f.cicli + '</b><span>oscillazioni sull’asse del test</span></div>' +
+      '<div><b>' + f.deriva + '°</b><span>deriva del carico</span></div>' +
+      '</div>'
+
+    $('v-omini').innerHTML = P.omini(f.carico_avanti || 0, f.carico_destra || 0, col, f.soglia || 0)
+    $('v-frasi').innerHTML = (f.frasi || []).map(function(t){ return '<p>' + t + '</p>' }).join('')
+    $('btn-frasi').style.display = (f.frasi && f.frasi.length) ? '' : 'none'
+  }
+
   function ascolta(canale){
     $('app-ingresso').style.display = 'none'
     $('app-visore').style.display = ''
@@ -138,6 +222,7 @@
       $('v-sub').textContent = (p.evento || '') + (p.occhi && p.occhi !== '-' ? ' · occhi ' + p.occhi : '')
       stato('misura in corso', 'viva')
       numeri(null)
+      nascondiEsito()
       ridisegna()
     })
     sub.on('broadcast', { event: 'punti' }, function(m){
@@ -157,6 +242,7 @@
       numeri(m.payload || null)
       if (mostraNumeri) $('v-numeri').classList.add('on')
       ridisegna()
+      mostraEsito(m.payload || null)
     })
     sub.subscribe(function(st){
       if (st === 'SUBSCRIBED') stato('in attesa del telefono…', 'attesa')
@@ -210,6 +296,10 @@
     conCodice(c)
   })
   $('cod').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btn-guarda').click() })
+  $('btn-frasi').addEventListener('click', function(){
+    var on = $('v-frasi').classList.toggle('on')
+    $('btn-frasi').textContent = on ? 'Nascondi la spiegazione' : 'Leggi la spiegazione'
+  })
   $('btn-numeri').addEventListener('click', function(){
     mostraNumeri = !mostraNumeri
     $('v-numeri').classList.toggle('on', mostraNumeri && !!ultimoFine)
@@ -221,7 +311,8 @@
   window.__live = {
     stato: function(){ return { xs: xs, ys: ys, inCorso: inCorso, scala: scala, fine: ultimoFine } },
     ascolta: ascolta,
-    silenzio: SILENZIO_MS
+    silenzio: SILENZIO_MS,
+    esito: function(){ return $('v-esito').classList.contains('on') }
   }
 })()
 </script>

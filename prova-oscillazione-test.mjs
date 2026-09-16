@@ -133,6 +133,12 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('marker grafica-tavola-v1', src.includes('grafica-tavola-v1'))
   check('marker prova-oscillazione-v11', src.includes('prova-oscillazione-v11'))
   check('marker confronto-v1', src.includes('confronto-v1'))
+  check('marker prova-oscillazione-v12', src.includes('prova-oscillazione-v12'))
+  check('marker oscillazione-esito-v1', src.includes('oscillazione-esito-v1'))
+  const mot2 = fs.readFileSync(path.join(ROOT, 'js/oscillazione.js'), 'utf8')
+  check('⭐ anche gli omini stanno nel motore condiviso', /omini:/.test(mot2) && /ominoProfilo/.test(mot2))
+  check('⭐ e la pagina li prende da lì, non li ridisegna',
+    /PolOscillazione\.omini\(/.test(src) && !/function ominoProfilo/.test(src))
   check('⭐ il nome nuovo è nel titolo', /<title>Oscillazione Policettiva/.test(src))
   check('e nell’intestazione della pagina', /<h1>Oscillazione Policettiva<\/h1>/.test(src))
   // oscillazione-live-v1 — carica UN solo file esterno: il motore del disegno,

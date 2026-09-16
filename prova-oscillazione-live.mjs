@@ -96,6 +96,7 @@ sez('Il visore non misura e non salva niente')
 {
   const src = fs.readFileSync(path.join(ROOT, PAGINA), 'utf8')
   check('marker oscillazione-live-v1', src.includes('oscillazione-live-v1'))
+  check('marker oscillazione-esito-v1', src.includes('oscillazione-esito-v1'))
   check('è noindex', /name="robots"[^>]*noindex/.test(src))
   check('⛔ non legge nessuna tabella', !/\.from\(/.test(src))
   const rpc = [...src.matchAll(/\.rpc\(\s*'([^']+)'/g)].map(m => m[1])
@@ -243,6 +244,121 @@ sez('⭐⭐ Se il telefono si blocca, la pagina lo DICE invece di restare ferma'
   await ctx.close()
 }
 
+
+// il messaggio di fine, come lo manda il telefono
+const FINE = {
+  velocita: 3.4, carico: -2.51, carico_avanti: -2.51, carico_destra: 0.42,
+  parola: 'INDIETRO', colore: '#c0392b', soglia: 2, asse: 'beta',
+  osc_ap: 2.5, osc_ds: 0.6, ellisse: 20.1, deriva: 1.1, cicli: 7,
+  evento: 'beccheggio', occhi: 'chiusi',
+  frasi: ['Test di beccheggio, occhi chiusi, scalzo, 30 secondi.',
+          'La velocità media è 3,4 gradi al secondo.',
+          'Questi sono i numeri della misura. L’interpretazione clinica la scrivi tu.']
+}
+
+sez('⭐ A fine test il computer mostra il risultato, come il telefono')
+{
+  const { page, ctx, errori } = await apri(browser, { sessione: true, canale: 'C' })
+  const emetti = (ev, p) => page.evaluate(([ev, p]) => window.__emetti('oscillazione:C', ev, p), [ev, p])
+  await emetti('via', { evento: 'beccheggio', occhi: 'chiusi', durata: 30, soglia: 2 })
+  await emetti('punti', { x: [0.3, 0.9, 1.4], y: [-1, -2.2, -3.1] })
+  await page.waitForTimeout(80)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('durante la misura il risultato NON c’è', !(await page.evaluate(() => window.__live.esito())))
+
+  await emetti('fine', FINE)
+  await page.waitForTimeout(120)
+  check('⭐ a fine misura compare il risultato', await page.evaluate(() => window.__live.esito()))
+
+  const car = await page.textContent('#v-carico')
+  check('⭐ c’è il carico grande con la parola', /INDIETRO/.test(car) && /2\.51/.test(car), car)
+  check('e l’asse secondario', /a destra di 0\.42/.test(car), car)
+  check('e dice che test era', /beccheggio/.test(car) && /occhi chiusi/.test(car), car)
+
+  const ti = await page.textContent('#v-tiles')
+  check('⭐ c’è la velocità, che è la misura di testa', /velocità media/.test(ti) && /3\.4/.test(ti), ti)
+  check('le due oscillazioni', /2\.5°/.test(ti) && /0\.6°/.test(ti), ti)
+  check('le oscillazioni contate e la deriva', /oscillazioni sull/.test(ti) && /deriva/.test(ti), ti)
+
+  const om = await page.innerHTML('#v-omini')
+  check('⭐ ci sono i tre omini, come sul telefono', (om.match(/<svg/g) || []).length === 3)
+  check('col numero sotto', (om.match(/cap-num/g) || []).length === 3)
+  check('e la parola della direzione', /INDIETRO/.test(await page.textContent('#v-omini')))
+
+  // il gomitolo resta visibile, più piccolo, sopra al risultato
+  const dip = await page.evaluate(() => {
+    const c = document.getElementById('v-canvas2'), d = c.getContext('2d').getImageData(0,0,c.width,c.height).data
+    let n = 0
+    for (let i = 0; i < d.length; i += 4) if (d[i] < 245 || d[i+1] < 245 || d[i+2] < 245) n++
+    return n
+  })
+  check('⭐ e il gomitolo resta lì, disegnato', dip > 2000, dip)
+  await ctx.close()
+}
+
+sez('⭐ La spiegazione è la STESSA del telefono, non ricalcolata')
+{
+  const { page, ctx, errori } = await apri(browser, { sessione: true, canale: 'C' })
+  const emetti = (ev, p) => page.evaluate(([ev, p]) => window.__emetti('oscillazione:C', ev, p), [ev, p])
+  await emetti('via', { evento: 'beccheggio', occhi: 'chiusi', durata: 30, soglia: 2 })
+  await emetti('fine', FINE)
+  await page.waitForTimeout(120)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('di default la spiegazione è chiusa', !(await page.isVisible('#v-frasi')))
+  await page.click('#btn-frasi')
+  await page.waitForTimeout(80)
+  const f = await page.textContent('#v-frasi')
+  check('⭐ aprendola ci sono le frasi arrivate dal telefono', /Test di beccheggio/.test(f), f)
+  check('⭐ parola per parola, non riscritte qui', /La velocità media è 3,4 gradi al secondo\./.test(f), f)
+  check('e la chiusura clinica', /interpretazione clinica la scrivi tu/.test(f), f)
+  await page.click('#btn-frasi')
+  await page.waitForTimeout(80)
+  check('e si richiude', !(await page.isVisible('#v-frasi')))
+  await ctx.close()
+}
+
+sez('⭐ La prova dopo riparte pulita, e un fine che non arriva non pianta niente')
+{
+  const { page, ctx, errori } = await apri(browser, { sessione: true, canale: 'C' })
+  const emetti = (ev, p) => page.evaluate(([ev, p]) => window.__emetti('oscillazione:C', ev, p), [ev, p])
+  await emetti('via', { evento: 'beccheggio', occhi: 'aperti', durata: 30, soglia: 2 })
+  await emetti('fine', FINE)
+  await page.waitForTimeout(100)
+  check('il risultato c’è', await page.evaluate(() => window.__live.esito()))
+  await emetti('via', { evento: 'rollio', occhi: 'aperti', durata: 30, soglia: 2 })
+  await page.waitForTimeout(100)
+  check('⭐ alla prova dopo il risultato sparisce e torna il disegno',
+    !(await page.evaluate(() => window.__live.esito())) && await page.isVisible('#v-scena'))
+
+  // ⭐ il fine che non arriva mai: deve restare il disegno, non una schermata a metà
+  await emetti('punti', { x: [1], y: [1] })
+  await page.waitForTimeout(100)
+  const sil = await page.evaluate(() => window.__live.silenzio)
+  await page.waitForTimeout(sil + 1200)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐⭐ senza il messaggio di fine non compare nessun risultato a metà',
+    !(await page.evaluate(() => window.__live.esito())))
+  check('e resta il disegno con l’avviso di interruzione',
+    await page.isVisible('#v-scena') && /interrotta/.test(await page.textContent('#v-stato')))
+  await ctx.close()
+}
+
+sez('⛔ Un fine sballato non rompe la pagina')
+{
+  const { page, ctx, errori } = await apri(browser, { sessione: true, canale: 'C' })
+  const emetti = (ev, p) => page.evaluate(([ev, p]) => window.__emetti('oscillazione:C', ev, p), [ev, p])
+  await emetti('via', { evento: 'beccheggio', occhi: 'aperti', durata: 30, soglia: 2 })
+  // payload monco: niente carico, niente frasi, niente colore
+  await emetti('fine', { velocita: 1, osc_ap: 0, osc_ds: 0, ellisse: 0, deriva: 0, cicli: 0 })
+  await page.waitForTimeout(150)
+  check('⛔ nessun errore JS anche con un messaggio monco', errori.length === 0, errori)
+  check('il risultato compare lo stesso', await page.evaluate(() => window.__live.esito()))
+  check('⭐ e il pulsante della spiegazione sparisce se non ci sono frasi',
+    !(await page.isVisible('#btn-frasi')))
+  const om = await page.innerHTML('#v-omini')
+  check('gli omini si disegnano comunque, a zero', (om.match(/<svg/g) || []).length === 3)
+  await ctx.close()
+}
 } finally {
   await browser.close()
   server.close()
