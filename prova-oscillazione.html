@@ -170,7 +170,26 @@
      cose diverse. Se quel messaggio non arriva (telefono bloccato) non succede
      niente: resta il disegno e il cane da guardia dice che si e' interrotta.
      Per la stessa ragione gli OMINI sono passati in js/oscillazione.js, dove
-     gia' stava il disegno: li mostrano tutte e due le pagine. -->
+     gia' stava il disegno: li mostrano tutte e due le pagine.
+
+     prova-oscillazione-v13 / taratura-guidata-v1 (16 set, dopo che Giuliano
+     ha provato il giro vero e si e' fermato su tre cose):
+     1) LA TARATURA ERA INESEGUIBILE. «Devo andare avanti e a destra insieme o
+        prima uno e poi l'altro?» era la domanda giusta e la risposta non c'era.
+        Adesso e' GUIDATA: cinque passi, uno per volta, ognuno detto a voce —
+        centro, avanti, centro, destra, centro. Quindici secondi in tutto (erano
+        trenta) e il verso si legge come DIFFERENZA dal centro misurato, non
+        dallo zero assoluto: piu' robusto e piu' facile da eseguire.
+     2) LO ZERO TAVOLA NON SI SCEGLIE PIU'. Erano due pulsanti che nessuno
+        sapeva perche' premere. La pagina prende lo zero DA SOLA nei tre secondi
+        prima di ogni prova, con la tavola ancora vuota: e' sempre fresco, segue
+        l'assestamento del cuscino e non si puo' dimenticare. E se qualcuno e'
+        gia' salito la tavola non sta ferma (misurato: 0,02-0,06 gradi a vuoto
+        contro 0,4-7 con una persona sopra): la pagina se ne accorge, RIFIUTA la
+        prova e dice di scendere, invece di prendere per zero un paziente.
+     3) I pulsanti passano da cinque a TRE: beccheggio, rollio, taratura.
+     🆕 E dopo una taratura si ricalcola tutto: prove, storico E confronto.
+        Prima il confronto restava indietro e nessuno se ne accorgeva. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/oscillazione.js"></script>
 <style>
@@ -306,9 +325,7 @@
     <h2>1 · Prepara la prova</h2>
     <label>1 · Che test</label>
     <div class="chips" id="chips">
-      <button class="chip on" data-e="zero tavola (beccheggio)">zero tavola · beccheggio</button>
-      <button class="chip" data-e="zero tavola (rollio)">zero tavola · rollio</button>
-      <button class="chip" data-e="beccheggio">beccheggio</button>
+      <button class="chip on" data-e="beccheggio">beccheggio</button>
       <button class="chip" data-e="rollio">rollio</button>
       <button class="chip" data-e="taratura">taratura del verso (una volta sola)</button>
     </div>
@@ -457,7 +474,7 @@
   var FORZA_DUR = Number(Q.get('dur')) || 0          // durata in secondi
   var SALTA_ASSESTAMENTO = Q.get('via') === '1'
 
-  var evento = 'zero tavola (beccheggio)'
+  var evento = 'beccheggio'
   var occhi  = 'aperti'
   var piedi  = 'scalzo'
   var prove = []
@@ -508,13 +525,7 @@
   }
 
   var SPIEGA = {
-    'zero tavola (beccheggio)':
-      'NESSUNO sopra, non la tocchi, cuscino col GIALLO davanti e dietro. Serve a sapere a che ' +
-      'angolo si appoggia la tavola scarica: è lo zero da cui si misura il carico. Va rifatto a ' +
-      'ogni cambio di tavola o di cuscini, se no «carica in avanti» non ha un riferimento.',
-    'zero tavola (rollio)':
-      'Come l’altro zero, ma col cuscino RUOTATO di 90° (giallo ai lati): è la posizione in cui ' +
-      'farai i test di rollio. Ogni orientamento del cuscino ha il suo zero, e sono diversi.',
+
     'beccheggio':
       'Cuscino col GIALLO davanti e dietro (25 kg: cede) e il NERO ai lati (65 kg: tiene). ' +
       'La tavola cede avanti-indietro, quindi il test dice se il carico va sulle PUNTE o sul TALLONE.',
@@ -522,16 +533,27 @@
       'Cuscino ruotato di 90°: GIALLO ai lati, NERO davanti e dietro. ' +
       'La tavola cede a destra-sinistra, quindi il test dice se il carico va a DESTRA o a SINISTRA.',
     'taratura':
-      'UNA VOLTA SOLA per questo telefono, cinque secondi. Sali e sporgiti in DIAGONALE — ' +
-      'AVANTI e a DESTRA insieme — e resta lì fino alla fine. Da quel movimento la pagina impara ' +
-      'il verso di tutti e due gli assi, e da lì in poi scrive «avanti», «indietro», «destra» e ' +
-      '«sinistra» al posto di un segno. Poi se la ricorda: non la rifarai più. ' +
-      'Sporgiti in modo netto — sotto 1,5° su un asse la taratura viene rifiutata, perché il segno ' +
-      'lo deciderebbe il rumore invece del movimento.'
+      'UNA VOLTA SOLA per questo telefono, quindici secondi. La voce ti guida passo per passo: ' +
+      'stai fermo al centro, poi ti sporgi AVANTI, torni al centro, poi sposti il peso a DESTRA. ' +
+      'Un movimento per volta, non insieme. Serve a insegnare alla pagina da che parte è «avanti» ' +
+      'su questo telefono, così da lì in poi scrive le parole al posto dei segni. Poi se la ' +
+      'ricorda e non la rifarai più.'
   }
   function assePrincipale(ev){ return ev === 'rollio' ? 'gamma' : 'beta' }
   function eTest(ev){ return ev === 'beccheggio' || ev === 'rollio' }
+  // taratura-guidata-v1 — lo zero tavola NON è più un test da scegliere.
+  // Era una domanda che nessuno sapeva perché rispondere, e due pulsanti in più
+  // da sbagliare. Adesso la pagina lo prende DA SOLA nei 3 secondi prima di
+  // ogni prova, con la tavola ancora vuota: è sempre fresco e non si può
+  // dimenticare. `eZero` resta solo per leggere le prove registrate prima.
   function eZero(ev){ return /^zero tavola/.test(ev) }
+  var ZERO_MS = 3000
+  var zeroPresoAt = 0        // serve ai controlli automatici per sapere quando lo zero è finito
+  var passoTaratura = null   // idem: quale passo della taratura è in corso
+  // Con nessuno sopra la tavola non si muove: misurato l'11 e il 13 settembre,
+  // oscillazione 0,02-0,06°. Con una persona sopra si parte da 0,4° e si arriva
+  // a 7°. Sopra questa soglia vuol dire che qualcuno è già salito.
+  var ZERO_MOSSO = 0.15
   // taratura-dopo-v1 — lo zero appartiene a un ORIENTAMENTO del cuscino.
   // Le tarature non ne usano nessuno: lo sbilanciamento deliberato e' di un
   // ordine di grandezza piu' grande dell'angolo della tavola scarica.
@@ -539,6 +561,12 @@
     if (ev === 'rollio'     || ev === 'zero tavola (rollio)')     return 'rollio'
     if (ev === 'beccheggio' || ev === 'zero tavola (beccheggio)') return 'beccheggio'
     return null
+  }
+  function mediaSerie(v){
+    var n = v.length, i, m = 0
+    if (!n) return 0
+    for (i=0;i<n;i++) m += v[i]
+    return m / n
   }
 
   // ⭐ IL CUORE DELLA v6 — il carico si calcola quando lo si LEGGE, non quando
@@ -569,7 +597,8 @@
     return '<div class="warn" style="border-color:#c0392b;background:#fff3f2;color:#c0392b">' +
       '🔴 <b>TARATURA MAI FATTA su questo telefono.</b> ' +
       'Il verso degli assi è indovinato, non misurato: <b>«avanti» può voler dire «indietro»</b>. ' +
-      'Sono <b>cinque secondi, una volta sola</b>, e la puoi fare anche <b>adesso, alla fine</b>: ' +
+      'Sono <b>quindici secondi, una volta sola</b>, guidata dalla voce, e la puoi fare anche ' +
+      '<b>adesso, alla fine</b>: ' +
       'le prove già registrate si correggono da sole.</div>'
   }
 
@@ -650,13 +679,11 @@
       })
     } else {
       el.innerHTML = '<div class="tar-riga tar-no"><span>🔴 <b>Taratura mai fatta</b> su questo ' +
-        'telefono: cinque secondi, una volta sola. Scegli «taratura del verso».</span></div>'
+        'telefono: quindici secondi, una volta sola, guidata dalla voce. Scegli «taratura del verso».</span></div>'
     }
   }
 
-  function versoDelTest(ev){
-    return (ev === 'rollio' || ev === 'zero tavola (rollio)') ? 'rollio' : 'beccheggio'
-  }
+  function versoDelTest(ev){ return ev === 'rollio' ? 'rollio' : 'beccheggio' }
   function aggiornaSpiega(){
     $('spiega').textContent = SPIEGA[evento] || ''
     // grafica-tavola-v1 — il disegno cambia col test: e' l'unico modo per non
@@ -1015,6 +1042,115 @@
     })
   }
 
+  // ═══ taratura-guidata-v1 · LA TARATURA, PASSO PER PASSO ══════════════
+  // Prima era un gesto solo in diagonale, 5 secondi: veloce da scrivere,
+  // impossibile da eseguire. «Devo andare avanti e a destra insieme o prima
+  // uno e poi l'altro?» era la domanda giusta, e la risposta non c'era.
+  // Adesso è UN MOVIMENTO PER VOLTA, con la voce che dice cosa fare a ogni
+  // passo, e il centro misurato all'inizio: il verso si legge come DIFFERENZA
+  // dal centro, non dallo zero assoluto. Quindici secondi in tutto.
+  var PASSI_TARATURA = [
+    { testo: 'Stai fermo al centro',        voce: 'Sali sulla tavola e stai fermo al centro.', ms: 3000, prendi: 'centro' },
+    { testo: 'Sporgiti in AVANTI',          voce: 'Adesso sporgiti in avanti, e resta lì.',    ms: 4000, prendi: 'avanti' },
+    { testo: 'Torna al centro',             voce: 'Torna al centro.',                          ms: 2000, prendi: null },
+    { testo: 'Sposta il peso a DESTRA',     voce: 'Adesso sposta il peso a destra, e resta lì.', ms: 4000, prendi: 'destra' },
+    { testo: 'Torna al centro',             voce: 'Torna al centro. Finito.',                  ms: 2000, prendi: null }
+  ]
+
+  async function faiTaratura(){
+    var raccolto = {}, i
+    for (i = 0; i < PASSI_TARATURA.length; i++){
+      var passo = PASSI_TARATURA[i]
+      $('etichetta-viva').textContent = 'taratura · passo ' + (i+1) + ' di ' + PASSI_TARATURA.length
+      $('stato').textContent = passo.testo
+      $('countdown').textContent = Math.round(passo.ms/1000)
+      passoTaratura = passo.prendi || 'centro'
+      bip(880, 140)
+      voce(passo.voce)
+      // un attimo per far finire la voce prima di cominciare a misurare
+      await new Promise(function(r){ setTimeout(r, SALTA_ASSESTAMENTO ? 0 : 1400) })
+      var d = await misura(SALTA_ASSESTAMENTO ? 400 : passo.ms, function(restanti){
+        $('countdown').textContent = restanti
+      })
+      if (passo.prendi) raccolto[passo.prendi] = { b: mediaSerie(d.ob), g: mediaSerie(d.og) }
+    }
+    passoTaratura = null
+    bip(660, 200); setTimeout(function(){ bip(392, 420) }, 230)
+    return raccolto
+  }
+
+  function concludiTaratura(r){
+    var dB = (r.avanti && r.centro) ? (r.avanti.b - r.centro.b) : 0
+    var dG = (r.destra && r.centro) ? (r.destra.g - r.centro.g) : 0
+    var okB = Math.abs(dB) >= TARATURA_MINIMA, okG = Math.abs(dG) >= TARATURA_MINIMA
+    if (okB && okG){
+      verso.beta  = dB >= 0 ? 1 : -1
+      verso.gamma = dG >= 0 ? 1 : -1
+      tarato.beta = true; tarato.gamma = true
+      salvaTaratura()
+      voce('Taratura riuscita. Non la rifarai più.')
+      return { ok: true }
+    }
+    var manca = (!okB && !okG) ? 'in avanti e a destra' : (!okB ? 'in avanti' : 'a destra')
+    voce('Taratura non riuscita: ti sei spostato troppo poco. Riprova.')
+    return { ok: false, manca: manca, dB: dB, dG: dG }
+  }
+
+  // ═══ taratura-guidata-v1 · LO ZERO, PRESO DA SOLO ════════════════════
+  // Tre secondi con la tavola vuota, prima di ogni prova. Il carico si misura
+  // come differenza da QUESTO, non dall'orizzontale: la tavola scarica non sta
+  // a zero gradi ma all'angolo in cui la lascia il cuscino (misurato: circa 1°,
+  // su carichi che valgono 1-3°, quindi conta).
+  async function zeroAutomatico(chZero){
+    $('stato').textContent = '⚠️ Non salire ancora — misuro la tavola vuota'
+    $('countdown').textContent = Math.round(ZERO_MS/1000)
+    voce('Non salire ancora. Misuro la tavola vuota.')
+    await new Promise(function(r){ setTimeout(r, SALTA_ASSESTAMENTO ? 0 : 1600) })
+    var d = await misura(SALTA_ASSESTAMENTO ? 400 : ZERO_MS, function(restanti){
+      $('countdown').textContent = restanti
+    })
+    zeroPresoAt = Date.now()
+    var m = metriche(d.og, d.ob, ZERO_MS/1000, 0)
+    if (!m) return { ok: false, perche: 'niente' }
+    var mosso = Math.max(m.stdX, m.stdY)
+    if (mosso > ZERO_MOSSO) return { ok: false, perche: 'mosso', mosso: mosso }
+    zeriTavola[chZero] = { beta: m.my, gamma: m.mx, quando: new Date().toISOString(), conf: $('config').value || '(non indicata)' }
+    return { ok: true, mosso: mosso }
+  }
+
+  function mostraEsitoTaratura(e){
+    mostra('c-misura', false); mostra('c-esito', true)
+    $('omini').innerHTML = ''
+    $('avviso-asse').innerHTML = ''
+    $('tab-metriche').innerHTML = ''
+    $('nota-freq').innerHTML = ''
+    $('spiegazione').innerHTML = ''; $('spiegazione').style.display = 'none'
+    mostra('btn-spiega', false)
+    var cv = $('traccia'); cv.getContext('2d').clearRect(0,0,cv.width,cv.height)
+    if (e.ok){
+      $('carico-box').innerHTML =
+        '<div class="carico" style="border-color:#0a7d33;background:#eef9f0;color:#0a7d33">' +
+          '<div class="tit">taratura</div><div class="val">✓</div>' +
+          '<div class="sec">Verso imparato e ricordato su questo telefono. Non la rifarai più.</div></div>'
+      $('quando').textContent = new Date().toLocaleString('it-IT')
+    } else {
+      $('carico-box').innerHTML =
+        '<div class="carico" style="border-color:#c0392b;background:#fff3f2;color:#c0392b">' +
+          '<div class="tit">taratura</div><div class="val">✗</div>' +
+          '<div class="sec">Ti sei spostato di meno di ' + numIt(TARATURA_MINIMA,1) + '° ' + e.manca +
+          '. Il verso NON è stato imparato: rifalla sporgendoti di più, un movimento per volta.</div></div>' +
+        avvisoTaratura()
+      $('quando').textContent = ''
+    }
+    aggiornaStatoTaratura()
+    // ⭐ dopo una taratura TUTTO va ricalcolato: le prove già registrate, lo
+    // storico e il confronto. Senza questa riga i numeri sullo schermo
+    // restavano quelli di prima e nessuno se ne accorgeva.
+    aggiornaStorico()
+    aggiornaConfronto()
+    $('c-esito').scrollIntoView({ behavior:'smooth', block:'start' })
+  }
+
   // ── il giro completo ──────────────────────────────────────────────────
   var inCorso = false
   async function avvia(){
@@ -1041,9 +1177,37 @@
     var wl = null
     try { if (navigator.wakeLock) wl = await navigator.wakeLock.request('screen') } catch(e){}
 
-    var comeSiSale = eZero(evento)
-      ? 'Non toccare il telefono.'
-      : 'Sali sulla tavola e trova la posizione.'
+    // ── LA TARATURA ha un giro tutto suo: passi guidati, niente altro ──
+    if (evento === 'taratura'){
+      var racc = await faiTaratura()
+      var esitoT = concludiTaratura(racc)
+      try { if (wl) wl.release() } catch(e){}
+      $('guard').classList.remove('on')
+      mostraEsitoTaratura(esitoT)
+      inCorso = false
+      return
+    }
+
+    // ── LO ZERO, preso da solo, con la tavola ancora vuota ──
+    var chZ = chiaveZero(evento)
+    var ez = await zeroAutomatico(chZ)
+    if (!ez.ok){
+      try { if (wl) wl.release() } catch(e){}
+      $('guard').classList.remove('on')
+      mostra('c-misura', false); mostra('c-setup', true)
+      $('err').style.display = ''
+      $('err').innerHTML = (ez.perche === 'mosso')
+        ? '⚠️ <b>La tavola si è mossa di ' + r2(ez.mosso) + '° mentre misuravo il vuoto.</b> ' +
+          'Vuol dire che qualcuno ci era già sopra, o che l’hai toccata. ' +
+          'Scendi, lasciala ferma, e ripremi il pulsante: i primi tre secondi servono a ' +
+          'misurare la tavola scarica.'
+        : '⚠️ I sensori non hanno risposto durante la misura della tavola vuota. Riprova.'
+      voce('Non ci siamo: la tavola non era ferma. Scendi e riprova.')
+      inCorso = false
+      return
+    }
+
+    var comeSiSale = 'Adesso sali sulla tavola e trova la posizione.'
     // grafica-tavola-v1 — a occhi chiusi l'avvertenza la DICE, non la scrive
     // soltanto: chi tiene gli occhi chiusi lo schermo non lo vede.
     var sicurezza = (eTest(evento) && occhi === 'chiusi')
@@ -1108,23 +1272,8 @@
     // Sotto TARATURA_MINIMA non si impara niente, e lo si dice a schermo.
     // Non si sottrae lo zero della tavola: lo sbilanciamento deliberato e' di
     // un ordine di grandezza piu' grande (misurato: 9,5° contro 0,78°).
-    var tarValida = null, tarMancante = ''
-    if (mAbs && evento === 'taratura'){
-      // taratura-unica-v1 — un solo gesto in DIAGONALE insegna tutti e due i
-      // versi: sporgendosi avanti E a destra, beta e gamma si muovono insieme.
-      // Prima servivano due prove da 10 s; adesso una da 5.
-      var sB = mAbs.my, sG = mAbs.mx
-      var okB = Math.abs(sB) >= TARATURA_MINIMA, okG = Math.abs(sG) >= TARATURA_MINIMA
-      tarValida = okB && okG
-      if (tarValida){
-        verso.beta  = sB >= 0 ? 1 : -1; tarato.beta  = true
-        verso.gamma = sG >= 0 ? 1 : -1; tarato.gamma = true
-        salvaTaratura()
-      } else {
-        tarMancante = !okB && !okG ? 'in avanti e a destra'
-                    : (!okB ? 'in avanti' : 'a destra')
-      }
-    }
+    // taratura-guidata-v1 — qui non arrivano più né la taratura né lo zero:
+    // hanno un giro loro. `concludi` vede solo beccheggio e rollio.
 
     // taratura-unica-v1 — il telefono e' appoggiato in piano?
     // Il verso imparato vale per QUELL'appoggio. E oltre i 30 gradi gli angoli
@@ -1164,7 +1313,7 @@
       gb: mAbs ? mAbs.my : null,
       gg: mAbs ? mAbs.mx : null,
       chiaveZero: eTest(evento) ? chZero : null,
-      taratura_valida: tarValida,
+      taratura_valida: null,      // taratura-guidata-v1: la taratura ha un giro suo
       osc_avanti_dietro: m ? r2(m.stdY) : null,
       osc_destra_sinistra: m ? r2(m.stdX) : null,
       orientamento: m, accelerometro: mAc,
@@ -1219,25 +1368,11 @@
             Math.round(prova.durata_reale_s) + ' s</span></div>' +
         '</div>' +
         avvisoTaratura() +
-        (!zt ? '<div class="warn">Manca lo <b>zero tavola</b> per il cuscino in <b>' + chZero +
-               '</b>: il carico è misurato dall’orizzontale, non dalla tavola scarica. ' +
-               'Fai la prova «zero tavola · ' + chZero + '»: <b>anche dopo</b>, questa prova si corregge da sola.</div>'
-             : (zt.conf && zt.conf !== conf
-                ? '<div class="warn">⚠️ Lo zero di questo cuscino è stato preso con la configurazione ' +
-                  '«' + zt.conf + '», adesso hai scritto «' + conf + '». Se hai cambiato tavola o cuscini, ' +
-                  'rifai lo zero.</div>' : ''))
+        (zt ? '' : '<div class="warn">Lo zero della tavola non è stato preso: il carico è misurato ' +
+                    'dall’orizzontale, non dalla tavola scarica.</div>')
       // confronto-v1 — più grandi e col numero sotto: è la figura che si guarda
       // per prima sul referto, e prima passava inosservata.
       $('omini').innerHTML = window.PolOscillazione.omini(carB, carG, col.c, soglia)
-    } else if (tarValida === false) {
-      // taratura rifiutata: meglio nessuna taratura che una decisa dal rumore
-      $('carico-box').innerHTML =
-        '<div class="carico" style="border-color:#c0392b;background:#fff3f2;color:#c0392b">' +
-          '<div class="tit">' + evento + '</div><div class="val">✗</div>' +
-          '<div class="sec">ti sei spostato di meno di ' + TARATURA_MINIMA + '° ' + tarMancante +
-          ': il verso NON è stato imparato. Rifalla sporgendoti di più, in diagonale.</div></div>' +
-        avvisoTaratura()
-      $('omini').innerHTML = ''
     } else {
       var testo = eZero(evento)
         ? 'zero registrato per il cuscino in ' + chZero + ' («' + conf + '»)'
@@ -1303,6 +1438,11 @@
         ? ' I sensori hanno cominciato a rispondere dopo <b>' + prova.ritardo_avvio_s +
           ' s</b>: la durata usata per i conti è quella vera dei campioni.' : '')
 
+    if (zt) {
+      $('nota-freq').innerHTML = 'Tavola scarica misurata prima di questa prova: ' +
+        numIt(Math.abs(zt.beta),2) + '° · ' + numIt(Math.abs(zt.gamma),2) + '°. ' +
+        'Il carico è la differenza da lì.<br>' + $('nota-freq').innerHTML
+    }
     $('quando').textContent = new Date(prova.quando).toLocaleString('it-IT', {
       weekday:'long', day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
     }) + '  ·  ' + conf + '  ·  ' + prova.piedi
@@ -1436,7 +1576,7 @@
 
     if (!c.tarato){
       f.push('Attenzione: la taratura non è mai stata fatta su questo telefono, quindi avanti ' +
-             'e indietro potrebbero essere scambiati. Sono cinque secondi, una volta sola, ' +
+             'e indietro potrebbero essere scambiati. Sono quindici secondi, una volta sola, ' +
              'e i numeri già presi si correggono da soli.')
     }
     if (c && c.zero){
@@ -1935,6 +2075,9 @@
     colore: coloreSoglia,
     verso: function(){ return verso },
     tarato: function(){ return tarato },
+    zeroPresoAt: function(){ return zeroPresoAt },
+    passoTaratura: function(){ return passoTaratura },
+    passiTaratura: function(){ return PASSI_TARATURA },
     carico: caricoDi,
     riassunto: function(){ return riassunto() },
     conta: contaOscillazioni,
