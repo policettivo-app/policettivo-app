@@ -194,6 +194,7 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('marker oscillazione-esito-v1', src.includes('oscillazione-esito-v1'))
   check('marker taratura-guidata-v1', src.includes('taratura-guidata-v1'))
   check('marker prova-oscillazione-v13', src.includes('prova-oscillazione-v13'))
+  check('marker oscillazione-app-v1', src.includes('oscillazione-app-v1'))
   const mot2 = fs.readFileSync(path.join(ROOT, 'js/oscillazione.js'), 'utf8')
   check('⭐ anche gli omini stanno nel motore condiviso', /omini:/.test(mot2) && /ominoProfilo/.test(mot2))
   check('⭐ e la pagina li prende da lì, non li ridisegna',
@@ -223,8 +224,16 @@ sez('La pagina è davvero isolata dall’app in uso')
   const rpc = [...src.matchAll(/\.rpc\(\s*'([^']+)'/g)].map(m => m[1])
   check('⭐ chiama solo le funzioni della diretta',
     rpc.length > 0 && rpc.every(n => /^oscillazione_/.test(n)), rpc)
-  check('⛔ non legge nessuna tabella del database', !/\.from\(/.test(src))
-  check('⛔ non fa nessuna fetch a mano', !/fetch\s*\(|XMLHttpRequest/.test(src))
+  // oscillazione-app-v1 — adesso salva: legge il proprio profilo e il nome del
+  // paziente, e scrive SOLO nella tabella dei test. Nient'altro.
+  const tabelle = [...src.matchAll(/\.from\('([^']+)'\)/g)].map(m => m[1]).sort()
+  check('⭐ tocca solo tre tabelle: il profilo, il paziente e i test',
+    tabelle.join() === 'oscillazione_test,patients,professionals', tabelle)
+  check('⛔ e l’unica che scrive è quella dei test',
+    !/\.from\('(?!oscillazione_test)[^']+'\)[^;]*\.(insert|update|delete|upsert)\(/.test(src))
+  const fetchs = [...src.matchAll(/fetch\(\s*'([^']+)'/g)].map(m => m[1])
+  check('⭐ l’unica chiamata diretta è al server del PDF', fetchs.join() === '/api/pdf-render', fetchs)
+  check('⛔ niente XMLHttpRequest', !/XMLHttpRequest/.test(src))
   check('⛔ e sul canale non manda nomi né identificativi di paziente',
     !/patient|paziente_id|nome:|cognome/i.test(
       (src.match(/canaleSub\.send\([^]*?\}\}\)/g) || []).join(' ')))
@@ -240,8 +249,10 @@ sez('La pagina è davvero isolata dall’app in uso')
     !/localStorage\.setItem\([^)]*prove/.test(src) && !/localStorage\.setItem\([^)]*grezz/.test(src))
   check('è noindex', /name="robots"[^>]*noindex/.test(src))
   const altre = fs.readdirSync(ROOT).filter(f => f.endsWith('.html') && f !== PAGINA)
-  const linkata = altre.some(f => fs.readFileSync(path.join(ROOT, f), 'utf8').includes(PAGINA))
-  check('nessuna pagina dell’app la linka', !linkata)
+  // oscillazione-app-v1 — adesso è DENTRO l'app, e le pagine che la aprono sono queste e solo queste
+  const linkano = altre.filter(f => fs.readFileSync(path.join(ROOT, f), 'utf8').includes(PAGINA)).sort()
+  check('⭐ la aprono la home, la scheda paziente e lo storico (e basta)',
+    JSON.stringify(linkano) === JSON.stringify(['dashboard.html', 'oscillazione-storico.html', 'paziente.html']), linkano)
 }
 
 sez('La matematica, contro numeri calcolabili a mano')
@@ -330,7 +341,7 @@ sez('Il giro completo, con i sensori finti')
   check('i tempi crescono', p.grezzi.t[10] > p.grezzi.t[0])
   check('l’etichetta della prova è salvata', p.evento === 'beccheggio', p.evento)
   check('i piedi sono salvati', p.piedi === 'scalzo', p.piedi)
-  check('l’attesa scelta è salvata', p.attesa_s === 5, p.attesa_s)
+  check('⭐ l’attesa di partenza è 10 secondi (prima 5: troppo poco per salire)', p.attesa_s === 10, p.attesa_s)
 
   const freq = await page.textContent('#nota-freq')
   check('a schermo compare la frequenza reale', /Hz reali/.test(freq), freq)
@@ -444,7 +455,7 @@ sez('v2 · la voce dice la prova, il conto e la fine')
   check('annuncia CHE prova è', /beccheggio/.test(detto1), detto1)
   check('e con che occhi', /occhi chiusi/.test(detto1), detto1)
   check('dice cosa fare', /sali sulla tavola/i.test(detto1), detto1)
-  check('dice fra quanto comincia', /fra 5 secondi/.test(detto1), detto1)
+  check('dice fra quanto comincia', /fra 10 secondi/.test(detto1), detto1)
 
   await page.evaluate(GUIDA, { raggio: 2, giriAlSecondo: 1, passoMs: 20, durataMs: 9000 })
   await page.waitForSelector('#c-esito', { state: 'visible', timeout: 20000 })
@@ -1678,6 +1689,254 @@ sez('⭐ taratura-guidata-v1 · dopo la taratura si ricalcola TUTTO')
   check('⭐⭐ e anche il CONFRONTO è stato rifatto',
     (await page.textContent('#conf-esito')) !== cfrPrima)
   await ctx.close()
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// oscillazione-app-v1 — il test dentro l'applicazione
+// ═══════════════════════════════════════════════════════════════════════
+
+// il finto Supabase: sessione, profilo, paziente, insert e canale.
+// ⚠️ L'insert registra davvero la riga ricevuta: si controlla COSA arriva al
+//    database, non solo che la pagina non esploda.
+const SUPA = ({ sessione, pazienteOk, insertErr }) => {
+  window.__db = { righe: [], canale: [] }
+  const q = (tab) => {
+    const st = { tab, filtri: {} }
+    const api = {
+      select() { return api },
+      eq(k, v) { st.filtri[k] = v; return api },
+      async maybeSingle() {
+        if (st.riga) {
+          if (insertErr) return { data: null, error: { message: insertErr } }
+          window.__db.righe.push(st.riga); return { data: { id: 'riga-' + window.__db.righe.length }, error: null }
+        }
+        if (tab === 'professionals') return { data: { id: 'PROF-1' }, error: null }
+        if (tab === 'patients') return pazienteOk
+          ? { data: { nome: 'Mario', cognome: 'Rossi' }, error: null } : { data: null, error: null }
+        return { data: null, error: null }
+      },
+      insert(r) { st.riga = r; return api }
+    }
+    return api
+  }
+  window.supabase = { createClient() { return {
+    auth: { getSession: async () => ({ data: { session: sessione ? { user: { id: 'U1' }, access_token: 'TOK' } : null } }) },
+    from: q,
+    rpc: async () => ({ data: null, error: null }),
+    channel() { const c = { on(){ return c }, subscribe(){ return c }, send(m){ window.__db.canale.push(m) } }; return c },
+    removeChannel() {}
+  } } }
+}
+
+async function apriApp(browser, finto, query) {
+  const ctx = await browser.newContext({ viewport: { width: 400, height: 780 } })
+  const page = await ctx.newPage()
+  const errori = []
+  page.on('pageerror', e => errori.push(String(e)))
+  await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }))
+  await page.addInitScript(SUPA, finto)
+  await page.goto('http://localhost:' + PORT + '/' + PAGINA + (query || ''), { waitUntil: 'load' })
+  await page.waitForTimeout(300)
+  return { page, ctx, errori }
+}
+
+sez('⭐ oscillazione-app-v1 · il pulsante PARTI è grande e si vede senza scorrere')
+{
+  const { page, ctx, errori } = await apri(browser)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const r = await page.evaluate(() => {
+    const b = document.getElementById('btn-start').getBoundingClientRect()
+    return { top: b.top, bottom: b.bottom, h: b.height, w: b.width, vh: window.innerHeight,
+             pos: getComputedStyle(document.getElementById('btn-start')).position }
+  })
+  check('⭐⭐ è fisso sullo schermo, non in fondo alla pagina', r.pos === 'fixed', r.pos)
+  check('⭐ si vede appena si apre la pagina, senza scorrere', r.bottom <= r.vh && r.top >= r.vh * 0.6, r)
+  check('⭐ è grande: alto almeno 80 pixel', r.h >= 80, r.h)
+  check('e largo quasi tutto lo schermo', r.w >= 300, r.w)
+  check('dice PARTI', /PARTI/.test(await page.textContent('#btn-start')))
+  await page.click('#chips .chip[data-e="rollio"]')
+  await page.click('#occhi .chip[data-o="chiusi"]')
+  check('⭐ e dice cosa fa partire', /rollio · occhi chiusi/.test(await page.textContent('#btn-start')),
+    await page.textContent('#btn-start'))
+  await page.click('#chips .chip[data-e="taratura"]')
+  check('anche per la taratura', /taratura/.test(await page.textContent('#btn-start')))
+  // scorrendo in fondo resta lì
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  await page.waitForTimeout(80)
+  const r2b = await page.evaluate(() => document.getElementById('btn-start').getBoundingClientRect().bottom <= window.innerHeight)
+  check('⭐ e resta lì anche scorrendo', r2b)
+  await ctx.close()
+}
+
+sez('⭐ oscillazione-app-v1 · anche RIFAI è grande e fisso')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  await parti(page, '#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0, ampB: 1, ampG: 0.2, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const r = await page.evaluate(() => {
+    const b = document.getElementById('btn-ancora').getBoundingClientRect()
+    return { pos: getComputedStyle(document.getElementById('btn-ancora')).position, h: b.height,
+             vis: b.bottom <= window.innerHeight }
+  })
+  check('⭐ RIFAI è fisso e si vede', r.pos === 'fixed' && r.vis, r)
+  check('ed è grande', r.h >= 80, r.h)
+  check('⭐ il PARTI della preparazione non si sovrappone: è nascosto', !(await page.isVisible('#btn-start')))
+  await ctx.close()
+}
+
+sez('⭐ oscillazione-app-v1 · senza account: si misura, ma non si salva e lo dice')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2&via=1')
+  check('la banda dice che non si salva', /non si salvano/.test(await page.textContent('#paz-banda')),
+    await page.textContent('#paz-banda'))
+  await parti(page, '#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0, ampB: 1, ampG: 0.2, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(150)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ sotto il risultato dice che NON è stata salvata',
+    /Non salvata/.test(await page.textContent('#salva-stato')), await page.textContent('#salva-stato'))
+  await ctx.close()
+}
+
+sez('⭐⭐ oscillazione-app-v1 · dalla scheda del paziente: si salva nella SUA cartella')
+{
+  const PIDV = '11111111-2222-3333-4444-555555555555'
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true, pazienteOk: true }, '?dur=2&via=1&pid=' + PIDV)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const banda = await page.textContent('#paz-banda')
+  check('⭐ in alto c’è il nome del paziente', /Mario Rossi/.test(banda), banda)
+  check('e dice che si salva nella sua cartella', /sua cartella/.test(banda), banda)
+
+  await parti(page, '#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 3, offG: 0.4, ampB: 1.2, ampG: 0.2, zeroB: 1, zeroG: 0,
+                                passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForFunction(() => window.__db.righe.length === 1, null, { timeout: 5000 }).catch(() => {})
+  const righe = await page.evaluate(() => window.__db.righe)
+  check('⭐⭐ la prova si è salvata DA SOLA, senza premere niente', righe.length === 1, righe.length)
+  const r = righe[0] || {}
+  check('⭐ col professionista giusto', r.professional_id === 'PROF-1', r.professional_id)
+  check('⭐ e col paziente giusto', r.patient_id === PIDV, r.patient_id)
+  check('il test giusto', r.evento === 'beccheggio' && r.occhi === 'aperti', { e: r.evento, o: r.occhi })
+  check('⭐ la velocità, che è la misura di testa', r.velocita > 0, r.velocita)
+  check('il carico già riferito alla tavola scarica (3-1=2)', Math.abs(r.carico_avanti - 2) < 0.6, r.carico_avanti)
+  check('⭐ verso e zero usati viaggiano col test', r.verso_beta === 1 && r.zero_beta != null, { v: r.verso_beta, z: r.zero_beta })
+  check('⭐ la traccia è a 10 Hz, non a 60', r.traccia_hz === 10 && r.traccia.t.length < r.campioni / 3,
+    { hz: r.traccia_hz, punti: r.traccia && r.traccia.t.length, campioni: r.campioni })
+  check('e porta i valori grezzi per poter ridisegnare', r.traccia.b.length === r.traccia.t.length &&
+    typeof r.traccia.gb === 'number', Object.keys(r.traccia || {}))
+  check('⛔ nella riga non ci sono i 60 Hz completi', !r.grezzi)
+  check('⭐ sotto il risultato dice dove è stata salvata',
+    /Salvata nella cartella di Mario Rossi/.test(await page.textContent('#salva-stato')),
+    await page.textContent('#salva-stato'))
+  await ctx.close()
+}
+
+sez('⭐ oscillazione-app-v1 · dalla home: prova libera, senza paziente')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true }, '?dur=2&via=1')
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('la banda dice prova libera', /Prova libera/.test(await page.textContent('#paz-banda')))
+  await parti(page, '#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0, ampB: 1, ampG: 0.2, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForFunction(() => window.__db.righe.length === 1, null, { timeout: 5000 }).catch(() => {})
+  const r = (await page.evaluate(() => window.__db.righe))[0] || {}
+  check('⭐ si salva senza paziente', r.professional_id === 'PROF-1' && r.patient_id === null, r.patient_id)
+  check('e lo dice', /come prova libera/.test(await page.textContent('#salva-stato')))
+  await ctx.close()
+}
+
+sez('⛔ oscillazione-app-v1 · un pid che non è tuo non finisce in nessuna cartella')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true, pazienteOk: false },
+    '?dur=2&via=1&pid=99999999-9999-9999-9999-999999999999')
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ dice che il paziente non è fra i tuoi', /non trovato fra i tuoi/.test(await page.textContent('#paz-banda')))
+  await parti(page, '#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0, ampB: 1, ampG: 0.2, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForFunction(() => window.__db.righe.length === 1, null, { timeout: 5000 }).catch(() => {})
+  const r = (await page.evaluate(() => window.__db.righe))[0] || {}
+  check('⛔ la prova si salva come libera, NON sul pid sconosciuto', r.patient_id === null, r.patient_id)
+  await ctx.close()
+}
+
+sez('⭐ oscillazione-app-v1 · se il salvataggio fallisce lo dice, e il risultato resta')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true,
+    insertErr: 'relation "oscillazione_test" does not exist' }, '?dur=2&via=1')
+  await parti(page, '#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0, ampB: 1, ampG: 0.2, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(300)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const t = await page.textContent('#salva-stato')
+  check('⭐ dice che non è stata salvata', /Non salvata/.test(t), t)
+  check('⭐ e dice QUALE SQL manca, per nome', /migration 046/.test(t), t)
+  check('e il risultato è ancora tutto lì', /velocità media/.test(await page.textContent('#carico-box')))
+  await ctx.close()
+}
+
+sez('⭐ oscillazione-app-v1 · il PDF: contenuto giusto e strada giusta')
+{
+  const PIDV = '11111111-2222-3333-4444-555555555555'
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true, pazienteOk: true }, '?dur=2&via=1&pid=' + PIDV)
+  let chiesta = null
+  await page.route('**/api/pdf-render', async (r) => {
+    chiesta = { h: r.request().headers(), b: JSON.parse(r.request().postData() || '{}') }
+    await r.fulfill({ status: 200, contentType: 'application/pdf', body: '%PDF-1.4 finto' })
+  })
+  await parti(page, '#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 3, offG: 0.4, ampB: 1.2, ampG: 0.2, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(300)
+  const h = await page.evaluate(() => window.__prova.htmlReferto())
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ il PDF porta il nome del paziente', /Mario Rossi/.test(h))
+  check('il carico', /carico medio/.test(h))
+  check('⭐ i tre omini, disegnati', (h.match(/<svg/g) || []).length >= 3)
+  check('⭐ il gomitolo come immagine', /<img src="data:image\/png;base64,/.test(h))
+  check('la spiegazione', /interpretazione clinica la scrivi tu/.test(h))
+  check('⭐ e la riga onesta su cosa misura', /non con una norma/.test(h))
+  await page.click('#btn-pdf')
+  await page.waitForTimeout(500)
+  check('⭐ va a /api/pdf-render', chiesta !== null)
+  check('col token dell’account', chiesta && chiesta.h.authorization === 'Bearer TOK', chiesta && chiesta.h.authorization)
+  check('e col paziente, per il registro', chiesta && chiesta.b.patient_id === PIDV, chiesta && chiesta.b.patient_id)
+  check('il nome del file ha il paziente e la data',
+    chiesta && /^Oscillazione_Mario_Rossi_\d{4}-\d{2}-\d{2}\.pdf$/.test(chiesta.b.filename), chiesta && chiesta.b.filename)
+  check('⭐ e il pulsante dice che è fatto', /PDF scaricato/.test(await page.textContent('#btn-pdf')),
+    await page.textContent('#btn-pdf'))
+  await ctx.close()
+}
+
+sez('⭐ oscillazione-app-v1 · la taratura dà tempo per prepararsi')
+{
+  const { page, ctx, errori } = await apri(browser, '?dur=2')
+  await page.evaluate(() => {
+    window.__detto = []
+    window.speechSynthesis.speak = u => window.__detto.push(String(u.text))
+  })
+  await page.click('#chips .chip[data-e="taratura"]')
+  await parti(page, '#btn-start')
+  await page.waitForTimeout(2500)
+  const d = await page.evaluate(() => window.__detto.join(' | '))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ prima dei passi dice di prepararsi', /Preparati vicino alla tavola/.test(d), d)
+  check('⭐ e quanto manca', /Comincio fra 10 secondi/.test(d), d)
+  check('⭐ e il primo passo NON è ancora partito', !/stai fermo al centro/.test(d), d)
+  await ctx.close()
+}
+
+sez('⛔ oscillazione-app-v1 · sul canale della diretta il nome del paziente NON passa')
+{
+  const src = fs.readFileSync(path.join(ROOT, PAGINA), 'utf8')
+  const invii = (src.match(/canaleSub\.send\([^]*?\}\}\)/g) || []).join(' ')
+  check('⛔ nei messaggi della diretta non c’è pazNome', !/pazNome|PID|patient_id/.test(invii))
 }
 } finally {
   await browser.close()

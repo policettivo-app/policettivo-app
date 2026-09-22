@@ -1,4 +1,4 @@
-/* js/oscillazione.js — oscillazione-live-v1 · oscillazione-esito-v1
+/* js/oscillazione.js — oscillazione-live-v1 · oscillazione-esito-v1 · oscillazione-app-v1
  *
  * IL DISEGNO DEL GOMITOLO, IN UN FILE SOLO.
  *
@@ -213,7 +213,115 @@
       '</div>'
   }
 
+  // ═══ oscillazione-app-v1 · IL CONFRONTO, IN UN POSTO SOLO ═══════════
+  // Lo usano la pagina del test (prove della stessa sessione) e lo storico
+  // (prove salvate in giorni diversi). Due confronti scritti in due posti
+  // avrebbero finito per dire due cose diverse sullo stesso paziente.
+  //
+  // ⚠️ LE BANDE sono MISURATE, non scelte: dal giro da 5+5 dell'11 settembre
+  // 2026 la velocità ripete con un CV del 13%. La differenza fra DUE prove
+  // singole ha uno scarto di 13·√2 ≈ 18%, e il 95% sta entro ±36%.
+  // Con la media di tre prove per parte si scende a circa il 20%.
+  // Il carico ripete a ±0,5°: la differenza fra due prove sta entro ±1,4°,
+  // arrotondato a 1,5 e dichiarato. Misurate su UNA persona: provvisorie.
+  var BANDA_SINGOLA = 35, BANDA_TRE = 20, BANDA_CARICO = 1.5
+
+  function numIt(x, dec){
+    var v = Math.round(x * Math.pow(10,dec)) / Math.pow(10,dec)
+    return v.toFixed(dec).replace('.', ',')
+  }
+  function parolaAsse(asse, v){
+    if (asse === 'gamma') return v >= 0 ? 'DESTRA' : 'SINISTRA'
+    return v >= 0 ? 'AVANTI' : 'INDIETRO'
+  }
+  function quandoCorto(a, b){
+    var da = new Date(a), db = new Date(b)
+    var ora = { hour: '2-digit', minute: '2-digit' }
+    if (da.toDateString() === db.toDateString()) {
+      return ['delle ' + da.toLocaleTimeString('it-IT', ora), 'delle ' + db.toLocaleTimeString('it-IT', ora)]
+    }
+    var gg = { day: '2-digit', month: '2-digit', year: 'numeric' }
+    return ['del ' + da.toLocaleDateString('it-IT', gg), 'del ' + db.toLocaleDateString('it-IT', gg)]
+  }
+
+  // A e B hanno questa forma (la costruisce chi chiama):
+  //   { quando, condizione, velocita, osc, raggio, ellisse, deriva, carico, asse }
+  // opz.nPrima = quante prove ci sono nella condizione di A (per la banda ridotta)
+  function confronto(A, B, opz){
+    opz = opz || {}
+    var stessa = A.condizione === B.condizione
+    var banda = (stessa && (opz.nPrima || 0) >= 3) ? BANDA_TRE : BANDA_SINGOLA
+    var righe = [
+      ['⭐ Velocità media', A.velocita, B.velocita, '°/s'],
+      ['Oscillazione asse del test', A.osc, B.osc, '°'],
+      ['Raggio medio', A.raggio, B.raggio, '°'],
+      ['Ellisse 95%', A.ellisse, B.ellisse, '°²'],
+      ['Deriva del carico', A.deriva, B.deriva, '°']
+    ]
+    var html = (!stessa
+      ? '<div class="warn">⚠️ Le due prove <b>non sono nella stessa condizione</b> (' +
+        A.condizione + ' contro ' + B.condizione + '). È un confronto fra ' +
+        'situazioni diverse, <b>non</b> un cambiamento nel tempo.</div>' : '') +
+      '<div class="cfr">'
+    righe.forEach(function(r){
+      var d = r[1] > 0 ? 100*(r[2]-r[1])/r[1] : 0
+      var oltre = Math.abs(d) >= banda
+      var col = !oltre ? '#999' : (d < 0 ? '#0a7d33' : '#c0392b')
+      html += '<div class="cfr-riga"><span>' + r[0] + '</span>' +
+              '<span class="cfr-val">' + r2(r[1]) + ' → ' + r2(r[2]) + ' ' + r[3] + '</span>' +
+              '<span class="cfr-d" style="color:' + col + '">' + (d >= 0 ? '+' : '−') +
+              Math.round(Math.abs(d)) + '%</span></div>'
+    })
+    var haCarico = A.carico != null && B.carico != null
+    if (haCarico){
+      var dc = B.carico - A.carico
+      html += '<div class="cfr-riga"><span>CARICO (asse del test)</span>' +
+              '<span class="cfr-val">' + r2(A.carico) + ' → ' + r2(B.carico) + ' °</span>' +
+              '<span class="cfr-d" style="color:' + (Math.abs(dc) >= BANDA_CARICO ? '#111' : '#999') + '">' +
+              (dc >= 0 ? '+' : '−') + numIt(Math.abs(dc),1) + '°</span></div>'
+    }
+    html += '</div>' +
+      '<div class="nota" style="margin-top:8px">Sotto il <b>' + banda + '%</b> (e sotto <b>' +
+      numIt(BANDA_CARICO,1) + '°</b> di carico) la differenza <b>non si distingue dal rumore ' +
+      'della misura</b>: è grigia. ' +
+      (banda === BANDA_SINGOLA
+        ? 'Con almeno tre prove per parte la soglia scende al ' + BANDA_TRE + '%.'
+        : 'Qui vale la soglia ridotta perché ci sono tre prove o più.') +
+      ' Valori misurati su una persona sola: provvisori.</div>'
+
+    var f = [], q = quandoCorto(A.quando, B.quando)
+    f.push('Confronto fra la prova ' + q[0] + ' e quella ' + q[1] + '.')
+    if (!stessa){
+      f.push('Attenzione: le due prove NON sono nella stessa condizione. ' +
+             'Questo è un confronto fra situazioni diverse, non un cambiamento nel tempo.')
+    }
+    var dv = A.velocita > 0 ? 100*(B.velocita - A.velocita)/A.velocita : 0
+    f.push('La velocità media è passata da ' + numIt(A.velocita,1) + ' a ' +
+           numIt(B.velocita,1) + ' gradi al secondo: ' +
+           (dv >= 0 ? 'più ' : 'meno ') + numIt(Math.abs(dv),0) + ' per cento.')
+    f.push(Math.abs(dv) >= banda
+      ? 'È una differenza più grande della variabilità della misura, che su questo confronto vale ' +
+        banda + ' per cento.'
+      : 'Ma sotto il ' + banda + ' per cento non si distingue dal rumore della misura: ' +
+        'due prove uguali possono ballare di tanto. Per leggere una differenza più piccola ' +
+        'servono almeno tre prove per parte.')
+    if (haCarico){
+      var dc2 = B.carico - A.carico
+      f.push('Il carico si è spostato di ' + numIt(Math.abs(dc2),1) + ' gradi verso ' +
+             parolaAsse(A.asse, dc2).toLowerCase() + '.')
+      if (Math.abs(dc2) < BANDA_CARICO){
+        f.push('Anche qui però siamo sotto il grado e mezzo, che è quanto il carico si sposta ' +
+               'da solo ripetendo la stessa prova.')
+      }
+    }
+    f.push('Questi sono i numeri del confronto. L’interpretazione clinica la scrivi tu.')
+    return { stessa: stessa, banda: banda, html: html, frasi: f }
+  }
+
   global.PolOscillazione = {
+    confronto: confronto,
+    BANDA_SINGOLA: BANDA_SINGOLA, BANDA_TRE: BANDA_TRE, BANDA_CARICO: BANDA_CARICO,
+    numIt: numIt, parolaAsse: parolaAsse,
     omini: omini,
     ominoProfilo: ominoProfilo, ominoFronte: ominoFronte, ominoAlto: ominoAlto,
     disegna: disegna,
