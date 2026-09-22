@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Test — Policettivo</title>
+<!-- test-sessioni-v1 (22 set 2026)
+     LA PAGINA DEI TEST. Un posto solo da cui partono tutti i test del Sistema
+     Policettivo®: oggi Oscillazione Policettiva e Autotest, domani gli altri
+     (si aggiunge una voce all'elenco TEST qui sotto).
+       test.html            → dalla home: test liberi, senza paziente
+       test.html?pid=<uuid> → dalla scheda del paziente: tutto si salva da lui
+     Sotto, le ultime sessioni: si tocca una sessione e si apre il confronto.
+     Legge e basta: non scrive niente. -->
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#fafafa;color:#111;
+       font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       font-size:16px;line-height:1.5;padding:16px;padding-bottom:60px}
+  .wrap{max-width:720px;margin:0 auto}
+  .testa{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  h1{font-size:24px;margin:0 0 4px}
+  .testa a{color:#111;font-weight:700;text-decoration:none;font-size:14px;white-space:nowrap}
+  .sub{font-size:13px;color:#666;margin-bottom:14px}
+  .paz-banda{border-radius:14px;padding:11px 14px;margin:0 0 16px;font-size:14px;background:#111;color:#fff}
+  .paz-banda.libera{background:#f2f2f2;color:#444}
+  .griglia{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+  @media (max-width:480px){ .griglia{grid-template-columns:1fr} }
+  .test{display:flex;flex-direction:column;align-items:flex-start;gap:6px;border:1.5px solid #eee;
+        border-radius:18px;padding:18px;background:#fff;color:#111;text-decoration:none;cursor:pointer;
+        font-family:inherit;text-align:left;font-size:15px;min-height:128px}
+  .test:active{transform:scale(.99)}
+  .test .ico{font-size:30px;line-height:1}
+  .test b{font-size:18px}
+  .test span{font-size:13px;color:#666}
+  .test.primo{background:#FFD008;border-color:#FFD008}
+  .test.primo span{color:#4a3d00}
+  .test.scuro{background:#111;border-color:#111;color:#fff}
+  .test.scuro span{color:#bbb}
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.6px;color:#555;margin:0 0 10px}
+  .sess{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 14px;
+        border:1px solid #eee;border-radius:12px;background:#fff;margin-bottom:8px;cursor:pointer;
+        text-decoration:none;color:#111;font-size:14px}
+  .sess small{color:#777}
+  .vuoto{color:#777;font-size:14px;padding:10px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="testa">
+    <h1>🎯 Test</h1>
+    <a id="link-indietro" href="dashboard.html">← App</a>
+  </div>
+  <div class="sub">I test del Sistema Policettivo®</div>
+  <div id="paz-banda"></div>
+  <div class="griglia" id="griglia"></div>
+  <h2>Ultime sessioni</h2>
+  <div id="sessioni"><div class="vuoto">…</div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+;(function(){
+  'use strict'
+  var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  var $ = function(id){ return document.getElementById(id) }
+  var PID = (function(){ var v = new URLSearchParams(location.search).get('pid') || ''; return /^[0-9a-f-]{36}$/i.test(v) ? v : null })()
+  var SB = null, token = null
+  var q = PID ? '?pid=' + PID : ''
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] }) }
+
+  // ⭐ L'ELENCO DEI TEST. Un test nuovo = una riga qui.
+  var TEST = [
+    { id: 'oscillazione', ico: '🎯', nome: 'Oscillazione Policettiva', classe: 'primo',
+      desc: 'Beccheggio e Rollio sulla Tavola Policettiva · si salva nella sessione',
+      vai: function(){ location.href = 'prova-oscillazione.html' + q } },
+    { id: 'confronto', ico: '📊', nome: 'Confronto', classe: 'scuro',
+      desc: 'Sessione contro sessione: più stabile, dove oscilla, dove carica',
+      vai: function(){ location.href = 'oscillazione-storico.html' + q } },
+    { id: 'autotest', ico: '🧭', nome: 'Autotest', classe: '',
+      desc: PID ? 'Stabilità prima e dopo · si salva nel diario del paziente'
+                : 'Stabilità prima e dopo · senza paziente non si salva',
+      vai: function(){
+        if (!PID){ location.href = 'autotest.html?pro=1'; return }
+        if (!token){ alert('Il paziente non ha ancora il suo accesso: l’Autotest si salva nel suo diario, che si apre con l’accesso.'); return }
+        location.href = 'autotest.html?token=' + encodeURIComponent(token) + '&pro=1&id=' + PID
+      } }
+  ]
+
+  function disegnaTest(){
+    $('griglia').innerHTML = TEST.map(function(t, i){
+      return '<button class="test ' + t.classe + '" data-i="' + i + '" id="t-' + t.id + '"><span class="ico">' + t.ico +
+        '</span><b>' + t.nome + '</b><span>' + t.desc + '</span></button>'
+    }).join('')
+    Array.prototype.forEach.call(document.querySelectorAll('.test'), function(b){
+      b.onclick = function(){ TEST[Number(b.getAttribute('data-i'))].vai() }
+    })
+  }
+
+  function data(q){ return new Date(q).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) }
+  function ora(q){ return new Date(q).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) }
+
+  async function avvia(){
+    disegnaTest()
+    if (PID) $('link-indietro').href = 'paziente.html?id=' + PID
+    if (!window.supabase || !window.supabase.createClient){ $('sessioni').innerHTML = '<div class="vuoto">Senza connessione.</div>'; return }
+    SB = window.supabase.createClient(SB_URL, SB_KEY)
+    var ses = null
+    try { ses = (await SB.auth.getSession()).data.session } catch(e){}
+    if (!ses){
+      $('paz-banda').innerHTML = '<div class="paz-banda libera">Non sei entrato: i test si fanno, ma <b>non si salvano</b>. ' +
+        '<a href="login.html" style="color:inherit;font-weight:700">Entra</a></div>'
+      $('sessioni').innerHTML = '<div class="vuoto">Le sessioni si vedono col tuo account.</div>'
+      return
+    }
+    if (PID){
+      try {
+        var pz = await SB.from('patients').select('nome,cognome,access_token').eq('id', PID).maybeSingle()
+        if (pz && pz.data){
+          token = pz.data.access_token || null
+          $('paz-banda').innerHTML = '<div class="paz-banda">👤 <b>' + esc(((pz.data.nome || '') + ' ' + (pz.data.cognome || '')).trim()) +
+            '</b> · ogni test si salva nella sua cartella</div>'
+        }
+      } catch(e){}
+    } else {
+      $('paz-banda').innerHTML = '<div class="paz-banda libera">🧪 <b>Test liberi</b> — per una persona che non è fra i pazienti. ' +
+        'Nel test scrivi nome, età e peso (facoltativi).</div>'
+    }
+    // le ultime sessioni: si legge la tabella delle sessioni (047) e, se non
+    // c'è ancora, i test raggruppati per giorno.
+    var r = SB.from('test_sessioni').select('id,patient_id,quando,nome,eta,peso_kg').order('quando', { ascending: false }).limit(12)
+    r = PID ? r.eq('patient_id', PID) : r.is('patient_id', null)
+    var res = await r
+    if (res.error){
+      $('sessioni').innerHTML = '<div class="vuoto">' + (/test_sessioni/.test(res.error.message || '') ?
+        'Manca la migration 047: le sessioni si vedranno dopo averla lanciata.' : 'Non riesco a leggere le sessioni.') + '</div>'
+      return
+    }
+    var righe = res.data || []
+    if (!righe.length){ $('sessioni').innerHTML = '<div class="vuoto">Nessuna sessione ancora. Fai un test: la sessione si apre da sola.</div>'; return }
+    $('sessioni').innerHTML = righe.map(function(s){
+      var chi = PID ? '' : (s.nome ? esc(s.nome) : 'senza nome') +
+        (s.eta != null ? ' · ' + s.eta + ' anni' : '') + (s.peso_kg != null ? ' · ' + String(s.peso_kg).replace('.', ',') + ' kg' : '')
+      return '<a class="sess" href="oscillazione-storico.html' + (PID ? '?pid=' + PID + '&' : '?') + 'sessione=' + s.id + '">' +
+        '<span><b>' + data(s.quando) + '</b> ' + ora(s.quando) + (chi ? '<br><small>' + chi + '</small>' : '') + '</span>' +
+        '<small>confronta →</small></a>'
+    }).join('')
+  }
+  avvia().catch(function(){})
+})()
+</script>
+</body>
+</html>

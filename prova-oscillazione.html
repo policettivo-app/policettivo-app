@@ -204,7 +204,16 @@
      4) PDF dal server (/api/pdf-render) e stampa; «Storico e confronto»
         apre oscillazione-storico.html: prima/dopo fra giorni diversi.
      5) Il confronto sta in js/oscillazione.js: questa pagina e lo storico
-        usano lo stesso, così non possono dire due cose diverse. -->
+        usano lo stesso, così non possono dire due cose diverse.
+
+     prova-oscillazione-v15 / test-sessioni-v1 (22 set, decisioni 1A 2A 3A):
+     1) LA SESSIONE. Ogni prova sta dentro una sessione (test_sessioni, 047).
+        Col paziente si apre da sola (e si riprende se ricarichi entro 4 ore);
+        nella prova libera si scrivono nome, età e peso, facoltativi.
+     2) STAMPA E PDF CHIEDONO: «solo questa prova» o «tutta la sessione».
+        Con una prova sola non chiedono niente.
+     3) «← Test» riporta alla pagina dei test (test.html), da cui si arriva
+        anche al Confronto, che adesso è sessione contro sessione. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/oscillazione.js"></script>
 <style>
@@ -335,7 +344,22 @@
     .intest-referto{display:block;margin-bottom:10px}
     canvas{max-width:420px}
     h1{font-size:18pt}
+    /* test-sessioni-v1 */
+    #c-sessione,#scelta{display:none!important}
+    body.stampa-una #c-storico,body.stampa-una #c-confronto{display:none!important}
+    body.stampa-sessione > *:not(#stampa-sessione){display:none!important}
+    body.stampa-sessione #stampa-sessione{display:block!important}
   }
+  /* test-sessioni-v1 — la sessione e la scelta di cosa stampare */
+  .sess-riga{display:flex;gap:10px}
+  .sess-riga>div{flex:1}
+  .sess-testo{font-size:14px}
+  #stampa-sessione{display:none}
+  .scelta-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:flex;
+     align-items:flex-end;justify-content:center;padding:16px}
+  .scelta-box{background:#fff;border-radius:20px;padding:18px;width:100%;max-width:520px;
+     margin-bottom:env(safe-area-inset-bottom)}
+  .scelta-box b{font-size:18px}
 </style>
 </head>
 <body>
@@ -349,14 +373,30 @@
   <div class="sub">Beccheggio e Rollio &middot; test del Sistema Policettivo®</div>
   <div id="paz-banda"></div>
 
+  <!-- test-sessioni-v1 · ogni prova sta dentro una sessione -->
+  <div class="card" id="c-sessione">
+    <h2>Sessione</h2>
+    <div class="sess-testo" id="sess-stato"></div>
+    <div id="sess-libera">
+      <label for="sess-nome">Nome e cognome</label>
+      <input type="text" id="sess-nome" placeholder="facoltativo" autocomplete="off">
+      <div class="sess-riga">
+        <div><label for="sess-eta">Età (anni)</label><input type="text" id="sess-eta" inputmode="numeric" placeholder="facoltativa"></div>
+        <div><label for="sess-peso">Peso (kg)</label><input type="text" id="sess-peso" inputmode="decimal" placeholder="facoltativo"></div>
+      </div>
+      <div class="nota">Facoltativi: servono a sapere di chi è il test quando lo ritrovi.</div>
+    </div>
+    <button class="btn vuoto" id="btn-nuova-sessione">＋ Nuova sessione</button>
+  </div>
+
   <div class="avviso" id="avviso-iniziale">
     <b>Test del Sistema Policettivo®.</b> In 30 secondi misura come il corpo si organizza sulla
     Tavola Policettiva: <b>dove porta il carico</b> e <b>quanto oscilla</b>, avanti-indietro o
     destra-sinistra. Serve a vedere gli squilibri e a seguirne i cambiamenti lungo il percorso.
     <div style="margin-top:7px">
       Misura l’inclinazione della tavola, non la pressione sotto i piedi: i numeri si confrontano
-      <b>fra prove dello stesso paziente</b>, non con una norma. Niente esce da questo telefono
-      finché non premi «Copia i dati».
+      <b>fra prove dello stesso paziente</b>, non con una norma. Col tuo account ogni prova si
+      salva da sola, con data e ora, dentro la sessione.
     </div>
   </div>
 
@@ -467,7 +507,7 @@
     <button class="btn vuoto" id="btn-nuova">Cambia prova</button>
     <button class="btn vuoto" id="btn-pdf">📄 Scarica il PDF</button>
     <button class="btn vuoto" id="btn-referto">🖨 Stampa</button>
-    <button class="btn vuoto" id="btn-storico">📊 Storico e confronto nel tempo</button>
+    <button class="btn vuoto" id="btn-storico">📊 Confronto con le sessioni precedenti</button>
   </div>
 
   <div class="card" id="c-confronto" style="display:none">
@@ -510,6 +550,15 @@
 
 </div>
 
+<div class="scelta-bg" id="scelta" style="display:none">
+  <div class="scelta-box">
+    <b id="scelta-tit">Cosa vuoi stampare?</b>
+    <button class="btn giallo" id="scelta-una">Solo questa prova</button>
+    <button class="btn" id="scelta-tutte">Tutta la sessione</button>
+    <button class="btn vuoto" id="scelta-annulla">Annulla</button>
+  </div>
+</div>
+<div id="stampa-sessione"></div>
 <script>
 (function(){
   'use strict'
@@ -1375,6 +1424,7 @@
       orientamento: m, accelerometro: mAc,
       grezzi: { t: dati.t, beta: dati.ob, gamma: dati.og }
     }
+    prova.sessLoc = sessLoc           // test-sessioni-v1
     prove.push(prova)
 
     var car = caricoDi(prova)
@@ -1842,7 +1892,7 @@
 
   async function avviaSupabase(){
     try {
-      if (!window.supabase || !window.supabase.createClient){ disegnaPaziente(); return }
+      if (!window.supabase || !window.supabase.createClient){ disegnaPaziente(); disegnaSessione(); return }
       SB = window.supabase.createClient(SB_URL, SB_KEY)
       var r = await SB.auth.getSession()
       haiSessione = !!(r && r.data && r.data.session)
@@ -1850,6 +1900,7 @@
     } catch(e){ SB = null; haiSessione = false }
     disegnaDiretta()
     disegnaPaziente()
+    disegnaSessione()
   }
 
   // ═══ oscillazione-app-v1 · DENTRO L'APPLICAZIONE ══════════════════════
@@ -1864,6 +1915,8 @@
     return /^[0-9a-f-]{36}$/i.test(v) ? v : null
   })()
   var profId = null, pazNome = '', pazErrore = ''
+  // test-sessioni-v1 — «indietro» riporta alla pagina dei test (del paziente, se c'è)
+  if ($('link-home')){ $('link-home').href = 'test.html' + (PID ? '?pid=' + PID : ''); $('link-home').textContent = '← Test' }
 
   async function chiSono(session){
     try {
@@ -1876,7 +1929,163 @@
         if (pz && pz.data) pazNome = ((pz.data.nome || '') + ' ' + (pz.data.cognome || '')).trim()
         else pazErrore = 'Paziente non trovato fra i tuoi: le prove si salvano come libere.'
       } catch(e){ pazErrore = 'Non riesco a leggere il paziente: le prove si salvano come libere.' }
+      if (pazNome) await riprendiSessione()
     }
+  }
+
+  // ═══ test-sessioni-v1 · LA SESSIONE ═══════════════════════════════════
+  // Ogni prova sta dentro una sessione (tabella test_sessioni, migration 047).
+  //  - col paziente: la sessione si apre da sola. Se la pagina si ricarica
+  //    entro 4 ore si RIPRENDE l'ultima sessione, per non spezzarla in due.
+  //  - prova libera: nome, età e peso, facoltativi, scritti una volta sola.
+  // La riga della sessione nasce col PRIMO test salvato, non all'apertura
+  // della pagina: niente sessioni vuote nell'archivio.
+  // ⚠️ Se la 047 non è stata lanciata le prove si salvano lo stesso, senza
+  //    sessione, e lo si dice: le misure non si perdono mai per una tabella.
+  var sessione = { id: null, quando: null, nProveDb: 0, manca047: false }
+  var sessLoc = 1                     // numera le sessioni aperte su questa pagina
+  var sessionePromessa = null
+  var RIPRENDI_ORE = 4
+
+  function datiSessione(){
+    var nome = ($('sess-nome') ? $('sess-nome').value : '').trim()
+    var eta = parseInt(($('sess-eta') ? $('sess-eta').value : '').replace(/[^0-9]/g, ''), 10)
+    var peso = parseFloat(($('sess-peso') ? $('sess-peso').value : '').replace(',', '.'))
+    return {
+      nome: nome || null,
+      eta: (!isNaN(eta) && eta >= 0 && eta <= 120) ? eta : null,
+      peso_kg: (!isNaN(peso) && peso >= 1 && peso <= 400) ? Math.round(peso * 10) / 10 : null
+    }
+  }
+  function conPaziente(){ return !!(PID && pazNome) }
+  function infoSessione(){ return conPaziente() ? { nome: pazNome } : datiSessione() }
+
+  async function riprendiSessione(){
+    try {
+      var r = await SB.from('test_sessioni').select('id,quando').eq('patient_id', PID)
+                      .order('quando', { ascending: false }).limit(1).maybeSingle()
+      if (r.error){ if (/test_sessioni/.test(r.error.message || '')) sessione.manca047 = true; return }
+      if (!r.data || (Date.now() - new Date(r.data.quando).getTime()) > RIPRENDI_ORE * 3600e3) return
+      sessione.id = r.data.id; sessione.quando = r.data.quando
+      var t = await SB.from('oscillazione_test').select('id').eq('sessione_id', sessione.id)
+      sessione.nProveDb = (t && t.data) ? t.data.length : 0
+    } catch(e){}
+  }
+
+  function proveSessione(){
+    return prove.filter(function(p){ return p.sessLoc === sessLoc && eTest(p.evento) && p.orientamento })
+  }
+  function quanteInSessione(){
+    return sessione.nProveDb + proveSessione().length
+  }
+
+  function disegnaSessione(){
+    var el = $('sess-stato'); if (!el) return
+    $('sess-libera').style.display = conPaziente() ? 'none' : ''
+    var n = quanteInSessione()
+    var ora = function(q){ return new Date(q).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) }
+    var testo = sessione.id
+      ? 'Sessione aperta alle <b>' + ora(sessione.quando) + '</b>'
+      : (n ? 'Sessione di adesso' : 'Nuova sessione: si apre col primo test')
+    testo += n ? ' · <b>' + n + (n === 1 ? ' prova' : ' prove') + '</b>' : ''
+    if (conPaziente()) testo = '👤 <b>' + escapeHtml(pazNome) + '</b> · ' + testo
+    if (sessione.manca047) testo += '<br><small style="color:#b3261e">⚠️ Manca la migration 047: le prove si salvano, ' +
+      'ma senza sessione.</small>'
+    el.innerHTML = testo
+  }
+
+  async function sessioneCorrente(){
+    if (sessione.id) return sessione.id
+    if (sessione.manca047 || !SB || !haiSessione || !profId) return null
+    if (sessionePromessa) return sessionePromessa
+    sessionePromessa = (async function(){
+      var d = conPaziente() ? { nome: null, eta: null, peso_kg: null } : datiSessione()
+      try {
+        var r = await SB.from('test_sessioni').insert({
+          professional_id: profId, patient_id: conPaziente() ? PID : null,
+          nome: d.nome, eta: d.eta, peso_kg: d.peso_kg
+        }).select('id,quando').maybeSingle()
+        if (r.error) throw r.error
+        sessione.id = r.data ? r.data.id : null
+        sessione.quando = r.data ? r.data.quando : new Date().toISOString()
+      } catch(e){
+        if (/test_sessioni/.test((e && e.message) || '')) sessione.manca047 = true
+      }
+      sessionePromessa = null
+      disegnaSessione()
+      return sessione.id
+    })()
+    return sessionePromessa
+  }
+
+  // nome, età e peso si possono correggere anche a sessione già aperta
+  ;['sess-nome', 'sess-eta', 'sess-peso'].forEach(function(id){
+    var el = $(id); if (!el) return
+    el.addEventListener('change', async function(){
+      if (!sessione.id || !SB || conPaziente()) return
+      try { await SB.from('test_sessioni').update(datiSessione()).eq('id', sessione.id) } catch(e){}
+    })
+  })
+
+  $('btn-nuova-sessione').addEventListener('click', function(){
+    sessione = { id: null, quando: null, nProveDb: 0, manca047: sessione.manca047 }
+    sessLoc++
+    if (!conPaziente()){ $('sess-nome').value = ''; $('sess-eta').value = ''; $('sess-peso').value = '' }
+    disegnaSessione()
+    var el = $('salva-stato'); if (el) el.textContent = ''
+    window.scrollTo(0, 0)
+  })
+
+  // Le righe della sessione, con la traccia: dal database se c'è (così ci
+  // sono anche le prove fatte prima di ricaricare la pagina), se no da qui.
+  async function righeSessione(){
+    var qui = proveSessione().map(function(p){ var r = rigaDaSalvare(p); r.id = p.id_db || null; return r })
+    if (SB && haiSessione && sessione.id){
+      try {
+        var r = await SB.from('oscillazione_test').select('*').eq('sessione_id', sessione.id)
+        if (r && r.data && r.data.length >= qui.length) return r.data
+      } catch(e){}
+    }
+    return qui
+  }
+  function htmlSessione(righe){
+    return window.PolOscillazione.documento('Oscillazione Policettiva — sessione',
+      window.PolOscillazione.refertoSessione(righe, infoSessione()))
+  }
+
+  // «Solo questa prova» o «Tutta la sessione»? Con una prova sola non si chiede.
+  function chiediCosa(verbo){
+    var n = quanteInSessione()
+    if (n <= 1) return Promise.resolve('una')
+    return new Promise(function(fine){
+      $('scelta-tit').textContent = 'Cosa vuoi ' + verbo + '?'
+      $('scelta-tutte').textContent = 'Tutta la sessione · ' + n + ' prove'
+      $('scelta').style.display = ''
+      var chiudi = function(v){ $('scelta').style.display = 'none'; fine(v) }
+      $('scelta-una').onclick = function(){ chiudi('una') }
+      $('scelta-tutte').onclick = function(){ chiudi('tutte') }
+      $('scelta-annulla').onclick = function(){ chiudi(null) }
+    })
+  }
+
+  // La stampa della sessione passa dalla pagina stessa: niente finestre nuove
+  // (i telefoni le bloccano). Il referto va in un contenitore che in stampa è
+  // l'unica cosa visibile, con lo stile dei referti solo per la carta.
+  function stampaSessione(html){
+    var corpo = html.replace(/^[^]*<body>/, '').replace(/<\/body>[^]*$/, '')
+    var st = document.createElement('style'); st.id = 'stampa-css'
+    st.textContent = '@media print{' + window.PolOscillazione.CSS_REFERTO + '}'
+    document.head.appendChild(st)
+    $('stampa-sessione').innerHTML = corpo
+    document.body.classList.add('stampa-sessione')
+    var pulisci = function(){
+      document.body.classList.remove('stampa-sessione')
+      $('stampa-sessione').innerHTML = ''
+      var x = $('stampa-css'); if (x) x.remove()
+      window.removeEventListener('afterprint', pulisci)
+    }
+    window.addEventListener('afterprint', pulisci)
+    setTimeout(function(){ window.print() }, 150)
   }
 
   function disegnaPaziente(){
@@ -1943,13 +2152,19 @@
     if (!profId){ if (el){ el.className = 'salva-stato ko'; el.textContent = '⚠️ Non salvata: profilo professionista non trovato.' } return }
     if (el){ el.className = 'salva-stato'; el.textContent = '💾 Salvo…' }
     try {
-      var r = await SB.from('oscillazione_test').insert(rigaDaSalvare(p)).select('id').maybeSingle()
+      var riga = rigaDaSalvare(p)
+      var sid = await sessioneCorrente()          // test-sessioni-v1
+      if (sid) riga.sessione_id = sid
+      var r = await SB.from('oscillazione_test').insert(riga).select('id').maybeSingle()
       if (r.error) throw r.error
       p.id_db = r.data ? r.data.id : null
       if (el){
         el.className = 'salva-stato ok'
-        el.textContent = '✓ Salvata ' + ((PID && pazNome) ? 'nella cartella di ' + pazNome : 'come prova libera')
+        el.textContent = '✓ Salvata ' + ((PID && pazNome) ? 'nella cartella di ' + pazNome : 'come prova libera') +
+          (sessione.id ? ', nella sessione' : '') +
+          (sessione.manca047 ? ' (⚠️ senza sessione: manca la migration 047)' : '')
       }
+      disegnaSessione()
     } catch(e){
       var m = e && e.message ? e.message : String(e)
       if (el){
@@ -2126,7 +2341,7 @@
     var stile = document.querySelector('style') ? document.querySelector('style').outerHTML : ''
     var png = ''
     try { png = $('traccia').toDataURL('image/png') } catch(e){}
-    var chi = (PID && pazNome) ? escapeHtml(pazNome) : 'Prova libera'
+    var chi = window.PolOscillazione.chiDi(infoSessione())      // test-sessioni-v1: anche età e peso
     return '<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">' + stile +
       '<style>body{padding:0;background:#fff}.btn,#salva-stato{display:none!important}' +
       '.pdf-testa{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}' +
@@ -2136,7 +2351,7 @@
       'table{width:100%;border-collapse:collapse;font-size:11px}td,th{padding:3px 5px;border-bottom:1px solid #eee}</style>' +
       '</head><body><div class="wrap">' +
       '<div class="pdf-testa"><h1>Oscillazione Policettiva</h1>' +
-        '<div><b>' + chi + '</b> · ' + new Date(p.quando).toLocaleString('it-IT') + '</div>' +
+        '<div>' + chi + ' · ' + new Date(p.quando).toLocaleString('it-IT') + '</div>' +
         '<div>' + p.evento + ' · occhi ' + p.occhi + ' · ' + p.piedi +
           (p.configurazione && p.configurazione !== '(non indicata)' ? ' · ' + escapeHtml(p.configurazione) : '') + '</div></div>' +
       $('carico-box').innerHTML +
@@ -2155,21 +2370,29 @@
     var u = prove[prove.length-1]
     if (!u || !eTest(u.evento)) return
     var btn = $('btn-pdf')
+    // test-sessioni-v1 — solo questa prova o tutta la sessione?
+    var cosa = await chiediCosa('scaricare')
+    if (!cosa) return
     if (!SB || !haiSessione){
       // senza account il server del PDF non risponde: si passa dalla stampa
-      window.print(); return
+      if (cosa === 'tutte') stampaSessione(htmlSessione(await righeSessione()))
+      else stampaUna()
+      return
     }
     btn.disabled = true; btn.textContent = '⏳ Preparo il PDF…'
     try {
       var ses = (await SB.auth.getSession()).data.session
-      var nome = 'Oscillazione_' + ((PID && pazNome) ? pazNome.replace(/[^A-Za-z0-9]+/g, '_') : 'libera') +
+      var info = infoSessione()
+      var chiFile = info.nome ? info.nome.replace(/[^A-Za-z0-9]+/g, '_') : 'libera'
+      var nome = 'Oscillazione_' + (cosa === 'tutte' ? 'sessione_' : '') + chiFile +
                  '_' + new Date(u.quando).toISOString().slice(0,10) + '.pdf'
+      var html = cosa === 'tutte' ? htmlSessione(await righeSessione()) : htmlReferto(u)
       var resp = await fetch('/api/pdf-render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (ses ? ses.access_token : '') },
-        body: JSON.stringify({ html: htmlReferto(u), filename: nome,
+        body: JSON.stringify({ html: html, filename: nome,
                                patient_id: (PID && pazNome) ? PID : null,
-                               record_id: u.id_db || null, tabella: 'oscillazione_test' })
+                               record_id: cosa === 'tutte' ? null : (u.id_db || null), tabella: 'oscillazione_test' })
       })
       if (!resp.ok){
         if (resp.status >= 500) throw new Error('il server del PDF si sta avviando, riprova fra qualche secondo')
@@ -2191,13 +2414,25 @@
   }
   $('btn-pdf').addEventListener('click', scaricaPdf)
   $('btn-storico').addEventListener('click', function(){
-    location.href = 'oscillazione-storico.html' + (PID ? '?pid=' + PID : '')
+    var q = []
+    if (PID && pazNome) q.push('pid=' + PID)
+    if (sessione.id) q.push('sessione=' + sessione.id)
+    location.href = 'oscillazione-storico.html' + (q.length ? '?' + q.join('&') : '')
   })
 
-  $('btn-referto').addEventListener('click', function(){
+  // la stampa della pagina, SOLO con la prova appena fatta
+  function stampaUna(){
     zittisci()
     aggiornaStorico()
+    document.body.classList.add('stampa-una')
+    var via = function(){ document.body.classList.remove('stampa-una'); window.removeEventListener('afterprint', via) }
+    window.addEventListener('afterprint', via)
     setTimeout(function(){ window.print() }, 120)
+  }
+  $('btn-referto').addEventListener('click', async function(){
+    var cosa = await chiediCosa('stampare')          // test-sessioni-v1
+    if (cosa === 'una') stampaUna()
+    else if (cosa === 'tutte') stampaSessione(htmlSessione(await righeSessione()))
   })
 
   // referto-v1 — i campioni grezzi, per controllare cose che il riassunto non

@@ -656,7 +656,8 @@
       <div class="pol-phead-grid">
         <button class="pol-act" onclick="window.location.href='diario.html?pid=' + patientId"><span class="pol-act-ico">📋</span><span class="pol-act-lbl">Diario</span></button>
         <button class="pol-act" onclick="apptOpen()"><span class="pol-act-ico">📅</span><span class="pol-act-lbl">Appunt.</span></button>
-        <button class="pol-act pol-act-ai" onclick="vaiAutotestPro()"><span class="pol-act-ico">🎯</span><span class="pol-act-lbl">Autotest</span></button>
+        <!-- test-sessioni-v1 · era «Autotest»: adesso apre la pagina di TUTTI i test (Oscillazione, Autotest, Confronto) -->
+        <button class="pol-act pol-act-ai" onclick="window.location.href='test.html?pid=' + patientId"><span class="pol-act-ico">🎯</span><span class="pol-act-lbl">Test</span></button>
         <button class="pol-act pol-act-dark" onclick="window.location.href='lettera-ai.html?paziente=' + patientId"><span class="pol-act-ico">✨</span><span class="pol-act-lbl">Lettera AI</span></button>
         <button class="pol-act pol-act-primary" onclick="openTipoVisitaPaz()"><span class="pol-act-ico">➕</span><span class="pol-act-lbl">Visita</span></button>
       </div>
@@ -665,6 +666,12 @@
     <!-- HUB: cartella clinica -->
     <div class="hub-section">
       <div class="hub-grid">
+        <!-- test-sessioni-v1 · i test del paziente, ben in vista accanto alla cartella -->
+        <button class="hub-card hub-cartella" style="background:#FFD008;color:#111" onclick="window.location.href='test.html?pid='+patientId">
+          <span class="hub-card-icon">🎯</span>
+          <span class="hub-card-title">Test</span>
+          <span class="hub-card-desc" style="opacity:.7">Oscillazione Policettiva · Autotest · Confronto →</span>
+        </button>
         <button class="hub-card hub-cartella" onclick="window.location.href='cartella.html?id='+patientId">
           <span class="hub-card-icon">📁</span>
           <span class="hub-card-title">Cartella Clinica</span>
@@ -4967,7 +4974,7 @@
         <button class="pol-hub-btn" onclick="polChiudiHub();polVediComePaziente()"><span class="ico">👁</span><span class="lbl">Vedi come paziente</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();apptOpen()"><span class="ico">📅</span><span class="lbl">Appuntamento</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='lettera-ai.html?paziente='+patientId"><span class="ico">✨</span><span class="lbl">Lettera AI</span></button>
-        <button class="pol-hub-btn" onclick="polChiudiHub();vaiAutotestPro()"><span class="ico">🎯</span><span class="lbl">Autotest</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='test.html?pid='+patientId"><span class="ico">🎯</span><span class="lbl">Test</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();apriModaleAIP()"><span class="ico">🤖</span><span class="lbl">Analisi AI Policettivo&reg;</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='diario.html?pid='+patientId"><span class="ico">📖</span><span class="lbl">Diario</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='cartella.html?id='+patientId"><span class="ico">📁</span><span class="lbl">Cartella clinica</span></button>

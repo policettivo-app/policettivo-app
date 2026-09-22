@@ -1,4 +1,4 @@
-/* js/oscillazione.js — oscillazione-live-v1 · oscillazione-esito-v1 · oscillazione-app-v1
+/* js/oscillazione.js — oscillazione-live-v1 · oscillazione-esito-v1 · oscillazione-app-v1 · test-sessioni-v1
  *
  * IL DISEGNO DEL GOMITOLO, IN UN FILE SOLO.
  *
@@ -318,7 +318,432 @@
     return { stessa: stessa, banda: banda, html: html, frasi: f }
   }
 
+
+  // ═══ test-sessioni-v1 · IL CONFRONTO FRA SESSIONI ═══════════════════
+  // Decisioni del 22 set 2026: 1=A (la sessione è una riga a sé),
+  // 2=A (si confrontano SESSIONI, condizione per condizione, sulle medie),
+  // 3=A (le parole sono «più stabile / meno stabile / invariato»: dicono
+  // cosa ha fatto la misura, il giudizio clinico resta del professionista).
+  //
+  // ⚠️ LE SOGLIE NON SI SCELGONO: si ricavano dalla ripetibilità misurata
+  // l'11 settembre 2026 (5+5 prove, UNA persona, valori provvisori):
+  //   velocità CV 13% · oscillazione 27% · raggio 35% · ellisse 42%
+  // La differenza fra due medie di n prove sta al 95% entro
+  //   1,96 · √2 · CV / √n  =  2,77 · CV / √n
+  // Per la velocità: n=1 → 36% (dichiarato 35), n=3 → 21% (dichiarato 20):
+  // sono le stesse bande che la pagina usa da confronto-v1. Qui la regola
+  // vale per tutte le misure, con n = le prove della sessione più povera.
+  // Il carico ripete a ±0,5°: 1,5° su prove singole, 1,0° con tre o più
+  // (il calcolo darebbe 0,8: si arrotonda in su, per prudenza).
+  var CV = { velocita: 13, osc: 27, raggio: 35, ellisse: 42 }
+  function bandaDi(cv, n){
+    if (cv === CV.velocita) return n >= 3 ? BANDA_TRE : BANDA_SINGOLA
+    return Math.round(2.77 * cv / Math.sqrt(Math.max(1, Math.min(n, 3))))
+  }
+  function bandaCarico(n){ return n >= 3 ? 1.0 : BANDA_CARICO }
+
+  function numeroO(x){ return (x == null || x === '' || isNaN(Number(x))) ? null : Number(x) }
+
+  // la chiave della condizione: la stessa della pagina del test
+  function condizioneDi(r){
+    return (r.configurazione || '(non indicata)') + ' · ' + r.evento +
+           (r.occhi && r.occhi !== '-' ? ' · occhi ' + r.occhi : '')
+  }
+  function asseDi(r){ return r.evento === 'rollio' ? 'gamma' : 'beta' }
+  // come si legge: senza «(non indicata)» davanti, che è solo rumore sul foglio
+  function nomeCond(k){ return String(k).replace(/^\(non indicata\) · /, '') }
+
+  // La serie in gradi, dalla traccia salvata (10 Hz), col verso e lo zero
+  // USATI in quel test: un test di sei mesi fa si legge come allora.
+  function serieDaRiga(r){
+    var xs = [], ys = [], tr = r && r.traccia
+    if (!tr || !tr.b || !tr.g) return { xs: xs, ys: ys }
+    var zb = numeroO(r.zero_beta) || 0, zg = numeroO(r.zero_gamma) || 0
+    var vb = numeroO(r.verso_beta) || 1, vg = numeroO(r.verso_gamma) || 1
+    for (var i = 0; i < tr.b.length; i++){ xs.push((tr.g[i] - zg) * vg); ys.push((tr.b[i] - zb) * vb) }
+    return { xs: xs, ys: ys }
+  }
+  function ellisseDi(xs, ys){
+    var n = xs.length; if (n < 3) return null
+    var mx = 0, my = 0, i
+    for (i = 0; i < n; i++){ mx += xs[i]; my += ys[i] }
+    mx /= n; my /= n
+    var sxx = 0, syy = 0, sxy = 0
+    for (i = 0; i < n; i++){ var dx = xs[i]-mx, dy = ys[i]-my; sxx += dx*dx; syy += dy*dy; sxy += dx*dy }
+    sxx /= n; syy /= n; sxy /= n
+    var mez = (sxx+syy)/2, dif = Math.sqrt(Math.pow((sxx-syy)/2, 2) + sxy*sxy)
+    return { mx: mx, my: my, semiA: Math.sqrt(5.991*Math.max(0, mez+dif)),
+             semiB: Math.sqrt(5.991*Math.max(0, mez-dif)), angolo: 0.5*Math.atan2(2*sxy, sxx-syy) }
+  }
+  function percentile(v, p){
+    if (!v.length) return 0
+    var s = v.slice().sort(function(a, b){ return a - b })
+    var k = (s.length - 1) * p, lo = Math.floor(k), hi = Math.ceil(k)
+    return s[lo] + (s[hi] - s[lo]) * (k - lo)
+  }
+
+  // ⚠️ DESCRITTIVE: la ripetibilità di queste misure NON è ancora misurata.
+  //  - tempo: quanta parte della prova la tavola sta da ciascun lato dello
+  //    ZERO (la tavola scarica). È il «dove sta», e somiglia al carico.
+  //  - escursione: fin dove si spinge in ciascuna direzione rispetto al
+  //    SUO centro (percentili 95 e 5: un picco solo non conta). È il
+  //    «da che parte si sbilancia».
+  function direzioni(xs, ys){
+    var n = xs.length
+    if (n < 10) return null
+    var av = 0, ind = 0, dx = 0, sx = 0, mx = 0, my = 0, i
+    for (i = 0; i < n; i++){
+      if (ys[i] > 0) av++; else if (ys[i] < 0) ind++
+      if (xs[i] > 0) dx++; else if (xs[i] < 0) sx++
+      mx += xs[i]; my += ys[i]
+    }
+    mx /= n; my /= n
+    var cy = ys.map(function(y){ return y - my }), cx = xs.map(function(x){ return x - mx })
+    return {
+      tempoAvanti: 100*av/n, tempoIndietro: 100*ind/n, tempoDestra: 100*dx/n, tempoSinistra: 100*sx/n,
+      escAvanti: Math.max(0, percentile(cy, 0.95)), escIndietro: Math.max(0, -percentile(cy, 0.05)),
+      escDestra: Math.max(0, percentile(cx, 0.95)), escSinistra: Math.max(0, -percentile(cx, 0.05))
+    }
+  }
+
+  function mediaDi(lista, f){
+    var v = lista.map(f).filter(function(x){ return x != null && !isNaN(x) })
+    return v.length ? v.reduce(function(a, b){ return a + b }, 0) / v.length : null
+  }
+
+  // Le medie di una condizione dentro una sessione
+  function riassuntoCondizione(righe){
+    var dir = righe.map(function(r){ var s = serieDaRiga(r); return direzioni(s.xs, s.ys) })
+                   .filter(function(d){ return d })
+    var md = function(k){ return mediaDi(dir, function(d){ return d[k] }) }
+    var a = asseDi(righe[0])
+    return {
+      n: righe.length, asse: a, evento: righe[0].evento, occhi: righe[0].occhi,
+      configurazione: righe[0].configurazione || null,
+      velocita: mediaDi(righe, function(r){ return numeroO(r.velocita) }),
+      osc_ap: mediaDi(righe, function(r){ return numeroO(r.osc_ap) }),
+      osc_ds: mediaDi(righe, function(r){ return numeroO(r.osc_ds) }),
+      raggio: mediaDi(righe, function(r){ return numeroO(r.raggio) }),
+      ellisse: mediaDi(righe, function(r){ return numeroO(r.ellisse) }),
+      deriva: mediaDi(righe, function(r){ return numeroO(r.deriva) }),
+      carico_avanti: mediaDi(righe, function(r){ return numeroO(r.carico_avanti) }),
+      carico_destra: mediaDi(righe, function(r){ return numeroO(r.carico_destra) }),
+      tarati: righe.every(function(r){ return !!r.tarato }),
+      dir: dir.length ? {
+        n: dir.length,
+        tempoAvanti: md('tempoAvanti'), tempoIndietro: md('tempoIndietro'),
+        tempoDestra: md('tempoDestra'), tempoSinistra: md('tempoSinistra'),
+        escAvanti: md('escAvanti'), escIndietro: md('escIndietro'),
+        escDestra: md('escDestra'), escSinistra: md('escSinistra')
+      } : null
+    }
+  }
+
+  function perCondizione(righe){
+    var g = {}, ordine = []
+    righe.forEach(function(r){
+      if (r.velocita == null) return
+      var k = condizioneDi(r)
+      if (!g[k]){ g[k] = []; ordine.push(k) }
+      g[k].push(r)
+    })
+    return { gruppi: g, ordine: ordine }
+  }
+
+  function pct(a, b){ return a > 0 ? 100 * (b - a) / a : 0 }
+  function segno(d){ return (d >= 0 ? '+' : '−') + Math.round(Math.abs(d)) + '%' }
+  function lato(asse, v){ return parolaAsse(asse, v).toLowerCase() }
+
+  // Le quattro domande per UNA condizione
+  function confrontaCondizione(k, A, B){
+    var n = Math.min(A.n, B.n)
+    var out = { condizione: k, a: A, b: B, n: n, righe: [], frasi: [] }
+
+    // 1) È più stabile? — la velocità
+    var bv = bandaDi(CV.velocita, n), dv = pct(A.velocita, B.velocita)
+    var verdetto = Math.abs(dv) < bv ? 'INVARIATO' : (dv < 0 ? 'PIÙ STABILE' : 'MENO STABILE')
+    out.verdetto = verdetto; out.dv = dv; out.bandaVel = bv
+    out.frasi.push(nomeCond(k) + ': ' + verdetto.toLowerCase() + '. La velocità media è passata da ' +
+      numIt(A.velocita, 1) + ' a ' + numIt(B.velocita, 1) + ' gradi al secondo, ' +
+      (dv >= 0 ? 'più ' : 'meno ') + numIt(Math.abs(dv), 0) + ' per cento' +
+      (verdetto === 'INVARIATO' ? ', dentro la variabilità della misura, che qui vale ' + bv + ' per cento.' :
+       ', oltre la variabilità della misura, che qui vale ' + bv + ' per cento.'))
+
+    // 2) Dove oscilla di più?
+    var bo = bandaDi(CV.osc, n)
+    var dom = function(S){
+      if (S.osc_ap == null || S.osc_ds == null) return null
+      var r = S.osc_ap / Math.max(0.01, S.osc_ds)
+      return r > 1.15 ? 'avanti-indietro' : (r < 1/1.15 ? 'destra-sinistra' : 'in modo simile sui due assi')
+    }
+    out.oscDomA = dom(A); out.oscDomB = dom(B)
+    out.dAp = pct(A.osc_ap, B.osc_ap); out.dDs = pct(A.osc_ds, B.osc_ds); out.bandaOsc = bo
+    if (out.oscDomB){
+      out.frasi.push('Oscilla di più ' + out.oscDomB + (out.oscDomA && out.oscDomA !== out.oscDomB ?
+        ' (prima: ' + out.oscDomA + ')' : '') + '. Avanti-indietro ' + segno(out.dAp) +
+        ', destra-sinistra ' + segno(out.dDs) + (Math.abs(out.dAp) < bo && Math.abs(out.dDs) < bo ?
+        ': dentro la variabilità dell’oscillazione (' + bo + ' per cento).' : '.'))
+    }
+
+    // 3) Dove tende ad avere più carico?
+    var bc = bandaCarico(n)
+    out.bandaCar = bc
+    out.dCarAv = (A.carico_avanti != null && B.carico_avanti != null) ? B.carico_avanti - A.carico_avanti : null
+    out.dCarDx = (A.carico_destra != null && B.carico_destra != null) ? B.carico_destra - A.carico_destra : null
+    if (B.carico_avanti != null){
+      var f = 'Il carico adesso sta ' + numIt(Math.abs(B.carico_avanti), 1) + '° ' + lato('beta', B.carico_avanti) +
+              ' e ' + numIt(Math.abs(B.carico_destra || 0), 1) + '° a ' + lato('gamma', B.carico_destra || 0) + '.'
+      var mosse = []
+      if (out.dCarAv != null && Math.abs(out.dCarAv) >= bc) mosse.push(numIt(Math.abs(out.dCarAv), 1) + '° verso ' + lato('beta', out.dCarAv))
+      if (out.dCarDx != null && Math.abs(out.dCarDx) >= bc) mosse.push(numIt(Math.abs(out.dCarDx), 1) + '° verso ' + lato('gamma', out.dCarDx))
+      f += mosse.length ? ' Rispetto a prima si è spostato di ' + mosse.join(' e di ') + '.' :
+           ' Rispetto a prima non si è spostato più di ' + numIt(bc, 1) + '°, che è quanto si sposta da solo ripetendo la prova.'
+      out.frasi.push(f)
+    }
+
+    // 4) Da che parte si sbilancia? (descrittivo)
+    if (A.dir && B.dir){
+      var d = B.dir
+      // sotto un decimo di grado di differenza non si dice «di più»
+      var parte = function(a, b, pa, pb){
+        if (Math.abs(a - b) < 0.1) return 'tanto ' + pa + ' quanto ' + pb + ' (' + numIt(a, 1) + '°)'
+        return 'di più ' + (a > b ? pa : pb) + ' (' + numIt(Math.max(a, b), 1) + '° contro ' + numIt(Math.min(a, b), 1) + '°)'
+      }
+      out.frasi.push('Si spinge ' + parte(d.escAvanti, d.escIndietro, 'in avanti', 'indietro') + ', e ' +
+        parte(d.escDestra, d.escSinistra, 'a destra', 'a sinistra') +
+        '. Misura descrittiva: la sua ripetibilità non è ancora misurata.')
+    }
+    return out
+  }
+
+  function coloreVerdetto(v){ return v === 'PIÙ STABILE' ? '#0a7d33' : (v === 'MENO STABILE' ? '#c0392b' : '#777') }
+  function riga3(nome, a, b, u, dec, delta, col){
+    return '<div class="cfr-riga"><span>' + nome + '</span><span class="cfr-val">' +
+      (a == null ? '—' : numIt(a, dec)) + ' → ' + (b == null ? '—' : numIt(b, dec)) + ' ' + u + '</span>' +
+      '<span class="cfr-d" style="color:' + (col || '#999') + '">' + (delta || '') + '</span></div>'
+  }
+
+  function htmlCondizione(c){
+    var A = c.a, B = c.b, oltre = function(d, b){ return Math.abs(d) >= b }
+    var colD = function(d, b){ return !oltre(d, b) ? '#999' : (d < 0 ? '#0a7d33' : '#c0392b') }
+    var h = '<div class="cond-card"><div class="cond-testa"><b>' + escH(nomeCond(c.condizione)) + '</b>' +
+      '<span class="verdetto" style="background:' + coloreVerdetto(c.verdetto) + '">' + c.verdetto + '</span></div>' +
+      '<div class="cond-n">' + (A.n === 1 ? '1 prova' : A.n + ' prove') + ' prima · ' +
+        (B.n === 1 ? '1 prova' : B.n + ' prove') + ' dopo · ' +
+        (c.n >= 3 ? 'medie di tre o più: soglie ridotte' : 'meno di tre prove per parte: soglie larghe') + '</div>'
+    h += '<div class="domanda">1 · È più stabile?</div><div class="cfr">' +
+      riga3('⭐ Velocità media', A.velocita, B.velocita, '°/s', 1, segno(c.dv), colD(c.dv, c.bandaVel)) + '</div>'
+    h += '<div class="domanda">2 · Dove oscilla di più?</div><div class="cfr">' +
+      riga3('Avanti-indietro', A.osc_ap, B.osc_ap, '°', 2, segno(c.dAp), colD(c.dAp, c.bandaOsc)) +
+      riga3('Destra-sinistra', A.osc_ds, B.osc_ds, '°', 2, segno(c.dDs), colD(c.dDs, c.bandaOsc)) +
+      '</div><div class="nota">Oscilla di più: <b>' + (c.oscDomB || '—') + '</b>' +
+      (c.oscDomA && c.oscDomA !== c.oscDomB ? ' (prima: ' + c.oscDomA + ')' : '') + '</div>'
+    var dc = function(d){
+      if (d == null) return ''
+      return (d >= 0 ? '+' : '−') + numIt(Math.abs(d), 1) + '°'
+    }
+    var colC = function(d){ return d != null && Math.abs(d) >= c.bandaCar ? '#111' : '#999' }
+    h += '<div class="domanda">3 · Dove tende ad avere più carico?</div><div class="cfr">' +
+      riga3('Avanti (+) / indietro (−)', A.carico_avanti, B.carico_avanti, '°', 1, dc(c.dCarAv), colC(c.dCarAv)) +
+      riga3('Destra (+) / sinistra (−)', A.carico_destra, B.carico_destra, '°', 1, dc(c.dCarDx), colC(c.dCarDx)) + '</div>'
+    if (A.dir && B.dir){
+      var t = function(S){ return S.dir }
+      h += '<div class="domanda">4 · Da che parte si sbilancia? <span class="descr">descrittivo</span></div><div class="cfr">' +
+        riga3('Si spinge in avanti', t(A).escAvanti, t(B).escAvanti, '°', 1) +
+        riga3('Si spinge indietro', t(A).escIndietro, t(B).escIndietro, '°', 1) +
+        riga3('Si spinge a destra', t(A).escDestra, t(B).escDestra, '°', 1) +
+        riga3('Si spinge a sinistra', t(A).escSinistra, t(B).escSinistra, '°', 1) +
+        riga3('Tempo in avanti', t(A).tempoAvanti, t(B).tempoAvanti, '%', 0) +
+        riga3('Tempo a destra', t(A).tempoDestra, t(B).tempoDestra, '%', 0) +
+        '</div><div class="nota">Escursione: fin dove si spinge rispetto al suo centro (95% del tempo). ' +
+        'Tempo: quanta parte della prova la tavola sta da quel lato. <b>La ripetibilità di queste due misure non è ' +
+        'ancora misurata</b>: si leggono, non si giudicano.</div>'
+    }
+    h += '<div class="nota">Soglie di questa condizione: velocità ' + c.bandaVel + '%, oscillazione ' +
+      c.bandaOsc + '%, carico ' + numIt(c.bandaCar, 1) + '°. Sotto la soglia la differenza è grigia: ' +
+      'non si distingue dalla variabilità della misura. Ricavate da una persona sola: provvisorie.</div>'
+    if (!A.tarati || !B.tarati){
+      h += '<div class="warn">⚠️ Qui c’è almeno una prova fatta <b>senza la taratura del verso</b>: ' +
+        'il verso del carico potrebbe essere invertito. Velocità e oscillazione non ne risentono.</div>'
+    }
+    return h + '</div>'
+  }
+
+  // Dipendenza dalla vista: velocità a occhi chiusi / occhi aperti,
+  // nella stessa sessione, stessa tavola e stessa configurazione.
+  function romberg(gruppi){
+    var out = {}
+    Object.keys(gruppi).forEach(function(k){
+      var r0 = gruppi[k][0]
+      if (r0.occhi !== 'aperti') return
+      var kc = condizioneDi({ configurazione: r0.configurazione, evento: r0.evento, occhi: 'chiusi' })
+      if (!gruppi[kc]) return
+      var va = mediaDi(gruppi[k], function(r){ return numeroO(r.velocita) })
+      var vc = mediaDi(gruppi[kc], function(r){ return numeroO(r.velocita) })
+      if (va > 0) out[(r0.configurazione ? r0.configurazione + ' · ' : '') + r0.evento] = vc / va
+    })
+    return out
+  }
+
+  // A e B: le righe di oscillazione_test delle due sessioni (con la traccia)
+  function confrontoSessioni(righeA, righeB){
+    var pa = perCondizione(righeA), pb = perCondizione(righeB)
+    var comuni = pb.ordine.filter(function(k){ return pa.gruppi[k] })
+    var condizioni = comuni.map(function(k){
+      return confrontaCondizione(k, riassuntoCondizione(pa.gruppi[k]), riassuntoCondizione(pb.gruppi[k]))
+    })
+    var soloA = pa.ordine.filter(function(k){ return !pb.gruppi[k] })
+    var soloB = pb.ordine.filter(function(k){ return !pa.gruppi[k] })
+    var ra = romberg(pa.gruppi), rb = romberg(pb.gruppi)
+    var rom = Object.keys(rb).filter(function(k){ return ra[k] != null })
+      .map(function(k){ return { chiave: k, a: ra[k], b: rb[k] } })
+
+    var html = ''
+    if (condizioni.length){
+      html += '<div class="sintesi">' + condizioni.map(function(c){
+        return '<div class="sintesi-riga"><span>' + escH(nomeCond(c.condizione)) + '</span><b style="color:' +
+          coloreVerdetto(c.verdetto) + '">' + c.verdetto + ' ' + segno(c.dv) + '</b></div>'
+      }).join('') + '</div>'
+    } else {
+      html += '<div class="warn">⚠️ Le due sessioni non hanno <b>nessuna condizione in comune</b> ' +
+        '(stessa tavola, stessa configurazione, stessi occhi): non c’è niente da confrontare senza ' +
+        'mescolare situazioni diverse.</div>'
+    }
+    if (rom.length){
+      html += '<div class="cond-card"><div class="cond-testa"><b>Quanto si appoggia alla vista</b>' +
+        '<span class="descr">descrittivo</span></div><div class="cfr">' +
+        rom.map(function(r){ return riga3(escH(r.chiave) + ' · chiusi ÷ aperti', r.a, r.b, '×', 2) }).join('') +
+        '</div><div class="nota">Velocità a occhi chiusi divisa per quella a occhi aperti: più è alta, più ' +
+        'toglierle la vista la fa muovere. La ripetibilità di questo rapporto non è ancora misurata.</div></div>'
+    }
+    condizioni.forEach(function(c){ html += htmlCondizione(c) })
+    if (soloA.length || soloB.length){
+      html += '<div class="nota">Non confrontate perché presenti in una sola sessione: ' +
+        soloA.concat(soloB).map(function(k){ return escH(nomeCond(k)) }).join(' · ') + '.</div>'
+    }
+    var frasi = []
+    condizioni.forEach(function(c){ frasi = frasi.concat(c.frasi) })
+    rom.forEach(function(r){
+      frasi.push('Il rapporto fra occhi chiusi e occhi aperti, ' + r.chiave + ', è passato da ' +
+        numIt(r.a, 2) + ' a ' + numIt(r.b, 2) + '.')
+    })
+    frasi.push('Questi sono i numeri del confronto. L’interpretazione clinica la scrivi tu.')
+    return { condizioni: condizioni, soloA: soloA, soloB: soloB, romberg: rom, html: html, frasi: frasi }
+  }
+
+  // Il gomitolo di una riga salvata, come immagine: serve ai referti
+  function pngDaRiga(r, scala, lato){
+    if (typeof document === 'undefined') return ''
+    var cv = document.createElement('canvas'); cv.width = cv.height = lato || 500
+    var s = serieDaRiga(r), sc = scala || 1.2, i
+    if (!scala) for (i = 0; i < s.xs.length; i++) sc = Math.max(sc, Math.abs(s.xs[i]), Math.abs(s.ys[i]))
+    var ca = numeroO(r.carico_avanti), cd = numeroO(r.carico_destra)
+    disegna(cv, s.xs, s.ys, sc, ellisseDi(s.xs, s.ys), { parole: true, cuneo: true,
+      carico: (ca != null && cd != null) ? { x: cd, y: ca } : null, colore: '#c0392b' })
+    try { return cv.toDataURL('image/png') } catch(e){ return '' }
+  }
+
+  // Lo stile dei referti stampati: uno solo per tutte e due le pagine
+  var CSS_REFERTO =
+    'body{font-family:Montserrat,-apple-system,"Segoe UI",Roboto,sans-serif;color:#111;margin:0;padding:14px;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.verdetto{-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.testa-ref{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}' +
+    '.testa-ref h1{font-size:19px;margin:0}.testa-ref div{font-size:12px;color:#444}' +
+    '.prova-ref{border:1px solid #ddd;border-radius:10px;padding:10px;margin:10px 0;page-break-inside:avoid;display:flex;gap:12px}' +
+    '.prova-ref img{width:52mm;height:52mm;flex:none}.prova-ref table{border-collapse:collapse;font-size:11.5px;width:100%}' +
+    '.prova-ref td{padding:2px 4px;border-bottom:1px solid #f0f0f0}.prova-ref td:last-child{text-align:right;font-weight:700}' +
+    '.prova-ref h3{font-size:13px;margin:0 0 4px}' +
+    '.cfr{border:1px solid #eee;border-radius:10px;padding:6px 10px;margin-top:6px}' +
+    '.cfr-riga{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #f3f3f3}' +
+    '.cfr-riga:last-child{border-bottom:0}.cfr-val{color:#555}.cfr-d{font-weight:800;min-width:60px;text-align:right}' +
+    '.cond-card{border:1.5px solid #ddd;border-radius:12px;padding:10px;margin:12px 0;page-break-inside:avoid}' +
+    '.cond-testa{display:flex;justify-content:space-between;align-items:center;gap:8px}' +
+    '.verdetto{color:#fff;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;white-space:nowrap}' +
+    '.cond-n,.nota{font-size:11px;color:#777;margin-top:4px}.domanda{font-weight:800;margin-top:10px;font-size:12.5px}' +
+    '.descr{font-size:10px;font-weight:700;color:#8a6d00;background:#fff3c4;border-radius:6px;padding:1px 6px;margin-left:6px}' +
+    '.sintesi{border:2px solid #111;border-radius:12px;padding:8px 12px;margin:10px 0}' +
+    '.sintesi-riga{display:flex;justify-content:space-between;gap:8px;padding:3px 0}' +
+    '.warn{background:#fff8e6;border:1.5px solid #e6a100;border-radius:10px;padding:8px 10px;color:#7a5200;margin-top:8px;font-size:12px}' +
+    '.tele-ref{display:flex;gap:10px;text-align:center;font-size:11px;color:#555}.tele-ref img{width:70mm;height:70mm}' +
+    '.piede-ref{font-size:10px;color:#777;border-top:1px solid #ddd;margin-top:14px;padding-top:6px}'
+
+  var PIEDE_REFERTO = '<div class="piede-ref">Test del Sistema Policettivo®: misura l’inclinazione della ' +
+    'Tavola Policettiva — dove va il carico e quanto oscilla. Non è una stabilometria su pedana: i numeri si ' +
+    'confrontano fra prove della stessa persona, non con una norma. L’interpretazione clinica è del professionista.</div>'
+
+  function escH(t){
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] })
+  }
+
+  // Chi: il paziente, oppure nome · età · peso della sessione libera
+  function chiDi(info){
+    info = info || {}
+    var t = info.nome ? escH(info.nome) : 'Prova libera'
+    var extra = []
+    if (info.eta != null && info.eta !== '') extra.push(escH(info.eta) + ' anni')
+    if (info.peso_kg != null && info.peso_kg !== '') extra.push(numIt(Number(info.peso_kg), 1) + ' kg')
+    return '<b>' + t + '</b>' + (extra.length ? ' · ' + extra.join(' · ') : '')
+  }
+
+  // Il referto di TUTTA una sessione: una scheda per prova, poi le medie
+  function refertoSessione(righe, info){
+    righe = (righe || []).filter(function(r){ return r.velocita != null })
+      .sort(function(a, b){ return new Date(a.quando) - new Date(b.quando) })
+    var quando = righe.length ? new Date(righe[0].quando) : new Date()
+    var h = '<div class="testa-ref"><h1>Oscillazione Policettiva — sessione del ' +
+      quando.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) + '</h1>' +
+      '<div>' + chiDi(info) + '</div><div>' + righe.length + (righe.length === 1 ? ' prova' : ' prove') + '</div></div>'
+    righe.forEach(function(r, i){
+      var s = serieDaRiga(r), d = direzioni(s.xs, s.ys)
+      var ca = numeroO(r.carico_avanti), cd = numeroO(r.carico_destra)
+      var tr = function(n, v){ return '<tr><td>' + n + '</td><td>' + v + '</td></tr>' }
+      h += '<div class="prova-ref">' + (r.traccia ? '<img src="' + pngDaRiga(r, null, 420) + '">' : '') +
+        '<div style="flex:1"><h3>' + (i+1) + ') ' + new Date(r.quando).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) +
+        ' · ' + escH(r.evento) + ' · occhi ' + escH(r.occhi || '—') + ' · ' + escH(r.piedi || '') +
+        (r.configurazione ? ' · ' + escH(r.configurazione) : '') + '</h3><table>' +
+        tr('⭐ Velocità media', numIt(numeroO(r.velocita), 2) + ' °/s') +
+        (ca != null ? tr('Carico', numIt(Math.abs(ca), 1) + '° ' + lato('beta', ca) + ' · ' +
+                                   numIt(Math.abs(cd || 0), 1) + '° ' + lato('gamma', cd || 0)) : '') +
+        tr('Oscillazione avanti-indietro', numIt(numeroO(r.osc_ap) || 0, 2) + '°') +
+        tr('Oscillazione destra-sinistra', numIt(numeroO(r.osc_ds) || 0, 2) + '°') +
+        tr('Ellisse 95%', numIt(numeroO(r.ellisse) || 0, 2) + ' °²') +
+        (d ? tr('Si spinge avanti / indietro', numIt(d.escAvanti, 1) + '° / ' + numIt(d.escIndietro, 1) + '°') +
+             tr('Si spinge destra / sinistra', numIt(d.escDestra, 1) + '° / ' + numIt(d.escSinistra, 1) + '°') : '') +
+        '</table>' + (r.tarato ? '' : '<div class="nota">⚠️ senza taratura del verso: il verso del carico potrebbe essere invertito</div>') +
+        '</div></div>'
+    })
+    // le medie per condizione, se in una condizione ci sono due prove o più
+    var pc = perCondizione(righe)
+    var multiple = pc.ordine.filter(function(k){ return pc.gruppi[k].length >= 2 })
+    if (multiple.length){
+      h += '<div class="cond-card"><div class="cond-testa"><b>Medie della sessione</b></div><div class="cfr">' +
+        multiple.map(function(k){
+          var S = riassuntoCondizione(pc.gruppi[k])
+          return '<div class="cfr-riga"><span>' + escH(nomeCond(k)) + ' · ' + S.n + ' prove</span><span class="cfr-val">' +
+            numIt(S.velocita, 2) + ' °/s · carico ' + numIt(S.carico_avanti || 0, 1) + '° / ' +
+            numIt(S.carico_destra || 0, 1) + '°</span></div>'
+        }).join('') + '</div></div>'
+    }
+    var rom = romberg(pc.gruppi)
+    Object.keys(rom).forEach(function(k){
+      h += '<div class="nota">Occhi chiusi ÷ occhi aperti (' + escH(k) + '): <b>' + numIt(rom[k], 2) + '×</b> (descrittivo)</div>'
+    })
+    return h + PIEDE_REFERTO
+  }
+
+  // Il documento completo, pronto per il server del PDF o per la stampa
+  function documento(titolo, corpo){
+    return '<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title>' + escH(titolo) +
+      '</title><style>' + CSS_REFERTO + '</style></head><body>' + corpo + '</body></html>'
+  }
+
   global.PolOscillazione = {
+    // test-sessioni-v1
+    confrontoSessioni: confrontoSessioni, refertoSessione: refertoSessione, documento: documento,
+    serieDaRiga: serieDaRiga, ellisseDi: ellisseDi, direzioni: direzioni, condizioneDi: condizioneDi, nomeCond: nomeCond,
+    riassuntoCondizione: riassuntoCondizione, pngDaRiga: pngDaRiga, chiDi: chiDi, bandaDi: bandaDi, CV: CV,
+    CSS_REFERTO: CSS_REFERTO, PIEDE_REFERTO: PIEDE_REFERTO,
     confronto: confronto,
     BANDA_SINGOLA: BANDA_SINGOLA, BANDA_TRE: BANDA_TRE, BANDA_CARICO: BANDA_CARICO,
     numIt: numIt, parolaAsse: parolaAsse,

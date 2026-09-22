@@ -226,11 +226,15 @@ sez('La pagina è davvero isolata dall’app in uso')
     rpc.length > 0 && rpc.every(n => /^oscillazione_/.test(n)), rpc)
   // oscillazione-app-v1 — adesso salva: legge il proprio profilo e il nome del
   // paziente, e scrive SOLO nella tabella dei test. Nient'altro.
-  const tabelle = [...src.matchAll(/\.from\('([^']+)'\)/g)].map(m => m[1]).sort()
-  check('⭐ tocca solo tre tabelle: il profilo, il paziente e i test',
-    tabelle.join() === 'oscillazione_test,patients,professionals', tabelle)
-  check('⛔ e l’unica che scrive è quella dei test',
-    !/\.from\('(?!oscillazione_test)[^']+'\)[^;]*\.(insert|update|delete|upsert)\(/.test(src))
+  // test-sessioni-v1 — e le sessioni: le crea e ne corregge nome, età e peso
+  const tabelle = [...new Set([...src.matchAll(/\.from\('([^']+)'\)/g)].map(m => m[1]))].sort()
+  check('⭐ tocca solo quattro tabelle: profilo, paziente, test e sessioni',
+    tabelle.join() === 'oscillazione_test,patients,professionals,test_sessioni', tabelle)
+  check('⛔ e scrive solo nei test e nelle sessioni',
+    !/\.from\('(?!oscillazione_test|test_sessioni)[^']+'\)[^;]*\.(insert|update|delete|upsert)\(/.test(src))
+  check('⛔ non cancella mai niente', !/\.(delete|upsert)\(/.test(src))
+  check('⛔ e dei test non riscrive le misure (nessun update sui test)',
+    !/\.from\('oscillazione_test'\)[^;]*\.update\(/.test(src))
   const fetchs = [...src.matchAll(/fetch\(\s*'([^']+)'/g)].map(m => m[1])
   check('⭐ l’unica chiamata diretta è al server del PDF', fetchs.join() === '/api/pdf-render', fetchs)
   check('⛔ niente XMLHttpRequest', !/XMLHttpRequest/.test(src))
@@ -251,8 +255,9 @@ sez('La pagina è davvero isolata dall’app in uso')
   const altre = fs.readdirSync(ROOT).filter(f => f.endsWith('.html') && f !== PAGINA)
   // oscillazione-app-v1 — adesso è DENTRO l'app, e le pagine che la aprono sono queste e solo queste
   const linkano = altre.filter(f => fs.readFileSync(path.join(ROOT, f), 'utf8').includes(PAGINA)).sort()
-  check('⭐ la aprono la home, la scheda paziente e lo storico (e basta)',
-    JSON.stringify(linkano) === JSON.stringify(['dashboard.html', 'oscillazione-storico.html', 'paziente.html']), linkano)
+  // test-sessioni-v1 — dalla home e dalla scheda si passa per la pagina dei TEST
+  check('⭐ la aprono la pagina dei test, la scheda paziente e il confronto (e basta)',
+    JSON.stringify(linkano) === JSON.stringify(['oscillazione-storico.html', 'paziente.html', 'test.html']), linkano)
 }
 
 sez('La matematica, contro numeri calcolabili a mano')
@@ -1464,7 +1469,8 @@ sez('⭐ grafica-tavola-v1 · i testi accorciati dicono cosa il test È')
   check('e quanto oscilla', /quanto oscilla/.test(a), a)
   check('dice a cosa serve: squilibri e cambiamenti', /squilibri/.test(a) && /cambiamenti/.test(a), a)
   check('⭐ tiene il limite onesto, in una riga', /non con una norma/.test(a), a)
-  check('e che i dati restano sul telefono', /esce da questo telefono/.test(a), a)
+  // test-sessioni-v1 — non è più vero che resta sul telefono: col tuo account si salva, e lo dice
+  check('⭐ e dice che col tuo account ogni prova si salva, con data e ora', /si\s+salva da sola, con data e ora/.test(a), a)
   check('⭐ ed è corto: sotto i 620 caratteri', a.replace(/\s+/g, ' ').trim().length < 620,
     a.replace(/\s+/g, ' ').trim().length)
   check('⛔ non si sminuisce più con «non è uno strumento clinico»',
@@ -1698,14 +1704,22 @@ sez('⭐ taratura-guidata-v1 · dopo la taratura si ricalcola TUTTO')
 // il finto Supabase: sessione, profilo, paziente, insert e canale.
 // ⚠️ L'insert registra davvero la riga ricevuta: si controlla COSA arriva al
 //    database, non solo che la pagina non esploda.
-const SUPA = ({ sessione, pazienteOk, insertErr }) => {
-  window.__db = { righe: [], canale: [] }
+const SUPA = ({ sessione, pazienteOk, insertErr, senza047, sessioneRecente }) => {
+  // test-sessioni-v1 — anche la tabella delle sessioni, e le letture della sessione
+  window.__db = { righe: [], canale: [], sessioni: [], aggiornate: [] }
   const q = (tab) => {
-    const st = { tab, filtri: {} }
+    const st = { tab, filtri: {}, sel: '' }
     const api = {
-      select() { return api },
+      select(s) { st.sel = s || ''; return api },
       eq(k, v) { st.filtri[k] = v; return api },
+      order() { return api }, limit() { return api },
+      update(d) { st.upd = d; return api },
       async maybeSingle() {
+        if (st.riga && tab === 'test_sessioni') {
+          if (senza047) return { data: null, error: { message: 'relation "public.test_sessioni" does not exist' } }
+          window.__db.sessioni.push(st.riga)
+          return { data: { id: 'SESS-' + window.__db.sessioni.length, quando: new Date().toISOString() }, error: null }
+        }
         if (st.riga) {
           if (insertErr) return { data: null, error: { message: insertErr } }
           window.__db.righe.push(st.riga); return { data: { id: 'riga-' + window.__db.righe.length }, error: null }
@@ -1713,9 +1727,23 @@ const SUPA = ({ sessione, pazienteOk, insertErr }) => {
         if (tab === 'professionals') return { data: { id: 'PROF-1' }, error: null }
         if (tab === 'patients') return pazienteOk
           ? { data: { nome: 'Mario', cognome: 'Rossi' }, error: null } : { data: null, error: null }
+        if (tab === 'test_sessioni') {
+          if (senza047) return { data: null, error: { message: 'relation "public.test_sessioni" does not exist' } }
+          return { data: sessioneRecente || null, error: null }
+        }
         return { data: null, error: null }
       },
-      insert(r) { st.riga = r; return api }
+      insert(r) { st.riga = r; return api },
+      then(res, rej) {
+        let out = { data: [], error: null }
+        if (st.upd) { window.__db.aggiornate.push({ tab, d: st.upd, f: st.filtri }); out = { data: null, error: null } }
+        else if (tab === 'oscillazione_test' && st.filtri.sessione_id) {
+          const mie = window.__db.righe.filter(r => r.sessione_id === st.filtri.sessione_id)
+          out = { data: (sessioneRecente && st.filtri.sessione_id === sessioneRecente.id)
+                        ? (window.__db.prima || []).concat(mie) : mie, error: null }
+        }
+        return Promise.resolve(out).then(res, rej)
+      }
     }
     return api
   }
@@ -1929,6 +1957,144 @@ sez('⭐ oscillazione-app-v1 · la taratura dà tempo per prepararsi')
   check('⭐ prima dei passi dice di prepararsi', /Preparati vicino alla tavola/.test(d), d)
   check('⭐ e quanto manca', /Comincio fra 10 secondi/.test(d), d)
   check('⭐ e il primo passo NON è ancora partito', !/stai fermo al centro/.test(d), d)
+  await ctx.close()
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// test-sessioni-v1 — la sessione, e cosa si stampa
+// ═══════════════════════════════════════════════════════════════════════
+const PROVA_APP = async (page, primo, n) => {
+  await parti(page, primo ? '#btn-start' : '#btn-ancora'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0.3, ampB: 1, ampG: 0.2, passoMs: 20, durataMs: 3000 })
+  await page.waitForSelector('#c-esito', { state: 'visible', timeout: 15000 })
+  await page.waitForFunction((n) => window.__db.righe.length === n, n, { timeout: 5000 }).catch(() => {})
+  await page.waitForTimeout(150)
+}
+
+sez('⭐⭐ test-sessioni-v1 · prova libera: nome, età e peso nella sessione')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true }, '?dur=2&via=1')
+  check('⭐ la card della sessione c’è, sopra al test', await page.isVisible('#c-sessione'))
+  check('⭐ con nome, età e peso', await page.isVisible('#sess-nome') && await page.isVisible('#sess-eta') && await page.isVisible('#sess-peso'))
+  check('e dice che sono facoltativi', /Facoltativi/.test(await page.textContent('#c-sessione')))
+  await page.fill('#sess-nome', 'Anna Verdi'); await page.fill('#sess-eta', '42'); await page.fill('#sess-peso', '61,5')
+  await PROVA_APP(page, true, 1)
+  let db = await page.evaluate(() => window.__db)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐⭐ col primo test nasce la sessione', db.sessioni.length === 1, db.sessioni.length)
+  const se = db.sessioni[0] || {}
+  check('⭐ con nome, età e peso (la virgola del peso capita)', se.nome === 'Anna Verdi' && se.eta === 42 && se.peso_kg === 61.5, se)
+  check('   del professionista, senza paziente', se.professional_id === 'PROF-1' && se.patient_id === null, se)
+  check('⭐⭐ e la prova sta DENTRO la sessione', db.righe[0].sessione_id === 'SESS-1', db.righe[0].sessione_id)
+  check('lo dice', /nella sessione/.test(await page.textContent('#salva-stato')), await page.textContent('#salva-stato'))
+  check('la card conta le prove', /1 prova/.test(await page.textContent('#sess-stato')), await page.textContent('#sess-stato'))
+  await PROVA_APP(page, false, 2)
+  db = await page.evaluate(() => window.__db)
+  check('⭐ il secondo test NON apre un’altra sessione', db.sessioni.length === 1, db.sessioni.length)
+  check('   e va nella stessa', db.righe[1] && db.righe[1].sessione_id === 'SESS-1')
+  check('   2 prove', /2 prove/.test(await page.textContent('#sess-stato')))
+  // correggere il nome a sessione aperta
+  await page.fill('#sess-nome', 'Anna Verdi Bianchi'); await page.dispatchEvent('#sess-nome', 'change')
+  await page.waitForTimeout(200)
+  db = await page.evaluate(() => window.__db)
+  check('⭐ nome corretto dopo: si aggiorna la sessione', db.aggiornate.some(a => a.tab === 'test_sessioni' && a.d.nome === 'Anna Verdi Bianchi' && a.f.id === 'SESS-1'), db.aggiornate)
+
+  // ═══ la scelta di cosa stampare
+  await page.evaluate(() => { window.__stampe = 0; window.print = () => { window.__stampe++ } })
+  await page.click('#btn-referto')
+  await page.waitForTimeout(150)
+  check('⭐⭐ Stampa chiede: solo questa prova o tutta la sessione', await page.isVisible('#scelta'))
+  check('⭐ e dice quante prove ha la sessione', /Tutta la sessione · 2 prove/.test(await page.textContent('#scelta-tutte')))
+  await page.click('#scelta-tutte')
+  await page.waitForTimeout(400)
+  const st = await page.evaluate(() => ({ n: document.querySelectorAll('#stampa-sessione .prova-ref').length,
+    t: document.getElementById('stampa-sessione').textContent, cl: document.body.className, p: window.__stampe,
+    img: document.querySelectorAll('#stampa-sessione img').length }))
+  check('⭐⭐ tutta la sessione: le due prove, ognuna col suo gomitolo', st.n === 2 && st.img === 2, st)
+  check('⭐ col nome, l’età e il peso', /Anna Verdi Bianchi/.test(st.t) && /42 anni/.test(st.t) && /61,5 kg/.test(st.t), st.t.slice(0, 200))
+  check('⭐ e la pagina stampa SOLO il referto', /stampa-sessione/.test(st.cl) && st.p === 1, st)
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')))
+  check('dopo la stampa la pagina torna com’era', await page.evaluate(() => !document.body.classList.contains('stampa-sessione') &&
+    document.getElementById('stampa-sessione').innerHTML === ''))
+  await page.click('#btn-referto'); await page.waitForTimeout(150)
+  await page.click('#scelta-una'); await page.waitForTimeout(250)
+  check('⭐ «solo questa prova»: stampa la pagina senza lo storico', await page.evaluate(() =>
+    document.body.classList.contains('stampa-una') && window.__stampe === 2))
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')))
+  await page.click('#btn-referto'); await page.waitForTimeout(150)
+  await page.click('#scelta-annulla'); await page.waitForTimeout(150)
+  check('«annulla» non stampa niente', await page.evaluate(() => window.__stampe === 2) && !(await page.isVisible('#scelta')))
+
+  // ═══ il PDF di tutta la sessione
+  let chiesta = null
+  await page.route('**/api/pdf-render', async (r) => {
+    chiesta = JSON.parse(r.request().postData() || '{}')
+    await r.fulfill({ status: 200, contentType: 'application/pdf', body: '%PDF-1.4 finto' })
+  })
+  await page.click('#btn-pdf'); await page.waitForTimeout(150)
+  check('⭐ anche il PDF chiede cosa', await page.isVisible('#scelta') && /scaricare/.test(await page.textContent('#scelta-tit')))
+  await page.click('#scelta-tutte'); await page.waitForTimeout(600)
+  check('⭐⭐ PDF della sessione: nome del file', chiesta && /^Oscillazione_sessione_Anna_Verdi_Bianchi_\d{4}-\d{2}-\d{2}\.pdf$/.test(chiesta.filename), chiesta && chiesta.filename)
+  check('   con le due prove e lo stile dentro', chiesta && (chiesta.html.match(/class="prova-ref"/g) || []).length === 2 && /<style>/.test(chiesta.html))
+  check('   e le medie della sessione', chiesta && /Medie della sessione/.test(chiesta.html))
+
+  // ═══ nuova sessione
+  await page.click('#btn-nuova-sessione'); await page.waitForTimeout(150)
+  check('⭐ «Nuova sessione» svuota nome, età e peso', (await page.inputValue('#sess-nome')) === '' && (await page.inputValue('#sess-eta')) === '')
+  await page.fill('#sess-nome', 'Paolo Neri')
+  await PROVA_APP(page, false, 3)
+  db = await page.evaluate(() => window.__db)
+  check('⭐ e il test dopo apre un’altra sessione', db.sessioni.length === 2 && db.righe[2].sessione_id === 'SESS-2' && db.sessioni[1].nome === 'Paolo Neri',
+    { s: db.sessioni.length, id: db.righe[2] && db.righe[2].sessione_id })
+  await page.click('#btn-referto'); await page.waitForTimeout(250)
+  check('⭐ con una prova sola nella sessione non chiede niente', !(await page.isVisible('#scelta')) && await page.evaluate(() => window.__stampe === 3))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐ test-sessioni-v1 · col paziente: la sessione si apre da sola, e si riprende')
+{
+  const PIDV = '11111111-2222-3333-4444-555555555555'
+  let { page, ctx, errori } = await apriApp(browser, { sessione: true, pazienteOk: true }, '?dur=2&via=1&pid=' + PIDV)
+  check('⭐ col paziente non chiede nome, età e peso', !(await page.isVisible('#sess-libera')))
+  check('⭐ «indietro» torna ai test del paziente', (await page.getAttribute('#link-home', 'href')) === 'test.html?pid=' + PIDV &&
+    /Test/.test(await page.textContent('#link-home')))
+  check('   la card dice di chi è', /Mario Rossi/.test(await page.textContent('#sess-stato')))
+  await PROVA_APP(page, true, 1)
+  let db = await page.evaluate(() => window.__db)
+  check('⭐ la sessione è del paziente', db.sessioni[0] && db.sessioni[0].patient_id === PIDV && db.sessioni[0].nome === null, db.sessioni[0])
+  check('   e la prova ci sta dentro', db.righe[0].sessione_id === 'SESS-1')
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await ctx.close()
+
+  // la pagina ricaricata dopo un'ora: si riprende la sessione
+  const recente = { id: 'SESS-VECCHIA', quando: new Date(Date.now() - 3600e3).toISOString() }
+  ;({ page, ctx, errori } = await apriApp(browser, { sessione: true, pazienteOk: true, sessioneRecente: recente }, '?dur=2&via=1&pid=' + PIDV))
+  check('⭐ ricaricando entro 4 ore si RIPRENDE la sessione', /Sessione aperta alle/.test(await page.textContent('#sess-stato')), await page.textContent('#sess-stato'))
+  await PROVA_APP(page, true, 1)
+  db = await page.evaluate(() => window.__db)
+  check('⭐ e la prova va lì, senza aprirne un’altra', db.sessioni.length === 0 && db.righe[0].sessione_id === 'SESS-VECCHIA', { s: db.sessioni.length, id: db.righe[0] && db.righe[0].sessione_id })
+  await ctx.close()
+
+  const vecchia = { id: 'SESS-IERI', quando: new Date(Date.now() - 26 * 3600e3).toISOString() }
+  ;({ page, ctx, errori } = await apriApp(browser, { sessione: true, pazienteOk: true, sessioneRecente: vecchia }, '?dur=2&via=1&pid=' + PIDV))
+  await PROVA_APP(page, true, 1)
+  db = await page.evaluate(() => window.__db)
+  check('⭐ una sessione di ieri NON si riprende: se ne apre una nuova', db.sessioni.length === 1 && db.righe[0].sessione_id === 'SESS-1')
+  await ctx.close()
+}
+
+sez('⭐ test-sessioni-v1 · senza la migration 047 le prove si salvano lo stesso')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true, senza047: true }, '?dur=2&via=1')
+  await page.fill('#sess-nome', 'Anna')
+  await PROVA_APP(page, true, 1)
+  const db = await page.evaluate(() => window.__db)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐⭐ la prova si salva', db.righe.length === 1)
+  check('⭐ senza la colonna della sessione (che non c’è)', !('sessione_id' in db.righe[0]))
+  check('⭐ e dice QUALE migration manca', /migration 047/.test(await page.textContent('#salva-stato')) &&
+    /migration 047/.test(await page.textContent('#sess-stato')), await page.textContent('#salva-stato'))
   await ctx.close()
 }
 

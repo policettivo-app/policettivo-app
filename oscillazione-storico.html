@@ -4,27 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Oscillazione Policettiva — storico e confronto</title>
-<!-- oscillazione-app-v1 (22 set 2026)
-     LO STORICO E IL CONFRONTO NEL TEMPO.
-     Legge i test salvati in `oscillazione_test` (migration 046) e ne confronta
-     due: PRIMA e DOPO. Il confronto è quello di js/oscillazione.js, lo stesso
-     che usa la pagina del test: un posto solo, una sola risposta.
+<title>Oscillazione Policettiva — confronto</title>
+<!-- oscillazione-app-v1 (22 set 2026) — nata come storico prova contro prova.
+     test-sessioni-v1 (22 set 2026) — SI CONFRONTANO SESSIONI (decisione 2=A).
 
-     ⚠️ ONESTÀ DEL CONFRONTO
-       - Fra DUE prove singole la soglia è il 35%: sotto, è rumore della misura.
-       - Se il giorno di PRIMA e quello di DOPO hanno TRE prove o più nella
-         stessa condizione, si confrontano le MEDIE della seduta e la soglia
-         scende al 20%. Si dice sempre quale delle due è stata usata.
-       - Condizioni diverse (beccheggio contro rollio, occhi aperti contro
-         chiusi) si confrontano solo con l'avviso: non sono «un miglioramento».
-       - L'interpretazione clinica la scrive il professionista.
+     Una sessione = tutte le prove fatte insieme (tabella test_sessioni, 047).
+     Le prove salvate prima della 047 non hanno sessione: si raggruppano per
+     persona e per giorno, così l'archivio vecchio resta confrontabile.
 
-     Si apre in due modi:
-       oscillazione-storico.html            → tutti i tuoi test, scegli il paziente
-       oscillazione-storico.html?pid=<uuid> → solo quel paziente
-     Legge e basta: non scrive, non cancella.
--->
+     Il confronto risponde a quattro domande, condizione per condizione
+     (stessa tavola, stessa configurazione, stessi occhi):
+       1. È più stabile?            velocità media
+       2. Dove oscilla di più?      avanti-indietro / destra-sinistra
+       3. Dove tende a caricare?    carico in gradi
+       4. Da che parte si sbilancia? escursione e tempo per lato (descrittivo)
+     Le parole sono «più stabile / meno stabile / invariato» (decisione 3=A).
+     Tutta la matematica sta in js/oscillazione.js (confrontoSessioni).
+
+     Si apre così:
+       oscillazione-storico.html                    → tutte le persone
+       oscillazione-storico.html?pid=<uuid>          → un paziente
+       …&sessione=<uuid>                             → quella sessione come DOPO
+     Legge e basta: non scrive, non cancella. -->
 <style>
   *{box-sizing:border-box}
   body{margin:0;background:#fafafa;color:#111;
@@ -45,97 +46,115 @@
        font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:12px;text-align:center;
        text-decoration:none}
   .btn.giallo{background:#FFD008;color:#111}
-  .btn.vuoto{background:#fff;color:#111;border:1.5px solid #ddd;font-weight:600}
+  .btn.vuoto{background:#fff;color:#111;border:1.5px solid #ddd;font-weight:600;font-size:14px;padding:13px}
   .btn:disabled{background:#bbb}
   .riga-btn{display:flex;gap:10px}
   .riga-btn .btn{flex:1}
-  .nota{font-size:12px;color:#777;margin-top:10px}
+  .nota{font-size:12px;color:#777;margin-top:8px}
   .warn{background:#fff8e6;border:1.5px solid #e6a100;border-radius:12px;padding:10px 12px;
         font-size:13px;color:#7a5200;margin-top:12px}
   .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;font-size:14px;color:#b00}
   .paz-banda{border-radius:14px;padding:11px 14px;margin:0 0 14px;font-size:14px;background:#111;color:#fff}
   .paz-banda.libera{background:#f2f2f2;color:#444}
-  .cfr{border:1px solid #eee;border-radius:14px;padding:12px;margin-top:10px;background:#fff}
+  .cfr{border:1px solid #eee;border-radius:12px;padding:6px 12px;margin-top:6px;background:#fff}
   .cfr-riga{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
-            padding:7px 0;border-bottom:1px solid #f3f3f3;font-size:14px}
+            padding:6px 0;border-bottom:1px solid #f3f3f3;font-size:14px}
   .cfr-riga:last-child{border-bottom:0}
-  .cfr-val{font-variant-numeric:tabular-nums;color:#555;font-size:13px}
-  .cfr-d{font-weight:800;font-variant-numeric:tabular-nums;min-width:74px;text-align:right}
+  .cfr-val{font-variant-numeric:tabular-nums;color:#555;font-size:13px;white-space:nowrap}
+  .cfr-d{font-weight:800;font-variant-numeric:tabular-nums;min-width:62px;text-align:right}
   .cfr-sel{display:flex;gap:10px}
   .cfr-sel>div{flex:1;min-width:0}
-  .tele{display:flex;gap:10px;margin-top:12px}
+  .cond-card{border:1.5px solid #e6e6e6;border-radius:16px;padding:14px;margin:14px 0;background:#fff}
+  .cond-testa{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:15px}
+  .verdetto{color:#fff;border-radius:8px;padding:3px 9px;font-size:12px;font-weight:800;white-space:nowrap}
+  .cond-n{font-size:12px;color:#777;margin-top:2px}
+  .domanda{font-weight:800;margin-top:14px;font-size:14px}
+  .descr{font-size:10px;font-weight:700;color:#8a6d00;background:#fff3c4;border-radius:6px;padding:1px 6px;margin-left:6px}
+  .sintesi{border:2px solid #111;border-radius:14px;padding:10px 14px;margin:6px 0 4px}
+  .sintesi-riga{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:15px}
+  .tele{display:flex;gap:10px;margin-top:10px}
   .tele>div{flex:1;text-align:center;font-size:12px;color:#666;font-weight:600}
-  canvas{display:block;width:100%;background:#fff;border:1px solid #eee;border-radius:14px}
+  canvas{display:block;width:100%;background:#fff;border:1px solid #eee;border-radius:12px}
   .frasi p{margin:6px 0;font-size:14px}
-  .media{font-size:13px;border-radius:10px;padding:8px 11px;margin-top:10px;background:#eef9f0;color:#0a5e26}
-  .media.singola{background:#f4f4f4;color:#555}
-  .lista{max-height:360px;overflow:auto;border:1px solid #f0f0f0;border-radius:12px}
-  .voce{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-bottom:1px solid #f3f3f3;
+  .lista{max-height:380px;overflow:auto;border:1px solid #f0f0f0;border-radius:12px}
+  .voce{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid #f3f3f3;
         font-size:13px;cursor:pointer}
   .voce:last-child{border-bottom:0}
   .voce.pre{background:#eaf1ff}
   .voce.post{background:#fff6d1}
   .voce b{font-size:14px}
-  .voce .num{font-variant-numeric:tabular-nums;color:#333;white-space:nowrap;text-align:right}
+  .voce .cnd{color:#666}
   .etich{display:inline-block;font-size:10px;font-weight:800;border-radius:6px;padding:1px 6px;margin-left:6px}
   .etich.pre{background:#2864dc;color:#fff}
   .etich.post{background:#FFD008;color:#111}
   .vuoto-msg{padding:18px;text-align:center;color:#777;font-size:14px}
   svg.andamento{width:100%;height:auto;display:block}
+  #stampa-qui{display:none}
   @media print{
-    body{background:#fff;padding:0}
-    .no-stampa,.testa a{display:none!important}
-    .card{box-shadow:none;border:0;padding:0 0 10px}
+    body.stampa > *:not(#stampa-qui){display:none!important}
+    body.stampa #stampa-qui{display:block!important}
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="testa">
-    <h1>Storico e confronto</h1>
-    <a id="link-indietro" href="dashboard.html">← App</a>
+    <h1>📊 Confronto</h1>
+    <a id="link-indietro" href="test.html">← Test</a>
   </div>
-  <div class="sub">Oscillazione Policettiva · Beccheggio e Rollio · test del Sistema Policettivo®</div>
+  <div class="sub">Oscillazione Policettiva · sessione contro sessione · test del Sistema Policettivo®</div>
   <div id="paz-banda"></div>
   <div id="err"></div>
 
-  <div class="card no-stampa" id="c-filtro" style="display:none">
-    <label for="filtro" style="margin-top:0">Di chi</label>
-    <select id="filtro"></select>
-    <label for="cond">Condizione</label>
-    <select id="cond"></select>
-    <div class="nota">Tocca un test: il primo tocco lo mette come <b>PRIMA</b>, il secondo come <b>DOPO</b>.</div>
-    <div class="lista" id="lista" style="margin-top:10px"></div>
+  <div class="card" id="c-scelta" style="display:none">
+    <div id="blocco-chi">
+      <label for="filtro" style="margin-top:0">Di chi</label>
+      <select id="filtro"></select>
+    </div>
+    <label>Le sessioni</label>
+    <div class="nota" style="margin-top:0">Tocca una sessione: il primo tocco la mette come <b>PRIMA</b>,
+      il secondo come <b>DOPO</b>. Di partenza: la prima e l’ultima.</div>
+    <div class="lista" id="lista" style="margin-top:8px"></div>
     <a class="btn giallo" id="btn-nuovo" href="prova-oscillazione.html">🎯 Fai un test nuovo</a>
-  </div>
-
-  <div class="card" id="c-andamento" style="display:none">
-    <h2>Andamento della velocità</h2>
-    <div id="andamento"></div>
-    <div class="nota" id="andamento-nota"></div>
   </div>
 
   <div class="card" id="c-confronto" style="display:none">
     <h2>Prima e dopo</h2>
-    <div class="cfr-sel no-stampa">
+    <div class="cfr-sel">
       <div><label for="sel-pre" style="margin-top:0">PRIMA</label><select id="sel-pre"></select></div>
       <div><label for="sel-post" style="margin-top:0">DOPO</label><select id="sel-post"></select></div>
     </div>
-    <div class="tele">
-      <div><canvas id="cv-pre" width="600" height="600"></canvas><span id="tit-pre">PRIMA</span></div>
-      <div><canvas id="cv-post" width="600" height="600"></canvas><span id="tit-post">DOPO</span></div>
-    </div>
-    <div class="nota">I due disegni sono alla <b>stessa scala</b>: se no il confronto inganna l’occhio.</div>
-    <div id="media"></div>
     <div id="esito"></div>
-    <div id="avvisi"></div>
+    <div id="gomitoli"></div>
     <div class="frasi" id="frasi"></div>
-    <div class="riga-btn no-stampa">
-      <button class="btn giallo" id="btn-pdf">📄 Scarica il PDF</button>
+    <div class="riga-btn">
+      <button class="btn giallo" id="btn-pdf">📄 PDF del confronto</button>
       <button class="btn vuoto" id="btn-stampa">🖨 Stampa</button>
     </div>
+    <div class="riga-btn">
+      <button class="btn vuoto" id="btn-sess-pre">📄 Sessione PRIMA</button>
+      <button class="btn vuoto" id="btn-sess-post">📄 Sessione DOPO</button>
+    </div>
+  </div>
+
+  <div class="card" id="c-una" style="display:none">
+    <h2>Una sessione sola</h2>
+    <div class="nota" style="margin-top:0">Il confronto comincia dalla seconda sessione. Intanto, il riepilogo di questa:</div>
+    <div id="una-referto" style="margin-top:10px"></div>
+    <div class="riga-btn">
+      <button class="btn giallo" id="btn-una-pdf">📄 PDF della sessione</button>
+      <button class="btn vuoto" id="btn-una-stampa">🖨 Stampa</button>
+    </div>
+  </div>
+
+  <div class="card" id="c-andamento" style="display:none">
+    <h2>Andamento della velocità</h2>
+    <select id="and-cond"></select>
+    <div id="andamento" style="margin-top:10px"></div>
+    <div class="nota" id="andamento-nota"></div>
   </div>
 </div>
+<div id="stampa-qui"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/oscillazione.js"></script>
@@ -147,10 +166,13 @@
   var PO = window.PolOscillazione
   var $ = function(id){ return document.getElementById(id) }
   var Q = new URLSearchParams(location.search)
-  var PID = (function(){ var v = Q.get('pid') || ''; return /^[0-9a-f-]{36}$/i.test(v) ? v : null })()
+  var uuid = function(v){ return /^[0-9a-f-]{36}$/i.test(v || '') ? v : null }
+  var PID = uuid(Q.get('pid')), SESS = uuid(Q.get('sessione'))
 
-  var SB = null, tutti = [], filtrati = [], nomi = {}, tracce = {}
-  var selPre = null, selPost = null, prossimoTocco = 'pre'
+  var SB = null, nomi = {}, tracce = {}
+  var sessioni = []          // tutte, dalla più vecchia
+  var diQuesto = []          // quelle della persona scelta
+  var selPre = null, selPost = null, prossimo = 'pre', ultimo = null
   var CAMPI = 'id,patient_id,quando,evento,occhi,piedi,configurazione,nota,tarato,verso_beta,verso_gamma,' +
               'zero_beta,zero_gamma,carico_avanti,carico_destra,osc_ap,osc_ds,velocita,deriva,ellisse,raggio,durata_s'
 
@@ -158,22 +180,17 @@
     return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] })
   }
-  function num(x){ return x == null ? null : Number(x) }
   function data(q){ return new Date(q).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' }) }
   function ora(q){ return new Date(q).toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' }) }
-  function giorno(q){ return new Date(q).toDateString() }
-  function asse(t){ return t.evento === 'rollio' ? 'gamma' : 'beta' }
-  // la stessa chiave della pagina del test: configurazione · evento · occhi
-  function condizione(t){
-    return (t.configurazione || '(non indicata)') + ' · ' + t.evento +
-           (t.occhi && t.occhi !== '-' ? ' · occhi ' + t.occhi : '')
-  }
-  function chiDi(t){ return t.patient_id ? (nomi[t.patient_id] || 'Paziente') : 'Prova libera' }
-  function errore(msg){ $('err').innerHTML = msg ? '<div class="err">' + msg + '</div>' : '' }
+  function errore(m){ $('err').innerHTML = m ? '<div class="err">' + m + '</div>' : '' }
 
   // ═══ AVVIO ═════════════════════════════════════════════════════════
   async function avvia(){
-    if (PID) $('link-indietro').href = 'paziente.html?id=' + PID
+    // lo stile dei referti anche a schermo (il riepilogo di una sessione sola), senza toccare il body
+    var st = document.createElement('style')
+    st.textContent = PO.CSS_REFERTO.replace(/body\{[^}]*\}/, '').replace(/\.cfr\{[^}]*\}/, '')
+    document.head.appendChild(st)
+    if (PID) $('link-indietro').href = 'test.html?pid=' + PID
     $('btn-nuovo').href = 'prova-oscillazione.html' + (PID ? '?pid=' + PID : '')
     if (!window.supabase || !window.supabase.createClient){
       errore('Non riesco a collegarmi al database. Controlla la connessione e ricarica la pagina.'); return
@@ -182,26 +199,35 @@
     var ses = null
     try { ses = (await SB.auth.getSession()).data.session } catch(e){}
     if (!ses){
-      $('paz-banda').innerHTML = '<div class="paz-banda libera">Non sei entrato: lo storico si vede solo col tuo account. ' +
+      $('paz-banda').innerHTML = '<div class="paz-banda libera">Non sei entrato: il confronto si vede solo col tuo account. ' +
         '<a href="login.html" style="color:inherit;font-weight:700">Entra</a></div>'
       return
     }
-    var q = SB.from('oscillazione_test').select(CAMPI).order('quando', { ascending: true }).limit(1000)
-    if (PID) q = q.eq('patient_id', PID)
-    var r = await q
+    // i test: prima con la sessione (047), se la colonna non c'è ancora senza
+    var q = function(campi){
+      var x = SB.from('oscillazione_test').select(campi).order('quando', { ascending: true }).limit(2000)
+      return PID ? x.eq('patient_id', PID) : x
+    }
+    var r = await q(CAMPI + ',sessione_id'), con047 = true
+    if (r.error && /sessione_id/.test(r.error.message || '')){ con047 = false; r = await q(CAMPI) }
     if (r.error){
       var m = r.error.message || String(r.error)
       errore(/oscillazione_test/.test(m) && /exist/.test(m)
-        ? 'Manca la migration 046 nel database: lo storico non ha dove leggere.'
+        ? 'Manca la migration 046 nel database: non c’è dove leggere i test.'
         : 'Non riesco a leggere i test: ' + esc(m))
       return
     }
-    tutti = (r.data || []).filter(function(t){ return t.velocita != null })
-      .sort(function(a, b){ return new Date(a.quando) - new Date(b.quando) })
+    var test = (r.data || []).filter(function(t){ return t.velocita != null })
 
-    // i nomi dei pazienti: una sola lettura, e solo quelli che servono
+    var righeSess = []
+    if (con047){
+      var s = SB.from('test_sessioni').select('id,patient_id,quando,nome,eta,peso_kg').limit(2000)
+      if (PID) s = s.eq('patient_id', PID)
+      var rs = await s
+      righeSess = (rs && rs.data) || []
+    }
     var ids = []
-    tutti.forEach(function(t){ if (t.patient_id && ids.indexOf(t.patient_id) < 0) ids.push(t.patient_id) })
+    test.forEach(function(t){ if (t.patient_id && ids.indexOf(t.patient_id) < 0) ids.push(t.patient_id) })
     if (PID && ids.indexOf(PID) < 0) ids.push(PID)
     if (ids.length){
       try {
@@ -209,304 +235,307 @@
         ;(pz.data || []).forEach(function(p){ nomi[p.id] = ((p.nome || '') + ' ' + (p.cognome || '')).trim() || 'Paziente' })
       } catch(e){}
     }
-    disegnaBanda()
-    preparaFiltro()
+    sessioni = raggruppa(test, righeSess)
+    disegnaBanda(con047)
+    preparaChi()
   }
 
-  function disegnaBanda(){
+  // Le prove in sessioni: per sessione_id se c'è, se no per persona e giorno
+  function raggruppa(test, righeSess){
+    var perId = {}, g = {}, ordine = []
+    righeSess.forEach(function(s){ perId[s.id] = s })
+    test.forEach(function(t){
+      var k = t.sessione_id ? 's:' + t.sessione_id
+            : 'g:' + (t.patient_id || 'libera') + ':' + new Date(t.quando).toDateString()
+      if (!g[k]){
+        var info = t.sessione_id ? (perId[t.sessione_id] || {}) : {}
+        g[k] = { chiave: k, id: t.sessione_id || null, patient_id: t.patient_id || null,
+                 quando: info.quando || t.quando, nome: info.nome || null,
+                 eta: info.eta != null ? info.eta : null, peso_kg: info.peso_kg != null ? info.peso_kg : null,
+                 prove: [] }
+        ordine.push(k)
+      }
+      g[k].prove.push(t)
+    })
+    return ordine.map(function(k){ return g[k] })
+      .sort(function(a, b){ return new Date(a.quando) - new Date(b.quando) })
+  }
+
+  // di chi è una sessione: il paziente, o il nome della prova libera
+  function persona(s){
+    if (s.patient_id) return 'p:' + s.patient_id
+    return s.nome ? 'n:' + s.nome.trim().toLowerCase() : '_libere'
+  }
+  function nomePersona(k, s){
+    if (k.indexOf('p:') === 0) return nomi[k.slice(2)] || 'Paziente'
+    if (k === '_libere') return 'Prove libere senza nome'
+    return (s && s.nome) || k.slice(2)
+  }
+  function infoDi(s){
+    if (s.patient_id) return { nome: nomi[s.patient_id] || 'Paziente' }
+    return { nome: s.nome, eta: s.eta, peso_kg: s.peso_kg }
+  }
+
+  function disegnaBanda(con047){
+    var n = sessioni.length
+    var avviso = con047 ? '' : '<br><small>⚠️ Manca la migration 047: le prove sono raggruppate per giorno.</small>'
     if (PID){
       $('paz-banda').innerHTML = '<div class="paz-banda">👤 <b>' + esc(nomi[PID] || 'Paziente') + '</b> · ' +
-        tutti.length + (tutti.length === 1 ? ' test salvato' : ' test salvati') + '</div>'
+        n + (n === 1 ? ' sessione' : ' sessioni') + avviso + '</div>'
     } else {
-      $('paz-banda').innerHTML = '<div class="paz-banda libera">📊 Tutti i tuoi test · ' + tutti.length + ' salvati</div>'
+      $('paz-banda').innerHTML = '<div class="paz-banda libera">📊 Tutte le persone · ' + n +
+        (n === 1 ? ' sessione' : ' sessioni') + avviso + '</div>'
     }
   }
 
-  // ═══ FILTRO: DI CHI E IN CHE CONDIZIONE ════════════════════════════
-  function preparaFiltro(){
-    $('c-filtro').style.display = ''
-    if (!tutti.length){
+  // ═══ DI CHI ════════════════════════════════════════════════════════
+  function preparaChi(){
+    $('c-scelta').style.display = ''
+    if (!sessioni.length){
+      $('blocco-chi').style.display = 'none'
       $('lista').innerHTML = '<div class="vuoto-msg">Nessun test salvato' + (PID ? ' per questo paziente' : '') +
         '.<br>Fai un test: si salva da solo, e qui compare il confronto.</div>'
-      $('filtro').parentNode.querySelector('label[for=filtro]').style.display = 'none'
-      $('filtro').style.display = 'none'; $('cond').style.display = 'none'
-      $('cond').previousElementSibling.style.display = 'none'
       return
     }
-    var chi = []
-    tutti.forEach(function(t){ var k = t.patient_id || '_libere'; if (chi.indexOf(k) < 0) chi.push(k) })
-    if (PID){
-      $('filtro').innerHTML = '<option value="' + PID + '">' + esc(nomi[PID] || 'Paziente') + '</option>'
-      $('filtro').disabled = true
-    } else {
-      $('filtro').innerHTML = chi.map(function(k){
-        var n = tutti.filter(function(t){ return (t.patient_id || '_libere') === k }).length
-        return '<option value="' + k + '">' + esc(k === '_libere' ? 'Prove libere (senza paziente)' : (nomi[k] || 'Paziente')) +
-               ' · ' + n + '</option>'
-      }).join('')
-      // si parte da chi ha fatto l'ultimo test
-      var ult = tutti[tutti.length-1]
-      $('filtro').value = ult.patient_id || '_libere'
-    }
-    $('filtro').onchange = function(){ preparaCondizioni(null) }
-    $('cond').onchange = function(){ selPre = selPost = null; aggiornaLista() }
-    preparaCondizioni(null)
+    var chi = [], primo = {}
+    sessioni.forEach(function(s){ var k = persona(s); if (chi.indexOf(k) < 0){ chi.push(k); primo[k] = s } })
+    if (PID){ $('blocco-chi').style.display = 'none' }
+    $('filtro').innerHTML = chi.map(function(k){
+      var n = sessioni.filter(function(s){ return persona(s) === k }).length
+      return '<option value="' + esc(k) + '">' + esc(nomePersona(k, primo[k])) + ' · ' + n +
+        (n === 1 ? ' sessione' : ' sessioni') + '</option>'
+    }).join('')
+    // si parte dalla sessione chiesta, o da chi ha fatto l'ultima
+    var dalla = SESS ? sessioni.filter(function(s){ return s.id === SESS })[0] : null
+    $('filtro').value = persona(dalla || sessioni[sessioni.length-1])
+    $('filtro').onchange = function(){ selPre = selPost = null; aggiorna() }
+    aggiorna(dalla)
   }
 
-  function diChi(){
+  function aggiorna(dalla){
     var k = $('filtro').value
-    return tutti.filter(function(t){ return (t.patient_id || '_libere') === k })
-  }
-
-  function preparaCondizioni(voluta){
-    var lista = diChi(), cond = []
-    lista.forEach(function(t){ var c = condizione(t); if (cond.indexOf(c) < 0) cond.push(c) })
-    $('cond').innerHTML = cond.map(function(c){
-      var n = lista.filter(function(t){ return condizione(t) === c }).length
-      return '<option value="' + esc(c) + '">' + esc(c) + ' · ' + n + '</option>'
-    }).join('') + '<option value="*">Tutte le condizioni (confronto fra situazioni diverse)</option>'
-    // di default: la condizione dell'ultimo test fatto
-    $('cond').value = voluta || condizione(lista[lista.length-1])
-    selPre = selPost = null
-    aggiornaLista()
-  }
-
-  function aggiornaLista(){
-    var c = $('cond').value
-    filtrati = diChi().filter(function(t){ return c === '*' || condizione(t) === c })
-    if (!filtrati.length){ $('lista').innerHTML = '<div class="vuoto-msg">Nessun test.</div>'; return }
-    // di default PRIMA = il primo test, DOPO = l'ultimo: la domanda è «è migliorato da quando abbiamo cominciato?»
-    if (!selPre || filtrati.indexOf(selPre) < 0) selPre = filtrati[0]
-    if (!selPost || filtrati.indexOf(selPost) < 0) selPost = filtrati[filtrati.length-1]
+    diQuesto = sessioni.filter(function(s){ return persona(s) === k })
+    if (!selPre || diQuesto.indexOf(selPre) < 0) selPre = diQuesto[0]
+    if (!selPost || diQuesto.indexOf(selPost) < 0) selPost = (dalla && diQuesto.indexOf(dalla) >= 0) ? dalla : diQuesto[diQuesto.length-1]
+    if (selPre === selPost && diQuesto.length > 1) selPre = diQuesto[0] === selPost ? diQuesto[1] : diQuesto[0]
     disegnaLista()
     preparaSelect()
-    disegnaAndamento()
+    preparaAndamento()
     confronta()
   }
 
-  function disegnaLista(){
-    var righe = filtrati.slice().reverse().map(function(t){
-      var i = filtrati.indexOf(t)
-      var cl = t === selPre ? ' pre' : (t === selPost ? ' post' : '')
-      var car = asse(t) === 'gamma' ? num(t.carico_destra) : num(t.carico_avanti)
-      return '<div class="voce' + cl + '" data-i="' + i + '">' +
-        '<div><b>' + data(t.quando) + '</b> ' + ora(t.quando) +
-          (t === selPre ? '<span class="etich pre">PRIMA</span>' : '') +
-          (t === selPost ? '<span class="etich post">DOPO</span>' : '') +
-          '<br><span style="color:#666">' + esc(t.evento) + ' · occhi ' + esc(t.occhi || '—') +
-          (t.tarato ? '' : ' · <span style="color:#b36b00">non tarato</span>') + '</span></div>' +
-        '<div class="num"><b>' + PO.numIt(num(t.velocita),1) + '</b> °/s' +
-          (car != null ? '<br>carico ' + PO.numIt(car,1) + '°' : '') + '</div></div>'
+  function riassuntoCondizioni(s){
+    var c = {}, o = []
+    s.prove.forEach(function(t){
+      var k = PO.nomeCond(PO.condizioneDi(t)).replace('occhi aperti', 'OA').replace('occhi chiusi', 'OC')
+      if (!c[k]){ c[k] = 0; o.push(k) }
+      c[k]++
     })
-    $('lista').innerHTML = righe.join('')
+    return o.map(function(k){ return k + ' ×' + c[k] }).join(' · ')
+  }
+
+  function disegnaLista(){
+    $('lista').innerHTML = diQuesto.slice().reverse().map(function(s){
+      var i = diQuesto.indexOf(s)
+      var cl = s === selPre ? ' pre' : (s === selPost ? ' post' : '')
+      var extra = []
+      if (!s.patient_id){
+        if (s.eta != null) extra.push(s.eta + ' anni')
+        if (s.peso_kg != null) extra.push(PO.numIt(Number(s.peso_kg), 1) + ' kg')
+      }
+      return '<div class="voce' + cl + '" data-i="' + i + '"><div><b>' + data(s.quando) + '</b> ' + ora(s.quando) +
+        (s === selPre ? '<span class="etich pre">PRIMA</span>' : '') +
+        (s === selPost ? '<span class="etich post">DOPO</span>' : '') +
+        '<br><span class="cnd">' + esc(riassuntoCondizioni(s)) + (extra.length ? ' · ' + extra.join(' · ') : '') +
+        '</span></div><div style="white-space:nowrap"><b>' + s.prove.length + '</b> ' +
+        (s.prove.length === 1 ? 'prova' : 'prove') + '</div></div>'
+    }).join('')
     Array.prototype.forEach.call($('lista').querySelectorAll('.voce'), function(el){
       el.onclick = function(){
-        var t = filtrati[Number(el.getAttribute('data-i'))]
-        if (prossimoTocco === 'pre'){ selPre = t; prossimoTocco = 'post' }
-        else { selPost = t; prossimoTocco = 'pre' }
+        var s = diQuesto[Number(el.getAttribute('data-i'))]
+        if (prossimo === 'pre'){ selPre = s; prossimo = 'post' } else { selPost = s; prossimo = 'pre' }
         disegnaLista(); preparaSelect(); confronta()
       }
     })
   }
 
   function preparaSelect(){
-    var opt = filtrati.map(function(t, i){
-      return '<option value="' + i + '">' + data(t.quando) + ' ' + ora(t.quando) + ' · ' + esc(t.evento) +
-             ' · occhi ' + esc(t.occhi || '—') + '</option>'
+    var opt = diQuesto.map(function(s, i){
+      return '<option value="' + i + '">' + data(s.quando) + ' ' + ora(s.quando) + ' · ' + s.prove.length +
+        (s.prove.length === 1 ? ' prova' : ' prove') + '</option>'
     }).join('')
     $('sel-pre').innerHTML = opt; $('sel-post').innerHTML = opt
-    $('sel-pre').value = String(filtrati.indexOf(selPre))
-    $('sel-post').value = String(filtrati.indexOf(selPost))
-    $('sel-pre').onchange = function(){ selPre = filtrati[Number(this.value)]; disegnaLista(); confronta() }
-    $('sel-post').onchange = function(){ selPost = filtrati[Number(this.value)]; disegnaLista(); confronta() }
+    $('sel-pre').value = String(diQuesto.indexOf(selPre))
+    $('sel-post').value = String(diQuesto.indexOf(selPost))
+    $('sel-pre').onchange = function(){ selPre = diQuesto[Number(this.value)]; disegnaLista(); confronta() }
+    $('sel-post').onchange = function(){ selPost = diQuesto[Number(this.value)]; disegnaLista(); confronta() }
   }
 
-  // ═══ ANDAMENTO: la velocità test dopo test ═════════════════════════
-  // La fascia grigia è la variabilità della misura attorno al PRIMO test:
-  // un punto dentro la fascia non si distingue dal primo.
-  function disegnaAndamento(){
-    var c = $('cond').value
-    if (c === '*' || filtrati.length < 2){ $('c-andamento').style.display = 'none'; return }
-    $('c-andamento').style.display = ''
-    var W = 640, H = 260, ml = 58, mr = 14, mt = 14, mb = 30
-    var v = filtrati.map(function(t){ return num(t.velocita) })
-    var v0 = v[0], banda = PO.BANDA_SINGOLA / 100
-    var max = Math.max.apply(null, v.concat([v0*(1+banda)])) * 1.1
-    var min = 0
-    var X = function(i){ return ml + (filtrati.length === 1 ? 0 : i * (W-ml-mr) / (filtrati.length-1)) }
-    var Y = function(x){ return mt + (H-mt-mb) * (1 - (x-min)/(max-min)) }
-    var s = '<svg class="andamento" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">'
-    s += '<rect x="' + ml + '" y="' + Y(v0*(1+banda)) + '" width="' + (W-ml-mr) + '" height="' +
-         (Y(v0*(1-banda)) - Y(v0*(1+banda))) + '" fill="#eee"/>'
-    s += '<line x1="' + ml + '" x2="' + (W-mr) + '" y1="' + Y(v0) + '" y2="' + Y(v0) + '" stroke="#bbb" stroke-dasharray="5 4"/>'
-    for (var g = 0; g <= 4; g++){
-      var val = min + (max-min)*g/4
-      s += '<text x="' + (ml-6) + '" y="' + (Y(val)+4) + '" font-size="20" text-anchor="end" fill="#999">' + PO.numIt(val,1) + '</text>'
+  // ═══ LE TRACCE: solo delle prove che servono, una volta sola ═══════
+  async function conTracce(lista){
+    var manca = lista.filter(function(t){ return !(t.id in tracce) }).map(function(t){ return t.id })
+    if (manca.length){
+      try {
+        var r = await SB.from('oscillazione_test').select('id,traccia').in('id', manca)
+        ;(r.data || []).forEach(function(x){ tracce[x.id] = x.traccia || null })
+      } catch(e){}
+      manca.forEach(function(id){ if (!(id in tracce)) tracce[id] = null })
     }
-    var pts = v.map(function(x, i){ return X(i) + ',' + Y(x) }).join(' ')
-    s += '<polyline points="' + pts + '" fill="none" stroke="#111" stroke-width="2.5"/>'
-    v.forEach(function(x, i){
-      var t = filtrati[i]
-      var col = t === selPre ? '#2864dc' : (t === selPost ? '#e0b400' : '#111')
-      s += '<circle cx="' + X(i) + '" cy="' + Y(x) + '" r="' + (t === selPre || t === selPost ? 7 : 4.5) + '" fill="' + col + '"/>'
-    })
-    s += '<text x="' + ml + '" y="' + (H-8) + '" font-size="20" fill="#999">' + data(filtrati[0].quando) + '</text>'
-    s += '<text x="' + (W-mr) + '" y="' + (H-8) + '" font-size="20" text-anchor="end" fill="#999">' +
-         data(filtrati[filtrati.length-1].quando) + '</text>'
-    s += '<text x="8" y="' + (mt+4) + '" font-size="20" fill="#999">°/s</text></svg>'
-    $('andamento').innerHTML = s
-    $('andamento-nota').innerHTML = 'Un punto per test, dal primo all’ultimo. La <b>fascia grigia</b> è ±' +
-      PO.BANDA_SINGOLA + '% attorno al primo test: un punto dentro la fascia <b>non si distingue</b> ' +
-      'dal primo. Più in basso = la tavola si è mossa più lentamente.'
+    return lista.map(function(t){ return Object.assign({}, t, { traccia: tracce[t.id] }) })
   }
 
   // ═══ IL CONFRONTO ══════════════════════════════════════════════════
-  // Media della seduta: stesso «di chi», stessa condizione, stesso giorno.
-  function seduta(t){
-    return diChi().filter(function(q){ return condizione(q) === condizione(t) && giorno(q.quando) === giorno(t.quando) })
-  }
-  function media(lista, f){
-    var v = lista.map(f).filter(function(x){ return x != null && !isNaN(x) })
-    if (!v.length) return null
-    return v.reduce(function(a, b){ return a + b }, 0) / v.length
-  }
-  function forma(t, lista){
-    var a = asse(t)
-    return {
-      quando: t.quando, condizione: condizione(t),
-      velocita: media(lista, function(q){ return num(q.velocita) }),
-      osc: media(lista, function(q){ return a === 'gamma' ? num(q.osc_ds) : num(q.osc_ap) }),
-      raggio: media(lista, function(q){ return num(q.raggio) }),
-      ellisse: media(lista, function(q){ return num(q.ellisse) }),
-      deriva: media(lista, function(q){ return num(q.deriva) }),
-      carico: media(lista, function(q){ return a === 'gamma' ? num(q.carico_destra) : num(q.carico_avanti) }),
-      asse: a
-    }
-  }
-
-  var ultimo = null     // l'ultimo esito, per il PDF
-  function esitoDi(a, b){
-    var sa = seduta(a), sb = seduta(b)
-    var stessoGiorno = giorno(a.quando) === giorno(b.quando) && condizione(a) === condizione(b)
-    var usaMedia = !stessoGiorno && sa.length >= 3 && sb.length >= 3
-    var A = forma(a, usaMedia ? sa : [a]), B = forma(b, usaMedia ? sb : [b])
-    var e = PO.confronto(A, B, { nPrima: usaMedia ? sa.length : 0 })
-    return { e: e, usaMedia: usaMedia, na: sa.length, nb: sb.length }
-  }
-
-  async function traccia(t){
-    if (tracce[t.id]) return tracce[t.id]
-    try {
-      var r = await SB.from('oscillazione_test').select('traccia').eq('id', t.id).maybeSingle()
-      tracce[t.id] = r && r.data && r.data.traccia ? r.data.traccia : null
-    } catch(e){ tracce[t.id] = null }
-    return tracce[t.id]
-  }
-  // la serie si ricostruisce col verso e lo zero USATI in quel test
-  function serie(t, tr){
-    var xs = [], ys = []
-    if (!tr || !tr.b || !tr.g) return { xs: xs, ys: ys }
-    var zb = num(t.zero_beta) || 0, zg = num(t.zero_gamma) || 0
-    var vb = num(t.verso_beta) || 1, vg = num(t.verso_gamma) || 1
-    for (var i = 0; i < tr.b.length; i++){
-      xs.push((tr.g[i] - zg) * vg); ys.push((tr.b[i] - zb) * vb)
-    }
-    return { xs: xs, ys: ys }
-  }
-  function ellisse(xs, ys){
-    var n = xs.length; if (n < 3) return null
-    var mx = 0, my = 0, i
-    for (i = 0; i < n; i++){ mx += xs[i]; my += ys[i] }
-    mx /= n; my /= n
-    var sxx = 0, syy = 0, sxy = 0
-    for (i = 0; i < n; i++){ var dx = xs[i]-mx, dy = ys[i]-my; sxx += dx*dx; syy += dy*dy; sxy += dx*dy }
-    sxx /= n; syy /= n; sxy /= n
-    var mez = (sxx+syy)/2, dif = Math.sqrt(Math.pow((sxx-syy)/2, 2) + sxy*sxy)
-    return { mx: mx, my: my, semiA: Math.sqrt(5.991*Math.max(0, mez+dif)),
-             semiB: Math.sqrt(5.991*Math.max(0, mez-dif)), angolo: 0.5*Math.atan2(2*sxy, sxx-syy) }
-  }
-
   var giro = 0
   async function confronta(){
-    if (!selPre || !selPost){ $('c-confronto').style.display = 'none'; return }
+    $('c-una').style.display = 'none'; $('c-confronto').style.display = 'none'
+    if (!selPost) return
+    if (diQuesto.length < 2){ return unaSola(selPost) }
     $('c-confronto').style.display = ''
-    var a = selPre, b = selPost, mio = ++giro
-    $('tit-pre').textContent = 'PRIMA · ' + data(a.quando) + ' ' + ora(a.quando)
-    $('tit-post').textContent = 'DOPO · ' + data(b.quando) + ' ' + ora(b.quando)
-    if (a === b){
-      $('esito').innerHTML = '<div class="warn">Hai scelto lo stesso test due volte: scegline due diversi.</div>'
-      $('frasi').innerHTML = ''; $('media').innerHTML = ''; $('avvisi').innerHTML = ''
-    } else {
-      var r = esitoDi(a, b); ultimo = r
-      $('media').innerHTML = r.usaMedia
-        ? '<div class="media">Confronto fra le <b>medie delle due sedute</b> (' + r.na + ' prove prima, ' + r.nb +
-          ' dopo, stessa condizione): soglia del rumore al ' + r.e.banda + '%.</div>'
-        : '<div class="media singola">Confronto fra <b>due prove singole</b>: soglia del rumore al ' + r.e.banda + '%. ' +
-          'Con tre prove per seduta nella stessa condizione si confrontano le medie e la soglia scende al ' +
-          PO.BANDA_TRE + '%.</div>'
-      $('esito').innerHTML = r.e.html
-      var av = []
-      if (!a.tarato || !b.tarato){
-        av.push('⚠️ ' + (!a.tarato && !b.tarato ? 'Tutti e due i test sono stati fatti' : 'Un test è stato fatto') +
-          ' <b>senza la taratura del verso</b>: il verso del CARICO potrebbe essere invertito. ' +
-          'La velocità e l’oscillazione non ne risentono.')
-      }
-      if (a.patient_id !== b.patient_id){
-        av.push('⚠️ I due test <b>non sono della stessa persona</b>.')
-      }
-      $('avvisi').innerHTML = av.map(function(t){ return '<div class="warn">' + t + '</div>' }).join('')
-      $('frasi').innerHTML = r.e.frasi.map(function(t){ return '<p>' + esc(t) + '</p>' }).join('')
+    if (selPre === selPost){
+      $('esito').innerHTML = '<div class="warn">Hai scelto la stessa sessione due volte: scegline due diverse.</div>'
+      $('gomitoli').innerHTML = ''; $('frasi').innerHTML = ''; ultimo = null
+      return
     }
-    // i gomitoli dalla traccia salvata (10 Hz), alla stessa scala
-    var ta = await traccia(a), tb = await traccia(b)
+    var mio = ++giro
+    var a = await conTracce(selPre.prove), b = await conTracce(selPost.prove)
     if (mio !== giro) return
-    var sa = serie(a, ta), sb = serie(b, tb), sc = 1.2, i
-    for (i = 0; i < sa.xs.length; i++) sc = Math.max(sc, Math.abs(sa.xs[i]), Math.abs(sa.ys[i]))
-    for (i = 0; i < sb.xs.length; i++) sc = Math.max(sc, Math.abs(sb.xs[i]), Math.abs(sb.ys[i]))
-    PO.disegna($('cv-pre'),  sa.xs, sa.ys, sc, ellisse(sa.xs, sa.ys), { parole: true, cuneo: true })
-    PO.disegna($('cv-post'), sb.xs, sb.ys, sc, ellisse(sb.xs, sb.ys), { parole: true, cuneo: true })
+    var e = PO.confrontoSessioni(a, b)
+    ultimo = { e: e, a: a, b: b, pre: selPre, post: selPost }
+    var inversione = new Date(selPre.quando) > new Date(selPost.quando)
+    $('esito').innerHTML = '<div class="nota" style="margin-top:0">PRIMA <b>' + data(selPre.quando) + '</b> · DOPO <b>' +
+      data(selPost.quando) + '</b></div>' +
+      (inversione ? '<div class="warn">⚠️ La sessione PRIMA è più recente della DOPO: i segni sono al contrario.</div>' : '') +
+      e.html
+    $('gomitoli').innerHTML = ''
+    e.condizioni.forEach(function(c, i){ disegnaCoppia(c, a, b, i) })
+    $('frasi').innerHTML = e.frasi.map(function(t){ return '<p>' + esc(t) + '</p>' }).join('')
+  }
+
+  // Per ogni condizione, un gomitolo per parte: la prova MEDIANA per velocità
+  // (non la migliore né la peggiore), alla stessa scala.
+  function mediana(lista){
+    var s = lista.slice().sort(function(x, y){ return x.velocita - y.velocita })
+    return s[Math.floor((s.length - 1) / 2)]
+  }
+  function disegnaCoppia(c, a, b, i){
+    var ga = a.filter(function(t){ return PO.condizioneDi(t) === c.condizione })
+    var gb = b.filter(function(t){ return PO.condizioneDi(t) === c.condizione })
+    var ta = mediana(ga), tb = mediana(gb)
+    if (!ta || !tb || !ta.traccia || !tb.traccia) return
+    var sa = PO.serieDaRiga(ta), sb = PO.serieDaRiga(tb), sc = 1.2, k
+    for (k = 0; k < sa.xs.length; k++) sc = Math.max(sc, Math.abs(sa.xs[k]), Math.abs(sa.ys[k]))
+    for (k = 0; k < sb.xs.length; k++) sc = Math.max(sc, Math.abs(sb.xs[k]), Math.abs(sb.ys[k]))
+    var box = document.createElement('div')
+    box.innerHTML = '<div class="domanda">' + esc(PO.nomeCond(c.condizione)) + ' · i gomitoli</div>' +
+      '<div class="tele"><div><canvas id="g-pre-' + i + '" width="500" height="500"></canvas>PRIMA</div>' +
+      '<div><canvas id="g-post-' + i + '" width="500" height="500"></canvas>DOPO</div></div>' +
+      '<div class="nota">Per parte, la prova <b>mediana</b> per velocità. Stessa scala.</div>'
+    $('gomitoli').appendChild(box)
+    var opz = function(t){
+      var ca = Number(t.carico_avanti), cd = Number(t.carico_destra)
+      return { parole: true, cuneo: true, carico: (t.carico_avanti != null && t.carico_destra != null) ? { x: cd, y: ca } : null }
+    }
+    PO.disegna($('g-pre-' + i), sa.xs, sa.ys, sc, PO.ellisseDi(sa.xs, sa.ys), opz(ta))
+    PO.disegna($('g-post-' + i), sb.xs, sb.ys, sc, PO.ellisseDi(sb.xs, sb.ys), opz(tb))
+  }
+
+  async function unaSola(s){
+    $('c-una').style.display = ''
+    var righe = await conTracce(s.prove)
+    $('una-referto').innerHTML = PO.refertoSessione(righe, infoDi(s))
+  }
+
+  // ═══ ANDAMENTO: la velocità sessione dopo sessione ═════════════════
+  function preparaAndamento(){
+    var cond = {}, ordine = []
+    diQuesto.forEach(function(s){ s.prove.forEach(function(t){
+      var k = PO.condizioneDi(t)
+      if (!cond[k]){ cond[k] = 0; ordine.push(k) }
+      cond[k]++
+    }) })
+    var buone = ordine.filter(function(k){
+      return diQuesto.filter(function(s){ return s.prove.some(function(t){ return PO.condizioneDi(t) === k }) }).length >= 2
+    })
+    if (!buone.length){ $('c-andamento').style.display = 'none'; return }
+    $('c-andamento').style.display = ''
+    var prima = $('and-cond').value
+    $('and-cond').innerHTML = buone.map(function(k){ return '<option value="' + esc(k) + '">' + esc(PO.nomeCond(k)) + '</option>' }).join('')
+    $('and-cond').value = buone.indexOf(prima) >= 0 ? prima : buone[0]
+    $('and-cond').onchange = disegnaAndamento
+    disegnaAndamento()
+  }
+  function disegnaAndamento(){
+    var k = $('and-cond').value
+    var punti = diQuesto.map(function(s){
+      var g = s.prove.filter(function(t){ return PO.condizioneDi(t) === k })
+      if (!g.length) return null
+      return { s: s, n: g.length, v: g.reduce(function(x, t){ return x + Number(t.velocita) }, 0) / g.length }
+    }).filter(function(p){ return p })
+    var W = 640, H = 260, ml = 58, mr = 16, mt = 16, mb = 34
+    var v0 = punti[0].v, banda = PO.bandaDi(PO.CV.velocita, punti[0].n) / 100
+    var max = Math.max.apply(null, punti.map(function(p){ return p.v }).concat([v0 * (1 + banda)])) * 1.1
+    var X = function(i){ return ml + i * (W - ml - mr) / Math.max(1, punti.length - 1) }
+    var Y = function(x){ return mt + (H - mt - mb) * (1 - x / max) }
+    var s = '<svg class="andamento" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">'
+    s += '<rect x="' + ml + '" y="' + Y(v0 * (1 + banda)) + '" width="' + (W - ml - mr) + '" height="' +
+         (Y(v0 * (1 - banda)) - Y(v0 * (1 + banda))) + '" fill="#eee"/>'
+    for (var g = 0; g <= 4; g++){
+      var val = max * g / 4
+      s += '<text x="' + (ml - 8) + '" y="' + (Y(val) + 6) + '" font-size="20" text-anchor="end" fill="#999">' + PO.numIt(val, 1) + '</text>'
+    }
+    s += '<polyline points="' + punti.map(function(p, i){ return X(i) + ',' + Y(p.v) }).join(' ') +
+         '" fill="none" stroke="#111" stroke-width="3"/>'
+    punti.forEach(function(p, i){
+      var col = p.s === selPre ? '#2864dc' : (p.s === selPost ? '#e0b400' : '#111')
+      s += '<circle cx="' + X(i) + '" cy="' + Y(p.v) + '" r="' + (p.s === selPre || p.s === selPost ? 9 : 6) + '" fill="' + col + '"/>'
+    })
+    s += '<text x="' + ml + '" y="' + (H - 8) + '" font-size="20" fill="#999">' + data(punti[0].s.quando) + '</text>'
+    s += '<text x="' + (W - mr) + '" y="' + (H - 8) + '" font-size="20" text-anchor="end" fill="#999">' +
+         data(punti[punti.length - 1].s.quando) + '</text></svg>'
+    $('andamento').innerHTML = s
+    $('andamento-nota').innerHTML = 'Un punto per sessione: la media della velocità in questa condizione ' +
+      '(più in basso = la tavola si è mossa meno). La <b>fascia grigia</b> è la variabilità della misura ' +
+      'attorno alla prima sessione (±' + Math.round(banda * 100) + '%): un punto dentro la fascia non si distingue dalla prima.'
   }
 
   // ═══ PDF E STAMPA ══════════════════════════════════════════════════
-  function htmlReferto(){
-    var a = selPre, b = selPost
-    var stile = document.querySelector('style').outerHTML
-    var img = function(id){ try { return $(id).toDataURL('image/png') } catch(e){ return '' } }
-    var chi = a.patient_id === b.patient_id ? chiDi(b) : chiDi(a) + ' / ' + chiDi(b)
-    return '<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">' + stile +
-      '<style>body{padding:0;background:#fff}.no-stampa{display:none!important}' +
-      '.pdf-testa{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}' +
-      '.pdf-testa h1{font-size:20px;margin:0}.pdf-testa div{font-size:12px;color:#555}' +
-      '.tele img{width:80mm;height:80mm}.pdf-piede{font-size:10px;color:#777;border-top:1px solid #ddd;' +
-      'margin-top:14px;padding-top:6px}</style></head><body><div class="wrap">' +
-      '<div class="pdf-testa"><h1>Oscillazione Policettiva — confronto nel tempo</h1>' +
-        '<div><b>' + esc(chi) + '</b></div>' +
-        '<div>PRIMA: ' + data(a.quando) + ' ' + ora(a.quando) + ' · ' + esc(condizione(a)) + '</div>' +
-        '<div>DOPO: ' + data(b.quando) + ' ' + ora(b.quando) + ' · ' + esc(condizione(b)) + '</div></div>' +
-      '<div class="tele"><div><img src="' + img('cv-pre') + '"><br>PRIMA</div>' +
-        '<div><img src="' + img('cv-post') + '"><br>DOPO</div></div>' +
-      $('media').innerHTML + $('esito').innerHTML + $('avvisi').innerHTML +
-      '<div class="frasi">' + $('frasi').innerHTML + '</div>' +
-      '<div class="pdf-piede">Test del Sistema Policettivo®: misura l’inclinazione della Tavola Policettiva — ' +
-        'dove va il carico e quanto oscilla. Non è una stabilometria su pedana: i numeri si confrontano fra ' +
-        'prove dello stesso paziente, non con una norma. L’interpretazione clinica è del professionista.</div>' +
-      '</div></body></html>'
+  function htmlConfronto(){
+    var u = ultimo, info = infoDi(u.post)
+    var imm = Array.prototype.map.call(document.querySelectorAll('#gomitoli > div'), function(d){
+      var cv = d.querySelectorAll('canvas'), tit = d.querySelector('.domanda')
+      if (cv.length < 2) return ''
+      return '<div class="domanda">' + (tit ? tit.innerHTML : '') + '</div><div class="tele-ref">' +
+        '<div><img src="' + cv[0].toDataURL('image/png') + '"><br>PRIMA</div>' +
+        '<div><img src="' + cv[1].toDataURL('image/png') + '"><br>DOPO</div></div>'
+    }).join('')
+    var corpo = '<div class="testa-ref"><h1>Oscillazione Policettiva — confronto nel tempo</h1>' +
+      '<div>' + PO.chiDi(info) + '</div>' +
+      '<div>PRIMA: sessione del ' + data(u.pre.quando) + ' ' + ora(u.pre.quando) + ' · ' + u.pre.prove.length + ' prove</div>' +
+      '<div>DOPO: sessione del ' + data(u.post.quando) + ' ' + ora(u.post.quando) + ' · ' + u.post.prove.length + ' prove</div></div>' +
+      u.e.html + imm +
+      '<div class="frasi">' + u.e.frasi.map(function(t){ return '<p>' + esc(t) + '</p>' }).join('') + '</div>' +
+      PO.PIEDE_REFERTO
+    return PO.documento('Oscillazione Policettiva — confronto', corpo)
+  }
+  async function htmlDiSessione(s){
+    return PO.documento('Oscillazione Policettiva — sessione', PO.refertoSessione(await conTracce(s.prove), infoDi(s)))
+  }
+  function nomeFile(tipo, s){
+    var n = infoDi(s).nome
+    return 'Oscillazione_' + tipo + '_' + (n ? n.replace(/[^A-Za-z0-9]+/g, '_') : 'libera') + '_' +
+      new Date(s.quando).toISOString().slice(0, 10) + '.pdf'
   }
 
-  async function scaricaPdf(){
-    if (!selPre || !selPost || selPre === selPost) return
-    var btn = $('btn-pdf')
+  async function pdf(btn, html, nome, s){
+    var testo = btn.textContent
     btn.disabled = true; btn.textContent = '⏳ Preparo il PDF…'
     try {
       var ses = (await SB.auth.getSession()).data.session
-      var b = selPost
-      var nome = 'Oscillazione_confronto_' + (b.patient_id ? chiDi(b).replace(/[^A-Za-z0-9]+/g, '_') : 'libera') +
-                 '_' + new Date(b.quando).toISOString().slice(0,10) + '.pdf'
       var resp = await fetch('/api/pdf-render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (ses ? ses.access_token : '') },
-        body: JSON.stringify({ html: htmlReferto(), filename: nome, patient_id: b.patient_id || null,
-                               record_id: b.id, tabella: 'oscillazione_test' })
+        body: JSON.stringify({ html: html, filename: nome, patient_id: s.patient_id || null,
+                               record_id: null, tabella: 'oscillazione_test' })
       })
       if (!resp.ok){
         if (resp.status >= 500) throw new Error('il server del PDF si sta avviando, riprova fra qualche secondo')
@@ -522,16 +551,39 @@
       btn.textContent = '⚠️ PDF non riuscito: ' + (e && e.message ? e.message : e)
     } finally {
       btn.disabled = false
-      setTimeout(function(){ btn.textContent = '📄 Scarica il PDF' }, 6000)
+      setTimeout(function(){ btn.textContent = testo }, 6000)
     }
   }
-  $('btn-pdf').addEventListener('click', scaricaPdf)
-  $('btn-stampa').addEventListener('click', function(){ window.print() })
+
+  // La stampa passa dalla pagina stessa: il referto va in un contenitore che
+  // in stampa è l'unica cosa visibile. Niente finestre nuove: i telefoni le bloccano.
+  function stampa(html){
+    var corpo = html.replace(/^[^]*<body>/, '').replace(/<\/body>[^]*$/, '')
+    var st = document.createElement('style'); st.id = 'stampa-css'
+    st.textContent = '@media print{' + PO.CSS_REFERTO + '}'
+    document.head.appendChild(st)
+    $('stampa-qui').innerHTML = corpo
+    document.body.classList.add('stampa')
+    var via = function(){
+      document.body.classList.remove('stampa'); $('stampa-qui').innerHTML = ''
+      var x = $('stampa-css'); if (x) x.remove()
+      window.removeEventListener('afterprint', via)
+    }
+    window.addEventListener('afterprint', via)
+    setTimeout(function(){ window.print() }, 150)
+  }
+
+  $('btn-pdf').onclick = function(){ if (ultimo) pdf(this, htmlConfronto(), nomeFile('confronto', ultimo.post), ultimo.post) }
+  $('btn-stampa').onclick = function(){ if (ultimo) stampa(htmlConfronto()) }
+  $('btn-sess-pre').onclick = async function(){ var b = this; if (selPre) pdf(b, await htmlDiSessione(selPre), nomeFile('sessione', selPre), selPre) }
+  $('btn-sess-post').onclick = async function(){ var b = this; if (selPost) pdf(b, await htmlDiSessione(selPost), nomeFile('sessione', selPost), selPost) }
+  $('btn-una-pdf').onclick = async function(){ var b = this; if (selPost) pdf(b, await htmlDiSessione(selPost), nomeFile('sessione', selPost), selPost) }
+  $('btn-una-stampa').onclick = async function(){ if (selPost) stampa(await htmlDiSessione(selPost)) }
 
   window.__storico = {
-    tutti: function(){ return tutti }, filtrati: function(){ return filtrati },
+    sessioni: function(){ return sessioni }, diQuesto: function(){ return diQuesto },
     pre: function(){ return selPre }, post: function(){ return selPost },
-    esito: function(){ return ultimo }, html: htmlReferto, pid: PID
+    esito: function(){ return ultimo }, htmlConfronto: htmlConfronto, pid: PID
   }
   avvia().catch(function(e){ errore('Errore: ' + esc(e && e.message ? e.message : e)) })
 })()
