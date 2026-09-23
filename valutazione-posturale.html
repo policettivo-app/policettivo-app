@@ -746,6 +746,8 @@
              seduta; questo invece mette in fila tutte le valutazioni del
              paziente, con le foto iniziali della scheda come punto piu' vecchio. -->
         <button onclick="apriConfrontoNelTempo()" title="Confronta questa valutazione con quelle di prima" style="background:#222;color:#fff;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">📈 Confronto nel tempo</button>
+        <!-- schermo-paziente-v1 — il prima e dopo di OGGI, da far vedere al paziente (anche sulla TV) -->
+        <button onclick="apriSchermoPaziente()" title="Il prima e dopo dei 3 Respiri, a schermo intero per il paziente" style="background:#000;color:#FFD008;border:1.5px solid #FFD008;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0;">📺 Mostra al paziente</button>
       </div>
     </div>
     <!-- precarica-pre-da-scheda-v1 — resta a schermo finché una casella di
@@ -4579,6 +4581,15 @@ ISTRUZIONI:
   function apriConfrontoNelTempo() {
     if (!patientId) { showToast('Aspetta che la valutazione finisca di caricare'); return }
     window.location.href = 'comparazione.html?id=' + patientId
+  }
+
+  /* schermo-paziente-v1 — prima si salva quello che aspetta di essere salvato
+     (i chip della spalla PRE/POST 3R hanno un ritardo di 2 secondi), poi si apre
+     lo schermo del paziente sul giorno di QUESTA valutazione. */
+  async function apriSchermoPaziente() {
+    if (!patientId || !visitId) { showToast('Aspetta che la valutazione finisca di caricare'); return }
+    try { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; await actualSave() } } catch (e) { /* si apre lo stesso */ }
+    window.location.href = 'schermo-paziente.html?id=' + encodeURIComponent(patientId) + '&visita=' + encodeURIComponent(visitId)
   }
 
   function openCompare() {

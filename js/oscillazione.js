@@ -1,4 +1,4 @@
-/* js/oscillazione.js — oscillazione-live-v1 · oscillazione-esito-v1 · oscillazione-app-v1 · test-sessioni-v1
+/* js/oscillazione.js — oscillazione-live-v1 · oscillazione-esito-v1 · oscillazione-app-v1 · test-sessioni-v1 · schermo-paziente-v1
  *
  * IL DISEGNO DEL GOMITOLO, IN UN FILE SOLO.
  *
@@ -345,9 +345,13 @@
   function numeroO(x){ return (x == null || x === '' || isNaN(Number(x))) ? null : Number(x) }
 
   // la chiave della condizione: la stessa della pagina del test
+  // schermo-paziente-v1 · una prova segnata «prima» o «dopo i 3 Respiri» è
+  // un'ALTRA condizione: mediarla con le altre mescolerebbe il prima col dopo.
+  // Le prove senza momento (tutte quelle di prima) restano come erano.
   function condizioneDi(r){
     return (r.configurazione || '(non indicata)') + ' · ' + r.evento +
-           (r.occhi && r.occhi !== '-' ? ' · occhi ' + r.occhi : '')
+           (r.occhi && r.occhi !== '-' ? ' · occhi ' + r.occhi : '') +
+           (r.momento === 'pre' ? ' · prima dei 3R' : r.momento === 'post' ? ' · dopo i 3R' : '')
   }
   function asseDi(r){ return r.evento === 'rollio' ? 'gamma' : 'beta' }
   // come si legge: senza «(non indicata)» davanti, che è solo rumore sul foglio
@@ -576,11 +580,12 @@
     Object.keys(gruppi).forEach(function(k){
       var r0 = gruppi[k][0]
       if (r0.occhi !== 'aperti') return
-      var kc = condizioneDi({ configurazione: r0.configurazione, evento: r0.evento, occhi: 'chiusi' })
+      var kc = condizioneDi({ configurazione: r0.configurazione, evento: r0.evento, occhi: 'chiusi', momento: r0.momento })
       if (!gruppi[kc]) return
       var va = mediaDi(gruppi[k], function(r){ return numeroO(r.velocita) })
       var vc = mediaDi(gruppi[kc], function(r){ return numeroO(r.velocita) })
-      if (va > 0) out[(r0.configurazione ? r0.configurazione + ' · ' : '') + r0.evento] = vc / va
+      if (va > 0) out[(r0.configurazione ? r0.configurazione + ' · ' : '') + r0.evento +
+        (r0.momento === 'pre' ? ' · prima dei 3R' : r0.momento === 'post' ? ' · dopo i 3R' : '')] = vc / va
     })
     return out
   }

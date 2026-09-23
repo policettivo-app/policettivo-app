@@ -1704,7 +1704,7 @@ sez('⭐ taratura-guidata-v1 · dopo la taratura si ricalcola TUTTO')
 // il finto Supabase: sessione, profilo, paziente, insert e canale.
 // ⚠️ L'insert registra davvero la riga ricevuta: si controlla COSA arriva al
 //    database, non solo che la pagina non esploda.
-const SUPA = ({ sessione, pazienteOk, insertErr, senza047, sessioneRecente }) => {
+const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, sessioneRecente }) => {
   // test-sessioni-v1 — anche la tabella delle sessioni, e le letture della sessione
   window.__db = { righe: [], canale: [], sessioni: [], aggiornate: [] }
   const q = (tab) => {
@@ -1722,6 +1722,9 @@ const SUPA = ({ sessione, pazienteOk, insertErr, senza047, sessioneRecente }) =>
         }
         if (st.riga) {
           if (insertErr) return { data: null, error: { message: insertErr } }
+          // schermo-paziente-v1 · come risponde davvero PostgREST quando la colonna non c'è
+          if (senza048 && 'momento' in st.riga) { window.__db.rifiutate = (window.__db.rifiutate || 0) + 1
+            return { data: null, error: { code: 'PGRST204', message: "Could not find the 'momento' column of 'oscillazione_test' in the schema cache" } } }
           window.__db.righe.push(st.riga); return { data: { id: 'riga-' + window.__db.righe.length }, error: null }
         }
         if (tab === 'professionals') return { data: { id: 'PROF-1' }, error: null }
@@ -2095,6 +2098,45 @@ sez('⭐ test-sessioni-v1 · senza la migration 047 le prove si salvano lo stess
   check('⭐ senza la colonna della sessione (che non c’è)', !('sessione_id' in db.righe[0]))
   check('⭐ e dice QUALE migration manca', /migration 047/.test(await page.textContent('#salva-stato')) &&
     /migration 047/.test(await page.textContent('#sess-stato')), await page.textContent('#salva-stato'))
+  await ctx.close()
+}
+
+sez('⭐ schermo-paziente-v1 · prima o dopo i 3 Respiri viaggia con la prova')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true }, '?dur=2&via=1')
+  check('⭐ la scelta del momento c’è', await page.isVisible('#momento'))
+  check('e parte da «non indicato»', /non indicato/.test(await page.textContent('#momento .chip.on')))
+  await PROVA_APP(page, true, 1)
+  let db = await page.evaluate(() => window.__db)
+  check('⭐ una prova «non indicata» si salva SENZA la colonna: identica a prima', db.righe.length === 1 && !('momento' in db.righe[0]), db.righe[0] && Object.keys(db.righe[0]))
+  await page.click('#btn-nuova').catch(() => {})
+  await page.waitForTimeout(100)
+  await page.click('#momento .chip[data-m="pre"]')
+  check('⭐ il PARTI dice che è la prova PRIMA', /PRIMA dei 3R/.test(await page.textContent('#btn-start')), await page.textContent('#btn-start'))
+  await PROVA_APP(page, true, 2)
+  db = await page.evaluate(() => window.__db)
+  check('⭐⭐ la prova si salva col momento «pre»', db.righe.length === 2 && db.righe[1].momento === 'pre', db.righe.map(r => r.momento))
+  check('e lo dice sotto il risultato', /prima dei 3 Respiri/.test(await page.textContent('#salva-stato')), await page.textContent('#salva-stato'))
+  await page.click('#btn-nuova').catch(() => {})
+  await page.waitForTimeout(100)
+  await page.click('#momento .chip[data-m="post"]')
+  await PROVA_APP(page, true, 3)
+  db = await page.evaluate(() => window.__db)
+  check('⭐⭐ e quella dopo col momento «post»', db.righe.length === 3 && db.righe[2].momento === 'post', db.righe.map(r => r.momento))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐ schermo-paziente-v1 · senza la migration 048 la prova NON si perde')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true, senza048: true }, '?dur=2&via=1')
+  await page.click('#momento .chip[data-m="pre"]')
+  await PROVA_APP(page, true, 1)
+  const db = await page.evaluate(() => window.__db)
+  check('il database ha rifiutato la colonna una volta', db.rifiutate === 1, db.rifiutate)
+  check('⭐⭐ e la prova si è salvata lo stesso, senza il momento', db.righe.length === 1 && !('momento' in db.righe[0]), db.righe.length)
+  check('⭐ e dice QUALE migration manca, per nome di file', /048_oscillazione_momento\.sql/.test(await page.textContent('#salva-stato')), await page.textContent('#salva-stato'))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
   await ctx.close()
 }
 

@@ -427,6 +427,14 @@
       <button class="chip on" data-p="scalzo">scalzo</button>
       <button class="chip" data-p="con scarpe">con scarpe</button>
     </div>
+    <!-- schermo-paziente-v1 · prima o dopo i 3 Respiri: lo schermo del paziente
+         confronta le prove PRIMA con quelle DOPO. Non si indovina, si segna. -->
+    <label>4 · Momento</label>
+    <div class="chips" id="momento">
+      <button class="chip on" data-m="">non indicato</button>
+      <button class="chip" data-m="pre">prima dei 3 Respiri</button>
+      <button class="chip" data-m="post">dopo i 3 Respiri</button>
+    </div>
     <label for="config">Configurazione (tavola e cuscini) — è la cosa che confronteremo</label>
     <input type="text" id="config" placeholder="es. tavola rettangolare, 1 cuscino sotto al centro">
     <label for="nota">Nota (chi è sopra, appoggi, altro…)</label>
@@ -571,6 +579,7 @@
   var evento = 'beccheggio'
   var occhi  = 'aperti'
   var piedi  = 'scalzo'
+  var momento = ''                                  // schermo-paziente-v1 · '' | 'pre' | 'post'
   var prove = []
   var actx = null
 
@@ -782,7 +791,8 @@
     $('spiega').textContent = SPIEGA[evento] || ''
     var pf = $('pf-cosa')
     if (pf) pf.textContent = evento === 'taratura' ? 'taratura del verso · 15 secondi'
-                                                   : evento + ' · occhi ' + occhi
+                                                   : evento + ' · occhi ' + occhi +
+                                                     (momento === 'pre' ? ' · PRIMA dei 3R' : momento === 'post' ? ' · DOPO i 3R' : '')
     // grafica-tavola-v1 — il disegno cambia col test: e' l'unico modo per non
     // sbagliare il verso del cuscino senza doverlo leggere ogni volta.
     var ap = $('appoggio')
@@ -1402,7 +1412,7 @@
     var prova = {
       quando: new Date().toISOString(),
       evento: evento, occhi: eTest(evento) ? occhi : '-',
-      configurazione: conf, piedi: piedi,
+      configurazione: conf, piedi: piedi, momento: momento,
       nota: $('nota').value || '', nota_dopo: '',
       durata_s: durata, attesa_s: Number($('attesa').value) || 5,
       durata_reale_s: r2(durUso), campioni: dati.t.length, hz_reale: r1(hz),
@@ -2146,6 +2156,13 @@
     }
   }
 
+  // schermo-paziente-v1 · la colonna `momento` manca (048 non lanciata):
+  // Postgres dice 42703, PostgREST dice PGRST204 «Could not find the 'momento' column»
+  function mancaColonnaMomento(e){
+    var m = String((e && (e.message || e.details)) || '')
+    return /momento/.test(m) && (e.code === '42703' || e.code === 'PGRST204' || /column|colonna|schema cache/i.test(m))
+  }
+
   async function salvaProva(p){
     var el = $('salva-stato')
     if (!SB || !haiSessione){ if (el){ el.className = 'salva-stato'; el.textContent = 'Non salvata: non sei entrato col tuo account.' } return }
@@ -2155,14 +2172,27 @@
       var riga = rigaDaSalvare(p)
       var sid = await sessioneCorrente()          // test-sessioni-v1
       if (sid) riga.sessione_id = sid
+      // schermo-paziente-v1 · il momento va nella riga SOLO se è stato scelto:
+      // cosi' una prova «non indicata» si salva identica a prima, anche
+      // senza la migration 048.
+      if (p.momento === 'pre' || p.momento === 'post') riga.momento = p.momento
       var r = await SB.from('oscillazione_test').insert(riga).select('id').maybeSingle()
+      // Migration 048 non lanciata: la prova NON si perde. Si risalva senza
+      // il momento e lo si dice, per nome di file.
+      var manca048 = false
+      if (r.error && riga.momento && mancaColonnaMomento(r.error)){
+        delete riga.momento; manca048 = true
+        r = await SB.from('oscillazione_test').insert(riga).select('id').maybeSingle()
+      }
       if (r.error) throw r.error
       p.id_db = r.data ? r.data.id : null
       if (el){
         el.className = 'salva-stato ok'
         el.textContent = '✓ Salvata ' + ((PID && pazNome) ? 'nella cartella di ' + pazNome : 'come prova libera') +
           (sessione.id ? ', nella sessione' : '') +
-          (sessione.manca047 ? ' (⚠️ senza sessione: manca la migration 047)' : '')
+          (sessione.manca047 ? ' (⚠️ senza sessione: manca la migration 047)' : '') +
+          (manca048 ? ' (⚠️ senza «prima/dopo i 3 Respiri»: manca la migration 048_oscillazione_momento.sql)' :
+           (riga.momento ? (riga.momento === 'pre' ? ' · prima dei 3 Respiri' : ' · dopo i 3 Respiri') : ''))
       }
       disegnaSessione()
     } catch(e){
@@ -2297,6 +2327,13 @@
     c.addEventListener('click', function(){
       Array.prototype.forEach.call(document.querySelectorAll('#piedi .chip'), function(x){ x.classList.remove('on') })
       c.classList.add('on'); piedi = c.getAttribute('data-p')
+    })
+  })
+  Array.prototype.forEach.call(document.querySelectorAll('#momento .chip'), function(c){
+    c.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#momento .chip'), function(x){ x.classList.remove('on') })
+      c.classList.add('on'); momento = c.getAttribute('data-m') || ''
+      aggiornaSpiega()
     })
   })
   avviaSupabase()                                   // oscillazione-live-v1

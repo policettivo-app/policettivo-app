@@ -359,6 +359,13 @@ async function apriPagina(browser, dati, file, query, opts = {}) {
   const page = await ctx.newPage()
   const errori = []
   page.on('pageerror', e => errori.push(String(e)))
+  /* schermo-paziente-v1 — L'OROLOGIO DEL TEST. I messaggi finti sono datati fine
+     agosto / 1 settembre e scadono dopo 7 giorni: il 23 settembre due controlli di
+     messaggio-professionista-v1 diventavano rossi e il terzo mandava in crash tutto
+     il resto. Non era l'app, era il calendario. Solo quelle sezioni (dati a date
+     FISSE) passano `oggi`: la pagina vede quel giorno e il tempo scorre da lì. Le
+     altre usano date relative a oggi e restano sull'orologio vero. */
+  if (opts.oggi) await page.clock.install({ time: new Date(opts.oggi) })
   await page.addInitScript(FINTO, dati)
   await page.goto('http://localhost:' + PORT + '/' + file + query, { waitUntil:'networkidle' })
   await page.waitForTimeout(400)
@@ -1977,7 +1984,7 @@ sez('messaggio-professionista-v1 · doppio click, un messaggio solo')
 
 sez('messaggio-professionista-v1 · l\'elenco dice QUALE messaggio vede davvero')
 {
-  const { page, ctx } = await apriPagina(browser, datiMessaggi(), 'paziente.html', '?id=' + PID)
+  const { page, ctx } = await apriPagina(browser, datiMessaggi(), 'paziente.html', '?id=' + PID, { oggi: '2026-09-02T12:00:00+02:00' })
   await page.waitForTimeout(700)
   const el = await page.textContent('#mp-elenco')
   check('⚠️ dice quale sta vedendo adesso', el.includes('lo vede adesso nella sua app'), el.slice(0,200))
@@ -1992,7 +1999,7 @@ sez('messaggio-professionista-v1 · l\'elenco dice QUALE messaggio vede davvero'
 
 sez('messaggio-professionista-v1 · «togli dall\'app» archivia, non riscrive e non cancella')
 {
-  const { page, ctx } = await apriPagina(browser, datiMessaggi(), 'paziente.html', '?id=' + PID)
+  const { page, ctx } = await apriPagina(browser, datiMessaggi(), 'paziente.html', '?id=' + PID, { oggi: '2026-09-02T12:00:00+02:00' })
   await page.waitForTimeout(700)
   await page.click('#mp-arch-m-nuovo')
   await page.waitForTimeout(500)
@@ -2310,6 +2317,35 @@ sez('indirizzo-completo-v1 · la scheda e la creazione paziente chiedono le stes
     /cap:\s*document\.getElementById\('edit-cap'\)/.test(paz))
   check('la riga si compone in UN punto solo',
     (senzaCommentiHtml(paz).match(/function _rigaIndirizzo/g) || []).length === 1)
+}
+
+sez('schermo-paziente-v1 — «📺 Mostra al paziente» dalla posturale')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPosturale(), 'valutazione-posturale.html', '?id=v3')
+  check('nessun errore JS nella posturale', errori.length === 0, errori)
+  check('⭐ il pulsante c’è, accanto al confronto', await page.isVisible('text=📺 Mostra al paziente'))
+  await page.route('**/schermo-paziente.html*', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>schermo</p>' }))
+  await page.click('text=📺 Mostra al paziente')
+  await page.waitForURL(/schermo-paziente\.html/, { timeout: 5000 }).catch(() => {})
+  const u = page.url()
+  check('⭐⭐ apre lo schermo del paziente sul giorno di QUESTA valutazione', /schermo-paziente\.html\?id=[^&]+&visita=v3$/.test(u), u)
+  await ctx.close()
+}
+
+sez('schermo-paziente-v1 — dalla scheda paziente e dalla visita')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiCartella(), 'paziente.html', '?id=' + PID)
+  const card = await page.$('.hub-card:has-text("Prima e dopo")')
+  check('⭐ la card «Prima e dopo» è nella scheda, accanto a Test e Cartella', !!card && await card.isVisible())
+  await page.route('**/schermo-paziente.html*', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>schermo</p>' }))
+  if (card) await card.click()
+  await page.waitForURL(/schermo-paziente\.html/, { timeout: 5000 }).catch(() => {})
+  check('⭐ e apre lo schermo di quel paziente', page.url().indexOf('schermo-paziente.html?id=' + PID) >= 0, page.url())
+  await ctx.close()
+  const vis = senzaCommentiHtml(fs.readFileSync(path.join(ROOT, 'visita.html'), 'utf8'))
+  check('⭐ anche la visita fisioterapica ha «📺 Mostra al paziente»', /onclick="apriSchermoPaziente\(\)"[^>]*>📺 Mostra al paziente/.test(vis))
+  check('   e apre il giorno di QUELLA visita', /schermo-paziente\.html\?id=' \+ encodeURIComponent\(patientId\) \+ '&visita=' \+ encodeURIComponent\(visitId\)/.test(vis))
+  check('   dopo aver salvato quello che era in attesa', /async function apriSchermoPaziente[\s\S]{0,400}await actualSave\(\)/.test(vis))
 }
 
 } finally {

@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#000000">
+  <title>Policettivo® — Prima e dopo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/osservazioni.js"></script>
+  <script src="js/postural-component.js"></script>
+  <script src="js/oscillazione.js"></script>
+  <script src="js/schermo-paziente.js"></script>
+  <!-- schermo-paziente-v1 — 23 settembre 2026
+       LO SCHERMO DEL PAZIENTE: il prima e dopo dei 3 Respiri, fatto per essere
+       guardato insieme, anche su una TV (duplicazione dello schermo, decisione 5A).
+
+       Cosa mette in fila, per il giorno scelto:
+         1. le foto PRIMA e DOPO dello stesso piano (posturale e fisioterapica);
+         2. la spalla rispetto alla linea (chip «piano scapolare» PRE/POST 3R);
+         3. l'equilibrio: prove dell'Oscillazione segnate «prima/dopo i 3 Respiri»
+            (migration 048), con le soglie misurate nella Fase 0;
+         4. la sintesi, che conta SOLO le cose con un verdetto onesto;
+         5. il percorso, se i giorni sono almeno due.
+
+       Le parole e i verdetti stanno in js/schermo-paziente.js (TESTI): un posto solo.
+       Questa pagina NON scrive niente, tranne il segno «prima/dopo» sulle prove di
+       equilibrio che il professionista sceglie di segnare. -->
+  <style>
+    :root {
+      --giallo: #FFD008; --verde: #00C48C; --ambra: #F5A524; --grigio: #8C8C8C;
+      --nero: #000; --fondo: #0B0B0B; --carta: #151515; --carta2: #1D1D1D; --riga: #2A2A2A;
+      --testo: #FFFFFF; --testo2: #B8B8B8; --testo3: #7A7A7A;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { background: var(--nero); color: var(--testo); font-family: 'Montserrat', sans-serif; -webkit-text-size-adjust: 100%; }
+    body { min-height: 100vh; overflow-x: hidden; }
+    button { font-family: inherit; }
+
+    /* ── barra del professionista (sparisce in «Schermo grande») ── */
+    .pro-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+      background: #000; border-bottom: 1px solid #1c1c1c; flex-wrap: wrap; }
+    .pro-logo { background: var(--giallo); color: #000; font-weight: 800; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+    .pro-nome { font-weight: 800; font-size: 14px; margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+    .pbtn { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 9px 14px; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .pbtn.giallo { background: var(--giallo); border-color: var(--giallo); color: #000; }
+    body.grande .pro-bar, body.grande .pro-sotto { display: none !important; }
+
+    /* ── il palco 16:9, disegnato a 1600×900 e scalato ── */
+    .palco-wrap { position: relative; width: 100%; background: #000; overflow: hidden; }
+    body.grande .palco-wrap { position: fixed; inset: 0; height: 100vh !important; z-index: 50; }
+    .palco { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; transform-origin: 0 0; background: var(--fondo); overflow: hidden; }
+    .slide { position: absolute; inset: 0; padding: 40px 104px 84px; display: none; flex-direction: column; }
+    .slide.on { display: flex; animation: entra .45s ease both; }
+    @keyframes entra { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+    @media (prefers-reduced-motion: reduce) { .slide.on { animation: none } }
+
+    .testa { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+    .marchio { background: var(--giallo); color: #000; font-weight: 900; font-size: 16px; letter-spacing: 3px; padding: 7px 14px; border-radius: 6px; }
+    .titolo { font-size: 44px; font-weight: 900; letter-spacing: -.5px; line-height: 1.1; }
+    .testa-dx { margin-left: auto; text-align: right; }
+    .chi { font-size: 24px; font-weight: 800; }
+    .quando { font-size: 17px; color: var(--testo2); font-weight: 600; margin-top: 2px; }
+    .criterio { display: flex; align-items: center; gap: 14px; background: var(--carta); border: 1px solid var(--riga); border-radius: 16px;
+      padding: 14px 20px; font-size: 21px; line-height: 1.4; color: var(--testo2); font-weight: 600; margin-top: auto; }
+    .criterio .ico { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,208,8,.14); color: var(--giallo);
+      display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; }
+    .criterio b { color: #fff; }
+
+    /* etichette prima / dopo */
+    .eti { display: inline-flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; padding: 8px 16px; border-radius: 999px; }
+    .eti.prima { background: #2a2a2a; color: #ddd; }
+    .eti.dopo { background: var(--giallo); color: #000; }
+
+    /* esiti: colore + icona + parola, mai il colore da solo */
+    .esito { display: inline-flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 800; padding: 10px 18px; border-radius: 999px; white-space: nowrap; }
+    .esito .i { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 900; color: #000; }
+    .esito.meglio { background: rgba(0,196,140,.16); color: #54E2B5; } .esito.meglio .i { background: var(--verde); }
+    .esito.uguale { background: rgba(140,140,140,.18); color: #C9C9C9; } .esito.uguale .i { background: var(--grigio); }
+    .esito.lavoro { background: rgba(245,165,36,.16); color: #FFC56A; } .esito.lavoro .i { background: var(--ambra); }
+    .esito.altro  { background: rgba(140,140,140,.18); color: #C9C9C9; } .esito.altro .i { background: var(--grigio); }
+
+    /* ── copertina ── */
+    .cop { justify-content: center; align-items: flex-start; padding-left: 110px; background:
+      radial-gradient(900px 600px at 85% 30%, rgba(255,208,8,.12), transparent 60%), var(--fondo); }
+    .cop .marchio { font-size: 20px; margin-bottom: 36px; }
+    .cop-nome { font-size: 96px; font-weight: 900; letter-spacing: -2px; line-height: 1; }
+    .cop-tit { font-size: 54px; font-weight: 800; color: var(--giallo); margin-top: 14px; }
+    .cop-sotto { font-size: 28px; color: var(--testo2); font-weight: 600; margin-top: 26px; }
+    .cop-data { font-size: 24px; color: var(--testo3); font-weight: 700; margin-top: 8px; text-transform: capitalize; }
+    .cop-nota { position: absolute; left: 110px; bottom: 92px; font-size: 20px; color: var(--testo3); font-weight: 600; }
+    .cop-respiri { position: absolute; right: 150px; top: 50%; transform: translateY(-50%); width: 380px; height: 380px; }
+    .cop-respiri circle { fill: none; stroke: var(--giallo); }
+
+    /* ── foto ── */
+    .foto-area { flex: 1; min-height: 0; display: flex; gap: 28px; justify-content: center; }
+    .foto-col { flex: 1; max-width: 720px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+    .foto-col .eti { align-self: center; }
+    .riquadro { position: relative; flex: 1; min-height: 0; background: #000; border-radius: 18px; overflow: hidden; border: 1px solid var(--riga); }
+    .riquadro.dopo { border: 2px solid rgba(255,208,8,.55); }
+    .riquadro img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+    .riquadro .vuoto { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #666; font-size: 20px; text-align: center; padding: 30px; }
+    .sovrapp { flex: 1; max-width: 860px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+    .cursore { display: flex; align-items: center; gap: 16px; }
+    .cursore input { flex: 1; height: 44px; accent-color: var(--giallo); cursor: pointer; }
+    .modo { display: flex; gap: 8px; }
+    .modo button { background: var(--carta2); color: var(--testo2); border: 1px solid var(--riga); padding: 10px 18px; border-radius: 999px; font-size: 18px; font-weight: 800; cursor: pointer; }
+    .modo button.on { background: #fff; color: #000; border-color: #fff; }
+    .riga-basso { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
+    .riga-basso .criterio { margin-top: 0; flex: 1; }
+    .allin { font-size: 15px; color: var(--testo3); font-weight: 600; text-align: center; }
+
+    /* ── spalla ── */
+    .spalla-area { flex: 1; display: flex; align-items: center; justify-content: center; gap: 70px; }
+    .figura { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .figura svg { width: 360px; height: 470px; }
+    .figura .parola { font-size: 34px; font-weight: 900; }
+    .freccia-grande { font-size: 80px; color: var(--testo3); font-weight: 300; }
+
+    /* ── equilibrio ── */
+    .eq-area { flex: 1; display: flex; gap: 30px; justify-content: center; min-height: 0; }
+    .eq-card { flex: 1; max-width: 700px; background: var(--carta); border: 1px solid var(--riga); border-radius: 22px; padding: 22px 26px; display: flex; gap: 24px; align-items: center; }
+    .eq-card canvas { width: 380px; height: 380px; flex: 0 0 auto; border-radius: 14px; background: #0f0f0f; }
+    .eq-dati { flex: 1; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .eq-cond { font-size: 22px; color: var(--testo2); font-weight: 800; }
+    .eq-num { font-size: 18px; color: var(--testo3); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+    .eq-val { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .eq-val .a { font-size: 38px; font-weight: 800; color: #bdbdbd; }
+    .eq-val .b { font-size: 56px; font-weight: 900; color: var(--giallo); }
+    .eq-val .u { font-size: 20px; color: var(--testo3); font-weight: 700; }
+    .eq-delta { font-size: 26px; font-weight: 900; }
+    .legenda { display: flex; gap: 18px; font-size: 17px; color: var(--testo2); font-weight: 700; }
+    .legenda span { display: inline-flex; align-items: center; gap: 8px; }
+    .legenda i { display: inline-block; width: 28px; height: 0; border-top: 3px dashed #9A9A9A; }
+    .legenda i.b { border-top: 3px solid var(--giallo); }
+
+    /* ── sintesi ── */
+    .sint-grande { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1.05; margin: 8px 0 26px; }
+    .sint-grande em { font-style: normal; color: var(--verde); }
+    .voci { display: flex; flex-direction: column; gap: 14px; }
+    .voce { display: flex; align-items: center; gap: 22px; background: var(--carta); border: 1px solid var(--riga); border-radius: 18px; padding: 18px 24px; }
+    .voce-cosa { font-size: 26px; font-weight: 800; }
+    .voce-det { font-size: 19px; color: var(--testo2); font-weight: 600; margin-top: 4px; }
+    .voce-fonte { font-size: 15px; color: var(--testo3); font-weight: 600; margin-top: 2px; }
+    .voce .esito { margin-left: auto; }
+
+    /* ── percorso ── */
+    .perc-area { flex: 1; display: flex; flex-direction: column; gap: 18px; min-height: 0; }
+    .perc-graf { flex: 1; min-height: 0; background: var(--carta); border: 1px solid var(--riga); border-radius: 20px; padding: 18px 22px; position: relative; }
+    .perc-graf svg { width: 100%; height: 100%; }
+    .perc-scap { display: flex; gap: 12px; overflow: hidden; }
+    .perc-giorno { background: var(--carta); border: 1px solid var(--riga); border-radius: 14px; padding: 12px 16px; min-width: 150px; }
+    .perc-giorno .d { font-size: 17px; font-weight: 800; }
+    .perc-giorno .s { font-size: 16px; color: var(--testo2); font-weight: 600; margin-top: 4px; }
+    .tip { position: absolute; pointer-events: none; background: #000; border: 1px solid #444; border-radius: 10px; padding: 8px 12px; font-size: 16px; font-weight: 600; display: none; white-space: nowrap; }
+
+    /* ── navigazione sul palco ── */
+    .nav-freccia { position: absolute; top: 50%; transform: translateY(-50%); width: 72px; height: 72px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,.08); color: #fff; font-size: 40px; cursor: pointer; z-index: 5; display: flex; align-items: center; justify-content: center; }
+    .nav-freccia:hover { background: rgba(255,255,255,.16); }
+    .nav-freccia.sx { left: 14px; } .nav-freccia.dx { right: 14px; }
+    .nav-freccia[disabled] { opacity: 0; pointer-events: none; }
+    .puntini { position: absolute; left: 0; right: 0; bottom: 28px; display: flex; justify-content: center; gap: 12px; z-index: 5; }
+    .puntini button { width: 14px; height: 14px; border-radius: 50%; border: none; background: #3a3a3a; cursor: pointer; padding: 0; }
+    .puntini button.on { background: var(--giallo); width: 40px; border-radius: 999px; }
+    .esci-grande { position: absolute; top: 18px; right: 18px; z-index: 6; width: 52px; height: 52px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,.08); color: #fff; font-size: 24px; cursor: pointer; display: none; }
+    body.grande .esci-grande { display: block; }
+
+    /* ── sotto il palco: solo per il professionista ── */
+    .pro-sotto { max-width: 1100px; margin: 0 auto; padding: 16px 14px 60px; }
+    .giorni { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; }
+    .giorno { flex: 0 0 auto; background: #141414; border: 2px solid #2a2a2a; color: #fff; border-radius: 12px; padding: 9px 14px; cursor: pointer; text-align: left; }
+    .giorno.on { border-color: var(--giallo); }
+    .giorno .d { font-size: 14px; font-weight: 800; }
+    .giorno .c { font-size: 11px; color: #888; font-weight: 700; margin-top: 2px; }
+    .lbl { font-size: 11px; color: #777; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 6px; }
+    .msg { border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.55; margin: 10px 0; }
+    .msg.ko { background: #2a1414; border: 1px solid #7a2020; color: #ffb4b4; }
+    .msg.info { background: #151515; border: 1px solid #2c2c2c; color: #bbb; }
+    .msg.ok { background: #12241d; border: 1px solid #1d5c47; color: #7fe3c0; }
+    .msg b { color: #fff; }
+    .segna { display: flex; align-items: center; gap: 10px; background: #141414; border: 1px solid #262626; border-radius: 10px; padding: 9px 12px; margin-top: 6px; flex-wrap: wrap; }
+    .segna .t { font-size: 13px; font-weight: 700; margin-right: auto; }
+    .segna .t small { color: #888; font-weight: 600; }
+    .segna button { background: #1d1d1d; border: 1px solid #333; color: #ddd; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .segna button.on { background: var(--giallo); border-color: var(--giallo); color: #000; }
+    .ruota { display: none; }
+    @media (max-width: 560px) { .segna .t { flex: 1 1 100%; } .segna button { flex: 1; padding: 10px 12px; font-size: 13px; } }
+    @media (orientation: portrait) and (max-width: 700px) { .ruota { display: block; } }
+  </style>
+</head>
+<body>
+  <div class="pro-bar" id="pro-bar">
+    <span class="pro-logo">POLICETTIVO®</span>
+    <span class="pro-nome" id="pro-nome">Caricamento…</span>
+    <button class="pbtn giallo" id="btn-grande" onclick="entraGrande()">⛶ Schermo grande</button>
+    <button class="pbtn" onclick="tornaIndietro()">← Chiudi</button>
+  </div>
+
+  <div class="palco-wrap" id="palco-wrap">
+    <div class="palco" id="palco">
+      <div id="slides"></div>
+      <button class="nav-freccia sx" id="nav-sx" onclick="vai(corrente - 1)" aria-label="Indietro">‹</button>
+      <button class="nav-freccia dx" id="nav-dx" onclick="vai(corrente + 1)" aria-label="Avanti">›</button>
+      <div class="puntini" id="puntini"></div>
+      <button class="esci-grande" onclick="esciGrande()" aria-label="Esci dallo schermo grande">✕</button>
+    </div>
+  </div>
+
+  <div class="pro-sotto" id="pro-sotto">
+    <div class="msg info ruota">📱 Gira il telefono in orizzontale: lo schermo si vede molto più grande.</div>
+    <div id="banner-errore"></div>
+    <div class="lbl">Giorno da mostrare</div>
+    <div class="giorni" id="giorni"></div>
+    <div id="pro-prove"></div>
+    <div class="msg info">
+      📺 <b>Per vederlo sulla TV</b>: duplica lo schermo (iPhone/iPad: Centro di Controllo → <b>Duplica schermo</b>;
+      Android: <b>Trasmetti schermo</b>; computer: cavo HDMI), poi premi <b>⛶ Schermo grande</b>.
+      Si va avanti e indietro con le frecce, con le frecce della tastiera o scorrendo col dito.
+    </div>
+  </div>
+
+<script>
+/* schermo-paziente-v1 — vedi il commento in testa alla pagina */
+const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+const params    = new URLSearchParams(window.location.search)
+const patientId = params.get('id') || params.get('pid')
+const visitaQ   = params.get('visita')
+const giornoQ   = params.get('giorno')
+
+const S = window.PolSchermo
+const T = S ? S.TESTI : {}
+const PLANES = (typeof POSTURAL_PHOTO_PLANES !== 'undefined') ? POSTURAL_PHOTO_PLANES : null
+
+/* Le foto iniziali della scheda: solo le coppie prima/dopo dei cuscini.
+   Stessa corrispondenza di comparazione.html (SLOT_SCHEDA). */
+const SLOT_SCHEDA = {
+  'prima-sx': { plane: 'sagittale_sx', fase: 'pre' },  'dopo-sx': { plane: 'sagittale_sx', fase: 'post' },
+  'prima-dx': { plane: 'sagittale_dx', fase: 'pre' },  'dopo-dx': { plane: 'sagittale_dx', fase: 'post' }
+}
+/* I titoli e il criterio di ogni piano, nell'ordine in cui si mostrano */
+const PIANI_SCHERMO = [
+  { plane: 'sagittale_dx',      titolo: 'foto_profilo',      sotto: 'lato destro',  criterio: 'criterio_profilo' },
+  { plane: 'sagittale_sx',      titolo: 'foto_profilo',      sotto: 'lato sinistro', criterio: 'criterio_profilo' },
+  { plane: 'frontale',          titolo: 'foto_fronte',       sotto: '',             criterio: 'criterio_simmetria' },
+  { plane: 'posteriore',        titolo: 'foto_spalle',       sotto: '',             criterio: 'criterio_simmetria' },
+  { plane: 'podoscopio_sotto',  titolo: 'foto_piedi_sotto',  sotto: '',             criterio: 'criterio_piedi' },
+  { plane: 'podoscopio_dietro', titolo: 'foto_piedi_dietro', sotto: '',             criterio: 'criterio_piedi' }
+]
+
+let patient = null, nomeBreve = 'Paziente'
+let giorni = [], sel = -1, corrente = 0, slides = []
+let allineamenti = {}
+let modoFoto = {}          // plane -> 'affiancate' | 'sovrapposte'
+let manca048 = false, provePresenti = true
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
+function tornaIndietro() {
+  if (history.length > 1) history.back()
+  else window.location.href = patientId ? 'paziente.html?id=' + patientId : 'dashboard.html'
+}
+function errore(html) {
+  const b = document.getElementById('banner-errore')
+  b.insertAdjacentHTML('beforeend', '<div class="msg ko">' + html + '</div>')
+}
+
+// ── IL PALCO: si disegna a 1600×900 e si scala. Così TV, computer e telefono
+//    vedono la STESSA impaginazione, solo più grande o più piccola.
+function scala() {
+  const wrap = document.getElementById('palco-wrap'), palco = document.getElementById('palco')
+  const grande = document.body.classList.contains('grande')
+  const w = window.innerWidth
+  let h
+  if (grande) h = window.innerHeight
+  else {
+    const bar = document.getElementById('pro-bar').offsetHeight || 0
+    h = Math.min(w * 9 / 16, Math.max(220, window.innerHeight - bar))
+    wrap.style.height = h + 'px'
+  }
+  const s = Math.min(w / 1600, h / 900)
+  palco.style.transform = 'translate(' + ((w - 1600 * s) / 2) + 'px,' + ((h - 900 * s) / 2) + 'px) scale(' + s + ')'
+  allineaTutto()
+}
+window.addEventListener('resize', scala)
+window.addEventListener('orientationchange', function () { setTimeout(scala, 200) })
+
+function entraGrande() {
+  document.body.classList.add('grande')
+  const el = document.documentElement
+  try { if (el.requestFullscreen) el.requestFullscreen().catch(function () {}) } catch (e) {}
+  scala()
+}
+function esciGrande() {
+  document.body.classList.remove('grande')
+  try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {}) } catch (e) {}
+  scala()
+}
+document.addEventListener('fullscreenchange', function () {
+  if (!document.fullscreenElement && document.body.classList.contains('grande')) { document.body.classList.remove('grande'); scala() }
+})
+document.addEventListener('keydown', function (e) {
+  if (e.target && /input|textarea/i.test(e.target.tagName) && e.target.type !== 'range') return
+  if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); vai(corrente + 1) }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); vai(corrente - 1) }
+  else if (e.key === 'Escape') esciGrande()
+  else if (e.key === 'f' || e.key === 'F') { document.body.classList.contains('grande') ? esciGrande() : entraGrande() }
+})
+// scorrere col dito
+;(function () {
+  let x0 = null, y0 = null
+  const p = document.getElementById('palco-wrap')
+  p.addEventListener('touchstart', function (e) { if (e.target.type === 'range') return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY }, { passive: true })
+  p.addEventListener('touchend', function (e) {
+    if (x0 == null) return
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0
+    x0 = null
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) vai(corrente + (dx < 0 ? 1 : -1))
+  }, { passive: true })
+})()
+
+// ── AVVIO ─────────────────────────────────────────────────
+async function init() {
+  if (!S) { errore('Non si è caricato <code>js/schermo-paziente.js</code>. Ricarica la pagina.'); return }
+  if (!PLANES) { errore('Non si è caricato <code>js/postural-component.js</code>, dove sono scritti i piani delle foto. Ricarica la pagina.'); return }
+  if (!patientId) { errore('Indirizzo incompleto: manca il paziente (<code>?id=</code>).'); return }
+  scala()
+
+  const { data: { session } } = await _sb.auth.getSession()
+  if (!session) { window.location.href = 'login.html'; return }
+
+  const { data: p, error: pe } = await _sb.from('patients').select('id,nome,cognome,foto_url').eq('id', patientId).maybeSingle()
+  if (pe || !p) { errore('Paziente non trovato, oppure non è tuo. ' + esc((pe && pe.message) || '')); return }
+  patient = p
+  nomeBreve = (p.nome || '').trim() || 'Paziente'
+  document.getElementById('pro-nome').textContent = ((p.nome || '') + ' ' + (p.cognome || '')).trim() || 'Paziente'
+
+  const daFirmare = []
+
+  // 1) visite: posturali e fisioterapiche, col piano scapolare
+  const { data: visite, error: ve } = await _sb.from('visits')
+    .select('id,tipo,data_visita,created_at,note_scapolare_pre,note_scapolare_post')
+    .eq('patient_id', patientId)
+  if (ve) errore('Non ho potuto leggere le visite: ' + esc(ve.message))
+  const ids = (visite || []).map(v => v.id)
+  let foto = []
+  if (ids.length) {
+    const { data: fts, error: fe } = await _sb.from('visit_photos').select('visit_id,tipo,storage_path').in('visit_id', ids)
+    if (fe) errore('Non ho potuto leggere le foto: ' + esc(fe.message))
+    foto = (fts || []).filter(f => f.storage_path && /_(pre|post)$/.test(f.tipo || ''))
+    foto.forEach(f => daFirmare.push(f.storage_path))
+  }
+
+  // 2) le foto iniziali della scheda: solo le coppie prima/dopo
+  let scheda = null
+  try {
+    const urls = JSON.parse(p.foto_url || '{}') || {}
+    const fs = {}; let dMin = null
+    Object.keys(SLOT_SCHEDA).forEach(k => {
+      const v = urls[k]; if (!v) return
+      const path = (typeof v === 'object') ? (v.storage_path || null)
+        : (typeof v === 'string' && v.indexOf('data:') !== 0 && v.indexOf('http') !== 0) ? v : null
+      const dir = (!path && typeof v === 'string') ? v : null
+      if (!path && !dir) return
+      const m = /_(\d{10,16})\.[a-z]+$/i.exec(path || '')
+      const d = m ? new Date(Number(m[1])) : null
+      if (d && !isNaN(d.getTime()) && (!dMin || d < dMin)) dMin = d
+      const map = SLOT_SCHEDA[k]
+      fs[map.plane] = fs[map.plane] || {}
+      fs[map.plane][map.fase] = { path: path, url: dir }
+      if (path) daFirmare.push(path)
+    })
+    if (Object.keys(fs).length) scheda = { foto: fs, data: dMin ? dMin.toISOString() : null }
+  } catch (e) { scheda = null }
+
+  // 3) le prove di equilibrio del paziente
+  let prove = []
+  {
+    const { data, error } = await _sb.from('oscillazione_test').select('*').eq('patient_id', patientId).order('quando', { ascending: true })
+    if (error) {
+      provePresenti = false
+      if (!/oscillazione_test/.test(error.message || '')) errore('Non ho potuto leggere le prove di equilibrio: ' + esc(error.message))
+    } else {
+      prove = data || []
+      manca048 = prove.length > 0 && !('momento' in prove[0])
+    }
+  }
+
+  // 4) un giro solo di firme
+  const mappa = {}
+  const unici = Array.from(new Set(daFirmare))
+  for (let i = 0; i < unici.length; i += 100) {
+    try {
+      const { data: sl } = await _sb.storage.from('clinical-docs').createSignedUrls(unici.slice(i, i + 100), 7200)
+      ;(sl || []).forEach(s => { if (s && s.signedUrl && s.path) mappa[s.path] = s.signedUrl })
+    } catch (e) { /* le foto non firmate si dicono sotto */ }
+  }
+  let nonFirmate = 0
+  foto.forEach(f => { f.url = mappa[f.storage_path] || null; if (!f.url) nonFirmate++ })
+  if (scheda) Object.keys(scheda.foto).forEach(pl => ['pre', 'post'].forEach(fa => {
+    const o = scheda.foto[pl][fa]; if (o && o.path) { o.url = mappa[o.path] || null; if (!o.url) nonFirmate++ }
+  }))
+  foto = foto.filter(f => f.url)
+  if (scheda) Object.keys(scheda.foto).forEach(pl => ['pre', 'post'].forEach(fa => {
+    const o = scheda.foto[pl][fa]; if (o && !o.url) delete scheda.foto[pl][fa]
+  }))
+  if (nonFirmate) errore('<b>' + nonFirmate + (nonFirmate === 1 ? ' foto non si apre' : ' foto non si aprono') + '</b>: il file non c\'è più o non è stato possibile firmarne l\'indirizzo. Le altre si vedono.')
+
+  // 5) gli allineamenti già fatti in «Confronto nel tempo»
+  const paths = foto.map(f => f.storage_path)
+  if (paths.length) {
+    const { data: al, error: ae } = await _sb.from('foto_allineamenti').select('storage_path,punti').in('storage_path', Array.from(new Set(paths)))
+    if (!ae) (al || []).forEach(r => { if (r.storage_path && r.punti) allineamenti[r.storage_path] = r.punti })
+  }
+
+  giorni = S.costruisciGiorni({ visite: visite || [], foto: foto, prove: prove, piani: PLANES, scheda: scheda })
+  if (!giorni.length) {
+    document.getElementById('slides').innerHTML = slideVuota()
+    slides = ['vuota']; corrente = 0; disegnaPuntini(); aggiornaFrecce()
+    document.querySelector('.slide').classList.add('on')
+    return
+  }
+  // il giorno richiesto: dalla visita, dal parametro, altrimenti l'ultimo
+  sel = giorni.length - 1
+  if (visitaQ) { const i = giorni.findIndex(g => g.visite.some(v => v.id === visitaQ)); if (i >= 0) sel = i }
+  else if (giornoQ) { const i = giorni.findIndex(g => g.giorno === giornoQ); if (i >= 0) sel = i }
+  disegnaGiorni()
+  costruisci()
+}
+
+// ── I GIORNI (per il professionista) ──────────────────────
+function disegnaGiorni() {
+  document.getElementById('giorni').innerHTML = giorni.map((g, i) => {
+    const cosa = []
+    const nf = Object.keys(g.foto).length
+    if (nf) cosa.push(nf + ' foto')
+    if (g.scap && g.scap.esito !== 'nd') cosa.push('spalla')
+    if (g.eq && g.eq.condizioni.length) cosa.push('equilibrio')
+    return '<button class="giorno' + (i === sel ? ' on' : '') + '" onclick="scegliGiorno(' + i + ')">' +
+      '<div class="d">' + (g.scheda ? 'Foto iniziali' : esc(S.dataCorta(g.giorno))) + '</div>' +
+      '<div class="c">' + esc(cosa.join(' · ') || 'prove da segnare') + '</div></button>'
+  }).join('')
+}
+function scegliGiorno(i) { sel = i; disegnaGiorni(); costruisci() }
+
+// ── LE SLIDE ──────────────────────────────────────────────
+function costruisci() {
+  const g = giorni[sel]
+  const html = [], ids = []
+  html.push(slideCopertina(g)); ids.push('copertina')
+  PIANI_SCHERMO.forEach(ps => {
+    if (!g.foto[ps.plane]) return
+    html.push(slideFoto(g, ps)); ids.push('foto:' + ps.plane)
+  })
+  if (g.scap && g.scap.esito !== 'nd') { html.push(slideSpalla(g)); ids.push('spalla') }
+  if (g.eq && g.eq.condizioni.length) {
+    for (let i = 0; i < g.eq.condizioni.length; i += 2) {
+      html.push(slideEquilibrio(g, g.eq.condizioni.slice(i, i + 2), i)); ids.push('eq:' + i)
+    }
+  }
+  const si = S.sintesi(g)
+  if (si.totale || si.foto) { html.push(slideSintesi(g, si)); ids.push('sintesi') }
+  const perc = S.percorso(giorni)
+  if (giorni.length >= 2 && (perc.conEq >= 2 || perc.conScap >= 2)) { html.push(slidePercorso(perc)); ids.push('percorso') }
+  document.getElementById('slides').innerHTML = html.join('')
+  slides = ids
+  corrente = Math.min(corrente, slides.length - 1)
+  if (corrente < 0) corrente = 0
+  disegnaPuntini()
+  vai(corrente, true)
+  disegnaGomitoli()
+  disegnaProPrope()
+}
+
+function testa(titolo, sotto) {
+  const g = giorni[sel]
+  return '<div class="testa"><span class="marchio">POLICETTIVO®</span>' +
+    '<div><div class="titolo">' + esc(titolo) + '</div>' + (sotto ? '<div class="quando">' + esc(sotto) + '</div>' : '') + '</div>' +
+    '<div class="testa-dx"><div class="chi">' + esc(nomeBreve) + '</div>' +
+    '<div class="quando">' + esc(g && g.scheda ? 'foto iniziali' : S.dataCorta(g && g.giorno)) + '</div></div></div>'
+}
+function badge(esito, parola) {
+  const ico = { meglio: '✓', uguale: '=', lavoro: '↻', altro: '⇄', nd: '·' }[esito] || '·'
+  return '<span class="esito ' + esito + '"><span class="i">' + ico + '</span>' + esc(parola) + '</span>'
+}
+function parolaEsito(esito) { return T['esito_' + esito] || '' }
+
+function slideVuota() {
+  return '<div class="slide cop" data-s="0"><span class="marchio">POLICETTIVO®</span>' +
+    '<div class="cop-nome">' + esc(nomeBreve) + '</div>' +
+    '<div class="cop-sotto" style="max-width:1100px">Qui compariranno le foto prima e dopo i 3 Respiri, la spalla rispetto alla linea e l’equilibrio sulla tavola, appena li registri.</div></div>'
+}
+
+function slideCopertina(g) {
+  // I tre cerchi: i tre respiri. Disegno, non dato.
+  const cerchi = [0, 1, 2].map(i => '<circle cx="190" cy="190" r="' + (70 + i * 55) + '" stroke-width="' + (6 - i * 1.5) + '" opacity="' + (0.9 - i * 0.28) + '"/>').join('')
+  return '<div class="slide cop" data-s="0">' +
+    '<span class="marchio">POLICETTIVO®</span>' +
+    '<div class="cop-nome">' + esc(nomeBreve) + '</div>' +
+    '<div class="cop-tit">' + esc(T.copertina_titolo) + '</div>' +
+    '<div class="cop-sotto">' + esc(T.copertina_sotto) + '</div>' +
+    '<div class="cop-data">' + esc(g.scheda ? 'foto iniziali' + (g.giorno ? ' · ' + S.dataLunga(g.giorno) : '') : S.dataLunga(g.giorno)) + '</div>' +
+    '<svg class="cop-respiri" viewBox="0 0 380 380" aria-hidden="true">' + cerchi + '</svg>' +
+    '<div class="cop-nota">' + esc(T.copertina_nota) + '</div></div>'
+}
+
+function slideFoto(g, ps) {
+  const f = g.foto[ps.plane]
+  const modo = modoFoto[ps.plane] || 'affiancate'
+  const allin = !!(f.pre.path && f.post.path && allineamenti[f.pre.path] && allineamenti[f.post.path])
+  let corpo
+  if (modo === 'sovrapposte') {
+    corpo = '<div class="foto-area"><div class="sovrapp">' +
+      '<div class="riquadro dopo" data-allinea="' + ps.plane + '">' +
+        '<img class="ia" src="' + esc(f.pre.url) + '" alt="Prima" onload="allineaTutto()">' +
+        '<img class="ib" src="' + esc(f.post.url) + '" alt="Dopo" onload="allineaTutto()" style="opacity:1">' +
+      '</div>' +
+      '<div class="cursore"><span class="eti prima">' + esc(T.prima) + '</span>' +
+        '<input type="range" min="0" max="100" value="100" aria-label="Da prima a dopo" oninput="mix(this,' + "'" + ps.plane + "'" + ')">' +
+        '<span class="eti dopo">' + esc(T.dopo) + '</span></div>' +
+      '<div class="allin">' + (allin ? 'Foto allineate sui riferimenti dello studio' : 'Foto non allineate: si guardano, non si misurano') + '</div>' +
+      '</div></div>'
+  } else {
+    const col = (o, cls, eti) => '<div class="foto-col"><span class="eti ' + cls + '">' + esc(eti) + '</span>' +
+      '<div class="riquadro ' + cls + '"><img src="' + esc(o.url) + '" alt="' + esc(eti) + '" onerror="this.parentNode.innerHTML=\'<div class=vuoto>Questa foto non si è aperta. Ricarica la pagina.</div>\'"></div></div>'
+    corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', T.dopo) + '</div>'
+  }
+  return '<div class="slide" data-s="foto">' +
+    testa(T[ps.titolo], ps.sotto) + corpo +
+    '<div class="riga-basso"><div class="criterio"><span class="ico">⟂</span><span>' + esc(T[ps.criterio]) + '</span></div>' +
+    '<div class="modo"><button class="' + (modo === 'affiancate' ? 'on' : '') + '" onclick="setModoFoto(\'' + ps.plane + '\',\'affiancate\')">' + esc(T.foto_affiancate) + '</button>' +
+    '<button class="' + (modo === 'sovrapposte' ? 'on' : '') + '" onclick="setModoFoto(\'' + ps.plane + '\',\'sovrapposte\')">' + esc(T.foto_sovrapposte) + '</button></div></div>' +
+    '</div>'
+}
+function setModoFoto(plane, m) { modoFoto[plane] = m; const c = corrente; costruisci(); vai(c, true) }
+function mix(input, plane) {
+  const r = input.closest('.slide').querySelector('.riquadro .ib')
+  if (r) r.style.opacity = String(Number(input.value) / 100)
+}
+/* Se le due foto sono state allineate in «Confronto nel tempo», nella vista
+   sovrapposta la seconda si porta sulla prima. Stessa matematica, in
+   PolSchermo.matriceAllineamento. */
+function allineaTutto() {
+  const g = giorni[sel]; if (!g) return
+  document.querySelectorAll('[data-allinea]').forEach(box => {
+    const f = g.foto[box.getAttribute('data-allinea')]; if (!f) return
+    const ia = box.querySelector('.ia'), ib = box.querySelector('.ib')
+    if (!ia || !ib) return
+    ib.style.transform = ''
+    const pa = f.pre.path && allineamenti[f.pre.path], pb = f.post.path && allineamenti[f.post.path]
+    if (!pa || !pb) return
+    const bw = box.clientWidth, bh = box.clientHeight
+    const rett = img => {
+      const iw = img.naturalWidth, ih = img.naturalHeight
+      if (!iw || !ih || !bw || !bh) return null
+      const s = Math.min(bw / iw, bh / ih)
+      return { x: (bw - iw * s) / 2, y: (bh - ih * s) / 2, w: iw * s, h: ih * s }
+    }
+    const m = S.matriceAllineamento(rett(ia), rett(ib), pa, pb)
+    if (!m) return
+    ib.style.transformOrigin = '0 0'
+    ib.style.transform = 'matrix(' + m.join(',') + ')'
+  })
+}
+
+/* La spalla: la sagoma di profilo, il filo a piombo, e il punto della spalla
+   avanti, sulla linea o dietro. È la tua osservazione a chip, disegnata. */
+function sagoma(pos, dopo) {
+  const filo = 180, dx = pos * 46
+  const col = dopo ? '#FFD008' : '#B5B5B5'
+  const inAsse = pos === 0
+  return '<svg viewBox="0 0 360 470" aria-hidden="true">' +
+    '<line x1="' + filo + '" y1="8" x2="' + filo + '" y2="462" stroke="#FFD008" stroke-width="3" stroke-dasharray="10 9" opacity=".75"/>' +
+    '<circle cx="' + filo + '" cy="10" r="6" fill="#FFD008" opacity=".75"/>' +
+    '<g fill="none" stroke="#5a5a5a" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="' + (filo + 8) + '" cy="62" r="34" fill="#262626" stroke-width="0"/>' +
+      '<path d="M' + (filo + 4) + ' 104 L' + (filo + dx * 0.5) + ' 130 Q' + (filo + dx * 0.6 - 6) + ' 220 ' + (filo - 4) + ' 270 L' + (filo - 2) + ' 370 L' + (filo + 4) + ' 450"/>' +
+      '<path d="M' + (filo + dx) + ' 142 Q' + (filo + dx + 16) + ' 210 ' + (filo + dx + 22) + ' 262" stroke-width="12" stroke="#484848"/>' +
+    '</g>' +
+    (inAsse ? '<circle cx="' + (filo + dx) + '" cy="142" r="34" fill="rgba(0,196,140,.22)"/>' : '') +
+    '<circle cx="' + (filo + dx) + '" cy="142" r="20" fill="' + col + '" stroke="#0B0B0B" stroke-width="4"/>' +
+    '</svg>'
+}
+function slideSpalla(g) {
+  const s = g.scap
+  return '<div class="slide" data-s="spalla">' + testa(T.spalla_titolo, '') +
+    '<div class="spalla-area">' +
+      '<div class="figura"><span class="eti prima">' + esc(T.prima) + '</span>' + sagoma(s.a.pos, false) + '<div class="parola" style="color:#cfcfcf">' + esc(s.a.parola) + '</div></div>' +
+      '<div class="freccia-grande">→</div>' +
+      '<div class="figura"><span class="eti dopo">' + esc(T.dopo) + '</span>' + sagoma(s.b.pos, true) + '<div class="parola" style="color:#FFD008">' + esc(s.b.parola) + '</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">' + badge(s.esito, parolaEsito(s.esito)) +
+        '<div style="font-size:17px;color:#7A7A7A;font-weight:600">' + esc(T.spalla_fonte) + '</div></div>' +
+    '</div>' +
+    '<div class="criterio"><span class="ico">⟂</span><span>' + esc(T.spalla_criterio) + '</span></div></div>'
+}
+
+function slideEquilibrio(g, lista, da) {
+  const carte = lista.map((c, j) => {
+    const parola = T['eq_' + c.esito] || c.verdetto
+    const colD = c.esito === 'meglio' ? '#54E2B5' : c.esito === 'lavoro' ? '#FFC56A' : '#C9C9C9'
+    return '<div class="eq-card"><canvas width="760" height="760" data-gom="' + (da + j) + '"></canvas>' +
+      '<div class="eq-dati"><div class="eq-cond">' + esc(maiuscola(c.nome)) + '</div>' +
+      '<div class="eq-num">' + esc(T.eq_misura) + '</div>' +
+      '<div class="eq-val"><span class="a">' + S.numIt(c.velA, 1) + '</span><span class="u">→</span><span class="b">' + S.numIt(c.velB, 1) + '</span><span class="u">°/s</span></div>' +
+      '<div class="eq-delta" style="color:' + colD + '">' + S.segno(c.dv) + '</div>' +
+      badge(c.esito, parola) +
+      '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(T.dopo) + '</span></div>' +
+      '<div style="font-size:15px;color:#7A7A7A;font-weight:600">' + esc(T.eq_banda.replace('{b}', c.banda)) + '</div>' +
+      '</div></div>'
+  }).join('')
+  return '<div class="slide" data-s="eq">' + testa(T.eq_titolo, 'Oscillazione Policettiva') +
+    '<div class="eq-area">' + carte + '</div>' +
+    '<div class="criterio" style="margin-top:18px"><span class="ico">◎</span><span>' + esc(T.eq_criterio) + '</span></div></div>'
+}
+/* Il gomitolo del prima (tratteggio grigio) e del dopo (giallo) sulla STESSA
+   scala: se si scalassero separati, due disegni diversi sembrerebbero uguali. */
+function disegnaGomitoli() {
+  const g = giorni[sel]; if (!g || !g.eq) return
+  const P = window.PolOscillazione; if (!P) return
+  document.querySelectorAll('canvas[data-gom]').forEach(cv => {
+    const c = g.eq.condizioni[Number(cv.getAttribute('data-gom'))]; if (!c) return
+    const ra = S.provaMediana(c.righeA), rb = S.provaMediana(c.righeB)
+    const sa = ra ? P.serieDaRiga(ra) : { xs: [], ys: [] }, sb = rb ? P.serieDaRiga(rb) : { xs: [], ys: [] }
+    // ogni traccia attorno al suo centro: qui si guarda QUANTO si muove, il carico è un'altra misura
+    const centra = s => {
+      const n = s.xs.length; if (!n) return s
+      const mx = s.xs.reduce((a, b) => a + b, 0) / n, my = s.ys.reduce((a, b) => a + b, 0) / n
+      return { xs: s.xs.map(x => x - mx), ys: s.ys.map(y => y - my) }
+    }
+    const A = centra(sa), B = centra(sb)
+    let sc = 0.5
+    A.xs.concat(B.xs, A.ys, B.ys).forEach(v => { sc = Math.max(sc, Math.abs(v)) })
+    const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, cx = W / 2, cy = H / 2, k = (W / 2 - 40) / sc
+    ctx.clearRect(0, 0, W, H)
+    ctx.strokeStyle = '#242424'; ctx.lineWidth = 2
+    ctx.beginPath(); ctx.moveTo(cx, 30); ctx.lineTo(cx, H - 30); ctx.moveTo(30, cy); ctx.lineTo(W - 30, cy); ctx.stroke()
+    const traccia = (s, col, tratt, lw) => {
+      if (!s.xs.length) return
+      ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.setLineDash(tratt)
+      ctx.beginPath()
+      s.xs.forEach((x, i) => { const px = cx + x * k, py = cy - s.ys[i] * k; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py) })
+      ctx.stroke(); ctx.restore()
+    }
+    traccia(A, 'rgba(170,170,170,.75)', [10, 8], 3)
+    traccia(B, '#FFD008', [], 4)
+    ctx.fillStyle = '#FFD008'; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = '#6a6a6a'; ctx.font = '600 22px Montserrat, sans-serif'
+    ctx.fillText('avanti', cx + 10, 52); ctx.fillText('destra', W - 100, cy - 12)
+  })
+}
+
+function slideSintesi(g, si) {
+  let grande
+  if (!si.totale) grande = 'Oggi guardiamo le foto insieme'
+  else if (si.conta.meglio) grande = '<em>' + si.conta.meglio + ' su ' + si.totale + '</em> ' + (si.conta.meglio === 1 ? 'è più vicino' : 'sono più vicini') + ' al riferimento'
+  else grande = si.totale === 1 ? 'Oggi il valore è rimasto dov’era' : 'Oggi i valori sono rimasti dov’erano'
+  const voci = si.voci.map(v => {
+    const parola = v.cosa.indexOf('Equilibrio') === 0 ? (T['eq_' + v.esito] || '') : parolaEsito(v.esito)
+    return '<div class="voce"><div><div class="voce-cosa">' + esc(v.cosa) + '</div><div class="voce-det">' + esc(v.dettaglio) + '</div>' +
+      '<div class="voce-fonte">' + esc(v.fonte) + '</div></div>' + badge(v.esito, parola) + '</div>'
+  }).join('')
+  return '<div class="slide" data-s="sintesi">' + testa(T.sintesi_titolo, '') +
+    '<div class="sint-grande">' + grande + '</div><div class="voci">' + voci + '</div>' +
+    (si.foto ? '<div class="criterio"><span class="ico">📷</span><span>' + esc(T.sintesi_foto) + '</span></div>' : '') + '</div>'
+}
+
+function slidePercorso(perc) {
+  const pts = perc.punti
+  let graf = ''
+  if (perc.conEq >= 2) {
+    const W = 1400, H = 420, L = 90, R = 40, TOP = 30, B = 60
+    const vals = []; pts.forEach(p => { if (p.velA != null) vals.push(p.velA); if (p.velB != null) vals.push(p.velB) })
+    // tacche tonde: 0, 1, 2… (o di 2 in 2 se i valori sono alti)
+    const passo = Math.max(1, Math.ceil(Math.max.apply(null, vals) * 1.1 / 5))
+    const max = Math.max(passo, Math.ceil(Math.max.apply(null, vals) * 1.1 / passo) * passo)
+    const x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1))
+    const y = v => TOP + (H - TOP - B) * (1 - v / max)
+    let assi = ''
+    for (let v = 0; v <= max + 1e-9; v += passo) {
+      assi += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="#262626" stroke-width="1"/>' +
+        '<text x="' + (L - 14) + '" y="' + (y(v) + 6) + '" fill="#777" font-size="18" text-anchor="end">' + S.numIt(v, 0) + '</text>'
+    }
+    const linea = (k, col, tratt) => {
+      const d = pts.map((p, i) => p[k] == null ? null : [x(i), y(p[k])]).filter(Boolean)
+      return '<polyline fill="none" stroke="' + col + '" stroke-width="3" ' + (tratt ? 'stroke-dasharray="10 8"' : '') + ' points="' + d.map(q => q.join(',')).join(' ') + '"/>' +
+        d.map(q => '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="9" fill="' + col + '" stroke="#151515" stroke-width="3"/>').join('')
+    }
+    // con molte sedute le date si diradano, l'ultima c'è sempre
+    const ogni = Math.ceil(pts.length / 8)
+    const etichette = pts.map((p, i) => (i % ogni && i !== pts.length - 1) ? '' : '<text x="' + x(i) + '" y="' + (H - 18) + '" fill="#aaa" font-size="18" font-weight="700" text-anchor="middle">' +
+      esc(p.scheda ? 'Iniziali' : S.dataCorta(p.giorno)) + '</text>').join('')
+    const bersagli = pts.map((p, i) => p.velA == null ? '' :
+      '<rect x="' + (x(i) - 40) + '" y="' + TOP + '" width="80" height="' + (H - TOP - B) + '" fill="transparent" ' +
+      'data-tip="' + esc((p.scheda ? 'Foto iniziali' : S.dataCorta(p.giorno)) + ' · prima ' + S.numIt(p.velA, 1) + ' → dopo ' + S.numIt(p.velB, 1) + ' °/s') + '"/>').join('')
+    graf = '<div class="perc-graf" onmousemove="tip(event)" onmouseleave="tip(null)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+        '<div style="font-size:20px;font-weight:800">' + esc(T.eq_misura) + ' · <span style="color:#aaa">' + esc(maiuscola(perc.nome || '')) + '</span> <span style="color:#777;font-size:16px">(°/s, più basso = più fermo)</span></div>' +
+        '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(T.dopo) + '</span></div></div>' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">' + assi + linea('velA', '#9A9A9A', true) + linea('velB', '#FFD008', false) + etichette + bersagli + '</svg>' +
+      '<div class="tip" id="tip"></div></div>'
+  }
+  let scap = ''
+  if (perc.conScap >= 1) {
+    scap = '<div class="perc-scap">' + pts.filter(p => p.scap && p.scap.esito !== 'nd').slice(-8).map(p =>
+      '<div class="perc-giorno"><div class="d">' + esc(p.scheda ? 'Iniziali' : S.dataCorta(p.giorno)) + '</div>' +
+      '<div class="s">Spalla: ' + esc(p.scap.a.parola) + ' → <b style="color:#FFD008">' + esc(p.scap.b.parola) + '</b></div></div>').join('') + '</div>'
+  }
+  return '<div class="slide" data-s="percorso">' + testa(T.percorso_titolo, T.percorso_sotto) +
+    '<div class="perc-area">' + graf + scap + '</div></div>'
+}
+function maiuscola(t) { t = String(t || ''); return t.charAt(0).toUpperCase() + t.slice(1) }
+function tip(e) {
+  const t = document.getElementById('tip'); if (!t) return
+  const r = e && e.target && e.target.getAttribute && e.target.getAttribute('data-tip')
+  if (!r) { t.style.display = 'none'; return }
+  const box = t.parentNode.getBoundingClientRect(), s = box.width / t.parentNode.offsetWidth
+  t.textContent = r; t.style.display = 'block'
+  t.style.left = ((e.clientX - box.left) / s + 14) + 'px'; t.style.top = ((e.clientY - box.top) / s - 40) + 'px'
+}
+
+// ── NAVIGAZIONE ───────────────────────────────────────────
+function vai(i, subito) {
+  if (i < 0 || i >= slides.length) return
+  corrente = i
+  document.querySelectorAll('#slides .slide').forEach((s, k) => s.classList.toggle('on', k === i))
+  document.querySelectorAll('#puntini button').forEach((b, k) => b.classList.toggle('on', k === i))
+  aggiornaFrecce()
+  setTimeout(allineaTutto, 30)
+}
+function aggiornaFrecce() {
+  document.getElementById('nav-sx').disabled = corrente <= 0
+  document.getElementById('nav-dx').disabled = corrente >= slides.length - 1
+}
+function disegnaPuntini() {
+  document.getElementById('puntini').innerHTML = slides.length > 1
+    ? slides.map((s, i) => '<button aria-label="Pagina ' + (i + 1) + '" onclick="vai(' + i + ')"></button>').join('') : ''
+}
+
+// ── LE PROVE DA SEGNARE (solo per il professionista) ─────
+function disegnaProPrope() {
+  const el = document.getElementById('pro-prove')
+  const g = giorni[sel]
+  if (!g) { el.innerHTML = ''; return }
+  let h = ''
+  if (manca048) {
+    h += '<div class="msg ko">⚠️ <b>Manca la migration 048_oscillazione_momento.sql</b>: le prove di equilibrio non possono essere segnate «prima» o «dopo» i 3 Respiri, quindi l’equilibrio non compare. Il resto funziona.</div>'
+  }
+  const tutte = (g.prove || []).concat(g.nonSegnate || []).sort((a, b) => String(a.quando).localeCompare(String(b.quando)))
+  if (tutte.length && !manca048) {
+    h += '<div class="lbl">Prove di equilibrio di questo giorno</div>' +
+      '<div class="msg info" style="margin:0 0 6px">Segna quali prove sono <b>prima</b> e quali <b>dopo</b> i 3 Respiri: lo schermo confronta solo quelle segnate, condizione per condizione.</div>' +
+      tutte.map(r => {
+        const ora = new Date(r.quando).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+        const cond = window.PolOscillazione ? PolOscillazione.nomeCond(PolOscillazione.condizioneDi(Object.assign({}, r, { momento: null }))) : r.evento
+        return '<div class="segna"><span class="t">' + esc(ora) + ' · ' + esc(cond) + ' <small>· ' + S.numIt(r.velocita, 1) + ' °/s</small></span>' +
+          '<button class="' + (r.momento === 'pre' ? 'on' : '') + '" onclick="segna(\'' + r.id + '\',\'pre\')">Prima</button>' +
+          '<button class="' + (r.momento === 'post' ? 'on' : '') + '" onclick="segna(\'' + r.id + '\',\'post\')">Dopo</button>' +
+          '<button class="' + (!r.momento ? 'on' : '') + '" onclick="segna(\'' + r.id + '\',null)">—</button></div>'
+      }).join('')
+    if (g.eq && g.eq.condizioni.length === 0 && (g.eq.soloPre || g.eq.soloPost)) {
+      h += '<div class="msg info">Per il confronto servono prove <b>prima</b> e <b>dopo</b> nella stessa condizione (stesso test, stessi occhi).</div>'
+    }
+  }
+  el.innerHTML = h
+}
+async function segna(id, momento) {
+  const { error } = await _sb.from('oscillazione_test').update({ momento: momento }).eq('id', id)
+  if (error) {
+    if (/momento/.test(error.message || '')) { manca048 = true; disegnaProPrope(); return }
+    errore('Non ho potuto segnare la prova: ' + esc(error.message)); return
+  }
+  // si ricostruisce tutto dal dato aggiornato: la prova cambia gruppo
+  const g = giorni[sel]
+  const tutte = (g.prove || []).concat(g.nonSegnate || [])
+  const r = tutte.find(x => x.id === id); if (r) r.momento = momento
+  const chiave = g.chiave
+  // visite e foto restano quelle già caricate: cambia solo il gruppo delle prove
+  giorni = giorni.map(gg => {
+    const tutteG = (gg.prove || []).concat(gg.nonSegnate || [])
+    const nuovo = Object.assign({}, gg)
+    nuovo.prove = tutteG.filter(x => x.momento === 'pre' || x.momento === 'post')
+    nuovo.nonSegnate = tutteG.filter(x => !(x.momento === 'pre' || x.momento === 'post'))
+    nuovo.eq = S.equilibrio(nuovo.prove)
+    return nuovo
+  })
+  sel = giorni.findIndex(gg => gg.chiave === chiave)
+  disegnaGiorni()
+  costruisci()
+}
+
+init()
+</script>
+</body>
+</html>

@@ -1311,7 +1311,11 @@
     <div class="field-group" id="s3-foto-card" style="padding:0;overflow:hidden">
       <div style="padding:18px 16px 10px;display:flex;align-items:center;justify-content:space-between">
         <label class="field-label ds-label" style="margin-bottom:0">Foto posturali</label>
-        <span id="s3-foto-count" style="font-size:11px;color:#999;font-weight:600;font-family:'Montserrat',sans-serif">0 / 12</span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <span id="s3-foto-count" style="font-size:11px;color:#999;font-weight:600;font-family:'Montserrat',sans-serif">0 / 12</span>
+          <!-- schermo-paziente-v1 — il prima e dopo di questa visita, per il paziente (anche sulla TV) -->
+          <button type="button" onclick="apriSchermoPaziente()" style="background:#000;color:#FFD008;border:1.5px solid #FFD008;border-radius:8px;padding:6px 11px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:800;cursor:pointer">📺 Mostra al paziente</button>
+        </span>
       </div>
       <div id="s3-foto-grid"></div>
     </div>
@@ -2329,6 +2333,14 @@
   }
 
   // ====== AUTOSAVE ======
+  /* schermo-paziente-v1 — si salva quello che è in attesa (chip della spalla
+     compresi), poi si apre lo schermo del paziente sul giorno di QUESTA visita. */
+  async function apriSchermoPaziente() {
+    if (!patientId || !visitId || visitId === 'null') { showToast('Aspetta che la visita finisca di caricare'); return }
+    try { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; await actualSave() } } catch (e) { /* si apre lo stesso */ }
+    window.location.href = 'schermo-paziente.html?id=' + encodeURIComponent(patientId) + '&visita=' + encodeURIComponent(visitId)
+  }
+
   function scheduleSave() {
     clearTimeout(saveTimer)
     setIndicator('saving')
