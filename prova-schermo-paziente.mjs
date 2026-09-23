@@ -132,6 +132,22 @@ function dati(opts = {}) {
       { storage_path: 'visits/v-post/sag-pre.jpg', punti: { a: { x: 0.5, y: 0.1 }, b: { x: 0.5, y: 0.9 } } },
       { storage_path: 'visits/v-post/sag-post.jpg', punti: { a: { x: 0.52, y: 0.12 }, b: { x: 0.52, y: 0.92 } } },
     ] : [],
+    // gradi-foto-v1 · misure già confermate (opts.misure)
+    foto_misure: opts.misure ? [
+      { patient_id: PID, storage_path: 'visits/v-post/sag-pre.jpg', vista: 'sagittale', verso: 1,
+        punti: { filo_alto: { x: .5, y: .03 }, filo_basso: { x: .5, y: .97 }, orecchio: { x: .6, y: .15 }, spalla: { x: .55, y: .25 }, anca: { x: .5, y: .5 }, ginocchio: { x: .5, y: .72 }, caviglia: { x: .5, y: .9 } },
+        gradi: [{ k: 'testa', nome: 'Orecchio rispetto alla spalla', gradi: 12.4, valore: 12.4, parola: 'in avanti' },
+                { k: 'tronco', nome: 'Spalla rispetto all’anca', gradi: 5.1, valore: 5.1, parola: 'in avanti' }] },
+      { patient_id: PID, storage_path: 'visits/v-post/sag-post.jpg', vista: 'sagittale', verso: 1,
+        punti: { filo_alto: { x: .5, y: .03 }, filo_basso: { x: .5, y: .97 }, orecchio: { x: .53, y: .15 }, spalla: { x: .51, y: .25 }, anca: { x: .5, y: .5 }, ginocchio: { x: .5, y: .72 }, caviglia: { x: .5, y: .9 } },
+        gradi: [{ k: 'testa', nome: 'Orecchio rispetto alla spalla', gradi: 9.1, valore: 9.1, parola: 'in avanti' },
+                { k: 'tronco', nome: 'Spalla rispetto all’anca', gradi: 1.2, valore: 1.2, parola: 'in avanti' }] },
+      { patient_id: PID, storage_path: 'visits/v-fisio/old-pre.jpg', vista: 'sagittale', verso: -1, punti: {},
+        gradi: [{ k: 'testa', nome: 'Orecchio rispetto alla spalla', gradi: 15, valore: 15, parola: 'in avanti' }] },
+      { patient_id: PID, storage_path: 'visits/v-fisio/old-post.jpg', vista: 'sagittale', verso: -1, punti: {},
+        gradi: [{ k: 'testa', nome: 'Orecchio rispetto alla spalla', gradi: 13, valore: 13, parola: 'in avanti' }] }
+    ] : [],
+    upserts: [],
     aggiornate: []
   }
 }
@@ -154,13 +170,20 @@ const SUPA = ({ D, FIRME }) => {
       eq(k, v) { st.f.push([k, v]); return api },
       in(k, v) { st.f.push([k, v, 'in']); return api },
       update(d) { st.upd = d; return api },
+      // gradi-foto-v1 · l'upsert su storage_path, come il vero
+      upsert(d, o) { st.ups = d; return api },
       async maybeSingle() {
         if (tab === 'professionals') return { data: { id: 'PROF-1', piano: D.opts.free ? 'free' : 'premium', premium_scadenza: null }, error: null }
         return { data: righe()[0] || null, error: null }
       },
       then(res, rej) {
         let out
-        if (st.upd) {
+        if (st.ups) {
+          if (D.opts.senza049) out = { data: null, error: { code: '42P01', message: 'relation "public.foto_misure" does not exist' } }
+          else { D.upserts.push({ tab, d: st.ups }); D[tab] = (D[tab] || []).filter(r => r.storage_path !== st.ups.storage_path).concat([st.ups]); out = { data: null, error: null } }
+        } else if (tab === 'foto_misure' && D.opts.senza049) {
+          out = { data: null, error: { code: '42P01', message: 'relation "public.foto_misure" does not exist' } }
+        } else if (st.upd) {
           if (D.opts.senza048 && 'momento' in st.upd) out = { data: null, error: { code: 'PGRST204', message: "Could not find the 'momento' column of 'oscillazione_test' in the schema cache" } }
           else { righe().forEach(r => Object.assign(r, st.upd)); D.aggiornate.push({ tab, d: st.upd, f: st.f }); out = { data: null, error: null } }
         } else if (tab === 'oscillazione_test' && D.opts.senza046) {
@@ -535,6 +558,154 @@ sez('valutazioni-coerenti-v1 · il motore: stesso giorno, prima la valutazione i
   check('⛔ senza numero nel nome la data NON c’è', V.dataDaPercorso('x/prima-sx.jpg') === null)
   const src = senzaCommenti(fs.readFileSync(path.join(ROOT, 'js/valutazioni.js'), 'utf8'))
   check('⛔ js/valutazioni.js non usa la rete', !/supabase|fetch\(/.test(src))
+}
+
+sez('⭐⭐ gradi-foto-v1 · i gradi sulle foto: pulsanti a parte, foto normale di partenza')
+{
+  const { page, ctx, errori } = await apri(browser, { misure: true })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await vaiA(page, 'foto:sagittale_dx')
+  check('⭐ ci sono i pulsanti «° Gradi» e «📐 Riferimento»', await page.isVisible('.slide.on .modo button.gr') && await page.isVisible('.slide.on .modo button.rf'))
+  check('⭐ ma si parte dalla foto normale: nessun segno sopra', (await page.$$eval('.slide.on svg.sovra', s => s.map(x => x.innerHTML.length))).every(n => n === 0))
+  await page.click('.slide.on .modo button.gr'); await page.waitForTimeout(500)
+  const sv = await page.$$eval('.slide.on svg.sovra', s => s.map(x => ({ linee: x.querySelectorAll('line').length, testi: [...x.querySelectorAll('text')].map(t => t.textContent) })))
+  check('⭐⭐ «° Gradi»: punti e linee su TUTTE e due le foto', sv.length === 2 && sv.every(x => x.linee >= 5), sv)
+  check('⭐ e i gradi scritti sulla foto: 12,4° prima, 9,1° dopo', sv[0].testi.includes('12,4°') && sv[1].testi.includes('9,1°'), sv)
+  const t = await testoSlide(page)
+  check('⭐⭐ sotto le foto: «Orecchio rispetto alla spalla 12,4° → 9,1°»', /Orecchio rispetto alla spalla/.test(t) && /12,4°\s*→\s*9,1°/.test(t), t)
+  check('⭐ con la differenza in gradi (−3,3°)', /−3,3°/.test(t), t)
+  check('⭐⭐ e dice che è DA CONFERMARE: l’errore non è ancora misurato', /non è ancora stato misurato/.test(t))
+  check('⛔ nessun «migliorato» sulle foto finché l’errore non c’è', !/Più vicino al riferimento/.test(t))
+  await page.screenshot({ path: path.join(OUT, '12-gradi.png') })
+  await page.click('.slide.on .modo button.rf'); await page.waitForTimeout(500)
+  const rf = await page.$$eval('.slide.on svg.sovra', s => s.map(x => ({ verdi: x.querySelectorAll('line[stroke="#00C48C"]').length, fantasmi: x.querySelectorAll('circle[fill="none"]').length })))
+  check('⭐⭐ «📐 Riferimento»: la linea verde personale e i punti dove starebbero, su tutte e due', rf.every(x => x.verdi === 1 && x.fantasmi === 4), rf)
+  await page.screenshot({ path: path.join(OUT, '13-riferimento.png') })
+  await page.click('.slide.on .modo button.gr'); await page.waitForTimeout(400)
+  const solo = await page.$$eval('.slide.on svg.sovra', s => s.map(x => ({ testi: x.querySelectorAll('text').length, verdi: x.querySelectorAll('line[stroke="#00C48C"]').length })))
+  check('⭐ i due pulsanti sono indipendenti: solo riferimento, senza numeri', solo.every(x => x.testi === 0 && x.verdi === 1), solo)
+  await page.click('.slide.on .modo button:nth-child(2)'); await page.waitForTimeout(400)
+  check('in «Sovrapposte» i pulsanti dei gradi non ci sono (resta il cursore)', !(await page.isVisible('.slide.on .modo button.gr')))
+  await vaiA(page, 'sintesi')
+  check('⭐ la sintesi dice che ci sono confronti in gradi, da non giudicare ancora', /confronti in gradi/.test(await testoSlide(page)))
+  const ids = await slideIds(page)
+  check('⭐ con due giorni misurati compare «I gradi nel tempo»', ids.includes('gradi-tempo'), ids)
+  await vaiA(page, 'gradi-tempo')
+  const tt = await testoSlide(page)
+  check('⭐ la tabella: 10/09 15,0° → 13,0° e 20/09 12,4° → 9,1°', /15,0°\s*→\s*13,0°/.test(tt) && /12,4°\s*→\s*9,1°/.test(tt), tt)
+  await page.screenshot({ path: path.join(OUT, '14-gradi-nel-tempo.png') })
+  await ctx.close()
+}
+
+sez('⭐ gradi-foto-v1 · senza misure i pulsanti non compaiono sul palco')
+{
+  const { page, ctx } = await apri(browser)
+  await vaiA(page, 'foto:sagittale_dx')
+  check('⭐ niente «° Gradi» se la coppia non è misurata', !(await page.isVisible('.slide.on .modo button.gr')))
+  check('⭐ sotto il palco invece c’è «Gradi sulle foto» con Prima / Dopo da misurare', /Gradi sulle foto/.test(await page.textContent('#pro-prove')) &&
+    (await page.$$('#pro-prove .misure-riga')).length === 2)
+  await ctx.close()
+}
+
+sez('⭐⭐ gradi-foto-v1 · l’editor: il modello propone, il professionista sposta e conferma')
+{
+  const { page, ctx, errori } = await apri(browser)
+  // il modello finto: 33 punti come MediaPipe, fianco destro più visibile
+  await page.evaluate(() => {
+    window.__mpFinto = async () => {
+      const lm = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, visibility: 0.2 }))
+      const set = (i, x, y, v) => { lm[i] = { x, y, visibility: v } }
+      set(8, 0.58, 0.14, .9); set(12, 0.54, 0.26, .95); set(24, 0.5, 0.5, .95); set(26, 0.5, 0.71, .95); set(28, 0.5, 0.9, .95)
+      set(7, 0.4, 0.14, .1); set(11, 0.4, 0.26, .1); set(23, 0.4, 0.5, .1); set(25, 0.4, 0.71, .1); set(27, 0.4, 0.9, .1)
+      return { ok: true, punti: lm }
+    }
+  })
+  await page.click('#pro-prove .misure-riga:nth-of-type(1) button:nth-of-type(1)').catch(() => {})
+  const bottoni = await page.$$('#pro-prove .misure-riga button')
+  await bottoni[0].click()
+  await page.waitForTimeout(900)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  check('⭐ l’editor si apre sopra tutto', await page.isVisible('#ed'))
+  check('⭐ dice che i punti li ha proposti il modello, da controllare', /proposti dal modello/.test(await page.textContent('#ed-stato')), await page.textContent('#ed-stato'))
+  const g1 = await page.textContent('#ed-gradi')
+  check('⭐ e mostra i gradi mentre si lavora', /Orecchio rispetto alla spalla/.test(g1) && /°/.test(g1), g1)
+  check('⭐ il lato destro (il più visibile) è quello scelto: orecchio a x 0,58', await page.evaluate(() => Math.abs(ed.punti.orecchio.x - 0.58) < 1e-9))
+  // si trascina il punto dell'orecchio
+  const c = await page.$eval('#ed-svg circle.pm[data-k="orecchio"]', e => ({ x: +e.getAttribute('cx'), y: +e.getAttribute('cy') }))
+  const b = await page.$eval('#ed-foto', e => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top } })
+  await page.mouse.move(b.x + c.x, b.y + c.y); await page.mouse.down()
+  await page.mouse.move(b.x + c.x - 40, b.y + c.y, { steps: 5 }); await page.mouse.up()
+  await page.waitForTimeout(200)
+  const g2 = await page.textContent('#ed-gradi')
+  check('⭐⭐ trascinando col dito il punto si sposta e i gradi cambiano', g2 !== g1, [g1, g2])
+  await page.screenshot({ path: path.join(OUT, '15-editor.png') })
+  await page.click('#ed-salva'); await page.waitForTimeout(600)
+  const up = await page.evaluate(() => window.__D.upserts)
+  check('⭐⭐ salva UNA riga su foto_misure, per il file giusto', up.length === 1 && up[0].tab === 'foto_misure' && up[0].d.storage_path === 'visits/v-post/sag-pre.jpg', up.map(u => u.d.storage_path))
+  const d = up[0] ? up[0].d : {}
+  check('⭐ con punti, gradi, vista, verso, dimensioni e versione', d.vista === 'sagittale' && d.verso === 1 && d.gradi.length === 4 && d.larghezza === 600 && d.altezza === 900 && d.versione === 'gradi-foto-v1' && d.origine === 'mediapipe', d)
+  check('l’editor si chiude', !(await page.isVisible('#ed')))
+  check('⭐ e sotto il palco la foto risulta misurata (✓)', /Prima ✓/.test(await page.textContent('#pro-prove')))
+  await ctx.close()
+}
+
+sez('⭐ gradi-foto-v1 · senza il modello si misura a mano')
+{
+  const { page, ctx, errori } = await apri(browser)
+  await page.evaluate(() => { window.__mpFinto = async () => ({ ok: false, message: 'Nessuna persona rilevata nella foto.' }) })
+  const bottoni = await page.$$('#pro-prove .misure-riga button'); await bottoni[1].click()
+  await page.waitForTimeout(700)
+  check('⭐ lo dice, e lascia i punti da spostare a mano', /Nessuna persona rilevata/.test(await page.textContent('#ed-stato')) && /a mano/.test(await page.textContent('#ed-stato')))
+  check('i punti ci sono (sagoma standard)', (await page.$$('#ed-svg circle.pm')).length === 7)
+  await page.click('#ed-salva'); await page.waitForTimeout(500)
+  const up = await page.evaluate(() => window.__D.upserts)
+  check('⭐ e si salva lo stesso, segnato «a mano»', up.length === 1 && up[0].d.origine === 'mano' && up[0].d.storage_path === 'visits/v-post/sag-post.jpg', up.map(u => u.d.origine))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐ gradi-foto-v1 · senza la migration 049 lo dice per nome; Free vede il lucchetto')
+{
+  const a = await apri(browser, { senza049: true })
+  check('⭐ «manca 049_foto_misure.sql» sotto il palco', /049_foto_misure\.sql/.test(await a.page.textContent('#pro-prove')))
+  check('⛔ e sul palco niente', !/049|migration/i.test(await a.page.evaluate(() => document.getElementById('palco').innerText)))
+  check('nessun errore JS', a.errori.length === 0, a.errori)
+  await a.ctx.close()
+  const b = await apri(browser, { free: true })
+  check('⭐ Free: misurare i gradi è Premium', /Misurare i gradi sulle foto è Premium/.test(await b.page.textContent('#pro-prove')))
+  await b.ctx.close()
+}
+
+sez('gradi-foto-v1 · il motore dei gradi')
+{
+  const ctx = { console, Intl }; ctx.globalThis = ctx; vm.createContext(ctx)
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/misure-foto.js'), 'utf8'), ctx)
+  const M = ctx.PolMisure, W = 600, H = 900
+  const src = senzaCommenti(fs.readFileSync(path.join(ROOT, 'js/misure-foto.js'), 'utf8'))
+  check('⛔ il motore dei gradi non usa la rete', !/supabase|fetch\(/.test(src))
+  check('⛔ l’errore di misura è VUOTO: nessun numero inventato', Object.keys(M.ERRORE).length === 0)
+  const p = { filo_alto: { x: .5, y: .05 }, filo_basso: { x: .5, y: .95 }, caviglia: { x: .5, y: .9 }, ginocchio: { x: .5, y: .7 }, anca: { x: .5, y: .5 }, spalla: { x: .5, y: .25 }, orecchio: { x: 330 / 600, y: 125 / 900 } }
+  const m = M.misure('sagittale', p, W, H, 1)
+  check('⭐ orecchio 30 px avanti su 100 px = 16,7° in avanti', m[0].k === 'testa' && m[0].valore === 16.7 && m[0].parola === 'in avanti', m[0])
+  check('⭐ guardando a sinistra lo stesso punto è «indietro»', M.misure('sagittale', p, W, H, -1)[0].parola === 'indietro')
+  const th = 5 * Math.PI / 180
+  const rot = q => ({ x: (300 + (q.x * W - 300) * Math.cos(th) - (q.y * H - 450) * Math.sin(th)) / W, y: (450 + (q.x * W - 300) * Math.sin(th) + (q.y * H - 450) * Math.cos(th)) / H })
+  const p2 = {}; for (const k in p) p2[k] = rot(k === 'orecchio' ? { x: .5, y: .14 } : p[k])
+  check('⭐⭐ telefono storto di 5°, corpo sul filo: tutto 0° (il riferimento è il filo, non il bordo)', M.misure('sagittale', p2, W, H, 1).every(x => x.valore === 0), M.misure('sagittale', p2, W, H, 1).map(x => x.valore))
+  const f = { filo_alto: { x: .5, y: .05 }, filo_basso: { x: .5, y: .95 }, spalla_dx: { x: .39, y: 215 / 900 }, spalla_sx: { x: .61, y: .25 }, anca_dx: { x: .43, y: .5 }, anca_sx: { x: .57, y: .5 },
+    ginocchio_dx: { x: .46, y: .7 }, ginocchio_sx: { x: .57, y: .7 }, caviglia_dx: { x: .43, y: .9 }, caviglia_sx: { x: .57, y: .9 } }
+  const mf = M.misure('frontale', f, W, H)
+  const by = k => mf.find(x => x.k === k)
+  check('⭐ spalla destra 10 px più alta su 132 px = 4,3°, «più alta a destra»', by('spalle').valore === 4.3 && by('spalle').parola === 'più alta a destra', by('spalle'))
+  check('⭐ bacino in piano = 0° (mai «-0»)', by('bacino').valore === 0 && Object.is(by('bacino').gradi, 0), by('bacino'))
+  check('⭐ ginocchio destro spostato verso il centro = «verso l’interno»', by('ginocchio_dx').parola === 'verso l’interno' && by('ginocchio_dx').valore > 10, by('ginocchio_dx'))
+  check('ginocchio sinistro dritto', by('ginocchio_sx').valore === 0)
+  const c = M.confronto(mf, M.misure('frontale', M.predefiniti('frontale'), W, H))
+  check('⭐ il confronto dà la differenza ma l’esito resta «da confermare»', c.every(x => x.esito === 'daconfermare') && c[0].delta === -4.3, c.map(x => [x.k, x.delta, x.esito]))
+  const rf = M.riferimento('sagittale', p, W, H)
+  check('⭐ il riferimento personale: orecchio ideale sulla verticale della caviglia, alla stessa altezza', Math.abs(rf.fantasmi[0].ideale.x - 0.5) < 1e-9 && Math.abs(rf.fantasmi[0].ideale.y - p.orecchio.y) < 1e-9, rf.fantasmi[0])
+  const po = fs.readFileSync(path.join(ROOT, 'js/postural-overlay.js'), 'utf8')
+  check('⭐ i punti del modello vengono dallo STESSO file dell’analisi posturale (un landmarker solo)', /export async function puntiMediaPipe/.test(po) && /export async function generateOverlay/.test(po))
 }
 
 sez('⭐ Un paziente senza niente di registrato')

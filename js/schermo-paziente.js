@@ -1,4 +1,4 @@
-/* js/schermo-paziente.js — schermo-paziente-v1 (23 settembre 2026) · valutazioni-coerenti-v1
+/* js/schermo-paziente.js — schermo-paziente-v1 (23 settembre 2026) · valutazioni-coerenti-v1 · gradi-foto-v1
  *
  * IL «PRIMA E DOPO» CHE SI MOSTRA AL PAZIENTE, IN UN FILE SOLO.
  *
@@ -59,6 +59,14 @@
     sintesi_foto:       'Le foto le guardiamo insieme: per dare un numero alla postura serve prima tarare la misura.',
     percorso_titolo:    'Il tuo percorso',
     percorso_sotto:     'Seduta dopo seduta: il prima e il dopo di ogni volta.',
+
+    // gradi-foto-v1 · i gradi sulle foto (3A 4A)
+    gradi_bottone:      '° Gradi',
+    rif_bottone:        '📐 Riferimento',
+    gradi_nota:         'Differenza da confermare: l’errore di questa misura non è ancora stato misurato. I gradi si leggono, non si giudicano.',
+    sintesi_gradi:      'Le foto hanno {n} confronti in gradi: la differenza si legge, ma non si giudica finché non misuriamo l’errore della misura.',
+    gradi_tempo_titolo: 'I gradi nel tempo',
+    gradi_tempo_sotto:  'Prima → dopo, seduta per seduta. 0° è il riferimento.',
 
     esito_meglio:       'Più vicino al riferimento',
     esito_uguale:       'Invariato',

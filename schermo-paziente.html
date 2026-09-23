@@ -10,11 +10,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/osservazioni.js"></script>
   <script src="js/postural-component.js"></script>
-  <script src="js/oscillazione.js"></script>
-  <script src="js/schermo-paziente.js"></script>
+  <script src="js/oscillazione.js?v=gradi-foto-v1"></script>
+  <script src="js/schermo-paziente.js?v=gradi-foto-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
-  <script src="js/valutazioni.js"></script>
+  <script src="js/valutazioni.js?v=gradi-foto-v1"></script>
   <script src="utils-premium.js"></script>
+  <!-- gradi-foto-v1 · i gradi sulle foto: punti confermati, riferimento personale -->
+  <script src="js/misure-foto.js?v=gradi-foto-v1"></script>
   <!-- schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
        LO SCHERMO DEL PAZIENTE: il prima e dopo dei 3 Respiri, fatto per essere
        guardato insieme, anche su una TV (duplicazione dello schermo, decisione 5A).
@@ -192,6 +194,51 @@
     .segna button { background: #1d1d1d; border: 1px solid #333; color: #ddd; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; }
     .segna button.on { background: var(--giallo); border-color: var(--giallo); color: #000; }
     .ruota { display: none; }
+
+    /* ── gradi-foto-v1 · gradi e riferimento sulle foto ── */
+    .riquadro svg.sovra { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .modo button.gr.on { background: var(--giallo); border-color: var(--giallo); color: #000; }
+    .modo button.rf.on { background: var(--verde); border-color: var(--verde); color: #000; }
+    .gradi-riga { display: flex; gap: 12px; justify-content: center; margin-top: 12px; flex-wrap: nowrap; }
+    .gradi-voce { background: var(--carta); border: 1px solid var(--riga); border-radius: 14px; padding: 10px 16px; min-width: 0; flex: 1; max-width: 340px; }
+    .gv-nome { font-size: 16px; color: var(--testo2); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gv-val { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+    .gv-val .a { font-size: 24px; font-weight: 800; color: #bdbdbd; }
+    .gv-val .fr { font-size: 18px; color: var(--testo3); }
+    .gv-val .b { font-size: 30px; font-weight: 900; color: var(--giallo); }
+    .gv-val .d { font-size: 18px; font-weight: 800; color: var(--testo3); margin-left: auto; }
+    .gv-parola { font-size: 15px; color: var(--testo3); font-weight: 600; }
+    .gradi-nota { text-align: center; font-size: 15px; color: var(--testo3); font-weight: 600; margin-top: 6px; min-height: 4px; }
+    .tab-tempo { width: 100%; border-collapse: separate; border-spacing: 0 10px; font-size: 20px; }
+    .tab-tempo th { text-align: left; color: var(--testo3); font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; padding: 0 14px; }
+    .tab-tempo td { background: var(--carta); padding: 14px; font-weight: 700; }
+    .tab-tempo td:first-child { border-radius: 14px 0 0 14px; color: var(--testo2); }
+    .tab-tempo td:last-child { border-radius: 0 14px 14px 0; }
+    .tab-tempo .b { color: var(--giallo); font-weight: 900; }
+
+    /* ── editor dei punti (solo professionista) ── */
+    .ed { position: fixed; inset: 0; z-index: 400; background: #050505; display: none; }
+    .ed.on { display: flex; }
+    .ed-foto { flex: 1; position: relative; min-width: 0; touch-action: none; }
+    .ed-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+    .ed-foto svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .ed-foto circle.pm { cursor: grab; }
+    .ed-lato { width: 340px; flex: 0 0 auto; background: #111; border-left: 1px solid #222; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .ed-tit { font-size: 16px; font-weight: 900; color: var(--giallo); }
+    .ed-txt { font-size: 12.5px; color: #bbb; line-height: 1.5; }
+    .ed-punti { display: flex; flex-direction: column; gap: 4px; }
+    .ed-punto { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #ddd; padding: 5px 8px; border-radius: 8px; background: #181818; }
+    .ed-punto i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+    .ed-gradi { background: #181818; border-radius: 10px; padding: 10px; font-size: 13px; line-height: 1.7; color: #eee; }
+    .ed-gradi b { color: var(--giallo); }
+    .ed-riga { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ed-stato { font-size: 12.5px; line-height: 1.5; border-radius: 8px; padding: 8px 10px; background: #181818; color: #bbb; }
+    .ed-stato.ko { background: #2a1414; color: #ffb4b4; } .ed-stato.ok { background: #12241d; color: #7fe3c0; }
+    .misure-riga { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #141414; border: 1px solid #262626; border-radius: 10px; padding: 9px 12px; margin-top: 6px; }
+    .misure-riga .t { font-size: 13px; font-weight: 800; margin-right: auto; }
+    .misure-riga button { background: #1d1d1d; border: 1px solid #333; color: #ddd; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .misure-riga button.fatto { border-color: #1d5c47; color: #7fe3c0; }
+    @media (max-width: 760px) { .ed { flex-direction: column; } .ed-lato { width: auto; max-height: 46vh; border-left: 0; border-top: 1px solid #222; } }
     @media (max-width: 560px) { .segna .t { flex: 1 1 100%; } .segna button { flex: 1; padding: 10px 12px; font-size: 13px; } }
     @media (orientation: portrait) and (max-width: 700px) { .ruota { display: block; } }
   </style>
@@ -224,6 +271,24 @@
       📺 <b>Per vederlo sulla TV</b>: duplica lo schermo (iPhone/iPad: Centro di Controllo → <b>Duplica schermo</b>;
       Android: <b>Trasmetti schermo</b>; computer: cavo HDMI), poi premi <b>⛶ Schermo grande</b>.
       Si va avanti e indietro con le frecce, con le frecce della tastiera o scorrendo col dito.
+    </div>
+  </div>
+
+  <!-- gradi-foto-v1 · l'editor dei punti: solo per il professionista, mai sul palco -->
+  <div class="ed" id="ed" role="dialog" aria-label="Misura la foto">
+    <div class="ed-foto" id="ed-foto"><img id="ed-img" alt=""><svg id="ed-svg"></svg></div>
+    <div class="ed-lato">
+      <div class="ed-tit" id="ed-tit">Misura la foto</div>
+      <div class="ed-txt">Trascina i punti col dito. I due <b style="color:#FFD008">gialli</b> vanno <b>sul filo a piombo</b>: sono il riferimento verticale, così un telefono un po’ storto non diventa postura.</div>
+      <div class="ed-stato" id="ed-stato"></div>
+      <div class="ed-riga" id="ed-verso-riga"></div>
+      <div class="ed-punti" id="ed-punti"></div>
+      <div class="ed-gradi" id="ed-gradi"></div>
+      <div class="ed-riga">
+        <button class="pbtn" onclick="edProponi()">✨ Proponi i punti</button>
+        <button class="pbtn" onclick="edChiudi()">Annulla</button>
+        <button class="pbtn giallo" id="ed-salva" onclick="edSalva()">✓ Conferma e salva</button>
+      </div>
     </div>
   </div>
 
@@ -265,6 +330,11 @@ let allineamenti = {}
 let modoFoto = {}          // plane -> 'affiancate' | 'sovrapposte'
 let manca048 = false, provePresenti = true
 let avvisoIniziale = false, bloccate = 0
+// gradi-foto-v1
+const PM = window.PolMisure || null
+let misure = {}            // storage_path -> riga di foto_misure
+let manca049 = false
+let vediGradi = {}, vediRif = {}   // plane -> bool (pulsanti a parte, 3A 4A)
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
 function tornaIndietro() {
@@ -431,6 +501,14 @@ async function init() {
     if (!ae) (al || []).forEach(r => { if (r.storage_path && r.punti) allineamenti[r.storage_path] = r.punti })
   }
 
+  // 6) gradi-foto-v1 · le misure già confermate, per FILE (come gli allineamenti)
+  const tuttiPath = Array.from(new Set(paths.concat(unici)))
+  if (tuttiPath.length && PM) {
+    const { data: ms, error: me } = await _sb.from('foto_misure').select('*').in('storage_path', tuttiPath)
+    if (me) manca049 = true
+    else (ms || []).forEach(r => { if (r.storage_path) misure[r.storage_path] = r })
+  }
+
   giorni = S.costruisciGiorni({ visite: visite || [], foto: foto, prove: prove, piani: PLANES, scheda: scheda })
   if (!giorni.length) {
     document.getElementById('slides').innerHTML = slideVuota()
@@ -489,6 +567,8 @@ function costruisci() {
   if (si.totale || si.foto) { html.push(slideSintesi(g, si)); ids.push('sintesi') }
   const perc = S.percorso(giorni)
   if (giorni.length >= 2 && (perc.conEq >= 2 || perc.conScap >= 2)) { html.push(slidePercorso(perc)); ids.push('percorso') }
+  const tempo = slideGradiTempo()
+  if (tempo) { html.push(tempo); ids.push('gradi-tempo') }
   // Free: la copertina e la prima coppia di foto. Il resto è Premium, e il
   // lucchetto sta SOTTO il palco (il paziente sulla TV non vede pubblicità).
   bloccate = 0
@@ -556,14 +636,20 @@ function slideFoto(g, ps) {
       '</div></div>'
   } else {
     const col = (o, cls, eti) => '<div class="foto-col"><span class="eti ' + cls + '">' + esc(eti) + '</span>' +
-      '<div class="riquadro ' + cls + '"><img src="' + esc(o.url) + '" alt="' + esc(eti) + '" onerror="this.parentNode.innerHTML=\'<div class=vuoto>Questa foto non si è aperta. Ricarica la pagina.</div>\'"></div></div>'
-    corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', dopoDi()) + '</div>'
+      '<div class="riquadro ' + cls + '"' + (o.path ? ' data-misura="' + esc(o.path) + '" data-plane="' + ps.plane + '"' : '') + '>' +
+      '<img src="' + esc(o.url) + '" alt="' + esc(eti) + '" onload="disegnaSovra()" onerror="this.parentNode.innerHTML=\'<div class=vuoto>Questa foto non si è aperta. Ricarica la pagina.</div>\'">' +
+      '<svg class="sovra" aria-hidden="true"></svg></div></div>'
+    corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', dopoDi()) + '</div>' + strisciaGradi(ps.plane, f)
   }
   return '<div class="slide" data-s="foto">' +
     testa(T[ps.titolo], ps.sotto) + corpo +
     '<div class="riga-basso"><div class="criterio"><span class="ico">⟂</span><span>' + esc(T[ps.criterio]) + '</span></div>' +
     '<div class="modo"><button class="' + (modo === 'affiancate' ? 'on' : '') + '" onclick="setModoFoto(\'' + ps.plane + '\',\'affiancate\')">' + esc(T.foto_affiancate) + '</button>' +
-    '<button class="' + (modo === 'sovrapposte' ? 'on' : '') + '" onclick="setModoFoto(\'' + ps.plane + '\',\'sovrapposte\')">' + esc(T.foto_sovrapposte) + '</button></div></div>' +
+    '<button class="' + (modo === 'sovrapposte' ? 'on' : '') + '" onclick="setModoFoto(\'' + ps.plane + '\',\'sovrapposte\')">' + esc(T.foto_sovrapposte) + '</button>' +
+    (modo === 'affiancate' && coppiaMisurata(ps.plane, f)
+      ? '<button class="gr' + (vediGradi[ps.plane] ? ' on' : '') + '" onclick="toggleGradi(\'' + ps.plane + '\')">' + esc(T.gradi_bottone) + '</button>' +
+        '<button class="rf' + (vediRif[ps.plane] ? ' on' : '') + '" onclick="toggleRif(\'' + ps.plane + '\')">' + esc(T.rif_bottone) + '</button>'
+      : '') + '</div></div>' +
     '</div>'
 }
 function setModoFoto(plane, m) { modoFoto[plane] = m; const c = corrente; costruisci(); vai(c, true) }
@@ -571,6 +657,87 @@ function mix(input, plane) {
   const r = input.closest('.slide').querySelector('.riquadro .ib')
   if (r) r.style.opacity = String(Number(input.value) / 100)
 }
+/* ═══ gradi-foto-v1 · I GRADI SULLE FOTO ═════════════════════════════════
+   I punti li conferma il professionista (editor qui sotto); i gradi escono da
+   js/misure-foto.js. Sul palco due pulsanti A PARTE (3A 4A): «° Gradi» mette
+   punti, linee e numeri sulle foto; «📐 Riferimento» mostra la linea di
+   riferimento PERSONALE, costruita sui punti del paziente. La foto normale resta
+   com'è finché non li si preme. */
+function misuraDi(o) { return o && o.path && misure[o.path] ? misure[o.path] : null }
+function coppiaMisurata(plane, f) { return !!(PM && PM.vistaDi(plane) && misuraDi(f.pre) && misuraDi(f.post)) }
+function toggleGradi(plane) { vediGradi[plane] = !vediGradi[plane]; const c = corrente; costruisci(); vai(c, true) }
+function toggleRif(plane) { vediRif[plane] = !vediRif[plane]; const c = corrente; costruisci(); vai(c, true) }
+function strisciaGradi(plane, f) {
+  if (!vediGradi[plane] || !coppiaMisurata(plane, f)) return ''
+  const a = misuraDi(f.pre), b = misuraDi(f.post)
+  const righe = PM.confronto(a.gradi || [], b.gradi || [])
+  if (!righe.length) return ''
+  return '<div class="gradi-riga">' + righe.map(r =>
+    '<div class="gradi-voce"><div class="gv-nome">' + esc(r.nome) + '</div>' +
+    '<div class="gv-val"><span class="a">' + PM.numIt(r.a.valore) + '°</span><span class="fr">→</span><span class="b">' + PM.numIt(r.b.valore) + '°</span>' +
+    '<span class="d">' + (r.delta > 0 ? '+' : r.delta < 0 ? '−' : '±') + PM.numIt(Math.abs(r.delta)) + '°</span></div>' +
+    '<div class="gv-parola">' + esc(r.a.parola) + ' → ' + esc(r.b.parola) + '</div></div>').join('') +
+    '</div><div class="gradi-nota">' + esc(righe.some(r => r.esito !== 'daconfermare') ? '' : T.gradi_nota) + '</div>'
+}
+/* Punti, linee e numeri sopra UNA foto: le coordinate salvate sono sull'immagine,
+   qui si portano sul riquadro (object-fit: contain) */
+function disegnaSovra() {
+  if (!PM) return
+  document.querySelectorAll('.slide.on .riquadro[data-misura]').forEach(box => {
+    const svg = box.querySelector('svg.sovra'), img = box.querySelector('img')
+    if (!svg || !img) return
+    const plane = box.getAttribute('data-plane'), m = misure[box.getAttribute('data-misura')]
+    svg.innerHTML = ''
+    if (!m || (!vediGradi[plane] && !vediRif[plane])) return
+    const bw = box.clientWidth, bh = box.clientHeight, iw = img.naturalWidth, ih = img.naturalHeight
+    if (!iw || !ih || !bw || !bh) return
+    const sc = Math.min(bw / iw, bh / ih), ox = (bw - iw * sc) / 2, oy = (bh - ih * sc) / 2
+    const P = q => ({ x: ox + q.x * iw * sc, y: oy + q.y * ih * sc })
+    svg.setAttribute('viewBox', '0 0 ' + bw + ' ' + bh)
+    const pt = m.punti || {}, vista = m.vista, h = []
+    const linea = (a, b, col, w, tratt) => { if (!a || !b) return; const A = P(a), B = P(b)
+      h.push('<line x1="' + A.x + '" y1="' + A.y + '" x2="' + B.x + '" y2="' + B.y + '" stroke="' + col + '" stroke-width="' + w + '"' + (tratt ? ' stroke-dasharray="' + tratt + '"' : '') + ' stroke-linecap="round"/>') }
+    const punto = (a, col, r, vuoto) => { if (!a) return; const A = P(a)
+      h.push('<circle cx="' + A.x + '" cy="' + A.y + '" r="' + r + '" fill="' + (vuoto ? 'none' : col) + '" stroke="' + (vuoto ? col : '#0B0B0B') + '" stroke-width="' + (vuoto ? 3 : 2.5) + '"/>') }
+    const etichetta = (a, testo, dx) => { if (!a) return; const A = P(a), x = A.x + (dx || 14), w = testo.length * 11 + 18
+      h.push('<g><rect x="' + (dx < 0 ? x - w : x) + '" y="' + (A.y - 17) + '" width="' + w + '" height="34" rx="9" fill="rgba(0,0,0,.78)" stroke="#FFD008" stroke-width="1.5"/>' +
+        '<text x="' + ((dx < 0 ? x - w : x) + w / 2) + '" y="' + (A.y + 7) + '" fill="#fff" font-size="19" font-weight="800" text-anchor="middle" font-family="Montserrat,sans-serif">' + esc(testo) + '</text></g>') }
+    const med = (a, b) => (a && b) ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null
+    if (vediRif[plane]) {
+      const rf = PM.riferimento(vista, pt, iw, ih)
+      if (rf && rf.tipo === 'verticale') {
+        linea(rf.linea[0], rf.linea[1], '#00C48C', 3, '12 8')
+        rf.fantasmi.forEach(fm => { linea(fm.reale, fm.ideale, 'rgba(0,196,140,.7)', 2, '4 5'); punto(fm.ideale, '#00C48C', 9, true) })
+      } else if (rf) rf.righe.forEach(r => linea(r.ideale[0], r.ideale[1], '#00C48C', 3, '12 8'))
+    }
+    if (vediGradi[plane]) {
+      linea(pt.filo_alto, pt.filo_basso, '#FFD008', 2, '10 8')
+      const gr = {}; (m.gradi || []).forEach(x => { gr[x.k] = x })
+      const g1 = k => gr[k] ? PM.numIt(gr[k].valore) + '°' : ''
+      if (vista === 'sagittale') {
+        const cat = ['orecchio', 'spalla', 'anca', 'ginocchio', 'caviglia']
+        for (let i = 0; i < cat.length - 1; i++) linea(pt[cat[i]], pt[cat[i + 1]], '#FFFFFF', 4)
+        cat.forEach(k => punto(pt[k], '#FFFFFF', 8))
+        const lato = (m.verso === -1) ? 18 : -18
+        etichetta(med(pt.spalla, pt.orecchio), g1('testa'), -lato)
+        etichetta(med(pt.anca, pt.spalla), g1('tronco'), -lato)
+        etichetta(med(pt.caviglia, pt.anca), g1('gamba'), -lato)
+      } else {
+        linea(pt.spalla_dx, pt.spalla_sx, '#FFFFFF', 4); linea(pt.anca_dx, pt.anca_sx, '#FFFFFF', 4)
+        ;['dx', 'sx'].forEach(l => { linea(pt['anca_' + l], pt['ginocchio_' + l], '#FFFFFF', 3); linea(pt['ginocchio_' + l], pt['caviglia_' + l], '#FFFFFF', 3) })
+        Object.keys(pt).filter(k => !/^filo/.test(k)).forEach(k => punto(pt[k], '#FFFFFF', 7))
+        const dS = pt.spalla_dx && pt.spalla_sx ? (pt.spalla_dx.x > pt.spalla_sx.x ? 1 : -1) : 1
+        etichetta(pt.spalla_dx && pt.spalla_sx ? (dS > 0 ? pt.spalla_dx : pt.spalla_sx) : null, g1('spalle'), 16)
+        etichetta(pt.anca_dx && pt.anca_sx ? (dS > 0 ? pt.anca_dx : pt.anca_sx) : null, g1('bacino'), 16)
+        etichetta(pt.ginocchio_dx, g1('ginocchio_dx'), (pt.ginocchio_dx && pt.ginocchio_sx && pt.ginocchio_dx.x < pt.ginocchio_sx.x) ? -16 : 16)
+        etichetta(pt.ginocchio_sx, g1('ginocchio_sx'), (pt.ginocchio_dx && pt.ginocchio_sx && pt.ginocchio_sx.x < pt.ginocchio_dx.x) ? -16 : 16)
+      }
+    }
+    svg.innerHTML = h.join('')
+  })
+}
+window.addEventListener('resize', function () { setTimeout(disegnaSovra, 60) })
+
 /* Se le due foto sono state allineate in «Confronto nel tempo», nella vista
    sovrapposta la seconda si porta sulla prima. Stessa matematica, in
    PolSchermo.matriceAllineamento. */
@@ -683,6 +850,7 @@ function disegnaGomitoli() {
   })
 }
 
+function nMisurate(g) { return Object.keys(g.foto || {}).filter(pl => coppiaMisurata(pl, g.foto[pl])).length }
 function slideSintesi(g, si) {
   let grande
   if (!si.totale) grande = 'Oggi guardiamo le foto insieme'
@@ -695,7 +863,7 @@ function slideSintesi(g, si) {
   }).join('')
   return '<div class="slide" data-s="sintesi">' + testa(T.sintesi_titolo, '') +
     '<div class="sint-grande">' + grande + '</div><div class="voci">' + voci + '</div>' +
-    (si.foto ? '<div class="criterio"><span class="ico">📷</span><span>' + esc(T.sintesi_foto) + '</span></div>' : '') + '</div>'
+    (si.foto ? '<div class="criterio"><span class="ico">📷</span><span>' + esc(nMisurate(g) ? T.sintesi_gradi.replace('{n}', nMisurate(g)) : T.sintesi_foto) + '</span></div>' : '') + '</div>'
 }
 
 function slidePercorso(perc) {
@@ -760,6 +928,7 @@ function vai(i, subito) {
   document.querySelectorAll('#puntini button').forEach((b, k) => b.classList.toggle('on', k === i))
   aggiornaFrecce()
   setTimeout(allineaTutto, 30)
+  setTimeout(disegnaSovra, 40)
 }
 function aggiornaFrecce() {
   document.getElementById('nav-sx').disabled = corrente <= 0
@@ -785,6 +954,7 @@ function disegnaProPrope() {
       ': tutte le viste, la spalla, l’equilibrio, la sintesi e il percorso nel tempo.' +
       '<br><a class="pbtn giallo" style="display:inline-block;margin-top:10px;text-decoration:none" href="upgrade.html">Passa a Premium</a></div>'
   }
+  h += sezioneMisure(g)
   if (manca048) {
     h += '<div class="msg ko">⚠️ <b>Manca la migration 048_oscillazione_momento.sql</b>: le prove di equilibrio non possono essere segnate «prima» o «dopo» i 3 Respiri, quindi l’equilibrio non compare. Il resto funziona.</div>'
   }
@@ -829,6 +999,184 @@ async function segna(id, momento) {
   sel = giorni.findIndex(gg => gg.chiave === chiave)
   disegnaGiorni()
   costruisci()
+}
+
+/* ═══ gradi-foto-v1 · IL PANNELLO DELLE MISURE E L'EDITOR ════════════════ */
+function sezioneMisure(g) {
+  if (!PM) return ''
+  const piani = PIANI_SCHERMO.filter(ps => g.foto[ps.plane] && PM.vistaDi(ps.plane))
+  if (!piani.length) return ''
+  let h = '<div class="lbl">📐 Gradi sulle foto</div>'
+  if (manca049) return h + '<div class="msg ko">⚠️ <b>Manca la migration 049_foto_misure.sql</b>: i punti non si possono salvare. Il resto funziona.</div>'
+  if (!isPremium) return h + '<div class="msg premium">🔒 Misurare i gradi sulle foto è Premium.</div>'
+  h += '<div class="msg info" style="margin:0 0 6px">Conferma i punti su ogni foto, prima e dopo: sul palco compaiono i pulsanti <b>° Gradi</b> e <b>📐 Riferimento</b>.</div>'
+  piani.forEach(ps => {
+    const f = g.foto[ps.plane]
+    const bt = (o, fase, eti) => !o.path
+      ? '<button disabled title="Questa foto non ha un file su cui salvare">' + eti + ': non misurabile</button>'
+      : '<button class="' + (misure[o.path] ? 'fatto' : '') + '" onclick="edApri(\'' + ps.plane + '\',\'' + fase + '\')">' + eti + (misure[o.path] ? ' ✓' : ': misura') + '</button>'
+    h += '<div class="misure-riga"><span class="t">' + esc(T[ps.titolo].replace('Come stai in piedi, ', '').replace(/^./, c => c.toUpperCase()) + (ps.sotto ? ' · ' + ps.sotto : '')) + '</span>' +
+      bt(f.pre, 'pre', 'Prima') + bt(f.post, 'post', 'Dopo') + '</div>'
+  })
+  return h
+}
+
+// «I gradi nel tempo»: la stessa misura, giorno per giorno, prima → dopo
+function slideGradiTempo() {
+  if (!PM) return ''
+  const righe = {}, giorniCon = []
+  giorni.forEach(gg => {
+    let qui = false
+    PIANI_SCHERMO.forEach(ps => {
+      const f = gg.foto[ps.plane]; if (!f || !coppiaMisurata(ps.plane, f)) return
+      PM.confronto(misuraDi(f.pre).gradi || [], misuraDi(f.post).gradi || []).forEach(r => {
+        const k = ps.plane + ':' + r.k
+        righe[k] = righe[k] || { nome: r.nome + (ps.sotto ? ' · ' + ps.sotto : ''), celle: {} }
+        righe[k].celle[gg.chiave] = r; qui = true
+      })
+    })
+    if (qui) giorniCon.push(gg)
+  })
+  if (giorniCon.length < 2) return ''
+  const col = giorniCon.slice(-5)
+  const testaT = '<tr><th>Misura (0° = riferimento)</th>' + col.map(gg => '<th>' + esc(gg.scheda ? 'Iniziale' : S.dataCorta(gg.giorno)) + '</th>').join('') + '</tr>'
+  const corpo = Object.keys(righe).map(k => '<tr><td>' + esc(righe[k].nome) + '</td>' + col.map(gg => {
+    const r = righe[k].celle[gg.chiave]
+    return '<td>' + (r ? PM.numIt(r.a.valore) + '° → <span class="b">' + PM.numIt(r.b.valore) + '°</span>' : '—') + '</td>'
+  }).join('') + '</tr>').join('')
+  return '<div class="slide" data-s="gradi-tempo">' + testa(T.gradi_tempo_titolo, T.gradi_tempo_sotto) +
+    '<table class="tab-tempo">' + testaT + corpo + '</table>' +
+    '<div class="criterio"><span class="ico">°</span><span>' + esc(T.gradi_nota) + '</span></div></div>'
+}
+
+let ed = null     // { plane, fase, path, vista, verso, punti, W, H, origine }
+function edApri(plane, fase) {
+  const g = giorni[sel], f = g && g.foto[plane]; if (!f) return
+  const o = fase === 'pre' ? f.pre : f.post
+  const vista = PM.vistaDi(plane)
+  const gia = misure[o.path]
+  ed = { plane: plane, fase: fase, path: o.path, vista: vista,
+    verso: gia ? gia.verso : PM.versoPredefinito(plane),
+    punti: gia ? JSON.parse(JSON.stringify(gia.punti)) : PM.predefiniti(vista, plane),
+    origine: gia ? gia.origine : 'mano', W: 0, H: 0, attivo: null, mp: false }
+  const ps = PIANI_SCHERMO.find(x => x.plane === plane)
+  document.getElementById('ed-tit').textContent = (ps.sotto ? 'Profilo ' + ps.sotto.replace('lato ', '') : T[ps.titolo].replace('Come stai in piedi, ', '')) + ' · ' + (fase === 'pre' ? 'PRIMA' : 'DOPO')
+  edStato(gia ? 'Punti già confermati: puoi correggerli.' : 'Cerco i punti sulla foto…', '')
+  const img = document.getElementById('ed-img')
+  img.onload = function () {
+    ed.W = img.naturalWidth; ed.H = img.naturalHeight
+    edDisegna()
+    if (!gia) edProponi()
+  }
+  img.onerror = function () {
+    // senza CORS la foto si apre lo stesso, ma il modello non può leggerla: si va a mano
+    if (ed && img.getAttribute('crossorigin') !== null) { img.removeAttribute('crossorigin'); ed.noMP = true; img.src = o.url; return }
+    edStato('La foto non si è aperta. Ricarica la pagina.', 'ko')
+  }
+  img.crossOrigin = 'anonymous'
+  img.src = o.url
+  document.getElementById('ed').classList.add('on')
+}
+function edChiudi() { document.getElementById('ed').classList.remove('on'); ed = null }
+function edStato(t, cls) { const e = document.getElementById('ed-stato'); e.textContent = t; e.className = 'ed-stato ' + (cls || '') }
+async function edProponi() {
+  if (!ed) return
+  if (ed.noMP) { edStato('Il modello non può leggere questa foto: sposta i punti a mano.', ''); return }
+  edStato('Cerco i punti sulla foto…', '')
+  try {
+    const fn = window.__mpFinto || (await import('./js/postural-overlay.js?v=gradi-foto-v1')).puntiMediaPipe
+    const r = await fn(document.getElementById('ed-img'))
+    if (!ed) return
+    if (!r || !r.ok) { edStato((r && r.message ? r.message + ' ' : '') + 'Sposta i punti a mano.', ''); return }
+    const nuovi = PM.daMediaPipe(ed.vista, r.punti, ed.plane)
+    if (!nuovi) { edStato('Il modello non ha trovato abbastanza punti: spostali a mano.', ''); return }
+    Object.keys(nuovi).forEach(k => { ed.punti[k] = nuovi[k] })
+    ed.origine = 'mediapipe'
+    edStato('Punti proposti dal modello: controllali e spostali dove serve, poi conferma.', 'ok')
+    edDisegna()
+  } catch (e) {
+    edStato('Il modello non si è caricato (' + (e && e.message ? e.message : e) + '): sposta i punti a mano.', '')
+  }
+}
+function edRett() {
+  const box = document.getElementById('ed-foto'), bw = box.clientWidth, bh = box.clientHeight
+  if (!ed || !ed.W || !bw) return null
+  const sc = Math.min(bw / ed.W, bh / ed.H)
+  return { x: (bw - ed.W * sc) / 2, y: (bh - ed.H * sc) / 2, w: ed.W * sc, h: ed.H * sc, bw: bw, bh: bh }
+}
+const ED_COL = k => /^filo/.test(k) ? '#FFD008' : (/_dx$/.test(k) ? '#FF7A59' : (/_sx$/.test(k) ? '#5AB0FF' : '#FFFFFF'))
+function edDisegna() {
+  const r = edRett(); if (!r) return
+  const svg = document.getElementById('ed-svg')
+  svg.setAttribute('viewBox', '0 0 ' + r.bw + ' ' + r.bh)
+  const P = q => ({ x: r.x + q.x * r.w, y: r.y + q.y * r.h })
+  const pt = ed.punti, h = []
+  const L = (a, b, col, w, d) => { if (!pt[a] || !pt[b]) return; const A = P(pt[a]), B = P(pt[b])
+    h.push('<line x1="' + A.x + '" y1="' + A.y + '" x2="' + B.x + '" y2="' + B.y + '" stroke="' + col + '" stroke-width="' + w + '"' + (d ? ' stroke-dasharray="' + d + '"' : '') + '/>') }
+  L('filo_alto', 'filo_basso', '#FFD008', 2, '8 6')
+  if (ed.vista === 'sagittale') ['orecchio', 'spalla', 'anca', 'ginocchio', 'caviglia'].reduce((a, b) => { L(a, b, '#fff', 3); return b })
+  else { L('spalla_dx', 'spalla_sx', '#fff', 3); L('anca_dx', 'anca_sx', '#fff', 3)
+    ;['dx', 'sx'].forEach(l => { L('anca_' + l, 'ginocchio_' + l, '#fff', 2); L('ginocchio_' + l, 'caviglia_' + l, '#fff', 2) }) }
+  PM.PUNTI[ed.vista].forEach(d => {
+    const q = pt[d.k]; if (!q) return
+    const A = P(q)
+    h.push('<circle class="pm" data-k="' + d.k + '" cx="' + A.x + '" cy="' + A.y + '" r="22" fill="transparent"/>' +
+      '<circle cx="' + A.x + '" cy="' + A.y + '" r="' + (ed.attivo === d.k ? 11 : 8) + '" fill="' + ED_COL(d.k) + '" stroke="#000" stroke-width="2.5" pointer-events="none"/>')
+  })
+  svg.innerHTML = h.join('')
+  document.getElementById('ed-punti').innerHTML = PM.PUNTI[ed.vista].map(d =>
+    '<div class="ed-punto"><i style="background:' + ED_COL(d.k) + '"></i>' + esc(d.nome) + '</div>').join('')
+  document.getElementById('ed-verso-riga').innerHTML = ed.vista !== 'sagittale' ? '' :
+    '<span class="ed-txt" style="align-self:center">Guarda verso:</span>' +
+    '<button class="pbtn' + (ed.verso === -1 ? ' giallo' : '') + '" onclick="ed.verso=-1;edDisegna()">← sinistra</button>' +
+    '<button class="pbtn' + (ed.verso === 1 ? ' giallo' : '') + '" onclick="ed.verso=1;edDisegna()">destra →</button>'
+  const ms = PM.misure(ed.vista, pt, ed.W, ed.H, ed.verso)
+  document.getElementById('ed-gradi').innerHTML = ms.map(m => esc(m.nome) + ': <b>' + PM.numIt(m.valore) + '°</b> ' + esc(m.parola)).join('<br>')
+}
+;(function () {
+  const box = document.getElementById('ed-foto')
+  box.addEventListener('pointerdown', function (e) {
+    const t = e.target
+    if (!ed || !t || !t.getAttribute || !t.getAttribute('data-k')) return
+    ed.attivo = t.getAttribute('data-k')
+    try { box.setPointerCapture(e.pointerId) } catch (x) {}
+    e.preventDefault()
+  })
+  box.addEventListener('pointermove', function (e) {
+    if (!ed || !ed.attivo) return
+    const r = edRett(), b = box.getBoundingClientRect()
+    const x = (e.clientX - b.left - r.x) / r.w, y = (e.clientY - b.top - r.y) / r.h
+    ed.punti[ed.attivo] = { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) }
+    edDisegna()
+  })
+  const fine = function () { if (ed && ed.attivo) { ed.attivo = null; edDisegna() } }
+  box.addEventListener('pointerup', fine); box.addEventListener('pointercancel', fine)
+  window.addEventListener('resize', function () { if (ed) edDisegna() })
+})()
+async function edSalva() {
+  if (!ed || !ed.W) return
+  const riga = {
+    patient_id: patientId, storage_path: ed.path, vista: ed.vista, verso: ed.verso,
+    punti: ed.punti, gradi: PM.misure(ed.vista, ed.punti, ed.W, ed.H, ed.verso),
+    larghezza: ed.W, altezza: ed.H, origine: ed.origine, versione: PM.VERSIONE,
+    aggiornato_il: new Date().toISOString()
+  }
+  const btn = document.getElementById('ed-salva'); btn.disabled = true
+  const { error } = await _sb.from('foto_misure').upsert(riga, { onConflict: 'storage_path' })
+  btn.disabled = false
+  if (error) {
+    if (/foto_misure/.test(error.message || '') || error.code === '42P01' || error.code === 'PGRST205') {
+      manca049 = true; edStato('Non salvato: manca la migration 049_foto_misure.sql.', 'ko')
+    } else edStato('Non salvato: ' + error.message, 'ko')
+    return
+  }
+  misure[ed.path] = riga
+  const plane = ed.plane
+  edChiudi()
+  const c = corrente
+  costruisci()
+  const i = slides.indexOf('foto:' + plane)
+  vai(i >= 0 ? i : c, true)
 }
 
 init()

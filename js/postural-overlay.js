@@ -193,3 +193,18 @@ export async function generateOverlay(imgEl, viewKey){
   const built=(view==='sagittale')?_buildSagittal(lms,W,H):_buildFrontal(lms,W,H);
   return {ok:true,view,lines:built.lines,idealLines:built.idealLines,angles:built.angles,message:'Rilevati '+lms.length+' punti.'};
 }
+
+// gradi-foto-v1 — i punti GREZZI del modello, normalizzati 0-1, per l'editor che
+// li fa confermare al professionista (schermo-paziente.html). Stesso modello e
+// stesso caricamento di generateOverlay: un landmarker solo.
+export async function puntiMediaPipe(imgEl){
+  if(!imgEl||!imgEl.complete||!imgEl.naturalWidth) return {ok:false,punti:null,message:'Immagine non pronta.'};
+  let landmarker;
+  try{ landmarker=await _getLandmarker(); }
+  catch(e){ return {ok:false,punti:null,message:'Errore caricamento modello: '+e.message}; }
+  let res;
+  try{ res=landmarker.detect(imgEl); }
+  catch(e){ return {ok:false,punti:null,message:'Il modello non ha potuto leggere la foto: '+e.message}; }
+  if(!res.landmarks||!res.landmarks.length) return {ok:false,punti:null,message:'Nessuna persona rilevata nella foto.'};
+  return {ok:true,punti:res.landmarks[0].map(l=>({x:l.x,y:l.y,visibility:l.visibility})),message:'Rilevati '+res.landmarks[0].length+' punti.'};
+}
