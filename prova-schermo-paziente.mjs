@@ -105,7 +105,12 @@ function dati(opts = {}) {
   ]
   return {
     opts,
-    patients: [{ id: PID, nome: 'Mario', cognome: 'Rossi', foto_url: '{}' }],
+    patients: [{ id: PID, nome: 'Mario', cognome: 'Rossi', foto_url: opts.scheda ? JSON.stringify({
+      // valutazioni-coerenti-v1 · la valutazione iniziale: prima/dopo cuscini sul sagittale, frontale da sola
+      'prima-sx': { storage_path: PID + '/iniziali/prima-sx_1788000000000.jpg' },
+      'dopo-sx':  PID + '/iniziali/dopo-sx_1788000000000.jpg',
+      'frontale': PID + '/iniziali/frontale_1788000000000.jpg'
+    }) : '{}' }],
     visits: [
       { id: 'v-post', patient_id: PID, tipo: 'posturale', data_visita: '2026-09-20', created_at: '2026-09-20T08:50:00Z',
         note_scapolare_pre: 'anteriore', note_scapolare_post: 'in_asse' },
@@ -133,7 +138,9 @@ function dati(opts = {}) {
 const FIRME = {
   'visits/v-post/sag-pre.jpg': '/foto/sag-pre.svg', 'visits/v-post/sag-post.jpg': '/foto/sag-post.svg',
   'visits/v-post/fro-pre.jpg': '/foto/fro-pre.svg', 'visits/v-post/fro-post.jpg': '/foto/fro-post.svg',
-  'visits/v-fisio/old-pre.jpg': '/foto/old-pre.svg', 'visits/v-fisio/old-post.jpg': '/foto/old-post.svg'
+  'visits/v-fisio/old-pre.jpg': '/foto/old-pre.svg', 'visits/v-fisio/old-post.jpg': '/foto/old-post.svg',
+  [PID + '/iniziali/prima-sx_1788000000000.jpg']: '/foto/old-pre.svg', [PID + '/iniziali/dopo-sx_1788000000000.jpg']: '/foto/old-post.svg',
+  [PID + '/iniziali/frontale_1788000000000.jpg']: '/foto/fro-pre.svg'
 }
 
 // il finto Supabase: select/eq/in/order/maybeSingle/then, update, storage
@@ -148,7 +155,7 @@ const SUPA = ({ D, FIRME }) => {
       in(k, v) { st.f.push([k, v, 'in']); return api },
       update(d) { st.upd = d; return api },
       async maybeSingle() {
-        if (tab === 'professionals') return { data: { id: 'PROF-1' }, error: null }
+        if (tab === 'professionals') return { data: { id: 'PROF-1', piano: D.opts.free ? 'free' : 'premium', premium_scadenza: null }, error: null }
         return { data: righe()[0] || null, error: null }
       },
       then(res, rej) {
@@ -165,7 +172,7 @@ const SUPA = ({ D, FIRME }) => {
     return api
   }
   window.supabase = { createClient() { return {
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'U1' }, access_token: 'TOK' } } }) },
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'U1', email: 'prova@studio.it' }, access_token: 'TOK' } } }) },
     from: q,
     storage: { from() { return { createSignedUrls: async (paths) => ({ data: paths.map(p => ({ path: p, signedUrl: FIRME[p] || null })), error: null }) } } }
   } } }
@@ -458,6 +465,76 @@ sez('⭐ Sul telefono: niente scorrimento di lato, il palco sta nella larghezza'
     check('   ⭐ scorrendo col dito si va avanti', (await page.evaluate(() => corrente)) === 1)
     await ctx.close()
   }
+}
+
+sez('⭐⭐ valutazioni-coerenti-v1 · dalla scheda si apre sulla VALUTAZIONE INIZIALE')
+{
+  const { page, ctx, errori } = await apri(browser, { scheda: true }, '&inizio=scheda')
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const on = await page.textContent('#giorni .giorno.on')
+  check('⭐⭐ il giorno scelto è la valutazione iniziale', /Valutazione iniziale/.test(on), on)
+  const giorni = await page.$$eval('#giorni .giorno', b => b.map(x => x.innerText.replace(/\s+/g, ' ')))
+  check('⭐ ed è la PRIMA voce, prima delle rivalutazioni', /Valutazione iniziale/.test(giorni[0]) && giorni.length === 3, giorni)
+  const ids = await slideIds(page)
+  check('⭐ copertina e profilo sinistro (l’unico piano con prima E dopo nella scheda)', ids.slice(0, 3).join() === 'copertina,foto:sagittale_sx,sintesi', ids)
+  check('⛔ la frontale della scheda, che è una foto sola, non diventa un confronto', !ids.includes('foto:frontale'))
+  check('⭐ la copertina dice «Valutazione iniziale · prima e dopo i cuscini»', /Valutazione iniziale · prima e dopo i cuscini/.test(await testoSlide(page)))
+  await vaiA(page, 'foto:sagittale_sx')
+  const t = await testoSlide(page)
+  check('⭐⭐ sulla scheda il dopo è «DOPO I CUSCINI», non «dopo i 3 Respiri»', /DOPO I CUSCINI/.test(t) && !/3 RESPIRI/.test(t), t)
+  const src = await page.$$eval('.slide.on .riquadro img', a => a.map(i => i.getAttribute('src')))
+  check('le foto sono quelle della scheda', src.join() === '/foto/old-pre.svg,/foto/old-post.svg', src)
+  await page.screenshot({ path: path.join(OUT, '10-valutazione-iniziale.png') })
+  await ctx.close()
+}
+
+sez('⭐ valutazioni-coerenti-v1 · senza «inizio» si apre sull’ultima; ogni voce dice cos’è')
+{
+  const { page, ctx } = await apri(browser, { scheda: true })
+  check('⭐ dal pulsante della posturale (niente «inizio») si apre l’ultima', /20\/09/.test(await page.textContent('#giorni .giorno.on')))
+  const tipi = await page.$$eval('#giorni .giorno .t', b => b.map(x => x.textContent))
+  check('⭐ ogni voce dice il tipo: iniziale, fisioterapica, posturale', tipi.join('|') === 'Valutazione iniziale|Visita fisioterapica|Valutazione posturale', tipi)
+  await ctx.close()
+  const b = await apri(browser, {}, '&inizio=scheda')
+  check('⭐ se la scheda non ha il prima/dopo, apre l’ultima e lo dice sotto il palco',
+    /20\/09/.test(await b.page.textContent('#giorni .giorno.on')) && /non ha le foto/.test(await b.page.textContent('#pro-prove')))
+  await b.ctx.close()
+}
+
+sez('⭐⭐ valutazioni-coerenti-v1 · Free: copertina e prima coppia di foto, il resto è Premium')
+{
+  const { page, ctx, errori } = await apri(browser, { free: true })
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const ids = await slideIds(page)
+  check('⭐⭐ due pagine: la copertina e la prima coppia di foto', ids.join() === 'copertina,foto:sagittale_dx', ids)
+  check('⭐ sotto il palco il lucchetto dice quante pagine sblocca Premium', /Premium/.test(await page.textContent('#pro-prove')) && /5 altre pagine/.test(await page.textContent('#pro-prove')), await page.textContent('#pro-prove'))
+  check('   e porta alla pagina di upgrade', (await page.getAttribute('#blocco-premium a', 'href')) === 'upgrade.html')
+  check('⛔ sul palco (che vede il paziente) nessuna pubblicità', !/Premium|upgrade/i.test(await page.evaluate(() => document.getElementById('palco').innerText)))
+  await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(300)
+  check('⛔ oltre la seconda pagina non si va', (await page.evaluate(() => corrente)) === 1)
+  await page.setViewportSize({ width: 1280, height: 900 }); await page.evaluate(() => window.scrollTo(0, 500)); await page.waitForTimeout(200)
+  await page.screenshot({ path: path.join(OUT, '11-free.png') })
+  await ctx.close()
+}
+
+sez('valutazioni-coerenti-v1 · il motore: stesso giorno, prima la valutazione iniziale')
+{
+  const ctx = { console, Intl }; ctx.globalThis = ctx; vm.createContext(ctx)
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/schermo-paziente.js'), 'utf8'), ctx)
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/valutazioni.js'), 'utf8'), ctx)
+  const PL = [{ plane: 'sagittale_sx', pre: { tipo: 'sagittale_sx_pre' }, post: { tipo: 'sagittale_sx_post' } }]
+  const g = ctx.PolSchermo.costruisciGiorni({ piani: PL,
+    visite: [{ id: 'v', tipo: 'posturale', data_visita: '2026-09-20', note_scapolare_pre: 'anteriore', note_scapolare_post: 'in_asse' }],
+    scheda: { data: '2026-09-20T08:00:00Z', foto: { sagittale_sx: { pre: { url: 'a' }, post: { url: 'b' } } } } })
+  check('⭐ scheda e posturale dello stesso giorno sono DUE voci, prima la scheda', g.length === 2 && g[0].scheda && !g[1].scheda, g.map(x => x.chiave))
+  const V = ctx.PolValutazioni
+  check('⭐ entrano posturali e fisioterapiche (2A)', V.TIPI_VISITA.join() === 'posturale,fisioterapica')
+  check('nomi: valutazione iniziale / visita fisioterapica / valutazione posturale',
+    V.nomeTipo('scheda') === 'Valutazione iniziale' && V.nomeTipo('visita', 'fisioterapica') === 'Visita fisioterapica' && V.nomeTipo('visita', 'posturale') === 'Valutazione posturale')
+  check('la data della scheda è quella nel nome del file (caricamento)', V.dataDaPercorso('x/prima-sx_1788000000000.jpg') === new Date(1788000000000).toISOString())
+  check('⛔ senza numero nel nome la data NON c’è', V.dataDaPercorso('x/prima-sx.jpg') === null)
+  const src = senzaCommenti(fs.readFileSync(path.join(ROOT, 'js/valutazioni.js'), 'utf8'))
+  check('⛔ js/valutazioni.js non usa la rete', !/supabase|fetch\(/.test(src))
 }
 
 sez('⭐ Un paziente senza niente di registrato')

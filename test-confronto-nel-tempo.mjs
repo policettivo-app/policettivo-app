@@ -399,7 +399,9 @@ sez('Caricamento e riga del tempo')
     n: e.querySelector('.tl-n').textContent
   })))
   check('tre punti nella riga del tempo (scheda + 2 posturali)', punti.length === 3, punti)
-  check('il primo punto è la SCHEDA PAZIENTE', punti[0] && punti[0].tipo === 'Scheda paziente', punti[0])
+  // valutazioni-coerenti-v1 — la scheda è la VALUTAZIONE INIZIALE, e ogni voce dice il suo tipo
+  check('il primo punto è la SCHEDA PAZIENTE (valutazione iniziale)', punti[0] && punti[0].tipo === 'Iniziale · scheda', punti[0])
+  check('⭐ le altre voci dicono il tipo: posturale', punti[1] && punti[1].tipo === 'Posturale' && punti[2].tipo === 'Posturale', punti)
   /* Il testo era «caricata il» in confronto-nel-tempo-v1; la v2 lo ha
      spostato accanto alla data, dove si legge «data di caricamento». Il
      controllo guarda la SOSTANZA — non deve mai dire «scattata» — invece
@@ -407,11 +409,26 @@ sez('Caricamento e riga del tempo')
   check('la scheda dice che la data è di caricamento, non di scatto',
     punti[0] && /caricat|caricament/i.test(punti[0].n) && !/scattat/i.test(punti[0].n), punti[0])
   check('punti in ordine cronologico', punti[1].data === '01/08/2026' && punti[2].data === '30/08/2026', punti)
-  check('la visita fisioterapica NON entra nel confronto posturale',
-    punti.every(p => p.tipo !== 'Valutazione' || ['01/08/2026','30/08/2026'].includes(p.data)))
+  check('una visita fisioterapica SENZA foto non entra (non c’è niente da confrontare)',
+    punti.every(p => p.tipo !== 'Fisioterapica'))
 
   const tag = await page.$$eval('.tl-punto', els => els.map(e => e.className))
   check('A sul più vecchio, B sul più recente', tag[0].includes('selA') && tag[2].includes('selB'), tag)
+  await ctx.close()
+}
+
+sez('valutazioni-coerenti-v1 — la visita fisioterapica CON foto entra nel confronto (2A)')
+{
+  const d = datiBase()
+  d.visit_photos.push({ id:'pf1', visit_id:'vf', tipo:'sagittale_sx_pre', storage_path:PATH_V1_FRO, data_scatto:'2026-08-15' })
+  const { page, ctx, errori } = await apri(browser, d)
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  const punti = await page.$$eval('.tl-punto', els => els.map(e => ({ data: e.querySelector('.tl-data').textContent, tipo: e.querySelector('.tl-tipo').textContent })))
+  check('⭐⭐ quattro voci: iniziale, posturale, FISIOTERAPICA, posturale — in ordine di data',
+    punti.map(p => p.tipo).join('|') === 'Iniziale · scheda|Posturale|Fisioterapica|Posturale' && punti[2].data === '15/08/2026', punti)
+  const src = fs.readFileSync(path.join(ROOT, 'comparazione.html'), 'utf8')
+  check('⭐ l’elenco dei tipi viene da js/valutazioni.js, lo stesso di «Prima e dopo»', /src="js\/valutazioni\.js"/.test(src) && /\.in\('tipo', TIPI_VISITA\)/.test(src))
+  check('⛔ e non c’è più un elenco suo delle foto della scheda', !/'prima-sx':\s*\{ plane/.test(senzaCommentiHtml(src)))
   await ctx.close()
 }
 
@@ -2341,6 +2358,7 @@ sez('schermo-paziente-v1 — dalla scheda paziente e dalla visita')
   if (card) await card.click()
   await page.waitForURL(/schermo-paziente\.html/, { timeout: 5000 }).catch(() => {})
   check('⭐ e apre lo schermo di quel paziente', page.url().indexOf('schermo-paziente.html?id=' + PID) >= 0, page.url())
+  check('⭐ valutazioni-coerenti-v1 · dalla scheda si apre sulla valutazione iniziale', /&inizio=scheda$/.test(page.url()), page.url())
   await ctx.close()
   const vis = senzaCommentiHtml(fs.readFileSync(path.join(ROOT, 'visita.html'), 'utf8'))
   check('⭐ anche la visita fisioterapica ha «📺 Mostra al paziente»', /onclick="apriSchermoPaziente\(\)"[^>]*>📺 Mostra al paziente/.test(vis))

@@ -1,4 +1,4 @@
-/* js/schermo-paziente.js — schermo-paziente-v1 (23 settembre 2026)
+/* js/schermo-paziente.js — schermo-paziente-v1 (23 settembre 2026) · valutazioni-coerenti-v1
  *
  * IL «PRIMA E DOPO» CHE SI MOSTRA AL PAZIENTE, IN UN FILE SOLO.
  *
@@ -31,6 +31,9 @@
     copertina_nota:     'Stessa seduta, stesse condizioni: cambia solo il prima e il dopo.',
     prima:              'Prima',
     dopo:               'Dopo i 3 Respiri',
+    // valutazioni-coerenti-v1 · la valutazione iniziale (scheda paziente)
+    copertina_sotto_scheda: 'Valutazione iniziale · prima e dopo i cuscini',
+    dopo_scheda:        'Dopo i cuscini',
 
     foto_profilo:       'Come stai in piedi, di profilo',
     foto_fronte:        'Come stai in piedi, di fronte',
@@ -189,6 +192,7 @@
       if (!a.giorno && !b.giorno) return 0
       if (!a.giorno) return -1
       if (!b.giorno) return 1
+      if (a.giorno === b.giorno) return (a.scheda ? -1 : 0) + (b.scheda ? 1 : 0)   // stesso giorno: prima la valutazione iniziale
       return a.giorno < b.giorno ? -1 : a.giorno > b.giorno ? 1 : 0
     })
     return out

@@ -12,7 +12,10 @@
   <script src="js/postural-component.js"></script>
   <script src="js/oscillazione.js"></script>
   <script src="js/schermo-paziente.js"></script>
-  <!-- schermo-paziente-v1 — 23 settembre 2026
+  <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
+  <script src="js/valutazioni.js"></script>
+  <script src="utils-premium.js"></script>
+  <!-- schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
        LO SCHERMO DEL PAZIENTE: il prima e dopo dei 3 Respiri, fatto per essere
        guardato insieme, anche su una TV (duplicazione dello schermo, decisione 5A).
 
@@ -175,6 +178,8 @@
     .giorno.on { border-color: var(--giallo); }
     .giorno .d { font-size: 14px; font-weight: 800; }
     .giorno .c { font-size: 11px; color: #888; font-weight: 700; margin-top: 2px; }
+    .giorno .t { font-size: 11px; color: var(--giallo); font-weight: 800; margin-top: 2px; }
+    .msg.premium { background: #1d1a0a; border: 1px solid #6b5a10; color: #f3e3a0; }
     .lbl { font-size: 11px; color: #777; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 6px; }
     .msg { border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.55; margin: 10px 0; }
     .msg.ko { background: #2a1414; border: 1px solid #7a2020; color: #ffb4b4; }
@@ -232,17 +237,18 @@ const params    = new URLSearchParams(window.location.search)
 const patientId = params.get('id') || params.get('pid')
 const visitaQ   = params.get('visita')
 const giornoQ   = params.get('giorno')
+const inizioQ   = params.get('inizio')      // valutazioni-coerenti-v1 · 'scheda' = apri sulla valutazione iniziale
 
 const S = window.PolSchermo
 const T = S ? S.TESTI : {}
 const PLANES = (typeof POSTURAL_PHOTO_PLANES !== 'undefined') ? POSTURAL_PHOTO_PLANES : null
 
-/* Le foto iniziali della scheda: solo le coppie prima/dopo dei cuscini.
-   Stessa corrispondenza di comparazione.html (SLOT_SCHEDA). */
-const SLOT_SCHEDA = {
-  'prima-sx': { plane: 'sagittale_sx', fase: 'pre' },  'dopo-sx': { plane: 'sagittale_sx', fase: 'post' },
-  'prima-dx': { plane: 'sagittale_dx', fase: 'pre' },  'dopo-dx': { plane: 'sagittale_dx', fase: 'post' }
-}
+/* valutazioni-coerenti-v1 — le foto della scheda e i tipi di visita vengono da
+   js/valutazioni.js, lo STESSO elenco di «Confronto nel tempo». Della scheda
+   entrano solo i piani che hanno il prima E il dopo (oggi: il sagittale). */
+const PV = window.PolValutazioni || null
+const SLOT_SCHEDA = PV ? PV.SLOT_SCHEDA : {}
+let isPremium = false
 /* I titoli e il criterio di ogni piano, nell'ordine in cui si mostrano */
 const PIANI_SCHERMO = [
   { plane: 'sagittale_dx',      titolo: 'foto_profilo',      sotto: 'lato destro',  criterio: 'criterio_profilo' },
@@ -258,6 +264,7 @@ let giorni = [], sel = -1, corrente = 0, slides = []
 let allineamenti = {}
 let modoFoto = {}          // plane -> 'affiancate' | 'sovrapposte'
 let manca048 = false, provePresenti = true
+let avvisoIniziale = false, bloccate = 0
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
 function tornaIndietro() {
@@ -327,11 +334,19 @@ document.addEventListener('keydown', function (e) {
 async function init() {
   if (!S) { errore('Non si è caricato <code>js/schermo-paziente.js</code>. Ricarica la pagina.'); return }
   if (!PLANES) { errore('Non si è caricato <code>js/postural-component.js</code>, dove sono scritti i piani delle foto. Ricarica la pagina.'); return }
+  if (!PV) { errore('Non si è caricato <code>js/valutazioni.js</code>, dove è scritto quali valutazioni entrano. Ricarica la pagina.'); return }
   if (!patientId) { errore('Indirizzo incompleto: manca il paziente (<code>?id=</code>).'); return }
   scala()
 
   const { data: { session } } = await _sb.auth.getSession()
   if (!session) { window.location.href = 'login.html'; return }
+  // Premium: il confronto completo. Chi è Free vede la copertina e la prima coppia di foto.
+  try {
+    if (typeof window.policettivoCheckPremium === 'function') {
+      const r = await window.policettivoCheckPremium(_sb, session.user.id, session.user.email)
+      isPremium = !!(r && r.isPremium)
+    }
+  } catch (e) { isPremium = false }
 
   const { data: p, error: pe } = await _sb.from('patients').select('id,nome,cognome,foto_url').eq('id', patientId).maybeSingle()
   if (pe || !p) { errore('Paziente non trovato, oppure non è tuo. ' + esc((pe && pe.message) || '')); return }
@@ -344,7 +359,7 @@ async function init() {
   // 1) visite: posturali e fisioterapiche, col piano scapolare
   const { data: visite, error: ve } = await _sb.from('visits')
     .select('id,tipo,data_visita,created_at,note_scapolare_pre,note_scapolare_post')
-    .eq('patient_id', patientId)
+    .eq('patient_id', patientId).in('tipo', PV.TIPI_VISITA)
   if (ve) errore('Non ho potuto leggere le visite: ' + esc(ve.message))
   const ids = (visite || []).map(v => v.id)
   let foto = []
@@ -362,12 +377,11 @@ async function init() {
     const fs = {}; let dMin = null
     Object.keys(SLOT_SCHEDA).forEach(k => {
       const v = urls[k]; if (!v) return
-      const path = (typeof v === 'object') ? (v.storage_path || null)
-        : (typeof v === 'string' && v.indexOf('data:') !== 0 && v.indexOf('http') !== 0) ? v : null
+      const path = PV.percorsoScheda(v)
       const dir = (!path && typeof v === 'string') ? v : null
       if (!path && !dir) return
-      const m = /_(\d{10,16})\.[a-z]+$/i.exec(path || '')
-      const d = m ? new Date(Number(m[1])) : null
+      const dIso = PV.dataDaPercorso(path)
+      const d = dIso ? new Date(dIso) : null
       if (d && !isNaN(d.getTime()) && (!dMin || d < dMin)) dMin = d
       const map = SLOT_SCHEDA[k]
       fs[map.plane] = fs[map.plane] || {}
@@ -424,9 +438,15 @@ async function init() {
     document.querySelector('.slide').classList.add('on')
     return
   }
-  // il giorno richiesto: dalla visita, dal parametro, altrimenti l'ultimo
+  // si apre da dove parti: dalla visita su quella visita, dalla scheda sulla
+  // valutazione iniziale (1A), altrimenti sull'ultima
   sel = giorni.length - 1
   if (visitaQ) { const i = giorni.findIndex(g => g.visite.some(v => v.id === visitaQ)); if (i >= 0) sel = i }
+  else if (inizioQ === 'scheda') {
+    const i = giorni.findIndex(g => g.scheda)
+    if (i >= 0) sel = i
+    else avvisoIniziale = true
+  }
   else if (giornoQ) { const i = giorni.findIndex(g => g.giorno === giornoQ); if (i >= 0) sel = i }
   disegnaGiorni()
   costruisci()
@@ -440,8 +460,11 @@ function disegnaGiorni() {
     if (nf) cosa.push(nf + ' foto')
     if (g.scap && g.scap.esito !== 'nd') cosa.push('spalla')
     if (g.eq && g.eq.condizioni.length) cosa.push('equilibrio')
+    const tipi = g.scheda ? 'Valutazione iniziale'
+      : Array.from(new Set(g.visite.map(v => PV.nomeTipo('visita', v.tipo)))).join(' + ') || 'Solo equilibrio'
     return '<button class="giorno' + (i === sel ? ' on' : '') + '" onclick="scegliGiorno(' + i + ')">' +
-      '<div class="d">' + (g.scheda ? 'Foto iniziali' : esc(S.dataCorta(g.giorno))) + '</div>' +
+      '<div class="d">' + esc(g.giorno ? S.dataCorta(g.giorno) : 'Senza data') + '</div>' +
+      '<div class="t">' + esc(tipi) + '</div>' +
       '<div class="c">' + esc(cosa.join(' · ') || 'prove da segnare') + '</div></button>'
   }).join('')
 }
@@ -466,6 +489,10 @@ function costruisci() {
   if (si.totale || si.foto) { html.push(slideSintesi(g, si)); ids.push('sintesi') }
   const perc = S.percorso(giorni)
   if (giorni.length >= 2 && (perc.conEq >= 2 || perc.conScap >= 2)) { html.push(slidePercorso(perc)); ids.push('percorso') }
+  // Free: la copertina e la prima coppia di foto. Il resto è Premium, e il
+  // lucchetto sta SOTTO il palco (il paziente sulla TV non vede pubblicità).
+  bloccate = 0
+  if (!isPremium && html.length > 2) { bloccate = html.length - 2; html.length = 2; ids.length = 2 }
   document.getElementById('slides').innerHTML = html.join('')
   slides = ids
   corrente = Math.min(corrente, slides.length - 1)
@@ -476,12 +503,15 @@ function costruisci() {
   disegnaProPrope()
 }
 
+/* valutazioni-coerenti-v1 — sulla valutazione iniziale il «dopo» è dopo i CUSCINI
+   (slot «Dopo cuscini» della scheda), non dopo i 3 Respiri */
+function dopoDi() { const g = giorni[sel]; return g && g.scheda ? T.dopo_scheda : T.dopo }
 function testa(titolo, sotto) {
   const g = giorni[sel]
   return '<div class="testa"><span class="marchio">POLICETTIVO®</span>' +
     '<div><div class="titolo">' + esc(titolo) + '</div>' + (sotto ? '<div class="quando">' + esc(sotto) + '</div>' : '') + '</div>' +
     '<div class="testa-dx"><div class="chi">' + esc(nomeBreve) + '</div>' +
-    '<div class="quando">' + esc(g && g.scheda ? 'foto iniziali' : S.dataCorta(g && g.giorno)) + '</div></div></div>'
+    '<div class="quando">' + esc(g && g.scheda ? 'valutazione iniziale' : S.dataCorta(g && g.giorno)) + '</div></div></div>'
 }
 function badge(esito, parola) {
   const ico = { meglio: '✓', uguale: '=', lavoro: '↻', altro: '⇄', nd: '·' }[esito] || '·'
@@ -502,8 +532,8 @@ function slideCopertina(g) {
     '<span class="marchio">POLICETTIVO®</span>' +
     '<div class="cop-nome">' + esc(nomeBreve) + '</div>' +
     '<div class="cop-tit">' + esc(T.copertina_titolo) + '</div>' +
-    '<div class="cop-sotto">' + esc(T.copertina_sotto) + '</div>' +
-    '<div class="cop-data">' + esc(g.scheda ? 'foto iniziali' + (g.giorno ? ' · ' + S.dataLunga(g.giorno) : '') : S.dataLunga(g.giorno)) + '</div>' +
+    '<div class="cop-sotto">' + esc(g.scheda ? T.copertina_sotto_scheda : T.copertina_sotto) + '</div>' +
+    '<div class="cop-data">' + esc(g.scheda ? (g.giorno ? S.dataLunga(g.giorno) : 'data non registrata') : S.dataLunga(g.giorno)) + '</div>' +
     '<svg class="cop-respiri" viewBox="0 0 380 380" aria-hidden="true">' + cerchi + '</svg>' +
     '<div class="cop-nota">' + esc(T.copertina_nota) + '</div></div>'
 }
@@ -521,13 +551,13 @@ function slideFoto(g, ps) {
       '</div>' +
       '<div class="cursore"><span class="eti prima">' + esc(T.prima) + '</span>' +
         '<input type="range" min="0" max="100" value="100" aria-label="Da prima a dopo" oninput="mix(this,' + "'" + ps.plane + "'" + ')">' +
-        '<span class="eti dopo">' + esc(T.dopo) + '</span></div>' +
+        '<span class="eti dopo">' + esc(dopoDi()) + '</span></div>' +
       '<div class="allin">' + (allin ? 'Foto allineate sui riferimenti dello studio' : 'Foto non allineate: si guardano, non si misurano') + '</div>' +
       '</div></div>'
   } else {
     const col = (o, cls, eti) => '<div class="foto-col"><span class="eti ' + cls + '">' + esc(eti) + '</span>' +
       '<div class="riquadro ' + cls + '"><img src="' + esc(o.url) + '" alt="' + esc(eti) + '" onerror="this.parentNode.innerHTML=\'<div class=vuoto>Questa foto non si è aperta. Ricarica la pagina.</div>\'"></div></div>'
-    corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', T.dopo) + '</div>'
+    corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', dopoDi()) + '</div>'
   }
   return '<div class="slide" data-s="foto">' +
     testa(T[ps.titolo], ps.sotto) + corpo +
@@ -591,7 +621,7 @@ function slideSpalla(g) {
     '<div class="spalla-area">' +
       '<div class="figura"><span class="eti prima">' + esc(T.prima) + '</span>' + sagoma(s.a.pos, false) + '<div class="parola" style="color:#cfcfcf">' + esc(s.a.parola) + '</div></div>' +
       '<div class="freccia-grande">→</div>' +
-      '<div class="figura"><span class="eti dopo">' + esc(T.dopo) + '</span>' + sagoma(s.b.pos, true) + '<div class="parola" style="color:#FFD008">' + esc(s.b.parola) + '</div></div>' +
+      '<div class="figura"><span class="eti dopo">' + esc(dopoDi()) + '</span>' + sagoma(s.b.pos, true) + '<div class="parola" style="color:#FFD008">' + esc(s.b.parola) + '</div></div>' +
       '<div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">' + badge(s.esito, parolaEsito(s.esito)) +
         '<div style="font-size:17px;color:#7A7A7A;font-weight:600">' + esc(T.spalla_fonte) + '</div></div>' +
     '</div>' +
@@ -608,7 +638,7 @@ function slideEquilibrio(g, lista, da) {
       '<div class="eq-val"><span class="a">' + S.numIt(c.velA, 1) + '</span><span class="u">→</span><span class="b">' + S.numIt(c.velB, 1) + '</span><span class="u">°/s</span></div>' +
       '<div class="eq-delta" style="color:' + colD + '">' + S.segno(c.dv) + '</div>' +
       badge(c.esito, parola) +
-      '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(T.dopo) + '</span></div>' +
+      '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoDi()) + '</span></div>' +
       '<div style="font-size:15px;color:#7A7A7A;font-weight:600">' + esc(T.eq_banda.replace('{b}', c.banda)) + '</div>' +
       '</div></div>'
   }).join('')
@@ -695,7 +725,7 @@ function slidePercorso(perc) {
       esc(p.scheda ? 'Iniziali' : S.dataCorta(p.giorno)) + '</text>').join('')
     const bersagli = pts.map((p, i) => p.velA == null ? '' :
       '<rect x="' + (x(i) - 40) + '" y="' + TOP + '" width="80" height="' + (H - TOP - B) + '" fill="transparent" ' +
-      'data-tip="' + esc((p.scheda ? 'Foto iniziali' : S.dataCorta(p.giorno)) + ' · prima ' + S.numIt(p.velA, 1) + ' → dopo ' + S.numIt(p.velB, 1) + ' °/s') + '"/>').join('')
+      'data-tip="' + esc((p.scheda ? 'Iniziale' : S.dataCorta(p.giorno)) + ' · prima ' + S.numIt(p.velA, 1) + ' → dopo ' + S.numIt(p.velB, 1) + ' °/s') + '"/>').join('')
     graf = '<div class="perc-graf" onmousemove="tip(event)" onmouseleave="tip(null)">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
         '<div style="font-size:20px;font-weight:800">' + esc(T.eq_misura) + ' · <span style="color:#aaa">' + esc(maiuscola(perc.nome || '')) + '</span> <span style="color:#777;font-size:16px">(°/s, più basso = più fermo)</span></div>' +
@@ -746,6 +776,15 @@ function disegnaProPrope() {
   const g = giorni[sel]
   if (!g) { el.innerHTML = ''; return }
   let h = ''
+  if (avvisoIniziale) {
+    h += '<div class="msg info">La scheda di questo paziente non ha le foto <b>prima e dopo i cuscini</b>: ho aperto l’ultima valutazione.</div>'
+  }
+  if (bloccate) {
+    h += '<div class="msg premium" id="blocco-premium">🔒 <b>Il confronto completo è Premium.</b> Qui vedi la copertina e la prima coppia di foto; ' +
+      'con Premium mostri al paziente anche ' + bloccate + (bloccate === 1 ? ' altra pagina' : ' altre pagine') +
+      ': tutte le viste, la spalla, l’equilibrio, la sintesi e il percorso nel tempo.' +
+      '<br><a class="pbtn giallo" style="display:inline-block;margin-top:10px;text-decoration:none" href="upgrade.html">Passa a Premium</a></div>'
+  }
   if (manca048) {
     h += '<div class="msg ko">⚠️ <b>Manca la migration 048_oscillazione_momento.sql</b>: le prove di equilibrio non possono essere segnate «prima» o «dopo» i 3 Respiri, quindi l’equilibrio non compare. Il resto funziona.</div>'
   }

@@ -9,6 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/osservazioni.js"></script>
   <script src="js/postural-component.js"></script>
+  <!-- valutazioni-coerenti-v1 · quali valutazioni entrano: lo stesso elenco di «Prima e dopo» -->
+  <script src="js/valutazioni.js"></script>
   <!-- ai-solo-premium-v1 : serve il modale, questa pagina chiama /api/ai-analisi -->
   <script src="utils-ai.js"></script>
   <style>
@@ -153,7 +155,7 @@
 
   <div class="main">
     <div class="patient-title" id="pt-nome">Caricamento…</div>
-    <div class="patient-sub" id="pt-sub">Confronto delle valutazioni posturali nel tempo</div>
+    <div class="patient-sub" id="pt-sub">Confronto delle valutazioni nel tempo</div>
 
     <div class="msg ko" id="banner-errore"></div>
     <div class="msg info" id="banner-info"></div>
@@ -275,17 +277,12 @@ const patientId = params.get('id') || params.get('pid')
    elenchi paralleli per la stessa cosa sono il modo sicuro per farli divergere. */
 const PLANES = (typeof POSTURAL_PHOTO_PLANES !== 'undefined') ? POSTURAL_PHOTO_PLANES : null
 
-/* Le foto iniziali della scheda paziente, portate sui piani della posturale. */
-const SLOT_SCHEDA = {
-  'prima-sx':    { plane:'sagittale_sx',      fase:'pre'  },
-  'prima-dx':    { plane:'sagittale_dx',      fase:'pre'  },
-  'dopo-sx':     { plane:'sagittale_sx',      fase:'post' },
-  'dopo-dx':     { plane:'sagittale_dx',      fase:'post' },
-  'frontale':    { plane:'frontale',          fase:'pre'  },
-  'posteriore':  { plane:'posteriore',        fase:'pre'  },
-  'podo-sotto':  { plane:'podoscopio_sotto',  fase:'pre'  },
-  'podo-dietro': { plane:'podoscopio_dietro', fase:'pre'  }
-}
+/* valutazioni-coerenti-v1 — le foto della scheda e i tipi di visita che entrano
+   nel confronto stanno in js/valutazioni.js, lo stesso file che usa «Prima e
+   dopo». Prima qui c'era un elenco suo, e le due pagine non coincidevano. */
+const PV = window.PolValutazioni || null
+const SLOT_SCHEDA = PV ? PV.SLOT_SCHEDA : {}
+const TIPI_VISITA = PV ? PV.TIPI_VISITA : ['posturale']
 
 /* Sulle viste che guardano il corpo di fronte o di spalle una tendina
    VERTICALE mostra meta' «prima» e meta' «dopo» dello stesso corpo e simula
@@ -335,6 +332,7 @@ function tornaIndietro() { if (history.length > 1) history.back(); else window.c
    salvate in base64 o come URL diretto esistono ancora: quelle un percorso non
    ce l'hanno e non si possono allineare, ma si vedono lo stesso. */
 function percorsoScheda(v) {
+  if (PV) return PV.percorsoScheda(v)
   if (!v) return null
   if (typeof v === 'object') return v.storage_path || null
   if (typeof v !== 'string') return null
@@ -345,6 +343,7 @@ function percorsoScheda(v) {
    l'unica data disponibile e' dentro il nome del file, ed e' il momento del
    CARICAMENTO. Vale come «caricata il», mai come «scattata il». */
 function dataDaPercorso(p) {
+  if (PV) return PV.dataDaPercorso(p)
   const m = /_(\d{10,16})\.[a-z]+$/i.exec(p || '')
   if (!m) return null
   const n = Number(m[1]); if (!isFinite(n)) return null
@@ -369,6 +368,10 @@ function notaData(pt) {
 // ── AVVIO ─────────────────────────────────────────────────
 async function init() {
   if (!patientId) { errore('Indirizzo incompleto: manca il paziente (<code>?id=</code>).'); return }
+  if (!PV) {
+    errore('Non si è caricato <code>js/valutazioni.js</code>, dove è scritto quali valutazioni entrano nel confronto. Ricarica la pagina.')
+    return
+  }
   if (!PLANES) {
     errore('Non si è caricato <code>js/postural-component.js</code>, che è l\'unico posto dove sono scritti i piani. ' +
            'La pagina non ne costruisce un secondo elenco per conto suo: ricarica, e se il problema resta segnalalo.')
@@ -449,7 +452,7 @@ async function caricaPunti() {
   // 2) Le valutazioni posturali del paziente.
   const { data: visite, error: ve } = await _sb
     .from('visits').select('id,data_visita,created_at,tipo')
-    .eq('patient_id', patientId).eq('tipo', 'posturale')
+    .eq('patient_id', patientId).in('tipo', TIPI_VISITA)
   if (ve) { errore('Non ho potuto leggere le valutazioni: ' + esc(ve.message)); return }
 
   const ids = (visite || []).map(v => v.id)
@@ -481,7 +484,7 @@ async function caricaPunti() {
       if (!foto[pl.plane].pre && !foto[pl.plane].post) delete foto[pl.plane]
     })
     if (!Object.keys(foto).length) return
-    nuovi.push({ chiave:'v_' + v.id, kind:'visita', visitId:v.id, data: v.data_visita || v.created_at, foto: foto })
+    nuovi.push({ chiave:'v_' + v.id, kind:'visita', tipo: v.tipo, visitId:v.id, data: v.data_visita || v.created_at, foto: foto })
   })
 
   // 3) Un giro solo di firme per tutte le foto: e' l'unica ragione per cui il
@@ -554,6 +557,12 @@ function scegliPunto(i) {
   renderTimeline(); render()
 }
 
+/* valutazioni-coerenti-v1 — il nome breve della voce: iniziale (scheda),
+   posturale o fisioterapica. Due voci dello stesso giorno si distinguono. */
+function nomeBreve(pt) {
+  if (pt.kind === 'scheda') return 'Iniziale · scheda'
+  return pt.tipo === 'fisioterapica' ? 'Fisioterapica' : 'Posturale'
+}
 function renderTimeline() {
   const tl = document.getElementById('timeline')
   tl.innerHTML = punti.map((pt, i) => {
@@ -562,7 +571,7 @@ function renderTimeline() {
     const tag = i === selA ? '<span class="tl-tag">A</span>' : (i === selB ? '<span class="tl-tag">B</span>' : '')
     return '<button class="tl-punto' + cls + '" data-i="' + i + '" onclick="scegliPunto(' + i + ')">' + tag +
       '<div class="tl-data"' + (pt.data ? '' : ' style="color:#888;font-size:12px"') + '>' + etichettaBreve(pt) + '</div>' +
-      '<div class="tl-tipo">' + (pt.kind === 'scheda' ? 'Scheda paziente' : 'Valutazione') + '</div>' +
+      '<div class="tl-tipo">' + nomeBreve(pt) + '</div>' +
       '<div class="tl-n">' + n + ' foto' + (notaData(pt) ? ' · ' + notaData(pt) : '') + '</div>' +
     '</button>'
   }).join('')
@@ -616,7 +625,7 @@ function bloccoStriscia(pl) {
       : '<div class="str-vuota">— assente —</div>'
     return '<div class="str-cella"><div class="str-box" onclick="scegliPunto(' + i + ')">' + dentro + '</div>' +
       '<div class="str-data">' + dataIT(pt.data) + '</div>' +
-      '<div class="str-tipo">' + (pt.kind === 'scheda' ? 'scheda' : 'valutazione') + '</div></div>'
+      '<div class="str-tipo">' + nomeBreve(pt) + '</div></div>'
   }).join('')
   box.innerHTML = '<div class="piano-hdr"><span class="piano-tit">' + esc(pl.label) + '</span></div>' +
                   '<div class="striscia">' + celle + '</div>'
