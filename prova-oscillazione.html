@@ -215,7 +215,7 @@
      3) «← Test» riporta alla pagina dei test (test.html), da cui si arriva
         anche al Confronto, che adesso è sessione contro sessione. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/oscillazione.js"></script>
+<script src="js/oscillazione.js?v=referto-paziente-v1"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -1283,6 +1283,9 @@
     var attesa = Number($('attesa').value) || 5
     $('etichetta-viva').textContent = evento + (eTest(evento) ? ' · occhi ' + occhi : '') + ' · ' + piedi
     mostra('c-setup', false); mostra('c-esito', false); mostra('c-misura', true)
+    // live-tv-v1 · il gomitolo si vede SUBITO: griglia pronta e schermo portato lì
+    try { disegna($('live'), [], [], 5) } catch(e){}
+    try { $('c-misura').scrollIntoView({ block: 'start' }) } catch(e){}
     $('guard').classList.add('on')
 
     var wl = null
@@ -1911,6 +1914,7 @@
       var r = await SB.auth.getSession()
       haiSessione = !!(r && r.data && r.data.session)
       if (haiSessione) await chiSono(r.data.session)
+      if (haiSessione) await direttaDaSola()
     } catch(e){ SB = null; haiSessione = false }
     disegnaDiretta()
     disegnaPaziente()
@@ -2095,7 +2099,7 @@
   function stampaSessione(html){
     var corpo = html.replace(/^[^]*<body>/, '').replace(/<\/body>[^]*$/, '')
     var st = document.createElement('style'); st.id = 'stampa-css'
-    st.textContent = '@media print{' + window.PolOscillazione.CSS_REFERTO + '}'
+    st.textContent = '@media print{' + window.PolOscillazione.CSS_REFERTO + window.PolOscillazione.CSS_OMINI + '}'
     document.head.appendChild(st)
     $('stampa-sessione').innerHTML = corpo
     document.body.classList.add('stampa-sessione')
@@ -2227,8 +2231,8 @@
     }
     if (!canale){
       el.innerHTML = '<div class="live"><div class="live-riga">' +
-        '<span>📺 <b>Mostra sul computer</b> — apri l’applicazione sul computer con lo stesso ' +
-        'account: si accende da sola.</span>' +
+        '<span>📺 <b>Mostra sul computer o sulla TV</b> — accendila una volta: da lì resta accesa, e sul ' +
+        'computer (stesso account, «Vista in diretta») il gomitolo compare da solo a ogni prova.</span>' +
         '<button type="button" id="btn-live-on">Accendi</button></div></div>'
       $('btn-live-on').addEventListener('click', accendiDiretta)
       return
@@ -2244,7 +2248,29 @@
     $('btn-live-cod').addEventListener('click', creaCodice)
   }
 
+  // live-tv-v1 · LA DIRETTA SI RIACCENDE DA SOLA.
+  // Se è già aperto un canale (meno di 12 ore) il telefono ci si riaggancia
+  // senza cambiarlo: il computer o la TV restano collegati. Se no, e l'ultima
+  // volta era accesa, se ne apre uno nuovo (e il computer lo trova da solo).
+  // Sul canale passano solo angoli, come sempre.
+  var CHIAVE_DIRETTA = 'policettivo.diretta.v1'
+  function ricordaDiretta(on){ try { localStorage.setItem(CHIAVE_DIRETTA, on ? 'on' : 'off') } catch(e){} }
+  function direttaRicordata(){ try { return localStorage.getItem(CHIAVE_DIRETTA) === 'on' } catch(e){ return false } }
+  async function direttaDaSola(){
+    if (!SB || canale) return
+    try {
+      var c = await SB.rpc('oscillazione_canale')
+      if (!c.error && c.data){
+        canale = c.data
+        canaleSub = SB.channel('oscillazione:' + canale, { config: { broadcast: { self: false } } })
+        await canaleSub.subscribe()
+        return
+      }
+      if (direttaRicordata()) await accendiDiretta()
+    } catch(e){}
+  }
   async function accendiDiretta(){
+    ricordaDiretta(true)
     try {
       var r = await SB.rpc('oscillazione_apri_canale')
       if (r.error || !r.data){ disegnaDiretta('⚠️ Non sono riuscito ad aprire il canale. Riprova.'); return }
@@ -2256,6 +2282,7 @@
   }
 
   function spegniDiretta(){
+    ricordaDiretta(false)
     try { if (canaleSub && SB) SB.removeChannel(canaleSub) } catch(e){}
     canaleSub = null; canale = null
     disegnaDiretta()
@@ -2405,7 +2432,8 @@
       $('carico-box').innerHTML +
       $('omini').innerHTML +
       (png ? '<div class="pdf-img"><img src="' + png + '"></div>' : '') +
-      '<div class="spiegazione">' + $('spiegazione').innerHTML + '</div>' +
+      // referto-paziente-v1 · nel PDF le parole per il PAZIENTE, non quelle del banco
+      '<div class="spiegazione">' + window.PolOscillazione.spiegaPaziente(rigaDaSalvare(p)).map(function(t){ return '<p>' + escapeHtml(t) + '</p>' }).join('') + '</div>' +
       '<table>' + ($('tab-metriche').parentNode ? $('tab-metriche').parentNode.innerHTML : '') + '</table>' +
       '<div class="pdf-piede">Test del Sistema Policettivo®: misura l’inclinazione della Tavola ' +
         'Policettiva — dove va il carico e quanto oscilla. Non è una stabilometria su pedana: i numeri ' +

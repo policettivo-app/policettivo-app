@@ -18,6 +18,20 @@
 ;(function (global) {
   'use strict'
   var PM = function () { return global.PolMisure }
+  // gradi-auto-v1 · ⚠️ IL MODELLO SI CERCA ACCANTO A QUESTO FILE.
+  // Un import('./js/…') scritto qui dentro si risolve rispetto a js/editor-punti.js,
+  // cioè js/js/postural-overlay.js: non esiste, il modello non partiva e i punti
+  // restavano tutti sul filo (a 0°). È il guasto del 24 settembre. L'indirizzo si
+  // prende dallo <script> che ha caricato questo file.
+  var QUI = (typeof document !== 'undefined' && document.currentScript && document.currentScript.src) || ''
+  function indirizzoModello() {
+    try { return new URL('postural-overlay.js?v=gradi-auto-v1', QUI || new URL('js/', location.href).href).href }
+    catch (e) { return 'js/postural-overlay.js?v=gradi-auto-v1' }
+  }
+  function modello() {
+    if (global.__mpFinto) return Promise.resolve(global.__mpFinto)
+    return import(indirizzoModello()).then(function (m) { return m.puntiMediaPipe })
+  }
   var ed = null, montato = false
 
   var CSS = [
@@ -135,7 +149,7 @@
     if (ed.noMP) { stato('Il modello non può leggere questa foto: sposta i punti a mano.', ''); return }
     stato('Cerco i punti sulla foto…', '')
     try {
-      var fn = global.__mpFinto || (await import('./js/postural-overlay.js?v=editor-punti-v1')).puntiMediaPipe
+      var fn = await modello()
       var r = await fn($('ed-img'))
       if (!ed) return
       if (!r || !r.ok) { stato((r && r.message ? r.message + ' ' : '') + 'Sposta i punti a mano.', ''); return }
@@ -202,5 +216,29 @@
     if (typeof r.dopo === 'function') r.dopo()
   }
 
-  global.PolEditorPunti = { apri: apri, chiudi: chiudi, stato: function () { return ed } }
+  /* gradi-auto-v1 · I GRADI IN AUTOMATICO, SENZA APRIRE L'EDITOR.
+     Il modello trova i punti e i gradi escono subito, come in «Disegno».
+     Il filo resta la verticale della foto (come prima); chi vuole lo corregge
+     aprendo l'editor. Restituisce { ok, dati } con origine 'automatico'. */
+  async function automatico(o) {
+    var P = PM(), vista = P.vistaDi(o.plane)
+    if (!vista) return { ok: false, errore: 'vista non misurabile' }
+    var img = new Image()
+    if (!/^(blob|data):/.test(o.url)) img.crossOrigin = 'anonymous'
+    try {
+      await new Promise(function (res, rej) { img.onload = res; img.onerror = function () { rej(new Error('la foto non si è aperta')) }; img.src = o.url })
+      var fn = await modello()
+      var r = await fn(img)
+      if (!r || !r.ok) return { ok: false, errore: (r && r.message) || 'il modello non ha trovato la persona' }
+      var nuovi = P.daMediaPipe(vista, r.punti, o.plane)
+      if (!nuovi) return { ok: false, errore: 'il modello non ha trovato abbastanza punti' }
+      var punti = P.predefiniti(vista, o.plane)
+      Object.keys(nuovi).forEach(function (k) { punti[k] = nuovi[k] })
+      var W = img.naturalWidth, H = img.naturalHeight, verso = P.versoPredefinito(o.plane)
+      return { ok: true, dati: { vista: vista, verso: verso, punti: punti, gradi: P.misure(vista, punti, W, H, verso),
+        larghezza: W, altezza: H, origine: 'automatico', versione: P.VERSIONE } }
+    } catch (e) { return { ok: false, errore: e && e.message ? e.message : String(e) } }
+  }
+
+  global.PolEditorPunti = { apri: apri, chiudi: chiudi, automatico: automatico, indirizzoModello: indirizzoModello, stato: function () { return ed } }
 })(typeof window !== 'undefined' ? window : globalThis)

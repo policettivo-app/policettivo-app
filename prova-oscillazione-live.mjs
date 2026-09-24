@@ -45,7 +45,7 @@ const FINTO = ({ sessione, canale, risolvi }) => {
         auth: { getSession: async () => ({ data: { session: sessione ? { user: { id: 'u1' } } : null } }) },
         rpc: async (nome, args) => {
           window.__fk.chiamate.push([nome, args || null])
-          if (nome === 'oscillazione_canale')  return { data: canale || null, error: null }
+          if (nome === 'oscillazione_canale')  return { data: window.__canaleFinto || canale || null, error: null }
           if (nome === 'oscillazione_risolvi') return { data: risolvi || null, error: null }
           return { data: null, error: null }
         },
@@ -101,7 +101,7 @@ sez('Il visore non misura e non salva niente')
   check('⛔ non legge nessuna tabella', !/\.from\(/.test(src))
   const rpc = [...src.matchAll(/\.rpc\(\s*'([^']+)'/g)].map(m => m[1])
   check('⭐ chiama solo le due funzioni che gli servono',
-    rpc.length === 2 && rpc.every(n => n === 'oscillazione_canale' || n === 'oscillazione_risolvi'), rpc)
+    new Set(rpc).size === 2 && rpc.every(n => n === 'oscillazione_canale' || n === 'oscillazione_risolvi'), rpc)
   check('⛔ non chiede nessun permesso ai sensori',
     !/DeviceOrientation|DeviceMotion|requestPermission/.test(src))
   check('⛔ e non scrive sul telefono di chi guarda',
@@ -132,6 +132,24 @@ sez('Con l’account ma senza diretta accesa, dice cosa fare')
   const t = await page.textContent('#ing-testo')
   check('⭐ spiega di accendere la condivisione sul telefono', /Mostra sul computer/.test(t), t)
   check('e che si può usare anche un codice ospite', /codice ospite/.test(t), t)
+  await ctx.close()
+}
+
+sez('⭐ live-tv-v1 · si aggancia DA SOLO quando il telefono accende la diretta, e segue il canale nuovo')
+{
+  const { page, ctx, errori } = await apri(browser, { sessione: true, canale: null })
+  check('all’inizio aspetta, e dice che si collega da sola', /si collega da sola/.test(await page.textContent('#ing-testo')))
+  await page.evaluate(() => { window.__canaleFinto = 'CAN-9' })     // il telefono accende la diretta
+  await page.waitForTimeout(4600)
+  check('⭐⭐ senza ricaricare, è in ascolto sul canale nuovo', await page.isVisible('#app-visore') && await page.evaluate(() => !!window.__fk.canali['oscillazione:CAN-9']))
+  await page.evaluate(() => { window.__canaleFinto = 'CAN-10' })    // il telefono riapre la diretta
+  await page.waitForTimeout(4600)
+  check('⭐ e passa da solo al canale nuovo', await page.evaluate(() => !!window.__fk.canali['oscillazione:CAN-10']))
+  check('⭐ col tempo che scorre grande durante la prova', await page.evaluate(() => {
+    window.__emetti('oscillazione:CAN-10', 'via', { evento: 'beccheggio', occhi: 'aperti', durata: 30, soglia: 2 })
+    return true }) && (await page.waitForTimeout(400), /SECONDI/.test(await page.textContent('#v-tempo'))) && await page.isVisible('#v-tempo'))
+  check('⭐ pulsante «Schermo intero»', await page.isVisible('#btn-intero'))
+  check('nessun errore JS', errori.length === 0, errori)
   await ctx.close()
 }
 
@@ -304,16 +322,15 @@ sez('⭐ La spiegazione è la STESSA del telefono, non ricalcolata')
   await emetti('fine', FINE)
   await page.waitForTimeout(120)
   check('nessun errore JS in pagina', errori.length === 0, errori)
-  check('di default la spiegazione è chiusa', !(await page.isVisible('#v-frasi')))
-  await page.click('#btn-frasi')
-  await page.waitForTimeout(80)
+  // live-tv-v1 · sullo schermo grande la spiegazione è per il PAZIENTE e si vede subito
+  check('⭐ la spiegazione per il paziente è già aperta', await page.isVisible('#v-frasi'))
   const f = await page.textContent('#v-frasi')
-  check('⭐ aprendola ci sono le frasi arrivate dal telefono', /Test di beccheggio/.test(f), f)
-  check('⭐ parola per parola, non riscritte qui', /La velocità media è 3,4 gradi al secondo\./.test(f), f)
-  check('e la chiusura clinica', /interpretazione clinica la scrivi tu/.test(f), f)
+  check('⭐ dice dove sta il peso, con le parole del PDF', /Di profilo, il peso va più INDIETRO, verso i talloni/.test(f), f)
+  check('⭐ e cosa vuol dire la velocità', /Velocità media di oscillazione: 3,4 gradi al secondo/.test(f), f)
+  check('⛔ niente parole del banco (rumore, cuscino)', !/rumore|cuscino sta cedendo/i.test(f), f)
   await page.click('#btn-frasi')
   await page.waitForTimeout(80)
-  check('e si richiude', !(await page.isVisible('#v-frasi')))
+  check('e si può chiudere', !(await page.isVisible('#v-frasi')))
   await ctx.close()
 }
 
@@ -353,8 +370,8 @@ sez('⛔ Un fine sballato non rompe la pagina')
   await page.waitForTimeout(150)
   check('⛔ nessun errore JS anche con un messaggio monco', errori.length === 0, errori)
   check('il risultato compare lo stesso', await page.evaluate(() => window.__live.esito()))
-  check('⭐ e il pulsante della spiegazione sparisce se non ci sono frasi',
-    !(await page.isVisible('#btn-frasi')))
+  check('⭐ e la spiegazione dice che il carico non ha riferimento, senza inventare',
+    /non ha un riferimento/.test(await page.textContent('#v-frasi')))
   const om = await page.innerHTML('#v-omini')
   check('gli omini si disegnano comunque, a zero', (om.match(/<svg/g) || []).length === 3)
   await ctx.close()

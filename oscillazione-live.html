@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Vista in diretta — Oscillazione Policettiva</title>
-<!-- oscillazione-live-v1 — IL VISORE.
+<!-- oscillazione-live-v1 — IL VISORE. · live-tv-v1 (24 set: fondo scuro da TV, tempo grande, si aggancia da solo)
      Sta su un computer, un tablet, una TV: qualunque cosa apra una pagina web.
      Non misura niente e non salva niente: ascolta e disegna.
 
@@ -24,7 +24,7 @@
         smettono di arrivare. Un disegno fermo che sembra vivo e' peggio di
         nessun disegno: dopo 3 secondi di silenzio la pagina lo DICE. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/oscillazione.js"></script>
+<script src="js/oscillazione.js?v=referto-paziente-v1"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -80,11 +80,36 @@
   .cap-min{font-size:11px;color:#999}
   .frasi{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:14px 16px;
          font-size:15px;line-height:1.6;display:none}
+  .esito .frasi{background:#fffdf2;border:0;border-left:5px solid #FFD008;font-size:clamp(16px,1.6vw,22px);color:#111}
   .frasi.on{display:block}
   .frasi p{margin:0 0 8px}
   .frasi p:last-child{margin:0;color:#667;font-style:italic}
   .err{background:#fff5f5;border:1.5px solid #e11;border-radius:12px;padding:11px 13px;
        font-size:14px;color:#900;margin-top:12px}
+  /* live-tv-v1 — SCHERMO GRANDE: fondo scuro, il gomitolo come una lavagna
+     luminosa, il marchio in alto e il tempo che scorre grande. Si legge da
+     tre metri, su una TV come su un computer. */
+  body{background:radial-gradient(1200px 700px at 50% 35%,#1b1b1b 0%,#070707 70%);color:#fff;min-height:100vh}
+  .barra{background:rgba(0,0,0,.55);border-bottom:1px solid #222;backdrop-filter:blur(6px)}
+  .marchio{display:inline-block;background:#FFD008;color:#000;font-weight:900;font-size:11px;letter-spacing:2.5px;
+           padding:4px 9px;border-radius:5px;margin-right:10px;vertical-align:middle}
+  .tit{font-size:20px;color:#fff}
+  .sub{color:#aaa;font-size:13px}
+  .stato{background:#1d1d1d;color:#bbb}
+  .stato.attesa{background:#1d1d1d;color:#bbb}
+  .stato.viva{background:#0f2a1c;color:#6ee7a8}
+  .stato.rotta{background:#2a1111;color:#ff9c9c}
+  canvas{border:0;box-shadow:0 0 0 1px rgba(255,208,8,.25),0 30px 90px rgba(0,0,0,.6),0 0 70px rgba(255,208,8,.08)}
+  .tempo{position:fixed;right:28px;top:76px;font-size:min(12vh,110px);font-weight:900;color:#FFD008;
+         font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 6px 30px rgba(0,0,0,.6);display:none}
+  .tempo small{display:block;font-size:14px;letter-spacing:2px;color:#aaa;text-align:right;font-weight:700}
+  .tempo.on{display:block}
+  .esito{color:#111}
+  .titolo-omini{color:#bbb}
+  .sw{background:#1a1a1a;border-color:#333;color:#eee}
+  .intero{position:fixed;left:20px;top:80px;bottom:auto}
+  .centro{color:#fff}.centro p{color:#bbb}
+  .numeri{color:#111}
 </style>
 </head>
 <body>
@@ -101,7 +126,7 @@
 <div id="app-visore" style="display:none">
   <div class="barra">
     <div>
-      <div class="tit">Oscillazione Policettiva</div>
+      <div class="tit"><span class="marchio">POLICETTIVO®</span>Oscillazione Policettiva</div>
       <div class="sub" id="v-sub">vista in diretta</div>
     </div>
     <div class="stato attesa" id="v-stato">in attesa del telefono…</div>
@@ -117,6 +142,8 @@
     <button class="sw" id="btn-frasi" style="position:static;width:100%;margin-bottom:12px">Leggi la spiegazione</button>
     <div class="frasi" id="v-frasi"></div>
   </div>
+  <div class="tempo" id="v-tempo"></div>
+  <button class="sw intero" id="btn-intero">⛶ Schermo intero</button>
   <button class="sw" id="btn-numeri">Mostra i numeri</button>
   <div class="numeri" id="v-numeri"></div>
 </div>
@@ -133,6 +160,12 @@
   var SB = null, sub = null
   var xs = [], ys = [], scala = 3, soglia = 0, inCorso = false
   var ultimoDato = 0, guardia = null, mostraNumeri = false, ultimoFine = null
+  var canaleOra = null, cerca = null, fineTempo = 0, orologio = null   // live-tv-v1
+  function tempo(){
+    var el = $('v-tempo'), rest = Math.ceil((fineTempo - Date.now()) / 1000)
+    if (!inCorso || !fineTempo || rest < 0){ el.classList.remove('on'); return }
+    el.innerHTML = rest + '<small>SECONDI</small>'; el.classList.add('on')
+  }
 
   function stato(testo, classe){
     var el = $('v-stato'); el.textContent = testo
@@ -205,19 +238,29 @@
       '</div>'
 
     $('v-omini').innerHTML = P.omini(f.carico_avanti || 0, f.carico_destra || 0, col, f.soglia || 0)
-    $('v-frasi').innerHTML = (f.frasi || []).map(function(t){ return '<p>' + t + '</p>' }).join('')
-    $('btn-frasi').style.display = (f.frasi && f.frasi.length) ? '' : 'none'
+    // live-tv-v1 · sullo schermo grande le parole per il PAZIENTE, subito visibili
+    // (le stesse del PDF), calcolate da quello che è arrivato: niente database.
+    var frasi = (P.spiegaPaziente ? P.spiegaPaziente({ evento: f.evento, occhi: f.occhi, carico_avanti: f.carico_avanti,
+      carico_destra: f.carico_destra, velocita: f.velocita, serie: { xs: xs, ys: ys } }) : (f.frasi || []))
+    $('v-frasi').innerHTML = frasi.map(function(t){ return '<p>' + String(t).replace(/[&<>]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;' }[c] }) + '</p>' }).join('')
+    $('v-frasi').classList.add('on')
+    $('btn-frasi').textContent = 'Nascondi la spiegazione'
+    $('btn-frasi').style.display = frasi.length ? '' : 'none'
   }
 
   function ascolta(canale){
     $('app-ingresso').style.display = 'none'
     $('app-visore').style.display = ''
     ridisegna()
+    // live-tv-v1 · se il telefono ha aperto un canale nuovo si passa a quello, da soli
+    if (sub){ try { SB.removeChannel(sub) } catch(e){} }
+    canaleOra = canale
     sub = SB.channel('oscillazione:' + canale, { config: { broadcast: { self: false } } })
     sub.on('broadcast', { event: 'via' }, function(m){
       var p = m.payload || {}
       xs = []; ys = []; scala = 3; inCorso = true
       soglia = p.soglia || 0
+      fineTempo = p.durata ? Date.now() + p.durata * 1000 : 0; tempo()
       ultimoDato = Date.now()
       $('v-sub').textContent = (p.evento || '') + (p.occhi && p.occhi !== '-' ? ' · occhi ' + p.occhi : '')
       stato('misura in corso', 'viva')
@@ -237,7 +280,7 @@
       ridisegna()
     })
     sub.on('broadcast', { event: 'fine' }, function(m){
-      inCorso = false
+      inCorso = false; tempo()
       stato('finito', 'viva')
       numeri(m.payload || null)
       if (mostraNumeri) $('v-numeri').classList.add('on')
@@ -249,7 +292,9 @@
       else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') stato('collegamento non riuscito', 'rotta')
     })
 
+    if (!orologio) orologio = setInterval(tempo, 250)
     // ⚠️ il cane da guardia: un disegno fermo che sembra vivo inganna
+    if (guardia) clearInterval(guardia)
     guardia = setInterval(function(){
       if (inCorso && Date.now() - ultimoDato > SILENZIO_MS){
         inCorso = false
@@ -280,10 +325,19 @@
     try { var r = await SB.auth.getSession(); ses = r && r.data ? r.data.session : null } catch(e){}
     if (ses){
       var c = await SB.rpc('oscillazione_canale')
+      // live-tv-v1 · col proprio account la pagina CERCA da sola il telefono: appena
+      // la diretta si accende (o cambia canale) si aggancia, senza ricaricare.
+      cerca = setInterval(async function(){
+        if (inCorso) return
+        try {
+          var n = await SB.rpc('oscillazione_canale')
+          if (!n.error && n.data && n.data !== canaleOra) ascolta(n.data)
+        } catch(e){}
+      }, 4000)
       if (!c.error && c.data){ ascolta(c.data); return }
       $('app-ingresso').style.display = ''
-      $('ing-testo').textContent = 'Sul telefono, nella pagina del test, accendi «Mostra sul computer». ' +
-        'Poi ricarica questa pagina. Oppure scrivi qui un codice ospite.'
+      $('ing-testo').textContent = 'Sul telefono, nella pagina del test, accendi «Mostra sul computer»: ' +
+        'questa pagina si collega da sola. Oppure scrivi qui un codice ospite.'
       return
     }
     $('app-ingresso').style.display = ''
@@ -299,6 +353,12 @@
   $('btn-frasi').addEventListener('click', function(){
     var on = $('v-frasi').classList.toggle('on')
     $('btn-frasi').textContent = on ? 'Nascondi la spiegazione' : 'Leggi la spiegazione'
+  })
+  $('btn-intero').addEventListener('click', function(){
+    try {
+      if (document.fullscreenElement) document.exitFullscreen()
+      else document.documentElement.requestFullscreen()
+    } catch(e){}
   })
   $('btn-numeri').addEventListener('click', function(){
     mostraNumeri = !mostraNumeri

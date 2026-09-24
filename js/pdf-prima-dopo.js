@@ -1,4 +1,4 @@
-/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026) · editor-punti-v1
+/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026) · editor-punti-v1 · gradi-auto-v1
  *
  * «PRIMA E DOPO I 3 RESPIRI» DENTRO I PDF: UN POSTO SOLO.
  *
@@ -88,11 +88,12 @@
       var p = (o.photos || []).filter(function (f) { return f.tipo === tipo })[0]
       return p && p.storage_path ? pd.misure[p.storage_path] : null
     }
-    var righe = []
+    var righe = [], auto = false
     if (PM) (o.piani || []).forEach(function (pl) {
       if (!PM.vistaDi(pl.plane)) return
       var a = misura(pl.pre.tipo), b = misura(pl.post.tipo)
       if (!a || !b) return
+      if (a.origine === 'automatico' || b.origine === 'automatico') auto = true   // gradi-auto-v1
       PM.confronto(a.gradi || [], b.gradi || [], a.vista).forEach(function (c) {
         righe.push({ vista: NOMI_PIANO[pl.plane] || pl.label, c: c })
       })
@@ -119,9 +120,10 @@
               : '<b>' + ({ meglio: 'Più vicino al riferimento', uguale: 'Invariato', lavoro: 'Più lontano dal riferimento' }[r.c.esito] || '') + '</b> <span style="color:#888">(±' + num(r.c.errore) + '°)</span>') + '</td>' : '') + '</tr>'
         }).join('') + '</table>' +
         '<p style="margin:2px 0 6px;font-size:7.5px;color:#666;font-style:italic;line-height:1.5">' +
-        (giud ? 'Punti confermati dal professionista sulla foto. Una differenza entro la soglia (errore della misura, ' +
+        (auto ? 'Punti trovati in automatico dal modello (riferimento: la verticale della foto), eventualmente corretti dal professionista. ' : 'Punti confermati dal professionista sulla foto. ') +
+        (giud ? 'Una differenza entro la soglia (errore della misura, ' +
           'ricavato ripetendo le foto: 2,77 × deviazione standard entro il soggetto) è riportata come «invariato».'
-        : 'Punti confermati dal professionista sulla foto. L’errore di misura di questo metodo non è ancora stato ' +
+        : 'L’errore di misura di questo metodo non è ancora stato ' +
           'misurato: le differenze si riportano, ma non vanno interpretate come miglioramento o peggioramento.') + '</p>'
     }
 

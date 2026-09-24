@@ -1,4 +1,4 @@
-/* js/oscillazione.js — oscillazione-live-v1 · oscillazione-esito-v1 · oscillazione-app-v1 · test-sessioni-v1 · schermo-paziente-v1
+/* js/oscillazione.js — referto-paziente-v1 · oscillazione-live-v1 · oscillazione-esito-v1 · oscillazione-app-v1 · test-sessioni-v1 · schermo-paziente-v1
  *
  * IL DISEGNO DEL GOMITOLO, IN UN FILE SOLO.
  *
@@ -640,10 +640,12 @@
   function pngDaRiga(r, scala, lato){
     if (typeof document === 'undefined') return ''
     var cv = document.createElement('canvas'); cv.width = cv.height = lato || 500
-    var s = serieDaRiga(r), sc = scala || 1.2, i
+    var s = serieDaRiga(r), sc = scala || 1.2, i, el = ellisseDi(s.xs, s.ys)
     if (!scala) for (i = 0; i < s.xs.length; i++) sc = Math.max(sc, Math.abs(s.xs[i]), Math.abs(s.ys[i]))
+    // referto-paziente-v1 · anche l'ellisse deve stare nel disegno (prima usciva dal bordo)
+    if (!scala && el && el.semiA > 0) sc = Math.max(sc, (el.semiA + Math.hypot(el.mx || 0, el.my || 0)) * 1.05)
     var ca = numeroO(r.carico_avanti), cd = numeroO(r.carico_destra)
-    disegna(cv, s.xs, s.ys, sc, ellisseDi(s.xs, s.ys), { parole: true, cuneo: true,
+    disegna(cv, s.xs, s.ys, sc, el, { parole: true, cuneo: true,
       carico: (ca != null && cd != null) ? { x: cd, y: ca } : null, colore: '#c0392b' })
     try { return cv.toDataURL('image/png') } catch(e){ return '' }
   }
@@ -670,7 +672,9 @@
     '.sintesi-riga{display:flex;justify-content:space-between;gap:8px;padding:3px 0}' +
     '.warn{background:#fff8e6;border:1.5px solid #e6a100;border-radius:10px;padding:8px 10px;color:#7a5200;margin-top:8px;font-size:12px}' +
     '.tele-ref{display:flex;gap:10px;text-align:center;font-size:11px;color:#555}.tele-ref img{width:70mm;height:70mm}' +
-    '.piede-ref{font-size:10px;color:#777;border-top:1px solid #ddd;margin-top:14px;padding-top:6px}'
+    '.piede-ref{font-size:10px;color:#777;border-top:1px solid #ddd;margin-top:14px;padding-top:6px}' +
+    '.testa-ref{border-bottom:0;padding:10px 12px;background:#111;color:#fff;border-radius:12px}.testa-ref div{color:#ddd}' +
+    '.testa-ref h1:before{content:"POLICETTIVO®";display:inline-block;background:#FFD008;color:#111;font-size:10px;letter-spacing:2px;font-weight:900;padding:3px 7px;border-radius:4px;margin-right:9px;vertical-align:middle}'
 
   var PIEDE_REFERTO = '<div class="piede-ref">Test del Sistema Policettivo®: misura l’inclinazione della ' +
     'Tavola Policettiva — dove va il carico e quanto oscilla. Non è una stabilometria su pedana: i numeri si ' +
@@ -690,6 +694,62 @@
     if (info.peso_kg != null && info.peso_kg !== '') extra.push(numIt(Number(info.peso_kg), 1) + ' kg')
     return '<b>' + t + '</b>' + (extra.length ? ' · ' + extra.join(' · ') : '')
   }
+
+  // ═══ referto-paziente-v1 · LE PAROLE PER IL PAZIENTE ════════════════
+  // Il PDF va in mano al paziente: niente rumore del sensore, niente cicli.
+  // Dove sta il peso, da che parte si allarga il gomitolo, quanto è veloce, e
+  // cosa vogliono dire. Costruite da regole (stesso dato → stessa frase) e
+  // SOLO descrittive: il giudizio clinico resta del professionista.
+  function coloreCarico(v, soglia){
+    var a = Math.abs(v || 0), s = soglia > 0 ? soglia : 2
+    if (a <= s) return '#0a7d33'
+    if (a <= s * 1.5) return '#b07500'
+    return '#c0392b'
+  }
+  function spiegaPaziente(r){
+    var f = [], ca = numeroO(r.carico_avanti), cd = numeroO(r.carico_destra)
+    var asse = asseDi(r), B = BANDA_CARICO
+    var n1 = function(x){ return numIt(Math.abs(x), 1) }
+    var v = asse === 'gamma' ? cd : ca
+    if (v == null){
+      f.push('Il carico non ha un riferimento in questa prova, quindi non lo leggiamo.')
+    } else if (Math.abs(v) < B){
+      f.push((asse === 'gamma' ? 'Di fronte' : 'Di profilo') + ', il peso è vicino al centro: ' + n1(v) + '° ' +
+        (asse === 'gamma' ? (v >= 0 ? 'a destra' : 'a sinistra') : (v >= 0 ? 'in avanti' : 'indietro')) +
+        '. Sotto ' + numIt(B, 1) + '° la misura non basta per dire con sicurezza da che parte.')
+    } else if (asse === 'gamma'){
+      f.push('Di fronte, il peso va più sulla ' + (v > 0 ? 'DESTRA' : 'SINISTRA') + ', di ' + n1(v) + '°. È l’omino in mezzo.')
+    } else {
+      f.push('Di profilo, il peso va più ' + (v > 0 ? 'in AVANTI, verso le punte' : 'INDIETRO, verso i talloni') + ', di ' + n1(v) + '°. È il primo omino.')
+    }
+    var s = r.serie || serieDaRiga(r), d = direzioni(s.xs, s.ys)
+    if (d){
+      var a1 = asse === 'gamma' ? d.escDestra : d.escAvanti, a2 = asse === 'gamma' ? d.escSinistra : d.escIndietro
+      var w1 = asse === 'gamma' ? 'a destra' : 'in avanti', w2 = asse === 'gamma' ? 'a sinistra' : 'indietro'
+      if (Math.max(a1, a2) > 0.3 && Math.max(a1, a2) > 1.3 * Math.min(a1, a2)){
+        f.push('Il gomitolo si allarga di più ' + (a1 > a2 ? w1 : w2) + ': il corpo si è spinto fino a ' + n1(Math.max(a1, a2)) +
+          '° ' + (a1 > a2 ? w1 : w2) + ' e ' + n1(Math.min(a1, a2)) + '° ' + (a1 > a2 ? w2 : w1) + '.')
+      } else {
+        f.push('Il gomitolo si allarga in modo simile ' + w1 + ' e ' + w2 + ': nessuna delle due parti prevale.')
+      }
+    }
+    var vel = numeroO(r.velocita)
+    if (vel != null) f.push('Velocità media di oscillazione: ' + numIt(vel, 1) + ' gradi al secondo. Più è bassa, più il corpo è rimasto fermo: ' +
+      'è il numero che confronteremo con le prossime prove.')
+    if (r.occhi === 'chiusi') f.push('Prova a occhi chiusi: senza la vista il corpo lavora di più, ed è normale che il gomitolo sia più grande.')
+    f.push('Sono gradi di inclinazione della tavola, non chili: si confrontano con le tue prove, non con una norma.')
+    return f
+  }
+  // Lo stile degli omini e della spiegazione dentro il PDF
+  var CSS_OMINI =
+    '.titolo-omini{font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:#888;font-weight:800;margin:6px 0 3px}' +
+    '.omini{display:flex;gap:6px;margin:0 0 6px}' +
+    '.omino{flex:1;border:1px solid #eee;border-radius:10px;padding:4px 2px 5px;text-align:center;background:#fff}' +
+    '.omino svg{height:72px;width:100%}' +
+    '.cap{font-size:9.5px;color:#555;letter-spacing:.5px;font-weight:700}' +
+    '.cap-num{font-size:14px;font-weight:900;margin-top:1px}.cap-min{font-size:8.5px;color:#999}' +
+    '.spiega-paz{background:#f7f7f2;border-left:3px solid #FFD008;border-radius:0 8px 8px 0;padding:6px 9px;margin-top:6px;font-size:11px;line-height:1.5}' +
+    '.spiega-paz p{margin:0 0 3px}.spiega-paz p:last-child{margin:0;color:#777;font-style:italic}'
 
   // Il referto di TUTTA una sessione: una scheda per prova, poi le medie
   function refertoSessione(righe, info){
@@ -716,6 +776,8 @@
         (d ? tr('Si spinge avanti / indietro', numIt(d.escAvanti, 1) + '° / ' + numIt(d.escIndietro, 1) + '°') +
              tr('Si spinge destra / sinistra', numIt(d.escDestra, 1) + '° / ' + numIt(d.escSinistra, 1) + '°') : '') +
         '</table>' + (r.tarato ? '' : '<div class="nota">⚠️ senza taratura del verso: il verso del carico potrebbe essere invertito</div>') +
+        (ca != null ? omini(ca, cd || 0, coloreCarico(asseDi(r) === 'gamma' ? cd : ca, numeroO(r.soglia)), numeroO(r.soglia) || 0) : '') +
+        '<div class="spiega-paz">' + spiegaPaziente(r).map(function(t){ return '<p>' + escH(t) + '</p>' }).join('') + '</div>' +
         '</div></div>'
     })
     // le medie per condizione, se in una condizione ci sono due prove o più
@@ -740,7 +802,7 @@
   // Il documento completo, pronto per il server del PDF o per la stampa
   function documento(titolo, corpo){
     return '<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title>' + escH(titolo) +
-      '</title><style>' + CSS_REFERTO + '</style></head><body>' + corpo + '</body></html>'
+      '</title><style>' + CSS_REFERTO + CSS_OMINI + '</style></head><body>' + corpo + '</body></html>'
   }
 
   global.PolOscillazione = {
@@ -752,7 +814,7 @@
     confronto: confronto,
     BANDA_SINGOLA: BANDA_SINGOLA, BANDA_TRE: BANDA_TRE, BANDA_CARICO: BANDA_CARICO,
     numIt: numIt, parolaAsse: parolaAsse,
-    omini: omini,
+    omini: omini, spiegaPaziente: spiegaPaziente, coloreCarico: coloreCarico, CSS_OMINI: CSS_OMINI,
     ominoProfilo: ominoProfilo, ominoFronte: ominoFronte, ominoAlto: ominoAlto,
     disegna: disegna,
     versoCuneo: versoCuneo,

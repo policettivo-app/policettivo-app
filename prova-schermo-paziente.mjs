@@ -614,13 +614,46 @@ sez('⭐⭐ editor-punti-v1 · con l’errore misurato (Fase 0) i gradi si giudi
   await ctx.close()
 }
 
-sez('⭐ gradi-foto-v1 · senza misure i pulsanti non compaiono sul palco')
+sez('⭐⭐ gradi-auto-v1 · «° Gradi» anche senza misure: un gesto e i gradi escono da soli')
 {
-  const { page, ctx } = await apri(browser)
+  const { page, ctx, errori } = await apri(browser)
   await vaiA(page, 'foto:sagittale_dx')
-  check('⭐ niente «° Gradi» se la coppia non è misurata', !(await page.isVisible('.slide.on .modo button.gr')))
-  check('⭐ sotto il palco invece c’è «Gradi sulle foto» con Prima / Dopo da misurare', /Gradi sulle foto/.test(await page.textContent('#pro-prove')) &&
+  check('⭐ «° Gradi» c’è anche se le foto non sono ancora misurate', await page.isVisible('.slide.on .modo button.gr'))
+  check('⭐ sotto il palco: «Gradi automatici su tutte le foto» e le righe per correggere', /Gradi automatici su tutte le foto/.test(await page.textContent('#pro-prove')) &&
     (await page.$$('#pro-prove .misure-riga')).length === 2)
+  // ⚠️ il modello VERO si carica da js/postural-overlay.js: qui lo si sostituisce con
+  // un modulo finto, e si guarda QUALE indirizzo chiede la pagina (il guasto del 24/9
+  // era js/js/postural-overlay.js: il modello non partiva e i punti restavano sul filo)
+  const chiesti = []
+  await page.route('**/postural-overlay.js*', r => { chiesti.push(new URL(r.request().url()).pathname); r.fulfill({ status: 200, contentType: 'text/javascript', body:
+    'export async function puntiMediaPipe(img){ const lm = Array.from({length:33},()=>({x:0.5,y:0.5,visibility:0.2})); const s=(i,x,y,v)=>{lm[i]={x,y,visibility:v}};' +
+    's(8,0.60,0.14,.9);s(12,0.55,0.26,.95);s(24,0.5,0.5,.95);s(26,0.5,0.71,.95);s(28,0.5,0.9,.95); return {ok:true,punti:lm} }' }) })
+  await page.click('.slide.on .modo button.gr'); await page.waitForTimeout(1500)
+  check('⭐⭐ il modello si carica da /js/postural-overlay.js (NON js/js/…)', chiesti.length >= 1 && chiesti.every(p => p === '/js/postural-overlay.js'), chiesti)
+  const up = await page.evaluate(() => window.__D.upserts)
+  check('⭐⭐ misura e salva le DUE foto, prima e dopo, in automatico', up.length === 2 && up.every(u => u.tab === 'foto_misure' && u.d.origine === 'automatico') &&
+    up.map(u => u.d.storage_path).join(',') === 'visits/v-post/sag-pre.jpg,visits/v-post/sag-post.jpg', up.map(u => [u.d.storage_path, u.d.origine]))
+  check('⭐ con i gradi veri, non tutto a 0° (orecchio avanti rispetto alla spalla)', up[0] && up[0].d.gradi.find(g => g.k === 'testa').valore > 5, up[0] && up[0].d.gradi)
+  check('⭐ l’editor NON si apre: nessun passaggio in più', !(await page.isVisible('#ed')))
+  const t = await testoSlide(page)
+  check('⭐⭐ e sul palco compaiono subito i gradi, prima → dopo', /Orecchio rispetto alla spalla/.test(t) && /°\s*→\s*[\d,]+°/.test(t), t)
+  check('⭐ sotto il palco la foto risulta «⚡ correggi»', /⚡ correggi/.test(await page.textContent('#pro-prove')))
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐ gradi-auto-v1 · Free: niente «° Gradi» senza misure; se il modello non trova nessuno lo dice')
+{
+  const b = await apri(browser, { free: true })
+  await vaiA(b.page, 'foto:sagittale_dx')
+  check('⭐ Free: «° Gradi» non compare sulle foto non misurate', !(await b.page.isVisible('.slide.on .modo button.gr')))
+  await b.ctx.close()
+  const { page, ctx } = await apri(browser)
+  await page.evaluate(() => { window.__mpFinto = async () => ({ ok: false, message: 'Nessuna persona rilevata nella foto.' }) })
+  await vaiA(page, 'foto:sagittale_dx')
+  await page.click('.slide.on .modo button.gr'); await page.waitForTimeout(800)
+  check('⭐ lo dice in alto, e rimanda ai punti a mano', /Nessuna persona rilevata/.test(await page.textContent('#avviso-gradi')) && /a mano/.test(await page.textContent('#avviso-gradi')))
+  check('⛔ niente salvato', (await page.evaluate(() => window.__D.upserts.length)) === 0)
   await ctx.close()
 }
 

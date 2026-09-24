@@ -247,9 +247,11 @@ sez('La pagina è davvero isolata dall’app in uso')
   // taratura-unica-v1 — adesso salva UNA cosa sola, e deve restare una sola:
   // due segni e una data. Nessuna misura, nessun dato di paziente.
   check('non usa sessionStorage né indexedDB', !/sessionStorage|indexedDB/i.test(src))
-  check('⭐ l’unica chiave salvata è quella del verso',
-    (src.match(/localStorage\.(setItem|getItem|removeItem)/g) || []).length === 3 &&
-    (src.match(/CHIAVE_TARATURA/g) || []).length >= 4, src.match(/localStorage\.\w+/g))
+  // live-tv-v1 — più una: se la diretta era accesa ('on' / 'off'), niente dati
+  check('⭐ le sole chiavi salvate: il verso e «diretta accesa sì/no»',
+    (src.match(/localStorage\.(setItem|getItem|removeItem)/g) || []).length === 5 &&
+    (src.match(/localStorage\.\w+\((CHIAVE_TARATURA|CHIAVE_DIRETTA)/g) || []).length === 5 &&
+    /localStorage\.setItem\(CHIAVE_DIRETTA, on \? 'on' : 'off'\)/.test(src), src.match(/localStorage\.\w+\(\w+/g))
   check('⛔ e non salva né prove né campioni',
     !/localStorage\.setItem\([^)]*prove/.test(src) && !/localStorage\.setItem\([^)]*grezz/.test(src))
   check('è noindex', /name="robots"[^>]*noindex/.test(src))
@@ -258,7 +260,7 @@ sez('La pagina è davvero isolata dall’app in uso')
   const linkano = altre.filter(f => fs.readFileSync(path.join(ROOT, f), 'utf8').includes(PAGINA)).sort()
   // test-sessioni-v1 — dalla home e dalla scheda si passa per la pagina dei TEST
   check('⭐ la aprono la pagina dei test, la scheda paziente e il confronto (e basta)',
-    JSON.stringify(linkano) === JSON.stringify(['oscillazione-storico.html', 'paziente.html', 'test.html']), linkano)
+    JSON.stringify(linkano) === JSON.stringify(['oscillazione-storico.html', 'paziente.html', 'prova-squat.html', 'test.html']), linkano)
 }
 
 sez('La matematica, contro numeri calcolabili a mano')
@@ -1935,7 +1937,9 @@ sez('⭐ oscillazione-app-v1 · il PDF: contenuto giusto e strada giusta')
   check('il carico', /carico medio/.test(h))
   check('⭐ i tre omini, disegnati', (h.match(/<svg/g) || []).length >= 3)
   check('⭐ il gomitolo come immagine', /<img src="data:image\/png;base64,/.test(h))
-  check('la spiegazione', /interpretazione clinica la scrivi tu/.test(h))
+  // referto-paziente-v1 — nel PDF le parole per il PAZIENTE
+  check('⭐ la spiegazione per il paziente: dove sta il peso e cosa vuol dire', /Di profilo, il peso/.test(h) && /non chili/.test(h) && /gomitolo/.test(h), h.slice(h.indexOf('spiegazione'), h.indexOf('spiegazione') + 400))
+  check('⛔ niente parole del banco nel PDF (rumore, cuscino che cede)', !/rumore della tavola|Il cuscino sta cedendo/.test(h))
   check('⭐ e la riga onesta su cosa misura', /non con una norma/.test(h))
   await page.click('#btn-pdf')
   await page.waitForTimeout(500)
@@ -2044,6 +2048,11 @@ sez('⭐⭐ test-sessioni-v1 · prova libera: nome, età e peso nella sessione')
   check('⭐⭐ PDF della sessione: nome del file', chiesta && /^Oscillazione_sessione_Anna_Verdi_Bianchi_\d{4}-\d{2}-\d{2}\.pdf$/.test(chiesta.filename), chiesta && chiesta.filename)
   check('   con le due prove e lo stile dentro', chiesta && (chiesta.html.match(/class="prova-ref"/g) || []).length === 2 && /<style>/.test(chiesta.html))
   check('   e le medie della sessione', chiesta && /Medie della sessione/.test(chiesta.html))
+  // referto-paziente-v1 — nel PDF di sessione, per ogni prova: i tre omini e la spiegazione per il paziente
+  check('⭐⭐ ogni prova ha i suoi tre omini (dove sta il carico)', chiesta && (chiesta.html.match(/class="omini"/g) || []).length === 2 &&
+    (chiesta.html.match(/class="omino"/g) || []).length === 6 && /\.omino\{/.test(chiesta.html))
+  check('⭐⭐ e la spiegazione per il paziente', chiesta && (chiesta.html.match(/class="spiega-paz"/g) || []).length === 2 && /gomitolo/.test(chiesta.html) && /non chili/.test(chiesta.html))
+  check('⭐ col marchio POLICETTIVO® in testa', chiesta && /POLICETTIVO®/.test(chiesta.html))
 
   // ═══ nuova sessione
   await page.click('#btn-nuova-sessione'); await page.waitForTimeout(150)

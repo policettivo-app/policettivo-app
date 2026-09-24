@@ -10,7 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/osservazioni.js"></script>
   <script src="js/postural-component.js"></script>
-  <script src="js/oscillazione.js?v=pdf-gradi-v1"></script>
+  <script src="js/oscillazione.js?v=referto-paziente-v1"></script>
   <script src="js/schermo-paziente.js?v=editor-punti-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
@@ -18,7 +18,7 @@
   <!-- gradi-foto-v1 · i gradi sulle foto: punti confermati, riferimento personale -->
   <script src="js/misure-foto.js?v=editor-punti-v1"></script>
   <!-- editor-punti-v1 · l'editor dei punti sta in un file solo (lo usa anche la Fase 0) -->
-  <script src="js/editor-punti.js?v=editor-punti-v1"></script>
+  <script src="js/editor-punti.js?v=gradi-auto-v1"></script>
   <!-- schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
        LO SCHERMO DEL PAZIENTE: il prima e dopo dei 3 Respiri, fatto per essere
        guardato insieme, anche su una TV (duplicazione dello schermo, decisione 5A).
@@ -222,6 +222,9 @@
     .misure-riga .t { font-size: 13px; font-weight: 800; margin-right: auto; }
     .misure-riga button { background: #1d1d1d; border: 1px solid #333; color: #ddd; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; }
     .misure-riga button.fatto { border-color: #1d5c47; color: #7fe3c0; }
+    #avviso-gradi { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 500; background: #111; color: #FFD008; border: 1px solid #FFD008;
+      border-radius: 999px; padding: 10px 20px; font-weight: 800; font-size: 15px; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+    #avviso-gradi.ko { color: #ffb4b4; border-color: #a3271c; }
     @media (max-width: 560px) { .segna .t { flex: 1 1 100%; } .segna button { flex: 1; padding: 10px 12px; font-size: 13px; } }
     @media (orientation: portrait) and (max-width: 700px) { .ruota { display: block; } }
   </style>
@@ -611,7 +614,7 @@ function slideFoto(g, ps) {
     '<div class="riga-basso"><div class="criterio"><span class="ico">⟂</span><span>' + esc(T[ps.criterio]) + '</span></div>' +
     '<div class="modo"><button class="' + (modo === 'affiancate' ? 'on' : '') + '" onclick="setModoFoto(\'' + ps.plane + '\',\'affiancate\')">' + esc(T.foto_affiancate) + '</button>' +
     '<button class="' + (modo === 'sovrapposte' ? 'on' : '') + '" onclick="setModoFoto(\'' + ps.plane + '\',\'sovrapposte\')">' + esc(T.foto_sovrapposte) + '</button>' +
-    (modo === 'affiancate' && coppiaMisurata(ps.plane, f)
+    (modo === 'affiancate' && (coppiaMisurata(ps.plane, f) || misurabileAuto(ps.plane, f))
       ? '<button class="gr' + (vediGradi[ps.plane] ? ' on' : '') + '" onclick="toggleGradi(\'' + ps.plane + '\')">' + esc(T.gradi_bottone) + '</button>' +
         '<button class="rf' + (vediRif[ps.plane] ? ' on' : '') + '" onclick="toggleRif(\'' + ps.plane + '\')">' + esc(T.rif_bottone) + '</button>'
       : '') + '</div></div>' +
@@ -630,7 +633,54 @@ function mix(input, plane) {
    com'è finché non li si preme. */
 function misuraDi(o) { return o && o.path && misure[o.path] ? misure[o.path] : null }
 function coppiaMisurata(plane, f) { return !!(PM && PM.vistaDi(plane) && misuraDi(f.pre) && misuraDi(f.post)) }
-function toggleGradi(plane) { vediGradi[plane] = !vediGradi[plane]; const c = corrente; costruisci(); vai(c, true) }
+/* gradi-auto-v1 · «° Gradi» sulle foto non ancora misurate: il modello trova
+   i punti e i gradi escono subito (un gesto solo, come in Disegno). Si
+   correggono dopo, se serve, da «Gradi sulle foto» sotto il palco. */
+function misurabileAuto(plane, f) {
+  return !!(PM && isPremium && !manca049 && window.PolEditorPunti && PolEditorPunti.automatico &&
+    PM.vistaDi(plane) && f && f.pre && f.post && f.pre.path && f.post.path)
+}
+function avvisoGradi(t, ko) {
+  let el = document.getElementById('avviso-gradi')
+  if (!el) { el = document.createElement('div'); el.id = 'avviso-gradi'; document.body.appendChild(el) }
+  el.className = ko ? 'ko' : ''
+  el.textContent = t || ''
+  el.style.display = t ? '' : 'none'
+}
+async function salvaMisura(o, d) {
+  const riga = Object.assign({ patient_id: patientId, storage_path: o.path, aggiornato_il: new Date().toISOString() }, d)
+  const { error } = await _sb.from('foto_misure').upsert(riga, { onConflict: 'storage_path' })
+  if (error) {
+    if (/foto_misure/.test(error.message || '') || error.code === '42P01' || error.code === 'PGRST205') {
+      manca049 = true; return { ok: false, errore: 'manca la migration 049_foto_misure.sql.' }
+    }
+    return { ok: false, errore: error.message }
+  }
+  misure[o.path] = riga
+  return { ok: true }
+}
+// misura in automatico le foto di UN piano che non hanno ancora i punti
+async function misuraAuto(plane, g) {
+  const f = g && g.foto[plane]; if (!f) return { ok: false, errore: 'foto mancanti' }
+  for (const o of [f.pre, f.post]) {
+    if (!o || !o.path || misure[o.path]) continue
+    const r = await PolEditorPunti.automatico({ url: o.url, plane: plane })
+    if (!r.ok) return r
+    const s = await salvaMisura(o, r.dati)
+    if (!s.ok) return s
+  }
+  return { ok: true }
+}
+async function toggleGradi(plane) {
+  const g = giorni[sel], f = g && g.foto[plane]
+  if (!vediGradi[plane] && f && !coppiaMisurata(plane, f) && misurabileAuto(plane, f)) {
+    avvisoGradi('⚡ Misuro i gradi sulle due foto…')
+    const r = await misuraAuto(plane, g)
+    if (!r.ok) { avvisoGradi('Gradi non misurati: ' + r.errore + ' Puoi mettere i punti a mano da «Gradi sulle foto».', true); setTimeout(() => avvisoGradi(''), 6000); return }
+    avvisoGradi('')
+  }
+  vediGradi[plane] = !vediGradi[plane]; const c = corrente; costruisci(); vai(c, true)
+}
 function toggleRif(plane) { vediRif[plane] = !vediRif[plane]; const c = corrente; costruisci(); vai(c, true) }
 function strisciaGradi(plane, f) {
   if (!vediGradi[plane] || !coppiaMisurata(plane, f)) return ''
@@ -940,12 +990,14 @@ function sezioneMisure(g) {
   let h = '<div class="lbl">📐 Gradi sulle foto</div>'
   if (manca049) return h + '<div class="msg ko">⚠️ <b>Manca la migration 049_foto_misure.sql</b>: i punti non si possono salvare. Il resto funziona.</div>'
   if (!isPremium) return h + '<div class="msg premium">🔒 Misurare i gradi sulle foto è Premium.</div>'
-  h += '<div class="msg info" style="margin:0 0 6px">Conferma i punti su ogni foto, prima e dopo: sul palco compaiono i pulsanti <b>° Gradi</b> e <b>📐 Riferimento</b>.</div>'
+  h += '<div class="msg info" style="margin:0 0 6px">Sul palco premi <b>° Gradi</b>: i gradi si misurano da soli. Qui sotto puoi <b>correggere i punti</b> di ogni foto.</div>' +
+    '<button class="pbtn giallo" style="margin:0 0 6px" onclick="misuraTutte()">⚡ Gradi automatici su tutte le foto</button>'
   piani.forEach(ps => {
     const f = g.foto[ps.plane]
     const bt = (o, fase, eti) => !o.path
       ? '<button disabled title="Questa foto non ha un file su cui salvare">' + eti + ': non misurabile</button>'
-      : '<button class="' + (misure[o.path] ? 'fatto' : '') + '" onclick="edApri(\'' + ps.plane + '\',\'' + fase + '\')">' + eti + (misure[o.path] ? ' ✓' : ': misura') + '</button>'
+      : '<button class="' + (misure[o.path] ? 'fatto' : '') + '" onclick="edApri(\'' + ps.plane + '\',\'' + fase + '\')">' + eti +
+        (misure[o.path] ? (misure[o.path].origine === 'automatico' ? ' ⚡ correggi' : ' ✓') : ': misura') + '</button>'
     h += '<div class="misure-riga"><span class="t">' + esc(T[ps.titolo].replace('Come stai in piedi, ', '').replace(/^./, c => c.toUpperCase()) + (ps.sotto ? ' · ' + ps.sotto : '')) + '</span>' +
       bt(f.pre, 'pre', 'Prima') + bt(f.post, 'post', 'Dopo') + '</div>'
   })
@@ -980,6 +1032,21 @@ function slideGradiTempo() {
     '<div class="criterio"><span class="ico">°</span><span>' + esc(T.gradi_nota) + '</span></div></div>'
 }
 
+async function misuraTutte() {
+  const g = giorni[sel]; if (!g) return
+  const piani = PIANI_SCHERMO.filter(ps => misurabileAuto(ps.plane, g.foto[ps.plane]) && !coppiaMisurata(ps.plane, g.foto[ps.plane]))
+  if (!piani.length) { avvisoGradi('Tutte le foto di questo giorno hanno già i gradi.'); setTimeout(() => avvisoGradi(''), 3000); return }
+  let fatte = 0, errori = []
+  for (const ps of piani) {
+    avvisoGradi('⚡ Misuro i gradi… ' + (fatte + 1) + ' di ' + piani.length)
+    const r = await misuraAuto(ps.plane, g)
+    if (r.ok) { fatte++; vediGradi[ps.plane] = true } else errori.push(r.errore)
+  }
+  avvisoGradi(fatte + ' di ' + piani.length + ' viste misurate.' + (errori.length ? ' Non riuscite: ' + errori[0] : ''), errori.length > 0)
+  setTimeout(() => avvisoGradi(''), 5000)
+  const c = corrente; costruisci(); vai(c, true)
+}
+
 /* editor-punti-v1 — l'editor è js/editor-punti.js; qui si dice solo QUALE foto
    e DOVE si salva (foto_misure, per storage_path). */
 function edApri(plane, fase) {
@@ -991,6 +1058,8 @@ function edApri(plane, fase) {
     url: o.url, plane: plane, gia: gia,
     titolo: (ps.sotto ? 'Profilo ' + ps.sotto.replace('lato ', '') : T[ps.titolo].replace('Come stai in piedi, ', '')) + ' · ' + (fase === 'pre' ? 'PRIMA' : 'DOPO'),
     salva: async function (d) {
+      // gradi-auto-v1 · confermati dal professionista: non sono più «automatici»
+      if (d.origine === 'automatico') d.origine = 'mediapipe'
       const riga = Object.assign({ patient_id: patientId, storage_path: o.path, aggiornato_il: new Date().toISOString() }, d)
       const { error } = await _sb.from('foto_misure').upsert(riga, { onConflict: 'storage_path' })
       if (error) {
