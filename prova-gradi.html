@@ -6,11 +6,11 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Gradi sulle foto — Fase 0</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- prova-gradi-v1 · editor-punti-v1 (24 settembre 2026)
+<!-- prova-gradi-v1 · editor-punti-v1 (24 settembre 2026) · fase0-v2: profilo sinistro, dima, persone contate una volta
      FASE 0 DEI GRADI SULLE FOTO: QUANTO BALLA LA MISURA?
      Finché non si sa, sullo schermo del paziente e nel PDF i gradi restano
      grigi («da confermare»). Qui: 5 persone × 3 foto per vista, rifatte
-     scendendo e risalendo dal tappetino; stesso professionista a mettere i punti.
+     scendendo dalla dima e rimettendo i piedi sulla dima; stesso professionista a mettere i punti.
      Ne esce, per ogni misura, la soglia = 2,77 × deviazione standard entro il
      soggetto (Bland & Altman, BMJ 1996;313:744): è il numero che poi va in
      ERRORE dentro js/misure-foto.js.
@@ -72,12 +72,14 @@
     <h2>Come si fa (10 minuti a persona)</h2>
     <ol>
       <li><b>5 persone</b> (colleghi, familiari, pazienti che accettano). Non serve che abbiano problemi.</li>
-      <li>Per ogni vista, <b>3 foto</b>. Fra una foto e l’altra la persona <b>scende dal tappetino e risale</b>: così si misura anche quanto cambia il suo modo di mettersi, come succede davvero in visita.</li>
+      <li>Per ogni vista (profilo destro, profilo sinistro, di fronte, di spalle), <b>3 foto</b>. Fra una foto e l’altra la persona <b>scende e rimette i piedi sulla dima</b> (il disegno a terra, senza tappetino): così si misura anche quanto cambia il suo modo di mettersi, come succede davvero in visita.</li>
       <li>Telefono <b>sempre nello stesso posto</b> (treppiede), filo a piombo visibile.</li>
       <li>I punti li mette <b>sempre lo stesso professionista</b>: il modello propone, tu correggi e confermi.</li>
       <li>Alla fine <b>«Copia i risultati»</b> e mandameli: diventano le soglie. Sotto la soglia una differenza si dirà «invariato».</li>
     </ol>
-    <div class="nota">Le foto <b>non si salvano</b> da nessuna parte: su questo dispositivo restano solo i punti e i gradi, per il calcolo.</div>
+    <div class="nota">Le foto <b>non si salvano</b> da nessuna parte: su questo dispositivo restano solo i punti e i gradi, per il calcolo. Nessun nome: solo P1, P2…</div>
+    <div class="nota"><b>Con calma</b>: una persona oggi, un’altra la settimana prossima. I dati restano su <b>questo</b> telefono e in <b>questo</b> modo di aprire l’app (sempre dall’icona, oppure sempre dal browser). Ogni tanto «Scarica CSV»: è la copia di sicurezza.</div>
+    <div class="nota">I due profili si sommano in una soglia sola (in app la soglia è per vista). Le <b>rotazioni</b> di bacino e tronco su una foto piatta non diventano gradi: si vedono, ma l’app non le misura.</div>
   </div>
 
   <div class="box">
@@ -110,9 +112,12 @@
   var CHIAVE = 'pol-fase0-gradi-v1', MINIMO = 5
   var PERSONE = ['P1','P2','P3','P4','P5','P6','P7','P8']
   var VISTE = [
-    { vista: 'sagittale', plane: 'sagittale_dx', nome: 'Profilo destro' },
-    { vista: 'frontale', plane: 'frontale', nome: 'Di fronte' },
-    { vista: 'posteriore', plane: 'posteriore', nome: 'Di spalle' }
+    // fase0-v2 · «id» è dove si conserva (il profilo destro resta «sagittale»,
+    // come prima: le misure già fatte non si perdono); «vista» è la misura dell'app
+    { id: 'sagittale',    vista: 'sagittale',  plane: 'sagittale_dx', nome: 'Profilo destro' },
+    { id: 'sagittale_sx', vista: 'sagittale',  plane: 'sagittale_sx', nome: 'Profilo sinistro' },
+    { id: 'frontale',     vista: 'frontale',   plane: 'frontale',     nome: 'Di fronte' },
+    { id: 'posteriore',   vista: 'posteriore', plane: 'posteriore',   nome: 'Di spalle' }
   ]
   function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c] }) }
   function it(x, d){ return (x == null || isNaN(x)) ? '—' : Number(x).toFixed(d == null ? 1 : d).replace('.', ',') }
@@ -142,14 +147,14 @@
   function foto(p, v){ var x = S.persone[p] = S.persone[p] || {}; return x[v] = x[v] || [null, null, null] }
   function contaPersona(p){
     var x = S.persone[p] || {}, n = 0
-    VISTE.forEach(function(V){ (x[V.vista] || []).forEach(function(f){ if (f) n++ }) })
+    VISTE.forEach(function(V){ (x[V.id] || []).forEach(function(f){ if (f) n++ }) })
     return n
   }
 
   function disegnaPersone(){
     $('persone').innerHTML = PERSONE.map(function(p){
       var n = contaPersona(p)
-      return '<button class="chip' + (p === sel.persona ? ' on' : '') + '" data-p="' + p + '">' + p + (n ? '<small>' + n + '/9</small>' : '') + '</button>'
+      return '<button class="chip' + (p === sel.persona ? ' on' : '') + '" data-p="' + p + '">' + p + (n ? '<small>' + n + '/12</small>' : '') + '</button>'
     }).join('')
     Array.prototype.forEach.call($('persone').querySelectorAll('.chip'), function(b){
       b.onclick = function(){ sel.persona = b.getAttribute('data-p'); tutto() }
@@ -157,7 +162,7 @@
   }
   function disegnaViste(){
     $('viste').innerHTML = VISTE.map(function(V, i){
-      var n = foto(sel.persona, V.vista).filter(Boolean).length
+      var n = foto(sel.persona, V.id).filter(Boolean).length
       return '<button class="chip' + (i === sel.vista ? ' on' : '') + '" data-v="' + i + '">' + esc(V.nome) + '<small>' + n + '/3</small></button>'
     }).join('')
     Array.prototype.forEach.call($('viste').querySelectorAll('.chip'), function(b){
@@ -165,11 +170,11 @@
     })
   }
   function disegnaSlots(){
-    var V = VISTE[sel.vista], fs = foto(sel.persona, V.vista)
+    var V = VISTE[sel.vista], fs = foto(sel.persona, V.id)
     $('slots').innerHTML = fs.map(function(f, i){
-      var chiave = sel.persona + '|' + V.vista + '|' + i
+      var chiave = sel.persona + '|' + V.id + '|' + i
       if (!f) return '<div class="slot"><b>Foto ' + (i + 1) + '</b><span class="attesa">' +
-        (i ? 'Scendi dal tappetino, risali, scatta.' : 'Prima foto.') + '</span>' +
+        (i ? 'Scendi dalla dima, rimetti i piedi, scatta.' : 'Prima foto.') + '</span>' +
         '<button class="btn scuro" data-scatta="' + i + '">📷 Scatta o scegli</button></div>'
       return '<div class="slot fatto"><b>Foto ' + (i + 1) + ' ✓</b><div class="g">' +
         (f.gradi || []).map(function(m){ return esc(m.nome) + ': <b>' + it(m.gradi) + '°</b>' }).join('<br>') + '</div>' +
@@ -190,21 +195,21 @@
   $('file').addEventListener('change', function(){
     var f = this.files && this.files[0]
     if (!f || inAttesa == null) return
-    var V = VISTE[sel.vista], chiave = sel.persona + '|' + V.vista + '|' + inAttesa
+    var V = VISTE[sel.vista], chiave = sel.persona + '|' + V.id + '|' + inAttesa
     if (url[chiave]) try { URL.revokeObjectURL(url[chiave]) } catch(e){}
     url[chiave] = URL.createObjectURL(f)
     misura(inAttesa, true)
   })
 
   function misura(i, nuova){
-    var V = VISTE[sel.vista], p = sel.persona, chiave = p + '|' + V.vista + '|' + i
-    var gia = foto(p, V.vista)[i]
+    var V = VISTE[sel.vista], p = sel.persona, chiave = p + '|' + V.id + '|' + i
+    var gia = foto(p, V.id)[i]
     ED.apri({
       url: url[chiave], plane: V.plane,
       titolo: p + ' · ' + V.nome + ' · foto ' + (i + 1),
       gia: (!nuova && gia) ? { punti: gia.punti, verso: gia.verso, origine: gia.origine } : null,
       salva: async function(d){
-        foto(p, V.vista)[i] = { gradi: d.gradi, punti: d.punti, verso: d.verso, origine: d.origine,
+        foto(p, V.id)[i] = { gradi: d.gradi, punti: d.punti, verso: d.verso, origine: d.origine,
           larghezza: d.larghezza, altezza: d.altezza, quando: new Date().toISOString() }
         salvaMemoria()
         return { ok: true, dopo: tutto }
@@ -219,14 +224,14 @@
     Object.keys(S.persone).forEach(function(p){
       VISTE.forEach(function(V){
         var perK = {}
-        ;((S.persone[p] || {})[V.vista] || []).forEach(function(f){
+        ;((S.persone[p] || {})[V.id] || []).forEach(function(f){
           if (!f) return
           ;(f.gradi || []).forEach(function(m){ (perK[m.k] = perK[m.k] || { nome: m.nome, v: [] }).v.push(m.gradi) })
         })
         Object.keys(perK).forEach(function(k){
-          var key = V.vista + ':' + k
-          out[key] = out[key] || { nome: perK[k].nome, vista: V.nome, v: [] }
-          out[key].v.push(perK[k].v)
+          var key = V.vista + ':' + k   // i due profili si sommano: in app la soglia è per vista
+          out[key] = out[key] || { nome: perK[k].nome, vista: V.vista === 'sagittale' ? 'Profilo (dx + sx)' : V.nome, v: [], chi: {} }
+          out[key].v.push(perK[k].v); out[key].chi[p] = 1
         })
       })
     })
@@ -237,7 +242,8 @@
     Object.keys(s).forEach(function(k){ dati[k] = s[k].v })
     var r = PM.ripetibilita(dati)
     return Object.keys(s).filter(function(k){ return r[k] }).map(function(k){
-      return { chiave: k, vista: s[k].vista, nome: s[k].nome, r: r[k] }
+      var r2 = Object.assign({}, r[k], { serie: r[k].persone, persone: Object.keys(s[k].chi).length })
+      return { chiave: k, vista: s[k].vista, nome: s[k].nome, r: r2 }
     })
   }
   function disegnaRisultati(){
@@ -271,9 +277,9 @@
     var r = ['persona;vista;foto;misura;gradi;origine;quando']
     Object.keys(S.persone).sort().forEach(function(p){
       VISTE.forEach(function(V){
-        ;((S.persone[p] || {})[V.vista] || []).forEach(function(f, i){
+        ;((S.persone[p] || {})[V.id] || []).forEach(function(f, i){
           if (!f) return
-          ;(f.gradi || []).forEach(function(m){ r.push([p, V.vista, i + 1, m.k, String(m.gradi).replace('.', ','), f.origine || '', f.quando || ''].join(';')) })
+          ;(f.gradi || []).forEach(function(m){ r.push([p, V.id, i + 1, m.k, String(m.gradi).replace('.', ','), f.origine || '', f.quando || ''].join(';')) })
         })
       })
     })

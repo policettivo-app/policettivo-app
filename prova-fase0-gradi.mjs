@@ -42,13 +42,14 @@ try {
   let { page, errori, rete } = await apri(ctx)
   const txt = await page.textContent('body')
   check('nessun errore JS', errori.length === 0, errori)
-  check('⭐ spiega il protocollo: 5 persone, 3 foto, scendere e risalire, stesso professionista', /5 persone/.test(txt) && /3 foto/.test(txt) && /scende dal tappetino e risale/.test(txt) && /stesso professionista/.test(txt))
+  check('⭐ spiega il protocollo: 5 persone, 3 foto, scendere e risalire, stesso professionista', /5 persone/.test(txt) && /3 foto/.test(txt) && /rimette i piedi sulla dima/.test(txt) && /senza tappetino/.test(txt) && /stesso professionista/.test(txt))
   check('⭐ dice che le foto non si salvano', /non si salvano/.test(txt))
   check('⭐ cita Bland & Altman', /Bland &amp; Altman|Bland & Altman/.test(txt) && /1996;313:744/.test(txt))
-  check('tre viste', (await page.$$('#viste .chip')).length === 3)
+  check('⭐ quattro viste: anche il profilo sinistro (fase0-v2)', (await page.$$('#viste .chip')).length === 4 && /Profilo sinistro/.test(await page.textContent('#viste')))
+  check('⭐ dice che le rotazioni non diventano gradi', /rotazioni/.test(txt) && /non le misura/.test(txt))
 
   sez('⭐⭐ P1, di fronte: tre foto misurate con l’editor condiviso')
-  await page.click('#viste .chip[data-v="1"]')
+  await page.click('#viste .chip[data-v="2"]')
   const spalla = [0.25, 0.262, 0.256]   // la spalla sinistra un filo diversa a ogni foto
   for (let i = 0; i < 3; i++) {
     const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click('[data-scatta="' + i + '"]')])
@@ -64,7 +65,7 @@ try {
   }
   check('l’editor si chiude', !(await page.isVisible('#ed')))
   check('⭐ tre caselle fatte', (await page.$$('.slot.fatto')).length === 3)
-  check('⭐ il contatore della persona: 3/9', /3\/9/.test(await page.textContent('#persone')))
+  check('⭐ il contatore della persona: 3/9', /3\/12/.test(await page.textContent('#persone')))
   check('⭐ «Correggi punti» c’è finché la foto è in memoria', (await page.$$('[data-correggi]')).length === 3)
   const S = await page.evaluate(() => JSON.parse(localStorage.getItem('pol-fase0-gradi-v1')))
   check('⭐ in memoria: punti e gradi, NIENTE foto', S.persone.P1.frontale.length === 3 && S.persone.P1.frontale.every(f => f.punti && f.gradi && !('url' in f)) && !/blob:|data:image/.test(JSON.stringify(S)))
@@ -84,8 +85,18 @@ try {
     localStorage.setItem('pol-fase0-gradi-v1', JSON.stringify(S))
   })
   ;({ page, errori, rete } = await apri(ctx))
-  check('⭐ ricaricando i dati ci sono ancora', /3\/9/.test(await page.textContent('#persone')))
-  check('⭐ ma senza la foto «Correggi punti» sparisce (resta «Rifai»)', await page.evaluate(() => { document.querySelector('#viste .chip[data-v="1"]').click(); return document.querySelectorAll('[data-correggi]').length === 0 && document.querySelectorAll('[data-rifai]').length === 3 }))
+  check('⭐ ricaricando i dati ci sono ancora', /3\/12/.test(await page.textContent('#persone')))
+  check('⭐ ma senza la foto «Correggi punti» sparisce (resta «Rifai»)', await page.evaluate(() => { document.querySelector('#viste .chip[data-v="2"]').click(); return document.querySelectorAll('[data-correggi]').length === 0 && document.querySelectorAll('[data-rifai]').length === 3 }))
+  const prof = await page.evaluate(() => {
+    const S = JSON.parse(localStorage.getItem('pol-fase0-gradi-v1'))
+    const f = (g) => ({ gradi: [{ k: 'testa', nome: 'Orecchio rispetto alla spalla', gradi: g }], punti: {} })
+    S.persone.P1.sagittale = [f(10), f(11), f(12)]; S.persone.P1.sagittale_sx = [f(20), f(20), f(21)]
+    localStorage.setItem('pol-fase0-gradi-v1', JSON.stringify(S))
+    return null
+  })
+  ;({ page, errori, rete } = await apri(ctx))
+  const pr = await page.evaluate(() => __fase0.calcola().find(x => x.chiave === 'sagittale:testa'))
+  check('⭐⭐ profilo destro e sinistro nella STESSA soglia «sagittale:testa», la persona contata una volta', pr && pr.r.persone === 1 && pr.r.serie === 2 && pr.r.soglia === 2.3 && pr.vista === 'Profilo (dx + sx)', pr)
   const ris = await page.textContent('#risultati')
   check('⭐⭐ 5/5 persone e soglia con ✓', /5\/5/.test(ris) && /✓/.test(ris), ris)
   const t = await page.evaluate(() => __fase0.testo())
@@ -96,7 +107,7 @@ try {
   check('«Copia» non rompe niente', errori.length === 0, errori)
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#csv')])
   const csv = fs.readFileSync(await dl.path(), 'utf8')
-  check('⭐ CSV: una riga per foto e misura, con la virgola decimale', /persona;vista;foto;misura;gradi/.test(csv) && csv.split('\n').length === 1 + 5 * 3 * 4 && /P1;frontale;2;spalle;-?\d+,\d/.test(csv), csv.slice(0, 200))
+  check('⭐ CSV: una riga per foto e misura, con la virgola decimale', /persona;vista;foto;misura;gradi/.test(csv) && csv.split('\n').length === 1 + 5 * 3 * 4 + 6 && /P1;frontale;2;spalle;-?\d+,\d/.test(csv), csv.slice(0, 200))
   page.once('dialog', d => d.accept())
   await page.click('#azzera'); await page.waitForTimeout(200)
   check('⭐ «Azzera tutto» (con conferma) svuota', await page.evaluate(() => Object.keys(__fase0.stato().persone).length === 0 || JSON.stringify(__fase0.stato().persone).indexOf('gradi') < 0))
