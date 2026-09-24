@@ -2490,7 +2490,69 @@ sez('pdf-gradi-v1 — nel PDF della visita fisioterapica (3A), anche dentro html
     })
     check('⭐⭐ html2canvas (scala 2, come il salvataggio vero) cattura il disegno: con e senza, il PDF cambia', !px.manca && px.diversi > 300, px)
   }
-  check('⭐ il PDF salvato tiene anche il percorso del file (bucket privato)', /update\(\{ pdf_storage_path: _pdfState\.storagePath \}\)/.test(fs.readFileSync(path.join(ROOT, 'visita.html'), 'utf8')))
+  await ctx.close()
+}
+
+// pdf-validato-visita-v1 — il PDF della visita fisioterapica si valida come quello della posturale
+async function pdfVisita(modalita, opzioni = {}) {
+  const d = datiPdf()
+  d.visits.push({ id:'vf2', patient_id:PID, tipo:'fisioterapica', data_visita:'2026-08-31', created_at:'2026-08-31', relazione_ai:'Relazione di prima.' })
+  const { page, ctx, errori } = await apriPagina(browser, d, 'visita.html', '?id=vf2')
+  await page.route('**/api/genera-pdf**', r => r.fulfill({ status:200, contentType:'application/json', body: JSON.stringify({
+    visit_data: { id:'vf2', data_visita:'2026-08-31' }, patient: { nome:'Mario', cognome:'Rossi' }, professional: { nome:'Giuliano' },
+    photos: [], ai_relazione: 'Relazione proposta dall’AI.' }) }))
+  const rese = []
+  await page.route('**/api/pdf-render**', r => { rese.push(JSON.parse(r.request().postData() || '{}'))
+    return opzioni.renderKo ? r.fulfill({ status:500, contentType:'application/json', body: JSON.stringify({ error:'render non riuscito' }) })
+      : r.fulfill({ status:200, contentType:'application/pdf', body: '%PDF-1.4 finto' }) })
+  await page.evaluate(m => generaPDFVisita(m), modalita)
+  await page.waitForTimeout(800)
+  return { page, ctx, errori, rese }
+}
+sez('pdf-validato-visita-v1 — niente archivio senza «ho letto e valido»')
+{
+  const { page, ctx, errori, rese } = await pdfVisita('singola')
+  const gravi = errori.filter(e => /pdf|relazione|Salva/i.test(e))
+  check('nessun errore JS del PDF', gravi.length === 0, gravi)
+  check('⭐ la relazione arriva nel pannello, modificabile', (await page.inputValue('#pdf-relazione')) === 'Relazione proposta dall’AI.')
+  check('⭐⭐ «Valida e salva» è SPENTO finché non c’è la spunta', await page.isDisabled('#pdf-btn-salva'))
+  await page.check('#pdf-validata')
+  check('⭐ la spunta lo accende', !(await page.isDisabled('#pdf-btn-salva')))
+  await page.fill('#pdf-relazione', 'Relazione corretta a mano.')
+  await page.waitForTimeout(600)
+  check('⭐⭐ correggere il testo TOGLIE la spunta: si rilegge', !(await page.isChecked('#pdf-validata')) && await page.isDisabled('#pdf-btn-salva'))
+  check('⭐ e l’anteprima si ridisegna col testo nuovo', /Relazione corretta a mano\./.test(await page.textContent('#pdf-preview-body')))
+  await page.check('#pdf-validata')
+  await page.click('#pdf-btn-salva'); await page.waitForTimeout(800)
+  check('⭐ il PDF si fa sul server, con dentro il testo validato', rese.length === 1 && /Relazione corretta a mano\./.test(rese[0].html || ''), rese.length)
+  const ch = await page.evaluate(() => window.__chiamate)
+  check('⭐ il file va nel bucket, al suo percorso', ch.upload.some(p => /pdf-reports\/.*vf2\.pdf$/.test(p)), ch.upload)
+  const up = ch.update.filter(u => u.tabella === 'visits' && u.patch.pdf_validato_il)
+  const pt = up.length ? up[up.length - 1].patch : {}
+  check('⭐⭐ la visita risulta VALIDATA, col percorso del file (bucket privato)', !!pt.pdf_validato_il && /vf2\.pdf$/.test(pt.pdf_storage_path || ''), pt)
+  check('⭐ e la relazione della visita è quella corretta', pt.relazione_ai === 'Relazione corretta a mano.', pt.relazione_ai)
+  check('⭐ sotto il pulsante compare «PDF validato… Apri»', /PDF validato/.test(await page.textContent('#pdf-stato')))
+  check('⭐ e lo dice nel pannello', /PDF validato e archiviato/.test(await page.textContent('#pdf-esito')))
+  await ctx.close()
+}
+sez('pdf-validato-visita-v1 — la «storia completa» non sostituisce la relazione della visita')
+{
+  const { page, ctx } = await pdfVisita('storia_completa')
+  await page.check('#pdf-validata'); await page.click('#pdf-btn-salva'); await page.waitForTimeout(800)
+  const ch = await page.evaluate(() => window.__chiamate)
+  const pt = (ch.update.filter(u => u.tabella === 'visits' && u.patch.pdf_validato_il).pop() || {}).patch || {}
+  check('⭐ validata sì', !!pt.pdf_validato_il)
+  check('⭐⭐ ma relazione_ai NON viene toccata', !('relazione_ai' in pt), pt)
+  await ctx.close()
+}
+sez('pdf-validato-visita-v1 — se il server del PDF non risponde, lo dice e non segna niente')
+{
+  const { page, ctx } = await pdfVisita('singola', { renderKo: true })
+  await page.check('#pdf-validata'); await page.click('#pdf-btn-salva'); await page.waitForTimeout(800)
+  check('⭐ il motivo si legge nel pannello', /render non riuscito/.test(await page.textContent('#pdf-esito')))
+  const ch = await page.evaluate(() => window.__chiamate)
+  check('⛔ nessuna visita segnata validata', !ch.update.some(u => u.tabella === 'visits' && u.patch.pdf_validato_il))
+  check('e si può riprovare (pulsante di nuovo acceso)', !(await page.isDisabled('#pdf-btn-salva')))
   await ctx.close()
 }
 

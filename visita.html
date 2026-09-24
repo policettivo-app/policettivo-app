@@ -898,6 +898,20 @@
     .pdf-modal-btn-save   { background: #FFD008; color: #000; }
     .pdf-modal-btn-close  { background: transparent; color: #555; border: 1.5px solid #ccc; padding: 7px 14px; font-size: 15px; }
     .pdf-modal-btn-close:hover { background: #f5f5f5; opacity: 1; }
+    /* pdf-validato-visita-v1 — lo stesso pannello della posturale (pdf-validato-v1) */
+    #pdf-valida { background: #fff; border-bottom: 1px solid #e3e3e0; padding: 12px 20px 14px; flex-shrink: 0; max-height: 46vh; overflow-y: auto; }
+    .pdf-valida-lbl { font-size: 11px; font-weight: 800; color: #999; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    #pdf-relazione { width: 100%; min-height: 120px; border: 1.5px solid #e3e3e0; border-radius: 10px; padding: 10px; font-family: inherit; font-size: 13px; line-height: 1.55; resize: vertical; box-sizing: border-box; }
+    .pdf-check { display: flex; align-items: flex-start; gap: 9px; margin-top: 10px; font-size: 13px; line-height: 1.5; color: #1a1a1a; cursor: pointer; font-weight: 600; }
+    .pdf-check input { width: 20px; height: 20px; margin: 0; flex-shrink: 0; cursor: pointer; }
+    .pdf-modal-btn[disabled] { opacity: .45; cursor: not-allowed; }
+    .pdf-modal-btn-indietro { background: #f2f2f0; color: #1a1a1a; border: 1.5px solid #ddd; }
+    .pdf-aiuto { margin-top: 9px; font-size: 12px; line-height: 1.55; color: #777; }
+    #pdf-esito { margin-top: 10px; border-radius: 8px; padding: 11px 13px; font-size: 13px; line-height: 1.55; }
+    #pdf-esito.ok { background: #eef8ee; border-left: 4px solid #2e7d32; color: #1b4d1f; }
+    #pdf-esito.ko { background: #fdf1f0; border-left: 4px solid #e53935; color: #5a1f1c; }
+    #pdf-stato { margin-top: 10px; background: #f6f6f4; border-left: 4px solid #FFD008; border-radius: 8px; padding: 11px 13px; font-size: 13px; line-height: 1.55; color: #333; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    #pdf-stato button { background: #1a1a1a; color: #FFD008; border: none; border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
     #pdf-modal-backdrop {
       position: absolute;
       inset: 0;
@@ -1572,6 +1586,7 @@
 
     <div class="field-group" style="margin-top:8px">
       <button id="btn-genera-pdf" class="ds-btn-primary" style="width:100%;padding:13px;justify-content:center" onclick="showPDFOptionsModal()">📄 Genera PDF Visita Fisioterapica</button>
+      <div id="pdf-stato" style="display:none"></div><!-- pdf-validato-visita-v1 · il PDF validato in archivio -->
     </div>
 
     <div class="step-footer">
@@ -1612,9 +1627,26 @@
 <div id="pdf-preview-modal" role="dialog" aria-modal="true" aria-label="Anteprima PDF visita">
   <div id="pdf-modal-backdrop" onclick="closePDFPreview()"></div>
   <div id="pdf-preview-bar">
-    <button class="pdf-modal-btn pdf-modal-btn-print" onclick="printPDFPreview()">🖨️ Stampa</button>
-    <button class="pdf-modal-btn pdf-modal-btn-save"  onclick="savePDFPreview()">💾 Salva PDF</button>
+    <!-- pdf-validato-visita-v1 — niente PDF in archivio senza che il professionista
+         abbia letto la relazione: la spunta sblocca il salvataggio, come nella posturale -->
+    <button class="pdf-modal-btn pdf-modal-btn-indietro" onclick="closePDFPreview()">← Chiudi e correggi la visita</button>
+    <button class="pdf-modal-btn pdf-modal-btn-save" id="pdf-btn-salva" onclick="savePDFPreview()" disabled>💾 Valida e salva in archivio</button>
+    <button class="pdf-modal-btn pdf-modal-btn-print" onclick="printPDFPreview()" title="Stampa su carta: non archivia niente">🖨️ Stampa</button>
     <button class="pdf-modal-btn pdf-modal-btn-close" onclick="closePDFPreview()" aria-label="Chiudi anteprima">✕</button>
+  </div>
+  <div id="pdf-valida">
+    <div class="pdf-valida-lbl">Relazione clinica — correggila qui, il PDF userà questo testo</div>
+    <textarea id="pdf-relazione" oninput="pdfRelazioneCambiata()" placeholder="Nessuna relazione: il PDF verrà generato senza."></textarea>
+    <label class="pdf-check">
+      <input type="checkbox" id="pdf-validata" onchange="pdfAggiornaSalva()">
+      <span>Ho letto la relazione e la valido: corrisponde a quello che ho osservato. Il documento porta la mia firma.</span>
+    </label>
+    <div class="pdf-aiuto">
+      Qui si corregge <b>solo il testo della relazione</b>. Per cambiare dati, foto o misure:
+      <b>← Chiudi e correggi la visita</b>, sistema quello che serve, poi rifai «Genera PDF».
+      <b>Stampa</b> fa una copia su carta e non archivia niente.
+    </div>
+    <div id="pdf-esito" style="display:none"></div>
   </div>
   <div id="pdf-preview-scroll">
     <div id="pdf-preview-body"></div>
@@ -1866,6 +1898,7 @@
     if (error || !v) { showToast('Visita non trovata'); return }
     visitData = v
     patientId = v.patient_id
+    try { renderStatoPDFVisita(v) } catch (e) {}   // pdf-validato-visita-v1
 
     // Patient info
     const { data: pat } = await _sb
@@ -4984,6 +5017,16 @@ ISTRUZIONI:
         ai_relazione || visitData.relazione_ai
       )
 
+      // pdf-validato-visita-v1 — la relazione arriva nel pannello, modificabile,
+      // e il salvataggio resta chiuso finche' non c'e' la spunta.
+      _pdfState.modalita = modalita
+      const taRel = document.getElementById('pdf-relazione')
+      if (taRel) taRel.value = _pdfState.ai_relazione || ''
+      const chk = document.getElementById('pdf-validata'); if (chk) chk.checked = false
+      const esito = document.getElementById('pdf-esito'); if (esito) { esito.style.display = 'none'; esito.innerHTML = '' }
+      const btnSalva = document.getElementById('pdf-btn-salva'); if (btnSalva) btnSalva.textContent = '💾 Valida e salva in archivio'
+      pdfAggiornaSalva()
+
       // Show modal, lock body scroll
       const modal = document.getElementById('pdf-preview-modal')
       modal.style.display = 'flex'
@@ -5016,6 +5059,7 @@ ISTRUZIONI:
         setTimeout(applyPDFScale, 300)
       }
       applyPDFScaleSafe()
+      window._pdfApplyScale = applyPDFScaleSafe     // pdf-validato-visita-v1 · per ridisegnare dopo una correzione
       if (_pdfScaleCleanup) _pdfScaleCleanup()
       window.addEventListener('resize', applyPDFScale)
       window.addEventListener('orientationchange', () => setTimeout(applyPDFScale, 300))
@@ -5057,59 +5101,124 @@ ISTRUZIONI:
     setTimeout(() => { w.print() }, 400)
   }
 
+  /* pdf-validato-visita-v1 ─────────────────────────────────────────────
+     Come la posturale (pdf-validato-v1): il PDF porta la firma del
+     professionista, quindi non si archivia senza la spunta «ho letto e valido»;
+     correggere il testo toglie la spunta. Il file si fa sul server
+     (/api/pdf-render, lo stesso della posturale), si scarica, si carica nel
+     bucket PRIVATO e si salva il PERCORSO: il link pubblico non si apre. */
+  function pdfRelazioneCambiata() {
+    clearTimeout(window._pdfRenderTimer)
+    const chk = document.getElementById('pdf-validata')
+    if (chk && chk.checked) { chk.checked = false; pdfAggiornaSalva() }
+    window._pdfRenderTimer = setTimeout(pdfRirenderizza, 400)
+  }
+  function pdfRirenderizza() {
+    if (!_pdfState) return
+    const testo = document.getElementById('pdf-relazione')?.value.trim() || null
+    _pdfState.ai_relazione = testo
+    document.getElementById('pdf-preview-body').innerHTML = buildPDFTemplate(
+      _pdfState.visit_data, _pdfState.patient, _pdfState.professional, _pdfState.photos || [], testo)
+    if (typeof window._pdfApplyScale === 'function') window._pdfApplyScale()
+  }
+  function pdfAggiornaSalva() {
+    const chk = document.getElementById('pdf-validata'), btn = document.getElementById('pdf-btn-salva')
+    if (btn) btn.disabled = !(chk && chk.checked)
+  }
+  function pdfEsito(tipo, html) {
+    const box = document.getElementById('pdf-esito'); if (!box) return
+    box.className = tipo; box.innerHTML = html; box.style.display = 'block'
+    box.scrollIntoView({ block: 'nearest' })
+  }
+  function renderStatoPDFVisita(v) {
+    const box = document.getElementById('pdf-stato'); if (!box) return
+    if (!v || !v.pdf_validato_il) { box.style.display = 'none'; box.innerHTML = ''; return }
+    const d = new Date(v.pdf_validato_il)
+    box.style.display = 'flex'
+    box.innerHTML = '<span>📄 <b>PDF validato</b> il ' + d.toLocaleDateString('it-IT') + ' alle ' +
+      d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) + '</span>' +
+      '<button type="button" onclick="apriPDFArchiviatoVisita()">Apri</button>' +
+      '<span style="color:#777;font-size:12px">Per rifarlo usa il pulsante qui sopra: la copia in archivio viene sostituita.</span>'
+    window._pdfArchivio = { path: v.pdf_storage_path || null, url: v.pdf_url || null }
+  }
+  async function apriPDFArchiviatoVisita() {
+    const a = window._pdfArchivio || {}
+    if (a.path) {
+      const { data, error } = await _sb.storage.from('clinical-docs').createSignedUrl(a.path, 300)
+      if (!error && data && data.signedUrl) { window.open(data.signedUrl, '_blank'); return }
+    }
+    showToast('PDF non disponibile: rigeneralo e validalo.')
+  }
+
   async function savePDFPreview() {
     if (!_pdfState) { showToast('Nessuna anteprima attiva'); return }
-    const saveBtn = document.querySelector('.pdf-modal-btn-save')
+    const chk = document.getElementById('pdf-validata')
+    if (!chk || !chk.checked) { pdfEsito('ko', 'Prima spunta «Ho letto la relazione e la valido».'); return }
+    const saveBtn = document.getElementById('pdf-btn-salva')
     saveBtn.disabled = true
-    saveBtn.textContent = '⏳ Salvataggio...'
-
+    saveBtn.textContent = '⏳ Generazione PDF...'
     try {
       const previewBody = document.getElementById('pdf-preview-body')
-
-      const opt = {
-        margin:      [15, 12],
-        filename:    _pdfState.filename,
-        image:       { type: 'jpeg', quality: 0.9 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:   { mode: ['css', 'legacy'] }
-      }
-
-      // Temporarily remove scale transform so html2canvas captures at full 770px A4 size
-      const templateEl = previewBody.firstElementChild
+      const templateEl  = previewBody.firstElementChild
       const savedTransform = templateEl?.style.transform || ''
-      const savedHeight = previewBody.style.height
+      const savedHeight    = previewBody.style.height
       if (templateEl) { templateEl.style.transform = ''; previewBody.style.height = '' }
-      const pdfBlob = await html2pdf().set(opt).from(templateEl || previewBody.firstElementChild).outputPdf('blob')
+      const fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}body{margin:0;background:#fff}</style></head><body>' + previewBody.innerHTML + '</body></html>'
       if (templateEl) { templateEl.style.transform = savedTransform; previewBody.style.height = savedHeight }
 
-      // Trigger download
+      const { data: { session } } = await _sb.auth.getSession()
+      const resp = await fetch('/api/pdf-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (session ? session.access_token : '') },
+        body: JSON.stringify({ html: fullHtml, filename: _pdfState.filename })
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        throw new Error(err.error || ('HTTP ' + resp.status))
+      }
+      const pdfBlob = await resp.blob()
+
       const dlUrl = URL.createObjectURL(pdfBlob)
       const a = document.createElement('a')
       a.href = dlUrl; a.download = _pdfState.filename; a.click()
       URL.revokeObjectURL(dlUrl)
 
-      // Upload to Storage and persist pdf_url
-      const { error: upErr } = await _sb.storage
-        .from('clinical-docs')
+      const { error: upErr } = await _sb.storage.from('clinical-docs')
         .upload(_pdfState.storagePath, await pdfBlob.arrayBuffer(), { contentType: 'application/pdf', upsert: true })
+      if (upErr) throw new Error('PDF non archiviato: ' + upErr.message)
 
-      if (!upErr) {
-        const { data: { publicUrl } } = _sb.storage.from('clinical-docs').getPublicUrl(_pdfState.storagePath)
-        await _sb.from('visits').update({ pdf_url: publicUrl }).eq('id', visitId)
-        // pdf-gradi-v1 — il bucket è privato: pdf_url non si apre. Il percorso si
-        // salva a parte, così la scheda paziente può firmare l'indirizzo (037).
-        await _sb.from('visits').update({ pdf_storage_path: _pdfState.storagePath }).eq('id', visitId)
-        visitData.pdf_url = publicUrl
+      const { data: pub } = _sb.storage.from('clinical-docs').getPublicUrl(_pdfState.storagePath)
+      const patch = {
+        pdf_url: (pub && pub.publicUrl) || null,
+        pdf_storage_path: _pdfState.storagePath,
+        pdf_validato_il: new Date().toISOString()
       }
-
-      showToast('✅ PDF salvato')
+      // La relazione della card si aggiorna solo se il PDF è della visita
+      // singola: la «storia completa» è un altro testo e non la sostituisce.
+      if (_pdfState.modalita === 'singola') patch.relazione_ai = _pdfState.ai_relazione || null
+      const { error: updErr } = await _sb.from('visits').update(patch).eq('id', visitId)
+      if (updErr) {
+        const m = (updErr.message || '').toLowerCase()
+        const manca = m.includes('column') || m.includes('schema cache') || m.includes('does not exist')
+        throw new Error('Il PDF è stato caricato ma la visita non è stata aggiornata: ' + updErr.message +
+          (manca ? '\n\n👉 Sembra che manchi la migration 037_pdf_validato.sql: lanciala nel SQL Editor di Supabase, poi rifai «Valida e salva».' : ''))
+      }
+      Object.assign(visitData, patch)
+      if (patch.relazione_ai !== undefined) {
+        const elAI = document.getElementById('f-relazione-ai'); if (elAI) elAI.value = patch.relazione_ai || ''
+      }
+      renderStatoPDFVisita(visitData)
+      pdfEsito('ok', '✅ <b>PDF validato e archiviato.</b> Lo trovi sotto il pulsante del PDF («📄 PDF validato… Apri») ' +
+        'e nella scheda del paziente, sulla riga di questa visita. Il file è anche nella cartella Download.')
+      saveBtn.textContent = '✓ Salvato in archivio'
+      showToast('✅ PDF validato e archiviato')
     } catch (e) {
-      console.error('[PDF Save]', e)
-      showToast('Errore salvataggio PDF: ' + e.message)
+      console.error('[PDF Visita Save]', e)
+      pdfEsito('ko', '❌ ' + String(e.message || e).replace(/\n/g, '<br>'))
+      showToast('Errore: ' + e.message)
     } finally {
-      saveBtn.disabled = false
-      saveBtn.textContent = '💾 Salva PDF'
+      if (saveBtn.textContent !== '✓ Salvato in archivio') { saveBtn.textContent = '💾 Valida e salva in archivio'; pdfAggiornaSalva() }
+      else saveBtn.disabled = true
     }
   }
 
