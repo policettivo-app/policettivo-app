@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="robots" content="noindex, nofollow">
-<title>Oscillazione Policettiva — prova del banco</title>
+<title>Oscillazione Policettiva</title>
 <!-- prova-oscillazione-v1
      PAGINA DI PROVA. Non e' uno strumento clinico e non e' collegata a nessun menu.
      Non tocca il database, non scrive niente, non chiede il login: misura e basta.
@@ -487,7 +487,7 @@
   </div>
 
   <div class="intest-referto">
-    <b>Oscillazione Policettiva</b> — referto della prova del banco<br>
+    <b>Oscillazione Policettiva</b> — referto della prova<br>
     <span id="ref-quando"></span><br>
     <span style="color:#666">Test del Sistema Policettivo®: misura l’inclinazione della Tavola
     Policettiva — dove va il carico e quanto oscilla. Non è una stabilometria su pedana: i numeri
@@ -547,12 +547,16 @@
   <div class="card" id="c-storico" style="display:none">
     <h2>4 · Le prove di oggi</h2>
     <div id="lista"></div>
+    <!-- solo-sviluppo-v1 · strumenti per lo sviluppo: li vede solo l'account
+         amministratore (o i controlli automatici). Chi usa l'app non li vede. -->
+    <div id="strumenti-sviluppo" style="display:none">
     <button class="btn vuoto" id="btn-copia">Copia i dati per Claude</button>
     <button class="btn vuoto" id="btn-grezzi">Esporta i campioni grezzi (CSV)</button>
     <textarea id="export" readonly style="display:none;margin-top:12px"></textarea>
     <div class="nota">
       Il riassunto è corto e si incolla in chat. I campioni grezzi restano solo qui:
       chiudendo la pagina si perdono.
+    </div>
     </div>
   </div>
 
@@ -1928,7 +1932,14 @@
   // test-sessioni-v1 — «indietro» riporta alla pagina dei test (del paziente, se c'è)
   if ($('link-home')){ $('link-home').href = 'test.html' + (PID ? '?pid=' + PID : ''); $('link-home').textContent = '← Test' }
 
+  // solo-sviluppo-v1 · gli strumenti «per Claude» solo all'amministratore
+  function mostraSviluppo(email){
+    var si = window.__sviluppo === true || email === 'appuntamentimft@gmail.com'
+    if ($('strumenti-sviluppo')) $('strumenti-sviluppo').style.display = si ? '' : 'none'
+  }
+  mostraSviluppo(null)
   async function chiSono(session){
+    mostraSviluppo(session && session.user ? session.user.email : null)
     try {
       var pr = await SB.from('professionals').select('id').eq('user_id', session.user.id).maybeSingle()
       profId = pr && pr.data ? pr.data.id : null

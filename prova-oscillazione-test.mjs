@@ -158,6 +158,7 @@ async function apri(browser, query = '') {
   const page = await ctx.newPage()
   const errori = []
   page.on('pageerror', e => errori.push(String(e)))
+  await page.addInitScript(() => { window.__sviluppo = true })   // solo-sviluppo-v1
   await page.goto('http://localhost:' + PORT + '/' + PAGINA + query, { waitUntil: 'load' })
   await page.waitForTimeout(150)
   return { page, ctx, errori }
@@ -789,6 +790,7 @@ sez('Il permesso negato lo dice, e dice cosa fare')
     window.DeviceOrientationEvent = window.DeviceOrientationEvent || function(){}
     window.DeviceOrientationEvent.requestPermission = () => Promise.resolve('denied')
   })
+  await page.addInitScript(() => { window.__sviluppo = true })   // solo-sviluppo-v1
   await page.goto('http://localhost:' + PORT + '/' + PAGINA + '?dur=1&via=1', { waitUntil: 'load' })
   await parti(page, '#btn-start')
   await page.waitForSelector('#err', { state: 'visible', timeout: 8000 })
@@ -1264,6 +1266,7 @@ sez('⭐ taratura-unica · si ricorda, e sopravvive alla pagina ricaricata')
   const page = await ctx.newPage()
   const errori = []
   page.on('pageerror', e => errori.push(String(e)))
+  await page.addInitScript(() => { window.__sviluppo = true })   // solo-sviluppo-v1
   await page.goto('http://localhost:' + PORT + '/' + PAGINA + '?dur=2&via=1', { waitUntil: 'load' })
   await page.waitForTimeout(150)
   check('all’apertura dice che la taratura manca',
@@ -1751,7 +1754,7 @@ const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, sessioneRec
     return api
   }
   window.supabase = { createClient() { return {
-    auth: { getSession: async () => ({ data: { session: sessione ? { user: { id: 'U1' }, access_token: 'TOK' } : null } }) },
+    auth: { getSession: async () => ({ data: { session: sessione ? { user: { id: 'U1', email: sessione === 'admin' ? 'appuntamentimft@gmail.com' : 'collega@studio.it' }, access_token: 'TOK' } : null } }) },
     from: q,
     rpc: async () => ({ data: null, error: null }),
     channel() { const c = { on(){ return c }, subscribe(){ return c }, send(m){ window.__db.canale.push(m) } }; return c },
@@ -1766,6 +1769,7 @@ async function apriApp(browser, finto, query) {
   page.on('pageerror', e => errori.push(String(e)))
   await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }))
   await page.addInitScript(SUPA, finto)
+  await page.addInitScript(() => { window.__sviluppo = true })   // solo-sviluppo-v1
   await page.goto('http://localhost:' + PORT + '/' + PAGINA + (query || ''), { waitUntil: 'load' })
   await page.waitForTimeout(300)
   return { page, ctx, errori }
@@ -2146,6 +2150,25 @@ sez('⛔ oscillazione-app-v1 · sul canale della diretta il nome del paziente NO
   const invii = (src.match(/canaleSub\.send\([^]*?\}\}\)/g) || []).join(' ')
   check('⛔ nei messaggi della diretta non c’è pazNome', !/pazNome|PID|patient_id/.test(invii))
 }
+sez('⛔ solo-sviluppo-v1 · «Copia i dati per Claude» NON lo vede chi usa l’app')
+{
+  for (const [chi, sessione, atteso] of [['un collega entrato', true, false], ['nessuno entrato', false, false], ['l’amministratore', 'admin', true]]) {
+    const ctx = await browser.newContext({ viewport: { width: 400, height: 780 } })
+    const page = await ctx.newPage()
+    const errori = []; page.on('pageerror', e => errori.push(String(e)))
+    await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }))
+    await page.addInitScript(SUPA, { sessione })
+    await page.goto('http://localhost:' + PORT + '/' + PAGINA + '?dur=2&via=1', { waitUntil: 'load' })
+    await page.waitForTimeout(300)
+    const vis = await page.evaluate(() => getComputedStyle(document.getElementById('strumenti-sviluppo')).display !== 'none')
+    check((atteso ? '⭐ ' : '⛔ ') + chi + ': strumenti per Claude ' + (atteso ? 'visibili' : 'nascosti'), vis === atteso, vis)
+    check('nessun errore JS (' + chi + ')', errori.length === 0, errori)
+    await ctx.close()
+  }
+  const src = fs.readFileSync(path.join(ROOT, PAGINA), 'utf8')
+  check('⛔ nel referto stampato non c’è più «prova del banco»', !/referto della prova del banco/.test(src) && !/<title>[^<]*banco/.test(src))
+}
+
 } finally {
   await browser.close()
   server.close()

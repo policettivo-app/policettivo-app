@@ -103,9 +103,20 @@ try {
   check('⛔ nessuna chiamata fuori da questa pagina (niente database)', rete.length === 0, rete)
   check('nessun errore JS', errori.length === 0, errori)
 
-  sez('test.html: una riga nuova nella lista')
+  sez('test.html: la Fase 0 solo all’amministratore (solo-sviluppo-v1)')
   const th = fs.readFileSync('test.html', 'utf8')
   check('⭐ «Gradi · Fase 0» porta a prova-gradi.html', /fase0-gradi/.test(th) && /prova-gradi\.html/.test(th))
+  for (const [chi, email, atteso] of [['un collega', 'collega@studio.it', false], ['l’amministratore', 'appuntamentimft@gmail.com', true]]) {
+    const pg = await ctx.newPage()
+    await pg.route('https://fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }))
+    await pg.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
+      'window.supabase={createClient(){const q=()=>{const a={select(){return a},eq(){return a},is(){return a},order(){return a},limit(){return a},maybeSingle(){return Promise.resolve({data:null})},then(r){return Promise.resolve({data:[],error:null}).then(r)}};return a};return{auth:{getSession:async()=>({data:{session:{user:{id:"U",email:' + JSON.stringify(email) + '}}}})},from:q}}}' }))
+    await pg.goto('http://localhost:' + PORT + '/test.html', { waitUntil: 'load' }); await pg.waitForTimeout(300)
+    const c = await pg.$('#t-fase0-gradi')
+    check((atteso ? '⭐ ' : '⛔ ') + chi + ': la casella «Gradi · Fase 0» ' + (atteso ? 'c’è' : 'NON c’è'), !!c === atteso)
+    check('gli altri test ci sono sempre (' + chi + ')', !!(await pg.$('#t-oscillazione')) && !!(await pg.$('#t-autotest')))
+    await pg.close()
+  }
   await ctx.close()
 } finally { await browser.close(); server.close() }
 console.log('\n' + '='.repeat(66))

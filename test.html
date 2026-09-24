@@ -80,7 +80,7 @@
     { id: 'confronto', ico: '📊', nome: 'Confronto', classe: 'scuro',
       desc: 'Sessione contro sessione: più stabile, dove oscilla, dove carica',
       vai: function(){ location.href = 'oscillazione-storico.html' + q } },
-    { id: 'fase0-gradi', /* editor-punti-v1 */ ico: '📐', nome: 'Gradi · Fase 0', classe: '',
+    { id: 'fase0-gradi', /* editor-punti-v1 · solo-sviluppo-v1 */ soloAdmin: true, ico: '📐', nome: 'Gradi · Fase 0', classe: '',
       desc: 'Quanto balla la misura dei gradi sulle foto · non salva sul server',
       vai: function(){ location.href = 'prova-gradi.html' } },
     { id: 'autotest', ico: '🧭', nome: 'Autotest', classe: '',
@@ -93,8 +93,10 @@
       } }
   ]
 
+  var admin = false   // solo-sviluppo-v1 · gli strumenti di sviluppo solo all'amministratore
   function disegnaTest(){
     $('griglia').innerHTML = TEST.map(function(t, i){
+      if (t.soloAdmin && !admin) return ''
       return '<button class="test ' + t.classe + '" data-i="' + i + '" id="t-' + t.id + '"><span class="ico">' + t.ico +
         '</span><b>' + t.nome + '</b><span>' + t.desc + '</span></button>'
     }).join('')
@@ -113,6 +115,7 @@
     SB = window.supabase.createClient(SB_URL, SB_KEY)
     var ses = null
     try { ses = (await SB.auth.getSession()).data.session } catch(e){}
+    if (ses && ses.user && ses.user.email === 'appuntamentimft@gmail.com'){ admin = true; disegnaTest() }
     if (!ses){
       $('paz-banda').innerHTML = '<div class="paz-banda libera">Non sei entrato: i test si fanno, ma <b>non si salvano</b>. ' +
         '<a href="login.html" style="color:inherit;font-weight:700">Entra</a></div>'
