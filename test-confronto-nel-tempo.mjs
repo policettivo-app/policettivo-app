@@ -2366,6 +2366,134 @@ sez('schermo-paziente-v1 — dalla scheda paziente e dalla visita')
   check('   dopo aver salvato quello che era in attesa', /async function apriSchermoPaziente[\s\S]{0,400}await actualSave\(\)/.test(vis))
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// pdf-gradi-v1 — «Prima e dopo i 3 Respiri» dentro il PDF della valutazione
+// ═══════════════════════════════════════════════════════════════════════
+const PATH_V3_SAG_PRE = 'visits/v3/sagittale_dx_pre_3.jpg', PATH_V3_SAG_POST = 'visits/v3/sagittale_dx_post_3.jpg'
+function datiPdf(opts = {}) {
+  const d = datiPosturale(opts)
+  d.visit_photos.push({ id:'pa', visit_id:'v3', tipo:'sagittale_dx_pre',  storage_path:PATH_V3_SAG_PRE,  ordine:0 })
+  d.visit_photos.push({ id:'pb', visit_id:'v3', tipo:'sagittale_dx_post', storage_path:PATH_V3_SAG_POST, ordine:1 })
+  d.urlFoto[PATH_V3_SAG_PRE] = '/foto/v1-sag.svg'; d.urlFoto[PATH_V3_SAG_POST] = '/foto/v2-sag.svg'
+  const pt = { filo_alto:{x:.5,y:.03}, filo_basso:{x:.5,y:.97}, orecchio:{x:.62,y:.15}, spalla:{x:.56,y:.27}, anca:{x:.5,y:.5}, ginocchio:{x:.5,y:.72}, caviglia:{x:.5,y:.92} }
+  d.foto_misure = opts.senzaMisure ? [] : [
+    { patient_id:PID, storage_path:PATH_V3_SAG_PRE, vista:'sagittale', verso:1, larghezza:400, altezza:600, punti:pt,
+      gradi:[{ k:'testa', nome:'Orecchio rispetto alla spalla', gradi:12.4, valore:12.4, parola:'in avanti' }] },
+    { patient_id:PID, storage_path:PATH_V3_SAG_POST, vista:'sagittale', verso:1, larghezza:500, altezza:700, punti:pt,
+      gradi:[{ k:'testa', nome:'Orecchio rispetto alla spalla', gradi:9.1, valore:9.1, parola:'in avanti' }] }
+  ]
+  const prova = (ora, momento, vel) => ({ id:'o'+ora, patient_id:PID, quando:'2026-08-31T' + ora + ':00Z', evento:'beccheggio', occhi:'aperti',
+    configurazione:null, momento, velocita:vel, osc_ap:.6, osc_ds:.4, raggio:1, ellisse:1, tarato:true })
+  d.oscillazione_test = opts.senzaEquilibrio ? [] : [
+    prova('09:00','pre',3.0), prova('09:01','pre',3.1), prova('09:02','pre',2.9),
+    prova('09:06','post',2.2), prova('09:07','post',2.1), prova('09:08','post',2.3),
+    prova('09:10', null, 1.0),                                          // non segnata: non entra
+    { ...prova('09:00','pre',9.9), id:'altro-giorno', quando:'2026-08-30T09:00:00Z' }   // altro giorno: non entra
+  ]
+  return d
+}
+async function pdfPosturale(dati) {
+  const { page, ctx, errori } = await apriPagina(browser, dati, 'valutazione-posturale.html', '?id=v3')
+  await page.route('**/api/genera-pdf**', r => r.fulfill({ status:200, contentType:'application/json', body: JSON.stringify({
+    visit_data: { id:'v3', data_visita:'2026-08-31', note_scapolare_pre:'anteriore', note_scapolare_post:'in_asse' },
+    patient: { nome:'Mario', cognome:'Rossi' }, professional: { nome:'Giuliano', cognome:'Baron' },
+    photos: [ { tipo:'sagittale_dx_pre', storage_path:PATH_V3_SAG_PRE, url_pubblico:'/foto/v1-sag.svg' },
+              { tipo:'sagittale_dx_post', storage_path:PATH_V3_SAG_POST, url_pubblico:'/foto/v2-sag.svg' } ],
+    ai_relazione: null }) }))
+  await page.evaluate(() => generaPDFPosturale('nessuna'))
+  await page.waitForFunction(() => (document.getElementById('vp-pdf-preview-body') || {}).innerHTML, null, { timeout: 8000 }).catch(() => {})
+  await page.waitForTimeout(400)
+  return { page, ctx, errori }
+}
+
+sez('pdf-gradi-v1 — nel PDF della posturale: gradi, equilibrio e nota di metodo')
+{
+  const { page, ctx, errori } = await pdfPosturale(datiPdf())
+  const gravi = errori.filter(e => /PolPdf|PolMisure|PolSchermo|sezione|fotoPdf|primaDopo/i.test(e))
+  check('nessun errore JS del blocco nuovo', gravi.length === 0, gravi)
+  const t = await page.textContent('#vp-pdf-preview-body')
+  check('⭐⭐ c’è la sezione «Prima e dopo i 3 Respiri — misure»', /Prima e dopo i 3 Respiri — misure/.test(t), t.slice(0, 300))
+  check('⭐ gradi: Profilo destro · Orecchio rispetto alla spalla 12,4° → 9,1°, −3,3°', /Profilo destro/.test(t) && /12,4°/.test(t) && /9,1°/.test(t) && /−3,3°/.test(t))
+  check('⭐ con l’avvertenza: le differenze non vanno interpretate', /non vanno interpretate come miglioramento o peggioramento/.test(t))
+  check('⭐⭐ equilibrio del GIORNO della visita: 3,0 → 2,2 °/s, −27%, Più stabile (±20%)', /3,0 °\/s/.test(t) && /2,2 °\/s/.test(t) && /−27%/.test(t) && /Più stabile/.test(t) && /±20%/.test(t), t.match(/Equilibrio[\s\S]{0,300}/))
+  check('⛔ la prova di un altro giorno e quella non segnata NON entrano (3+3 prove)', /\(3\+3 prove\)/.test(t) && !/9,9/.test(t))
+  check('⭐ nota di metodo: descrive, non dimostra la causa', /non ne dimostra la causa/.test(t))
+  const svg = await page.$$eval('#vp-pdf-preview-body img.pd-disegno', s => s.map(x => {
+    const doc = new DOMParser().parseFromString(decodeURIComponent(x.getAttribute('src').split(',')[1]), 'image/svg+xml').documentElement
+    return { vb: doc.getAttribute('viewBox'), linee: doc.querySelectorAll('line').length, testi: [...doc.querySelectorAll('text')].map(t => t.textContent) }
+  }))
+  check('⭐⭐ le due foto misurate hanno sopra punti, linee e gradi', svg.length === 2 && svg.every(x => x.linee >= 4) && svg[0].testi.includes('12,4°') && svg[1].testi.includes('9,1°'), svg)
+  check('⭐ ognuna nelle coordinate della SUA foto (400×600 e 500×700)', svg[0] && svg[0].vb === '0 0 400 600' && svg[1].vb === '0 0 500 700', svg.map(x => x.vb))
+  const box = await page.$$eval('#vp-pdf-preview-body img.pd-disegno', s => s.map(x => { const i = x.parentNode.querySelector('img').getBoundingClientRect(), b = x.getBoundingClientRect(); return [Math.abs(i.width - b.width), Math.abs(i.height - b.height), Math.abs(i.left - b.left), Math.abs(i.top - b.top)] }))
+  check('⭐ il disegno cade ESATTO sulla foto (entro 1 px)', box.length === 2 && box.every(v => v.every(x => x < 1)), box)
+  check('la spalla PRE/POST 3 Respiri c’è ancora (sezione di prima)', /Piano Scapolare/i.test(t))
+  await ctx.close()
+}
+
+sez('pdf-gradi-v1 — senza misure e senza equilibrio il PDF è quello di prima')
+{
+  const { page, ctx } = await pdfPosturale(datiPdf({ senzaMisure: true, senzaEquilibrio: true }))
+  const t = await page.textContent('#vp-pdf-preview-body')
+  check('⭐ niente sezione nuova', !/Prima e dopo i 3 Respiri — misure/.test(t))
+  check('⭐ e le foto sono quelle normali, senza disegno', (await page.$$('#vp-pdf-preview-body img.pd-disegno')).length === 0)
+  check('il PDF c’è', /REFERTO DI VALUTAZIONE POSTURALE/.test(t))
+  await ctx.close()
+}
+
+sez('pdf-gradi-v1 — se i file nuovi non arrivano, il PDF si fa lo stesso')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPdf(), 'valutazione-posturale.html', '?id=v3', { blocca: ['**/js/pdf-prima-dopo.js*', '**/js/misure-foto.js*'] })
+  await page.route('**/api/genera-pdf**', r => r.fulfill({ status:200, contentType:'application/json', body: JSON.stringify({
+    visit_data: { id:'v3', data_visita:'2026-08-31' }, patient: { nome:'Mario', cognome:'Rossi' }, professional: {},
+    photos: [ { tipo:'sagittale_dx_pre', storage_path:PATH_V3_SAG_PRE, url_pubblico:'/foto/v1-sag.svg' } ], ai_relazione: null }) }))
+  await page.evaluate(() => generaPDFPosturale('nessuna'))
+  await page.waitForTimeout(800)
+  const t = await page.textContent('#vp-pdf-preview-body')
+  check('⭐⭐ il PDF si apre lo stesso, senza la sezione', /REFERTO DI VALUTAZIONE POSTURALE/.test(t) && !/Prima e dopo i 3 Respiri/.test(t))
+  check('nessun errore JS', errori.filter(e => !/net::|Failed to load/i.test(e)).length === 0, errori)
+  await ctx.close()
+}
+
+sez('pdf-gradi-v1 — nel PDF della visita fisioterapica (3A), anche dentro html2canvas')
+{
+  const d = datiPdf()
+  d.visits.push({ id:'vf2', patient_id:PID, tipo:'fisioterapica', data_visita:'2026-08-31', created_at:'2026-08-31' })
+  const { page, ctx, errori } = await apriPagina(browser, d, 'visita.html', '?id=vf2')
+  await page.route('**/api/genera-pdf**', r => r.fulfill({ status:200, contentType:'application/json', body: JSON.stringify({
+    visit_data: { id:'vf2', data_visita:'2026-08-31' }, patient: { nome:'Mario', cognome:'Rossi' }, professional: { nome:'Giuliano' },
+    photos: [ { tipo:'sagittale_dx_pre', storage_path:PATH_V3_SAG_PRE, url_pubblico:'/foto/v1-sag.svg' },
+              { tipo:'sagittale_dx_post', storage_path:PATH_V3_SAG_POST, url_pubblico:'/foto/v2-sag.svg' } ], ai_relazione: null }) }))
+  const ok0 = await page.evaluate(() => typeof generaPDFVisita === 'function')
+  check('la visita ha la sua funzione del PDF', ok0)
+  if (ok0) {
+    await page.evaluate(() => generaPDFVisita('singola'))
+    await page.waitForTimeout(900)
+    const t = await page.textContent('#pdf-preview-body')
+    check('⭐⭐ anche il PDF della visita ha «Prima e dopo i 3 Respiri»', /Prima e dopo i 3 Respiri — misure/.test(t) && /12,4°/.test(t) && /Più stabile/.test(t))
+    check('⭐ e le foto misurate col disegno sopra', (await page.$$('#pdf-preview-body img.pd-disegno')).length === 2)
+    // html2canvas (quello che la visita usa per il PDF) disegna davvero l'SVG?
+    await page.addScriptTag({ path: '/tmp/claude-0/html2pdf.bundle.min.js' }).catch(() => {})
+    const px = await page.evaluate(async () => {
+      if (!window.html2pdf) return { manca: true }
+      const w = document.querySelector('#pdf-preview-body .pd-disegno').parentNode.parentNode
+      const foto = async () => {
+        const canvas = await window.html2pdf().set({ html2canvas: { scale: 2, useCORS: true, logging: false } }).from(w).toCanvas().get('canvas')
+        return canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
+      }
+      const con = await foto()
+      w.querySelectorAll('.pd-disegno').forEach(i => { i.style.visibility = 'hidden' })
+      const senza = await foto()
+      w.querySelectorAll('.pd-disegno').forEach(i => { i.style.visibility = '' })
+      let diversi = 0
+      for (let i = 0; i < Math.min(con.length, senza.length); i += 4) if (Math.abs(con[i] - senza[i]) + Math.abs(con[i+1] - senza[i+1]) + Math.abs(con[i+2] - senza[i+2]) > 60) diversi++
+      return { diversi }
+    })
+    check('⭐⭐ html2canvas (scala 2, come il salvataggio vero) cattura il disegno: con e senza, il PDF cambia', !px.manca && px.diversi > 300, px)
+  }
+  check('⭐ il PDF salvato tiene anche il percorso del file (bucket privato)', /update\(\{ pdf_storage_path: _pdfState\.storagePath \}\)/.test(fs.readFileSync(path.join(ROOT, 'visita.html'), 'utf8')))
+  await ctx.close()
+}
+
 } finally {
   await browser.close()
   server.close()

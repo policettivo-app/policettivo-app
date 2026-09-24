@@ -10,13 +10,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/osservazioni.js"></script>
   <script src="js/postural-component.js"></script>
-  <script src="js/oscillazione.js?v=gradi-foto-v1"></script>
-  <script src="js/schermo-paziente.js?v=gradi-foto-v1"></script>
+  <script src="js/oscillazione.js?v=pdf-gradi-v1"></script>
+  <script src="js/schermo-paziente.js?v=pdf-gradi-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
-  <script src="js/valutazioni.js?v=gradi-foto-v1"></script>
+  <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
   <!-- gradi-foto-v1 · i gradi sulle foto: punti confermati, riferimento personale -->
-  <script src="js/misure-foto.js?v=gradi-foto-v1"></script>
+  <script src="js/misure-foto.js?v=pdf-gradi-v1"></script>
   <!-- schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
        LO SCHERMO DEL PAZIENTE: il prima e dopo dei 3 Respiri, fatto per essere
        guardato insieme, anche su una TV (duplicazione dello schermo, decisione 5A).
@@ -684,56 +684,19 @@ function strisciaGradi(plane, f) {
 function disegnaSovra() {
   if (!PM) return
   document.querySelectorAll('.slide.on .riquadro[data-misura]').forEach(box => {
-    const svg = box.querySelector('svg.sovra'), img = box.querySelector('img')
-    if (!svg || !img) return
+    const svg = box.querySelector('svg.sovra')
+    if (!svg) return
     const plane = box.getAttribute('data-plane'), m = misure[box.getAttribute('data-misura')]
     svg.innerHTML = ''
     if (!m || (!vediGradi[plane] && !vediRif[plane])) return
-    const bw = box.clientWidth, bh = box.clientHeight, iw = img.naturalWidth, ih = img.naturalHeight
-    if (!iw || !ih || !bw || !bh) return
-    const sc = Math.min(bw / iw, bh / ih), ox = (bw - iw * sc) / 2, oy = (bh - ih * sc) / 2
-    const P = q => ({ x: ox + q.x * iw * sc, y: oy + q.y * ih * sc })
-    svg.setAttribute('viewBox', '0 0 ' + bw + ' ' + bh)
-    const pt = m.punti || {}, vista = m.vista, h = []
-    const linea = (a, b, col, w, tratt) => { if (!a || !b) return; const A = P(a), B = P(b)
-      h.push('<line x1="' + A.x + '" y1="' + A.y + '" x2="' + B.x + '" y2="' + B.y + '" stroke="' + col + '" stroke-width="' + w + '"' + (tratt ? ' stroke-dasharray="' + tratt + '"' : '') + ' stroke-linecap="round"/>') }
-    const punto = (a, col, r, vuoto) => { if (!a) return; const A = P(a)
-      h.push('<circle cx="' + A.x + '" cy="' + A.y + '" r="' + r + '" fill="' + (vuoto ? 'none' : col) + '" stroke="' + (vuoto ? col : '#0B0B0B') + '" stroke-width="' + (vuoto ? 3 : 2.5) + '"/>') }
-    const etichetta = (a, testo, dx) => { if (!a) return; const A = P(a), x = A.x + (dx || 14), w = testo.length * 11 + 18
-      h.push('<g><rect x="' + (dx < 0 ? x - w : x) + '" y="' + (A.y - 17) + '" width="' + w + '" height="34" rx="9" fill="rgba(0,0,0,.78)" stroke="#FFD008" stroke-width="1.5"/>' +
-        '<text x="' + ((dx < 0 ? x - w : x) + w / 2) + '" y="' + (A.y + 7) + '" fill="#fff" font-size="19" font-weight="800" text-anchor="middle" font-family="Montserrat,sans-serif">' + esc(testo) + '</text></g>') }
-    const med = (a, b) => (a && b) ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null
-    if (vediRif[plane]) {
-      const rf = PM.riferimento(vista, pt, iw, ih)
-      if (rf && rf.tipo === 'verticale') {
-        linea(rf.linea[0], rf.linea[1], '#00C48C', 3, '12 8')
-        rf.fantasmi.forEach(fm => { linea(fm.reale, fm.ideale, 'rgba(0,196,140,.7)', 2, '4 5'); punto(fm.ideale, '#00C48C', 9, true) })
-      } else if (rf) rf.righe.forEach(r => linea(r.ideale[0], r.ideale[1], '#00C48C', 3, '12 8'))
-    }
-    if (vediGradi[plane]) {
-      linea(pt.filo_alto, pt.filo_basso, '#FFD008', 2, '10 8')
-      const gr = {}; (m.gradi || []).forEach(x => { gr[x.k] = x })
-      const g1 = k => gr[k] ? PM.numIt(gr[k].valore) + '°' : ''
-      if (vista === 'sagittale') {
-        const cat = ['orecchio', 'spalla', 'anca', 'ginocchio', 'caviglia']
-        for (let i = 0; i < cat.length - 1; i++) linea(pt[cat[i]], pt[cat[i + 1]], '#FFFFFF', 4)
-        cat.forEach(k => punto(pt[k], '#FFFFFF', 8))
-        const lato = (m.verso === -1) ? 18 : -18
-        etichetta(med(pt.spalla, pt.orecchio), g1('testa'), -lato)
-        etichetta(med(pt.anca, pt.spalla), g1('tronco'), -lato)
-        etichetta(med(pt.caviglia, pt.anca), g1('gamba'), -lato)
-      } else {
-        linea(pt.spalla_dx, pt.spalla_sx, '#FFFFFF', 4); linea(pt.anca_dx, pt.anca_sx, '#FFFFFF', 4)
-        ;['dx', 'sx'].forEach(l => { linea(pt['anca_' + l], pt['ginocchio_' + l], '#FFFFFF', 3); linea(pt['ginocchio_' + l], pt['caviglia_' + l], '#FFFFFF', 3) })
-        Object.keys(pt).filter(k => !/^filo/.test(k)).forEach(k => punto(pt[k], '#FFFFFF', 7))
-        const dS = pt.spalla_dx && pt.spalla_sx ? (pt.spalla_dx.x > pt.spalla_sx.x ? 1 : -1) : 1
-        etichetta(pt.spalla_dx && pt.spalla_sx ? (dS > 0 ? pt.spalla_dx : pt.spalla_sx) : null, g1('spalle'), 16)
-        etichetta(pt.anca_dx && pt.anca_sx ? (dS > 0 ? pt.anca_dx : pt.anca_sx) : null, g1('bacino'), 16)
-        etichetta(pt.ginocchio_dx, g1('ginocchio_dx'), (pt.ginocchio_dx && pt.ginocchio_sx && pt.ginocchio_dx.x < pt.ginocchio_sx.x) ? -16 : 16)
-        etichetta(pt.ginocchio_sx, g1('ginocchio_sx'), (pt.ginocchio_dx && pt.ginocchio_sx && pt.ginocchio_sx.x < pt.ginocchio_dx.x) ? -16 : 16)
-      }
-    }
-    svg.innerHTML = h.join('')
+    // pdf-gradi-v1 · il disegno è quello del PDF: coordinate della foto, e il
+    // viewBox con «meet» fa quello che object-fit: contain fa alla foto
+    const img = box.querySelector('img')
+    const W = m.larghezza || (img && img.naturalWidth), H = m.altezza || (img && img.naturalHeight)
+    if (!W || !H) return
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H)
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+    svg.innerHTML = PM.svgMisura(m, { gradi: !!vediGradi[plane], rif: !!vediRif[plane], W: W, H: H })
   })
 }
 window.addEventListener('resize', function () { setTimeout(disegnaSovra, 60) })
@@ -1084,7 +1047,7 @@ async function edProponi() {
   if (ed.noMP) { edStato('Il modello non può leggere questa foto: sposta i punti a mano.', ''); return }
   edStato('Cerco i punti sulla foto…', '')
   try {
-    const fn = window.__mpFinto || (await import('./js/postural-overlay.js?v=gradi-foto-v1')).puntiMediaPipe
+    const fn = window.__mpFinto || (await import('./js/postural-overlay.js?v=pdf-gradi-v1')).puntiMediaPipe
     const r = await fn(document.getElementById('ed-img'))
     if (!ed) return
     if (!r || !r.ok) { edStato((r && r.message ? r.message + ' ' : '') + 'Sposta i punti a mano.', ''); return }

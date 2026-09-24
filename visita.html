@@ -1722,6 +1722,12 @@
      sola per tutta l'app (scheda paziente, posturale, visita). -->
 <script src="js/foto-actions.js"></script>
 <script src="js/postural-component.js"></script>
+<!-- pdf-gradi-v1 · «Prima e dopo i 3 Respiri» nel PDF: gradi sulle foto ed equilibrio.
+     File puri (niente rete) più il caricatore; se non arrivano, il PDF resta quello di prima. -->
+<script src="js/oscillazione.js?v=pdf-gradi-v1"></script>
+<script src="js/schermo-paziente.js?v=pdf-gradi-v1"></script>
+<script src="js/misure-foto.js?v=pdf-gradi-v1"></script>
+<script src="js/pdf-prima-dopo.js?v=pdf-gradi-v1"></script>
 
 <script>
   // ====== CONFIG ======
@@ -4962,6 +4968,13 @@ ISTRUZIONI:
         photos:      photos || [],
         ai_relazione: ai_relazione || visitData.relazione_ai
       }
+      // pdf-gradi-v1 — misure delle foto ed equilibrio di quel giorno (3A)
+      try {
+        _pdfState.primaDopo = window.PolPdfPrimaDopo ? await window.PolPdfPrimaDopo.carica(_sb, {
+          patientId: patientId, giorno: visit_data.data_visita || visit_data.created_at,
+          paths: (photos || []).map(p => p.storage_path)
+        }) : null
+      } catch (e) { _pdfState.primaDopo = null }
 
       // Inject template into modal preview body
       const previewBody = document.getElementById('pdf-preview-body')
@@ -5084,6 +5097,9 @@ ISTRUZIONI:
       if (!upErr) {
         const { data: { publicUrl } } = _sb.storage.from('clinical-docs').getPublicUrl(_pdfState.storagePath)
         await _sb.from('visits').update({ pdf_url: publicUrl }).eq('id', visitId)
+        // pdf-gradi-v1 — il bucket è privato: pdf_url non si apre. Il percorso si
+        // salva a parte, così la scheda paziente può firmare l'indirizzo (037).
+        await _sb.from('visits').update({ pdf_storage_path: _pdfState.storagePath }).eq('id', visitId)
         visitData.pdf_url = publicUrl
       }
 
@@ -5141,11 +5157,14 @@ ISTRUZIONI:
     }
 
     // Photos grid (2 per row, with tipo label)
+    // pdf-gradi-v1 — le foto misurate portano sopra punti, linee e gradi
+    const _PD = (typeof _pdfState !== 'undefined' && _pdfState && _pdfState.primaDopo) || null
+    const _stileFoto = 'max-width:220px;max-height:160px;object-fit:contain;border:1px solid #ddd;border-radius:3px;display:block;margin:0 auto'
     const photoHtml = photos.filter(p => p.url_pubblico).map(p => {
       const label = p.tipo ? p.tipo.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : ''
+      const m = _PD && p.storage_path ? _PD.misure[p.storage_path] : null
       return `<div style="break-inside:avoid;text-align:center;padding:4px">
-        <img src="${p.url_pubblico}" crossorigin="anonymous"
-             style="max-width:220px;max-height:160px;object-fit:contain;border:1px solid #ddd;border-radius:3px;display:block;margin:0 auto">
+        ${(m && window.PolPdfPrimaDopo) ? window.PolPdfPrimaDopo.foto(p.url_pubblico, m, _stileFoto) : `<img src="${p.url_pubblico}" crossorigin="anonymous" style="${_stileFoto}">`}
         ${label ? `<div style="font-size:7px;color:#888;margin-top:3px">${label}</div>` : ''}
       </div>`
     }).join('')
@@ -5166,6 +5185,13 @@ ISTRUZIONI:
     const profLogoHtml = prof.logo_url
       ? `<img src="${prof.logo_url}" crossorigin="anonymous" style="max-height:60px;max-width:120px;object-fit:contain">`
       : ''
+
+    // pdf-gradi-v1 — «Prima e dopo i 3 Respiri»: gradi ed equilibrio, con le avvertenze
+    let sezionePD = ''
+    try {
+      sezionePD = (_PD && window.PolPdfPrimaDopo && typeof POSTURAL_PHOTO_PLANES !== 'undefined')
+        ? window.PolPdfPrimaDopo.sezione({ pd: _PD, piani: POSTURAL_PHOTO_PLANES, photos: photos, sec: sec }) : ''
+    } catch (e) { sezionePD = '' }
 
     return `
 <div style="width:770px;font-family:Helvetica,Arial,sans-serif;background:#fff;color:#1a1a1a;padding:0">
@@ -5209,6 +5235,7 @@ ISTRUZIONI:
     ${row('Note valutazione', v.note_valutazione)}
 
     ${photosSection}
+    ${sezionePD}
 
     ${(v.tecniche_trattamento || v.vas_inizio != null) ? `
     ${sec('Trattamento Erogato')}

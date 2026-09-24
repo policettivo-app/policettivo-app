@@ -1,4 +1,4 @@
-/* js/misure-foto.js — gradi-foto-v1 (23 settembre 2026)
+/* js/misure-foto.js — gradi-foto-v1 (23 settembre 2026) · pdf-gradi-v1
  *
  * I GRADI SULLE FOTO POSTURALI, IN UN FILE SOLO.
  *
@@ -237,7 +237,68 @@
     return { tipo: 'orizzontali', righe: righe }
   }
 
+  /* ═══ pdf-gradi-v1 · IL DISEGNO, UNA FUNZIONE SOLA ══════════════════
+     Punti, linee, gradi e riferimento come SVG (una stringa), in coordinate
+     dell'IMMAGINE (0..larghezza, 0..altezza). Lo usano lo schermo del paziente
+     (viewBox + «xMidYMid meet», che è l'object-fit: contain) e i PDF (viewBox
+     sopra l'immagine). Due punti che disegnano la stessa cosa divergono sempre.
+     Le misure delle linee sono in proporzione alla foto, così un file da 4000
+     pixel e uno da 600 si vedono uguali. Niente DOM, niente rete. */
+  function escS(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] }) }
+  function svgMisura(m, opz) {
+    opz = opz || {}
+    var W = (m && m.larghezza) || opz.W, H = (m && m.altezza) || opz.H   // righe senza dimensioni: quelle della foto
+    if (!m || !W || !H) return ''
+    var u = Math.max(W, H) / 100, pt = m.punti || {}, vista = m.vista, h = []
+    var P = function (q) { return { x: q.x * W, y: q.y * H } }
+    var n = function (x) { return Math.round(x * 10) / 10 }
+    var linea = function (a, b, col, w, tratt) { if (!a || !b) return; var A = P(a), B = P(b)
+      h.push('<line x1="' + n(A.x) + '" y1="' + n(A.y) + '" x2="' + n(B.x) + '" y2="' + n(B.y) + '" stroke="' + col + '" stroke-width="' + n(w * u) + '"' +
+        (tratt ? ' stroke-dasharray="' + tratt.map(function (t) { return n(t * u) }).join(' ') + '"' : '') + ' stroke-linecap="round"/>') }
+    var punto = function (a, col, r, vuoto) { if (!a) return; var A = P(a)
+      h.push('<circle cx="' + n(A.x) + '" cy="' + n(A.y) + '" r="' + n(r * u) + '" fill="' + (vuoto ? 'none' : col) + '" stroke="' + (vuoto ? col : '#0B0B0B') + '" stroke-width="' + n((vuoto ? 0.45 : 0.35) * u) + '"/>') }
+    var etichetta = function (a, testo, verso) { if (!a || !testo) return; var A = P(a)
+      var w = (testo.length * 2.25 + 3.2) * u, hh = 6.4 * u, x = verso < 0 ? A.x - 2.2 * u - w : A.x + 2.2 * u
+      h.push('<g><rect x="' + n(x) + '" y="' + n(A.y - hh / 2) + '" width="' + n(w) + '" height="' + n(hh) + '" rx="' + n(1.6 * u) + '" fill="rgba(0,0,0,.78)" stroke="#FFD008" stroke-width="' + n(0.28 * u) + '"/>' +
+        '<text x="' + n(x + w / 2) + '" y="' + n(A.y + 1.35 * u) + '" fill="#fff" font-size="' + n(3.9 * u) + '" font-weight="800" text-anchor="middle" font-family="Montserrat,Helvetica,Arial,sans-serif">' + escS(testo) + '</text></g>') }
+    var med = function (a, b) { return (a && b) ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null }
+    if (opz.rif) {
+      var rf = riferimento(vista, pt, W, H)
+      if (rf && rf.tipo === 'verticale') {
+        linea(rf.linea[0], rf.linea[1], '#00C48C', 0.45, [1.6, 1.1])
+        rf.fantasmi.forEach(function (fm) { linea(fm.reale, fm.ideale, 'rgba(0,196,140,.7)', 0.3, [0.6, 0.7]); punto(fm.ideale, '#00C48C', 1.25, true) })
+      } else if (rf) rf.righe.forEach(function (r) { linea(r.ideale[0], r.ideale[1], '#00C48C', 0.45, [1.6, 1.1]) })
+    }
+    if (opz.gradi) {
+      linea(pt.filo_alto, pt.filo_basso, '#FFD008', 0.3, [1.4, 1.1])
+      var gr = {}; (m.gradi || []).forEach(function (x) { gr[x.k] = x })
+      var g1 = function (k) { return gr[k] ? numIt(gr[k].valore) + '°' : '' }
+      if (vista === 'sagittale') {
+        var cat = ['orecchio', 'spalla', 'anca', 'ginocchio', 'caviglia']
+        for (var i = 0; i < cat.length - 1; i++) linea(pt[cat[i]], pt[cat[i + 1]], '#FFFFFF', 0.7)
+        cat.forEach(function (k) { punto(pt[k], '#FFFFFF', 1.3) })
+        // l'etichetta va dalla parte della schiena: davanti c'è il viso
+        var dietro = m.verso === -1 ? 1 : -1
+        etichetta(med(pt.spalla, pt.orecchio), g1('testa'), dietro)
+        etichetta(med(pt.anca, pt.spalla), g1('tronco'), dietro)
+        etichetta(med(pt.caviglia, pt.anca), g1('gamba'), dietro)
+      } else {
+        linea(pt.spalla_dx, pt.spalla_sx, '#FFFFFF', 0.55); linea(pt.anca_dx, pt.anca_sx, '#FFFFFF', 0.55)
+        ;['dx', 'sx'].forEach(function (l) { linea(pt['anca_' + l], pt['ginocchio_' + l], '#FFFFFF', 0.4); linea(pt['ginocchio_' + l], pt['caviglia_' + l], '#FFFFFF', 0.4) })
+        Object.keys(pt).filter(function (k) { return !/^filo/.test(k) }).forEach(function (k) { punto(pt[k], '#FFFFFF', 0.95) })
+        var destraPiuADestra = pt.spalla_dx && pt.spalla_sx ? pt.spalla_dx.x > pt.spalla_sx.x : true
+        etichetta(pt.spalla_dx && pt.spalla_sx ? (destraPiuADestra ? pt.spalla_dx : pt.spalla_sx) : null, g1('spalle'), 1)
+        etichetta(pt.anca_dx && pt.anca_sx ? (destraPiuADestra ? pt.anca_dx : pt.anca_sx) : null, g1('bacino'), 1)
+        var gdx = pt.ginocchio_dx, gsx = pt.ginocchio_sx
+        etichetta(gdx, g1('ginocchio_dx'), (gdx && gsx && gdx.x < gsx.x) ? -1 : 1)
+        etichetta(gsx, g1('ginocchio_sx'), (gdx && gsx && gsx.x < gdx.x) ? -1 : 1)
+      }
+    }
+    return h.join('')
+  }
+
   global.PolMisure = {
+    svgMisura: svgMisura,
     ERRORE: ERRORE, PUNTI: PUNTI, VERSIONE: 'gradi-foto-v1',
     vistaDi: vistaDi, versoPredefinito: versoPredefinito, daMediaPipe: daMediaPipe, predefiniti: predefiniti,
     misure: misure, confronto: confronto, riferimento: riferimento, numIt: numIt

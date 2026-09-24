@@ -1226,6 +1226,12 @@
 <script src="utils-premium.js"></script>
 <script src="utils-ai.js"></script>
 <script src="js/postural-component.js"></script>
+<!-- pdf-gradi-v1 · «Prima e dopo i 3 Respiri» nel PDF: gradi sulle foto ed equilibrio.
+     File puri (niente rete) più il caricatore; se non arrivano, il PDF resta quello di prima. -->
+<script src="js/oscillazione.js?v=pdf-gradi-v1"></script>
+<script src="js/schermo-paziente.js?v=pdf-gradi-v1"></script>
+<script src="js/misure-foto.js?v=pdf-gradi-v1"></script>
+<script src="js/pdf-prima-dopo.js?v=pdf-gradi-v1"></script>
 <script>
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
@@ -3824,6 +3830,14 @@ ISTRUZIONI:
         photos:       photos || [],
         ai_relazione
       }
+      // pdf-gradi-v1 — misure delle foto ed equilibrio di quel giorno, PRIMA di
+      // disegnare l'anteprima. Se qualcosa va storto la sezione non c'è.
+      try {
+        _vpPdfState.primaDopo = window.PolPdfPrimaDopo ? await window.PolPdfPrimaDopo.carica(_sb, {
+          patientId: patientId, giorno: visit_data.data_visita || visit_data.created_at,
+          paths: (photos || []).map(p => p.storage_path)
+        }) : null
+      } catch (e) { _vpPdfState.primaDopo = null }
 
       const previewBody = document.getElementById('vp-pdf-preview-body')
       previewBody.innerHTML = buildPDFTemplatePosturale(
@@ -4074,13 +4088,20 @@ ISTRUZIONI:
       if (!_daScheda(p.storage_path)) return ''
       return `<div style="font-size:7px;font-weight:700;color:#0d5c3f;background:#eaf3ee;border:0.5px solid #0d5c3f;border-radius:3px;padding:1px 3px;margin-top:2px;display:inline-block">${_etichettaScheda(p.storage_path, p.data_scatto)}</div>`
     }
+    // pdf-gradi-v1 — la foto con i punti, le linee e i gradi sopra, se è stata misurata
+    const _PD = (typeof _vpPdfState !== 'undefined' && _vpPdfState && _vpPdfState.primaDopo) || null
+    const _stileFoto = 'max-width:220px;max-height:180px;object-fit:contain;border:1px solid #ddd;border-radius:3px;display:block;margin:0 auto'
+    function fotoPdf(p) {
+      const m = _PD && p.storage_path ? _PD.misure[p.storage_path] : null
+      return (m && window.PolPdfPrimaDopo) ? window.PolPdfPrimaDopo.foto(p.url_pubblico, m, _stileFoto)
+        : `<img src="${p.url_pubblico}" crossorigin="anonymous" style="${_stileFoto}">`
+    }
     function photoGrid(tipi) {
       const imgs = photosByTipi(tipi)
       if (!imgs.length) return ''
       return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">` +
         imgs.map(p => `<div style="break-inside:avoid;text-align:center;padding:4px">
-          <img src="${p.url_pubblico}" crossorigin="anonymous"
-               style="max-width:220px;max-height:180px;object-fit:contain;border:1px solid #ddd;border-radius:3px;display:block;margin:0 auto">
+          ${fotoPdf(p)}
           <div style="font-size:7px;color:#888;margin-top:3px">${photoLabel(p.tipo)}</div>
           ${didascaliaScheda(p)}
           ${p.note ? `<div style="font-size:7px;color:#999;margin-top:1px">${p.note}</div>` : ''}
@@ -4153,6 +4174,13 @@ ISTRUZIONI:
       row('POST 3 Respiri', v.note_scapolare_post),
     ].join('') : ''
 
+    // pdf-gradi-v1 — «Prima e dopo i 3 Respiri»: gradi ed equilibrio, con le avvertenze
+    let sezionePD = ''
+    try {
+      sezionePD = (_PD && window.PolPdfPrimaDopo && typeof POSTURAL_PHOTO_PLANES !== 'undefined')
+        ? window.PolPdfPrimaDopo.sezione({ pd: _PD, piani: POSTURAL_PHOTO_PLANES, photos: photos, sec: sec }) : ''
+    } catch (e) { sezionePD = '' }
+
     const sezioneD = (v.note_osservazionali || v.configurazione_suggerita || v.note_finali) ? [
       sec('Altre Note'),
       block(v.note_osservazionali),
@@ -4203,6 +4231,7 @@ ISTRUZIONI:
     ${sezioneA}
     ${sezioneB}
     ${sezioneC}
+    ${sezionePD}
     ${sezioneD}
     ${sezioneE}
     ${sezioneF}
