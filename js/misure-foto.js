@@ -1,4 +1,4 @@
-/* js/misure-foto.js — gradi-foto-v1 (23 settembre 2026) · pdf-gradi-v1
+/* js/misure-foto.js — gradi-foto-v1 (23 settembre 2026) · pdf-gradi-v1 · editor-punti-v1
  *
  * I GRADI SULLE FOTO POSTURALI, IN UN FILE SOLO.
  *
@@ -194,11 +194,18 @@
 
   /* Prima contro dopo, misura per misura. Si avvicina al riferimento (0) chi ha
      il valore assoluto più piccolo. Il verdetto c'è SOLO se l'errore è misurato. */
-  function confronto(prima, dopo) {
+  // editor-punti-v1 · l'errore si cerca per VISTA e misura («frontale:spalle»),
+  // poi per misura sola: la linea delle spalle di fronte e di spalle può ballare
+  // in modo diverso, e la Fase 0 le misura separate.
+  function erroreDi(vista, k) {
+    if (vista && ERRORE[vista + ':' + k] != null) return ERRORE[vista + ':' + k]
+    return ERRORE[k] != null ? ERRORE[k] : null
+  }
+  function confronto(prima, dopo, vista) {
     var perK = {}
     ;(dopo || []).forEach(function (m) { perK[m.k] = m })
     return (prima || []).filter(function (m) { return perK[m.k] }).map(function (a) {
-      var b = perK[a.k], delta = r1(b.valore - a.valore), err = ERRORE[a.k]
+      var b = perK[a.k], delta = r1(b.valore - a.valore), err = erroreDi(vista, a.k)
       var esito = 'daconfermare'
       if (err != null) esito = Math.abs(delta) <= err ? 'uguale' : (delta < 0 ? 'meglio' : 'lavoro')
       return { k: a.k, nome: a.nome, a: a, b: b, delta: delta, errore: err == null ? null : err, esito: esito }
@@ -297,7 +304,35 @@
     return h.join('')
   }
 
+  /* ═══ editor-punti-v1 · LA FASE 0: quanto balla la misura ═════════════
+     serie: { chiave: [ [v1, v2, v3], [v1, v2, v3], … ] }  (una lista per persona)
+     Per ogni persona la varianza delle sue foto ripetute (n−1); Sw = radice
+     della media delle varianze = deviazione standard ENTRO il soggetto.
+     Soglia = 2,77 × Sw: la differenza fra DUE misure della stessa persona che
+     il solo errore di misura supera nel 5% dei casi (coefficiente di
+     ripetibilità; Bland & Altman, BMJ 1996;313:744). È lo stesso 2,77 delle
+     soglie dell'Oscillazione. Contano solo le persone con almeno 2 foto. */
+  function ripetibilita(serie) {
+    var out = {}
+    Object.keys(serie || {}).forEach(function (k) {
+      var varianze = [], tutti = []
+      ;(serie[k] || []).forEach(function (v) {
+        var x = (v || []).filter(function (n) { return n != null && !isNaN(n) }).map(Number)
+        if (x.length < 2) return
+        var m = x.reduce(function (a, b) { return a + b }, 0) / x.length
+        varianze.push(x.reduce(function (a, b) { return a + (b - m) * (b - m) }, 0) / (x.length - 1))
+        tutti = tutti.concat(x)
+      })
+      if (!varianze.length) return
+      var sw = Math.sqrt(varianze.reduce(function (a, b) { return a + b }, 0) / varianze.length)
+      out[k] = { persone: varianze.length, sw: Math.round(sw * 100) / 100, soglia: Math.round(2.77 * sw * 10) / 10,
+        min: tutti.length ? Math.min.apply(null, tutti) : null, max: tutti.length ? Math.max.apply(null, tutti) : null }
+    })
+    return out
+  }
+
   global.PolMisure = {
+    ripetibilita: ripetibilita, erroreDi: erroreDi,
     svgMisura: svgMisura,
     ERRORE: ERRORE, PUNTI: PUNTI, VERSIONE: 'gradi-foto-v1',
     vistaDi: vistaDi, versoPredefinito: versoPredefinito, daMediaPipe: daMediaPipe, predefiniti: predefiniti,

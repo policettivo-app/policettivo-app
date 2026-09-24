@@ -1,4 +1,4 @@
-/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026)
+/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026) · editor-punti-v1
  *
  * «PRIMA E DOPO I 3 RESPIRI» DENTRO I PDF: UN POSTO SOLO.
  *
@@ -93,11 +93,12 @@
       if (!PM.vistaDi(pl.plane)) return
       var a = misura(pl.pre.tipo), b = misura(pl.post.tipo)
       if (!a || !b) return
-      PM.confronto(a.gradi || [], b.gradi || []).forEach(function (c) {
+      PM.confronto(a.gradi || [], b.gradi || [], a.vista).forEach(function (c) {
         righe.push({ vista: NOMI_PIANO[pl.plane] || pl.label, c: c })
       })
     })
     var eq = pd.eq && pd.eq.condizioni && pd.eq.condizioni.length ? pd.eq.condizioni : []
+    var giud = righe.some(function (r) { return r.c.errore != null })   // editor-punti-v1
     if (!righe.length && !eq.length) return ''
 
     var th = 'style="text-align:left;font-size:7.5px;color:#666;font-weight:700;padding:3px 5px;border-bottom:1px solid #ddd"'
@@ -107,16 +108,21 @@
     if (righe.length) {
       h += '<div style="font-size:8px;font-weight:700;color:#555;margin:6px 0 2px">Gradi sulle foto (0° = riferimento: filo a piombo / linea in piano)</div>' +
         '<table style="width:100%;border-collapse:collapse;margin-bottom:4px"><tr>' +
-        '<th ' + th + '>Vista</th><th ' + th + '>Misura</th><th ' + th + '>Prima</th><th ' + th + '>Dopo</th><th ' + th + '>Differenza</th></tr>' +
+        '<th ' + th + '>Vista</th><th ' + th + '>Misura</th><th ' + th + '>Prima</th><th ' + th + '>Dopo</th><th ' + th + '>Differenza</th>' +
+        (giud ? '<th ' + th + '>Esito (soglia)</th>' : '') + '</tr>' +
         righe.map(function (r) {
           return '<tr><td ' + td + '>' + esc(r.vista) + '</td><td ' + td + '>' + esc(r.c.nome) + '</td>' +
             '<td ' + td + '>' + num(r.c.a.valore) + '° <span style="color:#888">' + esc(r.c.a.parola) + '</span></td>' +
             '<td ' + td + '><b>' + num(r.c.b.valore) + '°</b> <span style="color:#888">' + esc(r.c.b.parola) + '</span></td>' +
-            '<td ' + td + '>' + (r.c.delta > 0 ? '+' : r.c.delta < 0 ? '−' : '±') + num(Math.abs(r.c.delta)) + '°</td></tr>'
+            '<td ' + td + '>' + (r.c.delta > 0 ? '+' : r.c.delta < 0 ? '−' : '±') + num(Math.abs(r.c.delta)) + '°</td>' +
+            (giud ? '<td ' + td + '>' + (r.c.errore == null ? '<span style="color:#888">da confermare</span>'
+              : '<b>' + ({ meglio: 'Più vicino al riferimento', uguale: 'Invariato', lavoro: 'Più lontano dal riferimento' }[r.c.esito] || '') + '</b> <span style="color:#888">(±' + num(r.c.errore) + '°)</span>') + '</td>' : '') + '</tr>'
         }).join('') + '</table>' +
         '<p style="margin:2px 0 6px;font-size:7.5px;color:#666;font-style:italic;line-height:1.5">' +
-        'Punti confermati dal professionista sulla foto. L’errore di misura di questo metodo non è ancora stato ' +
-        'misurato: le differenze si riportano, ma non vanno interpretate come miglioramento o peggioramento.</p>'
+        (giud ? 'Punti confermati dal professionista sulla foto. Una differenza entro la soglia (errore della misura, ' +
+          'ricavato ripetendo le foto: 2,77 × deviazione standard entro il soggetto) è riportata come «invariato».'
+        : 'Punti confermati dal professionista sulla foto. L’errore di misura di questo metodo non è ancora stato ' +
+          'misurato: le differenze si riportano, ma non vanno interpretate come miglioramento o peggioramento.') + '</p>'
     }
 
     if (eq.length) {

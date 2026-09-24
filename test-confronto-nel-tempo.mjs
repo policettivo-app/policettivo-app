@@ -2392,8 +2392,9 @@ function datiPdf(opts = {}) {
   ]
   return d
 }
-async function pdfPosturale(dati) {
+async function pdfPosturale(dati, prima) {
   const { page, ctx, errori } = await apriPagina(browser, dati, 'valutazione-posturale.html', '?id=v3')
+  if (prima) await page.evaluate(prima)
   await page.route('**/api/genera-pdf**', r => r.fulfill({ status:200, contentType:'application/json', body: JSON.stringify({
     visit_data: { id:'v3', data_visita:'2026-08-31', note_scapolare_pre:'anteriore', note_scapolare_post:'in_asse' },
     patient: { nome:'Mario', cognome:'Rossi' }, professional: { nome:'Giuliano', cognome:'Baron' },
@@ -2427,6 +2428,15 @@ sez('pdf-gradi-v1 — nel PDF della posturale: gradi, equilibrio e nota di metod
   const box = await page.$$eval('#vp-pdf-preview-body img.pd-disegno', s => s.map(x => { const i = x.parentNode.querySelector('img').getBoundingClientRect(), b = x.getBoundingClientRect(); return [Math.abs(i.width - b.width), Math.abs(i.height - b.height), Math.abs(i.left - b.left), Math.abs(i.top - b.top)] }))
   check('⭐ il disegno cade ESATTO sulla foto (entro 1 px)', box.length === 2 && box.every(v => v.every(x => x < 1)), box)
   check('la spalla PRE/POST 3 Respiri c’è ancora (sezione di prima)', /Piano Scapolare/i.test(t))
+  await ctx.close()
+}
+
+sez('editor-punti-v1 — nel PDF, con l’errore misurato (Fase 0), compare l’esito dei gradi')
+{
+  const { page, ctx } = await pdfPosturale(datiPdf(), () => { PolMisure.ERRORE['sagittale:testa'] = 2 })
+  const t = await page.textContent('#vp-pdf-preview-body')
+  check('⭐⭐ colonna «Esito (soglia)» nei gradi: −3,3° oltre ±2,0° = «Più vicino al riferimento»', /Più vicino al riferimento/.test(t) && /±2,0°/.test(t), t.match(/Gradi sulle foto[\s\S]{0,400}/))
+  check('⭐ e la nota spiega la soglia (non più «non vanno interpretate»)', /riportata come «invariato»/.test(t) && !/non vanno interpretate come miglioramento/.test(t))
   await ctx.close()
 }
 

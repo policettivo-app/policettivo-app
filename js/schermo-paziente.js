@@ -64,6 +64,7 @@
     gradi_bottone:      '° Gradi',
     rif_bottone:        '📐 Riferimento',
     gradi_nota:         'Differenza da confermare: l’errore di questa misura non è ancora stato misurato. I gradi si leggono, non si giudicano.',
+    /* editor-punti-v1 */ gradi_nota_misurata:'Conta solo una differenza oltre l’errore della misura, misurato ripetendo le foto: sotto, è «invariato».',
     sintesi_gradi:      'Le foto hanno {n} confronti in gradi: la differenza si legge, ma non si giudica finché non misuriamo l’errore della misura.',
     gradi_tempo_titolo: 'I gradi nel tempo',
     gradi_tempo_sotto:  'Prima → dopo, seduta per seduta. 0° è il riferimento.',

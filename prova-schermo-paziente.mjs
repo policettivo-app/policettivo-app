@@ -597,6 +597,23 @@ sez('⭐⭐ gradi-foto-v1 · i gradi sulle foto: pulsanti a parte, foto normale 
   await ctx.close()
 }
 
+sez('⭐⭐ editor-punti-v1 · con l’errore misurato (Fase 0) i gradi si giudicano, per vista')
+{
+  const { page, ctx, errori } = await apri(browser, { misure: true })
+  // soglie finte: testa 2° (−3,3° la supera), tronco 5° (−3,9° no). Una soglia
+  // di un'ALTRA vista con la stessa misura non deve contare.
+  await page.evaluate(() => { PolMisure.ERRORE['sagittale:testa'] = 2; PolMisure.ERRORE['sagittale:tronco'] = 5; PolMisure.ERRORE['frontale:testa'] = 99 })
+  await vaiA(page, 'foto:sagittale_dx')
+  await page.click('.slide.on .modo button.gr'); await page.waitForTimeout(500)
+  const t = await testoSlide(page)
+  check('⭐⭐ oltre la soglia: «' + 'più vicino al riferimento» sulla testa', new RegExp(await page.evaluate(() => PolSchermo.TESTI.esito_meglio)).test(t), t)
+  check('⭐⭐ entro la soglia: «invariato» sul tronco', new RegExp(await page.evaluate(() => PolSchermo.TESTI.esito_uguale)).test(t), t)
+  check('⭐ e la nota spiega la soglia, non più «da confermare»', /oltre l’errore della misura/.test(t) && !/non è ancora stato misurato/.test(t), t)
+  check('⭐ la soglia si cerca PER VISTA: «frontale:testa» non tocca il profilo', await page.evaluate(() => PolMisure.erroreDi('sagittale', 'testa') === 2 && PolMisure.erroreDi('frontale', 'testa') === 99 && PolMisure.erroreDi('posteriore', 'testa') === null))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await ctx.close()
+}
+
 sez('⭐ gradi-foto-v1 · senza misure i pulsanti non compaiono sul palco')
 {
   const { page, ctx } = await apri(browser)
@@ -629,7 +646,7 @@ sez('⭐⭐ gradi-foto-v1 · l’editor: il modello propone, il professionista s
   check('⭐ dice che i punti li ha proposti il modello, da controllare', /proposti dal modello/.test(await page.textContent('#ed-stato')), await page.textContent('#ed-stato'))
   const g1 = await page.textContent('#ed-gradi')
   check('⭐ e mostra i gradi mentre si lavora', /Orecchio rispetto alla spalla/.test(g1) && /°/.test(g1), g1)
-  check('⭐ il lato destro (il più visibile) è quello scelto: orecchio a x 0,58', await page.evaluate(() => Math.abs(ed.punti.orecchio.x - 0.58) < 1e-9))
+  check('⭐ il lato destro (il più visibile) è quello scelto: orecchio a x 0,58', await page.evaluate(() => Math.abs(PolEditorPunti.stato().punti.orecchio.x - 0.58) < 1e-9))
   // si trascina il punto dell'orecchio
   const c = await page.$eval('#ed-svg circle.pm[data-k="orecchio"]', e => ({ x: +e.getAttribute('cx'), y: +e.getAttribute('cy') }))
   const b = await page.$eval('#ed-foto', e => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top } })

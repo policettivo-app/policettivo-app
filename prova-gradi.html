@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Gradi sulle foto — Fase 0</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- prova-gradi-v1 · editor-punti-v1 (24 settembre 2026)
+     FASE 0 DEI GRADI SULLE FOTO: QUANTO BALLA LA MISURA?
+     Finché non si sa, sullo schermo del paziente e nel PDF i gradi restano
+     grigi («da confermare»). Qui: 5 persone × 3 foto per vista, rifatte
+     scendendo e risalendo dal tappetino; stesso professionista a mettere i punti.
+     Ne esce, per ogni misura, la soglia = 2,77 × deviazione standard entro il
+     soggetto (Bland & Altman, BMJ 1996;313:744): è il numero che poi va in
+     ERRORE dentro js/misure-foto.js.
+     NON tocca il database e non chiede il login. Le foto NON si salvano: su
+     questo dispositivo restano solo punti e gradi (localStorage). -->
+<script src="js/misure-foto.js?v=editor-punti-v1"></script>
+<script src="js/editor-punti.js?v=editor-punti-v1"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       font-size:15px;line-height:1.5;padding:16px;padding-bottom:60px}
+  .wrap{max-width:820px;margin:0 auto}
+  .testa{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  h1{font-size:23px;margin:0 0 4px}
+  @media (max-width:480px){ h1{font-size:19px} }
+  .testa a{color:#111;font-weight:700;text-decoration:none;font-size:14px;white-space:nowrap}
+  .sub{font-size:13px;color:#666;margin-bottom:14px}
+  .box{background:#fff;border:1.5px solid #eee;border-radius:16px;padding:14px 16px;margin-bottom:14px}
+  .box.giallo{background:#FFF8D6;border-color:#FFE680}
+  .box h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:#555;margin:0 0 8px}
+  ol{margin:0;padding-left:20px;font-size:14px}
+  ol li{margin-bottom:3px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1.5px solid #ddd;background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;color:#111}
+  .chip.on{background:#111;border-color:#111;color:#fff}
+  .chip small{font-weight:600;color:#888;margin-left:4px}
+  .chip.on small{color:#FFD008}
+  .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  @media (max-width:560px){ .slots{grid-template-columns:1fr} }
+  .slot{border:1.5px dashed #ccc;border-radius:14px;padding:12px;min-height:130px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+  .slot.fatto{border-style:solid;border-color:#00C48C;background:#F2FCF8}
+  .slot b{font-size:14px}
+  .slot .g{color:#333;line-height:1.6}
+  .btn{border:1.5px solid #ddd;background:#fff;border-radius:10px;padding:8px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;color:#111;align-self:flex-start}
+  .btn.giallo{background:#FFD008;border-color:#FFD008}
+  .btn.scuro{background:#111;border-color:#111;color:#fff}
+  .riga{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#777;padding:6px;border-bottom:1.5px solid #eee}
+  td{padding:7px 6px;border-bottom:1px solid #f2f2f2}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ok{color:#00875f;font-weight:700}
+  .attesa{color:#999}
+  .nota{font-size:12.5px;color:#666;margin-top:8px}
+  .avviso{background:#FFF1F0;border:1.5px solid #FFC9C4;color:#8a1c12;border-radius:12px;padding:10px 12px;font-size:13.5px;margin-bottom:14px}
+  input[type=file]{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="testa">
+    <h1>📐 Gradi sulle foto — Fase 0</h1>
+    <a href="test.html">← Test</a>
+  </div>
+  <div class="sub">Quanto «balla» la misura dei gradi? Finché non lo sappiamo, i gradi al paziente restano grigi: «da confermare».</div>
+  <div id="avviso"></div>
+
+  <div class="box giallo">
+    <h2>Come si fa (10 minuti a persona)</h2>
+    <ol>
+      <li><b>5 persone</b> (colleghi, familiari, pazienti che accettano). Non serve che abbiano problemi.</li>
+      <li>Per ogni vista, <b>3 foto</b>. Fra una foto e l’altra la persona <b>scende dal tappetino e risale</b>: così si misura anche quanto cambia il suo modo di mettersi, come succede davvero in visita.</li>
+      <li>Telefono <b>sempre nello stesso posto</b> (treppiede), filo a piombo visibile.</li>
+      <li>I punti li mette <b>sempre lo stesso professionista</b>: il modello propone, tu correggi e confermi.</li>
+      <li>Alla fine <b>«Copia i risultati»</b> e mandameli: diventano le soglie. Sotto la soglia una differenza si dirà «invariato».</li>
+    </ol>
+    <div class="nota">Le foto <b>non si salvano</b> da nessuna parte: su questo dispositivo restano solo i punti e i gradi, per il calcolo.</div>
+  </div>
+
+  <div class="box">
+    <h2>1 · Persona</h2>
+    <div class="chips" id="persone"></div>
+    <h2 style="margin-top:14px">2 · Vista</h2>
+    <div class="chips" id="viste"></div>
+    <div class="slots" id="slots"></div>
+    <input type="file" id="file" accept="image/*">
+  </div>
+
+  <div class="box">
+    <h2>3 · Risultati</h2>
+    <div id="risultati"></div>
+    <div class="riga">
+      <button class="btn giallo" id="copia">📋 Copia i risultati</button>
+      <button class="btn" id="csv">⬇︎ Scarica CSV</button>
+      <button class="btn" id="azzera" style="margin-left:auto">Azzera tutto</button>
+    </div>
+    <div class="nota" id="copia-stato"></div>
+    <div class="nota">Soglia = 2,77 × deviazione standard entro la persona (coefficiente di ripetibilità, Bland &amp; Altman, BMJ 1996;313:744): la differenza fra due foto della stessa persona che il solo errore di misura supera 1 volta su 20. È lo stesso criterio delle soglie dell’Oscillazione.</div>
+  </div>
+</div>
+
+<script>
+;(function(){
+  'use strict'
+  var $ = function(id){ return document.getElementById(id) }
+  var PM = window.PolMisure, ED = window.PolEditorPunti
+  var CHIAVE = 'pol-fase0-gradi-v1', MINIMO = 5
+  var PERSONE = ['P1','P2','P3','P4','P5','P6','P7','P8']
+  var VISTE = [
+    { vista: 'sagittale', plane: 'sagittale_dx', nome: 'Profilo destro' },
+    { vista: 'frontale', plane: 'frontale', nome: 'Di fronte' },
+    { vista: 'posteriore', plane: 'posteriore', nome: 'Di spalle' }
+  ]
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c] }) }
+  function it(x, d){ return (x == null || isNaN(x)) ? '—' : Number(x).toFixed(d == null ? 1 : d).replace('.', ',') }
+
+  if (!PM || !ED){
+    $('avviso').innerHTML = '<div class="avviso">Non si sono caricati i file delle misure. Ricarica la pagina.</div>'
+    return
+  }
+
+  // ---- memoria: solo su questo dispositivo, e se il browser non la dà si lavora lo stesso
+  var memoriaOk = true
+  function carica(){
+    try { var s = JSON.parse(localStorage.getItem(CHIAVE) || 'null'); if (s && s.persone) return s } catch(e){ memoriaOk = false }
+    return { persone: {} }
+  }
+  var S = carica()
+  function salvaMemoria(){
+    try { localStorage.setItem(CHIAVE, JSON.stringify(S)); memoriaOk = true } catch(e){ memoriaOk = false }
+    avvisoMemoria()
+  }
+  function avvisoMemoria(){
+    $('avviso').innerHTML = memoriaOk ? '' : '<div class="avviso">Questo browser non conserva i dati: se chiudi la pagina si perdono. Copia i risultati prima di uscire.</div>'
+  }
+  var url = {}                          // le foto della sessione, solo in memoria: «P1|frontale|0» -> blob:
+  var sel = { persona: 'P1', vista: 0 }
+
+  function foto(p, v){ var x = S.persone[p] = S.persone[p] || {}; return x[v] = x[v] || [null, null, null] }
+  function contaPersona(p){
+    var x = S.persone[p] || {}, n = 0
+    VISTE.forEach(function(V){ (x[V.vista] || []).forEach(function(f){ if (f) n++ }) })
+    return n
+  }
+
+  function disegnaPersone(){
+    $('persone').innerHTML = PERSONE.map(function(p){
+      var n = contaPersona(p)
+      return '<button class="chip' + (p === sel.persona ? ' on' : '') + '" data-p="' + p + '">' + p + (n ? '<small>' + n + '/9</small>' : '') + '</button>'
+    }).join('')
+    Array.prototype.forEach.call($('persone').querySelectorAll('.chip'), function(b){
+      b.onclick = function(){ sel.persona = b.getAttribute('data-p'); tutto() }
+    })
+  }
+  function disegnaViste(){
+    $('viste').innerHTML = VISTE.map(function(V, i){
+      var n = foto(sel.persona, V.vista).filter(Boolean).length
+      return '<button class="chip' + (i === sel.vista ? ' on' : '') + '" data-v="' + i + '">' + esc(V.nome) + '<small>' + n + '/3</small></button>'
+    }).join('')
+    Array.prototype.forEach.call($('viste').querySelectorAll('.chip'), function(b){
+      b.onclick = function(){ sel.vista = Number(b.getAttribute('data-v')); tutto() }
+    })
+  }
+  function disegnaSlots(){
+    var V = VISTE[sel.vista], fs = foto(sel.persona, V.vista)
+    $('slots').innerHTML = fs.map(function(f, i){
+      var chiave = sel.persona + '|' + V.vista + '|' + i
+      if (!f) return '<div class="slot"><b>Foto ' + (i + 1) + '</b><span class="attesa">' +
+        (i ? 'Scendi dal tappetino, risali, scatta.' : 'Prima foto.') + '</span>' +
+        '<button class="btn scuro" data-scatta="' + i + '">📷 Scatta o scegli</button></div>'
+      return '<div class="slot fatto"><b>Foto ' + (i + 1) + ' ✓</b><div class="g">' +
+        (f.gradi || []).map(function(m){ return esc(m.nome) + ': <b>' + it(m.gradi) + '°</b>' }).join('<br>') + '</div>' +
+        '<div class="riga" style="margin-top:4px">' +
+        (url[chiave] ? '<button class="btn" data-correggi="' + i + '">Correggi punti</button>' : '') +
+        '<button class="btn" data-rifai="' + i + '">Rifai</button></div></div>'
+    }).join('')
+    Array.prototype.forEach.call($('slots').querySelectorAll('[data-scatta],[data-rifai]'), function(b){
+      b.onclick = function(){ scegli(Number(b.getAttribute('data-scatta') || b.getAttribute('data-rifai'))) }
+    })
+    Array.prototype.forEach.call($('slots').querySelectorAll('[data-correggi]'), function(b){
+      b.onclick = function(){ misura(Number(b.getAttribute('data-correggi'))) }
+    })
+  }
+
+  var inAttesa = null
+  function scegli(i){ inAttesa = i; $('file').value = ''; $('file').click() }
+  $('file').addEventListener('change', function(){
+    var f = this.files && this.files[0]
+    if (!f || inAttesa == null) return
+    var V = VISTE[sel.vista], chiave = sel.persona + '|' + V.vista + '|' + inAttesa
+    if (url[chiave]) try { URL.revokeObjectURL(url[chiave]) } catch(e){}
+    url[chiave] = URL.createObjectURL(f)
+    misura(inAttesa, true)
+  })
+
+  function misura(i, nuova){
+    var V = VISTE[sel.vista], p = sel.persona, chiave = p + '|' + V.vista + '|' + i
+    var gia = foto(p, V.vista)[i]
+    ED.apri({
+      url: url[chiave], plane: V.plane,
+      titolo: p + ' · ' + V.nome + ' · foto ' + (i + 1),
+      gia: (!nuova && gia) ? { punti: gia.punti, verso: gia.verso, origine: gia.origine } : null,
+      salva: async function(d){
+        foto(p, V.vista)[i] = { gradi: d.gradi, punti: d.punti, verso: d.verso, origine: d.origine,
+          larghezza: d.larghezza, altezza: d.altezza, quando: new Date().toISOString() }
+        salvaMemoria()
+        return { ok: true, dopo: tutto }
+      }
+    })
+  }
+
+  // ---- il calcolo: per ogni «vista:misura», le serie delle persone (gradi CON segno:
+  // la deviazione standard si fa sul valore vero, non sul suo valore assoluto)
+  function serie(){
+    var out = {}
+    Object.keys(S.persone).forEach(function(p){
+      VISTE.forEach(function(V){
+        var perK = {}
+        ;((S.persone[p] || {})[V.vista] || []).forEach(function(f){
+          if (!f) return
+          ;(f.gradi || []).forEach(function(m){ (perK[m.k] = perK[m.k] || { nome: m.nome, v: [] }).v.push(m.gradi) })
+        })
+        Object.keys(perK).forEach(function(k){
+          var key = V.vista + ':' + k
+          out[key] = out[key] || { nome: perK[k].nome, vista: V.nome, v: [] }
+          out[key].v.push(perK[k].v)
+        })
+      })
+    })
+    return out
+  }
+  function calcola(){
+    var s = serie(), dati = {}
+    Object.keys(s).forEach(function(k){ dati[k] = s[k].v })
+    var r = PM.ripetibilita(dati)
+    return Object.keys(s).filter(function(k){ return r[k] }).map(function(k){
+      return { chiave: k, vista: s[k].vista, nome: s[k].nome, r: r[k] }
+    })
+  }
+  function disegnaRisultati(){
+    var righe = calcola()
+    if (!righe.length){ $('risultati').innerHTML = '<div class="attesa">Servono almeno 2 foto della stessa persona nella stessa vista.</div>'; return }
+    $('risultati').innerHTML = '<table><tr><th>Vista</th><th>Misura</th><th>Persone</th><th>Variazione tipica</th><th>Soglia</th></tr>' +
+      righe.map(function(x){
+        var pronta = x.r.persone >= MINIMO
+        return '<tr><td>' + esc(x.vista) + '</td><td>' + esc(x.nome) + '</td>' +
+          '<td class="num">' + x.r.persone + '/' + MINIMO + '</td>' +
+          '<td class="num">±' + it(x.r.sw, 2) + '°</td>' +
+          '<td class="num ' + (pronta ? 'ok' : 'attesa') + '">' + it(x.r.soglia) + '°' + (pronta ? ' ✓' : '') + '</td></tr>'
+      }).join('') + '</table>' +
+      '<div class="nota">La soglia diventa definitiva (✓) con almeno ' + MINIMO + ' persone. Prima è indicativa.</div>'
+  }
+
+  function testo(){
+    var righe = calcola(), pronte = {}
+    righe.forEach(function(x){ if (x.r.persone >= MINIMO) pronte[x.chiave] = x.r.soglia })
+    return 'FASE 0 GRADI SULLE FOTO — ' + new Date().toLocaleString('it-IT') + '\n' +
+      righe.map(function(x){
+        return x.chiave + ' | ' + x.vista + ' · ' + x.nome + ' | persone ' + x.r.persone + ' | Sw ' + it(x.r.sw, 2) + '° | soglia ' + it(x.r.soglia) + '° | min ' + it(x.r.min) + ' max ' + it(x.r.max)
+      }).join('\n') + '\n\nERRORE (solo misure con almeno ' + MINIMO + ' persone):\n' + JSON.stringify(pronte)
+  }
+  $('copia').onclick = async function(){
+    var t = testo()
+    try { await navigator.clipboard.writeText(t); $('copia-stato').textContent = 'Copiato. Incollalo nella chat.' }
+    catch(e){ window.prompt('Copia questo testo:', t) }
+  }
+  $('csv').onclick = function(){
+    var r = ['persona;vista;foto;misura;gradi;origine;quando']
+    Object.keys(S.persone).sort().forEach(function(p){
+      VISTE.forEach(function(V){
+        ;((S.persone[p] || {})[V.vista] || []).forEach(function(f, i){
+          if (!f) return
+          ;(f.gradi || []).forEach(function(m){ r.push([p, V.vista, i + 1, m.k, String(m.gradi).replace('.', ','), f.origine || '', f.quando || ''].join(';')) })
+        })
+      })
+    })
+    var a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob(['﻿' + r.join('\n')], { type: 'text/csv;charset=utf-8' }))
+    a.download = 'fase0-gradi.csv'; document.body.appendChild(a); a.click(); a.remove()
+  }
+  $('azzera').onclick = function(){
+    if (!confirm('Cancello tutte le misure della Fase 0 da questo dispositivo?')) return
+    S = { persone: {} }; salvaMemoria(); tutto()
+  }
+
+  function tutto(){ disegnaPersone(); disegnaViste(); disegnaSlots(); disegnaRisultati() }
+  avvisoMemoria()
+  tutto()
+  window.__fase0 = { stato: function(){ return S }, testo: testo, calcola: calcola }
+})()
+</script>
+</body>
+</html>
