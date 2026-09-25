@@ -19,7 +19,7 @@
   <script src="js/misure-foto.js?v=editor-punti-v1"></script>
   <!-- editor-punti-v1 · l'editor dei punti sta in un file solo (lo usa anche la Fase 0) -->
   <script src="js/editor-punti.js?v=gradi-auto-v1"></script>
-  <!-- tv-v1 (24 set: TV col telecomando) · schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
+  <!-- tv-codice-v1 (25 set: la TV si collega con un codice, senza account) · tv-v1 (24 set: TV col telecomando) · schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
        LO SCHERMO DEL PAZIENTE: il prima e dopo dei 3 Respiri, fatto per essere
        guardato insieme, anche su una TV (duplicazione dello schermo, decisione 5A).
 
@@ -178,6 +178,15 @@
     body.tv .esci-grande, body.tv .nav-freccia { display: none !important; }
     body.tv .riga-basso .modo button { pointer-events: none; }
     .pbtn.tv-on { background: #0f2a1c; border-color: #1d5c47; color: #6ee7a8; }
+    #tv-gestione { position: fixed; inset: 0; z-index: 600; background: rgba(0,0,0,.72); display: none; align-items: center; justify-content: center; padding: 16px; }
+    #tv-gestione.on { display: flex; }
+    .tvg-box { width: min(520px, 100%); background: #111; border: 1px solid #2a2a2a; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+    .tvg-tit { font-size: 18px; font-weight: 900; color: var(--giallo); }
+    .tvg-txt { font-size: 13.5px; color: #bbb; line-height: 1.5; }
+    .tvg-riga { display: flex; gap: 8px; }
+    .tvg-riga input { flex: 1; background: #000; border: 1.5px solid #333; color: #fff; border-radius: 10px; padding: 12px; font-size: 22px; letter-spacing: 5px; text-transform: uppercase; font-family: ui-monospace, Menlo, monospace; }
+    .tvg-stato { font-size: 13.5px; color: #FFD008; min-height: 18px; }
+    .tvg-tv { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: #181818; border-radius: 10px; padding: 9px 12px; font-size: 13px; color: #ddd; }
 
     /* ── sotto il palco: solo per il professionista ── */
     .pro-sotto { max-width: 1100px; margin: 0 auto; padding: 16px 14px 60px; }
@@ -238,6 +247,7 @@
     <span class="pro-logo">POLICETTIVO®</span>
     <span class="pro-nome" id="pro-nome">Caricamento…</span>
     <button class="pbtn" id="btn-tv" onclick="toggleTv()">📺 Sulla TV</button>
+    <button class="pbtn" id="btn-tv-gestisci" onclick="apriGestioneTv()">🔗 TV</button>
     <button class="pbtn giallo" id="btn-grande" onclick="entraGrande()">⛶ Schermo grande</button>
     <button class="pbtn" onclick="tornaIndietro()">← Chiudi</button>
   </div>
@@ -259,8 +269,9 @@
     <div class="giorni" id="giorni"></div>
     <div id="pro-prove"></div>
     <div class="msg info" id="tv-info">
-      📺 <b>Sulla TV</b>: sulla TV (browser, chiavetta o computer col cavo HDMI) apri <b>app.policettivo.it/tv.html</b> col tuo account,
-      una volta sola. Poi qui premi <b>📺 Sulla TV</b>: la TV mostra quello che scorri qui, e i test li mostra da sola.
+      📺 <b>Sulla TV</b>: sulla TV (browser, chiavetta o computer col cavo HDMI) apri <b>app.policettivo.it/tv.html</b>: compare un codice.
+      Premi <b>🔗 TV</b> e scrivilo, una volta sola. Poi <b>📺 Sulla TV</b>: la TV mostra quello che scorri qui, e i test li mostra da sola.
+      La TV non entra nel tuo account: vede solo il paziente che stai mostrando.
       Si va avanti e indietro con le frecce, con le frecce della tastiera o scorrendo col dito.
     </div>
   </div>
@@ -269,7 +280,41 @@
 /* schermo-paziente-v1 — vedi il commento in testa alla pagina */
 const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
-const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+/* tv-codice-v1 · DENTRO LA TV questa pagina NON ha un account: legge il
+   «pacchetto» che il telefono ha preparato (tv.html lo prende con il segreto
+   della TV e lo mette in window.__tvPacchetto). Un client finto, fatto solo di
+   quelle righe, prende il posto di Supabase: il resto della pagina è identico. */
+const TV_PKG = (new URLSearchParams(location.search).get('tv') === '1')
+  ? ((window.parent && window.parent !== window && window.parent.__tvPacchetto) || window.__tvPacchetto || null) : null
+function tvFinto(pkg) {
+  const T = { patients: pkg.patient ? [pkg.patient] : [], visits: pkg.visits || [], visit_photos: pkg.visit_photos || [],
+    oscillazione_test: pkg.oscillazione_test || [], foto_allineamenti: pkg.foto_allineamenti || [], foto_misure: pkg.foto_misure || [] }
+  const q = (tab) => {
+    const f = []; let ord = null
+    const righe = () => (T[tab] || []).filter(r => f.every(([k, v, op]) => op === 'in' ? v.indexOf(r[k]) >= 0 : r[k] === v))
+    const api = {
+      select() { return api }, eq(k, v) { f.push([k, v]); return api }, in(k, v) { f.push([k, v, 'in']); return api },
+      order(k, o) { ord = [k, !(o && o.ascending === false)]; return api }, limit() { return api },
+      update() { return api }, upsert() { return api }, insert() { return api },
+      maybeSingle: async () => ({ data: righe()[0] || null, error: null }),
+      then(res, rej) {
+        let r = righe()
+        if (ord) r = r.slice().sort((a, b) => (a[ord[0]] > b[ord[0]] ? 1 : a[ord[0]] < b[ord[0]] ? -1 : 0) * (ord[1] ? 1 : -1))
+        return Promise.resolve({ data: r, error: null }).then(res, rej)
+      }
+    }
+    return api
+  }
+  return {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'tv', email: '' } } } }) },
+    from: q, rpc: async () => ({ data: null, error: null }),
+    channel() { const c = { on() { return c }, subscribe() { return c }, send() {} }; return c }, removeChannel() {},
+    storage: { from() { return { createSignedUrls: async (paths) => ({ data: paths.map(p => ({ path: p, signedUrl: (pkg.firme || {})[p] || null })), error: null }) } } }
+  }
+}
+const _sb = TV_PKG ? tvFinto(TV_PKG) : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+// quello che il telefono ha letto, per preparare il pacchetto della TV
+const TVDATI = {}
 
 const params    = new URLSearchParams(window.location.search)
 const patientId = params.get('id') || params.get('pid')
@@ -385,7 +430,8 @@ async function init() {
   if (!session) { window.location.href = 'login.html'; return }
   // Premium: il confronto completo. Chi è Free vede la copertina e la prima coppia di foto.
   try {
-    if (typeof window.policettivoCheckPremium === 'function') {
+    if (TV_PKG) isPremium = !!TV_PKG.premium
+    else if (typeof window.policettivoCheckPremium === 'function') {
       const r = await window.policettivoCheckPremium(_sb, session.user.id, session.user.email)
       isPremium = !!(r && r.isPremium)
     }
@@ -394,6 +440,7 @@ async function init() {
   const { data: p, error: pe } = await _sb.from('patients').select('id,nome,cognome,foto_url').eq('id', patientId).maybeSingle()
   if (pe || !p) { errore('Paziente non trovato, oppure non è tuo. ' + esc((pe && pe.message) || '')); return }
   patient = p
+  TVDATI.patient = p
   nomeBreve = (p.nome || '').trim() || 'Paziente'
   document.getElementById('pro-nome').textContent = ((p.nome || '') + ' ' + (p.cognome || '')).trim() || 'Paziente'
 
@@ -404,12 +451,14 @@ async function init() {
     .select('id,tipo,data_visita,created_at,note_scapolare_pre,note_scapolare_post')
     .eq('patient_id', patientId).in('tipo', PV.TIPI_VISITA)
   if (ve) errore('Non ho potuto leggere le visite: ' + esc(ve.message))
+  TVDATI.visits = visite || []
   const ids = (visite || []).map(v => v.id)
   let foto = []
   if (ids.length) {
     const { data: fts, error: fe } = await _sb.from('visit_photos').select('visit_id,tipo,storage_path').in('visit_id', ids)
     if (fe) errore('Non ho potuto leggere le foto: ' + esc(fe.message))
     foto = (fts || []).filter(f => f.storage_path && /_(pre|post)$/.test(f.tipo || ''))
+    TVDATI.visit_photos = foto.map(f => ({ visit_id: f.visit_id, tipo: f.tipo, storage_path: f.storage_path }))
     foto.forEach(f => daFirmare.push(f.storage_path))
   }
 
@@ -443,6 +492,8 @@ async function init() {
       if (!/oscillazione_test/.test(error.message || '')) errore('Non ho potuto leggere le prove di equilibrio: ' + esc(error.message))
     } else {
       prove = data || []
+      // alla TV le tracce servono solo per le prove segnate prima/dopo
+      TVDATI.oscillazione_test = prove.map(r => (r.momento === 'pre' || r.momento === 'post') ? r : Object.assign({}, r, { traccia: null }))
       manca048 = prove.length > 0 && !('momento' in prove[0])
     }
   }
@@ -456,6 +507,7 @@ async function init() {
       ;(sl || []).forEach(s => { if (s && s.signedUrl && s.path) mappa[s.path] = s.signedUrl })
     } catch (e) { /* le foto non firmate si dicono sotto */ }
   }
+  TVDATI.firme = mappa
   let nonFirmate = 0
   foto.forEach(f => { f.url = mappa[f.storage_path] || null; if (!f.url) nonFirmate++ })
   if (scheda) Object.keys(scheda.foto).forEach(pl => ['pre', 'post'].forEach(fa => {
@@ -472,6 +524,7 @@ async function init() {
   if (paths.length) {
     const { data: al, error: ae } = await _sb.from('foto_allineamenti').select('storage_path,punti').in('storage_path', Array.from(new Set(paths)))
     if (!ae) (al || []).forEach(r => { if (r.storage_path && r.punti) allineamenti[r.storage_path] = r.punti })
+    if (!ae) TVDATI.foto_allineamenti = al || []
   }
 
   // 6) gradi-foto-v1 · le misure già confermate, per FILE (come gli allineamenti)
@@ -514,9 +567,10 @@ async function init() {
    l'id del paziente, il giorno, la pagina. Niente nomi, niente foto: le foto la
    TV le legge dal database col tuo account, come questa pagina. */
 const IN_TV = params.get('tv') === '1'
+if (IN_TV && !TV_PKG) setTimeout(() => errore('Questa TV non ha ricevuto i dati: collegala dal telefono (🔗 TV).'), 0)
 if (IN_TV) document.body.classList.add('grande', 'tv')
 let tvAttesa = null, tvPronto = false
-function tvPronta() { tvPronto = true; if (tvAttesa) { const st = tvAttesa; tvAttesa = null; window.__tvApplica(st) } }
+function tvPronta() { tvPronto = true; if (tvAttesa) { const st = tvAttesa; tvAttesa = null; window.__tvApplica(st) } else if (!IN_TV) inviaTv(true) }
 window.__tvApplica = function (st) {
   if (!st) return
   if (!tvPronto || !giorni.length) { tvAttesa = st; return }
@@ -542,8 +596,18 @@ function tvRicorda(on) {
 function tvBottone(stato) {
   const b = document.getElementById('btn-tv'); if (!b || IN_TV) return
   b.className = 'pbtn' + (stato === 'on' ? ' tv-on' : '')
-  b.textContent = stato === 'on' ? '📺 Sulla TV ✓' : (stato === 'manca' ? '📺 TV: manca la 051' : '📺 Sulla TV')
-  b.title = stato === 'manca' ? 'Manca la migration 051_schermo_tv.sql nel database' : ''
+  b.textContent = stato === 'on' ? '📺 Sulla TV ✓' : (stato === 'manca' ? '📺 TV: manca la 051' : (stato === 'manca052' ? '📺 TV: manca la 052' : '📺 Sulla TV'))
+  b.title = stato === 'manca' ? 'Manca la migration 051_schermo_tv.sql nel database' : (stato === 'manca052' ? 'Manca la migration 052_tv_codice.sql nel database' : '')
+}
+let tvProf = null, tvPv = 0, tvPvNm = -1, tvCarica = null
+async function mioProf() {
+  if (tvProf) return tvProf
+  try {
+    const { data: { session } } = await _sb.auth.getSession()
+    const r = await _sb.from('professionals').select('id').eq('user_id', session.user.id).maybeSingle()
+    tvProf = r && r.data ? r.data.id : null
+  } catch (e) { tvProf = null }
+  return tvProf
 }
 async function accendiTv() {
   try {
@@ -553,14 +617,47 @@ async function accendiTv() {
     tvSub = _sb.channel('schermo:' + tvCanale, { config: { broadcast: { self: false } } })
     await tvSub.subscribe()
     tvBottone('on')
-    tvUltimo = 0; inviaTv(true)
+    tvUltimo = 0; tvPv = 0; inviaTv(true)
     return true
   } catch (e) { tvBottone('off'); return false }
+}
+/* tv-codice-v1 · IL PACCHETTO: le righe che questa pagina ha già letto (con le
+   sue regole, RLS), più gli indirizzi firmati delle foto. Si scrive in
+   tv_mostra; la TV lo legge col suo segreto. Si riscrive se cambiano i gradi. */
+function pacchettoTv() {
+  return { v: 1, pid: patientId, premium: isPremium, creato: new Date().toISOString(),
+    patient: TVDATI.patient ? { id: TVDATI.patient.id, nome: TVDATI.patient.nome, cognome: TVDATI.patient.cognome, foto_url: TVDATI.patient.foto_url } : null,
+    visits: TVDATI.visits || [], visit_photos: TVDATI.visit_photos || [], oscillazione_test: TVDATI.oscillazione_test || [],
+    foto_allineamenti: TVDATI.foto_allineamenti || [], foto_misure: Object.keys(misure).map(k => misure[k]), firme: TVDATI.firme || {} }
+}
+async function caricaTv() {
+  const nm = Object.keys(misure).length
+  if (tvPv && tvPvNm === nm) return true
+  if (tvCarica) return tvCarica
+  tvCarica = (async () => {
+    let ok = false
+    try {
+      const prof = await mioProf()
+      if (prof) {
+        const { error } = await _sb.from('tv_mostra').upsert({ professional_id: prof, patient_id: patientId, pacchetto: pacchettoTv(),
+          aggiornato_il: new Date().toISOString() }, { onConflict: 'professional_id' })
+        if (error) { if (/tv_mostra/.test(error.message || '') || error.code === '42P01' || error.code === 'PGRST205') tvBottone('manca052') }
+        else { ok = true; tvPv = Date.now(); tvPvNm = nm }
+      }
+    } catch (e) {}
+    tvCarica = null
+    return ok
+  })()
+  return tvCarica
 }
 function spegniTv() {
   try { if (tvSub) tvSub.send({ type: 'broadcast', event: 'mostra', payload: { tipo: 'attesa' } }) } catch (e) {}
   try { if (tvSub) _sb.removeChannel(tvSub) } catch (e) {}
   tvSub = null; tvCanale = null; tvBottone('off')
+  // la TV non deve più poter leggere questo paziente
+  mioProf().then(prof => { if (prof) _sb.from('tv_mostra').upsert({ professional_id: prof, patient_id: null, pacchetto: null,
+    aggiornato_il: new Date().toISOString() }, { onConflict: 'professional_id' }).then(() => {}, () => {}) })
+  tvPv = 0
 }
 async function toggleTv() {
   if (tvSub) { tvRicorda(false); spegniTv(); return }
@@ -570,14 +667,64 @@ async function toggleTv() {
 function statoTv() {
   const g = giorni[sel]
   return { tipo: 'prima-dopo', pid: patientId, giorno: g ? g.chiave : null, slide: slides[corrente] || null,
-    gradi: vediGradi, rif: vediRif, modo: modoFoto, nm: Object.keys(misure).length }
+    gradi: vediGradi, rif: vediRif, modo: modoFoto, nm: Object.keys(misure).length, pv: tvPv }
 }
-// non più di un messaggio ogni 150 ms: scorrendo veloce arriva l'ultimo
+// non più di un messaggio ogni 150 ms: scorrendo veloce arriva l'ultimo.
+// Prima il pacchetto (la TV deve poter leggere i dati), poi il comando.
 function inviaTv(subito) {
-  if (IN_TV || !tvSub) return
+  if (IN_TV || !tvSub || !tvPronto) return
   clearTimeout(tvTimer)
-  const manda = function () { tvUltimo = Date.now(); try { tvSub.send({ type: 'broadcast', event: 'mostra', payload: statoTv() }) } catch (e) {} }
+  const manda = async function () {
+    tvUltimo = Date.now()
+    if (!(await caricaTv())) return
+    try { tvSub.send({ type: 'broadcast', event: 'mostra', payload: statoTv() }) } catch (e) {}
+  }
   if (subito || Date.now() - tvUltimo > 150) manda(); else tvTimer = setTimeout(manda, 150)
+}
+
+/* tv-codice-v1 · COLLEGARE UNA TV: il codice che la TV mostra, scritto qui */
+function apriGestioneTv() {
+  let el = document.getElementById('tv-gestione')
+  if (!el) {
+    el = document.createElement('div'); el.id = 'tv-gestione'
+    el.innerHTML = '<div class="tvg-box"><div class="tvg-tit">🔗 Le tue TV</div>' +
+      '<div class="tvg-txt">Sulla TV apri <b>app.policettivo.it/tv.html</b>: compare un codice di 6 lettere. Scrivilo qui.</div>' +
+      '<div class="tvg-riga"><input id="tvg-cod" maxlength="7" placeholder="ABC123" autocomplete="off" autocapitalize="characters" spellcheck="false">' +
+      '<button class="pbtn giallo" id="tvg-collega" onclick="collegaTv()">Collega</button></div>' +
+      '<div class="tvg-stato" id="tvg-stato"></div><div id="tvg-elenco"></div>' +
+      '<button class="pbtn" onclick="document.getElementById(\'tv-gestione\').classList.remove(\'on\')">Chiudi</button></div>'
+    document.body.appendChild(el)
+  }
+  el.classList.add('on')
+  document.getElementById('tvg-stato').textContent = ''
+  elencoTv()
+}
+async function elencoTv() {
+  const box = document.getElementById('tvg-elenco'); if (!box) return
+  const r = await _sb.rpc('tv_elenco')
+  if (r.error) { box.innerHTML = '<div class="msg ko">' + (/tv_elenco/.test(r.error.message || '') ? 'Manca la migration <b>052_tv_codice.sql</b>.' : esc(r.error.message)) + '</div>'; return }
+  const l = r.data || []
+  box.innerHTML = l.length ? l.map(t => '<div class="tvg-tv"><span>📺 <b>' + esc(t.nome || 'TV') + '</b> · collegata il ' +
+      new Date(t.confermato_il).toLocaleDateString('it-IT') + (t.ultimo_uso ? ' · vista ' + new Date(t.ultimo_uso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '') +
+      '</span><button class="pbtn" onclick="scollegaTv(\'' + t.id + '\')">Scollega</button></div>').join('')
+    : '<div class="tvg-txt">Nessuna TV collegata.</div>'
+}
+async function collegaTv() {
+  const c = (document.getElementById('tvg-cod').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const st = document.getElementById('tvg-stato')
+  if (c.length !== 6) { st.textContent = 'Il codice è di 6 lettere.'; return }
+  const r = await _sb.rpc('tv_conferma', { p_codice: c })
+  if (r.error) { st.textContent = /tv_conferma/.test(r.error.message || '') ? 'Manca la migration 052_tv_codice.sql.' : r.error.message; return }
+  if (!r.data) { st.textContent = 'Codice non valido o scaduto: sulla TV ne compare uno nuovo ogni 10 minuti.'; return }
+  st.textContent = '✓ TV collegata.'
+  document.getElementById('tvg-cod').value = ''
+  elencoTv()
+  if (!tvSub) { tvRicorda(true); await accendiTv() } else { tvPv = 0; inviaTv(true) }
+}
+async function scollegaTv(id) {
+  if (!confirm('Scollego questa TV? Per rivederla dovrai scrivere di nuovo il codice.')) return
+  await _sb.rpc('tv_scollega', { p_id: id })
+  elencoTv()
 }
 if (!IN_TV && tvRicordata()) setTimeout(accendiTv, 0)
 

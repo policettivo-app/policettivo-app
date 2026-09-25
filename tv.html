@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Policettivo® — Schermo</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- tv-v1 (24 settembre 2026) — LO SCHERMO DEL PAZIENTE, COMANDATO DAL TELEFONO
+<!-- tv-codice-v1 (25 settembre: la TV si collega con un CODICE; nessuna password, nessun account sulla TV) · tv-v1 (24 settembre 2026) — LO SCHERMO DEL PAZIENTE, COMANDATO DAL TELEFONO
      Decisioni di Giuliano (tutte A):
        1A una pagina dell'app aperta sulla TV col proprio account (browser della
           Smart TV, chiavetta con browser, o computer col cavo HDMI: è una pagina
@@ -97,8 +97,14 @@
   .ing-box .marchio{font-size:14px;padding:6px 12px}
   .ing-box h1{font-size:32px;margin:18px 0 8px}
   .ing-box p{color:var(--testo2);font-size:17px;line-height:1.5;margin-bottom:18px}
-  .ing-box input{width:100%;padding:16px;border-radius:12px;border:1.5px solid #333;background:#111;color:#fff;font-size:20px;margin-bottom:10px;font-family:inherit}
-  .ing-box button{width:100%;padding:17px;border:0;border-radius:12px;background:var(--giallo);color:#000;font-size:19px;font-weight:900;cursor:pointer}
+  .ing-box{width:min(1100px,94vw)}
+  .ing-box h1{font-size:min(5vw,56px)!important}
+  .ing-box p{font-size:min(2.2vw,26px)!important}
+  .ing-box .marchio{font-size:18px!important;padding:8px 16px!important}
+  .ing-cod{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:min(16vw,150px);font-weight:900;letter-spacing:.16em;color:var(--giallo);
+           margin:10px 0 4px;text-shadow:0 0 60px rgba(255,208,8,.25)}
+  .ing-scade{color:var(--testo3);font-size:min(1.8vw,21px);margin-bottom:22px}
+  .ing-box p.ing-nota{font-size:min(1.5vw,18px)!important;color:var(--testo3)!important}
   .ing-err{color:#ff9c9c;margin-top:10px;min-height:22px}
   .comandi{position:fixed;left:16px;bottom:14px;z-index:30;display:flex;gap:8px;opacity:.0;transition:opacity .3s}
   body:hover .comandi,.comandi.vedi{opacity:1}
@@ -169,10 +175,10 @@
   <div class="ing-box">
     <span class="marchio">POLICETTIVO®</span>
     <h1>Collega questa TV</h1>
-    <p>Entra una volta sola col tuo account: la TV resterà collegata. Poi dal telefono premi <b>📺 Sulla TV</b>.</p>
-    <input type="email" id="ing-email" placeholder="email" autocomplete="username">
-    <input type="password" id="ing-pass" placeholder="password" autocomplete="current-password">
-    <button id="ing-entra">Collega</button>
+    <p>Sul telefono apri <b>«Prima e dopo»</b> di un paziente, premi <b>🔗 TV</b> e scrivi questo codice:</p>
+    <div class="ing-cod" id="ing-cod">······</div>
+    <div class="ing-scade" id="ing-scade"></div>
+    <p class="ing-nota">Sulla TV non si scrive nessuna password: la TV non entra nel tuo account e vede solo quello che mostri dal telefono.</p>
     <div class="ing-err" id="ing-err"></div>
   </div>
 </div>
@@ -181,7 +187,7 @@
   <button id="btn-intero">⛶ Schermo intero</button>
   <button id="btn-attesa">◻︎ Schermata d’attesa</button>
 </div>
-<div class="avviso-051" id="avviso-051">⚠️ Manca la migration <b>051_schermo_tv.sql</b>: la TV mostra i test, non ancora «Prima e dopo».</div>
+<div class="avviso-051" id="avviso-051">⚠️ Manca la migration <b>052_tv_codice.sql</b>: la TV non si può ancora collegare col codice.</div>
 
 <script>
 ;(function(){
@@ -234,18 +240,24 @@
   function statoAttesa(t, ok){ $('att-stato').textContent = t; $('att-punto').className = 'punto' + (ok ? ' ok' : '') }
 
   // ═══ PRIMA E DOPO: la pagina di sempre, dentro un riquadro, in modalità TV ═══
-  var pdPid = null, pdNm = -1, pdFrame = null, pdStato = null
+  var pdPid = null, pdPv = null, pdFrame = null, pdStato = null
   function applicaPd(st){
     pdStato = st
     var w = pdFrame && pdFrame.contentWindow
     if (w && w.__tvApplica && w.__tvPronta && w.__tvPronta()){ try { w.__tvApplica(st) } catch(e){} return }
     setTimeout(function(){ if (pdStato === st) applicaPd(st) }, 250)
   }
-  function mostraPd(st){
+  // tv-codice-v1 · i dati li legge la TV col SUO segreto (tv_pacchetto): solo il
+  // paziente che il telefono sta mostrando, e solo se mostrato nelle ultime 3 ore
+  async function mostraPd(st){
     if (!st.pid) return
-    // paziente nuovo, o gradi misurati dopo che la TV aveva caricato: si ricarica
-    if (!pdFrame || st.pid !== pdPid || (st.nm || 0) > pdNm){
-      pdPid = st.pid; pdNm = st.nm || 0
+    if (!pdFrame || st.pid !== pdPid || st.pv !== pdPv){
+      var r = null
+      try { r = await SB.rpc('tv_pacchetto', { p_segreto: SEGRETO }) } catch(e){}
+      var pkg = r && !r.error ? r.data : null
+      if (!pkg || pkg.pid !== st.pid){ mostra('attesa'); return }
+      window.__tvPacchetto = pkg
+      pdPid = st.pid; pdPv = st.pv
       $('v-pd').innerHTML = ''
       pdFrame = document.createElement('iframe')
       pdFrame.setAttribute('title', 'Prima e dopo')
@@ -382,40 +394,76 @@
     subOsc.on('broadcast', { event: 'fine' }, function(m){ onFine(m.payload) })
     subOsc.subscribe()
   }
-  async function cercaCanali(){
+  /* ═══ tv-codice-v1 · IL COLLEGAMENTO COL CODICE ═══
+     La TV tiene sul suo browser un SEGRETO lungo e casuale (lo genera lei, non
+     lascia mai questo schermo: nel database ne va solo l'impronta). Finché il
+     telefono non conferma il codice, la TV non vede niente. «Scollega» dal
+     telefono → al giro dopo la TV torna qui, al codice. */
+  var CHIAVE_SEGRETO = 'policettivo.tv.segreto.v1'
+  var SEGRETO = null
+  function segreto(){
+    try { var s = localStorage.getItem(CHIAVE_SEGRETO); if (s && s.length >= 32) return s } catch(e){}
+    var b = new Uint8Array(32); (window.crypto || window.msCrypto).getRandomValues(b)
+    var s2 = Array.prototype.map.call(b, function(x){ return ('0' + x.toString(16)).slice(-2) }).join('')
+    try { localStorage.setItem(CHIAVE_SEGRETO, s2) } catch(e){}
+    return s2
+  }
+  var codiceAl = 0, collegata = false
+  function scriviCodice(c){
+    $('ing-cod').textContent = c ? c.slice(0, 3) + ' ' + c.slice(3) : '······'
+    codiceAl = Date.now()
+  }
+  async function nuovoCodice(){
     try {
-      var t = await SB.rpc('schermo_canale')
-      if (t.error){ if (/schermo_canale/.test(t.error.message || '')) $('avviso-051').style.display = 'block' }
-      else if (t.data && t.data !== canTv) ascoltaTv(t.data)
-    } catch(e){}
-    try {
-      if (!inCorso){
-        var o = await SB.rpc('oscillazione_canale')
-        if (!o.error && o.data && o.data !== canOsc) ascoltaOsc(o.data)
+      var r = await SB.rpc('tv_nuovo', { p_segreto: SEGRETO })
+      if (r.error){
+        $('ing-err').textContent = /tv_nuovo/.test(r.error.message || '') ? 'Manca la migration 052_tv_codice.sql nel database.' : 'Non riesco a chiedere il codice. Controlla la rete.'
+        if (/tv_nuovo/.test(r.error.message || '')) $('avviso-051').style.display = 'block'
+        return
       }
-    } catch(e){}
-    statoAttesa(canTv ? 'Collegata · pronta per il telefono' : 'Collegata ai test', true)
+      $('ing-err').textContent = ''
+      if (r.data) scriviCodice(r.data)
+    } catch(e){ $('ing-err').textContent = 'Non riesco a chiedere il codice. Controlla la rete.' }
+  }
+  function scadenza(){
+    if (!codiceAl) { $('ing-scade').textContent = ''; return }
+    var m = Math.max(0, 10 - Math.floor((Date.now() - codiceAl) / 60000))
+    $('ing-scade').textContent = 'Il codice vale ancora ' + m + (m === 1 ? ' minuto' : ' minuti') + ', poi se ne crea uno nuovo da solo.'
+  }
+  async function giro(){
+    var r = null
+    try { r = await SB.rpc('tv_stato', { p_segreto: SEGRETO }) } catch(e){}
+    if (!r || r.error){
+      if (r && r.error && /tv_stato/.test(r.error.message || '')){ $('avviso-051').style.display = 'block'; $('ingresso').classList.add('on') }
+      statoAttesa('Senza collegamento: controlla la rete della TV', false)
+      return
+    }
+    var st = r.data || {}
+    if (!st.collegata){
+      if (collegata){ mostra('attesa') }
+      collegata = false
+      $('ingresso').classList.add('on')
+      if (!codiceAl || Date.now() - codiceAl > 9 * 60000) await nuovoCodice()
+      scadenza()
+      statoAttesa('da collegare', false)
+      return
+    }
+    collegata = true
+    $('ingresso').classList.remove('on')
+    if (st.schermo && st.schermo !== canTv) ascoltaTv(st.schermo)
+    if (st.oscillazione && st.oscillazione !== canOsc && !inCorso) ascoltaOsc(st.oscillazione)
+    statoAttesa('Collegata · pronta per il telefono', true)
   }
 
   async function avvia(){
     if (!window.supabase || !window.supabase.createClient){ statoAttesa('Senza rete: controlla la connessione della TV', false); return }
     SB = window.supabase.createClient(SB_URL, SB_KEY)
-    var ses = null
-    try { ses = (await SB.auth.getSession()).data.session } catch(e){}
-    if (!ses){ $('ingresso').classList.add('on'); statoAttesa('da collegare', false); return }
-    $('ingresso').classList.remove('on')
-    await cercaCanali()
-    setInterval(cercaCanali, 5000)
-  }
-  $('ing-entra').onclick = async function(){
-    $('ing-err').textContent = ''
-    var e = $('ing-email').value.trim(), p = $('ing-pass').value
-    if (!e || !p){ $('ing-err').textContent = 'Scrivi email e password.'; return }
-    try {
-      var r = await SB.auth.signInWithPassword({ email: e, password: p })
-      if (r.error){ $('ing-err').textContent = 'Credenziali non valide.'; return }
-      avvia()
-    } catch(err){ $('ing-err').textContent = 'Non riesco a collegarmi. Riprova.' }
+    SEGRETO = segreto()
+    // ⚠️ se su questa TV qualcuno era entrato con la password (tv-v1), si esce:
+    // la TV non deve tenere aperto un account intero
+    try { var ses = (await SB.auth.getSession()).data.session; if (ses) await SB.auth.signOut() } catch(e){}
+    // non collegata: ogni 3 s (il collegamento si vede subito); collegata: ogni 8 s
+    ;(async function ciclo(){ await giro(); setTimeout(ciclo, collegata ? 8000 : 3000) })()
   }
   $('btn-intero').onclick = function(){
     try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen() } catch(e){}

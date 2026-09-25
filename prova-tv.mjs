@@ -13,6 +13,7 @@ const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8' }
 const STUB = `<!doctype html><meta charset="utf-8"><body style="background:#000;color:#fff"><h1 id="t">STUB</h1><script>
 window.__applicati = []; window.__tvPronta = () => true
+window.__pkgVisto = (window.parent && window.parent.__tvPacchetto) || null
 window.__tvApplica = st => { window.__applicati.push(st); document.getElementById('t').textContent = 'slide ' + st.slide }
 </script>`
 const server = http.createServer((req, res) => {
@@ -27,17 +28,19 @@ function check(n, c, x) { if (c) { ok++; console.log('  ✅ ' + n) } else { ko++
 function sez(t) { console.log('\n── ' + t) }
 
 const FINTO = (o) => {
-  window.__fk = { canali: {}, rpc: [], entrate: 0 }
-  let sessione = !!o.sessione
+  window.__fk = { canali: {}, rpc: [], uscite: 0, collegata: !!o.collegata, pkg: o.pkg || null }
+  let sessione = !!o.sessioneVecchia
   window.supabase = { createClient() { return {
     auth: {
       getSession: async () => ({ data: { session: sessione ? { user: { id: 'u1' } } : null } }),
-      signInWithPassword: async ({ email, password }) => { window.__fk.entrate++; if (password !== 'giusta') return { error: { message: 'no' } }; sessione = true; return { data: {}, error: null } }
+      signOut: async () => { window.__fk.uscite++; sessione = false; return { error: null } }
     },
-    rpc: async (nome) => {
-      window.__fk.rpc.push(nome)
-      if (nome === 'schermo_canale') return o.senza051 ? { data: null, error: { message: 'Could not find the function public.schermo_canale' } } : { data: 'TV1', error: null }
-      if (nome === 'oscillazione_canale') return { data: 'OSC1', error: null }
+    rpc: async (nome, args) => {
+      window.__fk.rpc.push([nome, args || null])
+      if (o.senza052) return { data: null, error: { message: 'Could not find the function public.' + nome } }
+      if (nome === 'tv_nuovo') return { data: 'K7P3MX', error: null }
+      if (nome === 'tv_stato') return { data: window.__fk.collegata ? { collegata: true, schermo: 'TV1', oscillazione: 'OSC1' } : { collegata: false }, error: null }
+      if (nome === 'tv_pacchetto') return { data: window.__fk.pkg, error: null }
       return { data: null, error: null }
     },
     channel(nome) { const h = {}; const c = { on(_t, f, cb) { h[f.event] = cb; return c }, subscribe() { return c } }; window.__fk.canali[nome] = h; return c },
@@ -54,7 +57,7 @@ async function apri(o = {}) {
   const errori = []; page.on('pageerror', e => errori.push(String(e)))
   await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }))
   await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }))
-  await page.addInitScript(FINTO, Object.assign({ sessione: true }, o))
+  await page.addInitScript(FINTO, Object.assign({ collegata: true }, o))
   await page.goto('http://localhost:' + PORT + '/tv.html', { waitUntil: 'load' })
   await page.waitForTimeout(400)
   return { page, ctx, errori }
@@ -62,51 +65,73 @@ async function apri(o = {}) {
 const vista = p => p.evaluate(() => window.__tv.vista())
 
 try {
-  sez('⛔ la TV non legge tabelle e non salva niente sul televisore')
+  sez('⛔ la TV non entra in nessun account e non legge tabelle')
   {
     const src = fs.readFileSync('tv.html', 'utf8')
-    check('⛔ nessuna tabella letta da qui (le foto le legge «Prima e dopo», con le sue regole)', !/\.from\(/.test(src))
-    check('⛔ niente memoria locale', !/localStorage|sessionStorage|indexedDB/.test(src))
-    check('⭐ chiama solo i due canali', [...src.matchAll(/\.rpc\(\s*'([^']+)'/g)].map(m => m[1]).every(n => n === 'schermo_canale' || n === 'oscillazione_canale'))
+    check('⛔ nessuna tabella letta da qui', !/\.from\(/.test(src))
+    check('⛔ niente password: nessun campo, nessun signInWithPassword', !/type="password"|signInWithPassword/.test(src))
+    const rpc = [...src.matchAll(/\.rpc\(\s*'([^']+)'/g)].map(m => m[1])
+    check('⭐ chiama solo le tre funzioni della TV (052)', rpc.length > 0 && rpc.every(n => /^tv_(nuovo|stato|pacchetto)$/.test(n)), rpc)
+    check('⭐ sul televisore resta solo il segreto della TV', (src.match(/localStorage\.\w+\(CHIAVE_SEGRETO/g) || []).length === 2 && (src.match(/localStorage/g) || []).length === 2)
     check('è noindex', /noindex/.test(src))
   }
 
-  sez('⭐ collegare la TV: una volta sola, col proprio account')
+  sez('⭐⭐ collegare la TV col codice, senza password')
   {
-    const { page, ctx, errori } = await apri({ sessione: false })
-    check('⭐ chiede di collegarla', await page.isVisible('#ingresso') && /Collega questa TV/.test(await page.textContent('#ingresso')))
-    await page.fill('#ing-email', 'a@b.it'); await page.fill('#ing-pass', 'sbagliata'); await page.click('#ing-entra'); await page.waitForTimeout(200)
-    check('credenziali sbagliate: lo dice', /non valide/.test(await page.textContent('#ing-err')))
-    await page.fill('#ing-pass', 'giusta'); await page.click('#ing-entra'); await page.waitForTimeout(400)
-    check('⭐ con quelle giuste è collegata', !(await page.isVisible('#ingresso')) && /Collegata/.test(await page.textContent('#att-stato')))
+    const { page, ctx, errori } = await apri({ collegata: false, sessioneVecchia: true })
+    check('⭐ mostra il codice in grande: «K7P 3MX»', await page.isVisible('#ingresso') && (await page.textContent('#ing-cod')).trim() === 'K7P 3MX')
+    check('⭐ e dice dove scriverlo (🔗 TV sul telefono)', /🔗 TV/.test(await page.textContent('#ingresso')) && /vale ancora 10 minuti/.test(await page.textContent('#ing-scade')))
+    const nuovo = (await page.evaluate(() => window.__fk.rpc)).find(r => r[0] === 'tv_nuovo')
+    check('⭐ il segreto lo crea la TV: 64 caratteri casuali', nuovo && /^[0-9a-f]{64}$/.test(nuovo[1].p_segreto), nuovo)
+    check('⭐⭐ se sul televisore c’era un account aperto (password), si esce', (await page.evaluate(() => window.__fk.uscite)) === 1)
+    const seg = await page.evaluate(() => localStorage.getItem('policettivo.tv.segreto.v1'))
+    await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(400)
+    const seg2 = (await page.evaluate(() => window.__fk.rpc)).find(r => r[0] === 'tv_stato')[1].p_segreto
+    check('⭐ il segreto resta lo stesso se si ricarica (la TV resta collegata)', seg && seg === seg2)
+    await page.evaluate(() => { window.__fk.collegata = true })       // il telefono conferma il codice
+    await page.waitForTimeout(3600)
+    check('⭐⭐ confermato dal telefono → la TV si collega da sola', !(await page.isVisible('#ingresso')) && /Collegata/.test(await page.textContent('#att-stato')))
+    check('⭐ e ascolta i suoi due canali', await page.evaluate(() => !!window.__fk.canali['schermo:TV1'] && !!window.__fk.canali['oscillazione:OSC1']))
+    await page.evaluate(() => { window.__fk.collegata = false })      // «Scollega» dal telefono
+    await page.waitForTimeout(8600)
+    check('⭐⭐ scollegata dal telefono → torna al codice', await page.isVisible('#ingresso'))
     check('nessun errore JS', errori.length === 0, errori)
     await ctx.close()
   }
 
-  sez('⭐⭐ la schermata d’attesa e i due canali')
+  sez('⭐⭐ la schermata d’attesa')
   {
-    const { page, ctx, errori } = await apri()
+    const PKG = { v: 1, pid: 'P-1', premium: true, patient: { id: 'P-1', nome: 'Anna' } }
+    const { page, ctx, errori } = await apri({ pkg: PKG })
     check('⭐ si parte dalla schermata d’attesa col marchio', (await vista(page)) === 'attesa' && /Sistema Policettivo®/.test(await page.textContent('#v-attesa')))
     check('⭐ con l’ora', /\d{2}:\d{2}/.test(await page.textContent('#att-ora')))
-    const c = await page.evaluate(() => Object.keys(window.__fk.canali))
-    check('⭐⭐ ascolta il canale della TV (051) e quello dei test (046)', c.includes('schermo:TV1') && c.includes('oscillazione:OSC1'), c)
     await page.screenshot({ path: '_schermate/tv-attesa.png' })
 
-    sez('⭐⭐ «Prima e dopo» comandato dal telefono')
-    const st = { tipo: 'prima-dopo', pid: 'P-1', giorno: 'g1', slide: 'foto:sagittale_dx', gradi: { sagittale_dx: true }, rif: {}, modo: {}, nm: 2 }
-    await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', s), st); await page.waitForTimeout(700)
+    sez('⭐⭐ «Prima e dopo»: i dati li legge la TV col suo segreto, solo il paziente mostrato')
+    const st = { tipo: 'prima-dopo', pid: 'P-1', giorno: 'g1', slide: 'foto:sagittale_dx', gradi: { sagittale_dx: true }, rif: {}, modo: {}, nm: 2, pv: 111 }
+    await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', s), st); await page.waitForTimeout(800)
     check('⭐ la TV passa a «Prima e dopo»', (await vista(page)) === 'pd')
+    const pk = (await page.evaluate(() => window.__fk.rpc)).filter(r => r[0] === 'tv_pacchetto')
+    check('⭐ ha chiesto il pacchetto col suo segreto', pk.length === 1 && /^[0-9a-f]{64}$/.test(pk[0][1].p_segreto))
     const pd = await page.evaluate(() => window.__tv.pd())
     check('⭐ apre la pagina di sempre in modalità TV, per quel paziente', /schermo-paziente\.html\?id=P-1&tv=1/.test(pd.src), pd)
     const fr = page.frames().find(f => /schermo-paziente/.test(f.url()))
+    check('⭐⭐ e la pagina dentro la TV riceve il pacchetto (non un account)', fr && (await fr.evaluate(() => window.__pkgVisto && window.__pkgVisto.pid)) === 'P-1')
     const ap = fr ? await fr.evaluate(() => window.__applicati) : []
-    check('⭐⭐ e la porta sulla pagina scelta, coi gradi accesi', ap.length >= 1 && ap[ap.length - 1].slide === 'foto:sagittale_dx' && ap[ap.length - 1].gradi.sagittale_dx === true, ap)
+    check('⭐⭐ va sulla pagina scelta, coi gradi accesi', ap.length >= 1 && ap[ap.length - 1].slide === 'foto:sagittale_dx' && ap[ap.length - 1].gradi.sagittale_dx === true, ap)
     await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', Object.assign({}, s, { slide: 'sintesi' })), st); await page.waitForTimeout(400)
     const fr2 = page.frames().find(f => /schermo-paziente/.test(f.url()))
-    check('⭐ il telefono cambia pagina → la TV la segue, senza ricaricare', fr2 === fr && (await fr2.evaluate(() => window.__applicati.slice(-1)[0].slide)) === 'sintesi')
-    await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', Object.assign({}, s, { nm: 4 })), st); await page.waitForTimeout(700)
+    check('⭐ il telefono cambia pagina → la TV la segue, senza ricaricare né richiedere i dati', fr2 === fr &&
+      (await fr2.evaluate(() => window.__applicati.slice(-1)[0].slide)) === 'sintesi' && (await page.evaluate(() => window.__fk.rpc.filter(r => r[0] === 'tv_pacchetto').length)) === 1)
+    await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', Object.assign({}, s, { pv: 222 })), st); await page.waitForTimeout(800)
     const fr3 = page.frames().find(f => /schermo-paziente/.test(f.url()))
-    check('⭐ gradi misurati dopo → la TV ricarica per vederli', fr3 && fr3 !== fr)
+    check('⭐ pacchetto nuovo (gradi misurati) → la TV lo rilegge e ricarica', fr3 && fr3 !== fr && (await page.evaluate(() => window.__fk.rpc.filter(r => r[0] === 'tv_pacchetto').length)) === 2)
+    await page.evaluate(() => { window.__fk.pkg = null })
+    await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', Object.assign({}, s, { pv: 333 })), st); await page.waitForTimeout(600)
+    check('⛔ se il pacchetto non c’è (scaduto o spento) la TV non mostra niente: attesa', (await vista(page)) === 'attesa')
+    await page.evaluate(p => { window.__fk.pkg = p }, PKG)
+    await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', Object.assign({}, s, { pid: 'P-ALTRO', pv: 444 })), st); await page.waitForTimeout(600)
+    check('⛔ comando per un paziente diverso dal pacchetto: niente', (await vista(page)) === 'attesa')
     await page.evaluate(() => window.__emetti('schermo:TV1', 'mostra', { tipo: 'attesa' })); await page.waitForTimeout(300)
     check('⭐ «spegni» dal telefono → schermata d’attesa', (await vista(page)) === 'attesa')
 
@@ -135,12 +160,10 @@ try {
     await ctx.close()
   }
 
-  sez('⭐ senza la migration 051 i test vanno lo stesso, e lo dice')
+  sez('⭐ senza la migration 052 lo dice, per nome di file')
   {
-    const { page, ctx, errori } = await apri({ senza051: true })
-    check('⭐ avviso con il nome del file', await page.isVisible('#avviso-051') && /051_schermo_tv\.sql/.test(await page.textContent('#avviso-051')))
-    await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'via', { evento: 'rollio', durata: 30 })); await page.waitForTimeout(200)
-    check('⭐ i test in diretta funzionano', (await vista(page)) === 'test' && await page.$eval('#asse-ds', e => e.classList.contains('test')))
+    const { page, ctx, errori } = await apri({ senza052: true, collegata: false })
+    check('⭐ avviso con il nome del file', await page.isVisible('#avviso-051') && /052_tv_codice\.sql/.test(await page.textContent('#avviso-051')))
     check('nessun errore JS', errori.length === 0, errori)
     await ctx.close()
   }

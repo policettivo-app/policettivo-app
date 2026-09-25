@@ -198,9 +198,13 @@ const SUPA = ({ D, FIRME }) => {
     auth: { getSession: async () => ({ data: { session: { user: { id: 'U1', email: 'prova@studio.it' }, access_token: 'TOK' } } }) },
     from: q,
     // tv-v1 · il canale della TV
-    rpc: async (nome) => {
+    rpc: async (nome, args) => {
       D.rpc = (D.rpc || []).concat([nome])
+      D.rpcArgs = (D.rpcArgs || []).concat([[nome, args || null]])
       if (nome === 'schermo_canale') return D.opts.senza051 ? { data: null, error: { message: 'Could not find the function public.schermo_canale' } } : { data: 'TV1', error: null }
+      if (nome === 'tv_elenco') return { data: D.tvs || [], error: null }
+      if (nome === 'tv_conferma') { const ok = args && args.p_codice === 'K7P3MX'; if (ok) D.tvs = [{ id: 'T1', nome: 'TV', confermato_il: '2026-09-25T09:00:00Z', ultimo_uso: null }]; return { data: ok, error: null } }
+      if (nome === 'tv_scollega') { D.tvs = []; return { data: true, error: null } }
       return { data: null, error: null }
     },
     channel(nome) { D.canali = (D.canali || []).concat([nome]); const c = { on() { return c }, subscribe: async () => c,
@@ -791,6 +795,62 @@ sez('⭐⭐ tv-v1 · il telecomando: «📺 Sulla TV» manda alla TV quello che 
   await page.click('#btn-tv'); await page.waitForTimeout(200)
   D = await page.evaluate(() => window.__D)
   check('⭐ spento → la TV torna alla schermata d’attesa', D.inviati.slice(-1)[0].payload.tipo === 'attesa' && /📺 Sulla TV$/.test((await page.textContent('#btn-tv')).trim()))
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐⭐ tv-codice-v1 · il pacchetto per la TV: prima i dati (tv_mostra), poi il comando')
+{
+  const { page, ctx, errori } = await apri(browser, { misure: true })
+  await page.click('#btn-tv'); await page.waitForTimeout(400)
+  let D = await page.evaluate(() => window.__D)
+  const up = D.upserts.filter(u => u.tab === 'tv_mostra')
+  check('⭐⭐ scrive il pacchetto in tv_mostra, per il SUO professionista e questo paziente', up.length === 1 && up[0].d.professional_id === 'PROF-1' && up[0].d.patient_id === PID, up.map(u => u.d.patient_id))
+  const pk = up[0] ? up[0].d.pacchetto : {}
+  check('⭐ dentro: paziente, visite, foto, misure, prove, indirizzi firmati', pk.pid === PID && pk.patient && pk.patient.nome === 'Mario' &&
+    pk.visits.length > 0 && pk.visit_photos.length > 0 && pk.foto_misure.length > 0 && Object.keys(pk.firme).length > 0 && Array.isArray(pk.oscillazione_test),
+    { pid: pk.pid, paz: pk.patient, v: (pk.visits || []).length, f: (pk.visit_photos || []).length, m: (pk.foto_misure || []).length, fi: Object.keys(pk.firme || {}).length, o: Array.isArray(pk.oscillazione_test) })
+  check('⛔ senza note cliniche né anamnesi (solo le colonne che servono allo schermo)', !/anamnesi|note_cliniche|diagnosi/i.test(JSON.stringify(pk)))
+  check('⭐ le tracce solo delle prove segnate prima/dopo', pk.oscillazione_test.every(r => r.traccia == null || r.momento === 'pre' || r.momento === 'post'))
+  const m = D.inviati.slice(-1)[0]
+  check('⭐ e il comando porta la versione del pacchetto (pv)', m && m.payload.pv > 0)
+  await page.click('#btn-tv'); await page.waitForTimeout(300)
+  D = await page.evaluate(() => window.__D)
+  const ultimo = D.upserts.filter(u => u.tab === 'tv_mostra').slice(-1)[0]
+  check('⭐⭐ spento → il pacchetto si cancella: la TV non può più leggere il paziente', ultimo && ultimo.d.patient_id === null && ultimo.d.pacchetto === null)
+  check('nessun errore JS', errori.length === 0, errori)
+  // la stessa pagina DENTRO la TV, col pacchetto e SENZA database: il finto va in errore se lo si usa
+  const ctx2 = await browser.newContext({ viewport: { width: 1600, height: 900 } })
+  const p2 = await ctx2.newPage(); const err2 = []; p2.on('pageerror', e => err2.push(String(e)))
+  await p2.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: 'window.supabase={createClient(){window.__usatoDb=true;return{auth:{getSession:async()=>({data:{session:null}})},from(){window.__usatoDb=true;throw new Error("DB")}}}}' }))
+  await p2.route('https://fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }))
+  await p2.addInitScript(pk => { window.__tvPacchetto = pk }, pk)
+  await p2.goto('http://localhost:' + PORT + '/schermo-paziente.html?id=' + PID + '&tv=1', { waitUntil: 'load' }); await p2.waitForTimeout(700)
+  const ids = await p2.evaluate(() => slides.slice())
+  check('⭐⭐ dentro la TV la pagina si costruisce SOLO dal pacchetto (nessuna tabella letta)', ids.includes('foto:sagittale_dx') && !(await p2.evaluate(() => window.__usatoDb && window.__usatoDbFrom)), ids)
+  const g = await p2.evaluate(() => giorni[sel].chiave)
+  await p2.evaluate(g => window.__tvApplica({ giorno: g, slide: 'foto:sagittale_dx', gradi: { sagittale_dx: true } }), g); await p2.waitForTimeout(500)
+  check('⭐ e ci sono le foto e i gradi', /Orecchio rispetto alla spalla/.test(await p2.evaluate(() => document.querySelector('#slides .slide.on').innerText)) &&
+    (await p2.$$eval('.slide.on .riquadro img', im => im.filter(i => i.naturalWidth > 0).length)) === 2)
+  check('nessun errore JS nella TV', err2.length === 0, err2)
+  await ctx2.close(); await ctx.close()
+}
+
+sez('⭐⭐ tv-codice-v1 · «🔗 TV»: collegare una TV col codice, vederle, scollegarle')
+{
+  const { page, ctx, errori } = await apri(browser)
+  await page.click('#btn-tv-gestisci'); await page.waitForTimeout(250)
+  check('⭐ si apre la finestra delle TV', await page.isVisible('#tv-gestione') && /Nessuna TV collegata/.test(await page.textContent('#tvg-elenco')))
+  await page.fill('#tvg-cod', 'zzz999'); await page.click('#tvg-collega'); await page.waitForTimeout(200)
+  check('⛔ codice sbagliato: lo dice', /non valido o scaduto/.test(await page.textContent('#tvg-stato')))
+  await page.fill('#tvg-cod', 'k7p-3mx'); await page.click('#tvg-collega'); await page.waitForTimeout(500)
+  const D = await page.evaluate(() => window.__D)
+  check('⭐ il codice va al database pulito e in maiuscolo', D.rpcArgs.some(r => r[0] === 'tv_conferma' && r[1].p_codice === 'K7P3MX'))
+  check('⭐⭐ collegata: compare nell’elenco, e la TV si accende', /TV collegata/.test(await page.textContent('#tvg-stato')) && /collegata il/.test(await page.textContent('#tvg-elenco')) &&
+    /Sulla TV ✓/.test(await page.textContent('#btn-tv')))
+  page.once('dialog', d => d.accept())
+  await page.click('#tvg-elenco button'); await page.waitForTimeout(300)
+  check('⭐ «Scollega» (con conferma) la toglie', (await page.evaluate(() => window.__D.rpc)).includes('tv_scollega') && /Nessuna TV collegata/.test(await page.textContent('#tvg-elenco')))
   check('nessun errore JS', errori.length === 0, errori)
   await ctx.close()
 }
