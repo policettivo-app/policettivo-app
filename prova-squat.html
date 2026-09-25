@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Overhead squat</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- squat-v1 (24 settembre 2026) — OVERHEAD SQUAT SULLA TAVOLA POLICETTIVA
+<!-- tv-multi-v1 (25 set: lo squat va sulla TV da solo) · squat-v1 (24 settembre 2026) — OVERHEAD SQUAT SULLA TAVOLA POLICETTIVA
      Decisioni di Giuliano (tutte A): tavola + ritmo a voce; numeri in gradi
      della tavola con le parole; poi monopodalico, ATR, stepping.
      - Il telefono sta sulla tavola COME nell'Oscillazione: stessa taratura
@@ -373,6 +373,9 @@
     // 3 · lo squat, a tempo
     var ultima = null
     t0Squat = null
+    await direttaSquat()
+    inviatiFino = 0; ultimoInvio = 0
+    manda('sq-via', { asse: asse, n: N, durata: TOT / 1000, zb: r2(zero.beta), zg: r2(zero.gamma), vb: verso.beta, vg: verso.gamma })
     var live = $('live')
     var d = await misura(TOT, function(ms, t, b, g){
       if (t0Squat == null) t0Squat = performance.now() - ms
@@ -380,6 +383,7 @@
       var k = f ? f.rip + ':' + f.fase : 'fine'
       if (f && k !== ultima){
         ultima = k; faseOra = f.fase
+        manda('sq-fase', { fase: f.fase, rip: f.rip })
         $('fase').textContent = PAROLA[f.fase]; $('fase').className = 'fase ' + f.fase
         $('rip').textContent = f.rip ? 'Ripetizione ' + f.rip + ' di ' + N : 'Si parte'
         if (f.fase === 'inizio'){ voce('Via. Braccia su.', true); bip(880, 150) }
@@ -389,6 +393,13 @@
       }
       $('conto').textContent = Math.max(0, Math.ceil((TOT - ms)/1000))
       if (t.length % 3 === 0) disegna(live, punti({ t: t, b: b, g: g }, zero), 5)
+      if (canSub && Date.now() - ultimoInvio > 120 && t.length > inviatiFino){
+        ultimoInvio = Date.now()
+        var px = [], py = [], j
+        for (j = inviatiFino; j < t.length; j += 3){ px.push(r2(g[j])); py.push(r2(b[j])) }
+        inviatiFino = t.length
+        manda('sq-punti', { x: px, y: py })
+      }
     })
     faseOra = 'fine'
     bip(660, 200); setTimeout(function(){ bip(392, 420) }, 230)
@@ -403,6 +414,11 @@
       zero: zero, r: r, pts: punti(d, zero), d: d }
     prove.push(p)
     mostraEsito(p)
+    // sulla TV le parole per il paziente: senza la riga per il professionista
+    manda('sq-fine', { asse: r.asse, fondo: r.fondo.media, parola: r.fondo.parola, valori: r.ripetizioni.map(function(x){ return x.fondo }),
+      stessa: r.coerenza.stessa, di: r.coerenza.di, leggibile: SQ.LEGGIBILE,
+      frasi: SQ.frasi(r).filter(function(t){ return !/interpretazione clinica/.test(t) })
+        .concat(['Sono gradi di inclinazione della tavola, non chili: si confrontano con le tue prove.']) })
     salva(p)
   }
 
@@ -507,6 +523,26 @@
     if (PID && pazNome){ el.innerHTML = '<div class="paz-banda"><span>👤 <b>' + esc(pazNome) + '</b><br><small>ogni squat si salva nella sua cartella</small></span></div>'; return }
     el.innerHTML = '<div class="paz-banda libera"><span>🧪 <b>Prova libera</b> — gli squat si salvano senza paziente.' + (pazErrore ? '<br><small>' + esc(pazErrore) + '</small>' : '') + '</span></div>'
   }
+  /* tv-multi-v1 · LO SQUAT VA SULLA TV (e su «Vista in diretta») da solo, sullo
+     stesso canale dell'Oscillazione: si riaggancia al canale già aperto, o ne
+     apre uno se la diretta era stata accesa. Sul canale solo angoli e fasi. */
+  var canSub = null, inviatiFino = 0, ultimoInvio = 0
+  async function direttaSquat(){
+    if (!SB || !haiSessione || canSub) return
+    try {
+      var c = await SB.rpc('oscillazione_canale'), can = c && !c.error ? c.data : null
+      if (!can){
+        var on = false; try { on = localStorage.getItem('policettivo.diretta.v1') === 'on' } catch(e){}
+        if (on){ var r = await SB.rpc('oscillazione_apri_canale'); can = r && !r.error ? r.data : null }
+      }
+      if (!can) return
+      canSub = SB.channel('oscillazione:' + can, { config: { broadcast: { self: false } } })
+      await canSub.subscribe()
+    } catch(e){ canSub = null }
+  }
+  function manda(ev, payload){ if (!canSub) return; try { canSub.send({ type: 'broadcast', event: ev, payload: payload }) } catch(e){} }
+  function r2(x){ return Math.round(x * 100) / 100 }
+
   async function avviaSupabase(){
     try {
       if (window.supabase && window.supabase.createClient){
@@ -529,6 +565,7 @@
       }
     } catch(e){ SB = null; haiSessione = false }
     disegnaPaziente()
+    direttaSquat()
   }
   // col paziente, entro 4 ore si riprende la sessione dei test (anche quella dell'Oscillazione)
   async function riprendiSessione(){

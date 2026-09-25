@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Policettivo® — Schermo</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- tv-codice-v1 (25 settembre: la TV si collega con un CODICE; nessuna password, nessun account sulla TV) · tv-v1 (24 settembre 2026) — LO SCHERMO DEL PAZIENTE, COMANDATO DAL TELEFONO
+<!-- tv-multi-v1 (25 set: squat sulla TV, niente signOut, pulsante Esci, TV aperta dal computer) · tv-codice-v1 (25 settembre: la TV si collega con un CODICE; nessuna password, nessun account sulla TV) · tv-v1 (24 settembre 2026) — LO SCHERMO DEL PAZIENTE, COMANDATO DAL TELEFONO
      Decisioni di Giuliano (tutte A):
        1A una pagina dell'app aperta sulla TV col proprio account (browser della
           Smart TV, chiavetta con browser, o computer col cavo HDMI: è una pagina
@@ -43,6 +43,7 @@
   .att-sub{font-size:26px;color:var(--testo2);margin-top:22px;letter-spacing:6px;text-transform:uppercase;font-weight:600}
   .att-piede{position:absolute;left:60px;right:60px;bottom:46px;display:flex;justify-content:space-between;align-items:flex-end;color:var(--testo3);font-size:18px}
   .att-ora{font-size:54px;font-weight:800;color:#e8e8e8;font-variant-numeric:tabular-nums;line-height:1}
+  .att-aiuto{font-size:14px;color:#555;margin-top:8px}.att-aiuto b{color:#888}
   .punto{display:inline-block;width:12px;height:12px;border-radius:50%;background:#555;margin-right:10px;vertical-align:middle}
   .punto.ok{background:#3ddc84;box-shadow:0 0 14px #3ddc84}
   /* ── PRIMA E DOPO ── */
@@ -69,6 +70,14 @@
   .asse-par{font-size:22px;font-weight:800;color:var(--testo2);letter-spacing:2px;margin-top:2px}
   .t-piede{position:absolute;left:0;right:0;bottom:44px;text-align:center;font-size:21px;color:var(--testo2)}
   .t-piede b{color:#fff}
+  /* ── SQUAT ── */
+  .sq-fase{font-size:120px;font-weight:900;margin-top:110px;letter-spacing:2px;line-height:1}
+  .sq-fase.giu{color:#5AB0FF}.sq-fase.fondo{color:var(--giallo)}.sq-fase.su{color:#3ddc84}
+  .sq-rip{font-size:24px;color:var(--testo2);margin-top:20px;font-weight:700}
+  .sq-punti{display:flex;justify-content:center;gap:12px;margin-top:26px}
+  .sq-punti i{width:22px;height:22px;border-radius:50%;background:#2a2a2a;display:inline-block}
+  .sq-punti i.fatto{background:var(--giallo)}.sq-punti i.ora{background:#fff;box-shadow:0 0 16px #fff}
+  .sq-barre{background:#fff;border-radius:18px;padding:12px 16px}
   /* ── ESITO ── */
   .e-gom{position:absolute;left:60px;top:150px;width:560px;height:560px;border-radius:26px;background:#fff;overflow:hidden;
          box-shadow:0 0 0 1px rgba(255,208,8,.35),0 40px 120px rgba(0,0,0,.7)}
@@ -124,7 +133,8 @@
       <div class="att-sub">Postura · Equilibrio · Movimento</div>
     </div>
     <div class="att-piede">
-      <div><span class="punto" id="att-punto"></span><span id="att-stato">collegamento…</span></div>
+      <div><span class="punto" id="att-punto"></span><span id="att-stato">collegamento…</span>
+        <div class="att-aiuto">Muovi il mouse (o premi un tasto) per i comandi · <b>Esc</b> esce dallo schermo intero</div></div>
       <div style="text-align:right"><div class="att-ora" id="att-ora"></div><div id="att-data"></div></div>
     </div>
   </div>
@@ -153,6 +163,41 @@
       <div class="asse-par" id="par-ds">AL CENTRO</div>
     </div>
     <div class="t-piede">Il <b>gomitolo</b> è il percorso del peso sulla tavola: più è piccolo, più il corpo sta fermo.</div>
+  </div>
+
+  <!-- tv-multi-v1 · OVERHEAD SQUAT IN DIRETTA -->
+  <div class="vista" id="v-sq">
+    <div class="t-testa">
+      <span class="marchio">POLICETTIVO®</span>
+      <div><div class="t-tit">Overhead squat</div><div class="t-sub" id="sq-sub"></div></div>
+      <div class="t-tempo" id="sq-tempo"></div>
+    </div>
+    <div class="asse sx test" id="sq-fasebox">
+      <div class="asse-tit">Adesso</div>
+      <div class="sq-fase" id="sq-fase">—</div>
+      <div class="sq-rip" id="sq-rip"></div>
+      <div class="sq-punti" id="sq-punti"></div>
+    </div>
+    <div class="gomitolo"><canvas id="sq-cv" width="900" height="900"></canvas></div>
+    <div class="asse dx test" id="sq-asse">
+      <div class="asse-tit" id="sq-asse-tit">Destra · Sinistra</div>
+      <svg id="sq-om" width="260" height="380" viewBox="0 0 260 380"></svg>
+      <div class="asse-val" id="sq-val">0,0°</div>
+      <div class="asse-par" id="sq-par">AL CENTRO</div>
+    </div>
+    <div class="t-piede">Segui la voce: <b>giù · fermo · su</b>. Il gomitolo è dove va il peso sulla tavola.</div>
+  </div>
+  <div class="vista" id="v-sqe">
+    <div class="t-testa">
+      <span class="marchio">POLICETTIVO®</span>
+      <div><div class="t-tit">Overhead squat · com’è andata</div><div class="t-sub" id="sqe-sub"></div></div>
+    </div>
+    <div class="e-gom"><canvas id="sqe-cv" width="900" height="900"></canvas></div>
+    <div class="e-dx">
+      <div class="e-carico"><div class="k">Al fondo dello squat il peso va</div><div class="v" id="sqe-carico"></div></div>
+      <div class="e-omini"><div class="titolo-omini" id="sqe-tit-barre"></div><div class="sq-barre" id="sqe-barre"></div></div>
+      <div class="e-frasi" id="sqe-frasi"></div>
+    </div>
   </div>
 
   <!-- ESITO DEL TEST -->
@@ -186,6 +231,7 @@
 <div class="comandi" id="comandi">
   <button id="btn-intero">⛶ Schermo intero</button>
   <button id="btn-attesa">◻︎ Schermata d’attesa</button>
+  <button id="btn-esci">✕ Esci dalla TV</button>
 </div>
 <div class="avviso-051" id="avviso-051">⚠️ Manca la migration <b>052_tv_codice.sql</b>: la TV non si può ancora collegare col codice.</div>
 
@@ -207,7 +253,7 @@
   window.addEventListener('resize', scala); scala()
   function mostra(v){
     vistaOra = v
-    ;['attesa', 'pd', 'test', 'esito'].forEach(function(k){ $('v-' + k).classList.toggle('on', k === v) })
+    ;['attesa', 'pd', 'test', 'esito', 'sq', 'sqe'].forEach(function(k){ $('v-' + k).classList.toggle('on', k === v) })
   }
   function num(x, d){ return (x == null || isNaN(x)) ? '—' : Math.abs(Number(x)).toFixed(d == null ? 1 : d).replace('.', ',') }
 
@@ -372,6 +418,88 @@
     mostra('esito')
   }
 
+  // ═══ tv-multi-v1 · L'OVERHEAD SQUAT (arriva da prova-squat.html sullo stesso canale dei test) ═══
+  var sq = null, sqx = [], sqy = [], sqScala = 3, sqMira = 0, sqOra = 0, sqFine0 = 0
+  function omSu(ang, col, profilo){
+    var braccia = profilo
+      ? '<line x1="136" y1="104" x2="162" y2="8" stroke="' + col + '" stroke-width="12" stroke-linecap="round" opacity=".8"/>'
+      : '<line x1="118" y1="104" x2="70" y2="10" stroke="' + col + '" stroke-width="12" stroke-linecap="round" opacity=".8"/>' +
+        '<line x1="142" y1="104" x2="190" y2="10" stroke="' + col + '" stroke-width="12" stroke-linecap="round" opacity=".8"/>'
+    var gambe = profilo
+      ? '<line x1="130" y1="212" x2="130" y2="342" stroke="' + col + '" stroke-width="18" stroke-linecap="round"/><line x1="124" y1="344" x2="176" y2="344" stroke="' + col + '" stroke-width="14" stroke-linecap="round"/>'
+      : '<line x1="130" y1="206" x2="100" y2="342" stroke="' + col + '" stroke-width="16" stroke-linecap="round"/><line x1="130" y1="206" x2="160" y2="342" stroke="' + col + '" stroke-width="16" stroke-linecap="round"/>'
+    return '<line x1="30" y1="352" x2="230" y2="352" stroke="#333" stroke-width="6" stroke-linecap="round"/>' +
+      '<g transform="rotate(' + ang.toFixed(2) + ' 130 350)"><circle cx="130" cy="58" r="30" fill="' + col + '"/>' +
+      '<line x1="130" y1="92" x2="130" y2="210" stroke="' + col + '" stroke-width="20" stroke-linecap="round"/>' + braccia + gambe + '</g>'
+  }
+  var PAROLA_SQ = { inizio: 'BRACCIA SU', giu: 'GIÙ', fondo: 'FERMO', su: 'SU', piedi: 'IN PIEDI' }
+  function sqParola(v){
+    if (!sq) return ''
+    if (Math.abs(v) < 0.2) return 'AL CENTRO'
+    return sq.asse === 'rollio' ? (v > 0 ? 'A DESTRA' : 'A SINISTRA') : (v > 0 ? 'IN AVANTI' : 'INDIETRO')
+  }
+  function sqAnima(){
+    sqOra += (sqMira - sqOra) * 0.18
+    if (vistaOra === 'sq' && sq){
+      $('sq-om').innerHTML = omSu(Math.max(-18, Math.min(18, sqOra * 5)), '#FFD008', sq.asse !== 'rollio')
+      $('sq-val').textContent = num(sqOra) + '°'; $('sq-par').textContent = sqParola(sqOra)
+      var rest = Math.ceil((sqFine0 - Date.now()) / 1000)
+      $('sq-tempo').innerHTML = sqFine0 && rest >= 0 ? rest + '<small>SECONDI</small>' : ''
+    }
+    requestAnimationFrame(sqAnima)
+  }
+  requestAnimationFrame(sqAnima)
+  function onSqVia(p){
+    sq = p || {}; sqx = []; sqy = []; sqScala = 3; sqMira = 0; sqOra = 0
+    sqFine0 = sq.durata ? Date.now() + sq.durata * 1000 : 0
+    $('sq-sub').textContent = sq.asse === 'rollio' ? 'Destra – sinistra' : 'Avanti – indietro'
+    $('sq-asse-tit').textContent = sq.asse === 'rollio' ? 'Destra · Sinistra' : 'Avanti · Indietro'
+    $('sq-fase').textContent = 'BRACCIA SU'; $('sq-fase').className = 'sq-fase'
+    $('sq-rip').textContent = ''
+    $('sq-punti').innerHTML = Array.apply(null, Array(sq.n || 5)).map(function(){ return '<i></i>' }).join('')
+    if (P && P.disegna) P.disegna($('sq-cv'), sqx, sqy, sqScala, null, { parole: true, cuneo: false })
+    mostra('sq')
+  }
+  function onSqFase(p){
+    if (!sq) onSqVia({})
+    if (vistaOra !== 'sq') mostra('sq')
+    $('sq-fase').textContent = PAROLA_SQ[p.fase] || ''; $('sq-fase').className = 'sq-fase ' + (p.fase || '')
+    $('sq-rip').textContent = p.rip ? 'Ripetizione ' + p.rip + ' di ' + (sq.n || 5) : ''
+    Array.prototype.forEach.call($('sq-punti').children, function(el, i){ el.className = i + 1 < p.rip ? 'fatto' : (i + 1 === p.rip ? 'ora' : '') })
+  }
+  function onSqPunti(p){
+    if (!p || !p.x || !sq) return
+    var i
+    for (i = 0; i < p.x.length; i++){
+      var x = sq.zg != null ? (p.x[i] - sq.zg) * (sq.vg || 1) : p.x[i]
+      var y = sq.zb != null ? (p.y[i] - sq.zb) * (sq.vb || 1) : p.y[i]
+      sqx.push(x); sqy.push(y); sqScala = Math.max(sqScala, Math.abs(x), Math.abs(y))
+    }
+    var n = sqx.length, k = Math.min(n, 12), s0 = 0
+    for (i = n - k; i < n; i++) s0 += (sq.asse === 'rollio' ? sqx[i] : sqy[i])
+    sqMira = k ? s0 / k : 0
+    if (P && P.disegna) P.disegna($('sq-cv'), sqx, sqy, sqScala, null, { parole: true, cuneo: false })
+  }
+  function onSqFine(f){
+    f = f || {}; sqFine0 = 0
+    $('sqe-sub').textContent = $('sq-sub').textContent
+    if (P && P.disegna) P.disegna($('sqe-cv'), sqx, sqy, sqScala, null, { parole: true, cuneo: false })
+    $('sqe-carico').innerHTML = String(f.parola || '—').replace(/^./, function(c){ return c.toUpperCase() }) +
+      (f.parola && f.parola !== 'al centro' ? ' <span style="color:#b08a00">' + num(f.fondo) + '°</span>' : '')
+    var v = f.valori || [], mx = Math.max(3, Math.max.apply(null, v.map(function(x){ return Math.abs(x || 0) })))
+    var sx = f.asse === 'rollio' ? 'sinistra' : 'indietro', dx = f.asse === 'rollio' ? 'destra' : 'avanti'
+    $('sqe-tit-barre').textContent = 'Il fondo, una ripetizione per riga · dalla stessa parte ' + (f.stessa || 0) + ' su ' + (f.di || v.length)
+    var W = 1000, H = 36 * v.length + 30, cx = W / 2
+    $('sqe-barre').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%"><text x="6" y="16" font-size="15" fill="#888" font-family="Montserrat,sans-serif">← ' + sx + '</text>' +
+      '<text x="' + (W - 6) + '" y="16" font-size="15" fill="#888" text-anchor="end" font-family="Montserrat,sans-serif">' + dx + ' →</text>' +
+      '<line x1="' + cx + '" y1="20" x2="' + cx + '" y2="' + H + '" stroke="#ccc" stroke-width="2"/>' +
+      v.map(function(x, i){ var y = 26 + i * 36, w = Math.abs(x || 0) / mx * (W / 2 - 80)
+        return '<rect x="' + (x >= 0 ? cx : cx - w) + '" y="' + y + '" width="' + Math.max(2, w) + '" height="24" rx="6" fill="' + (Math.abs(x || 0) < (f.leggibile || 1.5) ? '#bbb' : '#e0a800') + '"/>' +
+          '<text x="' + (x >= 0 ? cx + w + 8 : cx - w - 8) + '" y="' + (y + 18) + '" font-size="17" font-weight="800" fill="#222" text-anchor="' + (x >= 0 ? 'start' : 'end') + '" font-family="Montserrat,sans-serif">' + num(x) + '°</text>' }).join('') + '</svg>'
+    $('sqe-frasi').innerHTML = (f.frasi || []).map(function(t){ return '<p>' + String(t).replace(/[&<>]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;' }[c] }) + '</p>' }).join('')
+    mostra('sqe')
+  }
+
   // ═══ I CANALI ═══
   var subTv = null, subOsc = null, canTv = null, canOsc = null
   function ascoltaTv(c){
@@ -392,6 +520,10 @@
     subOsc.on('broadcast', { event: 'via' }, function(m){ onVia(m.payload) })
     subOsc.on('broadcast', { event: 'punti' }, function(m){ onPunti(m.payload) })
     subOsc.on('broadcast', { event: 'fine' }, function(m){ onFine(m.payload) })
+    subOsc.on('broadcast', { event: 'sq-via' }, function(m){ onSqVia(m.payload) })
+    subOsc.on('broadcast', { event: 'sq-fase' }, function(m){ onSqFase(m.payload || {}) })
+    subOsc.on('broadcast', { event: 'sq-punti' }, function(m){ onSqPunti(m.payload) })
+    subOsc.on('broadcast', { event: 'sq-fine' }, function(m){ onSqFine(m.payload) })
     subOsc.subscribe()
   }
   /* ═══ tv-codice-v1 · IL COLLEGAMENTO COL CODICE ═══
@@ -459,9 +591,11 @@
     if (!window.supabase || !window.supabase.createClient){ statoAttesa('Senza rete: controlla la connessione della TV', false); return }
     SB = window.supabase.createClient(SB_URL, SB_KEY)
     SEGRETO = segreto()
-    // ⚠️ se su questa TV qualcuno era entrato con la password (tv-v1), si esce:
-    // la TV non deve tenere aperto un account intero
-    try { var ses = (await SB.auth.getSession()).data.session; if (ses) await SB.auth.signOut() } catch(e){}
+    // tv-multi-v1 · ⛔ NIENTE signOut. In tv-codice-v1 qui si usciva dall'account
+    // se ce n'era uno aperto: ma signOut di Supabase, di base, chiude TUTTE le
+    // sessioni (anche quella del telefono e del computer da cui lavori), e sul
+    // computer che fa anche da TV buttava fuori l'app. Questa pagina l'account
+    // semplicemente non lo usa: legge solo col segreto della TV.
     // non collegata: ogni 3 s (il collegamento si vede subito); collegata: ogni 8 s
     ;(async function ciclo(){ await giro(); setTimeout(ciclo, collegata ? 8000 : 3000) })()
   }
@@ -469,13 +603,21 @@
     try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen() } catch(e){}
   }
   $('btn-attesa').onclick = function(){ mostra('attesa') }
+  // tv-multi-v1 · uscire: dallo schermo intero, e dalla pagina (torna all'app)
+  $('btn-esci').onclick = function(){
+    try { if (document.fullscreenElement) document.exitFullscreen() } catch(e){}
+    if (window.opener) { try { window.close() } catch(e){} }
+    location.href = 'test.html'
+  }
+  document.addEventListener('fullscreenchange', function(){ $('btn-intero').textContent = document.fullscreenElement ? '⛶ Esci da schermo intero' : '⛶ Schermo intero' })
   // i comandi si vedono muovendo il mouse o toccando, poi spariscono
   var nasc = null
   function vediComandi(){ $('comandi').classList.add('vedi'); clearTimeout(nasc); nasc = setTimeout(function(){ $('comandi').classList.remove('vedi') }, 3000) }
   document.addEventListener('mousemove', vediComandi); document.addEventListener('keydown', vediComandi); document.addEventListener('touchstart', vediComandi)
 
   avvia()
-  window.__tv = { vista: function(){ return vistaOra }, carico: function(){ return mira }, canali: function(){ return { tv: canTv, osc: canOsc } },
+  window.__tv = { vista: function(){ return vistaOra }, codice: function(){ return collegata ? null : ($('ing-cod').textContent || '').replace(/[^A-Z0-9]/g, '') || null },
+    collegata: function(){ return collegata }, carico: function(){ return mira }, canali: function(){ return { tv: canTv, osc: canOsc } },
     pd: function(){ return { pid: pdPid, src: pdFrame ? pdFrame.getAttribute('src') : null, stato: pdStato } } }
 })()
 </script>

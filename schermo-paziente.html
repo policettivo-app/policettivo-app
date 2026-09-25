@@ -19,7 +19,7 @@
   <script src="js/misure-foto.js?v=editor-punti-v1"></script>
   <!-- editor-punti-v1 · l'editor dei punti sta in un file solo (lo usa anche la Fase 0) -->
   <script src="js/editor-punti.js?v=gradi-auto-v1"></script>
-  <!-- tv-codice-v1 (25 set: la TV si collega con un codice, senza account) · tv-v1 (24 set: TV col telecomando) · schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
+  <!-- tv-multi-v1 (25 set: TV aperta da questo computer senza codice) · tv-codice-v1 (25 set: la TV si collega con un codice, senza account) · tv-v1 (24 set: TV col telecomando) · schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
        LO SCHERMO DEL PAZIENTE: il prima e dopo dei 3 Respiri, fatto per essere
        guardato insieme, anche su una TV (duplicazione dello schermo, decisione 5A).
 
@@ -270,7 +270,9 @@
     <div id="pro-prove"></div>
     <div class="msg info" id="tv-info">
       📺 <b>Sulla TV</b>: sulla TV (browser, chiavetta o computer col cavo HDMI) apri <b>app.policettivo.it/tv.html</b>: compare un codice.
-      Premi <b>🔗 TV</b> e scrivilo, una volta sola. Poi <b>📺 Sulla TV</b>: la TV mostra quello che scorri qui, e i test li mostra da sola.
+      Premi <b>🔗 TV</b> e scrivilo, una volta sola (se la TV è attaccata a questo computer: <b>🔗 TV → Apri la TV su questo computer</b>, senza codice).
+      Poi <b>📺 Sulla TV</b>: la TV mostra quello che scorri qui, e i test (Oscillazione e squat) li mostra da sola.
+      Puoi comandarla da più dispositivi dello stesso account (telefono, computer): premi <b>📺 Sulla TV</b> una volta su ciascuno. Per spegnere: di nuovo <b>📺</b>.
       La TV non entra nel tuo account: vede solo il paziente che stai mostrando.
       Si va avanti e indietro con le frecce, con le frecce della tastiera o scorrendo col dito.
     </div>
@@ -596,7 +598,7 @@ function tvRicorda(on) {
 function tvBottone(stato) {
   const b = document.getElementById('btn-tv'); if (!b || IN_TV) return
   b.className = 'pbtn' + (stato === 'on' ? ' tv-on' : '')
-  b.textContent = stato === 'on' ? '📺 Sulla TV ✓' : (stato === 'manca' ? '📺 TV: manca la 051' : (stato === 'manca052' ? '📺 TV: manca la 052' : '📺 Sulla TV'))
+  b.textContent = stato === 'on' ? '📺 Sulla TV ✓ · spegni' : (stato === 'manca' ? '📺 TV: manca la 051' : (stato === 'manca052' ? '📺 TV: manca la 052' : '📺 Sulla TV'))
   b.title = stato === 'manca' ? 'Manca la migration 051_schermo_tv.sql nel database' : (stato === 'manca052' ? 'Manca la migration 052_tv_codice.sql nel database' : '')
 }
 let tvProf = null, tvPv = 0, tvPvNm = -1, tvCarica = null
@@ -618,6 +620,9 @@ async function accendiTv() {
     await tvSub.subscribe()
     tvBottone('on')
     tvUltimo = 0; tvPv = 0; inviaTv(true)
+    // tv-multi-v1 · anche il canale dei test: se non c'è se ne apre uno, così
+    // l'Oscillazione e lo squat vanno sulla TV da QUALUNQUE dispositivo dell'account
+    try { const c = await _sb.rpc('oscillazione_canale'); if (!c.error && !c.data) await _sb.rpc('oscillazione_apri_canale') } catch (e) {}
     return true
   } catch (e) { tvBottone('off'); return false }
 }
@@ -691,7 +696,10 @@ function apriGestioneTv() {
       '<div class="tvg-txt">Sulla TV apri <b>app.policettivo.it/tv.html</b>: compare un codice di 6 lettere. Scrivilo qui.</div>' +
       '<div class="tvg-riga"><input id="tvg-cod" maxlength="7" placeholder="ABC123" autocomplete="off" autocapitalize="characters" spellcheck="false">' +
       '<button class="pbtn giallo" id="tvg-collega" onclick="collegaTv()">Collega</button></div>' +
-      '<div class="tvg-stato" id="tvg-stato"></div><div id="tvg-elenco"></div>' +
+      '<div class="tvg-stato" id="tvg-stato"></div>' +
+      '<div class="tvg-txt" style="margin-top:4px"><b>La TV è collegata a QUESTO computer col cavo HDMI?</b> Non serve il codice:</div>' +
+      '<button class="pbtn" onclick="apriTvQui()">🖥 Apri la TV su questo computer</button>' +
+      '<div id="tvg-elenco"></div>' +
       '<button class="pbtn" onclick="document.getElementById(\'tv-gestione\').classList.remove(\'on\')">Chiudi</button></div>'
     document.body.appendChild(el)
   }
@@ -719,6 +727,26 @@ async function collegaTv() {
   st.textContent = '✓ TV collegata.'
   document.getElementById('tvg-cod').value = ''
   elencoTv()
+  if (!tvSub) { tvRicorda(true); await accendiTv() } else { tvPv = 0; inviaTv(true) }
+}
+/* tv-multi-v1 · LA TV SU QUESTO STESSO COMPUTER (cavo HDMI): si apre una
+   finestra con tv.html, si legge il suo codice e lo si conferma da qui. Nessuna
+   lettera da scrivere. La finestra si trascina sulla TV e si mette a schermo intero. */
+async function apriTvQui() {
+  const st = document.getElementById('tvg-stato')
+  const w = window.open('tv.html', 'policettivo-tv')
+  if (!w) { st.textContent = 'Il browser ha bloccato la finestra: consenti le finestre (pop-up) per questo sito e riprova.'; return }
+  st.textContent = 'Apro la TV in una finestra nuova…'
+  for (let i = 0; i < 40; i++) {
+    await new Promise(r => setTimeout(r, 500))
+    let c = null, gia = false
+    try { gia = !!(w.__tv && w.__tv.collegata && w.__tv.collegata()); c = w.__tv && w.__tv.codice ? w.__tv.codice() : null } catch (e) {}
+    if (gia) { st.textContent = '✓ La TV di questo computer è già collegata. Trascina la finestra sulla TV e premi ⛶ Schermo intero.'; break }
+    if (c && c.length === 6) {
+      const r = await _sb.rpc('tv_conferma', { p_codice: c })
+      if (r.data) { st.textContent = '✓ Collegata. Trascina la finestra sulla TV e premi ⛶ Schermo intero (Esc per uscire).'; elencoTv(); break }
+    }
+  }
   if (!tvSub) { tvRicorda(true); await accendiTv() } else { tvPv = 0; inviaTv(true) }
 }
 async function scollegaTv(id) {

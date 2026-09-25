@@ -70,6 +70,7 @@ try {
     const src = fs.readFileSync('tv.html', 'utf8')
     check('⛔ nessuna tabella letta da qui', !/\.from\(/.test(src))
     check('⛔ niente password: nessun campo, nessun signInWithPassword', !/type="password"|signInWithPassword/.test(src))
+    check('⛔ e nessun signOut (chiuderebbe TUTTE le sessioni dell’account)', !/signOut\(/.test(src))
     const rpc = [...src.matchAll(/\.rpc\(\s*'([^']+)'/g)].map(m => m[1])
     check('⭐ chiama solo le tre funzioni della TV (052)', rpc.length > 0 && rpc.every(n => /^tv_(nuovo|stato|pacchetto)$/.test(n)), rpc)
     check('⭐ sul televisore resta solo il segreto della TV', (src.match(/localStorage\.\w+\(CHIAVE_SEGRETO/g) || []).length === 2 && (src.match(/localStorage/g) || []).length === 2)
@@ -83,7 +84,9 @@ try {
     check('⭐ e dice dove scriverlo (🔗 TV sul telefono)', /🔗 TV/.test(await page.textContent('#ingresso')) && /vale ancora 10 minuti/.test(await page.textContent('#ing-scade')))
     const nuovo = (await page.evaluate(() => window.__fk.rpc)).find(r => r[0] === 'tv_nuovo')
     check('⭐ il segreto lo crea la TV: 64 caratteri casuali', nuovo && /^[0-9a-f]{64}$/.test(nuovo[1].p_segreto), nuovo)
-    check('⭐⭐ se sul televisore c’era un account aperto (password), si esce', (await page.evaluate(() => window.__fk.uscite)) === 1)
+    // tv-multi-v1 · ⛔ NON si esce dall'account: signOut chiuderebbe anche il telefono e il computer da cui lavori
+    check('⛔⭐ se sul browser c’è un account aperto NON lo chiude (è il computer da cui lavori)', (await page.evaluate(() => window.__fk.uscite)) === 0)
+    check('⭐ il codice si legge anche dalla pagina (per aprire la TV sullo stesso computer senza scriverlo)', (await page.evaluate(() => window.__tv.codice())) === 'K7P3MX')
     const seg = await page.evaluate(() => localStorage.getItem('policettivo.tv.segreto.v1'))
     await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(400)
     const seg2 = (await page.evaluate(() => window.__fk.rpc)).find(r => r[0] === 'tv_stato')[1].p_segreto
@@ -156,6 +159,34 @@ try {
     check('⭐ i tre omini', (await page.$$('#e-omini .omino')).length === 3)
     check('⭐ la spiegazione per il paziente', /Di profilo, il peso va più in AVANTI/.test(e) && /non chili/.test(e))
     await page.screenshot({ path: '_schermate/tv-esito.png' })
+    check('nessun errore JS', errori.length === 0, errori)
+    await ctx.close()
+  }
+
+  sez('⭐⭐ tv-multi-v1 · l’overhead squat sulla TV, e il pulsante per uscire')
+  {
+    const { page, ctx, errori } = await apri()
+    await page.waitForTimeout(300)
+    await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'sq-via', { asse: 'rollio', n: 5, durata: 42, zb: 1, zg: 0.5, vb: 1, vg: 1 }))
+    await page.waitForTimeout(200)
+    check('⭐ parte lo squat → la TV passa allo squat da sola', (await vista(page)) === 'sq' && /Destra – sinistra/.test(await page.textContent('#sq-sub')))
+    await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'sq-fase', { fase: 'giu', rip: 2 }))
+    await page.waitForTimeout(150)
+    check('⭐⭐ la fase in grande: «GIÙ», ripetizione 2 di 5', (await page.textContent('#sq-fase')) === 'GIÙ' && /Ripetizione 2 di 5/.test(await page.textContent('#sq-rip')) &&
+      (await page.$$eval('#sq-punti i', l => l.map(i => i.className).join(','))) === 'fatto,ora,,,')
+    await page.evaluate(() => { for (let k = 0; k < 3; k++) window.__emetti('oscillazione:OSC1', 'sq-punti', { x: Array(6).fill(2.5), y: Array(6).fill(1) }) })
+    await page.waitForTimeout(900)
+    check('⭐⭐ l’omino a braccia alzate si sposta: A DESTRA 2,0°', /2,0°/.test(await page.textContent('#sq-val')) && /A DESTRA/.test(await page.textContent('#sq-par')), await page.textContent('#sq-asse'))
+    await page.screenshot({ path: '_schermate/tv-squat.png' })
+    await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'sq-fine', { asse: 'rollio', fondo: 2.2, parola: 'più a destra', valori: [3, 3, -1, 3, 3], stessa: 4, di: 5, leggibile: 1.5,
+      frasi: ['Asse destra-sinistra. Al fondo dello squat il carico è più a destra, di 2,2°.', 'Sono gradi di inclinazione della tavola, non chili: si confrontano con le tue prove.'] }))
+    await page.waitForTimeout(500)
+    const t = await page.textContent('#v-sqe')
+    check('⭐⭐ finito → «Più a destra 2,2°», barre per ripetizione, 4 su 5', (await vista(page)) === 'sqe' && /Più a destra/.test(t) && /2,2°/.test(t) && /4 su 5/.test(t) &&
+      (await page.$$('#sqe-barre rect')).length === 5)
+    check('⛔ sulla TV niente frasi per il professionista', !/interpretazione clinica/.test(t))
+    await page.screenshot({ path: '_schermate/tv-squat-esito.png' })
+    check('⭐ c’è «✕ Esci dalla TV» e la spiegazione di Esc', await page.$('#btn-esci') !== null && /Esc/.test(await page.textContent('#v-attesa')))
     check('nessun errore JS', errori.length === 0, errori)
     await ctx.close()
   }
