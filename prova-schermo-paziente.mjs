@@ -197,6 +197,15 @@ const SUPA = ({ D, FIRME }) => {
   window.supabase = { createClient() { return {
     auth: { getSession: async () => ({ data: { session: { user: { id: 'U1', email: 'prova@studio.it' }, access_token: 'TOK' } } }) },
     from: q,
+    // tv-v1 · il canale della TV
+    rpc: async (nome) => {
+      D.rpc = (D.rpc || []).concat([nome])
+      if (nome === 'schermo_canale') return D.opts.senza051 ? { data: null, error: { message: 'Could not find the function public.schermo_canale' } } : { data: 'TV1', error: null }
+      return { data: null, error: null }
+    },
+    channel(nome) { D.canali = (D.canali || []).concat([nome]); const c = { on() { return c }, subscribe: async () => c,
+      send(m) { D.inviati = (D.inviati || []).concat([JSON.parse(JSON.stringify(m))]) } }; return c },
+    removeChannel() { D.rimossi = (D.rimossi || 0) + 1 },
     storage: { from() { return { createSignedUrls: async (paths) => ({ data: paths.map(p => ({ path: p, signedUrl: FIRME[p] || null })), error: null }) } } }
   } } }
 }
@@ -756,6 +765,52 @@ sez('gradi-foto-v1 · il motore dei gradi')
   check('⭐ il riferimento personale: orecchio ideale sulla verticale della caviglia, alla stessa altezza', Math.abs(rf.fantasmi[0].ideale.x - 0.5) < 1e-9 && Math.abs(rf.fantasmi[0].ideale.y - p.orecchio.y) < 1e-9, rf.fantasmi[0])
   const po = fs.readFileSync(path.join(ROOT, 'js/postural-overlay.js'), 'utf8')
   check('⭐ i punti del modello vengono dallo STESSO file dell’analisi posturale (un landmarker solo)', /export async function puntiMediaPipe/.test(po) && /export async function generateOverlay/.test(po))
+}
+
+sez('⭐⭐ tv-v1 · il telecomando: «📺 Sulla TV» manda alla TV quello che scorri')
+{
+  const { page, ctx, errori } = await apri(browser, { misure: true })
+  check('⭐ c’è «📺 Sulla TV» nella barra', await page.isVisible('#btn-tv'))
+  check('⭐ e sotto il palco spiega come aprire la TV (tv.html)', /tv\.html/.test(await page.textContent('#tv-info')))
+  await page.click('#btn-tv'); await page.waitForTimeout(300)
+  let D = await page.evaluate(() => window.__D)
+  check('⭐ chiede il canale della TV (051) e lo apre', (D.rpc || []).includes('schermo_canale') && (D.canali || []).includes('schermo:TV1'), [D.rpc, D.canali])
+  check('⭐ il pulsante dice che è acceso', /Sulla TV ✓/.test(await page.textContent('#btn-tv')))
+  const primo = (D.inviati || []).slice(-1)[0]
+  check('⭐⭐ manda subito dove siamo: «Prima e dopo», paziente, giorno, pagina', primo && primo.event === 'mostra' && primo.payload.tipo === 'prima-dopo' &&
+    primo.payload.pid === PID && !!primo.payload.giorno && primo.payload.slide === 'copertina', primo)
+  check('⛔ niente nomi sul canale', !/Anna|Bianchi|Mario|Rossi/.test(JSON.stringify(D.inviati)))
+  await vaiA(page, 'foto:sagittale_dx'); await page.waitForTimeout(250)
+  D = await page.evaluate(() => window.__D)
+  check('⭐⭐ cambi pagina → la TV la riceve', D.inviati.slice(-1)[0].payload.slide === 'foto:sagittale_dx', D.inviati.slice(-1)[0])
+  await page.click('.slide.on .modo button.gr'); await page.waitForTimeout(400)
+  D = await page.evaluate(() => window.__D)
+  check('⭐ accendi i gradi → la TV li accende', D.inviati.slice(-1)[0].payload.gradi.sagittale_dx === true)
+  const ls = await page.evaluate(() => [localStorage.getItem('policettivo.tv.v1'), localStorage.getItem('policettivo.diretta.v1')])
+  check('⭐ si ricorda acceso (e accende anche la diretta dei test)', ls[0] === 'on' && ls[1] === 'on', ls)
+  await page.click('#btn-tv'); await page.waitForTimeout(200)
+  D = await page.evaluate(() => window.__D)
+  check('⭐ spento → la TV torna alla schermata d’attesa', D.inviati.slice(-1)[0].payload.tipo === 'attesa' && /📺 Sulla TV$/.test((await page.textContent('#btn-tv')).trim()))
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐⭐ tv-v1 · la stessa pagina DENTRO la TV: solo il palco, e va dove dice il telecomando')
+{
+  const { page, ctx, errori } = await apri(browser, { misure: true }, '&tv=1')
+  check('⭐ niente barra né comandi: solo il palco', await page.evaluate(() => document.body.classList.contains('tv') && document.body.classList.contains('grande')) &&
+    !(await page.isVisible('#pro-bar')) && !(await page.isVisible('#nav-dx')))
+  const g = await page.evaluate(() => giorni[sel].chiave)
+  await page.evaluate(g => window.__tvApplica({ giorno: g, slide: 'foto:sagittale_dx', gradi: { sagittale_dx: true }, rif: {}, modo: {} }), g)
+  await page.waitForTimeout(500)
+  check('⭐⭐ va sulla pagina scelta', await page.evaluate(() => slides[corrente]) === 'foto:sagittale_dx')
+  check('⭐ coi gradi accesi', /Orecchio rispetto alla spalla/.test(await testoSlide(page)))
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+  const b = await apri(browser, { senza051: true })
+  await b.page.click('#btn-tv'); await b.page.waitForTimeout(300)
+  check('⭐ senza la 051 il pulsante lo dice', /manca la 051/.test(await b.page.textContent('#btn-tv')))
+  await b.ctx.close()
 }
 
 sez('⭐ Un paziente senza niente di registrato')

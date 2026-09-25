@@ -19,7 +19,7 @@
   <script src="js/misure-foto.js?v=editor-punti-v1"></script>
   <!-- editor-punti-v1 · l'editor dei punti sta in un file solo (lo usa anche la Fase 0) -->
   <script src="js/editor-punti.js?v=gradi-auto-v1"></script>
-  <!-- schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
+  <!-- tv-v1 (24 set: TV col telecomando) · schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
        LO SCHERMO DEL PAZIENTE: il prima e dopo dei 3 Respiri, fatto per essere
        guardato insieme, anche su una TV (duplicazione dello schermo, decisione 5A).
 
@@ -174,6 +174,10 @@
     .esci-grande { position: absolute; top: 18px; right: 18px; z-index: 6; width: 52px; height: 52px; border-radius: 50%; border: none;
       background: rgba(255,255,255,.08); color: #fff; font-size: 24px; cursor: pointer; display: none; }
     body.grande .esci-grande { display: block; }
+    /* tv-v1 · dentro la TV: solo il palco, niente comandi (li ha il telecomando) */
+    body.tv .esci-grande, body.tv .nav-freccia { display: none !important; }
+    body.tv .riga-basso .modo button { pointer-events: none; }
+    .pbtn.tv-on { background: #0f2a1c; border-color: #1d5c47; color: #6ee7a8; }
 
     /* ── sotto il palco: solo per il professionista ── */
     .pro-sotto { max-width: 1100px; margin: 0 auto; padding: 16px 14px 60px; }
@@ -233,6 +237,7 @@
   <div class="pro-bar" id="pro-bar">
     <span class="pro-logo">POLICETTIVO®</span>
     <span class="pro-nome" id="pro-nome">Caricamento…</span>
+    <button class="pbtn" id="btn-tv" onclick="toggleTv()">📺 Sulla TV</button>
     <button class="pbtn giallo" id="btn-grande" onclick="entraGrande()">⛶ Schermo grande</button>
     <button class="pbtn" onclick="tornaIndietro()">← Chiudi</button>
   </div>
@@ -253,9 +258,9 @@
     <div class="lbl">Giorno da mostrare</div>
     <div class="giorni" id="giorni"></div>
     <div id="pro-prove"></div>
-    <div class="msg info">
-      📺 <b>Per vederlo sulla TV</b>: duplica lo schermo (iPhone/iPad: Centro di Controllo → <b>Duplica schermo</b>;
-      Android: <b>Trasmetti schermo</b>; computer: cavo HDMI), poi premi <b>⛶ Schermo grande</b>.
+    <div class="msg info" id="tv-info">
+      📺 <b>Sulla TV</b>: sulla TV (browser, chiavetta o computer col cavo HDMI) apri <b>app.policettivo.it/tv.html</b> col tuo account,
+      una volta sola. Poi qui premi <b>📺 Sulla TV</b>: la TV mostra quello che scorri qui, e i test li mostra da sola.
       Si va avanti e indietro con le frecce, con le frecce della tastiera o scorrendo col dito.
     </div>
   </div>
@@ -496,7 +501,85 @@ async function init() {
   else if (giornoQ) { const i = giorni.findIndex(g => g.giorno === giornoQ); if (i >= 0) sel = i }
   disegnaGiorni()
   costruisci()
+  tvPronta()
 }
+
+/* ═══ tv-v1 · LA TV E IL TELECOMANDO ════════════════════════════════════
+   Questa stessa pagina fa due mestieri.
+   • ?tv=1 — è DENTRO la TV (tv.html la apre in un riquadro): solo il palco,
+     e __tvApplica(stato) la porta dove dice il telecomando.
+   • normale — è il TELECOMANDO: con «📺 Sulla TV» acceso, ogni pagina, giorno,
+     gradi o riferimento che scegli qui va sulla TV.
+   Sul canale (schermo:<uuid dell'account>, migration 051) passano solo COMANDI:
+   l'id del paziente, il giorno, la pagina. Niente nomi, niente foto: le foto la
+   TV le legge dal database col tuo account, come questa pagina. */
+const IN_TV = params.get('tv') === '1'
+if (IN_TV) document.body.classList.add('grande', 'tv')
+let tvAttesa = null, tvPronto = false
+function tvPronta() { tvPronto = true; if (tvAttesa) { const st = tvAttesa; tvAttesa = null; window.__tvApplica(st) } }
+window.__tvApplica = function (st) {
+  if (!st) return
+  if (!tvPronto || !giorni.length) { tvAttesa = st; return }
+  const i = giorni.findIndex(g => g.chiave === st.giorno)
+  if (i >= 0) sel = i
+  vediGradi = Object.assign({}, st.gradi || {}); vediRif = Object.assign({}, st.rif || {}); modoFoto = Object.assign({}, st.modo || {})
+  costruisci()
+  const k = slides.indexOf(st.slide)
+  vai(k >= 0 ? k : 0, true)
+}
+window.__tvPronta = function () { return tvPronto }
+
+const CHIAVE_TV = 'policettivo.tv.v1'
+let tvCanale = null, tvSub = null, tvUltimo = 0, tvTimer = null
+function tvRicordata() { try { return localStorage.getItem(CHIAVE_TV) === 'on' } catch (e) { return false } }
+function tvRicorda(on) {
+  try {
+    localStorage.setItem(CHIAVE_TV, on ? 'on' : 'off')
+    // con la TV accesa anche i test vanno sulla TV: la diretta dell'Oscillazione si riaccende da sola
+    if (on) localStorage.setItem('policettivo.diretta.v1', 'on')
+  } catch (e) {}
+}
+function tvBottone(stato) {
+  const b = document.getElementById('btn-tv'); if (!b || IN_TV) return
+  b.className = 'pbtn' + (stato === 'on' ? ' tv-on' : '')
+  b.textContent = stato === 'on' ? '📺 Sulla TV ✓' : (stato === 'manca' ? '📺 TV: manca la 051' : '📺 Sulla TV')
+  b.title = stato === 'manca' ? 'Manca la migration 051_schermo_tv.sql nel database' : ''
+}
+async function accendiTv() {
+  try {
+    const r = await _sb.rpc('schermo_canale')
+    if (r.error || !r.data) { tvBottone(r.error && /schermo_canale/.test(r.error.message || '') ? 'manca' : 'off'); return false }
+    tvCanale = r.data
+    tvSub = _sb.channel('schermo:' + tvCanale, { config: { broadcast: { self: false } } })
+    await tvSub.subscribe()
+    tvBottone('on')
+    tvUltimo = 0; inviaTv(true)
+    return true
+  } catch (e) { tvBottone('off'); return false }
+}
+function spegniTv() {
+  try { if (tvSub) tvSub.send({ type: 'broadcast', event: 'mostra', payload: { tipo: 'attesa' } }) } catch (e) {}
+  try { if (tvSub) _sb.removeChannel(tvSub) } catch (e) {}
+  tvSub = null; tvCanale = null; tvBottone('off')
+}
+async function toggleTv() {
+  if (tvSub) { tvRicorda(false); spegniTv(); return }
+  tvRicorda(true)
+  await accendiTv()
+}
+function statoTv() {
+  const g = giorni[sel]
+  return { tipo: 'prima-dopo', pid: patientId, giorno: g ? g.chiave : null, slide: slides[corrente] || null,
+    gradi: vediGradi, rif: vediRif, modo: modoFoto, nm: Object.keys(misure).length }
+}
+// non più di un messaggio ogni 150 ms: scorrendo veloce arriva l'ultimo
+function inviaTv(subito) {
+  if (IN_TV || !tvSub) return
+  clearTimeout(tvTimer)
+  const manda = function () { tvUltimo = Date.now(); try { tvSub.send({ type: 'broadcast', event: 'mostra', payload: statoTv() }) } catch (e) {} }
+  if (subito || Date.now() - tvUltimo > 150) manda(); else tvTimer = setTimeout(manda, 150)
+}
+if (!IN_TV && tvRicordata()) setTimeout(accendiTv, 0)
 
 // ── I GIORNI (per il professionista) ──────────────────────
 function disegnaGiorni() {
@@ -910,6 +993,7 @@ function vai(i, subito) {
   aggiornaFrecce()
   setTimeout(allineaTutto, 30)
   setTimeout(disegnaSovra, 40)
+  inviaTv()
 }
 function aggiornaFrecce() {
   document.getElementById('nav-sx').disabled = corrente <= 0

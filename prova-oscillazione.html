@@ -2302,8 +2302,12 @@
     ultimoInvio = 0; inviatiFino = 0
     if (!canaleSub) return
     try {
+      // tv-v1 · anche lo zero della tavola e il verso: la TV raddrizza i punti
+      // (arrivano grezzi) e muove gli omini dalla parte giusta
+      var ztv = zeriTavola[chiaveZero(evento)] || null
       canaleSub.send({ type:'broadcast', event:'via', payload:{
         evento: evento, occhi: eTest(evento) ? occhi : '-', durata: dur,
+        zb: ztv ? r2(ztv.beta) : null, zg: ztv ? r2(ztv.gamma) : null, vb: verso.beta, vg: verso.gamma,
         soglia: Math.abs(parseFloat(String($('soglia').value).replace(',', '.'))) || 0
       }})
     } catch(e){}

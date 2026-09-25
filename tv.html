@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Policettivo® — Schermo</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- tv-v1 (24 settembre 2026) — LO SCHERMO DEL PAZIENTE, COMANDATO DAL TELEFONO
+     Decisioni di Giuliano (tutte A):
+       1A una pagina dell'app aperta sulla TV col proprio account (browser della
+          Smart TV, chiavetta con browser, o computer col cavo HDMI: è una pagina
+          web, va su tutti e tre);
+       2A il telecomando è il telefono: «📺 Sulla TV» in «Prima e dopo», e la TV
+          segue le pagine; i test vanno sulla TV da soli;
+       3A sul canale solo COMANDI: le foto la TV le legge dal database (RLS);
+       4A test in diretta: omino di profilo a SINISTRA (avanti-indietro), omino
+          di fronte a DESTRA (destra-sinistra), l'asse del test evidenziato;
+       5A prima «Prima e dopo» e Oscillazione, poi il resto.
+     Due canali:
+       schermo:<uuid>      (051) — i comandi del telecomando; lo conosce solo l'account
+       oscillazione:<uuid> (046) — la diretta dei test; solo angoli
+     Qui si vedono SOLO le viste per il paziente: mai anamnesi, note, contabilità. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/oscillazione.js?v=referto-paziente-v1"></script>
+<style>
+  :root{--giallo:#FFD008;--fondo:#070707;--carta:#121212;--riga:#262626;--testo:#fff;--testo2:#b8b8b8;--testo3:#777}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;color:var(--testo);font-family:Montserrat,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+  button{font-family:inherit}
+  /* il palco 1600×900, scalato sullo schermo: stessa misura di «Prima e dopo» */
+  .palco{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:0 0;overflow:hidden;
+         background:radial-gradient(1100px 700px at 50% 42%,#1a1a1a 0%,#080808 62%,#000 100%)}
+  .vista{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .6s ease}
+  .vista.on{opacity:1;pointer-events:auto}
+  .marchio{display:inline-block;background:var(--giallo);color:#000;font-weight:900;letter-spacing:3px;border-radius:6px}
+  /* ── ATTESA ── */
+  #v-attesa canvas{position:absolute;inset:0;width:1600px;height:900px}
+  .att-centro{position:absolute;left:0;right:0;top:250px;text-align:center}
+  .att-centro .marchio{font-size:22px;padding:9px 18px}
+  .att-tit{font-size:92px;font-weight:900;letter-spacing:-1px;margin-top:26px;line-height:1}
+  .att-tit span{color:var(--giallo)}
+  .att-sub{font-size:26px;color:var(--testo2);margin-top:22px;letter-spacing:6px;text-transform:uppercase;font-weight:600}
+  .att-piede{position:absolute;left:60px;right:60px;bottom:46px;display:flex;justify-content:space-between;align-items:flex-end;color:var(--testo3);font-size:18px}
+  .att-ora{font-size:54px;font-weight:800;color:#e8e8e8;font-variant-numeric:tabular-nums;line-height:1}
+  .punto{display:inline-block;width:12px;height:12px;border-radius:50%;background:#555;margin-right:10px;vertical-align:middle}
+  .punto.ok{background:#3ddc84;box-shadow:0 0 14px #3ddc84}
+  /* ── PRIMA E DOPO ── */
+  #v-pd iframe{position:absolute;inset:0;width:1600px;height:900px;border:0;background:#000}
+  /* ── TEST IN DIRETTA ── */
+  .t-testa{position:absolute;left:60px;right:60px;top:38px;display:flex;align-items:center;gap:22px}
+  .t-testa .marchio{font-size:15px;padding:6px 12px}
+  .t-tit{font-size:34px;font-weight:900}
+  .t-sub{font-size:19px;color:var(--testo2);margin-top:2px;font-weight:600}
+  .t-tempo{margin-left:auto;text-align:right;font-weight:900;color:var(--giallo);font-size:96px;line-height:.9;font-variant-numeric:tabular-nums}
+  .t-tempo small{display:block;font-size:15px;color:var(--testo3);letter-spacing:3px}
+  .gomitolo{position:absolute;left:490px;top:150px;width:620px;height:620px;border-radius:28px;background:#fff;
+            box-shadow:0 0 0 1px rgba(255,208,8,.35),0 40px 120px rgba(0,0,0,.7),0 0 90px rgba(255,208,8,.10)}
+  .gomitolo canvas{width:620px;height:620px;border-radius:28px;display:block}
+  .asse{position:absolute;top:150px;width:360px;height:620px;border-radius:28px;background:linear-gradient(180deg,#151515,#0c0c0c);
+        border:1px solid var(--riga);text-align:center;padding-top:28px;transition:opacity .4s,border-color .4s,box-shadow .4s}
+  .asse.sx{left:80px}.asse.dx{right:80px}
+  .asse.test{border-color:var(--giallo);box-shadow:0 0 0 1px var(--giallo),0 0 60px rgba(255,208,8,.14)}
+  .asse.fuori{opacity:.42}
+  .asse-tit{font-size:18px;font-weight:800;letter-spacing:3px;color:var(--testo2);text-transform:uppercase}
+  .asse.test .asse-tit{color:var(--giallo)}
+  .asse svg{display:block;margin:18px auto 0}
+  .asse-val{font-size:44px;font-weight:900;margin-top:6px;font-variant-numeric:tabular-nums}
+  .asse-par{font-size:22px;font-weight:800;color:var(--testo2);letter-spacing:2px;margin-top:2px}
+  .t-piede{position:absolute;left:0;right:0;bottom:44px;text-align:center;font-size:21px;color:var(--testo2)}
+  .t-piede b{color:#fff}
+  /* ── ESITO ── */
+  .e-gom{position:absolute;left:60px;top:150px;width:560px;height:560px;border-radius:26px;background:#fff;overflow:hidden;
+         box-shadow:0 0 0 1px rgba(255,208,8,.35),0 40px 120px rgba(0,0,0,.7)}
+  .e-gom canvas{width:560px;height:560px;display:block}
+  .e-dx{position:absolute;left:660px;right:60px;top:150px}
+  .e-carico{border-radius:22px;padding:18px 24px;background:#fff;color:#111;border-left:10px solid var(--giallo)}
+  .e-carico .k{font-size:15px;letter-spacing:2.5px;text-transform:uppercase;color:#777;font-weight:800}
+  .e-carico .v{font-size:58px;font-weight:900;line-height:1.05;margin-top:4px}
+  .e-omini .titolo-omini{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:var(--testo2);font-weight:800;margin:18px 0 8px}
+  .e-omini .omini{display:flex;gap:12px}
+  .e-omini .omino{flex:1;background:#fff;color:#111;border-radius:18px;padding:10px 6px 12px;text-align:center}
+  .e-omini .omino svg{height:118px}
+  .e-omini .cap{font-size:14px;font-weight:800;letter-spacing:1px;color:#555}
+  .e-omini .cap-num{font-size:30px;font-weight:900}
+  .e-omini .cap-min{font-size:12px;color:#999}
+  .e-frasi{margin-top:16px;background:#fffdf2;color:#111;border-radius:18px;padding:14px 20px;border-left:6px solid var(--giallo);font-size:19px;line-height:1.5}
+  .e-frasi p{margin:0 0 6px}.e-frasi p:last-child{margin:0;color:#777;font-style:italic;font-size:16px}
+  .e-tiles{display:flex;gap:12px;margin-top:14px}
+  .e-tiles div{flex:1;background:#141414;border:1px solid var(--riga);border-radius:16px;padding:12px;text-align:center}
+  .e-tiles b{display:block;font-size:32px;font-weight:900;font-variant-numeric:tabular-nums}
+  .e-tiles span{font-size:13px;color:var(--testo2)}
+  /* ── COLLEGAMENTO (fuori dal palco: si usa col telecomando della TV) ── */
+  .ingresso{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#000;z-index:20}
+  .ingresso.on{display:flex}
+  .ing-box{width:min(560px,92vw);text-align:center}
+  .ing-box .marchio{font-size:14px;padding:6px 12px}
+  .ing-box h1{font-size:32px;margin:18px 0 8px}
+  .ing-box p{color:var(--testo2);font-size:17px;line-height:1.5;margin-bottom:18px}
+  .ing-box input{width:100%;padding:16px;border-radius:12px;border:1.5px solid #333;background:#111;color:#fff;font-size:20px;margin-bottom:10px;font-family:inherit}
+  .ing-box button{width:100%;padding:17px;border:0;border-radius:12px;background:var(--giallo);color:#000;font-size:19px;font-weight:900;cursor:pointer}
+  .ing-err{color:#ff9c9c;margin-top:10px;min-height:22px}
+  .comandi{position:fixed;left:16px;bottom:14px;z-index:30;display:flex;gap:8px;opacity:.0;transition:opacity .3s}
+  body:hover .comandi,.comandi.vedi{opacity:1}
+  .comandi button{background:rgba(20,20,20,.85);border:1px solid #333;color:#ddd;border-radius:999px;padding:10px 16px;font-size:14px;cursor:pointer}
+  .avviso-051{position:fixed;right:16px;bottom:14px;z-index:30;background:#2a1111;color:#ffb4b4;border:1px solid #a3271c;border-radius:12px;padding:10px 14px;font-size:14px;display:none}
+</style>
+</head>
+<body>
+<div class="palco" id="palco">
+
+  <!-- ATTESA -->
+  <div class="vista on" id="v-attesa">
+    <canvas id="att-cv" width="1600" height="900"></canvas>
+    <div class="att-centro">
+      <span class="marchio">POLICETTIVO®</span>
+      <div class="att-tit">Sistema <span>Policettivo®</span></div>
+      <div class="att-sub">Postura · Equilibrio · Movimento</div>
+    </div>
+    <div class="att-piede">
+      <div><span class="punto" id="att-punto"></span><span id="att-stato">collegamento…</span></div>
+      <div style="text-align:right"><div class="att-ora" id="att-ora"></div><div id="att-data"></div></div>
+    </div>
+  </div>
+
+  <!-- PRIMA E DOPO: la stessa pagina di sempre, in modalità TV -->
+  <div class="vista" id="v-pd"></div>
+
+  <!-- TEST IN DIRETTA -->
+  <div class="vista" id="v-test">
+    <div class="t-testa">
+      <span class="marchio">POLICETTIVO®</span>
+      <div><div class="t-tit">Oscillazione Policettiva</div><div class="t-sub" id="t-sub"></div></div>
+      <div class="t-tempo" id="t-tempo"></div>
+    </div>
+    <div class="asse sx" id="asse-ap">
+      <div class="asse-tit">Avanti · Indietro</div>
+      <svg id="om-profilo" width="260" height="380" viewBox="0 0 260 380"></svg>
+      <div class="asse-val" id="val-ap">0,0°</div>
+      <div class="asse-par" id="par-ap">AL CENTRO</div>
+    </div>
+    <div class="gomitolo"><canvas id="t-cv" width="900" height="900"></canvas></div>
+    <div class="asse dx" id="asse-ds">
+      <div class="asse-tit">Destra · Sinistra</div>
+      <svg id="om-fronte" width="260" height="380" viewBox="0 0 260 380"></svg>
+      <div class="asse-val" id="val-ds">0,0°</div>
+      <div class="asse-par" id="par-ds">AL CENTRO</div>
+    </div>
+    <div class="t-piede">Il <b>gomitolo</b> è il percorso del peso sulla tavola: più è piccolo, più il corpo sta fermo.</div>
+  </div>
+
+  <!-- ESITO DEL TEST -->
+  <div class="vista" id="v-esito">
+    <div class="t-testa">
+      <span class="marchio">POLICETTIVO®</span>
+      <div><div class="t-tit">Com’è andata</div><div class="t-sub" id="e-sub"></div></div>
+    </div>
+    <div class="e-gom"><canvas id="e-cv" width="900" height="900"></canvas></div>
+    <div class="e-dx">
+      <div class="e-carico"><div class="k">Dove sta il peso</div><div class="v" id="e-carico"></div></div>
+      <div class="e-omini" id="e-omini"></div>
+      <div class="e-tiles" id="e-tiles"></div>
+      <div class="e-frasi" id="e-frasi"></div>
+    </div>
+  </div>
+</div>
+
+<div class="ingresso" id="ingresso">
+  <div class="ing-box">
+    <span class="marchio">POLICETTIVO®</span>
+    <h1>Collega questa TV</h1>
+    <p>Entra una volta sola col tuo account: la TV resterà collegata. Poi dal telefono premi <b>📺 Sulla TV</b>.</p>
+    <input type="email" id="ing-email" placeholder="email" autocomplete="username">
+    <input type="password" id="ing-pass" placeholder="password" autocomplete="current-password">
+    <button id="ing-entra">Collega</button>
+    <div class="ing-err" id="ing-err"></div>
+  </div>
+</div>
+
+<div class="comandi" id="comandi">
+  <button id="btn-intero">⛶ Schermo intero</button>
+  <button id="btn-attesa">◻︎ Schermata d’attesa</button>
+</div>
+<div class="avviso-051" id="avviso-051">⚠️ Manca la migration <b>051_schermo_tv.sql</b>: la TV mostra i test, non ancora «Prima e dopo».</div>
+
+<script>
+;(function(){
+  'use strict'
+  var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  var $ = function(id){ return document.getElementById(id) }
+  var P = window.PolOscillazione
+  var SB = null
+  var vistaOra = 'attesa'
+
+  // ── il palco scalato sulla TV ──
+  function scala(){
+    var w = window.innerWidth, h = window.innerHeight, s = Math.min(w / 1600, h / 900)
+    $('palco').style.transform = 'translate(' + ((w - 1600 * s) / 2) + 'px,' + ((h - 900 * s) / 2) + 'px) scale(' + s + ')'
+  }
+  window.addEventListener('resize', scala); scala()
+  function mostra(v){
+    vistaOra = v
+    ;['attesa', 'pd', 'test', 'esito'].forEach(function(k){ $('v-' + k).classList.toggle('on', k === v) })
+  }
+  function num(x, d){ return (x == null || isNaN(x)) ? '—' : Math.abs(Number(x)).toFixed(d == null ? 1 : d).replace('.', ',') }
+
+  // ═══ ATTESA: il marchio, l'ora, e un gomitolo che si disegna piano ═══
+  var attT = 0
+  function attesaAnima(){
+    var cv = $('att-cv'), c = cv.getContext('2d')
+    c.fillStyle = 'rgba(0,0,0,0.012)'; c.fillRect(0, 0, 1600, 900)
+    if (vistaOra === 'attesa'){
+      for (var k = 0; k < 3; k++){
+        attT += 0.006
+        var r = 250 + 40 * Math.sin(attT * 0.37)
+        var x = 800 + r * Math.sin(attT * 1.9) * Math.cos(attT * 0.23)
+        var y = 450 + r * 0.72 * Math.sin(attT * 2.7 + 0.8)
+        var x2 = 800 + r * Math.sin((attT + 0.006) * 1.9) * Math.cos((attT + 0.006) * 0.23)
+        var y2 = 450 + r * 0.72 * Math.sin((attT + 0.006) * 2.7 + 0.8)
+        c.strokeStyle = 'rgba(255,208,8,0.34)'; c.lineWidth = 2.4; c.lineCap = 'round'
+        c.beginPath(); c.moveTo(x, y); c.lineTo(x2, y2); c.stroke()
+      }
+    }
+    requestAnimationFrame(attesaAnima)
+  }
+  requestAnimationFrame(attesaAnima)
+  function orologio(){
+    var d = new Date()
+    $('att-ora').textContent = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+    $('att-data').textContent = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
+  }
+  orologio(); setInterval(orologio, 10000)
+  function statoAttesa(t, ok){ $('att-stato').textContent = t; $('att-punto').className = 'punto' + (ok ? ' ok' : '') }
+
+  // ═══ PRIMA E DOPO: la pagina di sempre, dentro un riquadro, in modalità TV ═══
+  var pdPid = null, pdNm = -1, pdFrame = null, pdStato = null
+  function applicaPd(st){
+    pdStato = st
+    var w = pdFrame && pdFrame.contentWindow
+    if (w && w.__tvApplica && w.__tvPronta && w.__tvPronta()){ try { w.__tvApplica(st) } catch(e){} return }
+    setTimeout(function(){ if (pdStato === st) applicaPd(st) }, 250)
+  }
+  function mostraPd(st){
+    if (!st.pid) return
+    // paziente nuovo, o gradi misurati dopo che la TV aveva caricato: si ricarica
+    if (!pdFrame || st.pid !== pdPid || (st.nm || 0) > pdNm){
+      pdPid = st.pid; pdNm = st.nm || 0
+      $('v-pd').innerHTML = ''
+      pdFrame = document.createElement('iframe')
+      pdFrame.setAttribute('title', 'Prima e dopo')
+      pdFrame.src = 'schermo-paziente.html?id=' + encodeURIComponent(st.pid) + '&tv=1'
+      $('v-pd').appendChild(pdFrame)
+    }
+    mostra('pd')
+    applicaPd(st)
+  }
+
+  // ═══ TEST IN DIRETTA: il gomitolo al centro, due omini che si muovono ═══
+  var xs = [], ys = [], scalaG = 3, test = null, fine0 = 0, inCorso = false, ultimoDato = 0
+  var mira = { ap: 0, ds: 0 }, ora = { ap: 0, ds: 0 }
+  function omProfilo(ang, col){
+    return '<line x1="30" y1="352" x2="230" y2="352" stroke="#333" stroke-width="6" stroke-linecap="round"/>' +
+      '<g transform="rotate(' + ang.toFixed(2) + ' 130 350)">' +
+        '<circle cx="130" cy="58" r="30" fill="' + col + '"/>' +
+        '<line x1="130" y1="92" x2="130" y2="212" stroke="' + col + '" stroke-width="20" stroke-linecap="round"/>' +
+        '<line x1="130" y1="112" x2="160" y2="200" stroke="' + col + '" stroke-width="12" stroke-linecap="round" opacity=".7"/>' +
+        '<line x1="130" y1="212" x2="130" y2="342" stroke="' + col + '" stroke-width="18" stroke-linecap="round"/>' +
+        '<line x1="124" y1="344" x2="176" y2="344" stroke="' + col + '" stroke-width="14" stroke-linecap="round"/>' +
+      '</g>'
+  }
+  function omFronte(ang, col){
+    return '<line x1="30" y1="352" x2="230" y2="352" stroke="#333" stroke-width="6" stroke-linecap="round"/>' +
+      '<g transform="rotate(' + ang.toFixed(2) + ' 130 350)">' +
+        '<circle cx="130" cy="58" r="30" fill="' + col + '"/>' +
+        '<line x1="130" y1="92" x2="130" y2="206" stroke="' + col + '" stroke-width="20" stroke-linecap="round"/>' +
+        '<line x1="130" y1="112" x2="92" y2="206" stroke="' + col + '" stroke-width="12" stroke-linecap="round" opacity=".7"/>' +
+        '<line x1="130" y1="112" x2="168" y2="206" stroke="' + col + '" stroke-width="12" stroke-linecap="round" opacity=".7"/>' +
+        '<line x1="130" y1="206" x2="100" y2="342" stroke="' + col + '" stroke-width="16" stroke-linecap="round"/>' +
+        '<line x1="130" y1="206" x2="160" y2="342" stroke="' + col + '" stroke-width="16" stroke-linecap="round"/>' +
+      '</g>'
+  }
+  // il carico degli ultimi 0,8 s: quello che il paziente sta facendo ADESSO
+  function caricoOra(){
+    var n = xs.length, k = Math.min(n, 16), sx = 0, sy = 0, i
+    if (!k) return { ds: 0, ap: 0 }
+    for (i = n - k; i < n; i++){ sx += xs[i]; sy += ys[i] }
+    return { ds: sx / k, ap: sy / k }
+  }
+  function parola(asse, v){
+    if (Math.abs(v) < 0.2) return 'AL CENTRO'
+    if (asse === 'ap') return v > 0 ? 'IN AVANTI' : 'INDIETRO'
+    return v > 0 ? 'A DESTRA' : 'A SINISTRA'
+  }
+  function animaOmini(){
+    ora.ap += (mira.ap - ora.ap) * 0.18; ora.ds += (mira.ds - ora.ds) * 0.18
+    if (vistaOra === 'test'){
+      var lim = function(v){ return Math.max(-18, Math.min(18, v * 5)) }
+      var colAp = test && test.evento === 'rollio' ? '#9a9a9a' : '#FFD008'
+      var colDs = test && test.evento === 'rollio' ? '#FFD008' : '#9a9a9a'
+      $('om-profilo').innerHTML = omProfilo(lim(ora.ap), colAp)
+      $('om-fronte').innerHTML = omFronte(lim(ora.ds), colDs)
+      $('val-ap').textContent = num(ora.ap) + '°'; $('par-ap').textContent = parola('ap', ora.ap)
+      $('val-ds').textContent = num(ora.ds) + '°'; $('par-ds').textContent = parola('ds', ora.ds)
+      var rest = Math.ceil((fine0 - Date.now()) / 1000)
+      $('t-tempo').innerHTML = inCorso && fine0 ? Math.max(0, rest) + '<small>SECONDI</small>' : ''
+    }
+    requestAnimationFrame(animaOmini)
+  }
+  requestAnimationFrame(animaOmini)
+  function disegnaGomitolo(cv){ if (P && P.disegna) P.disegna(cv, xs, ys, scalaG, null, { parole: true, soglia: test && test.soglia || 0, cuneo: false }) }
+
+  function onVia(p){
+    test = p || {}
+    xs = []; ys = []; scalaG = 3; inCorso = true; ultimoDato = Date.now()
+    fine0 = test.durata ? Date.now() + test.durata * 1000 : 0
+    mira = { ap: 0, ds: 0 }; ora = { ap: 0, ds: 0 }
+    $('t-sub').textContent = (test.evento === 'rollio' ? 'Rollio · destra–sinistra' : 'Beccheggio · avanti–indietro') +
+      (test.occhi && test.occhi !== '-' ? ' · occhi ' + test.occhi : '')
+    $('asse-ap').className = 'asse sx ' + (test.evento === 'rollio' ? 'fuori' : 'test')
+    $('asse-ds').className = 'asse dx ' + (test.evento === 'rollio' ? 'test' : 'fuori')
+    disegnaGomitolo($('t-cv'))
+    mostra('test')
+  }
+  function onPunti(p){
+    if (!p || !p.x) return
+    if (!test) onVia({})
+    if (vistaOra !== 'test') mostra('test')
+    ultimoDato = Date.now()
+    // i punti arrivano GREZZI: si raddrizzano con lo zero della tavola e il verso della taratura
+    var zb = test.zb, zg = test.zg, vb = test.vb || 1, vg = test.vg || 1, i
+    for (i = 0; i < p.x.length; i++){
+      var x = zg != null ? (p.x[i] - zg) * vg : p.x[i]
+      var y = zb != null ? (p.y[i] - zb) * vb : p.y[i]
+      xs.push(x); ys.push(y)
+      scalaG = Math.max(scalaG, Math.abs(x), Math.abs(y))
+    }
+    mira = caricoOra()
+    disegnaGomitolo($('t-cv'))
+  }
+  function onFine(f){
+    inCorso = false
+    f = f || {}
+    var col = f.colore || '#111'
+    $('e-sub').textContent = $('t-sub').textContent
+    if (P && P.disegna) P.disegna($('e-cv'), xs, ys, scalaG, null, { parole: true, soglia: f.soglia || 0, cuneo: false })
+    var asse = f.asse === 'gamma' ? 'gamma' : 'beta'
+    var v = asse === 'gamma' ? f.carico_destra : f.carico_avanti
+    $('e-carico').innerHTML = v == null ? '—' : (Math.abs(v) < 1.5 ? 'Vicino al centro' :
+      (asse === 'gamma' ? (v > 0 ? 'Più a destra' : 'Più a sinistra') : (v > 0 ? 'Più in avanti' : 'Più indietro'))) +
+      ' <span style="color:#b08a00">' + num(v) + '°</span>'
+    $('e-omini').innerHTML = P && P.omini ? P.omini(f.carico_avanti || 0, f.carico_destra || 0, col, f.soglia || 0) : ''
+    $('e-tiles').innerHTML =
+      '<div><b>' + num(f.velocita) + '</b><span>velocità media · °/s</span></div>' +
+      '<div><b>' + num(f.osc_ap) + '°</b><span>oscillazione avanti-indietro</span></div>' +
+      '<div><b>' + num(f.osc_ds) + '°</b><span>oscillazione destra-sinistra</span></div>'
+    var frasi = P && P.spiegaPaziente ? P.spiegaPaziente({ evento: f.evento, occhi: f.occhi, carico_avanti: f.carico_avanti,
+      carico_destra: f.carico_destra, velocita: f.velocita, serie: { xs: xs, ys: ys } }) : []
+    $('e-frasi').innerHTML = frasi.map(function(t){ return '<p>' + String(t).replace(/[&<>]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;' }[c] }) + '</p>' }).join('')
+    mostra('esito')
+  }
+
+  // ═══ I CANALI ═══
+  var subTv = null, subOsc = null, canTv = null, canOsc = null
+  function ascoltaTv(c){
+    if (subTv){ try { SB.removeChannel(subTv) } catch(e){} }
+    canTv = c
+    subTv = SB.channel('schermo:' + c, { config: { broadcast: { self: false } } })
+    subTv.on('broadcast', { event: 'mostra' }, function(m){
+      var st = m.payload || {}
+      if (st.tipo === 'attesa') { mostra('attesa'); return }
+      if (st.tipo === 'prima-dopo') mostraPd(st)
+    })
+    subTv.subscribe()
+  }
+  function ascoltaOsc(c){
+    if (subOsc){ try { SB.removeChannel(subOsc) } catch(e){} }
+    canOsc = c
+    subOsc = SB.channel('oscillazione:' + c, { config: { broadcast: { self: false } } })
+    subOsc.on('broadcast', { event: 'via' }, function(m){ onVia(m.payload) })
+    subOsc.on('broadcast', { event: 'punti' }, function(m){ onPunti(m.payload) })
+    subOsc.on('broadcast', { event: 'fine' }, function(m){ onFine(m.payload) })
+    subOsc.subscribe()
+  }
+  async function cercaCanali(){
+    try {
+      var t = await SB.rpc('schermo_canale')
+      if (t.error){ if (/schermo_canale/.test(t.error.message || '')) $('avviso-051').style.display = 'block' }
+      else if (t.data && t.data !== canTv) ascoltaTv(t.data)
+    } catch(e){}
+    try {
+      if (!inCorso){
+        var o = await SB.rpc('oscillazione_canale')
+        if (!o.error && o.data && o.data !== canOsc) ascoltaOsc(o.data)
+      }
+    } catch(e){}
+    statoAttesa(canTv ? 'Collegata · pronta per il telefono' : 'Collegata ai test', true)
+  }
+
+  async function avvia(){
+    if (!window.supabase || !window.supabase.createClient){ statoAttesa('Senza rete: controlla la connessione della TV', false); return }
+    SB = window.supabase.createClient(SB_URL, SB_KEY)
+    var ses = null
+    try { ses = (await SB.auth.getSession()).data.session } catch(e){}
+    if (!ses){ $('ingresso').classList.add('on'); statoAttesa('da collegare', false); return }
+    $('ingresso').classList.remove('on')
+    await cercaCanali()
+    setInterval(cercaCanali, 5000)
+  }
+  $('ing-entra').onclick = async function(){
+    $('ing-err').textContent = ''
+    var e = $('ing-email').value.trim(), p = $('ing-pass').value
+    if (!e || !p){ $('ing-err').textContent = 'Scrivi email e password.'; return }
+    try {
+      var r = await SB.auth.signInWithPassword({ email: e, password: p })
+      if (r.error){ $('ing-err').textContent = 'Credenziali non valide.'; return }
+      avvia()
+    } catch(err){ $('ing-err').textContent = 'Non riesco a collegarmi. Riprova.' }
+  }
+  $('btn-intero').onclick = function(){
+    try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen() } catch(e){}
+  }
+  $('btn-attesa').onclick = function(){ mostra('attesa') }
+  // i comandi si vedono muovendo il mouse o toccando, poi spariscono
+  var nasc = null
+  function vediComandi(){ $('comandi').classList.add('vedi'); clearTimeout(nasc); nasc = setTimeout(function(){ $('comandi').classList.remove('vedi') }, 3000) }
+  document.addEventListener('mousemove', vediComandi); document.addEventListener('keydown', vediComandi); document.addEventListener('touchstart', vediComandi)
+
+  avvia()
+  window.__tv = { vista: function(){ return vistaOra }, carico: function(){ return mira }, canali: function(){ return { tv: canTv, osc: canOsc } },
+    pd: function(){ return { pid: pdPid, src: pdFrame ? pdFrame.getAttribute('src') : null, stato: pdStato } } }
+})()
+</script>
+</body>
+</html>

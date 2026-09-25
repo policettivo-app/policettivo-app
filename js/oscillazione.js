@@ -200,15 +200,15 @@
     return '<div class="titolo-omini">Dove sta il carico</div><div class="omini">' +
       '<div class="omino">' + ominoProfilo(carB, colore) +
         '<div class="cap">' + parola('beta', carB) + '</div>' +
-        '<div class="cap-num" style="color:' + colore + '">' + r2(Math.abs(carB)) + '°</div>' +
+        '<div class="cap-num" style="color:' + colore + '">' + numIt(Math.abs(carB), 1) + '°</div>' +
         '<div class="cap-min">di profilo</div></div>' +
       '<div class="omino">' + ominoFronte(carG, colore) +
         '<div class="cap">' + parola('gamma', carG) + '</div>' +
-        '<div class="cap-num" style="color:' + colore + '">' + r2(Math.abs(carG)) + '°</div>' +
+        '<div class="cap-num" style="color:' + colore + '">' + numIt(Math.abs(carG), 1) + '°</div>' +
         '<div class="cap-min">di fronte</div></div>' +
       '<div class="omino">' + ominoAlto(carG, carB, colore, soglia) +
         '<div class="cap">DALL\u2019ALTO</div>' +
-        '<div class="cap-num" style="color:' + colore + '">' + r2(Math.hypot(carB, carG)) + '°</div>' +
+        '<div class="cap-num" style="color:' + colore + '">' + numIt(Math.hypot(carB, carG), 1) + '°</div>' +
         '<div class="cap-min">dal centro</div></div>' +
       '</div>'
   }
