@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Policettivo® — Schermo</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- tv-multi-v1 (25 set: squat sulla TV, niente signOut, pulsante Esci, TV aperta dal computer) · tv-codice-v1 (25 settembre: la TV si collega con un CODICE; nessuna password, nessun account sulla TV) · tv-v1 (24 settembre 2026) — LO SCHERMO DEL PAZIENTE, COMANDATO DAL TELEFONO
+<!-- tv-facile-v1 (25 set: QR da inquadrare, la TV risponde al telefono) · tv-multi-v1 (25 set: squat sulla TV, niente signOut, pulsante Esci, TV aperta dal computer) · tv-codice-v1 (25 settembre: la TV si collega con un CODICE; nessuna password, nessun account sulla TV) · tv-v1 (24 settembre 2026) — LO SCHERMO DEL PAZIENTE, COMANDATO DAL TELEFONO
      Decisioni di Giuliano (tutte A):
        1A una pagina dell'app aperta sulla TV col proprio account (browser della
           Smart TV, chiavetta con browser, o computer col cavo HDMI: è una pagina
@@ -23,6 +23,7 @@
      Qui si vedono SOLO le viste per il paziente: mai anamnesi, note, contabilità. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/oscillazione.js?v=referto-paziente-v1"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
   :root{--giallo:#FFD008;--fondo:#070707;--carta:#121212;--riga:#262626;--testo:#fff;--testo2:#b8b8b8;--testo3:#777}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -110,8 +111,16 @@
   .ing-box h1{font-size:min(5vw,56px)!important}
   .ing-box p{font-size:min(2.2vw,26px)!important}
   .ing-box .marchio{font-size:18px!important;padding:8px 16px!important}
-  .ing-cod{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:min(16vw,150px);font-weight:900;letter-spacing:.16em;color:var(--giallo);
-           margin:10px 0 4px;text-shadow:0 0 60px rgba(255,208,8,.25)}
+  .ing-cod{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:min(6vw,76px);font-weight:900;letter-spacing:.14em;color:var(--giallo);
+           margin:2px 0 4px;text-shadow:0 0 50px rgba(255,208,8,.25)}
+  .ing-due{display:flex;gap:min(5vw,70px);align-items:center;justify-content:center;margin:min(3vh,30px) 0}
+  .ing-qr{background:#fff;border-radius:22px;padding:min(1.6vw,22px);width:min(34vh,30vw);height:min(34vh,30vw);box-shadow:0 0 0 4px var(--giallo),0 0 80px rgba(255,208,8,.25)}
+  .ing-qr svg{width:100%;height:100%;display:block}
+  .ing-testo{text-align:left}
+  .ing-passo{font-size:min(2.6vw,32px);font-weight:800;margin:0 0 min(1.6vh,16px)}
+  .ing-passo b{color:var(--giallo)}
+  .ing-passo i.n{font-style:normal;display:inline-flex;width:1.5em;height:1.5em;border-radius:50%;background:var(--giallo);color:#000;align-items:center;justify-content:center;margin-right:12px;font-size:.8em}
+  .ing-o{font-size:min(1.6vw,19px);color:var(--testo3);margin-top:min(3vh,26px)}
   .ing-scade{color:var(--testo3);font-size:min(1.8vw,21px);margin-bottom:22px}
   .ing-box p.ing-nota{font-size:min(1.5vw,18px)!important;color:var(--testo3)!important}
   .ing-err{color:#ff9c9c;margin-top:10px;min-height:22px}
@@ -220,10 +229,18 @@
   <div class="ing-box">
     <span class="marchio">POLICETTIVO®</span>
     <h1>Collega questa TV</h1>
-    <p>Sul telefono apri <b>«Prima e dopo»</b> di un paziente, premi <b>🔗 TV</b> e scrivi questo codice:</p>
-    <div class="ing-cod" id="ing-cod">······</div>
-    <div class="ing-scade" id="ing-scade"></div>
-    <p class="ing-nota">Sulla TV non si scrive nessuna password: la TV non entra nel tuo account e vede solo quello che mostri dal telefono.</p>
+    <div class="ing-due">
+      <div class="ing-qr" id="ing-qr"></div>
+      <div class="ing-testo">
+        <div class="ing-passo"><i class="n">1</i> Apri la <b>fotocamera</b> del telefono</div>
+        <div class="ing-passo"><i class="n">2</i> Inquadra il quadrato</div>
+        <div class="ing-passo"><i class="n">3</i> Tocca il link: fatto</div>
+        <div class="ing-o">oppure nell’app, in «🖥 La tua TV», scrivi</div>
+        <div class="ing-cod" id="ing-cod">······</div>
+        <div class="ing-scade" id="ing-scade"></div>
+      </div>
+    </div>
+    <p class="ing-nota">Si fa una volta sola. La TV non entra nel tuo account: mostra solo quello che scegli dal telefono.</p>
     <div class="ing-err" id="ing-err"></div>
   </div>
 </div>
@@ -301,7 +318,7 @@
       var r = null
       try { r = await SB.rpc('tv_pacchetto', { p_segreto: SEGRETO }) } catch(e){}
       var pkg = r && !r.error ? r.data : null
-      if (!pkg || pkg.pid !== st.pid){ mostra('attesa'); return }
+      if (!pkg || pkg.pid !== st.pid){ mostra('attesa'); ack(false, st, 'dati'); return }
       window.__tvPacchetto = pkg
       pdPid = st.pid; pdPv = st.pv
       $('v-pd').innerHTML = ''
@@ -312,7 +329,10 @@
     }
     mostra('pd')
     applicaPd(st)
+    ack(true, st)
   }
+  // tv-facile-v1 · la TV risponde al telefono: «sto mostrando» (o perché no)
+  function ack(ok, st, motivo){ try { if (subTv) subTv.send({ type: 'broadcast', event: 'ack', payload: { ok: ok, pid: st && st.pid, slide: st && st.slide, motivo: motivo || null } }) } catch(e){} }
 
   // ═══ TEST IN DIRETTA: il gomitolo al centro, due omini che si muovono ═══
   var xs = [], ys = [], scalaG = 3, test = null, fine0 = 0, inCorso = false, ultimoDato = 0
@@ -508,7 +528,8 @@
     subTv = SB.channel('schermo:' + c, { config: { broadcast: { self: false } } })
     subTv.on('broadcast', { event: 'mostra' }, function(m){
       var st = m.payload || {}
-      if (st.tipo === 'attesa') { mostra('attesa'); return }
+      if (st.tipo === 'attesa') { mostra('attesa'); ack(true, st); return }
+      if (st.tipo === 'ping') { ack(true, st); return }
       if (st.tipo === 'prima-dopo') mostraPd(st)
     })
     subTv.subscribe()
@@ -543,6 +564,13 @@
   var codiceAl = 0, collegata = false
   function scriviCodice(c){
     $('ing-cod').textContent = c ? c.slice(0, 3) + ' ' + c.slice(3) : '······'
+    // tv-facile-v1 · il QR porta il telefono dritto alla conferma: niente da scrivere
+    try {
+      if (c && window.qrcode){
+        var q = window.qrcode(0, 'M'); q.addData(location.origin + '/tv-collega.html?c=' + c); q.make()
+        $('ing-qr').innerHTML = q.createSvgTag({ cellSize: 6, margin: 0 })
+      }
+    } catch(e){}
     codiceAl = Date.now()
   }
   async function nuovoCodice(){

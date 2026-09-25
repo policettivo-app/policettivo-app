@@ -43,7 +43,8 @@ const FINTO = (o) => {
       if (nome === 'tv_pacchetto') return { data: window.__fk.pkg, error: null }
       return { data: null, error: null }
     },
-    channel(nome) { const h = {}; const c = { on(_t, f, cb) { h[f.event] = cb; return c }, subscribe() { return c } }; window.__fk.canali[nome] = h; return c },
+    channel(nome) { const h = {}; const c = { on(_t, f, cb) { h[f.event] = cb; return c }, subscribe() { return c },
+      send(m) { (window.__fk.inviati = window.__fk.inviati || []).push(m) } }; window.__fk.canali[nome] = h; return c },
     removeChannel() {}
   } } }
   window.__emetti = (can, ev, payload) => { const h = window.__fk.canali[can]; if (!h || !h[ev]) return false; h[ev]({ payload }); return true }
@@ -56,7 +57,8 @@ async function apri(o = {}) {
   const page = await ctx.newPage()
   const errori = []; page.on('pageerror', e => errori.push(String(e)))
   await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }))
-  await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }))
+  await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript',
+    body: /qrcode/.test(r.request().url()) ? 'window.qrcode=function(){var d="";return{addData:function(x){d=x},make:function(){},createSvgTag:function(){return "<svg data-url=\\""+d+"\\"></svg>"}}}' : '' }))
   await page.addInitScript(FINTO, Object.assign({ collegata: true }, o))
   await page.goto('http://localhost:' + PORT + '/tv.html', { waitUntil: 'load' })
   await page.waitForTimeout(400)
@@ -81,7 +83,10 @@ try {
   {
     const { page, ctx, errori } = await apri({ collegata: false, sessioneVecchia: true })
     check('⭐ mostra il codice in grande: «K7P 3MX»', await page.isVisible('#ingresso') && (await page.textContent('#ing-cod')).trim() === 'K7P 3MX')
-    check('⭐ e dice dove scriverlo (🔗 TV sul telefono)', /🔗 TV/.test(await page.textContent('#ingresso')) && /vale ancora 10 minuti/.test(await page.textContent('#ing-scade')))
+    const qr = await page.$eval('#ing-qr svg', e => e.getAttribute('data-url')).catch(() => null)
+    check('⭐⭐ c’è il QR da inquadrare, che porta a tv-collega.html col codice', /\/tv-collega\.html\?c=K7P3MX$/.test(qr || ''), qr)
+    check('⭐ e i tre passi scritti grandi (fotocamera, inquadra, tocca)', /fotocamera/.test(await page.textContent('#ingresso')) && /Inquadra/.test(await page.textContent('#ingresso')))
+    check('⭐ e dice dove scriverlo («La tua TV» nell’app)', /La tua TV/.test(await page.textContent('#ingresso')) && /vale ancora 10 minuti/.test(await page.textContent('#ing-scade')))
     const nuovo = (await page.evaluate(() => window.__fk.rpc)).find(r => r[0] === 'tv_nuovo')
     check('⭐ il segreto lo crea la TV: 64 caratteri casuali', nuovo && /^[0-9a-f]{64}$/.test(nuovo[1].p_segreto), nuovo)
     // tv-multi-v1 · ⛔ NON si esce dall'account: signOut chiuderebbe anche il telefono e il computer da cui lavori
@@ -121,6 +126,8 @@ try {
     const fr = page.frames().find(f => /schermo-paziente/.test(f.url()))
     check('⭐⭐ e la pagina dentro la TV riceve il pacchetto (non un account)', fr && (await fr.evaluate(() => window.__pkgVisto && window.__pkgVisto.pid)) === 'P-1')
     const ap = fr ? await fr.evaluate(() => window.__applicati) : []
+    const acks = await page.evaluate(() => (window.__fk.inviati || []).filter(m => m.event === 'ack').map(m => m.payload))
+    check('⭐⭐ la TV risponde al telefono: «sto mostrando»', acks.length >= 1 && acks[acks.length - 1].ok === true && acks[acks.length - 1].pid === 'P-1', acks)
     check('⭐⭐ va sulla pagina scelta, coi gradi accesi', ap.length >= 1 && ap[ap.length - 1].slide === 'foto:sagittale_dx' && ap[ap.length - 1].gradi.sagittale_dx === true, ap)
     await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', Object.assign({}, s, { slide: 'sintesi' })), st); await page.waitForTimeout(400)
     const fr2 = page.frames().find(f => /schermo-paziente/.test(f.url()))
@@ -132,6 +139,7 @@ try {
     await page.evaluate(() => { window.__fk.pkg = null })
     await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', Object.assign({}, s, { pv: 333 })), st); await page.waitForTimeout(600)
     check('⛔ se il pacchetto non c’è (scaduto o spento) la TV non mostra niente: attesa', (await vista(page)) === 'attesa')
+    check('⭐ e lo dice al telefono (i dati non sono arrivati)', await page.evaluate(() => { const a = window.__fk.inviati.filter(m => m.event === 'ack'); return a[a.length - 1].payload.ok === false && a[a.length - 1].payload.motivo === 'dati' }))
     await page.evaluate(p => { window.__fk.pkg = p }, PKG)
     await page.evaluate(s => window.__emetti('schermo:TV1', 'mostra', Object.assign({}, s, { pid: 'P-ALTRO', pv: 444 })), st); await page.waitForTimeout(600)
     check('⛔ comando per un paziente diverso dal pacchetto: niente', (await vista(page)) === 'attesa')
@@ -189,6 +197,51 @@ try {
     check('⭐ c’è «✕ Esci dalla TV» e la spiegazione di Esc', await page.$('#btn-esci') !== null && /Esc/.test(await page.textContent('#v-attesa')))
     check('nessun errore JS', errori.length === 0, errori)
     await ctx.close()
+  }
+
+  sez('⭐⭐ tv-facile-v1 · tv-collega.html: inquadri il QR e la TV è collegata')
+  {
+    const COL = (o) => {
+      window.__c = { rpc: [], tvs: o.tvs || [] }
+      window.supabase = { createClient() { return {
+        auth: { getSession: async () => ({ data: { session: o.sessione ? { user: { id: 'u1' } } : null } }) },
+        rpc: async (n, a) => { window.__c.rpc.push([n, a || null])
+          if (n === 'tv_conferma') { const ok = a.p_codice === 'K7P3MX'; if (ok) window.__c.tvs = [{ id: 'T1', nome: 'TV', confermato_il: '2026-09-25T10:00:00Z' }]; return { data: ok, error: null } }
+          if (n === 'tv_elenco') return { data: window.__c.tvs, error: null }
+          if (n === 'tv_scollega') { window.__c.tvs = []; return { data: true, error: null } }
+          return { data: null, error: null } }
+      } } }
+    }
+    const apriC = async (o, q) => {
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } }); const page = await ctx.newPage()
+      const errori = []; page.on('pageerror', e => errori.push(String(e)))
+      await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }))
+      await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }))
+      await page.addInitScript(COL, o)
+      await page.goto('http://localhost:' + PORT + '/tv-collega.html' + (q || ''), { waitUntil: 'load' }); await page.waitForTimeout(500)
+      return { page, ctx, errori }
+    }
+    let { page, ctx, errori } = await apriC({ sessione: true }, '?c=k7p3mx')
+    check('⭐⭐ dal QR (?c=…) si collega da sola: «TV collegata»', /TV collegata/.test(await page.textContent('#esito')) &&
+      (await page.evaluate(() => window.__c.rpc)).some(r => r[0] === 'tv_conferma' && r[1].p_codice === 'K7P3MX'))
+    check('⭐ e dice cosa fare dopo (apri un paziente, la TV mostra da sola)', /la TV li mostra da sola/.test(await page.textContent('#esito')))
+    check('⭐ interruttore «Mostra sulla TV» acceso, e il canale dei test aperto', await page.$eval('#sw', e => e.classList.contains('on')) &&
+      (await page.evaluate(() => localStorage.getItem('policettivo.tv.v1'))) === 'on' && (await page.evaluate(() => window.__c.rpc.map(r => r[0]))).includes('oscillazione_canale'))
+    check('⭐ la TV compare nell’elenco', /collegata il/.test(await page.textContent('#elenco')))
+    await page.click('#sw'); await page.waitForTimeout(100)
+    check('⭐ si può spegnere per questo dispositivo', (await page.evaluate(() => localStorage.getItem('policettivo.tv.v1'))) === 'off')
+    page.once('dialog', d => d.accept()); await page.click('#elenco button'); await page.waitForTimeout(300)
+    check('⭐ «Scollega» la toglie', /Nessuna TV collegata/.test(await page.textContent('#elenco')))
+    check('nessun errore JS', errori.length === 0, errori)
+    await ctx.close()
+    ;({ page, ctx, errori } = await apriC({ sessione: true }, '?c=ZZZZZZ'))
+    check('⛔ codice scaduto: lo dice e spiega di inquadrare di nuovo', /non valido o scaduto/.test(await page.textContent('#esito')) && /inquadra di nuovo/.test(await page.textContent('#esito')))
+    await ctx.close()
+    ;({ page, ctx, errori } = await apriC({ sessione: false }, '?c=K7P3MX'))
+    check('⭐ senza essere entrati: «Prima entra nell’app», niente conferma', /Prima entra/.test(await page.textContent('#esito')) && !(await page.evaluate(() => window.__c.rpc.map(r => r[0]))).includes('tv_conferma'))
+    await ctx.close()
+    const pz = fs.readFileSync('paziente.html', 'utf8')
+    check('⭐ dalla scheda del paziente: «🖥 La tua TV»', /tv-collega\.html/.test(pz))
   }
 
   sez('⭐ senza la migration 052 lo dice, per nome di file')

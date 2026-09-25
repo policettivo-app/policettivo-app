@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Policettivo® — La tua TV</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<!-- tv-facile-v1 (25 settembre 2026) — LA TV, IN UN POSTO SOLO
+     «Non è facile né intuitivo»: qui si fa TUTTO quello che riguarda la TV.
+     • Si arriva inquadrando col telefono il QR che la TV mostra (?c=CODICE):
+       la TV si collega da sola, niente da scrivere.
+     • Le TV collegate, e «Scollega».
+     • L'interruttore «Mostra sulla TV» per QUESTO dispositivo (acceso di base
+       quando c'è almeno una TV).
+     Il codice lo mostra la TV e lo conferma il telefono già entrato nell'app,
+     come si collegano Netflix o YouTube: il contrario (un codice dell'app
+     scritto sulla TV) vorrebbe dire digitare col telecomando. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#000;color:#fff;font-family:Montserrat,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;padding:18px 16px 60px}
+  .wrap{max-width:520px;margin:0 auto}
+  .testa{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+  .marchio{background:#FFD008;color:#000;font-weight:900;font-size:11px;letter-spacing:2.5px;padding:5px 10px;border-radius:5px}
+  .testa a{color:#aaa;text-decoration:none;font-weight:700;font-size:14px}
+  h1{font-size:26px;margin-bottom:6px}
+  .sub{color:#aaa;font-size:14px;line-height:1.5;margin-bottom:18px}
+  .esito{border-radius:18px;padding:22px 18px;text-align:center;margin-bottom:18px}
+  .esito.ok{background:#0f2a1c;border:1.5px solid #1d5c47}
+  .esito.ko{background:#2a1111;border:1.5px solid #a3271c}
+  .esito .grande{font-size:54px;line-height:1}
+  .esito b{display:block;font-size:22px;margin:10px 0 6px}
+  .esito span{font-size:15px;color:#ccc;line-height:1.5}
+  .card{background:#111;border:1px solid #242424;border-radius:16px;padding:16px;margin-bottom:14px}
+  .card h2{font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:10px}
+  .inter{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .inter span{font-size:15px;line-height:1.4}
+  .sw{width:62px;height:36px;border-radius:999px;background:#333;border:0;position:relative;cursor:pointer;flex:none}
+  .sw::after{content:"";position:absolute;left:4px;top:4px;width:28px;height:28px;border-radius:50%;background:#fff;transition:left .2s}
+  .sw.on{background:#3ddc84}.sw.on::after{left:30px}
+  .tv{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#181818;border-radius:10px;padding:10px 12px;font-size:14px;margin-top:8px}
+  .btn{background:#1d1d1d;border:1px solid #333;color:#fff;border-radius:10px;padding:10px 14px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit}
+  .btn.giallo{background:#FFD008;border-color:#FFD008;color:#000}
+  .riga{display:flex;gap:8px;margin-top:8px}
+  input{flex:1;background:#000;border:1.5px solid #333;color:#fff;border-radius:10px;padding:12px;font-size:22px;letter-spacing:5px;text-transform:uppercase;font-family:ui-monospace,Menlo,monospace;min-width:0}
+  .nota{font-size:13px;color:#888;line-height:1.5;margin-top:8px}
+  .stato{font-size:14px;color:#FFD008;margin-top:8px;min-height:18px}
+  ol{padding-left:20px;font-size:14px;color:#ccc;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="testa"><span class="marchio">POLICETTIVO®</span><a href="dashboard.html" id="indietro">← App</a></div>
+  <h1>📺 La tua TV</h1>
+  <div class="sub">Mostra al paziente «Prima e dopo» e i test, in grande. Si collega una volta sola.</div>
+  <div id="esito"></div>
+
+  <div class="card" id="c-come">
+    <h2>Collegare una TV</h2>
+    <ol>
+      <li>Sulla TV (o sul computer attaccato alla TV) apri <b>app.policettivo.it/tv.html</b></li>
+      <li>Inquadra il quadrato con la fotocamera del telefono e tocca il link</li>
+    </ol>
+    <div class="nota">Oppure scrivi qui il codice che vedi sulla TV:</div>
+    <div class="riga"><input id="cod" maxlength="7" placeholder="ABC123" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn giallo" id="btn-collega">Collega</button></div>
+    <div class="stato" id="stato"></div>
+    <div class="nota" style="margin-top:14px"><b>La TV è attaccata a questo computer col cavo HDMI?</b> Niente codice:</div>
+    <div class="riga"><button class="btn" id="btn-qui">🖥 Apri la TV su questo computer</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Da questo dispositivo</h2>
+    <div class="inter"><span><b>Mostra sulla TV</b><br><small style="color:#999">«Prima e dopo» e i test vanno sulla TV da soli</small></span><button class="sw" id="sw" aria-label="Mostra sulla TV"></button></div>
+  </div>
+
+  <div class="card">
+    <h2>Le TV collegate</h2>
+    <div id="elenco"><div class="nota">…</div></div>
+  </div>
+</div>
+<script>
+;(function(){
+  'use strict'
+  var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  var $ = function(id){ return document.getElementById(id) }
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] }) }
+  var SB = null
+  var CHIAVE = 'policettivo.tv.v1'
+  function acceso(){ try { return localStorage.getItem(CHIAVE) !== 'off' } catch(e){ return true } }
+  function accendi(on){
+    try { localStorage.setItem(CHIAVE, on ? 'on' : 'off'); if (on) localStorage.setItem('policettivo.diretta.v1', 'on') } catch(e){}
+    $('sw').classList.toggle('on', on)
+  }
+  function esito(ok, tit, testo){
+    $('esito').innerHTML = '<div class="esito ' + (ok ? 'ok' : 'ko') + '"><div class="grande">' + (ok ? '✅' : '⚠️') + '</div><b>' + esc(tit) + '</b><span>' + testo + '</span></div>'
+  }
+  async function elenco(){
+    var r = await SB.rpc('tv_elenco')
+    if (r.error){ $('elenco').innerHTML = '<div class="nota">' + (/tv_elenco/.test(r.error.message || '') ? 'Manca la migration 052_tv_codice.sql.' : esc(r.error.message)) + '</div>'; return 0 }
+    var l = r.data || []
+    $('elenco').innerHTML = l.length ? l.map(function(t){
+      return '<div class="tv"><span>📺 <b>' + esc(t.nome || 'TV') + '</b><br><small style="color:#999">collegata il ' + new Date(t.confermato_il).toLocaleDateString('it-IT') +
+        (t.ultimo_uso ? ' · accesa ' + new Date(t.ultimo_uso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '') + '</small></span>' +
+        '<button class="btn" data-id="' + esc(t.id) + '">Scollega</button></div>'
+    }).join('') : '<div class="nota">Nessuna TV collegata.</div>'
+    Array.prototype.forEach.call($('elenco').querySelectorAll('button[data-id]'), function(b){
+      b.onclick = async function(){
+        if (!confirm('Scollego questa TV? Per rivederla dovrai inquadrare di nuovo il QR.')) return
+        await SB.rpc('tv_scollega', { p_id: b.getAttribute('data-id') }); elenco()
+      }
+    })
+    return l.length
+  }
+  // il canale dei test: se manca se ne apre uno, così i test vanno sulla TV da qualunque dispositivo
+  async function canaleTest(){ try { var c = await SB.rpc('oscillazione_canale'); if (!c.error && !c.data) await SB.rpc('oscillazione_apri_canale') } catch(e){} }
+  async function collega(codice){
+    var c = String(codice || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (c.length !== 6){ $('stato').textContent = 'Il codice è di 6 lettere.'; return false }
+    $('stato').textContent = 'Collego…'
+    var r = await SB.rpc('tv_conferma', { p_codice: c })
+    if (r.error){ $('stato').textContent = /tv_conferma/.test(r.error.message || '') ? 'Manca la migration 052_tv_codice.sql.' : r.error.message; return false }
+    if (!r.data){
+      $('stato').textContent = ''
+      esito(false, 'Codice non valido o scaduto', 'Sulla TV il codice cambia ogni 10 minuti: inquadra di nuovo il QR che vedi adesso.')
+      return false
+    }
+    $('stato').textContent = ''
+    accendi(true); await canaleTest()
+    esito(true, 'TV collegata', 'Adesso apri un paziente e poi <b>«Prima e dopo»</b>, oppure fai un test: la TV li mostra da sola. Non devi fare altro.')
+    $('cod').value = ''
+    elenco()
+    return true
+  }
+  async function avvia(){
+    if (!window.supabase){ esito(false, 'Senza rete', 'Controlla la connessione.'); return }
+    SB = window.supabase.createClient(SB_URL, SB_KEY)
+    var ses = null
+    try { ses = (await SB.auth.getSession()).data.session } catch(e){}
+    var codice = new URLSearchParams(location.search).get('c')
+    if (!ses){
+      esito(false, 'Prima entra nell’app', 'Entra col tuo account su questo telefono, poi inquadra di nuovo il QR della TV.' +
+        '<br><br><a href="login.html" style="color:#FFD008;font-weight:800">Entra →</a>')
+      $('c-come').style.display = 'none'
+      return
+    }
+    $('sw').classList.toggle('on', acceso())
+    if (codice) await collega(codice)
+    var n = await elenco()
+    if (!codice && n) $('c-come').querySelector('h2').textContent = 'Collegare un’altra TV'
+  }
+  $('btn-collega').onclick = function(){ collega($('cod').value) }
+  /* la TV su QUESTO computer (cavo HDMI): si apre tv.html in una finestra, se ne
+     legge il codice e lo si conferma da qui. La finestra si trascina sulla TV. */
+  $('btn-qui').onclick = async function(){
+    var w = window.open('tv.html', 'policettivo-tv')
+    if (!w){ $('stato').textContent = 'Il browser ha bloccato la finestra: consenti le finestre (pop-up) per questo sito e riprova.'; return }
+    $('stato').textContent = 'Apro la TV in una finestra nuova…'
+    for (var i = 0; i < 40; i++){
+      await new Promise(function(r){ setTimeout(r, 500) })
+      var c = null, gia = false
+      try { gia = !!(w.__tv && w.__tv.collegata && w.__tv.collegata()); c = w.__tv && w.__tv.codice ? w.__tv.codice() : null } catch(e){}
+      if (gia){ $('stato').textContent = ''; accendi(true); await canaleTest(); esito(true, 'La TV di questo computer è già collegata', 'Trascina la finestra sulla TV e premi ⛶ Schermo intero (Esc per uscire).'); return }
+      if (c && c.length === 6){ if (await collega(c)) $('esito').querySelector('span').innerHTML += '<br><br>Trascina la finestra sulla TV e premi ⛶ Schermo intero (Esc per uscire).'; return }
+    }
+    $('stato').textContent = 'La finestra della TV non ha risposto. Riprova.'
+  }
+  $('sw').onclick = function(){ var on = !$('sw').classList.contains('on'); accendi(on); if (on) canaleTest() }
+  if (document.referrer && /schermo-paziente|paziente\.html|test\.html/.test(document.referrer)) $('indietro').onclick = function(e){ e.preventDefault(); history.back() }
+  avvia()
+})()
+</script>
+</body>
+</html>

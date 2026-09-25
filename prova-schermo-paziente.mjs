@@ -207,7 +207,8 @@ const SUPA = ({ D, FIRME }) => {
       if (nome === 'tv_scollega') { D.tvs = []; return { data: true, error: null } }
       return { data: null, error: null }
     },
-    channel(nome) { D.canali = (D.canali || []).concat([nome]); const c = { on() { return c }, subscribe: async () => c,
+    channel(nome) { D.canali = (D.canali || []).concat([nome]); const h = {}; window.__ack = (p) => h.ack && h.ack({ payload: p })
+      const c = { on(_t, f, cb) { h[f.event] = cb; return c }, subscribe: async () => c,
       send(m) { D.inviati = (D.inviati || []).concat([JSON.parse(JSON.stringify(m))]) } }; return c },
     removeChannel() { D.rimossi = (D.rimossi || 0) + 1 },
     storage: { from() { return { createSignedUrls: async (paths) => ({ data: paths.map(p => ({ path: p, signedUrl: FIRME[p] || null })), error: null }) } } }
@@ -814,6 +815,10 @@ sez('⭐⭐ tv-codice-v1 · il pacchetto per la TV: prima i dati (tv_mostra), po
   check('⭐ le tracce solo delle prove segnate prima/dopo', pk.oscillazione_test.every(r => r.traccia == null || r.momento === 'pre' || r.momento === 'post'))
   const m = D.inviati.slice(-1)[0]
   check('⭐ e il comando porta la versione del pacchetto (pv)', m && m.payload.pv > 0)
+  await page.evaluate(() => window.__ack({ ok: true, pid: 'x', slide: 'copertina' })); await page.waitForTimeout(100)
+  check('⭐⭐ la TV risponde → qui si legge «🔴 In onda sulla TV»', /In onda sulla TV/.test(await page.textContent('#tv-onda')))
+  await page.evaluate(() => window.__ack({ ok: false, motivo: 'dati' })); await page.waitForTimeout(100)
+  check('⭐ se la TV non ha i dati lo dice', /non ha ricevuto i dati/.test(await page.textContent('#tv-onda')))
   await page.click('#btn-tv'); await page.waitForTimeout(300)
   D = await page.evaluate(() => window.__D)
   const ultimo = D.upserts.filter(u => u.tab === 'tv_mostra').slice(-1)[0]
@@ -836,23 +841,33 @@ sez('⭐⭐ tv-codice-v1 · il pacchetto per la TV: prima i dati (tv_mostra), po
   await ctx2.close(); await ctx.close()
 }
 
-sez('⭐⭐ tv-codice-v1 · «🔗 TV»: collegare una TV col codice, vederle, scollegarle')
+sez('⭐⭐ tv-facile-v1 · con una TV collegata si accende DA SOLA, e si vede se è «in onda»')
 {
-  const { page, ctx, errori } = await apri(browser)
-  await page.click('#btn-tv-gestisci'); await page.waitForTimeout(250)
-  check('⭐ si apre la finestra delle TV', await page.isVisible('#tv-gestione') && /Nessuna TV collegata/.test(await page.textContent('#tvg-elenco')))
-  await page.fill('#tvg-cod', 'zzz999'); await page.click('#tvg-collega'); await page.waitForTimeout(200)
-  check('⛔ codice sbagliato: lo dice', /non valido o scaduto/.test(await page.textContent('#tvg-stato')))
-  await page.fill('#tvg-cod', 'k7p-3mx'); await page.click('#tvg-collega'); await page.waitForTimeout(500)
-  const D = await page.evaluate(() => window.__D)
-  check('⭐ il codice va al database pulito e in maiuscolo', D.rpcArgs.some(r => r[0] === 'tv_conferma' && r[1].p_codice === 'K7P3MX'))
-  check('⭐⭐ collegata: compare nell’elenco, e la TV si accende', /TV collegata/.test(await page.textContent('#tvg-stato')) && /collegata il/.test(await page.textContent('#tvg-elenco')) &&
-    /Sulla TV ✓/.test(await page.textContent('#btn-tv')))
-  page.once('dialog', d => d.accept())
-  await page.click('#tvg-elenco button'); await page.waitForTimeout(300)
-  check('⭐ «Scollega» (con conferma) la toglie', (await page.evaluate(() => window.__D.rpc)).includes('tv_scollega') && /Nessuna TV collegata/.test(await page.textContent('#tvg-elenco')))
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const page = await ctx.newPage(); const errori = []; page.on('pageerror', e => errori.push(String(e)))
+  await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }))
+  await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }))
+  const D0 = dati({ misure: true }); D0.tvs = [{ id: 'T1', nome: 'TV', confermato_il: '2026-09-25T09:00:00Z' }]
+  await page.addInitScript(SUPA, { D: D0, FIRME })
+  await page.goto('http://localhost:' + PORT + '/schermo-paziente.html?id=' + PID, { waitUntil: 'load' }); await page.waitForTimeout(900)
+  let D = await page.evaluate(() => window.__D)
+  check('⭐⭐ c’è una TV collegata → «Prima e dopo» va sulla TV senza toccare niente', /Sulla TV ✓/.test(await page.textContent('#btn-tv')) && (D.inviati || []).some(m => m.event === 'mostra' && m.payload.tipo === 'prima-dopo'))
+  check('⭐ «🔗 TV» porta alla pagina unica della TV (tv-collega.html)', /tv-collega\.html/.test(await page.evaluate(() => apriGestioneTv.toString())))
+  await page.waitForTimeout(7300)
+  check('⭐ se la TV non risponde lo dice («è aperta tv.html?»)', /non risponde/.test(await page.textContent('#tv-onda')))
+  await page.evaluate(() => { const c = window.__D; })
   check('nessun errore JS', errori.length === 0, errori)
   await ctx.close()
+  // spenta a mano su questo dispositivo → resta spenta anche con la TV collegata
+  const ctx2 = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+  const p2 = await ctx2.newPage()
+  await p2.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }))
+  await p2.route('https://fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }))
+  const D1 = dati({}); D1.tvs = [{ id: 'T1' }]
+  await p2.addInitScript(SUPA, { D: D1, FIRME }); await p2.addInitScript(() => localStorage.setItem('policettivo.tv.v1', 'off'))
+  await p2.goto('http://localhost:' + PORT + '/schermo-paziente.html?id=' + PID, { waitUntil: 'load' }); await p2.waitForTimeout(700)
+  check('⭐ spenta a mano su questo dispositivo → non si accende da sola', !/✓/.test(await p2.textContent('#btn-tv')))
+  await ctx2.close()
 }
 
 sez('⭐⭐ tv-v1 · la stessa pagina DENTRO la TV: solo il palco, e va dove dice il telecomando')
