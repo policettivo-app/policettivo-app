@@ -1,0 +1,107 @@
+/* nav-v1 (28 set 2026) — IL PULSANTE DI NAVIGAZIONE, UGUALE SU TUTTE LE PAGINE
+   «dal cellulare a volte è difficile vedere come tornare indietro o alla home».
+   Una pillola nera in basso a sinistra, sempre nello stesso posto:
+       ‹ Indietro   ·   ⌂ Home
+   • Indietro = la pagina di prima dell'app; se non c'è (pagina aperta da un
+     link o da una notifica) va alla scheda del paziente (?pid=) o alla home.
+   • Home = dashboard.html.
+   Si vede SOLO al professionista entrato nell'app. Non si vede:
+     – al paziente (pagine aperte col suo link ?token=, senza &pro=1);
+     – sulla TV e dentro le finestre incorporate (iframe, ?tv=1);
+     – in stampa e nei PDF;
+     – mentre si scrive (la tastiera del telefono la coprirebbe);
+     – durante un test (schermata di partenza, schermo bloccato).
+   Si alza da sola sopra le barre fisse in fondo alla pagina.
+   Solo navigazione: non legge e non scrive dati. */
+;(function(){
+  'use strict'
+  if (window.__polNav) return
+  window.__polNav = true
+  try {
+    if (window.self !== window.top) return
+    var Q = new URLSearchParams(location.search)
+    if (Q.get('tv') === '1') return
+    if (Q.get('token') && Q.get('pro') !== '1') return
+    var dentro = false
+    for (var i = 0; i < localStorage.length; i++){
+      var k = localStorage.key(i) || ''
+      if (/^sb-.*-auth-token$/.test(k)){ dentro = true; break }
+    }
+    if (!dentro) return
+  } catch(e){ return }
+
+  var CSS = '' +
+    '.pn-pil{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:calc(max(12px,env(safe-area-inset-bottom)) + var(--pn-su,0px));' +
+    'z-index:950;display:flex;align-items:stretch;background:#111;border-radius:999px;box-shadow:0 6px 22px rgba(0,0,0,.28),0 0 0 1.5px #FFD008;' +
+    'font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden;transition:opacity .2s,transform .2s}' +
+    '.pn-pil.via{opacity:0;transform:translateY(12px);pointer-events:none}' +
+    '.pn-pil a{display:flex;align-items:center;gap:7px;color:#fff;text-decoration:none;font-size:15px;font-weight:800;' +
+    'padding:0 16px;min-height:48px;-webkit-tap-highlight-color:transparent;white-space:nowrap}' +
+    '.pn-pil a:active{background:#2a2a2a}' +
+    '.pn-pil a i{font-style:normal;color:#FFD008;font-size:22px;line-height:1;font-weight:900}' +
+    '.pn-pil .pn-sep{width:1px;background:#333;margin:10px 0}' +
+    '.pn-spazio{height:76px}' +
+    '@media print{.pn-pil,.pn-spazio{display:none!important}}'
+
+  function metti(){
+    if (document.getElementById('pn-pil')) return
+    var st = document.createElement('style'); st.id = 'pn-stile'; st.textContent = CSS; document.head.appendChild(st)
+    var Q = new URLSearchParams(location.search)
+    var pid = Q.get('pid') || ''
+    var riserva = /^[0-9a-f-]{36}$/i.test(pid) ? 'paziente.html?id=' + pid : 'dashboard.html'
+    var d = document.createElement('nav'); d.className = 'pn-pil'; d.id = 'pn-pil'
+    d.setAttribute('aria-label', 'Navigazione')
+    d.innerHTML = '<a href="' + riserva + '" id="pn-indietro" aria-label="Torna indietro"><i>‹</i>Indietro</a>' +
+      '<span class="pn-sep"></span>' +
+      '<a href="dashboard.html" id="pn-home" aria-label="Vai alla home"><i>⌂</i>Home</a>'
+    document.body.appendChild(d)
+    var sp = document.createElement('div'); sp.className = 'pn-spazio'; sp.setAttribute('aria-hidden', 'true')
+    document.body.appendChild(sp)
+    document.getElementById('pn-indietro').addEventListener('click', function(ev){
+      var stesso = false
+      try { stesso = !!document.referrer && new URL(document.referrer).origin === location.origin } catch(e){}
+      if (stesso && history.length > 1){ ev.preventDefault(); history.back() }
+    })
+
+    // ── resta visibile ma fuori dai piedi ──
+    var fissi = [], giro = 0
+    function cercaFissi(){
+      fissi = []
+      var tutti = document.body.getElementsByTagName('*')
+      for (var i = 0; i < tutti.length; i++){
+        var e = tutti[i]
+        if (e === d || d.contains(e)) continue
+        var p = getComputedStyle(e).position
+        if (p === 'fixed' || p === 'sticky') fissi.push(e)
+      }
+    }
+    function sistema(){
+      if ((giro++ % 20) === 0) cercaFissi()
+      var h = window.innerHeight, su = 0
+      for (var i = 0; i < fissi.length; i++){
+        var e = fissi[i]
+        if (!e.isConnected) continue
+        var r = e.getBoundingClientRect()
+        // una barra in fondo: tocca il bordo basso, sta nella metà bassa, larga
+        if (r.width > window.innerWidth * 0.4 && r.height > 0 && r.height < h * 0.45 &&
+            r.bottom >= h - 4 && r.top > h * 0.5 && getComputedStyle(e).visibility !== 'hidden' &&
+            getComputedStyle(e).display !== 'none' && Number(getComputedStyle(e).opacity) > 0.05){
+          su = Math.max(su, Math.round(h - r.top))
+        }
+      }
+      d.style.setProperty('--pn-su', su + 'px')
+      var a = document.activeElement
+      var scrive = a && (a.tagName === 'TEXTAREA' || a.isContentEditable ||
+        (a.tagName === 'INPUT' && !/^(button|submit|checkbox|radio|range|file|color|reset|image)$/i.test(a.type || '')))
+      var occupato = !!document.querySelector('.pp-ov.on, .guard.on, .pol-ov.open, [data-nav-nascondi]')
+      d.classList.toggle('via', !!(scrive || occupato))
+    }
+    sistema()
+    setInterval(sistema, 700)
+    window.addEventListener('resize', sistema)
+    document.addEventListener('focusin', sistema)
+    document.addEventListener('focusout', function(){ setTimeout(sistema, 50) })
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', metti)
+  else metti()
+})()

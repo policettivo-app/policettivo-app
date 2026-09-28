@@ -1676,7 +1676,7 @@ sez('video-guida-v1 · il vocabolario dei video')
         src.includes('chiedi al tuo') && src.includes('fisioterapista'))
   const home = fs.readFileSync(path.join(ROOT,'protocollo.html'),'utf8')
   check('nessun id di YouTube scritto dentro protocollo.html (un elenco solo)',
-        !/[?&]v=|youtu\.be\/[A-Za-z0-9_-]{8}|embed\/[A-Za-z0-9_-]{8}/.test(home.replace(/embed\/' \+ id/g,'')),
+        !/[?&]v=|youtu\.be\/[A-Za-z0-9_-]{8}|embed\/[A-Za-z0-9_-]{8}/.test(home.replace(/embed\/' \+ id/g,'').replace(/\.js\?v=/g, '.js#')),   // nav-v1 · «?v=» dei file .js è la versione, non un video
         'trovato un video scritto a mano nella pagina')
   check('protocollo.html carica js/video-guida.js', home.includes('src="js/video-guida.js"'))
 }

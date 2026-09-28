@@ -216,6 +216,7 @@
         anche al Confronto, che adesso è sessione contro sessione. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/oscillazione.js?v=referto-paziente-v1"></script>
+<script src="js/partenza.js?v=partenza-v1"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -1135,17 +1136,31 @@
     })
   }
 
+  // ═══ partenza-v1 · LA SCHERMATA GRANDE DEI SECONDI PRIMA DEL VIA ═══
+  // Marchio, anello che si svuota, numero enorme: si capisce da lontano che il
+  // test sta per partire. Va anche sulla TV collegata (evento «pronti»).
+  // È solo grafica: se js/partenza.js manca, il test va avanti uguale.
+  function partenza(titolo, sotto, testo, avviso, secondi){
+    if (SALTA_ASSESTAMENTO) return
+    try { if (window.PolPartenza) PolPartenza.apri({ titolo: titolo, sotto: sotto, testo: testo, avviso: avviso, secondi: secondi }) } catch(e){}
+    try { if (canaleSub) canaleSub.send({ type:'broadcast', event:'pronti', payload:{
+      titolo: titolo, sotto: sotto, testo: testo, avviso: avviso, secondi: secondi }}) } catch(e){}
+  }
+  function partenzaVia(){ try { if (window.PolPartenza && PolPartenza.aperta()) PolPartenza.via() } catch(e){} }
+
   function countdown(secondi){
     return new Promise(function(res){
       if (SALTA_ASSESTAMENTO) return res()
       var n = secondi
       $('countdown').textContent = n
+      try { if (window.PolPartenza && PolPartenza.aperta()) PolPartenza.numero(n) } catch(e){}   // partenza-v1
       voce(n + '')
       bip(520, 150)
       var iv = setInterval(function(){
         n--
         if (n <= 0){ clearInterval(iv); $('countdown').textContent = ''; res(); return }
         $('countdown').textContent = n
+        try { if (window.PolPartenza && PolPartenza.aperta()) PolPartenza.numero(n) } catch(e){}
         // gli ultimi cinque si contano a voce, prima solo un bip al secondo
         if (n <= 5) voce(n + '')
         bip(n <= 5 ? 700 : 520, 150)
@@ -1298,8 +1313,10 @@
       $('etichetta-viva').textContent = 'taratura'
       $('stato').textContent = 'Preparati vicino alla tavola: comincia fra poco'
       voce('Taratura. Preparati vicino alla tavola. Comincio fra ' + attesa + ' secondi.')
+      partenza('Taratura del verso', 'una volta sola per questo telefono', 'Preparati vicino alla tavola', '', attesa)
       await new Promise(function(r){ setTimeout(r, SALTA_ASSESTAMENTO ? 0 : 1800) })
       await countdown(attesa)
+      partenzaVia()
       var racc = await faiTaratura()
       var esitoT = concludiTaratura(racc)
       try { if (wl) wl.release() } catch(e){}
@@ -1336,8 +1353,13 @@
     $('stato').textContent = comeSiSale + (sicurezza ? ' ⚠️ Stagli accanto.' : '')
     voce(evento + (eTest(evento) ? ', occhi ' + occhi : '') + '. ' + comeSiSale + sicurezza +
          ' Comincio fra ' + attesa + ' secondi.')
+    partenza('Oscillazione Policettiva',
+      (evento === 'rollio' ? 'Rollio · destra–sinistra' : evento === 'beccheggio' ? 'Beccheggio · avanti–indietro' : evento) +
+      (eTest(evento) ? ' · occhi ' + occhi : '') + ' · ' + piedi,
+      comeSiSale, sicurezza ? '⚠️ Occhi chiusi: resta accanto al paziente, a un braccio di distanza' : '', attesa)
     await new Promise(function(r){ setTimeout(r, SALTA_ASSESTAMENTO ? 0 : 1800) })
     await countdown(attesa)
+    partenzaVia()
 
     $('stato').textContent = 'Sto misurando — non toccare niente'
     voce('Via')
@@ -2584,5 +2606,6 @@
   }
 })()
 </script>
+<script src="js/pol-nav.js?v=nav-v1" defer></script><!-- nav-v1 · pulsante Indietro/Home -->
 </body>
 </html>

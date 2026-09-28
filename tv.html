@@ -23,6 +23,7 @@
      Qui si vedono SOLO le viste per il paziente: mai anamnesi, note, contabilità. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/oscillazione.js?v=referto-paziente-v1"></script>
+<script src="js/partenza.js?v=partenza-v1"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
   :root{--giallo:#FFD008;--fondo:#070707;--carta:#121212;--riga:#262626;--testo:#fff;--testo2:#b8b8b8;--testo3:#777}
@@ -388,7 +389,27 @@
   requestAnimationFrame(animaOmini)
   function disegnaGomitolo(cv){ if (P && P.disegna) P.disegna(cv, xs, ys, scalaG, null, { parole: true, soglia: test && test.soglia || 0, cuneo: false }) }
 
+  // ═══ partenza-v1 · i secondi prima del via, in grande anche sulla TV ═══
+  // Il telefono manda «pronti» coi secondi; la TV conta da sola (un messaggio
+  // solo, niente traffico). Al «via» si chiude; se il via non arriva (test
+  // annullato), si chiude da sola poco dopo.
+  var prontiIv = null, prontiStop = null
+  function onPronti(p){
+    p = p || {}
+    if (!window.PolPartenza) return
+    clearInterval(prontiIv); clearTimeout(prontiStop)
+    var n = Math.max(1, Math.min(60, Number(p.secondi) || 10))
+    try { PolPartenza.apri({ titolo: p.titolo, sotto: p.sotto, testo: p.testo, avviso: p.avviso, secondi: n }) } catch(e){ return }
+    prontiIv = setInterval(function(){ n--; if (n >= 1) PolPartenza.numero(n); else { clearInterval(prontiIv); PolPartenza.via() } }, 1000)
+    prontiStop = setTimeout(function(){ clearInterval(prontiIv); PolPartenza.chiudi() }, (n + 12) * 1000)
+  }
+  function prontiFine(){
+    clearInterval(prontiIv); clearTimeout(prontiStop)
+    try { if (window.PolPartenza && PolPartenza.aperta()) PolPartenza.via() } catch(e){}
+  }
+
   function onVia(p){
+    prontiFine()
     test = p || {}
     xs = []; ys = []; scalaG = 3; inCorso = true; ultimoDato = Date.now()
     fine0 = test.durata ? Date.now() + test.durata * 1000 : 0
@@ -538,6 +559,7 @@
     if (subOsc){ try { SB.removeChannel(subOsc) } catch(e){} }
     canOsc = c
     subOsc = SB.channel('oscillazione:' + c, { config: { broadcast: { self: false } } })
+    subOsc.on('broadcast', { event: 'pronti' }, function(m){ onPronti(m.payload) })   // partenza-v1
     subOsc.on('broadcast', { event: 'via' }, function(m){ onVia(m.payload) })
     subOsc.on('broadcast', { event: 'punti' }, function(m){ onPunti(m.payload) })
     subOsc.on('broadcast', { event: 'fine' }, function(m){ onFine(m.payload) })

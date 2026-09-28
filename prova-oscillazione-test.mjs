@@ -205,7 +205,14 @@ sez('La pagina è davvero isolata dall’app in uso')
   // oscillazione-live-v1 — carica UN solo file esterno: il motore del disegno,
   // condiviso con la pagina della diretta perché i due gomitoli non divergano.
   const esterni = (src.match(/<script[^>]*\ssrc="([^"]+)"/gi) || [])
-  check('⭐ carica due file esterni: il motore e la libreria del database', esterni.length === 2, esterni)
+  // partenza-v1 · nav-v1 — più due file di sola grafica: la partenza e il pulsante Indietro/Home
+  const esterniMotore = esterni.filter(e => !/js\/(partenza|pol-nav)\.js/.test(e))
+  check('⭐ carica due file esterni: il motore e la libreria del database', esterniMotore.length === 2, esterni)
+  check('⭐ partenza-v1 · e la schermata di partenza, solo grafica', esterni.some(e => /js\/partenza\.js\?v=partenza-v1/.test(e)))
+  check('⭐ partenza-v1 · la partenza si apre prima del conto e il VIA la chiude',
+    /partenza\('Oscillazione Policettiva'/.test(src) && /await countdown\(attesa\)\n    partenzaVia\(\)/.test(src) &&
+    /PolPartenza\.numero\(n\)/.test(src))
+  check('⭐ partenza-v1 · alla TV arriva «pronti» coi secondi, senza nomi', /event:'pronti'/.test(src))
   check('⭐ uno è il motore del disegno', esterni.some(e => /js\/oscillazione\.js/.test(e)), esterni)
   check('⭐ l’altro è supabase-js', esterni.some(e => /supabase-js/.test(e)), esterni)
   // ⚠️ Si guarda il CODICE, non il testo: il commento che spiega perché il

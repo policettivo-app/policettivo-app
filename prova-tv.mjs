@@ -146,10 +146,18 @@ try {
     await page.evaluate(() => window.__emetti('schermo:TV1', 'mostra', { tipo: 'attesa' })); await page.waitForTimeout(300)
     check('⭐ «spegni» dal telefono → schermata d’attesa', (await vista(page)) === 'attesa')
 
+    sez('⭐ partenza-v1 · i secondi prima del via, in grande anche sulla TV')
+    await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'pronti', { titolo: 'Oscillazione Policettiva', sotto: 'Beccheggio · occhi aperti · scalzo', testo: 'Sali sulla tavola', avviso: '', secondi: 10 }))
+    await page.waitForTimeout(1300)
+    check('⭐ «pronti» → la TV apre la schermata di partenza col marchio', await page.evaluate(() => !!(window.PolPartenza && PolPartenza.aperta()) && !!document.querySelector('#pol-partenza .pp-parola')))
+    check('⭐ e conta da sola (10 → 9)', /^(9|8)$/.test((await page.textContent('#pp-num')).trim()), await page.textContent('#pp-num'))
+
     sez('⭐⭐ il test in diretta: gomitolo al centro, omini che si muovono')
     await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'via', { evento: 'beccheggio', occhi: 'aperti', durata: 30, soglia: 2, zb: 1, zg: 0.5, vb: 1, vg: -1 }))
     await page.waitForTimeout(200)
     check('⭐ parte il test → la TV passa alla diretta da sola', (await vista(page)) === 'test')
+    await page.waitForTimeout(1000)
+    check('⭐ partenza-v1 · e al «via» la schermata di partenza si chiude', await page.evaluate(() => !PolPartenza.aperta()))
     // grezzi: beta 2,2 (zero 1) → avanti 1,2 · gamma −0,3 (zero 0,5, verso −1) → destra 0,8
     await page.evaluate(() => { for (let k = 0; k < 4; k++) window.__emetti('oscillazione:OSC1', 'punti', { x: Array(8).fill(-0.3), y: Array(8).fill(2.2) }) })
     await page.waitForTimeout(900)
