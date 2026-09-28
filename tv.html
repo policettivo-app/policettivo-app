@@ -24,7 +24,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/oscillazione.js?v=referto-paziente-v1"></script>
 <script src="js/partenza.js?v=partenza-v1"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="js/qrcode.js?v=tv-qr-v1"></script><!-- tv-qr-v1 · il QR si crea qui, senza siti esterni -->
 <style>
   :root{--giallo:#FFD008;--fondo:#070707;--carta:#121212;--riga:#262626;--testo:#fff;--testo2:#b8b8b8;--testo3:#777}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -144,7 +144,8 @@
     </div>
     <div class="att-piede">
       <div><span class="punto" id="att-punto"></span><span id="att-stato">collegamento…</span>
-        <div class="att-aiuto">Muovi il mouse (o premi un tasto) per i comandi · <b>Esc</b> esce dallo schermo intero</div></div>
+        <div class="att-aiuto">Muovi il mouse (o premi un tasto) per i comandi · <b>Esc</b> esce dallo schermo intero ·
+          il QR non serve più: è già collegata (per rifarlo: <b>🔗 Nuovo QR</b>)</div></div>
       <div style="text-align:right"><div class="att-ora" id="att-ora"></div><div id="att-data"></div></div>
     </div>
   </div>
@@ -249,6 +250,7 @@
 <div class="comandi" id="comandi">
   <button id="btn-intero">⛶ Schermo intero</button>
   <button id="btn-attesa">◻︎ Schermata d’attesa</button>
+  <button id="btn-qr">🔗 Nuovo QR</button><!-- tv-qr-v1 -->
   <button id="btn-esci">✕ Esci dalla TV</button>
 </div>
 <div class="avviso-051" id="avviso-051">⚠️ Manca la migration <b>052_tv_codice.sql</b>: la TV non si può ancora collegare col codice.</div>
@@ -591,8 +593,11 @@
       if (c && window.qrcode){
         var q = window.qrcode(0, 'M'); q.addData(location.origin + '/tv-collega.html?c=' + c); q.make()
         $('ing-qr').innerHTML = q.createSvgTag({ cellSize: 6, margin: 0 })
-      }
-    } catch(e){}
+      } else if (c) throw new Error('qr')
+    } catch(e){
+      // tv-qr-v1 · se il QR non si crea, lo si dice: resta il codice qui a fianco
+      $('ing-qr').innerHTML = '<div style="color:#111;font-size:min(2vw,22px);font-weight:800;display:flex;height:100%;align-items:center;justify-content:center;text-align:center">QR non disponibile:<br>usa il codice →</div>'
+    }
     codiceAl = Date.now()
   }
   async function nuovoCodice(){
@@ -654,6 +659,15 @@
   }
   $('btn-attesa').onclick = function(){ mostra('attesa') }
   // tv-multi-v1 · uscire: dallo schermo intero, e dalla pagina (torna all'app)
+  // tv-qr-v1 · «🔗 Nuovo QR»: questa TV dimentica il suo collegamento e ne
+  // chiede uno nuovo. Il vecchio segreto sparisce da qui, quindi il vecchio
+  // collegamento non serve più a nessuno: dal telefono, in «La tua TV», lo si
+  // toglie con «Scollega». Non tocca nessun dato.
+  $('btn-qr').onclick = function(){
+    if (collegata && !window.confirm('Questa TV è già collegata e funziona.\nVuoi davvero un nuovo QR per ricollegarla?')) return
+    try { localStorage.removeItem(CHIAVE_SEGRETO) } catch(e){}
+    location.reload()
+  }
   $('btn-esci').onclick = function(){
     try { if (document.fullscreenElement) document.exitFullscreen() } catch(e){}
     if (window.opener) { try { window.close() } catch(e){} }

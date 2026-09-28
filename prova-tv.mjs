@@ -57,6 +57,9 @@ async function apri(o = {}) {
   const page = await ctx.newPage()
   const errori = []; page.on('pageerror', e => errori.push(String(e)))
   await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }))
+  // tv-qr-v1 · il QR ora è una copia locale (js/qrcode.js): nelle prove lo si sostituisce con uno finto che dice cosa contiene
+  await page.route(/\/js\/qrcode\.js/, r => r.fulfill({ status: 200, contentType: 'text/javascript',
+    body: 'window.qrcode=function(){var d="";return{addData:function(x){d=x},make:function(){},createSvgTag:function(){return "<svg data-url=\\""+d+"\\"></svg>"}}}' }))
   await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript',
     body: /qrcode/.test(r.request().url()) ? 'window.qrcode=function(){var d="";return{addData:function(x){d=x},make:function(){},createSvgTag:function(){return "<svg data-url=\\""+d+"\\"></svg>"}}}' : '' }))
   await page.addInitScript(FINTO, Object.assign({ collegata: true }, o))
@@ -75,7 +78,11 @@ try {
     check('⛔ e nessun signOut (chiuderebbe TUTTE le sessioni dell’account)', !/signOut\(/.test(src))
     const rpc = [...src.matchAll(/\.rpc\(\s*'([^']+)'/g)].map(m => m[1])
     check('⭐ chiama solo le tre funzioni della TV (052)', rpc.length > 0 && rpc.every(n => /^tv_(nuovo|stato|pacchetto)$/.test(n)), rpc)
-    check('⭐ sul televisore resta solo il segreto della TV', (src.match(/localStorage\.\w+\(CHIAVE_SEGRETO/g) || []).length === 2 && (src.match(/localStorage/g) || []).length === 2)
+    // tv-qr-v1 · più una: «🔗 Nuovo QR» toglie il segreto (removeItem)
+    check('⭐ sul televisore resta solo il segreto della TV', (src.match(/localStorage\.\w+\(CHIAVE_SEGRETO/g) || []).length === 3 && (src.match(/localStorage/g) || []).length === 3)
+    check('⭐ tv-qr-v1 · il QR si crea con la copia locale, non da un sito esterno', /<script src="js\/qrcode\.js\?v=tv-qr-v1">/.test(src) && !/cdn\.jsdelivr\.net\/npm\/qrcode/.test(src))
+    const lib = fs.readFileSync('js/qrcode.js', 'utf8')
+    check('⭐ tv-qr-v1 · js/qrcode.js è qrcode-generator (MIT) con la sua licenza', /Kazuhiko Arase/.test(lib) && /MIT license/.test(lib) && /var qrcode = function/.test(lib))
     check('è noindex', /noindex/.test(src))
   }
 
@@ -96,6 +103,7 @@ try {
     await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(400)
     const seg2 = (await page.evaluate(() => window.__fk.rpc)).find(r => r[0] === 'tv_stato')[1].p_segreto
     check('⭐ il segreto resta lo stesso se si ricarica (la TV resta collegata)', seg && seg === seg2)
+    check('⭐ tv-qr-v1 · il QR si ricrea anche dopo aver ricaricato', !!(await page.$('#ing-qr svg')))
     await page.evaluate(() => { window.__fk.collegata = true })       // il telefono conferma il codice
     await page.waitForTimeout(3600)
     check('⭐⭐ confermato dal telefono → la TV si collega da sola', !(await page.isVisible('#ingresso')) && /Collegata/.test(await page.textContent('#att-stato')))
@@ -105,6 +113,31 @@ try {
     check('⭐⭐ scollegata dal telefono → torna al codice', await page.isVisible('#ingresso'))
     check('nessun errore JS', errori.length === 0, errori)
     await ctx.close()
+  }
+
+  sez('⭐ tv-qr-v1 · «🔗 Nuovo QR» e la libreria vera del QR')
+  {
+    const { page, ctx, errori } = await apri({})
+    await page.waitForTimeout(600)
+    const prima = await page.evaluate(() => localStorage.getItem('policettivo.tv.segreto.v1'))
+    check('⭐ TV collegata: il pulsante «🔗 Nuovo QR» c’è fra i comandi', /Nuovo QR/.test(await page.textContent('#comandi')))
+    check('⭐ e l’attesa spiega che il QR non serve più (già collegata)', /già collegata/.test(await page.textContent('#v-attesa')))
+    page.once('dialog', d => d.dismiss())
+    await page.click('#btn-qr', { force: true }); await page.waitForTimeout(300)
+    check('⛔ se annulli la domanda non cambia niente', (await page.evaluate(() => localStorage.getItem('policettivo.tv.segreto.v1'))) === prima)
+    page.once('dialog', d => d.accept())
+    await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click('#btn-qr', { force: true })])
+    await page.waitForTimeout(400)
+    const dopo = await page.evaluate(() => localStorage.getItem('policettivo.tv.segreto.v1'))
+    check('⭐ se confermi, la TV si fa un segreto nuovo (e quindi un QR nuovo)', !!dopo && dopo !== prima && /^[0-9a-f]{64}$/.test(dopo))
+    check('nessun errore JS', errori.length === 0, errori)
+    await ctx.close()
+    const ctx2 = await browser.newContext(); const p2 = await ctx2.newPage()
+    await p2.goto('http://localhost:' + PORT + '/prova-tv-vuota.html').catch(() => {})
+    await p2.addScriptTag({ url: 'http://localhost:' + PORT + '/js/qrcode.js' })
+    const svg = await p2.evaluate(() => { const q = window.qrcode(0, 'M'); q.addData('https://app.policettivo.it/tv-collega.html?c=K7P3MX'); q.make(); return { n: q.getModuleCount(), s: q.createSvgTag({ cellSize: 6, margin: 0 }) } })
+    check('⭐ la copia locale crea davvero il QR (un disegno SVG)', /^<svg/.test(svg.s) && svg.n >= 25, svg.n)
+    await ctx2.close()
   }
 
   sez('⭐⭐ la schermata d’attesa')
