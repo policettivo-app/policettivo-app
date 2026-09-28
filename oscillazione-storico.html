@@ -157,7 +157,7 @@
 <div id="stampa-qui"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/oscillazione.js?v=referto-paziente-v1"></script>
+<script src="js/oscillazione.js?v=monopodalico-v1"></script>
 <script>
 ;(function(){
   'use strict'
@@ -208,7 +208,10 @@
       var x = SB.from('oscillazione_test').select(campi).order('quando', { ascending: true }).limit(2000)
       return PID ? x.eq('patient_id', PID) : x
     }
-    var r = await q(CAMPI + ',sessione_id'), con047 = true
+    // monopodalico-v1 · anche l'appoggio (053): le prove su un piede sono un'altra
+    // condizione. Se la colonna non c'è, nessuna prova su un piede può esistere.
+    var r = await q(CAMPI + ',appoggio,sessione_id'), con047 = true
+    if (r.error && /appoggio/.test(r.error.message || '')) r = await q(CAMPI + ',sessione_id')
     if (r.error && /sessione_id/.test(r.error.message || '')){ con047 = false; r = await q(CAMPI) }
     if (r.error){
       var m = r.error.message || String(r.error)

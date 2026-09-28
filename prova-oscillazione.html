@@ -215,7 +215,7 @@
      3) «← Test» riporta alla pagina dei test (test.html), da cui si arriva
         anche al Confronto, che adesso è sessione contro sessione. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/oscillazione.js?v=referto-paziente-v1"></script>
+<script src="js/oscillazione.js?v=monopodalico-v1"></script>
 <script src="js/partenza.js?v=partenza-v1"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -304,6 +304,15 @@
   .live b.cod{font-family:ui-monospace,Menlo,monospace;font-size:22px;letter-spacing:3px}
   .live button{border:1px solid currentColor;background:transparent;color:inherit;border-radius:8px;
                padding:6px 11px;font-size:13px;font-family:inherit;cursor:pointer;flex:none}
+  /* monopodalico-v1 · destro contro sinistro */
+  .mono-cfr{border:2px solid #FFD008;border-radius:16px;padding:14px 14px 10px;margin:0 0 14px;background:#fffdf2}
+  .mono-cfr .mono-tit{font-size:19px;font-weight:900;margin-bottom:10px}
+  .mono-cfr .mono-due{display:flex;gap:10px;margin-bottom:10px}
+  .mono-cfr .mono-lato{flex:1;background:#fff;border:1px solid #eee;border-radius:12px;text-align:center;padding:8px 4px}
+  .mono-cfr .mono-k{font-size:12px;font-weight:800;letter-spacing:1.5px;color:#777}
+  .mono-cfr .mono-v{font-size:34px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.1}
+  .mono-cfr .mono-u{font-size:12px;color:#888}
+  .mono-cfr .mono-frasi{font-size:14px;line-height:1.5;margin-top:8px}
   /* confronto-v1 */
   .titolo-omini{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#888;
                 font-weight:700;margin:2px 0 6px}
@@ -423,6 +432,21 @@
         Non lasciare mai solo il paziente durante la prova.
       </div>
     </div>
+    <!-- monopodalico-v1 · su due piedi o su un piede (prima il destro, poi il sinistro) -->
+    <div id="blocco-appoggio">
+      <label>Appoggio</label>
+      <div class="chips" id="appoggio-scelta">
+        <button class="chip on" data-a="">due piedi</button>
+        <button class="chip" data-a="mono">un piede · destro poi sinistro</button>
+      </div>
+      <div class="warn" id="come-mono" style="display:none">
+        🦶 <b>Un piede solo:</b> il piede va <b>al centro</b>, sull’incrocio del nastro. Il telefono
+        si sposta <b>davanti al piede</b>, sulla tavola, sempre in verticale e col lato corto verso il
+        paziente: la tavola è rigida, l’inclinazione è la stessa in ogni punto.
+        Prima il <b>destro</b>, poi si scende (la tavola vuota si rimisura) e il <b>sinistro</b>.
+        Alla fine il confronto. <b>Stai sempre accanto</b>, a un braccio di distanza.
+      </div>
+    </div>
     <label>3 · Piedi</label>
     <div class="chips" id="piedi">
       <button class="chip on" data-p="scalzo">scalzo</button>
@@ -496,6 +520,7 @@
   </div>
   <div class="card" id="c-esito" style="display:none">
     <h2>3 · Risultato</h2>
+    <div id="mono-cfr" class="mono-cfr" style="display:none"></div><!-- monopodalico-v1 -->
     <div id="carico-box"></div>
     <div id="omini"></div>
     <canvas id="traccia" width="600" height="600"></canvas>
@@ -585,6 +610,8 @@
   var occhi  = 'aperti'
   var piedi  = 'scalzo'
   var momento = ''                                  // schermo-paziente-v1 · '' | 'pre' | 'post'
+  var appoggioScelto = ''                           // monopodalico-v1 · '' due piedi | 'mono' destro poi sinistro
+  var piedeOra = null                               // monopodalico-v1 · il piede della prova in corso: 'dx' | 'sx' | null
   var prove = []
   var actx = null
 
@@ -797,7 +824,11 @@
     var pf = $('pf-cosa')
     if (pf) pf.textContent = evento === 'taratura' ? 'taratura del verso · 15 secondi'
                                                    : evento + ' · occhi ' + occhi +
+                                                     (appoggioScelto === 'mono' ? ' · UN PIEDE dx→sx' : '') +
                                                      (momento === 'pre' ? ' · PRIMA dei 3R' : momento === 'post' ? ' · DOPO i 3R' : '')
+    // monopodalico-v1 · come si appoggia, solo quando serve
+    var cm = $('come-mono'); if (cm) cm.style.display = (appoggioScelto === 'mono' && eTest(evento)) ? '' : 'none'
+    var ba = document.getElementById('blocco-appoggio'); if (ba) ba.style.opacity = eTest(evento) ? '1' : '0.45'
     // grafica-tavola-v1 — il disegno cambia col test: e' l'unico modo per non
     // sbagliare il verso del cuscino senza doverlo leggere ogni volta.
     var ap = $('appoggio')
@@ -1298,6 +1329,7 @@
     var attesa = Number($('attesa').value) || 5
     $('etichetta-viva').textContent = evento + (eTest(evento) ? ' · occhi ' + occhi : '') + ' · ' + piedi
     mostra('c-setup', false); mostra('c-esito', false); mostra('c-misura', true)
+    var mcf = $('mono-cfr'); if (mcf){ mcf.innerHTML = ''; mcf.style.display = 'none' }   // monopodalico-v1
     // live-tv-v1 · il gomitolo si vede SUBITO: griglia pronta e schermo portato lì
     try { disegna($('live'), [], [], 5) } catch(e){}
     try { $('c-misura').scrollIntoView({ block: 'start' }) } catch(e){}
@@ -1326,12 +1358,86 @@
       return
     }
 
-    // ── LO ZERO, preso da solo, con la tavola ancora vuota ──
+    // ═══ monopodalico-v1 · UN PIEDE: prima il destro, poi il sinistro ═══
+    // Con «due piedi» il giro è quello di sempre (una prova). Con «un piede»
+    // si fanno DUE prove di fila, ognuna col suo zero a tavola vuota, e alla
+    // fine il confronto destro/sinistro. Ogni prova si salva da sola, come sempre.
+    var giro = (appoggioScelto === 'mono' && eTest(evento)) ? ['dx', 'sx'] : [null]
+    if (giro[0] && SB && haiSessione){
+      // la colonna `appoggio` deve esistere, se no la prova si salverebbe
+      // mescolata a quelle su due piedi: meglio non partire e dirlo
+      var ck = null
+      try { ck = await SB.from('oscillazione_test').select('appoggio').limit(1) } catch(e){ ck = null }
+      if (ck && ck.error && /appoggio/.test(String(ck.error.message || ''))){
+        try { if (wl) wl.release() } catch(e){}
+        $('guard').classList.remove('on')
+        mostra('c-misura', false); mostra('c-setup', true)
+        $('err').style.display = ''
+        $('err').innerHTML = '⚠️ <b>Per il test su un piede manca la migration 053_oscillazione_appoggio.sql.</b> ' +
+          'Lanciala in Supabase (SQL Editor) e riprova. Su due piedi funziona tutto come prima.'
+        inCorso = false
+        return
+      }
+    }
+    var fatte = []
+    for (var gi = 0; gi < giro.length; gi++){
+      piedeOra = giro[gi]
+      if (gi > 0){
+        // fra un piede e l'altro: si scende, perché lo zero va preso a tavola vuota
+        mostra('c-esito', false); mostra('c-misura', true)
+        try { disegna($('live'), [], [], 5); $('c-misura').scrollIntoView({ block: 'start' }) } catch(e){}
+        $('stato').textContent = 'Scendi dalla tavola: adesso il piede sinistro'
+        $('etichetta-viva').textContent = evento + (eTest(evento) ? ' · occhi ' + occhi : '') + ' · piede sinistro'
+        voce('Bene. Scendi dalla tavola. Adesso tocca al piede sinistro.')
+        await new Promise(function(r){ setTimeout(r, SALTA_ASSESTAMENTO ? 150 : 4500) })
+      }
+      var esito1 = await unaProva(durata, attesa)
+      if (!esito1){
+        piedeOra = null
+        try { if (wl) wl.release() } catch(e){}
+        $('guard').classList.remove('on')
+        if (gi > 0 && $('err').style.display !== 'none')
+          $('err').innerHTML += '<br>Il <b>piede destro è già salvato</b>: per il confronto rifai «un piede» da capo.'
+        inCorso = false
+        return
+      }
+      fatte.push(prove[prove.length-1])
+    }
+    piedeOra = null
+    try { if (wl) wl.release() } catch(e){}
+    $('guard').classList.remove('on')
+    if (fatte.length === 2) mostraConfrontoPiedi(fatte[0], fatte[1])
+    else { var mc = $('mono-cfr'); if (mc){ mc.innerHTML = ''; mc.style.display = 'none' } }
+    inCorso = false
+  }
+
+  // monopodalico-v1 · il confronto destro/sinistro, in cima al risultato e sulla TV
+  function riassuntoPiede(p){
+    var o = p.orientamento || {}, c = caricoDi(p), asse = assePrincipale(p.evento)
+    return { velocita: o.velocitaLisciata, osc: asse === 'gamma' ? o.stdX : o.stdY, ellisse: o.area,
+             carico: c ? c.principale : null, asse: asse }
+  }
+  function mostraConfrontoPiedi(pDx, pSx){
+    var el = $('mono-cfr'); if (!el) return
+    var PO = window.PolOscillazione
+    if (!PO || !PO.confrontoPiedi){ el.style.display = 'none'; return }
+    var c = PO.confrontoPiedi(riassuntoPiede(pDx), riassuntoPiede(pSx))
+    el.innerHTML = c.html + '<div class="mono-frasi">' + c.frasi.map(function(f){ return escapeHtml(f) }).join(' ') + '</div>'
+    el.style.display = ''
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }) } catch(e){}
+    voce(c.titolo + '.')
+    try { if (canaleSub) canaleSub.send({ type:'broadcast', event:'mono', payload:{
+      piede: c.piede, titolo: c.titolo,
+      dx: r2(c.righe[0].dx), sx: r2(c.righe[0].sx), diff: c.righe[0].diff, banda: c.righe[0].banda,
+      frase: c.frasi[1] || '' }}) } catch(e){}
+  }
+
+  // una prova sola: zero a tavola vuota → partenza → misura → esito → salva.
+  // Torna false se lo zero non è andato (e lo ha già detto a schermo e a voce).
+  async function unaProva(durata, attesa){
     var chZ = chiaveZero(evento)
     var ez = await zeroAutomatico(chZ)
     if (!ez.ok){
-      try { if (wl) wl.release() } catch(e){}
-      $('guard').classList.remove('on')
       mostra('c-misura', false); mostra('c-setup', true)
       $('err').style.display = ''
       $('err').innerHTML = (ez.perche === 'mosso')
@@ -1341,22 +1447,27 @@
           'misurare la tavola scarica.'
         : '⚠️ I sensori non hanno risposto durante la misura della tavola vuota. Riprova.'
       voce('Non ci siamo: la tavola non era ferma. Scendi e riprova.')
-      inCorso = false
-      return
+      return false
     }
 
-    var comeSiSale = 'Adesso sali sulla tavola e trova la posizione.'
+    var comeSiSale = piedeOra === 'dx' ? 'Adesso sali sulla tavola solo col piede destro, al centro, sull’incrocio del nastro.'
+                   : piedeOra === 'sx' ? 'Adesso sali sulla tavola solo col piede sinistro, al centro, sull’incrocio del nastro.'
+                   : 'Adesso sali sulla tavola e trova la posizione.'
     // grafica-tavola-v1 — a occhi chiusi l'avvertenza la DICE, non la scrive
     // soltanto: chi tiene gli occhi chiusi lo schermo non lo vede.
-    var sicurezza = (eTest(evento) && occhi === 'chiusi')
+    // monopodalico-v1 — su un piede solo l'avvertenza vale sempre
+    var sicurezza = ((eTest(evento) && occhi === 'chiusi') || piedeOra)
       ? ' Attenzione: resta accanto al paziente, a un braccio di distanza.' : ''
+    $('etichetta-viva').textContent = evento + (eTest(evento) ? ' · occhi ' + occhi : '') + ' · ' + piedi +
+      (piedeOra ? ' · piede ' + (piedeOra === 'dx' ? 'destro' : 'sinistro') : '')
     $('stato').textContent = comeSiSale + (sicurezza ? ' ⚠️ Stagli accanto.' : '')
     voce(evento + (eTest(evento) ? ', occhi ' + occhi : '') + '. ' + comeSiSale + sicurezza +
          ' Comincio fra ' + attesa + ' secondi.')
-    partenza('Oscillazione Policettiva',
+    partenza(piedeOra ? 'Un piede · ' + (piedeOra === 'dx' ? 'DESTRO' : 'SINISTRO') : 'Oscillazione Policettiva',
       (evento === 'rollio' ? 'Rollio · destra–sinistra' : evento === 'beccheggio' ? 'Beccheggio · avanti–indietro' : evento) +
       (eTest(evento) ? ' · occhi ' + occhi : '') + ' · ' + piedi,
-      comeSiSale, sicurezza ? '⚠️ Occhi chiusi: resta accanto al paziente, a un braccio di distanza' : '', attesa)
+      comeSiSale, sicurezza ? (piedeOra ? '⚠️ Un piede solo: resta accanto al paziente, a un braccio di distanza'
+                                        : '⚠️ Occhi chiusi: resta accanto al paziente, a un braccio di distanza') : '', attesa)
     await new Promise(function(r){ setTimeout(r, SALTA_ASSESTAMENTO ? 0 : 1800) })
     await countdown(attesa)
     partenzaVia()
@@ -1379,14 +1490,12 @@
 
     // due bip che scendono: e' finita
     bip(660, 200); setTimeout(function(){ bip(392, 420) }, 230)
-    voce('Finito. Puoi scendere.')
-    try { if (wl) wl.release() } catch(e){}
-    $('guard').classList.remove('on')
+    voce(piedeOra === 'dx' ? 'Finito il destro.' : 'Finito. Puoi scendere.')
 
     concludi(dati, durata)
     mandaFine(prove[prove.length-1])
-    salvaProva(prove[prove.length-1])      // oscillazione-app-v1 — da solo, senza pulsanti
-    inCorso = false
+    await salvaProva(prove[prove.length-1])      // oscillazione-app-v1 — da solo, senza pulsanti
+    return true
   }
 
   function concludi(dati, durata){
@@ -1442,6 +1551,7 @@
       quando: new Date().toISOString(),
       evento: evento, occhi: eTest(evento) ? occhi : '-',
       configurazione: conf, piedi: piedi, momento: momento,
+      appoggio: piedeOra || null,          // monopodalico-v1 · 'dx' | 'sx' | null = due piedi
       nota: $('nota').value || '', nota_dopo: '',
       durata_s: durata, attesa_s: Number($('attesa').value) || 5,
       durata_reale_s: r2(durUso), campioni: dati.t.length, hz_reale: r1(hz),
@@ -1700,7 +1810,8 @@
   // la stessa frase, e si può provare con un controllo automatico.
   function chiaveCondizione(p){
     return (p.configurazione || '(non indicata)') + ' · ' + p.evento +
-           (p.occhi && p.occhi !== '-' ? ' · occhi ' + p.occhi : '')
+           (p.occhi && p.occhi !== '-' ? ' · occhi ' + p.occhi : '') +
+           (p.appoggio === 'dx' ? ' · piede destro' : p.appoggio === 'sx' ? ' · piede sinistro' : '')   // monopodalico-v1
   }
   function rumoreSessione(){
     var z = prove.filter(function(p){ return eZero(p.evento) && p.orientamento })
@@ -1816,6 +1927,7 @@
   function etichettaProva(p, i){
     return (i+1) + ') ' + new Date(p.quando).toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}) +
       ' · ' + p.evento + ' · occhi ' + p.occhi +
+      (p.appoggio === 'dx' ? ' · piede destro' : p.appoggio === 'sx' ? ' · piede sinistro' : '') +
       (p.configurazione && p.configurazione !== '(non indicata)' ? ' · ' + p.configurazione : '')
   }
 
@@ -2213,6 +2325,8 @@
       // cosi' una prova «non indicata» si salva identica a prima, anche
       // senza la migration 048.
       if (p.momento === 'pre' || p.momento === 'post') riga.momento = p.momento
+      // monopodalico-v1 · come il momento: nella riga SOLO se è una prova su un piede
+      if (p.appoggio === 'dx' || p.appoggio === 'sx') riga.appoggio = p.appoggio
       var r = await SB.from('oscillazione_test').insert(riga).select('id').maybeSingle()
       // Migration 048 non lanciata: la prova NON si perde. Si risalva senza
       // il momento e lo si dice, per nome di file.
@@ -2328,7 +2442,7 @@
       // (arrivano grezzi) e muove gli omini dalla parte giusta
       var ztv = zeriTavola[chiaveZero(evento)] || null
       canaleSub.send({ type:'broadcast', event:'via', payload:{
-        evento: evento, occhi: eTest(evento) ? occhi : '-', durata: dur,
+        evento: evento, occhi: eTest(evento) ? occhi : '-', durata: dur, appoggio: piedeOra || null,
         zb: ztv ? r2(ztv.beta) : null, zg: ztv ? r2(ztv.gamma) : null, vb: verso.beta, vg: verso.gamma,
         soglia: Math.abs(parseFloat(String($('soglia').value).replace(',', '.'))) || 0
       }})
@@ -2391,6 +2505,13 @@
     c.addEventListener('click', function(){
       Array.prototype.forEach.call(document.querySelectorAll('#piedi .chip'), function(x){ x.classList.remove('on') })
       c.classList.add('on'); piedi = c.getAttribute('data-p')
+    })
+  })
+  Array.prototype.forEach.call(document.querySelectorAll('#appoggio-scelta .chip'), function(c){   // monopodalico-v1
+    c.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#appoggio-scelta .chip'), function(x){ x.classList.remove('on') })
+      c.classList.add('on'); appoggioScelto = c.getAttribute('data-a') || ''
+      aggiornaSpiega()
     })
   })
   Array.prototype.forEach.call(document.querySelectorAll('#momento .chip'), function(c){

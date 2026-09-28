@@ -344,13 +344,75 @@
 
   function numeroO(x){ return (x == null || x === '' || isNaN(Number(x))) ? null : Number(x) }
 
+  // ═══ monopodalico-v1 · DESTRO CONTRO SINISTRO ═══════════════════════
+  // Due prove su un piede, stessa tavola, stesso momento: quale appoggio
+  // oscilla meno. La differenza si misura sulla MEDIA dei due (è simmetrica:
+  // non conta chi viene prima). Le soglie sono le stesse del confronto fra
+  // prove (2,77 × CV, una prova per parte): sono state misurate su DUE piedi,
+  // quindi per un piede solo restano provvisorie finché non c'è la Fase 0.
+  // Le parole dicono cosa ha fatto la misura; il giudizio clinico resta tuo.
+  //   dx, sx: { velocita, osc, ellisse, carico, asse }
+  function confrontoPiedi(dx, sx){
+    function rel(a, b){ var m = (a + b) / 2; return m > 0 ? 100 * Math.abs(a - b) / m : 0 }
+    var misure = [
+      { k: 'velocita', nome: '⭐ Velocità media', u: '°/s', banda: BANDA_SINGOLA },
+      { k: 'osc', nome: 'Oscillazione asse del test', u: '°', banda: bandaDi(CV.osc, 1) },
+      { k: 'ellisse', nome: 'Ellisse 95%', u: '°²', banda: bandaDi(CV.ellisse, 1) }
+    ]
+    var righe = misure.map(function(m){
+      var a = Number(dx[m.k]), b = Number(sx[m.k])
+      var ok = isFinite(a) && isFinite(b) && (a + b) > 0
+      var d = ok ? rel(a, b) : 0
+      var oltre = ok && d >= m.banda
+      return { k: m.k, nome: m.nome, u: m.u, dx: ok ? a : null, sx: ok ? b : null, diff: Math.round(d),
+               banda: m.banda, oltre: oltre, meglio: oltre ? (a < b ? 'dx' : 'sx') : null }
+    })
+    var v = righe[0]
+    var piede = v.meglio
+    var nomeP = function(x){ return x === 'dx' ? 'destro' : 'sinistro' }
+    var titolo = piede ? 'Più stabile sul piede ' + nomeP(piede) : 'Nessuna differenza distinguibile fra i due piedi'
+    var f = []
+    if (v.dx != null){
+      f.push('Sul piede destro la velocità media è ' + numIt(v.dx, 1) + ' gradi al secondo, sul sinistro ' +
+             numIt(v.sx, 1) + ': una differenza del ' + v.diff + ' per cento.')
+      f.push(piede
+        ? 'È più della variabilità della misura (' + v.banda + ' per cento): sul piede ' + nomeP(piede) +
+          ' la tavola si è mossa meno.'
+        : 'Sotto il ' + v.banda + ' per cento non si distingue dal rumore della misura: due prove uguali possono ballare di tanto.')
+    } else f.push('Una delle due prove non ha misure: il confronto non si può fare.')
+    var cDx = Number(dx.carico), cSx = Number(sx.carico)
+    if (isFinite(cDx) && isFinite(cSx) && dx.carico != null && sx.carico != null){
+      f.push('Il carico sull’asse del test: ' + numIt(Math.abs(cDx), 1) + ' gradi ' + parolaAsse(dx.asse, cDx).toLowerCase() +
+             ' sul destro, ' + numIt(Math.abs(cSx), 1) + ' gradi ' + parolaAsse(sx.asse, cSx).toLowerCase() + ' sul sinistro.')
+    }
+    f.push('Le soglie vengono da prove su due piedi: per un piede solo sono provvisorie, finché non si fa la Fase 0 del monopodalico.')
+    f.push('Questi sono i numeri del confronto. L’interpretazione clinica la scrivi tu.')
+    var col = function(r, lato){ return !r.oltre ? '#111' : (r.meglio === lato ? '#0a7d33' : '#c0392b') }
+    var html = '<div class="mono-tit">' + (piede ? '🦶 ' : '') + titolo + '</div>' +
+      '<div class="mono-due"><div class="mono-lato"><div class="mono-k">DESTRO</div><div class="mono-v" style="color:' + col(v, 'dx') + '">' +
+      (v.dx != null ? numIt(v.dx, 1) : '—') + '</div><div class="mono-u">°/s velocità</div></div>' +
+      '<div class="mono-lato"><div class="mono-k">SINISTRO</div><div class="mono-v" style="color:' + col(v, 'sx') + '">' +
+      (v.sx != null ? numIt(v.sx, 1) : '—') + '</div><div class="mono-u">°/s velocità</div></div></div>' +
+      '<div class="cfr">' + righe.map(function(r){
+        return '<div class="cfr-riga"><span>' + r.nome + '</span><span class="cfr-val">' +
+          (r.dx != null ? numIt(r.dx, 2) : '—') + ' · ' + (r.sx != null ? numIt(r.sx, 2) : '—') + ' ' + r.u + '</span>' +
+          '<span class="cfr-d" style="color:' + (r.oltre ? '#111' : '#999') + '">' + r.diff + '%</span></div>'
+      }).join('') + '</div>' +
+      '<div class="nota" style="margin-top:8px">Destro · sinistro. In grigio le differenze sotto la variabilità della misura ' +
+      '(velocità ' + BANDA_SINGOLA + '%, oscillazione ' + righe[1].banda + '%, ellisse ' + righe[2].banda + '%). ' +
+      'Soglie misurate su due piedi: <b>provvisorie</b> per un piede solo.</div>'
+    return { piede: piede, titolo: titolo, righe: righe, frasi: f, html: html }
+  }
+
   // la chiave della condizione: la stessa della pagina del test
   // schermo-paziente-v1 · una prova segnata «prima» o «dopo i 3 Respiri» è
   // un'ALTRA condizione: mediarla con le altre mescolerebbe il prima col dopo.
   // Le prove senza momento (tutte quelle di prima) restano come erano.
+  // monopodalico-v1 · una prova su un piede è un'ALTRA condizione (come il momento)
   function condizioneDi(r){
     return (r.configurazione || '(non indicata)') + ' · ' + r.evento +
            (r.occhi && r.occhi !== '-' ? ' · occhi ' + r.occhi : '') +
+           (r.appoggio === 'dx' ? ' · piede destro' : r.appoggio === 'sx' ? ' · piede sinistro' : '') +
            (r.momento === 'pre' ? ' · prima dei 3R' : r.momento === 'post' ? ' · dopo i 3R' : '')
   }
   function asseDi(r){ return r.evento === 'rollio' ? 'gamma' : 'beta' }
@@ -580,11 +642,12 @@
     Object.keys(gruppi).forEach(function(k){
       var r0 = gruppi[k][0]
       if (r0.occhi !== 'aperti') return
-      var kc = condizioneDi({ configurazione: r0.configurazione, evento: r0.evento, occhi: 'chiusi', momento: r0.momento })
+      var kc = condizioneDi({ configurazione: r0.configurazione, evento: r0.evento, occhi: 'chiusi', momento: r0.momento, appoggio: r0.appoggio })
       if (!gruppi[kc]) return
       var va = mediaDi(gruppi[k], function(r){ return numeroO(r.velocita) })
       var vc = mediaDi(gruppi[kc], function(r){ return numeroO(r.velocita) })
       if (va > 0) out[(r0.configurazione ? r0.configurazione + ' · ' : '') + r0.evento +
+        (r0.appoggio === 'dx' ? ' · piede destro' : r0.appoggio === 'sx' ? ' · piede sinistro' : '') +
         (r0.momento === 'pre' ? ' · prima dei 3R' : r0.momento === 'post' ? ' · dopo i 3R' : '')] = vc / va
     })
     return out
@@ -811,7 +874,7 @@
     serieDaRiga: serieDaRiga, ellisseDi: ellisseDi, direzioni: direzioni, condizioneDi: condizioneDi, nomeCond: nomeCond,
     riassuntoCondizione: riassuntoCondizione, pngDaRiga: pngDaRiga, chiDi: chiDi, bandaDi: bandaDi, CV: CV,
     CSS_REFERTO: CSS_REFERTO, PIEDE_REFERTO: PIEDE_REFERTO,
-    confronto: confronto,
+    confronto: confronto, confrontoPiedi: confrontoPiedi,   // monopodalico-v1
     BANDA_SINGOLA: BANDA_SINGOLA, BANDA_TRE: BANDA_TRE, BANDA_CARICO: BANDA_CARICO,
     numIt: numIt, parolaAsse: parolaAsse,
     omini: omini, spiegaPaziente: spiegaPaziente, coloreCarico: coloreCarico, CSS_OMINI: CSS_OMINI,

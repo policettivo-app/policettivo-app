@@ -42,9 +42,10 @@
     try {
       if (o.patientId && S) {
         var g = S.giornoDi(o.giorno)
-        var r2 = await sb.from('oscillazione_test')
-          .select('id,quando,evento,occhi,piedi,configurazione,momento,velocita,osc_ap,osc_ds,raggio,ellisse,deriva,carico_avanti,carico_destra,tarato')
-          .eq('patient_id', o.patientId)
+        // monopodalico-v1 · con l'appoggio (053), se c'è: un piede è un'altra condizione
+        var CAMPI_EQ = 'id,quando,evento,occhi,piedi,configurazione,momento,velocita,osc_ap,osc_ds,raggio,ellisse,deriva,carico_avanti,carico_destra,tarato'
+        var r2 = await sb.from('oscillazione_test').select(CAMPI_EQ + ',appoggio').eq('patient_id', o.patientId)
+        if (r2.error && /appoggio/.test(r2.error.message || '')) r2 = await sb.from('oscillazione_test').select(CAMPI_EQ).eq('patient_id', o.patientId)
         if (r2.error) out.avvisi.push('equilibrio')
         else {
           out.prove = (r2.data || []).filter(function (p) {

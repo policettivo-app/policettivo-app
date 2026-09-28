@@ -73,7 +73,7 @@ const SESSIONI = [
   { id: X1, patient_id: P2, quando: '2026-09-05T09:59:00Z', nome: null, eta: null, peso_kg: null }
 ]
 
-const SUPA = ({ sessione, dati, sess, errore, senza047, P1, P2 }) => {
+const SUPA = ({ sessione, dati, sess, errore, senza047, senza053, P1, P2 }) => {
   window.__db = { letture: [], tracce: [], scritto: false }
   const traccia = () => {
     const b = [], g = []
@@ -103,6 +103,7 @@ const SUPA = ({ sessione, dati, sess, errore, senza047, P1, P2 }) => {
         } else if (tab === 'oscillazione_test') {
           window.__db.letture.push({ sel: st.sel, eq: st.eq })
           if (errore) out = { data: null, error: { message: errore } }
+          else if (senza053 && /appoggio/.test(st.sel)) out = { data: null, error: { message: 'column oscillazione_test.appoggio does not exist' } }
           else if (senza047 && /sessione_id/.test(st.sel)) out = { data: null, error: { message: 'column oscillazione_test.sessione_id does not exist' } }
           else out = { data: dati.filter(r => !('patient_id' in st.eq) || r.patient_id === st.eq.patient_id)
                                  .map(r => senza047 ? Object.assign({}, r, { sessione_id: undefined }) : r), error: null }
@@ -329,6 +330,21 @@ sez('⭐ la pagina dei TEST')
   ;({ page, ctx, errori } = await apri(browser, 'test.html', { sessione: true, senza047: true }))
   check('⭐ senza 047 lo dice, senza rompersi', /migration 047/.test(await page.textContent('#sessioni')) && errori.length === 0)
   await ctx.close()
+}
+
+sez('⭐ monopodalico-v1 · l’appoggio (053) si legge, e senza 053 non si rompe niente')
+{
+  let r = await apri(browser, ST, { sessione: true }, '?pid=' + P1)
+  const l = await r.page.evaluate(() => window.__db.letture)
+  check('⭐ legge anche l’appoggio (un piede è un’altra condizione)', /appoggio/.test(l[0].sel), l[0] && l[0].sel)
+  const n1 = await r.page.evaluate(() => window.__storico.sessioni().length)
+  await r.ctx.close()
+  r = await apri(browser, ST, { sessione: true, senza053: true }, '?pid=' + P1)
+  const l2 = await r.page.evaluate(() => window.__db.letture)
+  check('⭐ senza 053 rilegge senza l’appoggio', l2.length >= 2 && !/appoggio/.test(l2[l2.length - 1].sel), l2.map(x => x.sel.slice(-30)))
+  check('⭐ e mostra le stesse sessioni di prima', (await r.page.evaluate(() => window.__storico.sessioni().length)) === n1)
+  check('nessun errore JS', r.errori.length === 0, r.errori)
+  await r.ctx.close()
 }
 
 sez('⭐ il test si apre dall’applicazione')

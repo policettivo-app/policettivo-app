@@ -210,7 +210,7 @@ sez('La pagina è davvero isolata dall’app in uso')
   check('⭐ carica due file esterni: il motore e la libreria del database', esterniMotore.length === 2, esterni)
   check('⭐ partenza-v1 · e la schermata di partenza, solo grafica', esterni.some(e => /js\/partenza\.js\?v=partenza-v1/.test(e)))
   check('⭐ partenza-v1 · la partenza si apre prima del conto e il VIA la chiude',
-    /partenza\('Oscillazione Policettiva'/.test(src) && /await countdown\(attesa\)\n    partenzaVia\(\)/.test(src) &&
+    /partenza\(piedeOra \? 'Un piede · ' [^]*?: 'Oscillazione Policettiva'/.test(src) && /await countdown\(attesa\)\n    partenzaVia\(\)/.test(src) &&
     /PolPartenza\.numero\(n\)/.test(src))
   check('⭐ partenza-v1 · alla TV arriva «pronti» coi secondi, senza nomi', /event:'pronti'/.test(src))
   check('⭐ uno è il motore del disegno', esterni.some(e => /js\/oscillazione\.js/.test(e)), esterni)
@@ -1716,7 +1716,7 @@ sez('⭐ taratura-guidata-v1 · dopo la taratura si ricalcola TUTTO')
 // il finto Supabase: sessione, profilo, paziente, insert e canale.
 // ⚠️ L'insert registra davvero la riga ricevuta: si controlla COSA arriva al
 //    database, non solo che la pagina non esploda.
-const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, sessioneRecente }) => {
+const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, senza053, conCanale, sessioneRecente }) => {
   // test-sessioni-v1 — anche la tabella delle sessioni, e le letture della sessione
   window.__db = { righe: [], canale: [], sessioni: [], aggiornate: [] }
   const q = (tab) => {
@@ -1737,6 +1737,8 @@ const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, sessioneRec
           // schermo-paziente-v1 · come risponde davvero PostgREST quando la colonna non c'è
           if (senza048 && 'momento' in st.riga) { window.__db.rifiutate = (window.__db.rifiutate || 0) + 1
             return { data: null, error: { code: 'PGRST204', message: "Could not find the 'momento' column of 'oscillazione_test' in the schema cache" } } }
+          // monopodalico-v1 · la colonna appoggio manca (053 non lanciata)
+          if (senza053 && 'appoggio' in st.riga) return { data: null, error: { code: 'PGRST204', message: "Could not find the 'appoggio' column of 'oscillazione_test' in the schema cache" } }
           window.__db.righe.push(st.riga); return { data: { id: 'riga-' + window.__db.righe.length }, error: null }
         }
         if (tab === 'professionals') return { data: { id: 'PROF-1' }, error: null }
@@ -1752,6 +1754,7 @@ const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, sessioneRec
       then(res, rej) {
         let out = { data: [], error: null }
         if (st.upd) { window.__db.aggiornate.push({ tab, d: st.upd, f: st.filtri }); out = { data: null, error: null } }
+        else if (tab === 'oscillazione_test' && /appoggio/.test(st.sel) && senza053) out = { data: null, error: { code: '42703', message: 'column oscillazione_test.appoggio does not exist' } }
         else if (tab === 'oscillazione_test' && st.filtri.sessione_id) {
           const mie = window.__db.righe.filter(r => r.sessione_id === st.filtri.sessione_id)
           out = { data: (sessioneRecente && st.filtri.sessione_id === sessioneRecente.id)
@@ -1765,7 +1768,7 @@ const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, sessioneRec
   window.supabase = { createClient() { return {
     auth: { getSession: async () => ({ data: { session: sessione ? { user: { id: 'U1', email: sessione === 'admin' ? 'appuntamentimft@gmail.com' : 'collega@studio.it' }, access_token: 'TOK' } : null } }) },
     from: q,
-    rpc: async () => ({ data: null, error: null }),
+    rpc: async (n) => ({ data: (conCanale && n === 'oscillazione_canale') ? 'CAN-1' : null, error: null }),   // monopodalico-v1 · la TV collegata
     channel() { const c = { on(){ return c }, subscribe(){ return c }, send(m){ window.__db.canale.push(m) } }; return c },
     removeChannel() {}
   } } }
@@ -2165,6 +2168,78 @@ sez('⛔ oscillazione-app-v1 · sul canale della diretta il nome del paziente NO
   const src = fs.readFileSync(path.join(ROOT, PAGINA), 'utf8')
   const invii = (src.match(/canaleSub\.send\([^]*?\}\}\)/g) || []).join(' ')
   check('⛔ nei messaggi della diretta non c’è pazNome', !/pazNome|PID|patient_id/.test(invii))
+}
+sez('⭐⭐ monopodalico-v1 · un piede: destro, poi sinistro, poi il confronto')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true, conCanale: true }, '?dur=2&via=1')
+  check('⭐ c’è la scelta dell’appoggio: due piedi / un piede', /due piedi/.test(await page.textContent('#appoggio-scelta')) && /un piede/.test(await page.textContent('#appoggio-scelta')))
+  check('⭐ di partenza «due piedi»: niente spiegazione del piede', !(await page.isVisible('#come-mono')))
+  await page.click('#appoggio-scelta .chip[data-a="mono"]')
+  check('⭐ scelto «un piede» → spiega come si appoggia (piede al centro, telefono davanti)', await page.isVisible('#come-mono') && /telefono/.test(await page.textContent('#come-mono')) && /al centro/.test(await page.textContent('#come-mono')))
+  check('⭐ e il PARTI dice «UN PIEDE dx→sx»', /UN PIEDE dx→sx/.test(await page.textContent('#btn-start')), await page.textContent('#btn-start'))
+  await parti(page, '#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0, ampB: 1, ampG: 0.1, passoMs: 20, durataMs: 3500 })
+  await page.waitForFunction(() => window.__db.righe.length >= 1, null, { timeout: 15000 })
+  // il paziente scende: la tavola torna vuota per il secondo zero, poi sale col sinistro (oscilla di più)
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0, ampB: 3, ampG: 0.3, passoMs: 20, durataMs: 3500 })
+  await page.waitForFunction(() => window.__db.righe.length >= 2, null, { timeout: 15000 })
+  await page.waitForSelector('#mono-cfr', { state: 'visible', timeout: 5000 })
+  const righe = await page.evaluate(() => window.__db.righe)
+  check('⭐⭐ due prove salvate: prima il destro, poi il sinistro', righe.length === 2 && righe[0].appoggio === 'dx' && righe[1].appoggio === 'sx', righe.map(r => r.appoggio))
+  check('⭐ ognuna col suo zero a tavola vuota', righe[0].zero_beta != null && righe[1].zero_beta != null)
+  const cfr = await page.textContent('#mono-cfr')
+  check('⭐⭐ il confronto: DESTRO e SINISTRO, con la velocità', /DESTRO/.test(cfr) && /SINISTRO/.test(cfr) && /°\/s/.test(cfr))
+  check('⭐⭐ il sinistro oscilla il triplo → «Più stabile sul piede destro»', /Più stabile sul piede destro/.test(cfr), cfr.slice(0, 120))
+  check('⭐ e dice che le soglie sono provvisorie per un piede solo', /provvisori/.test(cfr))
+  check('⛔ nessun giudizio clinico: «l’interpretazione la scrivi tu»', /interpretazione clinica la scrivi tu/.test(cfr))
+  const can = await page.evaluate(() => window.__db.canale)
+  const vie = can.filter(m => m.event === 'via').map(m => m.payload.appoggio)
+  check('⭐ alla TV il «via» dice il piede (dx, poi sx)', vie.join() === 'dx,sx', vie)
+  // (con via=1 la partenza grande si salta: si controlla che cosa scrive)
+  const srcM = fs.readFileSync(path.join(ROOT, PAGINA), 'utf8')
+  check('⭐ e la partenza grande dice «Un piede · DESTRO» poi «SINISTRO»', /'Un piede · ' \+ \(piedeOra === 'dx' \? 'DESTRO' : 'SINISTRO'\)/.test(srcM))
+  const mono = can.find(m => m.event === 'mono')
+  check('⭐ alla TV arriva il confronto destro/sinistro', !!mono && mono.payload.piede === 'dx' && mono.payload.dx > 0 && mono.payload.sx > mono.payload.dx, mono && mono.payload)
+  check('⛔ e senza nomi né identificativi', mono && !/Mario|Rossi|patient|PID/.test(JSON.stringify(mono.payload)))
+  check('⭐ nella sessione le due prove sono condizioni diverse (piede destro / sinistro)', await page.evaluate(() => /piede destro/.test(document.body.textContent) && /piede sinistro/.test(document.body.textContent)))
+  check('nessun errore JS', errori.length === 0, errori)
+  // di nuovo su due piedi: una prova sola, senza appoggio nella riga
+  await page.evaluate(() => { const b = document.querySelector('#appoggio-scelta .chip[data-a=""]'); b.click() })
+  await parti(page, '#btn-ancora'); await page.waitForTimeout(120)
+  check('⭐ ripartendo, il confronto vecchio sparisce', !(await page.isVisible('#mono-cfr')))
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0, ampB: 1, ampG: 0.1, passoMs: 20, durataMs: 3500 })
+  await page.waitForFunction(() => window.__db.righe.length >= 3, null, { timeout: 15000 })
+  await page.waitForTimeout(400)
+  const r3 = await page.evaluate(() => window.__db.righe)
+  check('⭐ su due piedi si salva come prima: nessun campo «appoggio»', r3.length === 3 && !('appoggio' in r3[2]), r3.length)
+  await ctx.close()
+}
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true, senza053: true }, '?dur=2&via=1')
+  await page.click('#appoggio-scelta .chip[data-a="mono"]')
+  await parti(page, '#btn-start'); await page.waitForTimeout(800)
+  check('⛔⭐ senza la migration 053 il test su un piede NON parte e lo dice per nome', await page.isVisible('#err') && /053_oscillazione_appoggio/.test(await page.textContent('#err')) && await page.isVisible('#c-setup'))
+  check('⛔ e non salva niente di mescolato', (await page.evaluate(() => window.__db.righe.length)) === 0)
+  await page.click('#appoggio-scelta .chip[data-a=""]')
+  await parti(page, '#btn-start'); await page.waitForTimeout(120)
+  await page.evaluate(GUIDA2, { offB: 2, offG: 0, ampB: 1, ampG: 0.1, passoMs: 20, durataMs: 3500 })
+  await page.waitForFunction(() => window.__db.righe.length >= 1, null, { timeout: 15000 })
+  check('⭐ su due piedi, anche senza 053, funziona tutto come prima', (await page.evaluate(() => window.__db.righe.length)) === 1)
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+}
+{
+  const PO = await (async () => { const ctx = await browser.newContext(); const p = await ctx.newPage()
+    await p.goto('http://localhost:' + PORT + '/' + PAGINA + '?dur=2&via=1', { waitUntil: 'load' })
+    const r = await p.evaluate(() => {
+      const P = window.PolOscillazione
+      const uguali = P.confrontoPiedi({ velocita: 1.0, osc: 0.5, ellisse: 1, carico: 0.2, asse: 'beta' }, { velocita: 1.2, osc: 0.55, ellisse: 1.1, carico: -0.3, asse: 'beta' })
+      const sx = P.confrontoPiedi({ velocita: 2.0, osc: 1, ellisse: 3, carico: 1, asse: 'gamma' }, { velocita: 1.0, osc: 0.5, ellisse: 1, carico: 1, asse: 'gamma' })
+      return { u: uguali.titolo, s: sx.titolo, cond: [P.condizioneDi({ evento: 'beccheggio', occhi: 'aperti' }), P.condizioneDi({ evento: 'beccheggio', occhi: 'aperti', appoggio: 'dx' })] }
+    }); await ctx.close(); return r })()
+  check('⭐ 1,0 contro 1,2 °/s (18%) → «nessuna differenza distinguibile»', /Nessuna differenza/.test(PO.u), PO.u)
+  check('⭐ 2,0 contro 1,0 °/s → «più stabile sul piede sinistro»', /piede sinistro/.test(PO.s), PO.s)
+  check('⭐⭐ nel confronto nel tempo un piede è un’altra condizione', PO.cond[0] !== PO.cond[1] && /piede destro/.test(PO.cond[1]), PO.cond)
 }
 sez('⛔ solo-sviluppo-v1 · «Copia i dati per Claude» NON lo vede chi usa l’app')
 {
