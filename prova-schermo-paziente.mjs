@@ -103,6 +103,12 @@ function dati(opts = {}) {
     // 10/09: per il percorso
     prova('2026-09-10T15:00:00Z', 'beccheggio', 3.6, m('pre'), 1.5), prova('2026-09-10T15:05:00Z', 'beccheggio', 3.2, m('post'), 1.3),
   ]
+  // schermo-test-v1 · su un piede, il 20/09: prima destro 1,1 / sinistro 2,3 (oltre il 35%), dopo 1,2 / 1,3 (dentro)
+  if (opts.conTest) {
+    const piede = (q, v, mo, ap) => Object.assign(prova(q, 'beccheggio', v, mo, 0.8), { appoggio: ap })
+    prove.push(piede('2026-09-20T09:20:00Z', 1.1, 'pre', 'dx'), piede('2026-09-20T09:21:00Z', 2.3, 'pre', 'sx'),
+               piede('2026-09-20T09:30:00Z', 1.2, 'post', 'dx'), piede('2026-09-20T09:31:00Z', 1.3, 'post', 'sx'))
+  }
   return {
     opts,
     patients: [{ id: PID, nome: 'Mario', cognome: 'Rossi', foto_url: opts.scheda ? JSON.stringify({
@@ -128,6 +134,13 @@ function dati(opts = {}) {
       { visit_id: 'v-fisio', tipo: 'sagittale_sx_post', storage_path: 'visits/v-fisio/old-post.jpg' },
     ],
     oscillazione_test: prove,
+    // schermo-test-v1 · lo squat del 20/09: rollio, prima più a destra (2,4 e 2,0), dopo al centro (0,6); una non segnata
+    squat_test: opts.conTest ? [
+      { id: 'sq1', patient_id: PID, quando: '2026-09-20T09:40:00Z', asse: 'rollio', momento: 'pre', fondo: 2.4, coerenza: 5, ripetizioni: 5 },
+      { id: 'sq2', patient_id: PID, quando: '2026-09-20T09:41:00Z', asse: 'rollio', momento: 'pre', fondo: 2.0, coerenza: 4, ripetizioni: 5 },
+      { id: 'sq3', patient_id: PID, quando: '2026-09-20T09:50:00Z', asse: 'rollio', momento: 'post', fondo: 0.6, coerenza: 3, ripetizioni: 5 },
+      { id: 'sq4', patient_id: PID, quando: '2026-09-20T09:55:00Z', asse: 'rollio', momento: null, fondo: -3, coerenza: 5, ripetizioni: 5 }
+    ] : (opts.senza050 ? undefined : []),
     foto_allineamenti: opts.allineate ? [
       { storage_path: 'visits/v-post/sag-pre.jpg', punti: { a: { x: 0.5, y: 0.1 }, b: { x: 0.5, y: 0.9 } } },
       { storage_path: 'visits/v-post/sag-post.jpg', punti: { a: { x: 0.52, y: 0.12 }, b: { x: 0.52, y: 0.92 } } },
@@ -186,6 +199,8 @@ const SUPA = ({ D, FIRME }) => {
         } else if (st.upd) {
           if (D.opts.senza048 && 'momento' in st.upd) out = { data: null, error: { code: 'PGRST204', message: "Could not find the 'momento' column of 'oscillazione_test' in the schema cache" } }
           else { righe().forEach(r => Object.assign(r, st.upd)); D.aggiornate.push({ tab, d: st.upd, f: st.f }); out = { data: null, error: null } }
+        } else if (tab === 'squat_test' && !D.squat_test) {
+          out = { data: null, error: { code: '42P01', message: 'relation "public.squat_test" does not exist' } }
         } else if (tab === 'oscillazione_test' && D.opts.senza046) {
           out = { data: null, error: { code: '42P01', message: 'relation "public.oscillazione_test" does not exist' } }
         } else out = { data: righe(), error: null }
@@ -886,6 +901,65 @@ sez('⭐⭐ tv-v1 · la stessa pagina DENTRO la TV: solo il palco, e va dove dic
   await b.page.click('#btn-tv'); await b.page.waitForTimeout(300)
   check('⭐ senza la 051 il pulsante lo dice', /manca la 051/.test(await b.page.textContent('#btn-tv')))
   await b.ctx.close()
+}
+
+sez('⭐⭐ schermo-test-v1 · lo squat e il piede solo nel prima e dopo')
+{
+  let { page, ctx, errori } = await apri(browser, { conTest: true }, '&giorno=2026-09-20')
+  const ids = await slideIds(page)
+  check('⭐ ci sono le slide «squat» e «piedi», dopo l’equilibrio e prima della sintesi',
+    ids.indexOf('squat') > ids.indexOf('eq:0') && ids.indexOf('piedi') > ids.indexOf('squat') && ids.indexOf('sintesi') > ids.indexOf('piedi'), ids)
+  await vaiA(page, 'squat')
+  let t = await testoSlide(page)
+  check('⭐⭐ squat: prima «più a destra 2,2°» (media di due) → dopo «al centro 0,6°»', /più a destra 2,2°/.test(t) && /al centro 0,6°/.test(t), t.slice(0, 300))
+  check('⭐ con la scala destra/sinistra e la fascia «al centro»', await page.evaluate(() => !!document.querySelector('.slide.on svg.sq-scala')) && /SINISTRA/.test(await page.evaluate(() => document.querySelector('.slide.on svg.sq-scala').textContent)))
+  check('⛔⭐ senza la Fase 0 dello squat: «Da confermare», nessun «più al centro»', /Da confermare/.test(t) && !/Più al centro/.test(t) && /non si giudica ancora/.test(t))
+  check('⛔ la prova non segnata non entra (2+1 prove)', /2\+1 prove/.test(t), t)
+  await vaiA(page, 'piedi')
+  t = await testoSlide(page)
+  check('⭐⭐ su un piede: prima destro 1,1 / sinistro 2,3 → «Più stabile sul piede destro»', /1,1/.test(t) && /2,3/.test(t) && /Più stabile sul piede destro/.test(t), t.slice(0, 300))
+  check('⭐ dopo: 1,2 / 1,3 → «Nessuna differenza distinguibile»', /Nessuna differenza distinguibile/.test(t))
+  check('⭐ e dice che le soglie sono provvisorie', /provvisorie/.test(t))
+  await vaiA(page, 'sintesi')
+  t = await testoSlide(page)
+  check('⛔ nella sintesi lo squat NON conta (non ha ancora un verdetto)', !/Squat/.test(t), t.slice(0, 300))
+  const giorno = await page.evaluate(() => document.querySelector('#giorni .giorno.on').innerText)
+  check('⭐ nell’elenco dei giorni: «squat» e «un piede»', /squat/.test(giorno) && /un piede/.test(giorno), giorno)
+  await vaiA(page, 'squat')
+  await page.screenshot({ path: '_schermate/sp-squat.png' })
+  await vaiA(page, 'piedi')
+  await page.screenshot({ path: '_schermate/sp-piedi.png' })
+  check('nessun errore JS', errori.length === 0, errori)
+  // il pacchetto della TV porta lo squat, senza traccia
+  const pk = await page.evaluate(() => pacchettoTv())
+  check('⭐ il pacchetto della TV porta lo squat (solo prima/dopo, senza traccia)', Array.isArray(pk.squat_test) && pk.squat_test.length === 3 && pk.squat_test.every(r => !('traccia' in r)), pk.squat_test && pk.squat_test.length)
+  // il PDF della visita: le stesse due cose, in tabella
+  await page.addScriptTag({ url: 'http://localhost:' + PORT + '/js/pdf-prima-dopo.js' })
+  const pdf = await page.evaluate(async () => {
+    const g = '2026-09-20T09:00:00Z'
+    const prove = [['pre','dx',1.1],['pre','sx',2.3],['post','dx',1.2],['post','sx',1.3]].map(([mo,ap,v]) => ({ evento:'beccheggio', occhi:'aperti', momento:mo, appoggio:ap, velocita:v, osc_ap:.5, ellisse:1, carico_avanti:.2, quando:g }))
+    const sq = [{ asse:'rollio', momento:'pre', fondo:2.2, quando:g }, { asse:'rollio', momento:'post', fondo:0.6, quando:g }, { asse:'rollio', momento:'pre', fondo:9, quando:'2026-09-01T09:00:00Z' }]
+    const fake = tab => { const api = { select(){ return api }, eq(){ return api }, in(){ return api }, then(r){ return Promise.resolve({ data: tab === 'squat_test' ? sq : prove, error: null }).then(r) } }; return api }
+    const pd = await PolPdfPrimaDopo.carica({ from: fake }, { patientId: 'P', giorno: g })
+    const h = PolPdfPrimaDopo.sezione({ pd, piani: [], photos: [], sec: t => '<h2>' + t + '</h2>' })
+    const senza = { from: tab => { const api = { select(){ return api }, eq(){ return api }, in(){ return api }, then(r){ return Promise.resolve(tab === 'squat_test' ? { data: null, error: { message: 'relation "public.squat_test" does not exist' } } : { data: [], error: null }).then(r) } }; return api } }
+    const pd2 = await PolPdfPrimaDopo.carica(senza, { patientId: 'P', giorno: g })
+    return { h, nsq: pd.sq.length, a: pd.sq[0] && pd.sq[0].a, sq2: pd2.sq.length, av2: pd2.avvisi }
+  })
+  check('⭐ PDF: la tabella dello squat, solo con le prove di quel giorno', pdf.nsq === 1 && pdf.a === 2.2 && /Overhead squat sulla Tavola/.test(pdf.h), pdf.nsq)
+  check('⛔ PDF: lo squat senza Fase 0 è «da confermare»', /da confermare/.test(pdf.h) && /non va interpretata/.test(pdf.h))
+  check('⭐ PDF: su un piede, destro e sinistro prima e dopo', /Su un piede/.test(pdf.h) && /Più stabile sul piede destro/.test(pdf.h) && /Nessuna differenza distinguibile/.test(pdf.h))
+  check('⭐ PDF: senza la tabella dello squat il PDF si fa lo stesso', pdf.sq2 === 0)
+  for (const f of ['visita.html', 'valutazione-posturale.html']) {
+    const src = fs.readFileSync(f, 'utf8')
+    check('⭐ ' + f + ' carica lo squat prima del PDF, con le versioni nuove',
+      src.indexOf('js/squat.js?v=schermo-test-v1') > 0 && src.indexOf('js/squat.js?v=schermo-test-v1') < src.indexOf('js/pdf-prima-dopo.js?v=schermo-test-v1') &&
+      /js\/schermo-paziente\.js\?v=schermo-test-v1/.test(src) && /js\/oscillazione\.js\?v=schermo-test-v1/.test(src))
+  }
+  await ctx.close()
+  ;({ page, ctx, errori } = await apri(browser, { senza050: true }))
+  check('⭐ senza la tabella dello squat (050) lo schermo funziona come prima', errori.length === 0 && !(await slideIds(page)).includes('squat') && (await slideIds(page)).length > 2)
+  await ctx.close()
 }
 
 sez('⭐ Un paziente senza niente di registrato')

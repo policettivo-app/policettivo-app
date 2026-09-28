@@ -76,7 +76,21 @@
     esito_nd:           'Non registrato',
     eq_meglio:          'Più stabile',
     eq_uguale:          'Invariato',
-    eq_lavoro:          'Meno stabile'
+    eq_lavoro:          'Meno stabile',
+
+    // schermo-test-v1 · lo squat e il piede solo
+    sq_titolo:          'Il tuo squat',
+    sq_sotto:           'Overhead squat sulla Tavola Policettiva',
+    sq_misura:          'Dove va il peso al fondo dello squat',
+    sq_criterio:        'Il riferimento è il centro: al fondo dello squat il peso resta in mezzo, né da una parte né dall’altra. Entro {l}° si legge «al centro».',
+    sq_daconfermare:    'Da confermare',
+    sq_nota_errore:     'La differenza si legge, ma non si giudica ancora: prima misuriamo quanto varia lo squat ripetendolo.',
+    sq_meglio:          'Più al centro',
+    sq_uguale:          'Invariato',
+    sq_lavoro:          'Più spostato',
+    piedi_titolo:       'Su un piede',
+    piedi_sotto:        'Destro e sinistro sulla Tavola Policettiva',
+    piedi_criterio:     'Il riferimento è l’altro piede: più bassa la velocità, più ferma la tavola. Soglie ancora provvisorie per un piede solo.'
   }
 
   // ── LA SPALLA (piano scapolare, osservazione a chip) ────────────────
@@ -137,11 +151,12 @@
   //   prove:  righe di oscillazione_test
   //   piani:  POSTURAL_PHOTO_PLANES
   //   scheda: { foto: { plane: { pre, post } }, data } | null  (foto iniziali)
+  //   squat:  righe di squat_test (schermo-test-v1)
   function costruisciGiorni(o) {
     var piani = o.piani || [], per = {}, ordine = []
     function giorno(k) {
       if (!per[k]) { per[k] = { giorno: k === 'scheda' ? giornoDi(o.scheda && o.scheda.data) : k, chiave: k,
-        visite: [], foto: {}, scap: null, prove: [], scheda: k === 'scheda' }; ordine.push(k) }
+        visite: [], foto: {}, scap: null, prove: [], squat: [], scheda: k === 'scheda' }; ordine.push(k) }
       return per[k]
     }
     var visite = (o.visite || []).slice().sort(function (a, b) {
@@ -181,6 +196,12 @@
       var k = giornoDi(r.quando); if (!k) return
       giorno(k).prove.push(r)
     })
+    // schermo-test-v1 · lo squat: solo le prove segnate prima/dopo, come l'equilibrio
+    ;(o.squat || []).forEach(function (r) {
+      if (r.momento !== 'pre' && r.momento !== 'post') return
+      var k = giornoDi(r.quando); if (!k) return
+      giorno(k).squat.push(r)
+    })
     // le prove NON segnate: servono al professionista per segnarle, non
     // entrano nel confronto (non si indovina cosa è prima e cosa è dopo)
     ;(o.prove || []).forEach(function (r) {
@@ -193,7 +214,10 @@
     var out = ordine.map(function (k) { return per[k] }).filter(function (g) {
       var eq = equilibrio(g.prove)
       g.eq = eq
+      g.sq = squat(g.squat)          // schermo-test-v1
+      g.piedi = piedi(g.prove)
       return Object.keys(g.foto).length || (g.scap && g.scap.esito !== 'nd') || (eq && eq.condizioni.length) ||
+             (g.sq && g.sq.length) || (g.piedi && g.piedi.length) ||
              (g.nonSegnate && g.nonSegnate.length)
     })
     // in ordine di tempo; le foto iniziali della scheda senza data vanno per prime
@@ -235,6 +259,69 @@
     }
   }
 
+  // ── schermo-test-v1 · LO SQUAT: prima contro dopo, asse per asse ────
+  // Usa PolSquat (js/squat.js): stessa soglia «al centro», stesso ERRORE.
+  // Più prove della stessa parte: la media dei fondi (non la migliore).
+  // Finché ERRORE è vuoto (Fase 0 dello squat non fatta) l'esito è
+  // «daconfermare»: i numeri si mostrano, il giudizio no.
+  function squat(righe) {
+    var Q = global.PolSquat
+    if (!Q || !righe || !righe.length) return []
+    var media = function (l) { var v = l.map(function (r) { return Number(r.fondo) }).filter(function (x) { return isFinite(x) })
+      if (!v.length) return null; var t = 0; v.forEach(function (x) { t += x }); return t / v.length }
+    var out = []
+    ;['beccheggio', 'rollio'].forEach(function (asse) {
+      var pre = righe.filter(function (r) { return r.asse === asse && r.momento === 'pre' })
+      var post = righe.filter(function (r) { return r.asse === asse && r.momento === 'post' })
+      if (!pre.length || !post.length) return
+      var a = media(pre), b = media(post)
+      if (a == null || b == null) return
+      var c = Q.confronto({ asse: asse, fondo: { media: a } }, { asse: asse, fondo: { media: b } })
+      if (!c) return
+      out.push({ asse: asse, nome: Q.nomeAsse(asse), a: a, b: b, nA: pre.length, nB: post.length,
+        parolaA: c.parolaPrima, parolaB: c.parolaDopo, delta: c.delta, errore: c.errore, esito: c.esito,
+        leggibile: Q.LEGGIBILE })
+    })
+    return out
+  }
+
+  // ── schermo-test-v1 · SU UN PIEDE: destro contro sinistro, prima e dopo ──
+  // Le prove col piede (appoggio dx/sx) della giornata, per condizione (senza
+  // piede e senza momento) e per momento. Il confronto è quello del test
+  // (PolOscillazione.confrontoPiedi), sulle medie: stesse soglie, stesse parole.
+  function piedi(prove) {
+    var P = global.PolOscillazione
+    if (!P || !P.confrontoPiedi || !prove || !prove.length) return []
+    var conPiede = prove.filter(function (r) { return r.appoggio === 'dx' || r.appoggio === 'sx' })
+    if (!conPiede.length) return []
+    var base = function (r) { var c = {}; for (var k in r) c[k] = r[k]; c.appoggio = null; c.momento = null; return P.condizioneDi(c) }
+    var m = function (l, k) { var v = l.map(function (r) { return Number(r[k]) }).filter(function (x) { return isFinite(x) })
+      if (!v.length) return null; var t = 0; v.forEach(function (x) { t += x }); return t / v.length }
+    var riass = function (l) {
+      var asse = l[0].evento === 'rollio' ? 'gamma' : 'beta'
+      return { velocita: m(l, 'velocita'), osc: m(l, asse === 'gamma' ? 'osc_ds' : 'osc_ap'), ellisse: m(l, 'ellisse'),
+               carico: m(l, asse === 'gamma' ? 'carico_destra' : 'carico_avanti'), asse: asse, n: l.length }
+    }
+    var chiavi = [], per = {}
+    conPiede.forEach(function (r) { var k = base(r); if (!per[k]) { per[k] = []; chiavi.push(k) } per[k].push(r) })
+    var out = []
+    chiavi.forEach(function (k) {
+      var riga = { chiave: k, nome: P.nomeCond(k), pre: null, post: null }
+      ;['pre', 'post'].forEach(function (mo) {
+        var dx = per[k].filter(function (r) { return r.momento === mo && r.appoggio === 'dx' })
+        var sx = per[k].filter(function (r) { return r.momento === mo && r.appoggio === 'sx' })
+        if (!dx.length || !sx.length) return
+        var a = riass(dx), b = riass(sx)
+        if (a.velocita == null || b.velocita == null) return
+        var c = P.confrontoPiedi(a, b)
+        riga[mo] = { dx: a.velocita, sx: b.velocita, nDx: a.n, nSx: b.n, piede: c.piede, titolo: c.titolo,
+          diff: c.righe[0].diff, banda: c.righe[0].banda }
+      })
+      if (riga.pre || riga.post) out.push(riga)
+    })
+    return out
+  }
+
   // La prova da disegnare per una parte: la mediana per velocità, come lo
   // storico. Non la migliore: quella scelta a mano racconterebbe una storia.
   function provaMediana(righe) {
@@ -255,6 +342,11 @@
       voci.push({ cosa: 'Equilibrio · ' + c.nome, esito: c.esito,
         dettaglio: numIt(c.velA, 1) + ' → ' + numIt(c.velB, 1) + ' °/s (' + segno(c.dv) + ')',
         fonte: 'Oscillazione Policettiva' })
+    })
+    // schermo-test-v1 · lo squat entra SOLO con un verdetto vero (serve la Fase 0)
+    ;(g.sq || []).forEach(function (q) {
+      if (q.esito !== 'meglio' && q.esito !== 'uguale' && q.esito !== 'lavoro') return
+      voci.push({ cosa: 'Squat · ' + q.nome, esito: q.esito, dettaglio: q.parolaA + ' → ' + q.parolaB, fonte: 'Overhead squat' })
     })
     var conta = { meglio: 0, uguale: 0, lavoro: 0, altro: 0 }
     voci.forEach(function (v) { conta[v.esito] = (conta[v.esito] || 0) + 1 })
@@ -306,6 +398,7 @@
     esitoScapola: esitoScapola, giornoDi: giornoDi, dataLunga: dataLunga, dataCorta: dataCorta,
     costruisciGiorni: costruisciGiorni, equilibrio: equilibrio, provaMediana: provaMediana,
     sintesi: sintesi, percorso: percorso, matriceAllineamento: matriceAllineamento,
-    numIt: numIt, segno: segno
+    numIt: numIt, segno: segno,
+    squat: squat, piedi: piedi          // schermo-test-v1
   }
 })(typeof window !== 'undefined' ? window : globalThis)

@@ -1,4 +1,4 @@
-/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026) · editor-punti-v1 · gradi-auto-v1
+/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026) · editor-punti-v1 · gradi-auto-v1 · schermo-test-v1 (squat e un piede)
  *
  * «PRIMA E DOPO I 3 RESPIRI» DENTRO I PDF: UN POSTO SOLO.
  *
@@ -29,7 +29,7 @@
      giorno. Ogni lettura che fallisce (tabella che manca, rete) lascia il suo
      pezzo vuoto: il PDF si fa lo stesso. */
   async function carica(sb, o) {
-    var out = { misure: {}, prove: [], eq: null, avvisi: [] }
+    var out = { misure: {}, prove: [], eq: null, sq: [], piedi: [], avvisi: [] }
     var S = global.PolSchermo
     try {
       var paths = (o.paths || []).filter(Boolean)
@@ -52,9 +52,20 @@
             return (p.momento === 'pre' || p.momento === 'post') && S.giornoDi(p.quando) === g
           })
           out.eq = S.equilibrio(out.prove)
+          if (S.piedi) out.piedi = S.piedi(out.prove)          // schermo-test-v1
         }
       }
     } catch (e) { out.avvisi.push('equilibrio') }
+    // schermo-test-v1 · lo squat di quel giorno, prima/dopo. Tabella che manca (050) = niente squat.
+    try {
+      if (o.patientId && S && S.squat) {
+        var g2 = S.giornoDi(o.giorno)
+        var r3 = await sb.from('squat_test').select('id,quando,asse,momento,fondo').eq('patient_id', o.patientId)
+        if (!r3.error) out.sq = S.squat((r3.data || []).filter(function (p) {
+          return (p.momento === 'pre' || p.momento === 'post') && S.giornoDi(p.quando) === g2
+        }))
+      }
+    } catch (e) { out.sq = [] }
     return out
   }
 
@@ -101,7 +112,8 @@
     })
     var eq = pd.eq && pd.eq.condizioni && pd.eq.condizioni.length ? pd.eq.condizioni : []
     var giud = righe.some(function (r) { return r.c.errore != null })   // editor-punti-v1
-    if (!righe.length && !eq.length) return ''
+    var sq = pd.sq || [], pi = pd.piedi || []            // schermo-test-v1
+    if (!righe.length && !eq.length && !sq.length && !pi.length) return ''
 
     var th = 'style="text-align:left;font-size:7.5px;color:#666;font-weight:700;padding:3px 5px;border-bottom:1px solid #ddd"'
     var td = 'style="font-size:8.5px;color:#1a1a1a;padding:3px 5px;border-bottom:1px solid #f0f0f0"'
@@ -142,6 +154,44 @@
         '<p style="margin:2px 0 6px;font-size:7.5px;color:#666;font-style:italic;line-height:1.5">' +
         'Una differenza entro la soglia rientra nella variabilità della misura ed è riportata come «invariato». ' +
         'Le soglie derivano dalla ripetibilità misurata finora su un campione ridotto: sono provvisorie.</p>'
+    }
+
+    // schermo-test-v1 · l'overhead squat: dove va il carico al fondo, prima e dopo
+    if (sq.length) {
+      var giudSq = sq.some(function (q) { return q.esito !== 'daconfermare' })
+      var parSq = { meglio: 'Più al centro', uguale: 'Invariato', lavoro: 'Più spostato' }
+      h += '<div style="font-size:8px;font-weight:700;color:#555;margin:8px 0 2px">Overhead squat sulla Tavola — carico al fondo dello squat (gradi della tavola)</div>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:4px"><tr>' +
+        '<th ' + th + '>Asse</th><th ' + th + '>Prima</th><th ' + th + '>Dopo</th><th ' + th + '>Verso il centro</th><th ' + th + '>Esito</th></tr>' +
+        sq.map(function (q) {
+          return '<tr><td ' + td + '>' + esc(q.nome) + ' <span style="color:#888">(' + q.nA + '+' + q.nB + ' prove)</span></td>' +
+            '<td ' + td + '>' + num(Math.abs(q.a)) + '° <span style="color:#888">' + esc(q.parolaA) + '</span></td>' +
+            '<td ' + td + '><b>' + num(Math.abs(q.b)) + '°</b> <span style="color:#888">' + esc(q.parolaB) + '</span></td>' +
+            '<td ' + td + '>' + (q.delta < 0 ? '−' : q.delta > 0 ? '+' : '±') + num(Math.abs(q.delta)) + '°</td>' +
+            '<td ' + td + '>' + (q.esito === 'daconfermare' ? '<span style="color:#888">da confermare</span>'
+              : '<b>' + esc(parSq[q.esito] || '') + '</b> <span style="color:#888">(±' + num(q.errore) + '°)</span>') + '</td></tr>'
+        }).join('') + '</table>' +
+        '<p style="margin:2px 0 6px;font-size:7.5px;color:#666;font-style:italic;line-height:1.5">' +
+        'Entro ' + num(sq[0].leggibile) + '° il carico si legge «al centro» (valore di lavoro, provvisorio). ' +
+        (giudSq ? 'Una differenza entro l’errore dello squat è riportata come «invariato».'
+          : 'L’errore di misura dello squat non è ancora stato misurato: la differenza si riporta, ma non va interpretata come miglioramento o peggioramento.') + '</p>'
+    }
+    // schermo-test-v1 · su un piede: destro contro sinistro, prima e dopo
+    if (pi.length) {
+      h += '<div style="font-size:8px;font-weight:700;color:#555;margin:8px 0 2px">Su un piede — velocità media di oscillazione, destro e sinistro</div>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:4px"><tr>' +
+        '<th ' + th + '>Condizione</th><th ' + th + '>Momento</th><th ' + th + '>Destro</th><th ' + th + '>Sinistro</th><th ' + th + '>Differenza</th><th ' + th + '>Lettura (soglia)</th></tr>' +
+        pi.map(function (c) {
+          return ['pre', 'post'].filter(function (mo) { return c[mo] }).map(function (mo) {
+            var m = c[mo]
+            return '<tr><td ' + td + '>' + esc(c.nome) + '</td><td ' + td + '>' + (mo === 'pre' ? 'Prima' : 'Dopo') + '</td>' +
+              '<td ' + td + '>' + (m.piede === 'dx' ? '<b>' + num(m.dx) + '</b>' : num(m.dx)) + ' °/s</td>' +
+              '<td ' + td + '>' + (m.piede === 'sx' ? '<b>' + num(m.sx) + '</b>' : num(m.sx)) + ' °/s</td>' +
+              '<td ' + td + '>' + m.diff + '%</td><td ' + td + '>' + esc(m.titolo) + ' <span style="color:#888">(±' + m.banda + '%)</span></td></tr>'
+          }).join('')
+        }).join('') + '</table>' +
+        '<p style="margin:2px 0 6px;font-size:7.5px;color:#666;font-style:italic;line-height:1.5">' +
+        'Le soglie derivano dalla ripetibilità misurata su due piedi: per l’appoggio su un piede sono provvisorie.</p>'
     }
 
     h += '<p style="margin:4px 0 0;font-size:7.5px;color:#444;line-height:1.5;background:#f7f7f7;border-left:3px solid #FFD008;padding:5px 8px">' +

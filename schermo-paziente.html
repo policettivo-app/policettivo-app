@@ -10,8 +10,9 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/osservazioni.js"></script>
   <script src="js/postural-component.js"></script>
-  <script src="js/oscillazione.js?v=monopodalico-v1"></script>
-  <script src="js/schermo-paziente.js?v=editor-punti-v1"></script>
+  <script src="js/oscillazione.js?v=schermo-test-v1"></script>
+  <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
+  <script src="js/schermo-paziente.js?v=schermo-test-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
@@ -137,6 +138,25 @@
     .eq-val .b { font-size: 56px; font-weight: 900; color: var(--giallo); }
     .eq-val .u { font-size: 20px; color: var(--testo3); font-weight: 700; }
     .eq-delta { font-size: 26px; font-weight: 900; }
+    /* schermo-test-v1 · squat e piede solo */
+    .sq-area { flex: 1; display: flex; flex-direction: column; gap: 22px; justify-content: center; min-height: 0; }
+    .sq-card { background: var(--carta); border: 1px solid var(--riga); border-radius: 22px; padding: 22px 30px; display: flex; flex-direction: column; gap: 12px; }
+    .sq-card .eq-val .a, .sq-card .eq-val .b { font-size: 34px; }
+    .sq-scala { width: 100%; max-width: 900px; height: auto; }
+    .pd-area { flex: 1; display: flex; flex-direction: column; gap: 20px; justify-content: center; min-height: 0; }
+    .pd-blocco { background: var(--carta); border: 1px solid var(--riga); border-radius: 22px; padding: 18px 26px; display: flex; flex-direction: column; gap: 12px; }
+    .pd-riga { display: flex; align-items: center; gap: 22px; }
+    .pd-eti { width: 190px; font-size: 20px; font-weight: 800; color: var(--testo2); }
+    .pd-lato { flex: 1; background: #101010; border: 1px solid var(--riga); border-radius: 16px; padding: 10px 16px; }
+    .pd-lato.meglio { border-color: #54E2B5; box-shadow: 0 0 0 1px #54E2B5; }
+    .pd-k { font-size: 15px; font-weight: 800; letter-spacing: 2px; color: var(--testo3); }
+    .pd-v { font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .pd-v span { font-size: 18px; color: var(--testo3); font-weight: 700; }
+    .pd-lato.meglio .pd-v { color: #54E2B5; }
+    .pd-barra { height: 10px; background: #222; border-radius: 5px; overflow: hidden; margin-top: 6px; }
+    .pd-barra i { display: block; height: 100%; background: var(--giallo); border-radius: 5px; }
+    .pd-tit { width: 330px; }
+    .pd-tit .esito { white-space: normal; font-size: 19px; }
     .legenda { display: flex; gap: 18px; font-size: 17px; color: var(--testo2); font-weight: 700; }
     .legenda span { display: inline-flex; align-items: center; gap: 8px; }
     .legenda i { display: inline-block; width: 28px; height: 0; border-top: 3px dashed #9A9A9A; }
@@ -293,7 +313,8 @@ const TV_PKG = (new URLSearchParams(location.search).get('tv') === '1')
   ? ((window.parent && window.parent !== window && window.parent.__tvPacchetto) || window.__tvPacchetto || null) : null
 function tvFinto(pkg) {
   const T = { patients: pkg.patient ? [pkg.patient] : [], visits: pkg.visits || [], visit_photos: pkg.visit_photos || [],
-    oscillazione_test: pkg.oscillazione_test || [], foto_allineamenti: pkg.foto_allineamenti || [], foto_misure: pkg.foto_misure || [] }
+    oscillazione_test: pkg.oscillazione_test || [], foto_allineamenti: pkg.foto_allineamenti || [], foto_misure: pkg.foto_misure || [],
+    squat_test: pkg.squat_test || [] }   // schermo-test-v1
   const q = (tab) => {
     const f = []; let ord = null
     const righe = () => (T[tab] || []).filter(r => f.every(([k, v, op]) => op === 'in' ? v.indexOf(r[k]) >= 0 : r[k] === v))
@@ -503,6 +524,18 @@ async function init() {
     }
   }
 
+  // 3b) schermo-test-v1 · lo squat: solo i numeri (niente traccia), solo prima/dopo.
+  //     Se la tabella non c'è (050 non lanciata) lo squat semplicemente non compare.
+  let squatRighe = []
+  {
+    try {
+      const { data, error } = await _sb.from('squat_test').select('id,quando,asse,momento,piedi,fondo,inizio,discesa,risalita,coerenza,ripetizioni,tarato')
+        .eq('patient_id', patientId).order('quando', { ascending: true })
+      if (!error) squatRighe = (data || []).filter(r => r.momento === 'pre' || r.momento === 'post')
+    } catch (e) { squatRighe = [] }
+    TVDATI.squat_test = squatRighe
+  }
+
   // 4) un giro solo di firme
   const mappa = {}
   const unici = Array.from(new Set(daFirmare))
@@ -540,7 +573,7 @@ async function init() {
     else (ms || []).forEach(r => { if (r.storage_path) misure[r.storage_path] = r })
   }
 
-  giorni = S.costruisciGiorni({ visite: visite || [], foto: foto, prove: prove, piani: PLANES, scheda: scheda })
+  giorni = S.costruisciGiorni({ visite: visite || [], foto: foto, prove: prove, piani: PLANES, scheda: scheda, squat: squatRighe })
   if (!giorni.length) {
     document.getElementById('slides').innerHTML = slideVuota()
     slides = ['vuota']; corrente = 0; disegnaPuntini(); aggiornaFrecce()
@@ -650,6 +683,7 @@ function pacchettoTv() {
   return { v: 1, pid: patientId, premium: isPremium, creato: new Date().toISOString(),
     patient: TVDATI.patient ? { id: TVDATI.patient.id, nome: TVDATI.patient.nome, cognome: TVDATI.patient.cognome, foto_url: TVDATI.patient.foto_url } : null,
     visits: TVDATI.visits || [], visit_photos: TVDATI.visit_photos || [], oscillazione_test: TVDATI.oscillazione_test || [],
+    squat_test: TVDATI.squat_test || [],     // schermo-test-v1
     foto_allineamenti: TVDATI.foto_allineamenti || [], foto_misure: Object.keys(misure).map(k => misure[k]), firme: TVDATI.firme || {} }
 }
 async function caricaTv() {
@@ -724,6 +758,8 @@ function disegnaGiorni() {
     if (nf) cosa.push(nf + ' foto')
     if (g.scap && g.scap.esito !== 'nd') cosa.push('spalla')
     if (g.eq && g.eq.condizioni.length) cosa.push('equilibrio')
+    if (g.sq && g.sq.length) cosa.push('squat')              // schermo-test-v1
+    if (g.piedi && g.piedi.length) cosa.push('un piede')
     const tipi = g.scheda ? 'Valutazione iniziale'
       : Array.from(new Set(g.visite.map(v => PV.nomeTipo('visita', v.tipo)))).join(' + ') || 'Solo equilibrio'
     return '<button class="giorno' + (i === sel ? ' on' : '') + '" onclick="scegliGiorno(' + i + ')">' +
@@ -749,6 +785,9 @@ function costruisci() {
       html.push(slideEquilibrio(g, g.eq.condizioni.slice(i, i + 2), i)); ids.push('eq:' + i)
     }
   }
+  // schermo-test-v1 · lo squat e il piede solo, dopo l'equilibrio
+  if (g.sq && g.sq.length) { html.push(slideSquat(g)); ids.push('squat') }
+  if (g.piedi && g.piedi.length) { html.push(slidePiedi(g)); ids.push('piedi') }
   const si = S.sintesi(g)
   if (si.totale || si.foto) { html.push(slideSintesi(g, si)); ids.push('sintesi') }
   const perc = S.percorso(giorni)
@@ -1012,6 +1051,63 @@ function slideEquilibrio(g, lista, da) {
     '<div class="eq-area">' + carte + '</div>' +
     '<div class="criterio" style="margin-top:18px"><span class="ico">◎</span><span>' + esc(T.eq_criterio) + '</span></div></div>'
 }
+/* ═══ schermo-test-v1 · LO SQUAT ═══
+   Una riga per asse: la scala da una parte all'altra, la fascia «al centro»
+   (entro 1,5°), il prima (grigio) e il dopo (giallo). Finché la Fase 0 dello
+   squat non c'è, il verdetto è «da confermare»: si legge, non si giudica. */
+function scalaSquat(q) {
+  const MAX = 4, W = 900, H = 120, cx = W / 2, k = (W / 2 - 40) / MAX
+  const x = v => cx + Math.max(-MAX, Math.min(MAX, v)) * k
+  const band = q.leggibile * k
+  const lati = q.asse === 'rollio' ? ['SINISTRA', 'DESTRA'] : ['INDIETRO', 'AVANTI']
+  const punto = (v, col, eti, su) => '<g><circle cx="' + x(v) + '" cy="60" r="' + (su ? 20 : 16) + '" fill="' + col + '"' + (su ? '' : ' fill-opacity=".85"') + '/>' +
+    '<text x="' + x(v) + '" y="' + (su ? 18 : 112) + '" text-anchor="middle" font-size="20" font-weight="800" fill="' + col + '">' + eti + '</text></g>'
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="sq-scala" role="img">' +
+    '<rect x="' + (cx - band) + '" y="36" width="' + (2 * band) + '" height="48" rx="10" fill="rgba(84,226,181,.14)" stroke="rgba(84,226,181,.5)"/>' +
+    '<line x1="40" y1="60" x2="' + (W - 40) + '" y2="60" stroke="#3a3a3a" stroke-width="6" stroke-linecap="round"/>' +
+    '<line x1="' + cx + '" y1="30" x2="' + cx + '" y2="90" stroke="#54E2B5" stroke-width="3"/>' +
+    '<text x="40" y="112" font-size="18" font-weight="800" fill="#777">' + lati[0] + '</text>' +
+    '<text x="' + (W - 40) + '" y="112" text-anchor="end" font-size="18" font-weight="800" fill="#777">' + lati[1] + '</text>' +
+    punto(q.a, '#9a9a9a', esc(T.prima), false) + punto(q.b, '#FFD008', esc(dopoDi()), true) + '</svg>'
+}
+function slideSquat(g) {
+  const carte = g.sq.map(q => {
+    const giud = q.esito !== 'daconfermare'
+    return '<div class="sq-card"><div class="eq-cond">' + esc(maiuscola(q.nome)) + '</div>' +
+      '<div class="eq-num">' + esc(T.sq_misura) + '</div>' +
+      '<div class="eq-val"><span class="a">' + esc(q.parolaA) + ' ' + S.numIt(Math.abs(q.a), 1) + '°</span><span class="u">→</span>' +
+      '<span class="b">' + esc(q.parolaB) + ' ' + S.numIt(Math.abs(q.b), 1) + '°</span></div>' +
+      scalaSquat(q) +
+      '<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">' +
+      (giud ? badge(q.esito, T['sq_' + q.esito] || '') : badge('uguale', T.sq_daconfermare)) +
+      '<span style="font-size:16px;color:#7A7A7A;font-weight:600">' + q.nA + '+' + q.nB + ' prove' + '</span></div>' +
+      (giud ? '' : '<div style="font-size:16px;color:#9a9a9a;font-weight:600">' + esc(T.sq_nota_errore) + '</div>') +
+      '</div>'
+  }).join('')
+  return '<div class="slide" data-s="squat">' + testa(T.sq_titolo, T.sq_sotto) +
+    '<div class="sq-area">' + carte + '</div>' +
+    '<div class="criterio" style="margin-top:18px"><span class="ico">⊥</span><span>' + esc(T.sq_criterio.replace('{l}', S.numIt(g.sq[0].leggibile, 1))) + '</span></div></div>'
+}
+
+/* ═══ schermo-test-v1 · SU UN PIEDE: destro contro sinistro, prima e dopo ═══ */
+function slidePiedi(g) {
+  const riga = (m, eti) => {
+    if (!m) return ''
+    const mx = Math.max(m.dx, m.sx, 0.01)
+    const lato = (v, nome, meglio) => '<div class="pd-lato' + (meglio ? ' meglio' : '') + '"><div class="pd-k">' + nome + '</div>' +
+      '<div class="pd-v">' + S.numIt(v, 1) + '<span> °/s</span></div><div class="pd-barra"><i style="width:' + Math.round(100 * v / mx) + '%"></i></div></div>'
+    return '<div class="pd-riga"><div class="pd-eti">' + esc(eti) + '</div>' +
+      lato(m.dx, 'DESTRO', m.piede === 'dx') + lato(m.sx, 'SINISTRO', m.piede === 'sx') +
+      '<div class="pd-tit">' + badge(m.piede ? 'meglio' : 'uguale', m.titolo) +
+      '<div style="font-size:15px;color:#7A7A7A;font-weight:600;margin-top:8px">differenza ' + m.diff + '% · conta oltre ' + m.banda + '%</div></div></div>'
+  }
+  const blocchi = g.piedi.slice(0, 2).map(c => '<div class="pd-blocco"><div class="eq-cond">' + esc(maiuscola(c.nome)) + '</div>' +
+    riga(c.pre, T.prima) + riga(c.post, dopoDi()) + '</div>').join('')
+  return '<div class="slide" data-s="piedi">' + testa(T.piedi_titolo, T.piedi_sotto) +
+    '<div class="pd-area">' + blocchi + '</div>' +
+    '<div class="criterio" style="margin-top:18px"><span class="ico">🦶</span><span>' + esc(T.piedi_criterio) + '</span></div></div>'
+}
+
 /* Il gomitolo del prima (tratteggio grigio) e del dopo (giallo) sulla STESSA
    scala: se si scalassero separati, due disegni diversi sembrerebbero uguali. */
 function disegnaGomitoli() {
