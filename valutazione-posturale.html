@@ -932,6 +932,25 @@
   <!-- F: CONCLUSIONI -->
   <section class="vp-section ds-section">
     <div class="vp-sec-title ds-section-title"><span class="vp-sec-badge ds-section-badge">F</span> Conclusioni</div>
+    <!-- sintesi-v1 · LA SINTESI POLICETTIVA: propone NPL o GPL con le ragioni, decidi tu -->
+    <style>
+      .sp-card{border:2px solid #111;border-radius:14px;padding:14px 16px;margin:4px 0 16px;background:#fff}
+      .sp-testa{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+      .sp-tit{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#555}
+      .sp-prop{display:inline-block;font-weight:900;font-size:20px;letter-spacing:1px;border-radius:10px;padding:4px 14px}
+      .sp-prop.NPL{background:#000;color:#FFD008}.sp-prop.GPL{background:#FFD008;color:#000}
+      .sp-perche{font-size:13.5px;color:#222;margin:10px 0 4px;line-height:1.5}
+      .sp-contr{font-size:13px;color:#8a5a00;background:#fff8e6;border-left:3px solid #e6a100;border-radius:0 8px 8px 0;padding:6px 10px;margin:6px 0}
+      .sp-crit{font-size:12.5px;color:#555;margin:2px 0}
+      .sp-crit b{color:#111}
+      .sp-usa{margin-top:10px;background:#111;color:#FFD008;border:0;border-radius:10px;padding:10px 14px;font-weight:800;font-family:inherit;font-size:14px;cursor:pointer}
+      .sp-ok{margin-top:10px;font-size:13px;font-weight:700;color:#0a7d33}
+      .sp-diverso{margin-top:10px;font-size:13px;font-weight:700;color:#8a5a00}
+      .sp-test{margin-top:12px;border-top:1px solid #eee;padding-top:8px;font-size:12.5px;color:#555}
+      .sp-test b{color:#111}
+      .sp-piede{font-size:11px;color:#999;margin-top:8px}
+    </style>
+    <div class="sp-card" id="sintesi-pol"><div class="sp-tit">Sintesi Policettiva</div><div class="sp-crit">…</div></div>
     <div class="chip-label ds-chip-label">Configurazione suggerita</div>
     <div class="config-row">
       <!-- config-vocabolario-v1 : diceva «Neutra Posteriore Lombare» e «Grande
@@ -1232,6 +1251,7 @@
 <script src="js/squat.js?v=schermo-test-v1"></script><script src="js/atr.js?v=atr-v1"></script><script src="js/stepping.js?v=stepping-v1"></script><script src="js/schermo-paziente.js?v=stepping-v1"></script>
 <script src="js/misure-foto.js?v=editor-punti-v1"></script>
 <script src="js/pdf-prima-dopo.js?v=stepping-v1"></script>
+<script src="js/sintesi-policettiva.js?v=sintesi-v1"></script><!-- sintesi-v1 · la Sintesi Policettiva -->
 <script>
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
@@ -1393,6 +1413,8 @@
       note_capo:    document.getElementById('extra-note-capo')?.value.trim()    || null,
       note_visione: document.getElementById('extra-note-visione')?.value.trim() || null,
       note_stomato: document.getElementById('extra-note-stomato')?.value.trim() || null,
+      // sintesi-v1 · la proposta, le ragioni, la versione delle regole e la scelta fatta
+      sintesi: (window.PolSintesi && ultimaSintesi) ? window.PolSintesi.daSalvare(ultimaSintesi, configSug) : null,
     }
   }
 
@@ -1483,6 +1505,7 @@
       setVal('extra-note-stomato', ve.note_stomato)
     }
 
+    try { aggiornaSintesi(); caricaTestDelGiorno() } catch (e) {}   // sintesi-v1
     await loadPhotos()
     renderStatoPDF(v)          // pdf-validato-v1 — archivio
     setIndicator('saved', '')
@@ -2959,6 +2982,7 @@
     chipState[group] = prev === val ? null : val
     document.querySelectorAll('[data-g="' + group + '"]').forEach(c =>
       c.classList.toggle('active', c.dataset.v === chipState[group]))
+    try { aggiornaSintesi() } catch (e) {}          // sintesi-v1
     const nm = CHIP_NOTE_MAP[group]
     if (nm) {
       if (prev)              _chipToNote(nm.noteId, nm.prefix + ': ' + (CHIP_LABELS[prev]             || prev),             false)
@@ -2987,7 +3011,74 @@
       gpl.classList.add('active'); gpl.classList.remove('dim')
       npl.classList.remove('active'); npl.classList.add('dim')
     }
+    try { aggiornaSintesi() } catch (e) {}          // sintesi-v1
     if (doSave !== false) scheduleSave()
+  }
+
+  // ═══ sintesi-v1 · LA SINTESI POLICETTIVA ═══════════════════════════
+  // Le regole stanno in js/sintesi-policettiva.js (Giuliano, 30/09: tutte A).
+  // Qui si leggono i chip già segnati, si mostra la proposta con le ragioni
+  // e il professionista decide: «Usa questa» compila la configurazione.
+  // I test del giorno si mostrano accanto e NON entrano nella regola (5A).
+  let ultimaSintesi = null, testDelGiorno = ''
+  function escS(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])) }
+  function aggiornaSintesi() {
+    const el = document.getElementById('sintesi-pol'); if (!el) return
+    if (!window.PolSintesi) { el.style.display = 'none'; return }
+    const r = window.PolSintesi.proponi({
+      scapola_pre: chipState['scap-pre'] || null, scapola_post: chipState['scap-post'] || null,
+      assetto: chipState['assetto'] || null, arco: chipState['arco'] || null,
+      mono_dx: chipState['mono-dx'] || null, mono_sx: chipState['mono-sx'] || null
+    })
+    ultimaSintesi = r
+    let h = '<div class="sp-testa"><span class="sp-tit">Sintesi Policettiva · proposta</span>' +
+      (r.proposta ? '<span class="sp-prop ' + r.proposta + '">' + r.proposta + '</span>' : '<span style="font-weight:800;color:#888">nessuna proposta</span>') + '</div>'
+    h += '<div class="sp-perche">' + escS(r.proposta ? r.perche : r.manca) + '</div>'
+    r.contrasti.forEach(c => { h += '<div class="sp-contr">⚠️ ' + escS(c) + '</div>' })
+    r.criteri.forEach(c => {
+      h += '<div class="sp-crit">' + (c.usato ? '✓ ' : '· ') + escS(c.nome) + ': <b>' + escS(c.valore) + '</b>' +
+        (c.verso ? ' → ' + c.verso : ' → nessuna indicazione') + (c.nota ? ' (' + escS(c.nota) + ')' : '') + '</div>'
+    })
+    if (r.post) h += '<div class="sp-crit">' + escS(r.post) + '</div>'
+    if (r.proposta) {
+      if (configSug === r.proposta) h += '<div class="sp-ok">✓ Configurazione scelta: ' + r.proposta + ', come la proposta.</div>'
+      else if (configSug) h += '<div class="sp-diverso">Hai scelto ' + escS(configSug) + ': diversa dalla proposta. Resta la tua scelta, e si salva insieme alla proposta.</div>'
+      else h += '<button class="sp-usa" type="button" onclick="usaSintesi()">Usa questa: ' + r.proposta + '</button>'
+    }
+    if (testDelGiorno) h += '<div class="sp-test"><b>Test di questo giorno</b> (solo informazione, non entrano nella proposta):<br>' + testDelGiorno + '</div>'
+    h += '<div class="sp-piede">Regole del Sistema Policettivo® · ' + escS(r.versione) + '. La proposta non sostituisce il giudizio del professionista.</div>'
+    el.innerHTML = h
+  }
+  function usaSintesi() {
+    if (!ultimaSintesi || !ultimaSintesi.proposta) return
+    if (configSug !== ultimaSintesi.proposta) setConfig(ultimaSintesi.proposta)
+  }
+  // i test dello stesso giorno, per informazione (tabelle che mancano = niente)
+  async function caricaTestDelGiorno() {
+    try {
+      if (!patientId) return
+      const g = (document.getElementById('hdr-date-input').value || '').slice(0, 10); if (!g) return
+      const da = g + 'T00:00:00', a = g + 'T23:59:59'
+      const q = (tab, campi) => _sb.from(tab).select(campi).eq('patient_id', patientId).gte('quando', da).lte('quando', a)
+      const righe = []
+      const osc = await q('oscillazione_test', 'evento,velocita,momento')
+      if (!osc.error && osc.data && osc.data.length) {
+        const v = osc.data.filter(r => r.velocita != null)
+        if (v.length) righe.push('Oscillazione: ' + v.length + (v.length === 1 ? ' prova' : ' prove') + ', velocità media ' +
+          (v.reduce((s, r) => s + Number(r.velocita), 0) / v.length).toFixed(1).replace('.', ',') + ' °/s')
+      }
+      const sq = await q('squat_test', 'asse,fondo')
+      if (!sq.error && sq.data && sq.data.length) righe.push('Squat: ' + sq.data.length + (sq.data.length === 1 ? ' prova' : ' prove'))
+      const at = await q('atr_test', 'massimo,livello_massimo')
+      if (!at.error && at.data && at.data.length) {
+        const m = at.data.reduce((x, r) => Math.max(x, Number(r.massimo) || 0), 0)
+        righe.push('ATR: massimo ' + m.toFixed(1).replace('.', ',') + '°')
+      }
+      const st = await q('stepping_test', 'rotazione')
+      if (!st.error && st.data && st.data.length) righe.push('Stepping: ' + st.data.map(r => Math.round(Math.abs(Number(r.rotazione) || 0)) + '° ' + (Number(r.rotazione) >= 0 ? 'dx' : 'sx')).join(' · '))
+      testDelGiorno = righe.map(escS).join('<br>')
+      aggiornaSintesi()
+    } catch (e) {}
   }
 
   function appendObs(text) {
@@ -4185,6 +4276,16 @@ ISTRUZIONI:
       sec('Altre Note'),
       block(v.note_osservazionali),
       row('Configurazione suggerita', v.configurazione_suggerita),
+      (() => {   // sintesi-v1 · la proposta della Sintesi Policettiva, con le ragioni
+        try {
+          const ve = typeof v.valutazione_extra === 'string' ? JSON.parse(v.valutazione_extra) : (v.valutazione_extra || {})
+          const s = ve && ve.sintesi
+          if (!s || !s.proposta) return ''
+          return row('Sintesi Policettiva (proposta)', s.proposta + ' — ' + s.perche +
+            (s.contrasti && s.contrasti.length ? ' · ' + s.contrasti.join(' ') : '') +
+            (s.scelta && s.scelta !== s.proposta ? ' · scelta del professionista: ' + s.scelta : ''))
+        } catch (e) { return '' }
+      })(),
       block(v.note_finali),
     ].join('') : ''
 

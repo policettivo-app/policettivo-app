@@ -2566,6 +2566,65 @@ sez('pdf-validato-visita-v1 — se il server del PDF non risponde, lo dice e non
   await ctx.close()
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════
+   sintesi-v1 — la Sintesi Policettiva nella valutazione posturale
+   ═══════════════════════════════════════════════════════════════════════ */
+sez('⭐⭐ sintesi-v1 · le regole (js/sintesi-policettiva.js)')
+{
+  globalThis.window = globalThis
+  await import('./js/sintesi-policettiva.js?x=' + Date.now())
+  const S = globalThis.PolSintesi
+  const P = d => S.proponi(d)
+  check('⭐ scapola anteriore → NPL', P({ scapola_pre: 'anteriore' }).proposta === 'NPL')
+  check('⭐ scapola posteriore → GPL', P({ scapola_pre: 'posteriore' }).proposta === 'GPL')
+  check('⭐ 1A conta la scapola PRIMA: il dopo si mostra e basta', P({ scapola_pre: 'anteriore', scapola_post: 'posteriore' }).proposta === 'NPL' && /Dopo i 3 Respiri/.test(P({ scapola_pre: 'anteriore', scapola_post: 'posteriore' }).post))
+  const c = P({ scapola_pre: 'anteriore', assetto: 'valgo' })
+  check('⭐⭐ 2A scapola e piede discordi: vince la scapola, e il contrasto è scritto', c.proposta === 'NPL' && c.contrasti.length === 1 && /vince la scapola/.test(c.contrasti[0]), c)
+  check('⭐ scapola e piede concordi: lo scrive', /concorda/.test(P({ scapola_pre: 'posteriore', arco: 'piatto' }).perche))
+  check('⭐⭐ 3A scapola in asse: decide il piede', P({ scapola_pre: 'in_asse', assetto: 'varo' }).proposta === 'NPL' && /in asse: decide il piede/.test(P({ scapola_pre: 'in_asse', assetto: 'varo' }).perche))
+  const q = P({ assetto: 'valgo', arco: 'cavo' })
+  check('⭐⭐ 4A il piede: prima l’assetto (valgo → GPL), e l’arco contrario resta scritto', q.proposta === 'GPL' && q.contrasti.some(x => /Arco plantare cavo indicherebbe NPL/.test(x)), q)
+  check('⭐ assetto misto → decide l’arco', P({ assetto: 'misto', arco: 'cavo' }).proposta === 'NPL')
+  check('⭐ poi il monopodalico: inversione → NPL, eversione → GPL', P({ mono_dx: 'inversione', mono_sx: 'neutro' }).proposta === 'NPL' && P({ mono_dx: 'eversione' }).proposta === 'GPL')
+  check('⛔ monopodalico opposti fra i lati: nessuna indicazione', P({ mono_dx: 'inversione', mono_sx: 'eversione' }).proposta === null)
+  check('⭐ niente segnato: lo dice', /Mancano i dati/.test(P({}).manca) && P({}).proposta === null)
+  check('⭐ ogni proposta porta la versione delle regole', /sp-regole-v1/.test(P({ scapola_pre: 'anteriore' }).versione))
+  const sv = S.daSalvare(P({ scapola_pre: 'anteriore' }), 'GPL')
+  check('⭐ si salva proposta, scelta e se concordano', sv.proposta === 'NPL' && sv.scelta === 'GPL' && sv.concorda === false && /sp-regole-v1/.test(sv.versione))
+  const src = fs.readFileSync(path.join(ROOT, 'js/sintesi-policettiva.js'), 'utf8').replace(/\/\*[^]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  check('⛔ le regole non parlano col database', !/supabase|fetch\(|localStorage/.test(src))
+  check('⛔ 5A-6A i test e i protocolli NON entrano nella regola', !/oscillazione|squat|atr|stepping|P1|P2|P3/i.test(src))
+}
+
+sez('⭐⭐ sintesi-v1 · la scheda nella valutazione posturale')
+{
+  const d = datiPosturale()
+  d.oscillazione_test = [
+    { id: 'o1', patient_id: PID, quando: '2026-08-31T10:00:00', evento: 'beccheggio', velocita: 1.2, momento: 'pre' },
+    { id: 'o2', patient_id: PID, quando: '2026-08-31T10:10:00', evento: 'beccheggio', velocita: 1.4, momento: 'post' }
+  ]
+  const { page, ctx, errori } = await apriPagina(browser, d, 'valutazione-posturale.html', '?id=v3')
+  await page.waitForTimeout(500)
+  check('nessun errore JS', errori.length === 0, errori)
+  check('⭐ la scheda c’è, sopra la configurazione, e senza dati lo dice', /Sintesi Policettiva/.test(await page.textContent('#sintesi-pol')) && /Mancano i dati/.test(await page.textContent('#sintesi-pol')))
+  check('⭐ i test del giorno accanto, «non entrano nella proposta»', /Oscillazione: 2 prove/.test(await page.textContent('#sintesi-pol')) && /non entrano nella proposta/.test(await page.textContent('#sintesi-pol')))
+  await page.evaluate(() => { setExcl('scap-pre', 'anteriore'); setExcl('assetto', 'valgo') })
+  let t = await page.textContent('#sintesi-pol')
+  check('⭐⭐ scapola anteriore + retropiede valgo → proposta NPL, contrasto scritto', /proposta\s*NPL/.test(t) && /Piano scapolare anteriore → NPL/.test(t) && /vince la scapola/.test(t), t.slice(0, 300))
+  await page.locator('#sintesi-pol').screenshot({ path: '_schermate/sintesi.png' })
+  check('⭐ il pulsante «Usa questa: NPL»', /Usa questa: NPL/.test(await page.textContent('.sp-usa')))
+  check('⛔ la scheda non sceglie da sola: prima del tocco nessuna configurazione', await page.evaluate(() => !document.getElementById('cfg-npl').classList.contains('active') && !document.getElementById('cfg-gpl').classList.contains('active')))
+  await page.click('.sp-usa'); await page.waitForTimeout(200)
+  check('⭐⭐ «Usa questa» sceglie NPL nella configurazione', await page.evaluate(() => document.getElementById('cfg-npl').classList.contains('active')) && /come la proposta/.test(await page.textContent('#sintesi-pol')))
+  await page.evaluate(() => setConfig('GPL'))
+  check('⭐ se scegli diversamente lo scrive, e resta la tua scelta', /Hai scelto GPL: diversa dalla proposta/.test(await page.textContent('#sintesi-pol')))
+  const ex = await page.evaluate(() => buildExtraJSON().sintesi)
+  check('⭐⭐ si salva con la visita: proposta, ragioni, versione, scelta', ex && ex.proposta === 'NPL' && ex.scelta === 'GPL' && ex.concorda === false && /sp-regole-v1/.test(ex.versione) && /anteriore/.test(ex.perche), ex)
+  check('⭐ e le osservazioni di prima restano nel JSON (single/multi)', await page.evaluate(() => { const e = buildExtraJSON(); return 'single' in e && 'multi' in e }))
+  await ctx.close()
+}
+
 } finally {
   await browser.close()
   server.close()
