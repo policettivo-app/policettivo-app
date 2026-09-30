@@ -13,7 +13,8 @@
   <script src="js/oscillazione.js?v=schermo-test-v1"></script>
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
   <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
-  <script src="js/schermo-paziente.js?v=atr-v1"></script>
+  <script src="js/stepping.js?v=stepping-v1"></script><!-- stepping-v1 -->
+  <script src="js/schermo-paziente.js?v=stepping-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
@@ -169,6 +170,9 @@
     .atr-num .u { font-size: 20px; color: var(--testo3); font-weight: 700; }
     .atr-lato { width: 100%; font-size: 16px; color: var(--testo3); font-weight: 700; }
     .atr-esito .esito { font-size: 18px; }
+    /* stepping-v1 */
+    .st-area { flex: 1; display: flex; gap: 40px; align-items: center; justify-content: center; min-height: 0; }
+    .st-quadrante { width: 760px; max-width: 58%; height: auto; flex: 0 0 auto; }
     .legenda { display: flex; gap: 18px; font-size: 17px; color: var(--testo2); font-weight: 700; }
     .legenda span { display: inline-flex; align-items: center; gap: 8px; }
     .legenda i { display: inline-block; width: 28px; height: 0; border-top: 3px dashed #9A9A9A; }
@@ -326,7 +330,7 @@ const TV_PKG = (new URLSearchParams(location.search).get('tv') === '1')
 function tvFinto(pkg) {
   const T = { patients: pkg.patient ? [pkg.patient] : [], visits: pkg.visits || [], visit_photos: pkg.visit_photos || [],
     oscillazione_test: pkg.oscillazione_test || [], foto_allineamenti: pkg.foto_allineamenti || [], foto_misure: pkg.foto_misure || [],
-    squat_test: pkg.squat_test || [], atr_test: pkg.atr_test || [] }   // schermo-test-v1 · atr-v1
+    squat_test: pkg.squat_test || [], atr_test: pkg.atr_test || [], stepping_test: pkg.stepping_test || [] }   // schermo-test-v1 · atr-v1 · stepping-v1
   const q = (tab) => {
     const f = []; let ord = null
     const righe = () => (T[tab] || []).filter(r => f.every(([k, v, op]) => op === 'in' ? v.indexOf(r[k]) >= 0 : r[k] === v))
@@ -559,6 +563,17 @@ async function init() {
     TVDATI.atr_test = atrRighe
   }
 
+  // 3d) stepping-v1 · lo stepping: rotazione ed errore, solo prima/dopo. Senza tabella (055) non compare.
+  let stRighe = []
+  {
+    try {
+      const { data, error } = await _sb.from('stepping_test').select('id,quando,momento,rotazione,n_prove,errore')
+        .eq('patient_id', patientId).order('quando', { ascending: true })
+      if (!error) stRighe = (data || []).filter(r => r.momento === 'pre' || r.momento === 'post')
+    } catch (e) { stRighe = [] }
+    TVDATI.stepping_test = stRighe
+  }
+
   // 4) un giro solo di firme
   const mappa = {}
   const unici = Array.from(new Set(daFirmare))
@@ -596,7 +611,7 @@ async function init() {
     else (ms || []).forEach(r => { if (r.storage_path) misure[r.storage_path] = r })
   }
 
-  giorni = S.costruisciGiorni({ visite: visite || [], foto: foto, prove: prove, piani: PLANES, scheda: scheda, squat: squatRighe, atr: atrRighe })
+  giorni = S.costruisciGiorni({ visite: visite || [], foto: foto, prove: prove, piani: PLANES, scheda: scheda, squat: squatRighe, atr: atrRighe, stepping: stRighe })
   if (!giorni.length) {
     document.getElementById('slides').innerHTML = slideVuota()
     slides = ['vuota']; corrente = 0; disegnaPuntini(); aggiornaFrecce()
@@ -708,6 +723,7 @@ function pacchettoTv() {
     visits: TVDATI.visits || [], visit_photos: TVDATI.visit_photos || [], oscillazione_test: TVDATI.oscillazione_test || [],
     squat_test: TVDATI.squat_test || [],     // schermo-test-v1
     atr_test: TVDATI.atr_test || [],         // atr-v1
+    stepping_test: TVDATI.stepping_test || [],   // stepping-v1
     foto_allineamenti: TVDATI.foto_allineamenti || [], foto_misure: Object.keys(misure).map(k => misure[k]), firme: TVDATI.firme || {} }
 }
 async function caricaTv() {
@@ -785,6 +801,7 @@ function disegnaGiorni() {
     if (g.sq && g.sq.length) cosa.push('squat')              // schermo-test-v1
     if (g.piedi && g.piedi.length) cosa.push('un piede')
     if (g.atr && g.atr.livelli.length) cosa.push('schiena')     // atr-v1
+    if (g.st) cosa.push('passi')                                  // stepping-v1
     const tipi = g.scheda ? 'Valutazione iniziale'
       : Array.from(new Set(g.visite.map(v => PV.nomeTipo('visita', v.tipo)))).join(' + ') || 'Solo equilibrio'
     return '<button class="giorno' + (i === sel ? ' on' : '') + '" onclick="scegliGiorno(' + i + ')">' +
@@ -814,6 +831,7 @@ function costruisci() {
   if (g.sq && g.sq.length) { html.push(slideSquat(g)); ids.push('squat') }
   if (g.piedi && g.piedi.length) { html.push(slidePiedi(g)); ids.push('piedi') }
   if (g.atr && g.atr.livelli.length) { html.push(slideAtr(g)); ids.push('atr') }       // atr-v1
+  if (g.st) { html.push(slideStepping(g)); ids.push('stepping') }                        // stepping-v1
   const si = S.sintesi(g)
   if (si.totale || si.foto) { html.push(slideSintesi(g, si)); ids.push('sintesi') }
   const perc = S.percorso(giorni)
@@ -1143,6 +1161,34 @@ function slideAtr(g) {
     '<div class="legenda" style="margin-top:6px"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoDi()) + '</span>' +
     (giudTutti && g.atr.errore != null ? '<span style="color:#7A7A7A">conta solo oltre ±' + S.numIt(g.atr.errore, 1) + '°</span>' : '<span style="color:#7A7A7A">' + esc(T.atr_nota_errore) + '</span>') + '</div></div>' +
     '<div class="criterio" style="margin-top:14px"><span class="ico">⟷</span><span>' + esc(T.atr_criterio) + '</span></div></div>'
+}
+
+/* ═══ stepping-v1 · CAMMINARE SUL POSTO A OCCHI CHIUSI ═══
+   Visto dall'alto: la direzione di partenza (verde), dove guardava alla fine
+   prima (grigio tratteggiato) e dopo (giallo). */
+function frecciaSt(v, col, tratt) {
+  const a = Math.max(-170, Math.min(170, Number(v) || 0)) * Math.PI / 180, L = 230
+  return '<line x1="300" y1="290" x2="' + (300 + Math.sin(a) * L) + '" y2="' + (290 - Math.cos(a) * L) + '" stroke="' + col + '" stroke-width="' + (tratt ? 9 : 14) +
+    '" stroke-linecap="round"' + (tratt ? ' stroke-dasharray="18 12" opacity=".8"' : '') + '/>'
+}
+function slideStepping(g) {
+  const c = g.st, giud = c.esito !== 'daconfermare'
+  const quadrante = '<svg viewBox="0 0 600 320" class="st-quadrante"><path d="M50 290 A250 250 0 0 1 550 290" fill="none" stroke="#262626" stroke-width="3"/>' +
+    '<line x1="300" y1="290" x2="300" y2="30" stroke="#54E2B5" stroke-width="3" stroke-dasharray="6 8"/>' +
+    '<text x="300" y="22" text-anchor="middle" font-size="18" font-weight="800" fill="#54E2B5">PARTENZA</text>' +
+    frecciaSt(c.prima, '#9a9a9a', true) + frecciaSt(c.dopo, '#FFD008', false) +
+    '<circle cx="300" cy="290" r="14" fill="#FFD008"/>' +
+    '<text x="40" y="314" font-size="18" font-weight="800" fill="#6a6a6a">SINISTRA</text><text x="560" y="314" text-anchor="end" font-size="18" font-weight="800" fill="#6a6a6a">DESTRA</text></svg>'
+  return '<div class="slide" data-s="stepping">' + testa(T.st_titolo, T.st_sotto) +
+    '<div class="st-area">' + quadrante +
+    '<div class="eq-dati"><div class="eq-num">Rotazione alla fine</div>' +
+    '<div class="eq-val"><span class="a">' + S.numIt(Math.abs(c.prima), 0) + '°</span><span class="u">→</span><span class="b">' + S.numIt(Math.abs(c.dopo), 0) + '°</span></div>' +
+    '<div style="font-size:18px;color:#9a9a9a;font-weight:700">' + esc(c.dirPrima) + ' → ' + esc(c.dirDopo) + '</div>' +
+    '<div>' + (giud ? badge(c.esito, T['st_' + c.esito] || '') : badge('uguale', T.st_daconfermare)) + '</div>' +
+    '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoDi()) + '</span></div>' +
+    '<div style="font-size:15px;color:#7A7A7A;font-weight:600">' + esc(giud && c.errore != null ? 'Conta solo oltre ±' + S.numIt(c.errore, 0) + '°: sotto, è la variabilità normale della misura.' : T.st_nota_errore) + '</div>' +
+    '</div></div>' +
+    '<div class="criterio" style="margin-top:14px"><span class="ico">🧭</span><span>' + esc(T.st_criterio) + '</span></div></div>'
 }
 
 /* ═══ schermo-test-v1 · SU UN PIEDE: destro contro sinistro, prima e dopo ═══ */

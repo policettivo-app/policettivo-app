@@ -146,6 +146,11 @@ function dati(opts = {}) {
       { id: 'at1', patient_id: PID, quando: '2026-09-20T10:00:00Z', momento: 'pre', toracico_alto: 1, toracico: 6, toracolombare: -3.2, lombare: -1.5, n_passate: 3, errore: 0.5 },
       { id: 'at2', patient_id: PID, quando: '2026-09-20T10:20:00Z', momento: 'post', toracico_alto: 0.5, toracico: 3.1, toracolombare: -3.2, lombare: -1.4, n_passate: 3, errore: 0.4 }
     ] : (opts.senza054 ? undefined : []),
+    // stepping-v1 · lo stepping del 20/09: prima 48° (errore 20), dopo 12° (errore 15) → «più dritto»
+    stepping_test: opts.conTest ? [
+      { id: 'st1', patient_id: PID, quando: '2026-09-20T10:30:00Z', momento: 'pre', rotazione: 48, n_prove: 2, errore: 20 },
+      { id: 'st2', patient_id: PID, quando: '2026-09-20T10:40:00Z', momento: 'post', rotazione: -12, n_prove: 2, errore: 15 }
+    ] : (opts.senza055 ? undefined : []),
     foto_allineamenti: opts.allineate ? [
       { storage_path: 'visits/v-post/sag-pre.jpg', punti: { a: { x: 0.5, y: 0.1 }, b: { x: 0.5, y: 0.9 } } },
       { storage_path: 'visits/v-post/sag-post.jpg', punti: { a: { x: 0.52, y: 0.12 }, b: { x: 0.52, y: 0.92 } } },
@@ -204,6 +209,8 @@ const SUPA = ({ D, FIRME }) => {
         } else if (st.upd) {
           if (D.opts.senza048 && 'momento' in st.upd) out = { data: null, error: { code: 'PGRST204', message: "Could not find the 'momento' column of 'oscillazione_test' in the schema cache" } }
           else { righe().forEach(r => Object.assign(r, st.upd)); D.aggiornate.push({ tab, d: st.upd, f: st.f }); out = { data: null, error: null } }
+        } else if (tab === 'stepping_test' && !D.stepping_test) {
+          out = { data: null, error: { code: '42P01', message: 'relation "public.stepping_test" does not exist' } }
         } else if (tab === 'atr_test' && !D.atr_test) {
           out = { data: null, error: { code: '42P01', message: 'relation "public.atr_test" does not exist' } }
         } else if (tab === 'squat_test' && !D.squat_test) {
@@ -947,6 +954,15 @@ sez('⭐⭐ schermo-test-v1 · lo squat e il piede solo nel prima e dopo')
   t = await testoSlide(page)
   check('⭐ nella sintesi entra la schiena col verdetto vero', /Schiena · Toracico/.test(t), t.slice(0, 300))
   check('⭐ il pacchetto della TV porta anche l’ATR', (await page.evaluate(() => pacchettoTv().atr_test.length)) === 2)
+  // stepping-v1
+  check('⭐ stepping-v1 · c’è la slide «stepping», dopo l’ATR', (await slideIds(page)).indexOf('stepping') > (await slideIds(page)).indexOf('atr'))
+  await vaiA(page, 'stepping')
+  t = await testoSlide(page)
+  check('⭐⭐ stepping: 48° → 12°, «Più dritto» (oltre ±20°), verso destra → verso sinistra', /48°/.test(t) && /12°/.test(t) && /Più dritto/.test(t) && /verso destra/.test(t) && /verso sinistra/.test(t), t.slice(0, 300))
+  check('⛔ al paziente nessun «patologico / vestibolare»', !/patolog|vestibol|anormale/i.test(t))
+  await page.screenshot({ path: '_schermate/sp-stepping.png' })
+  check('⭐ nella sintesi i passi a occhi chiusi col verdetto', await page.evaluate(() => { vai(slides.indexOf('sintesi')); return /Passi a occhi chiusi/.test(document.querySelector('#slides .slide.on').innerText) }))
+  check('⭐ il pacchetto della TV porta anche lo stepping', (await page.evaluate(() => pacchettoTv().stepping_test.length)) === 2)
   await vaiA(page, 'squat')
   await page.screenshot({ path: '_schermate/sp-squat.png' })
   await vaiA(page, 'piedi')
@@ -961,8 +977,9 @@ sez('⭐⭐ schermo-test-v1 · lo squat e il piede solo nel prima e dopo')
     const g = '2026-09-20T09:00:00Z'
     const prove = [['pre','dx',1.1],['pre','sx',2.3],['post','dx',1.2],['post','sx',1.3]].map(([mo,ap,v]) => ({ evento:'beccheggio', occhi:'aperti', momento:mo, appoggio:ap, velocita:v, osc_ap:.5, ellisse:1, carico_avanti:.2, quando:g }))
     const sq = [{ asse:'rollio', momento:'pre', fondo:2.2, quando:g }, { asse:'rollio', momento:'post', fondo:0.6, quando:g }, { asse:'rollio', momento:'pre', fondo:9, quando:'2026-09-01T09:00:00Z' }]
+    const stp = [{ momento: 'pre', quando: g, rotazione: 48, n_prove: 2, errore: 20 }, { momento: 'post', quando: '2026-09-20T09:40:00Z', rotazione: -12, n_prove: 2, errore: 15 }]
     const at = [{ momento: 'pre', quando: g, toracico: 6, lombare: -1.5, n_passate: 3, errore: 0.5 }, { momento: 'post', quando: '2026-09-20T09:30:00Z', toracico: 3.1, lombare: -1.4, n_passate: 3, errore: 0.4 }]
-    const fake = tab => { const api = { select(){ return api }, eq(){ return api }, in(){ return api }, then(r){ return Promise.resolve({ data: tab === 'squat_test' ? sq : tab === 'atr_test' ? at : prove, error: null }).then(r) } }; return api }
+    const fake = tab => { const api = { select(){ return api }, eq(){ return api }, in(){ return api }, then(r){ return Promise.resolve({ data: tab === 'squat_test' ? sq : tab === 'atr_test' ? at : tab === 'stepping_test' ? stp : prove, error: null }).then(r) } }; return api }
     const pd = await PolPdfPrimaDopo.carica({ from: fake }, { patientId: 'P', giorno: g })
     const h = PolPdfPrimaDopo.sezione({ pd, piani: [], photos: [], sec: t => '<h2>' + t + '</h2>' })
     const senza = { from: tab => { const api = { select(){ return api }, eq(){ return api }, in(){ return api }, then(r){ return Promise.resolve(tab === 'squat_test' ? { data: null, error: { message: 'relation "public.squat_test" does not exist' } } : { data: [], error: null }).then(r) } }; return api } }
@@ -974,12 +991,14 @@ sez('⭐⭐ schermo-test-v1 · lo squat e il piede solo nel prima e dopo')
   check('⭐ PDF: su un piede, destro e sinistro prima e dopo', /Su un piede/.test(pdf.h) && /Più stabile sul piede destro/.test(pdf.h) && /Nessuna differenza distinguibile/.test(pdf.h))
   check('⭐ PDF: senza la tabella dello squat il PDF si fa lo stesso', pdf.sq2 === 0)
   check('⭐ atr-v1 · PDF: la tabella della rotazione del tronco, con «screening, non una diagnosi»', /Rotazione del tronco \(ATR/.test(pdf.h) && /Più simmetrico/.test(pdf.h) && /screening, non una diagnosi/.test(pdf.h))
+  check('⭐ stepping-v1 · PDF: la tabella dello stepping, «osservazione, non un test diagnostico»', /Stepping test \(50 passi/.test(pdf.h) && /Più dritto/.test(pdf.h) && /non un test diagnostico/.test(pdf.h))
   check('⛔ atr-v1 · PDF: nessuna fascia, mai «scoliosi»', !/scoliosi/i.test(pdf.h) && !/ricontrollare/.test(pdf.h))
   for (const f of ['visita.html', 'valutazione-posturale.html']) {
     const src = fs.readFileSync(f, 'utf8')
     check('⭐ ' + f + ' carica squat e ATR prima del PDF, con le versioni nuove',
-      src.indexOf('js/squat.js?v=schermo-test-v1') > 0 && src.indexOf('js/atr.js?v=atr-v1') > 0 && src.indexOf('js/atr.js?v=atr-v1') < src.indexOf('js/pdf-prima-dopo.js?v=atr-v1') &&
-      /js\/schermo-paziente\.js\?v=atr-v1/.test(src) && /js\/oscillazione\.js\?v=schermo-test-v1/.test(src))
+      src.indexOf('js/squat.js?v=schermo-test-v1') > 0 && src.indexOf('js/atr.js?v=atr-v1') > 0 && src.indexOf('js/stepping.js?v=stepping-v1') > 0 &&
+      src.indexOf('js/stepping.js?v=stepping-v1') < src.indexOf('js/pdf-prima-dopo.js?v=stepping-v1') &&
+      /js\/schermo-paziente\.js\?v=stepping-v1/.test(src) && /js\/oscillazione\.js\?v=schermo-test-v1/.test(src))
   }
   await ctx.close()
   ;({ page, ctx, errori } = await apri(browser, { senza050: true }))

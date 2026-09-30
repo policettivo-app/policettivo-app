@@ -1,4 +1,4 @@
-/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026) · editor-punti-v1 · gradi-auto-v1 · schermo-test-v1 (squat e un piede) · atr-v1 (ATR)
+/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026) · editor-punti-v1 · gradi-auto-v1 · schermo-test-v1 (squat e un piede) · atr-v1 (ATR) · stepping-v1
  *
  * «PRIMA E DOPO I 3 RESPIRI» DENTRO I PDF: UN POSTO SOLO.
  *
@@ -29,7 +29,7 @@
      giorno. Ogni lettura che fallisce (tabella che manca, rete) lascia il suo
      pezzo vuoto: il PDF si fa lo stesso. */
   async function carica(sb, o) {
-    var out = { misure: {}, prove: [], eq: null, sq: [], piedi: [], atr: null, avvisi: [] }
+    var out = { misure: {}, prove: [], eq: null, sq: [], piedi: [], atr: null, st: null, avvisi: [] }
     var S = global.PolSchermo
     try {
       var paths = (o.paths || []).filter(Boolean)
@@ -76,6 +76,16 @@
         }).sort(function (a, b) { return a.quando < b.quando ? -1 : a.quando > b.quando ? 1 : 0 }))
       }
     } catch (e) { out.atr = null }
+    // stepping-v1 · lo stepping di quel giorno, prima/dopo. Tabella che manca (055) = niente.
+    try {
+      if (o.patientId && S && S.stepping) {
+        var g4 = S.giornoDi(o.giorno)
+        var r5 = await sb.from('stepping_test').select('id,quando,momento,rotazione,n_prove,errore').eq('patient_id', o.patientId)
+        if (!r5.error) out.st = S.stepping((r5.data || []).filter(function (p) {
+          return (p.momento === 'pre' || p.momento === 'post') && S.giornoDi(p.quando) === g4
+        }).sort(function (a, b) { return a.quando < b.quando ? -1 : a.quando > b.quando ? 1 : 0 }))
+      }
+    } catch (e) { out.st = null }
     return out
   }
 
@@ -124,7 +134,8 @@
     var giud = righe.some(function (r) { return r.c.errore != null })   // editor-punti-v1
     var sq = pd.sq || [], pi = pd.piedi || []            // schermo-test-v1
     var at = pd.atr && pd.atr.livelli ? pd.atr.livelli : []   // atr-v1
-    if (!righe.length && !eq.length && !sq.length && !pi.length && !at.length) return ''
+    var st = pd.st || null                                     // stepping-v1
+    if (!righe.length && !eq.length && !sq.length && !pi.length && !at.length && !st) return ''
 
     var th = 'style="text-align:left;font-size:7.5px;color:#666;font-weight:700;padding:3px 5px;border-bottom:1px solid #ddd"'
     var td = 'style="font-size:8.5px;color:#1a1a1a;padding:3px 5px;border-bottom:1px solid #f0f0f0"'
@@ -224,6 +235,22 @@
         'Misura col telefono appoggiato di traverso sulla schiena (come uno scoliometro): è uno screening, non una diagnosi. ' +
         (giudAtr ? 'La soglia è l’errore della misura ricavato da tre passate ripetute (2,77 × deviazione standard entro la zona).'
           : 'Senza tre passate prima e dopo l’errore della misura non si conosce: la differenza si riporta, ma non va interpretata.') + '</p>'
+    }
+
+    // stepping-v1 · 50 passi sul posto a occhi chiusi
+    if (st) {
+      var parSt = { meglio: 'Più dritto', uguale: 'Invariato', lavoro: 'Ruota di più' }
+      h += '<div style="font-size:8px;font-weight:700;color:#555;margin:8px 0 2px">Stepping test (50 passi sul posto a occhi chiusi) — rotazione alla fine, 0° = direzione di partenza</div>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:4px"><tr>' +
+        '<th ' + th + '>Prima</th><th ' + th + '>Dopo</th><th ' + th + '>Differenza</th><th ' + th + '>Esito (soglia)</th></tr>' +
+        '<tr><td ' + td + '>' + num(Math.abs(st.prima), 0) + '° <span style="color:#888">' + esc(st.dirPrima) + ' (' + st.nPre + ' prove)</span></td>' +
+        '<td ' + td + '><b>' + num(Math.abs(st.dopo), 0) + '°</b> <span style="color:#888">' + esc(st.dirDopo) + ' (' + st.nPost + ' prove)</span></td>' +
+        '<td ' + td + '>' + (st.delta < 0 ? '−' : st.delta > 0 ? '+' : '±') + num(Math.abs(st.delta), 0) + '°</td>' +
+        '<td ' + td + '>' + (st.esito === 'daconfermare' ? '<span style="color:#888">da confermare</span>'
+          : '<b>' + esc(parSt[st.esito] || '') + '</b> <span style="color:#888">(±' + num(st.errore, 0) + '°)</span>') + '</td></tr></table>' +
+        '<p style="margin:2px 0 6px;font-size:7.5px;color:#666;font-style:italic;line-height:1.5">' +
+        'Rotazione misurata col giroscopio del telefono tenuto fra le mani. È un’osservazione, non un test diagnostico: ' +
+        'anche nelle persone sane varia molto da una prova all’altra, per questo la soglia è l’errore ricavato dalle prove ripetute.</p>'
     }
 
     h += '<p style="margin:4px 0 0;font-size:7.5px;color:#444;line-height:1.5;background:#f7f7f7;border-left:3px solid #FFD008;padding:5px 8px">' +

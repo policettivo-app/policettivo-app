@@ -27,7 +27,8 @@ let ok = 0, ko = 0; const fallite = []
 function check(n, c, x) { if (c) { ok++; console.log('  ✅ ' + n) } else { ko++; fallite.push(n); console.log('  ❌ ' + n + (x !== undefined ? '  → ' + JSON.stringify(x) : '')) } }
 function sez(t) { console.log('\n── ' + t) }
 
-const PRO = 'prova-atr admin anamnesi assegna-protocollo cartella comparazione consenso contabile controindicazioni-revisione controllo diario-sedute diario disegno esporta-ts fattura fatture lettera-ai monitoraggio noleggi oscillazione-storico paziente profilo protocollo prova-gradi prova-oscillazione prova-squat rapida scheda-pdf schermo-paziente sospesi statistiche studio test tv-collega upgrade valutazione-posturale visita visite autotest esercizio pagella video-esercizio dpa'.split(' ')
+// stepping-v1 · anche la pagina dello stepping
+const PRO = 'prova-atr prova-stepping admin anamnesi assegna-protocollo cartella comparazione consenso contabile controindicazioni-revisione controllo diario-sedute diario disegno esporta-ts fattura fatture lettera-ai monitoraggio noleggi oscillazione-storico paziente profilo protocollo prova-gradi prova-oscillazione prova-squat rapida scheda-pdf schermo-paziente sospesi statistiche studio test tv-collega upgrade valutazione-posturale visita visite autotest esercizio pagella video-esercizio dpa'.split(' ')
 const FUORI = 'index login registrazione reset-password privacy termini tv dashboard oscillazione-live consenso-paziente'.split(' ')
 
 sez('⭐ nav-v1 · il pulsante è in tutte le pagine del professionista, una volta sola')

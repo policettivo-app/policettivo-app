@@ -100,7 +100,17 @@
     atr_uguale:         'Invariato',
     atr_lavoro:         'Meno simmetrico',
     atr_daconfermare:   'Da confermare',
-    atr_nota_errore:    'Per un verdetto servono tre passate, prima e dopo: così sappiamo quanto balla la misura.'
+    atr_nota_errore:    'Per un verdetto servono tre passate, prima e dopo: così sappiamo quanto balla la misura.',
+
+    // stepping-v1 · 50 passi sul posto a occhi chiusi. Un'osservazione, nessun giudizio.
+    st_titolo:          'Camminare sul posto a occhi chiusi',
+    st_sotto:           '50 passi · di quanto ruota il corpo',
+    st_criterio:        'Il riferimento è la direzione di partenza: più la freccia resta dritta, meno il corpo ruota senza accorgersene.',
+    st_meglio:          'Più dritto',
+    st_uguale:          'Invariato',
+    st_lavoro:          'Ruota di più',
+    st_daconfermare:    'Da confermare',
+    st_nota_errore:     'Per un verdetto servono almeno due prove, prima e dopo: questa misura varia molto da una prova all’altra.'
   }
 
   // ── LA SPALLA (piano scapolare, osservazione a chip) ────────────────
@@ -163,11 +173,12 @@
   //   scheda: { foto: { plane: { pre, post } }, data } | null  (foto iniziali)
   //   squat:  righe di squat_test (schermo-test-v1)
   //   atr:    righe di atr_test (atr-v1)
+  //   stepping: righe di stepping_test (stepping-v1)
   function costruisciGiorni(o) {
     var piani = o.piani || [], per = {}, ordine = []
     function giorno(k) {
       if (!per[k]) { per[k] = { giorno: k === 'scheda' ? giornoDi(o.scheda && o.scheda.data) : k, chiave: k,
-        visite: [], foto: {}, scap: null, prove: [], squat: [], atrRighe: [], scheda: k === 'scheda' }; ordine.push(k) }
+        visite: [], foto: {}, scap: null, prove: [], squat: [], atrRighe: [], stRighe: [], scheda: k === 'scheda' }; ordine.push(k) }
       return per[k]
     }
     var visite = (o.visite || []).slice().sort(function (a, b) {
@@ -219,6 +230,12 @@
       var k = giornoDi(r.quando); if (!k) return
       giorno(k).atrRighe.push(r)
     })
+    // stepping-v1 · lo stepping: solo le misure segnate prima/dopo
+    ;(o.stepping || []).forEach(function (r) {
+      if (r.momento !== 'pre' && r.momento !== 'post') return
+      var k = giornoDi(r.quando); if (!k) return
+      giorno(k).stRighe.push(r)
+    })
     // le prove NON segnate: servono al professionista per segnarle, non
     // entrano nel confronto (non si indovina cosa è prima e cosa è dopo)
     ;(o.prove || []).forEach(function (r) {
@@ -234,8 +251,9 @@
       g.sq = squat(g.squat)          // schermo-test-v1
       g.piedi = piedi(g.prove)
       g.atr = atr(g.atrRighe)          // atr-v1
+      g.st = stepping(g.stRighe)       // stepping-v1
       return Object.keys(g.foto).length || (g.scap && g.scap.esito !== 'nd') || (eq && eq.condizioni.length) ||
-             (g.sq && g.sq.length) || (g.piedi && g.piedi.length) || (g.atr && g.atr.livelli.length) ||
+             (g.sq && g.sq.length) || (g.piedi && g.piedi.length) || (g.atr && g.atr.livelli.length) || !!g.st ||
              (g.nonSegnate && g.nonSegnate.length)
     })
     // in ordine di tempo; le foto iniziali della scheda senza data vanno per prime
@@ -356,6 +374,20 @@
     return { livelli: c, errore: c[0].errore, nPre: pre.n_passate || 1, nPost: post.n_passate || 1 }
   }
 
+  // ── stepping-v1 · LO STEPPING: l'ultima misura prima contro l'ultima dopo ──
+  function stepping(righe) {
+    var F = global.PolStepping
+    if (!F || !righe || !righe.length) return null
+    var ultima = function (mo) { var l = righe.filter(function (r) { return r.momento === mo }); return l.length ? l[l.length - 1] : null }
+    var pre = ultima('pre'), post = ultima('post')
+    if (!pre || !post) return null
+    var num = function (x) { return x == null || x === '' || isNaN(Number(x)) ? null : Number(x) }
+    var c = F.confronto({ rotazione: num(pre.rotazione), errore: num(pre.errore) }, { rotazione: num(post.rotazione), errore: num(post.errore) })
+    if (!c) return null
+    c.nPre = pre.n_prove || 1; c.nPost = post.n_prove || 1
+    return c
+  }
+
   // La prova da disegnare per una parte: la mediana per velocità, come lo
   // storico. Non la migliore: quella scelta a mano racconterebbe una storia.
   function provaMediana(righe) {
@@ -388,6 +420,11 @@
       voci.push({ cosa: 'Schiena · ' + z.nome, esito: z.esito, dettaglio: numIt(Math.abs(z.prima), 1) + '° → ' + numIt(Math.abs(z.dopo), 1) + '°',
         fonte: 'Rotazione del tronco' })
     })
+    // stepping-v1 · solo con un verdetto vero (due prove prima e dopo)
+    if (g.st && (g.st.esito === 'meglio' || g.st.esito === 'uguale' || g.st.esito === 'lavoro')) {
+      voci.push({ cosa: 'Passi a occhi chiusi', esito: g.st.esito, dettaglio: numIt(Math.abs(g.st.prima), 0) + '° → ' + numIt(Math.abs(g.st.dopo), 0) + '°',
+        fonte: 'Stepping test' })
+    }
     var conta = { meglio: 0, uguale: 0, lavoro: 0, altro: 0 }
     voci.forEach(function (v) { conta[v.esito] = (conta[v.esito] || 0) + 1 })
     return { voci: voci, conta: conta, totale: voci.length, foto: Object.keys(g.foto || {}).length }
@@ -440,6 +477,7 @@
     sintesi: sintesi, percorso: percorso, matriceAllineamento: matriceAllineamento,
     numIt: numIt, segno: segno,
     squat: squat, piedi: piedi,         // schermo-test-v1
-    atr: atr                            // atr-v1
+    atr: atr,                           // atr-v1
+    stepping: stepping                  // stepping-v1
   }
 })(typeof window !== 'undefined' ? window : globalThis)
