@@ -1,4 +1,4 @@
-/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026) · editor-punti-v1 · gradi-auto-v1 · schermo-test-v1 (squat e un piede)
+/* js/pdf-prima-dopo.js — pdf-gradi-v1 (23 settembre 2026) · editor-punti-v1 · gradi-auto-v1 · schermo-test-v1 (squat e un piede) · atr-v1 (ATR)
  *
  * «PRIMA E DOPO I 3 RESPIRI» DENTRO I PDF: UN POSTO SOLO.
  *
@@ -29,7 +29,7 @@
      giorno. Ogni lettura che fallisce (tabella che manca, rete) lascia il suo
      pezzo vuoto: il PDF si fa lo stesso. */
   async function carica(sb, o) {
-    var out = { misure: {}, prove: [], eq: null, sq: [], piedi: [], avvisi: [] }
+    var out = { misure: {}, prove: [], eq: null, sq: [], piedi: [], atr: null, avvisi: [] }
     var S = global.PolSchermo
     try {
       var paths = (o.paths || []).filter(Boolean)
@@ -66,6 +66,16 @@
         }))
       }
     } catch (e) { out.sq = [] }
+    // atr-v1 · l'ATR di quel giorno, prima/dopo. Tabella che manca (054) = niente ATR.
+    try {
+      if (o.patientId && S && S.atr) {
+        var g3 = S.giornoDi(o.giorno)
+        var r4 = await sb.from('atr_test').select('id,quando,momento,toracico_alto,toracico,toracolombare,lombare,n_passate,errore').eq('patient_id', o.patientId)
+        if (!r4.error) out.atr = S.atr((r4.data || []).filter(function (p) {
+          return (p.momento === 'pre' || p.momento === 'post') && S.giornoDi(p.quando) === g3
+        }).sort(function (a, b) { return a.quando < b.quando ? -1 : a.quando > b.quando ? 1 : 0 }))
+      }
+    } catch (e) { out.atr = null }
     return out
   }
 
@@ -113,7 +123,8 @@
     var eq = pd.eq && pd.eq.condizioni && pd.eq.condizioni.length ? pd.eq.condizioni : []
     var giud = righe.some(function (r) { return r.c.errore != null })   // editor-punti-v1
     var sq = pd.sq || [], pi = pd.piedi || []            // schermo-test-v1
-    if (!righe.length && !eq.length && !sq.length && !pi.length) return ''
+    var at = pd.atr && pd.atr.livelli ? pd.atr.livelli : []   // atr-v1
+    if (!righe.length && !eq.length && !sq.length && !pi.length && !at.length) return ''
 
     var th = 'style="text-align:left;font-size:7.5px;color:#666;font-weight:700;padding:3px 5px;border-bottom:1px solid #ddd"'
     var td = 'style="font-size:8.5px;color:#1a1a1a;padding:3px 5px;border-bottom:1px solid #f0f0f0"'
@@ -192,6 +203,27 @@
         }).join('') + '</table>' +
         '<p style="margin:2px 0 6px;font-size:7.5px;color:#666;font-style:italic;line-height:1.5">' +
         'Le soglie derivano dalla ripetibilità misurata su due piedi: per l’appoggio su un piede sono provvisorie.</p>'
+    }
+
+    // atr-v1 · la rotazione del tronco nel test di Adam, zona per zona
+    if (at.length) {
+      var parAtr = { meglio: 'Più simmetrico', uguale: 'Invariato', lavoro: 'Meno simmetrico' }
+      var giudAtr = at.some(function (z) { return z.esito !== 'daconfermare' })
+      h += '<div style="font-size:8px;font-weight:700;color:#555;margin:8px 0 2px">Rotazione del tronco (ATR, test di Adam) — gradi, 0° = simmetria</div>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:4px"><tr>' +
+        '<th ' + th + '>Zona</th><th ' + th + '>Prima</th><th ' + th + '>Dopo</th><th ' + th + '>Differenza</th><th ' + th + '>Esito (soglia)</th></tr>' +
+        at.map(function (z) {
+          return '<tr><td ' + td + '>' + esc(z.nome) + '</td>' +
+            '<td ' + td + '>' + num(Math.abs(z.prima)) + '° <span style="color:#888">' + esc(z.latoPrima) + '</span></td>' +
+            '<td ' + td + '><b>' + num(Math.abs(z.dopo)) + '°</b> <span style="color:#888">' + esc(z.latoDopo) + '</span></td>' +
+            '<td ' + td + '>' + (z.delta < 0 ? '−' : z.delta > 0 ? '+' : '±') + num(Math.abs(z.delta)) + '°</td>' +
+            '<td ' + td + '>' + (z.esito === 'daconfermare' ? '<span style="color:#888">da confermare</span>'
+              : '<b>' + esc(parAtr[z.esito] || '') + '</b> <span style="color:#888">(±' + num(z.errore) + '°)</span>') + '</td></tr>'
+        }).join('') + '</table>' +
+        '<p style="margin:2px 0 6px;font-size:7.5px;color:#666;font-style:italic;line-height:1.5">' +
+        'Misura col telefono appoggiato di traverso sulla schiena (come uno scoliometro): è uno screening, non una diagnosi. ' +
+        (giudAtr ? 'La soglia è l’errore della misura ricavato da tre passate ripetute (2,77 × deviazione standard entro la zona).'
+          : 'Senza tre passate prima e dopo l’errore della misura non si conosce: la differenza si riporta, ma non va interpretata.') + '</p>'
     }
 
     h += '<p style="margin:4px 0 0;font-size:7.5px;color:#444;line-height:1.5;background:#f7f7f7;border-left:3px solid #FFD008;padding:5px 8px">' +

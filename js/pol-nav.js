@@ -82,9 +82,11 @@
         var e = fissi[i]
         if (!e.isConnected) continue
         var r = e.getBoundingClientRect()
-        // una barra in fondo: tocca il bordo basso, sta nella metà bassa, larga
+        // una barra in fondo: tocca il bordo basso (o ci galleggia sopra, come il
+        // grande PARTI dei test — atr-v1: prima la pillola ci finiva sopra),
+        // sta nella metà bassa, larga
         if (r.width > window.innerWidth * 0.4 && r.height > 0 && r.height < h * 0.45 &&
-            r.bottom >= h - 4 && r.top > h * 0.5 && getComputedStyle(e).visibility !== 'hidden' &&
+            r.bottom >= h - 48 && r.top > h * 0.5 && getComputedStyle(e).visibility !== 'hidden' &&
             getComputedStyle(e).display !== 'none' && Number(getComputedStyle(e).opacity) > 0.05){
           su = Math.max(su, Math.round(h - r.top))
         }

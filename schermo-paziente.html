@@ -12,7 +12,8 @@
   <script src="js/postural-component.js"></script>
   <script src="js/oscillazione.js?v=schermo-test-v1"></script>
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
-  <script src="js/schermo-paziente.js?v=schermo-test-v1"></script>
+  <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
+  <script src="js/schermo-paziente.js?v=atr-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
@@ -157,6 +158,17 @@
     .pd-barra i { display: block; height: 100%; background: var(--giallo); border-radius: 5px; }
     .pd-tit { width: 330px; }
     .pd-tit .esito { white-space: normal; font-size: 19px; }
+    /* atr-v1 · la schiena */
+    .atr-area { flex: 1; display: flex; flex-direction: column; gap: 10px; justify-content: center; min-height: 0; }
+    .atr-riga { display: flex; align-items: center; gap: 24px; background: var(--carta); border: 1px solid var(--riga); border-radius: 18px; padding: 8px 22px; }
+    .atr-nome { width: 200px; font-size: 22px; font-weight: 800; color: var(--testo2); }
+    .atr-asse { width: 330px; height: 92px; flex: 0 0 auto; }
+    .atr-num { flex: 1; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .atr-num .a { font-size: 30px; font-weight: 800; color: #bdbdbd; }
+    .atr-num .b { font-size: 44px; font-weight: 900; color: var(--giallo); }
+    .atr-num .u { font-size: 20px; color: var(--testo3); font-weight: 700; }
+    .atr-lato { width: 100%; font-size: 16px; color: var(--testo3); font-weight: 700; }
+    .atr-esito .esito { font-size: 18px; }
     .legenda { display: flex; gap: 18px; font-size: 17px; color: var(--testo2); font-weight: 700; }
     .legenda span { display: inline-flex; align-items: center; gap: 8px; }
     .legenda i { display: inline-block; width: 28px; height: 0; border-top: 3px dashed #9A9A9A; }
@@ -314,7 +326,7 @@ const TV_PKG = (new URLSearchParams(location.search).get('tv') === '1')
 function tvFinto(pkg) {
   const T = { patients: pkg.patient ? [pkg.patient] : [], visits: pkg.visits || [], visit_photos: pkg.visit_photos || [],
     oscillazione_test: pkg.oscillazione_test || [], foto_allineamenti: pkg.foto_allineamenti || [], foto_misure: pkg.foto_misure || [],
-    squat_test: pkg.squat_test || [] }   // schermo-test-v1
+    squat_test: pkg.squat_test || [], atr_test: pkg.atr_test || [] }   // schermo-test-v1 · atr-v1
   const q = (tab) => {
     const f = []; let ord = null
     const righe = () => (T[tab] || []).filter(r => f.every(([k, v, op]) => op === 'in' ? v.indexOf(r[k]) >= 0 : r[k] === v))
@@ -536,6 +548,17 @@ async function init() {
     TVDATI.squat_test = squatRighe
   }
 
+  // 3c) atr-v1 · l'ATR: i gradi per zona e l'errore, solo prima/dopo. Senza tabella (054) non compare.
+  let atrRighe = []
+  {
+    try {
+      const { data, error } = await _sb.from('atr_test').select('id,quando,momento,toracico_alto,toracico,toracolombare,lombare,massimo,livello_massimo,n_passate,errore')
+        .eq('patient_id', patientId).order('quando', { ascending: true })
+      if (!error) atrRighe = (data || []).filter(r => r.momento === 'pre' || r.momento === 'post')
+    } catch (e) { atrRighe = [] }
+    TVDATI.atr_test = atrRighe
+  }
+
   // 4) un giro solo di firme
   const mappa = {}
   const unici = Array.from(new Set(daFirmare))
@@ -573,7 +596,7 @@ async function init() {
     else (ms || []).forEach(r => { if (r.storage_path) misure[r.storage_path] = r })
   }
 
-  giorni = S.costruisciGiorni({ visite: visite || [], foto: foto, prove: prove, piani: PLANES, scheda: scheda, squat: squatRighe })
+  giorni = S.costruisciGiorni({ visite: visite || [], foto: foto, prove: prove, piani: PLANES, scheda: scheda, squat: squatRighe, atr: atrRighe })
   if (!giorni.length) {
     document.getElementById('slides').innerHTML = slideVuota()
     slides = ['vuota']; corrente = 0; disegnaPuntini(); aggiornaFrecce()
@@ -684,6 +707,7 @@ function pacchettoTv() {
     patient: TVDATI.patient ? { id: TVDATI.patient.id, nome: TVDATI.patient.nome, cognome: TVDATI.patient.cognome, foto_url: TVDATI.patient.foto_url } : null,
     visits: TVDATI.visits || [], visit_photos: TVDATI.visit_photos || [], oscillazione_test: TVDATI.oscillazione_test || [],
     squat_test: TVDATI.squat_test || [],     // schermo-test-v1
+    atr_test: TVDATI.atr_test || [],         // atr-v1
     foto_allineamenti: TVDATI.foto_allineamenti || [], foto_misure: Object.keys(misure).map(k => misure[k]), firme: TVDATI.firme || {} }
 }
 async function caricaTv() {
@@ -760,6 +784,7 @@ function disegnaGiorni() {
     if (g.eq && g.eq.condizioni.length) cosa.push('equilibrio')
     if (g.sq && g.sq.length) cosa.push('squat')              // schermo-test-v1
     if (g.piedi && g.piedi.length) cosa.push('un piede')
+    if (g.atr && g.atr.livelli.length) cosa.push('schiena')     // atr-v1
     const tipi = g.scheda ? 'Valutazione iniziale'
       : Array.from(new Set(g.visite.map(v => PV.nomeTipo('visita', v.tipo)))).join(' + ') || 'Solo equilibrio'
     return '<button class="giorno' + (i === sel ? ' on' : '') + '" onclick="scegliGiorno(' + i + ')">' +
@@ -788,6 +813,7 @@ function costruisci() {
   // schermo-test-v1 · lo squat e il piede solo, dopo l'equilibrio
   if (g.sq && g.sq.length) { html.push(slideSquat(g)); ids.push('squat') }
   if (g.piedi && g.piedi.length) { html.push(slidePiedi(g)); ids.push('piedi') }
+  if (g.atr && g.atr.livelli.length) { html.push(slideAtr(g)); ids.push('atr') }       // atr-v1
   const si = S.sintesi(g)
   if (si.totale || si.foto) { html.push(slideSintesi(g, si)); ids.push('sintesi') }
   const perc = S.percorso(giorni)
@@ -1087,6 +1113,36 @@ function slideSquat(g) {
   return '<div class="slide" data-s="squat">' + testa(T.sq_titolo, T.sq_sotto) +
     '<div class="sq-area">' + carte + '</div>' +
     '<div class="criterio" style="margin-top:18px"><span class="ico">⊥</span><span>' + esc(T.sq_criterio.replace('{l}', S.numIt(g.sq[0].leggibile, 1))) + '</span></div></div>'
+}
+
+/* ═══ atr-v1 · LA SCHIENA PIEGATA IN AVANTI ═══
+   Per ogni zona un'asse vista da dietro: grigia com'era prima, gialla dopo,
+   inclinata come la schiena (l'angolo si ingrandisce 3 volte per vederlo;
+   il numero vero è scritto accanto). Nessuna fascia, mai «scoliosi». */
+function asseAtr(v, col, tratt) {
+  const a = Math.max(-40, Math.min(40, (Number(v) || 0) * 3)) * Math.PI / 180, L = 150
+  const dx = Math.cos(a) * L, dy = Math.sin(a) * L
+  return '<line x1="' + (180 - dx) + '" y1="' + (50 + dy) + '" x2="' + (180 + dx) + '" y2="' + (50 - dy) + '" stroke="' + col + '" stroke-width="' + (tratt ? 8 : 12) +
+    '" stroke-linecap="round"' + (tratt ? ' stroke-dasharray="14 10" opacity=".8"' : '') + '/>'
+}
+function slideAtr(g) {
+  const righe = g.atr.livelli.map(z => {
+    const giud = z.esito !== 'daconfermare'
+    return '<div class="atr-riga"><div class="atr-nome">' + esc(z.nome) + '</div>' +
+      '<svg viewBox="0 0 360 100" class="atr-asse"><line x1="20" y1="50" x2="340" y2="50" stroke="#2a2a2a" stroke-width="2"/>' +
+      '<line x1="180" y1="10" x2="180" y2="90" stroke="#54E2B5" stroke-width="2" stroke-dasharray="4 5"/>' +
+      asseAtr(z.prima, '#9a9a9a', true) + asseAtr(z.dopo, '#FFD008', false) +
+      '<text x="20" y="96" font-size="15" font-weight="800" fill="#6a6a6a">SX</text><text x="340" y="96" text-anchor="end" font-size="15" font-weight="800" fill="#6a6a6a">DX</text></svg>' +
+      '<div class="atr-num"><span class="a">' + S.numIt(Math.abs(z.prima), 1) + '°</span><span class="u">→</span><span class="b">' + S.numIt(Math.abs(z.dopo), 1) + '°</span>' +
+      '<div class="atr-lato">' + esc(z.latoDopo) + '</div></div>' +
+      '<div class="atr-esito">' + (giud ? badge(z.esito, T['atr_' + z.esito] || '') : badge('uguale', T.atr_daconfermare)) + '</div></div>'
+  }).join('')
+  const giudTutti = g.atr.livelli.some(z => z.esito !== 'daconfermare')
+  return '<div class="slide" data-s="atr">' + testa(T.atr_titolo, T.atr_sotto) +
+    '<div class="atr-area">' + righe +
+    '<div class="legenda" style="margin-top:6px"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoDi()) + '</span>' +
+    (giudTutti && g.atr.errore != null ? '<span style="color:#7A7A7A">conta solo oltre ±' + S.numIt(g.atr.errore, 1) + '°</span>' : '<span style="color:#7A7A7A">' + esc(T.atr_nota_errore) + '</span>') + '</div></div>' +
+    '<div class="criterio" style="margin-top:14px"><span class="ico">⟷</span><span>' + esc(T.atr_criterio) + '</span></div></div>'
 }
 
 /* ═══ schermo-test-v1 · SU UN PIEDE: destro contro sinistro, prima e dopo ═══ */

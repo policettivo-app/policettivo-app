@@ -27,7 +27,7 @@ let ok = 0, ko = 0; const fallite = []
 function check(n, c, x) { if (c) { ok++; console.log('  ✅ ' + n) } else { ko++; fallite.push(n); console.log('  ❌ ' + n + (x !== undefined ? '  → ' + JSON.stringify(x) : '')) } }
 function sez(t) { console.log('\n── ' + t) }
 
-const PRO = 'admin anamnesi assegna-protocollo cartella comparazione consenso contabile controindicazioni-revisione controllo diario-sedute diario disegno esporta-ts fattura fatture lettera-ai monitoraggio noleggi oscillazione-storico paziente profilo protocollo prova-gradi prova-oscillazione prova-squat rapida scheda-pdf schermo-paziente sospesi statistiche studio test tv-collega upgrade valutazione-posturale visita visite autotest esercizio pagella video-esercizio dpa'.split(' ')
+const PRO = 'prova-atr admin anamnesi assegna-protocollo cartella comparazione consenso contabile controindicazioni-revisione controllo diario-sedute diario disegno esporta-ts fattura fatture lettera-ai monitoraggio noleggi oscillazione-storico paziente profilo protocollo prova-gradi prova-oscillazione prova-squat rapida scheda-pdf schermo-paziente sospesi statistiche studio test tv-collega upgrade valutazione-posturale visita visite autotest esercizio pagella video-esercizio dpa'.split(' ')
 const FUORI = 'index login registrazione reset-password privacy termini tv dashboard oscillazione-live consenso-paziente'.split(' ')
 
 sez('⭐ nav-v1 · il pulsante è in tutte le pagine del professionista, una volta sola')
@@ -73,6 +73,13 @@ try {
   check('⭐ durante un test (schermo bloccato) sparisce', !(await vede(p)))
   await p.evaluate(() => document.getElementById('guard').classList.remove('on')); await p.waitForTimeout(900)
   check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+
+  // atr-v1 · sopra il grande PARTI dei test (galleggia a 14 px dal fondo): prima ci finiva sopra
+  ;({ p, ctx } = await pagina(true, 'prova-atr.html'))
+  await p.waitForTimeout(800)
+  const so = await p.evaluate(() => { const a = document.getElementById('pn-pil').getBoundingClientRect(), s = document.getElementById('btn-start').getBoundingClientRect(); return { pil: a.bottom, start: s.top } })
+  check('⭐ atr-v1 · la pillola sta SOPRA il grande pulsante PARTI, non ci si sovrappone', so.pil <= so.start, so)
   await ctx.close()
 
   ;({ p, ctx } = await pagina(true, 'prova-nav-pagina.html?pid=11111111-2222-3333-4444-555555555555'))

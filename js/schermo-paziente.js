@@ -90,7 +90,17 @@
     sq_lavoro:          'Più spostato',
     piedi_titolo:       'Su un piede',
     piedi_sotto:        'Destro e sinistro sulla Tavola Policettiva',
-    piedi_criterio:     'Il riferimento è l’altro piede: più bassa la velocità, più ferma la tavola. Soglie ancora provvisorie per un piede solo.'
+    piedi_criterio:     'Il riferimento è l’altro piede: più bassa la velocità, più ferma la tavola. Soglie ancora provvisorie per un piede solo.',
+
+    // atr-v1 · la schiena in flessione (test di Adam). Mai «scoliosi», nessuna fascia.
+    atr_titolo:         'La tua schiena, piegandoti in avanti',
+    atr_sotto:          'Rotazione del tronco · test di Adam',
+    atr_criterio:       'Il riferimento è la simmetria: piegandosi in avanti, i due lati della schiena alla stessa altezza (0°).',
+    atr_meglio:         'Più simmetrico',
+    atr_uguale:         'Invariato',
+    atr_lavoro:         'Meno simmetrico',
+    atr_daconfermare:   'Da confermare',
+    atr_nota_errore:    'Per un verdetto servono tre passate, prima e dopo: così sappiamo quanto balla la misura.'
   }
 
   // ── LA SPALLA (piano scapolare, osservazione a chip) ────────────────
@@ -152,11 +162,12 @@
   //   piani:  POSTURAL_PHOTO_PLANES
   //   scheda: { foto: { plane: { pre, post } }, data } | null  (foto iniziali)
   //   squat:  righe di squat_test (schermo-test-v1)
+  //   atr:    righe di atr_test (atr-v1)
   function costruisciGiorni(o) {
     var piani = o.piani || [], per = {}, ordine = []
     function giorno(k) {
       if (!per[k]) { per[k] = { giorno: k === 'scheda' ? giornoDi(o.scheda && o.scheda.data) : k, chiave: k,
-        visite: [], foto: {}, scap: null, prove: [], squat: [], scheda: k === 'scheda' }; ordine.push(k) }
+        visite: [], foto: {}, scap: null, prove: [], squat: [], atrRighe: [], scheda: k === 'scheda' }; ordine.push(k) }
       return per[k]
     }
     var visite = (o.visite || []).slice().sort(function (a, b) {
@@ -202,6 +213,12 @@
       var k = giornoDi(r.quando); if (!k) return
       giorno(k).squat.push(r)
     })
+    // atr-v1 · l'ATR: solo le misure segnate prima/dopo
+    ;(o.atr || []).forEach(function (r) {
+      if (r.momento !== 'pre' && r.momento !== 'post') return
+      var k = giornoDi(r.quando); if (!k) return
+      giorno(k).atrRighe.push(r)
+    })
     // le prove NON segnate: servono al professionista per segnarle, non
     // entrano nel confronto (non si indovina cosa è prima e cosa è dopo)
     ;(o.prove || []).forEach(function (r) {
@@ -216,8 +233,9 @@
       g.eq = eq
       g.sq = squat(g.squat)          // schermo-test-v1
       g.piedi = piedi(g.prove)
+      g.atr = atr(g.atrRighe)          // atr-v1
       return Object.keys(g.foto).length || (g.scap && g.scap.esito !== 'nd') || (eq && eq.condizioni.length) ||
-             (g.sq && g.sq.length) || (g.piedi && g.piedi.length) ||
+             (g.sq && g.sq.length) || (g.piedi && g.piedi.length) || (g.atr && g.atr.livelli.length) ||
              (g.nonSegnate && g.nonSegnate.length)
     })
     // in ordine di tempo; le foto iniziali della scheda senza data vanno per prime
@@ -322,6 +340,22 @@
     return out
   }
 
+  // ── atr-v1 · L'ATR: l'ultima misura prima contro l'ultima dopo ──────
+  // Usa PolAtr (js/atr.js): stesso riferimento (0°), stesso errore (dalle
+  // passate). Senza tre passate da tutte e due le parti: «daconfermare».
+  function atr(righe) {
+    var A = global.PolAtr
+    if (!A || !righe || !righe.length) return null
+    var ultima = function (mo) { var l = righe.filter(function (r) { return r.momento === mo }); return l.length ? l[l.length - 1] : null }
+    var pre = ultima('pre'), post = ultima('post')
+    if (!pre || !post) return null
+    var num = function (x) { return x == null || x === '' || isNaN(Number(x)) ? null : Number(x) }
+    var dati = function (r) { var o = { errore: num(r.errore) }; A.LIVELLI.forEach(function (L) { o[L.k] = num(r[L.k]) }); return o }
+    var c = A.confronto(dati(pre), dati(post))
+    if (!c.length) return null
+    return { livelli: c, errore: c[0].errore, nPre: pre.n_passate || 1, nPost: post.n_passate || 1 }
+  }
+
   // La prova da disegnare per una parte: la mediana per velocità, come lo
   // storico. Non la migliore: quella scelta a mano racconterebbe una storia.
   function provaMediana(righe) {
@@ -347,6 +381,12 @@
     ;(g.sq || []).forEach(function (q) {
       if (q.esito !== 'meglio' && q.esito !== 'uguale' && q.esito !== 'lavoro') return
       voci.push({ cosa: 'Squat · ' + q.nome, esito: q.esito, dettaglio: q.parolaA + ' → ' + q.parolaB, fonte: 'Overhead squat' })
+    })
+    // atr-v1 · le zone della schiena con un verdetto vero (tre passate prima e dopo)
+    if (g.atr) g.atr.livelli.forEach(function (z) {
+      if (z.esito !== 'meglio' && z.esito !== 'uguale' && z.esito !== 'lavoro') return
+      voci.push({ cosa: 'Schiena · ' + z.nome, esito: z.esito, dettaglio: numIt(Math.abs(z.prima), 1) + '° → ' + numIt(Math.abs(z.dopo), 1) + '°',
+        fonte: 'Rotazione del tronco' })
     })
     var conta = { meglio: 0, uguale: 0, lavoro: 0, altro: 0 }
     voci.forEach(function (v) { conta[v.esito] = (conta[v.esito] || 0) + 1 })
@@ -399,6 +439,7 @@
     costruisciGiorni: costruisciGiorni, equilibrio: equilibrio, provaMediana: provaMediana,
     sintesi: sintesi, percorso: percorso, matriceAllineamento: matriceAllineamento,
     numIt: numIt, segno: segno,
-    squat: squat, piedi: piedi          // schermo-test-v1
+    squat: squat, piedi: piedi,         // schermo-test-v1
+    atr: atr                            // atr-v1
   }
 })(typeof window !== 'undefined' ? window : globalThis)

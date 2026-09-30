@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>ATR · rotazione del tronco</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- atr-v1 (30 settembre 2026) — L'ATR COL TELEFONO (test di Adam)
+     Decisioni (Giuliano: «scegli tu il meglio, pratico e intuitivo»):
+     1A si fa scorrere il telefono lungo la schiena e la pagina tiene per ogni
+        zona il valore FERMO più alto; si passa di zona col pulsante grande;
+     2A fasce 5° / 7° con le fonti, SOLO al professionista (qui);
+     3A al paziente (schermo e PDF) solo gradi e lato, mai «scoliosi»;
+     4A tre passate: l'errore della misura esce dalle passate stesse.
+     - Taratura del telefono una volta sola (10 secondi, su un tavolo): toglie
+       l'errore del sensore anche se il tavolo non è in piano (si misura nei
+       due versi) e impara da che parte è la punta.
+     - Si salva in atr_test (migration 054), dentro la sessione dei test.
+     - Il calcolo sta in js/atr.js. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/atr.js?v=atr-v1"></script>
+<script src="js/partenza.js?v=partenza-v1"></script>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       font-size:16px;line-height:1.5;padding:16px;padding-bottom:140px}
+  .wrap{max-width:560px;margin:0 auto}
+  .testa{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  h1{font-size:22px;margin:0 0 4px}
+  .testa a{font-size:13px;color:#666;text-decoration:none;font-weight:700}
+  .sub{font-size:13px;color:#666;margin-bottom:14px}
+  .avviso{background:#fff8e6;border:1px solid #f0dd9a;border-radius:12px;padding:12px 14px;font-size:13px;color:#5c4300;margin-bottom:16px}
+  .card{background:#fff;border:1px solid #eee;border-radius:18px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .card h2{font-size:15px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.6px;color:#444}
+  label{display:block;font-size:13px;color:#666;margin:14px 0 6px;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1.5px solid #ddd;background:#fff;border-radius:999px;padding:9px 14px;font-size:14px;cursor:pointer;font-family:inherit;color:#111}
+  .chip.on{border-color:#111;background:#111;color:#fff;font-weight:700}
+  input[type=text]{width:100%;padding:12px;border:1.5px solid #ddd;border-radius:10px;font-size:16px;font-family:inherit;background:#fff}
+  .passi{margin:6px 0 0;padding-left:0;list-style:none;counter-reset:p}
+  .passi li{counter-increment:p;position:relative;padding:0 0 10px 40px;font-size:14px;color:#333}
+  .passi li::before{content:counter(p);position:absolute;left:0;top:-1px;width:28px;height:28px;border-radius:50%;background:#111;color:#FFD008;
+     font-weight:900;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .disegno{display:block;margin:6px auto 10px;width:100%;max-width:420px}
+  .tar{border-radius:12px;padding:10px 12px;font-size:14px;margin:14px 0 0}
+  .tar.ok{background:#eef9f0;border:1px solid #bfe3c9;color:#0a5e26}
+  .tar.no{background:#fff3f2;border:1.5px solid #f3c4bf;color:#a3271c}
+  .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;font-size:14px;color:#b00;margin-top:14px}
+  .nota{font-size:12.5px;color:#666;margin-top:10px;line-height:1.55}
+  .btn{display:block;width:100%;padding:15px;border:0;border-radius:14px;background:#111;color:#fff;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:12px}
+  .btn.vuoto{background:#fff;color:#111;border:1.5px solid #ddd;font-weight:600;font-size:15px;padding:12px}
+  .parti-fisso{position:fixed;left:16px;right:16px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:40;min-height:92px;border-radius:24px;
+     display:flex;align-items:center;gap:16px;justify-content:center;background:#FFD008;color:#111;box-shadow:0 8px 28px rgba(0,0,0,.22);
+     max-width:560px;margin:0 auto;padding:12px 20px;border:0;font-family:inherit;cursor:pointer}
+  .parti-fisso[disabled]{background:#ddd;color:#777;box-shadow:none;cursor:not-allowed}
+  .parti-fisso .pf-icona{width:62px;height:62px;border-radius:16px;background:#111;color:#FFD008;display:flex;align-items:center;justify-content:center;font-size:30px;flex:none}
+  .parti-fisso[disabled] .pf-icona{background:#999;color:#eee}
+  .parti-fisso .pf-testo{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;text-align:left}
+  .parti-fisso .pf-testo b{font-size:24px;letter-spacing:.5px}
+  .parti-fisso .pf-testo small{font-size:13px;font-weight:600;opacity:.75;margin-top:3px}
+  .paz-banda{border-radius:14px;padding:11px 14px;margin:0 0 14px;font-size:14px;background:#111;color:#fff;display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .paz-banda.libera{background:#f2f2f2;color:#444}
+  .paz-banda a{color:inherit;font-weight:700}
+  /* la misura: si legge da lontano */
+  .m-passata{text-align:center;font-size:14px;font-weight:800;letter-spacing:1.5px;color:#888;text-transform:uppercase}
+  .m-zona{text-align:center;font-size:40px;font-weight:900;line-height:1.05;margin:4px 0 2px}
+  .m-dove{text-align:center;font-size:14px;color:#666}
+  .m-vivo{text-align:center;font-size:88px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1;margin:12px 0 0}
+  .m-lato{text-align:center;font-size:20px;font-weight:800;min-height:30px}
+  .m-fermo{text-align:center;font-size:13px;font-weight:700;color:#999;min-height:20px}
+  .m-fermo.si{color:#0a7d33}
+  .livella{position:relative;height:40px;border-radius:20px;background:#f1f1f1;border:1px solid #e3e3e3;margin:12px 0 4px;overflow:hidden}
+  .livella .centro{position:absolute;left:50%;top:0;bottom:0;width:2px;background:#0a7d33;opacity:.6}
+  .livella .bolla{position:absolute;top:5px;width:30px;height:30px;border-radius:50%;background:#FFD008;border:2px solid #111;left:calc(50% - 15px);transition:left .08s linear}
+  .livella-eti{display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#999;letter-spacing:1px}
+  .m-tenuto{margin-top:12px;background:#111;color:#fff;border-radius:14px;padding:10px 14px;text-align:center;font-size:15px}
+  .m-tenuto b{color:#FFD008;font-size:22px}
+  table.zone{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+  table.zone th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#888;text-align:right;font-weight:700;padding:4px 6px}
+  table.zone th:first-child{text-align:left}
+  table.zone td{padding:7px 6px;border-top:1px solid #f1f1f1;text-align:right;font-variant-numeric:tabular-nums}
+  table.zone td:first-child{text-align:left;font-weight:700}
+  table.zone tr.ora td{background:#fffbe6}
+  /* l'esito */
+  .z{border:1px solid #eee;border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+  .z.max{border:2px solid #111}
+  .z-nome{font-weight:800;font-size:15px}
+  .z-singole{font-size:12px;color:#888}
+  .z-val{margin-left:auto;text-align:right}
+  .z-val b{font-size:28px;font-weight:900;font-variant-numeric:tabular-nums;display:block;line-height:1.05}
+  .z-val span{font-size:12.5px;color:#555;font-weight:700}
+  .fascia{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:800;color:#fff;margin-top:4px}
+  .frasi{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14.5px;line-height:1.6}
+  .frasi p{margin:0 0 6px}.frasi p:last-child{margin:0;color:#667;font-style:italic}
+  .fonti{font-size:11.5px;color:#777;line-height:1.5;border-top:1px solid #eee;padding-top:8px;margin-top:8px}
+  .salva-stato{font-size:13px;margin:10px 0 6px;color:#555}
+  .salva-stato.ok{color:#0a7d33}.salva-stato.ko{color:#b3261e}
+  .cfr-riga{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #f3f3f3;font-size:14px}
+  .cfr-riga:last-child{border-bottom:0}
+  .guard{position:fixed;inset:0;background:transparent;display:none;z-index:30}
+  .guard.on{display:block}
+  .ferma{position:fixed;top:calc(10px + env(safe-area-inset-top));right:14px;z-index:45;background:#fff;border:1.5px solid #ddd;border-radius:999px;
+     padding:8px 14px;font-family:inherit;font-weight:700;font-size:14px;display:none}
+  .ferma.on{display:block}
+</style>
+</head>
+<body>
+<div class="guard" id="guard"></div>
+<button class="ferma" id="btn-ferma">✕ Ferma</button>
+<div class="wrap">
+  <div class="testa">
+    <h1>📐 ATR · rotazione del tronco</h1>
+    <a href="test.html" id="link-home">← Test</a>
+  </div>
+  <div class="sub">Test di Adam col telefono &middot; test del Sistema Policettivo®</div>
+  <div id="paz-banda"></div>
+
+  <div class="avviso">
+    <b>Cos’è.</b> Il paziente si piega in avanti; il telefono, di traverso sulla schiena, misura
+    <b>di quanti gradi un lato del tronco sta più in alto dell’altro</b> (ATR, <i>angle of trunk rotation</i>),
+    come uno scoliometro. È uno <b>screening, non una diagnosi</b>: la diagnosi si fa con la radiografia.
+  </div>
+
+  <!-- ─── LA MISURA IN CORSO ─── -->
+  <div class="card" id="c-misura" style="display:none">
+    <div class="m-passata" id="m-passata"></div>
+    <div class="m-zona" id="m-zona"></div>
+    <div class="m-dove" id="m-dove"></div>
+    <div class="m-vivo" id="m-vivo">—</div>
+    <div class="m-lato" id="m-lato"></div>
+    <div class="livella"><div class="centro"></div><div class="bolla" id="bolla"></div></div>
+    <div class="livella-eti"><span>SINISTRA più alta</span><span>DESTRA più alta</span></div>
+    <div class="m-fermo" id="m-fermo"></div>
+    <div class="m-tenuto" id="m-tenuto">Appoggia il telefono sulla zona e tienilo fermo un attimo</div>
+    <table class="zone" id="m-tabella"></table>
+  </div>
+
+  <!-- ─── L'ESITO ─── -->
+  <div class="card" id="c-esito" style="display:none">
+    <h2>Com’è andata</h2>
+    <div id="esito"></div>
+    <div class="salva-stato" id="salva-stato"></div>
+  </div>
+  <div class="card" id="c-confronto" style="display:none">
+    <h2>Prima e dopo i 3 Respiri</h2>
+    <div id="confronto"></div>
+  </div>
+
+  <!-- ─── LA TARATURA (una volta per telefono) ─── -->
+  <div class="card" id="c-taratura" style="display:none">
+    <h2>Taratura del telefono · una volta sola</h2>
+    <div class="m-zona" id="t-passo" style="font-size:26px"></div>
+    <div class="m-dove" id="t-dove"></div>
+    <div class="m-vivo" id="t-conto" style="font-size:64px"></div>
+  </div>
+
+  <!-- ─── LA PREPARAZIONE ─── -->
+  <div class="card" id="c-setup">
+    <h2>Come si fa</h2>
+    <svg class="disegno" viewBox="0 0 420 250" role="img" aria-label="Il telefono di traverso sulla schiena">
+      <defs><linearGradient id="pelle" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f3e2d3"/><stop offset="1" stop-color="#e8cfb8"/></linearGradient></defs>
+      <path d="M95 40 Q210 8 325 40 Q352 120 318 222 L102 222 Q68 120 95 40 Z" fill="url(#pelle)" stroke="#c9a88c" stroke-width="2"/>
+      <line x1="210" y1="26" x2="210" y2="222" stroke="#9b7a60" stroke-width="3" stroke-dasharray="3 7" stroke-linecap="round"/>
+      <g font-size="11" font-weight="800" fill="#7a5a40">
+        <text x="8" y="62">TORACICO ALTO</text><text x="8" y="104">TORACICO</text><text x="8" y="146">TORACOLOMB.</text><text x="8" y="188">LOMBARE</text>
+      </g>
+      <g stroke="#c9a88c" stroke-width="1.5" stroke-dasharray="4 4"><line x1="92" y1="58" x2="328" y2="58"/><line x1="86" y1="100" x2="334" y2="100"/><line x1="86" y1="142" x2="334" y2="142"/><line x1="90" y1="184" x2="330" y2="184"/></g>
+      <g transform="rotate(-6 210 100)">
+        <rect x="140" y="86" width="140" height="30" rx="7" fill="#111"/>
+        <rect x="146" y="91" width="128" height="20" rx="4" fill="#2b2b2b"/>
+        <circle cx="272" cy="101" r="3" fill="#FFD008"/>
+        <rect x="188" y="116" width="10" height="8" fill="#FFD008"/><rect x="222" y="116" width="10" height="8" fill="#FFD008"/>
+      </g>
+      <text x="300" y="80" font-size="12" font-weight="800" fill="#111">punta → DESTRA</text>
+      <text x="210" y="244" text-anchor="middle" font-size="11.5" font-weight="700" fill="#555">vista da dietro · paziente piegato in avanti · mollette gialle a cavallo delle spinose</text>
+    </svg>
+    <ol class="passi">
+      <li><b>Il paziente</b>: piedi uniti, ginocchia tese, si piega in avanti <b>piano</b> con le braccia che pendono e i palmi uniti, finché la schiena è quasi orizzontale.</li>
+      <li><b>Tu dietro di lui.</b> Telefono <b>di traverso</b>, schermo in su, la <b>punta verso la DESTRA</b> del paziente, centrato sulla colonna. Due <b>mollette fermacarte</b> sotto il telefono, una per lato delle spinose, lo tengono dritto (aiutano, non sono obbligatorie).</li>
+      <li>Premi <b>PARTI</b>. La voce dice la zona: appoggia il telefono, tienilo <b>fermo un attimo</b> e fallo scorrere piano lungo la zona. La pagina tiene da sola il valore più alto.</li>
+      <li>Premi il pulsante giallo per la <b>zona successiva</b>. Quattro zone, <b>tre passate</b>: così sappiamo anche quanto balla la misura. Circa un minuto.</li>
+    </ol>
+    <div id="stato-taratura"></div>
+    <label>Momento</label>
+    <div class="chips" id="momento">
+      <button class="chip on" data-m="">non indicato</button>
+      <button class="chip" data-m="pre">prima dei 3 Respiri</button>
+      <button class="chip" data-m="post">dopo i 3 Respiri</button>
+    </div>
+    <label>Passate</label>
+    <div class="chips" id="passate">
+      <button class="chip on" data-n="3">3 (consigliato: dà l’errore della misura)</button>
+      <button class="chip" data-n="1">1 sola, veloce</button>
+    </div>
+    <label for="nota">Nota</label>
+    <input type="text" id="nota" placeholder="es. mollette, maglietta tolta, dolore in flessione…">
+    <div class="err" id="err" style="display:none"></div>
+  </div>
+</div>
+
+<button class="parti-fisso" id="btn-start"><span class="pf-icona" id="pf-icona">▶</span>
+  <span class="pf-testo"><b id="pf-tit">PARTI</b><small id="pf-cosa">ATR · 4 zone · 3 passate</small></span></button>
+
+<script>
+;(function(){
+  'use strict'
+  var $ = function(id){ return document.getElementById(id) }
+  var A = window.PolAtr, L = A.LIVELLI
+  var Q = new URLSearchParams(location.search)
+  var VIA = Q.get('via') === '1'                   // solo per i controlli automatici: niente attese
+  var PID = (function(){ var v = Q.get('pid') || ''; return /^[0-9a-f-]{36}$/i.test(v) ? v : null })()
+  if (PID) $('link-home').href = 'test.html?pid=' + PID
+
+  var momento = '', nPassate = 3
+  var prove = []                  // le misure fatte su questa pagina
+  var actx = null
+
+  // ── la taratura del telefono: zero e verso, una volta sola ──
+  var CHIAVE_TARATURA = 'policettivo.atr.taratura.v1'
+  var tar = null
+  try { var tt = JSON.parse(localStorage.getItem(CHIAVE_TARATURA) || 'null'); if (tt && (tt.verso === 1 || tt.verso === -1) && isFinite(tt.zero)) tar = tt } catch(e){}
+
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] }) }
+  function num(x, d){ return (x == null || isNaN(x)) ? '—' : Math.abs(Number(x)).toFixed(d == null ? 1 : d).replace('.', ',') }
+  function mostra(id, si){ $(id).style.display = si ? '' : 'none' }
+  function aspetta(ms){ return new Promise(function(r){ setTimeout(r, VIA ? 0 : ms) }) }
+
+  // ── voce e bip ──
+  function bip(freq, durMs){
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)()
+      var o = actx.createOscillator(), g = actx.createGain()
+      o.frequency.value = freq; o.connect(g); g.connect(actx.destination)
+      g.gain.setValueAtTime(0.22, actx.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + durMs/1000)
+      o.start(); o.stop(actx.currentTime + durMs/1000)
+    } catch(e){}
+  }
+  function sbloccaVoce(){ try { if (!window.speechSynthesis) return; var u = new SpeechSynthesisUtterance(' '); u.lang = 'it-IT'; u.volume = 0.01; speechSynthesis.speak(u) } catch(e){} }
+  function voce(t){ try { if (!window.speechSynthesis) return; speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(t); u.lang = 'it-IT'; u.rate = 1.05; speechSynthesis.speak(u) } catch(e){} }
+
+  // ── i sensori: un ascoltatore solo, sempre acceso durante la misura ──
+  var buf = [], ultimo = null, t0 = performance.now()
+  function onOrient(e){
+    if (e.beta == null) return
+    var t = performance.now() - t0
+    ultimo = e.beta
+    buf.push({ t: t, b: e.beta })
+    if (buf.length > 400) buf.splice(0, buf.length - 400)
+  }
+  function chiediPermessi(){
+    var p = []
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function')
+      p.push(DeviceOrientationEvent.requestPermission().then(function(r){ return r === 'granted' }).catch(function(){ return false }))
+    return Promise.all(p).then(function(r){ return r.every(Boolean) })
+  }
+  function ascolta(si){
+    window.removeEventListener('deviceorientation', onOrient)
+    if (si){ buf = []; window.addEventListener('deviceorientation', onOrient) }
+    // durante la misura il pulsante Indietro/Home (nav-v1) si toglie di mezzo
+    if (si) document.body.setAttribute('data-nav-nascondi', ''); else document.body.removeAttribute('data-nav-nascondi')
+  }
+  function adesso(){ return performance.now() - t0 }
+  /* la media dei valori grezzi di un intervallo (per la taratura) */
+  function mediaGrezza(ms){
+    return new Promise(function(r){
+      var da = adesso()
+      setTimeout(function(){
+        var v = buf.filter(function(s){ return s.t >= da }).map(function(s){ return s.b })
+        if (!v.length) return r(null)
+        var m = v.reduce(function(a, b){ return a + b }, 0) / v.length
+        var span = Math.max.apply(null, v) - Math.min.apply(null, v)
+        r({ media: m, span: span, n: v.length })
+      }, VIA ? 300 : ms)
+    })
+  }
+
+  // ── la scelta ──
+  function scegli(id, attr, cb){
+    Array.prototype.forEach.call($(id).querySelectorAll('.chip'), function(b){
+      b.onclick = function(){
+        Array.prototype.forEach.call($(id).querySelectorAll('.chip'), function(x){ x.classList.remove('on') })
+        b.classList.add('on'); cb(b.getAttribute(attr)); aggiornaSetup()
+      }
+    })
+  }
+  scegli('momento', 'data-m', function(v){ momento = v || '' })
+  scegli('passate', 'data-n', function(v){ nPassate = Number(v) === 1 ? 1 : 3 })
+  function aggiornaSetup(){
+    $('stato-taratura').innerHTML = tar
+      ? '<div class="tar ok">✓ Telefono tarato. <a href="#" id="rifai-tar" style="color:inherit;font-weight:700">Rifai la taratura</a></div>'
+      : '<div class="tar no">⚠️ <b>Prima la taratura del telefono</b>: una volta sola, 10 secondi, su un tavolo. Il pulsante giallo la fa partire.</div>'
+    var rt = $('rifai-tar'); if (rt) rt.onclick = function(ev){ ev.preventDefault(); if (!inCorso) avviaTaratura() }
+    pulsante(tar ? '▶' : '⚙︎', tar ? 'PARTI' : 'TARATURA', tar ? 'ATR · 4 zone · ' + nPassate + (nPassate === 1 ? ' passata' : ' passate') +
+      (momento ? ' · ' + (momento === 'pre' ? 'prima' : 'dopo') + ' dei 3R' : '') : 'una volta sola · 10 secondi · su un tavolo')
+  }
+  function pulsante(ico, tit, cosa){ $('pf-icona').textContent = ico; $('pf-tit').textContent = tit; $('pf-cosa').textContent = cosa }
+
+  // ═══ LA TARATURA ═══
+  // 1) in piano, punta a destra · 2) girato, punta a sinistra: la media dei
+  // due toglie l'errore del sensore anche se il tavolo non è in piano ·
+  // 3) punta alzata di qualche centimetro: da che parte cresce il numero.
+  var inCorso = false, passoTar = null
+  async function avviaTaratura(){
+    if (inCorso) return
+    inCorso = true
+    $('err').style.display = 'none'
+    bip(660, 60); sbloccaVoce()
+    if (!(await chiediPermessi())){ fallito('Il telefono non ha dato il permesso ai sensori di movimento. Su iPhone: Impostazioni → Safari → Movimento e orientamento.'); return }
+    ascolta(true)
+    mostra('c-setup', false); mostra('c-esito', false); mostra('c-confronto', false); mostra('c-taratura', true)
+    $('btn-start').disabled = true
+    var PASSI = [
+      { k: 'destra', tit: 'Telefono in piano sul tavolo', dove: 'schermo in su, la PUNTA verso destra. Non toccarlo.', voce: 'Appoggia il telefono in piano sul tavolo, con la punta verso destra, e non toccarlo.' },
+      { k: 'sinistra', tit: 'Giralo: punta verso sinistra', dove: 'nello stesso punto, girato di mezzo giro. Non toccarlo.', voce: 'Adesso giralo di mezzo giro, nello stesso punto: punta verso sinistra.' },
+      { k: 'alzata', tit: 'Punta a destra, e alzala', dove: 'rimettilo come all’inizio e alza la punta di due dita. Tienila su.', voce: 'Rimettilo con la punta a destra e alza la punta di due dita. Tienila su.' }
+    ]
+    var m = {}
+    for (var i = 0; i < PASSI.length; i++){
+      var P = PASSI[i]; passoTar = P.k
+      $('t-passo').textContent = (i + 1) + ' · ' + P.tit; $('t-dove').textContent = P.dove
+      voce(P.voce)
+      for (var c = 4; c > 0; c--){ $('t-conto').textContent = c; await aspetta(1000) }
+      $('t-conto').textContent = '●'; bip(880, 120)
+      var r = await mediaGrezza(1500)
+      if (!r){ fallito('I sensori non hanno risposto. Riprova.'); return }
+      if (P.k !== 'alzata' && r.span > 0.8){ fallito('Il telefono si è mosso durante la misura in piano: lascialo fermo sul tavolo e riprova.'); return }
+      m[P.k] = r.media
+    }
+    passoTar = null
+    var zero = (m.destra + m.sinistra) / 2
+    var alza = m.alzata - m.destra
+    if (Math.abs(alza) < 3){ fallito('La punta si è alzata troppo poco (' + num(alza) + '°): alza di due dita e riprova.'); return }
+    tar = { zero: Math.round(zero * 1000) / 1000, verso: alza > 0 ? 1 : -1, quando: new Date().toISOString(), tavolo: Math.round((m.destra - m.sinistra) / 2 * 100) / 100 }
+    try { localStorage.setItem(CHIAVE_TARATURA, JSON.stringify(tar)) } catch(e){}
+    ascolta(false)
+    voce('Taratura riuscita. Non la rifarai più su questo telefono.')
+    bip(660, 120); setTimeout(function(){ bip(990, 200) }, 140)
+    mostra('c-taratura', false); mostra('c-setup', true)
+    $('btn-start').disabled = false
+    inCorso = false
+    aggiornaSetup()
+  }
+  function fallito(msg){
+    ascolta(false); passoTar = null
+    mostra('c-taratura', false); mostra('c-misura', false); mostra('c-setup', true)
+    $('err').style.display = ''; $('err').textContent = '⚠️ ' + msg
+    $('guard').classList.remove('on'); $('btn-ferma').classList.remove('on')
+    $('btn-start').disabled = false
+    voce('Non ci siamo. Riprova.')
+    inCorso = false; aggiornaSetup()
+  }
+
+  // ═══ LA MISURA ═══
+  var giro = null        // { passata, zona, passate: [ {k: v} ], tenuto }
+  var tick = null, wl = null
+  function valoreOra(){ return ultimo == null || !tar ? null : A.corretto(ultimo, tar.zero, tar.verso) }
+  function bufCorretto(){ return buf.map(function(s){ return { t: s.t, v: A.corretto(s.b, tar.zero, tar.verso) } }) }
+  function disegnaMisura(){
+    var z = L[giro.zona]
+    $('m-passata').textContent = 'Passata ' + (giro.passata + 1) + ' di ' + giro.n
+    $('m-zona').textContent = z.nome.toUpperCase(); $('m-dove').textContent = z.dove
+    var tenuto = giro.passate[giro.passata][z.k]
+    $('m-tenuto').innerHTML = tenuto == null ? 'Appoggia il telefono sulla zona e tienilo fermo un attimo'
+      : 'Tenuto: <b>' + num(tenuto) + '°</b> ' + esc(A.lato(tenuto))
+    var ultimaZona = giro.zona === L.length - 1, ultimaPassata = giro.passata === giro.n - 1
+    pulsante('▸', ultimaZona ? (ultimaPassata ? 'FINE' : 'PASSATA ' + (giro.passata + 2)) : 'ZONA SUCCESSIVA',
+      ultimaZona ? (ultimaPassata ? 'calcolo il risultato' : 'si riparte dall’alto') : 'poi: ' + L[giro.zona + 1].nome.toLowerCase())
+    var h = '<tr><th>Zona</th>' + giro.passate.map(function(p, i){ return '<th>' + (i + 1) + 'ª</th>' }).join('') + '</tr>'
+    L.forEach(function(Z, j){
+      h += '<tr' + (j === giro.zona ? ' class="ora"' : '') + '><td>' + esc(Z.nome) + '</td>' + giro.passate.map(function(p){
+        var v = p[Z.k]; return '<td>' + (v == null ? '·' : num(v) + '° ' + (Math.abs(v) < A.PIANO ? '' : v > 0 ? 'dx' : 'sx')) + '</td>' }).join('') + '</tr>'
+    })
+    $('m-tabella').innerHTML = h
+  }
+  function aggiornaVivo(){
+    var v = valoreOra()
+    if (v == null){ $('m-vivo').textContent = '—'; return }
+    $('m-vivo').textContent = num(v) + '°'
+    $('m-lato').textContent = A.lato(v)
+    var x = Math.max(-10, Math.min(10, v))
+    $('bolla').style.left = 'calc(' + (50 + x * 4.5) + '% - 15px)'
+    var f = A.fermo(bufCorretto(), adesso())
+    $('m-fermo').className = 'm-fermo' + (f != null ? ' si' : '')
+    $('m-fermo').textContent = f != null ? '● fermo: valore preso' : Math.abs(v) > A.FUORI ? 'Il telefono non è di traverso sulla schiena' : 'in movimento…'
+    // appena cambiata zona, un attimo per spostare il telefono: se no il valore
+    // della zona di prima, ancora fermo, finirebbe in quella nuova
+    if (f != null && adesso() < giro.dal){ $('m-fermo').className = 'm-fermo'; $('m-fermo').textContent = 'sposta il telefono sulla zona…'; return }
+    if (f != null){
+      var z = L[giro.zona].k, p = giro.passate[giro.passata]
+      var prima = p[z]; p[z] = A.tieni(p[z], Math.round(f * 100) / 100)
+      if (prima == null && p[z] != null) bip(1175, 70)
+      disegnaMisura()
+    }
+  }
+
+  async function avvia(){
+    if (inCorso) return
+    if (!tar){ avviaTaratura(); return }
+    inCorso = true
+    $('err').style.display = 'none'
+    bip(660, 60); sbloccaVoce()
+    if (!(await chiediPermessi())){ fallito('Il telefono non ha dato il permesso ai sensori di movimento. Su iPhone: Impostazioni → Safari → Movimento e orientamento.'); return }
+    try { if (navigator.wakeLock) wl = await navigator.wakeLock.request('screen') } catch(e){}
+    ascolta(true)
+    giro = { passata: 0, zona: 0, n: nPassate, passate: [{}], dal: 0 }
+    mostra('c-setup', false); mostra('c-esito', false); mostra('c-confronto', false); mostra('c-misura', true)
+    $('btn-ferma').classList.add('on')
+    disegnaMisura()
+    try { $('c-misura').scrollIntoView({ block: 'start' }) } catch(e){}   // la misura in cima: lo schermo si guarda da lontano
+    if (!VIA && window.PolPartenza){
+      PolPartenza.apri({ titolo: 'ATR · rotazione del tronco', sotto: '4 zone · ' + nPassate + (nPassate === 1 ? ' passata' : ' passate'),
+        testo: 'Il paziente si piega in avanti piano, braccia sciolte. Telefono di traverso, punta a destra.', secondi: 5 })
+      voce('A. T. R. Il paziente si piega in avanti, piano, con le braccia sciolte.')
+      for (var c = 5; c >= 1; c--){ PolPartenza.numero(c); await aspetta(1000) }
+      PolPartenza.via()
+    }
+    voce(L[0].nome + '.')
+    tick = setInterval(aggiornaVivo, 100)
+    $('btn-start').disabled = false
+    inCorso = false
+  }
+  function avanti(){
+    if (!giro) return
+    bip(740, 90)
+    giro.dal = adesso() + (VIA ? 150 : 1200)
+    if (giro.zona < L.length - 1){ giro.zona++; voce(L[giro.zona].nome + '.'); disegnaMisura(); return }
+    if (giro.passata < giro.n - 1){
+      giro.passata++; giro.zona = 0; giro.passate.push({})
+      voce('Passata ' + (giro.passata + 1) + '. Si riparte dall’alto: ' + L[0].nome + '.')
+      disegnaMisura(); return
+    }
+    fine()
+  }
+  function smetti(){
+    clearInterval(tick); tick = null; ascolta(false)
+    try { if (wl) wl.release() } catch(e){}
+    wl = null
+    $('btn-ferma').classList.remove('on')
+  }
+  function fine(){
+    smetti()
+    var passate = giro.passate
+    giro = null
+    var r = A.riassunto(passate)
+    var p = { quando: new Date().toISOString(), momento: momento || null, nota: $('nota').value || '', passate: passate, r: r,
+      zero: tar.zero, verso: tar.verso }
+    prove.push(p)
+    mostra('c-misura', false); mostra('c-setup', true); mostra('c-esito', true)
+    disegnaEsito(p)
+    disegnaConfronto()
+    voce(A.frasi(r)[0])
+    bip(660, 200); setTimeout(function(){ bip(392, 420) }, 230)
+    aggiornaSetup()
+    salva(p)
+    try { $('c-esito').scrollIntoView({ behavior: 'smooth', block: 'start' }) } catch(e){}
+  }
+
+  function disegnaEsito(p){
+    var r = p.r
+    var h = ''
+    L.forEach(function(Z){
+      var z = r.livelli[Z.k]
+      var f = z.fascia
+      h += '<div class="z' + (Z.k === r.livelloMassimo ? ' max' : '') + '"><div><div class="z-nome">' + esc(Z.nome) + '</div>' +
+        '<div class="z-singole">' + (z.n ? 'passate: ' + z.singole.map(function(v){ return num(v) + '° ' + (Math.abs(v) < A.PIANO ? '' : v > 0 ? 'dx' : 'sx') }).join(' · ') : 'non misurata') + '</div>' +
+        (f ? '<span class="fascia" style="background:' + f.colore + '">' + esc(f.parola) + '</span>' : '') + '</div>' +
+        '<div class="z-val"><b>' + (z.valore == null ? '—' : num(z.valore) + '°') + '</b><span>' + (z.valore == null ? '' : esc(z.lato)) + '</span></div></div>'
+    })
+    h += '<div class="nota">' + (r.errore != null ? 'Errore della misura (dalle tue ' + r.n + ' passate): <b>±' + num(r.errore) + '°</b>. Una differenza più piccola non si distingue dal rumore.'
+      : 'Una passata sola: l’errore della misura non si conosce.') + '</div>'
+    h += '<div class="frasi">' + A.frasi(r).map(function(f){ return '<p>' + esc(f) + '</p>' }).join('') + '</div>'
+    h += '<div class="fonti"><b>Fasce (solo per te, non vanno al paziente):</b> sotto 5° · 5–6,9° da ricontrollare · da 7° da far valutare al medico. ' +
+      esc(A.FONTI) + ' Col telefono, rispetto allo scoliometro, gli studi riportano differenze fino a circa ±3,5–4° (Navarro 2025).</div>'
+    $('esito').innerHTML = h
+  }
+  function disegnaConfronto(){
+    var pre = null, post = null
+    prove.forEach(function(p){ if (p.momento === 'pre') pre = p; if (p.momento === 'post') post = p })
+    if (!pre || !post){ mostra('c-confronto', false); return }
+    var a = {}, b = {}
+    L.forEach(function(Z){ a[Z.k] = pre.r.livelli[Z.k].valore; b[Z.k] = post.r.livelli[Z.k].valore })
+    a.errore = pre.r.errore; b.errore = post.r.errore
+    var c = A.confronto(a, b)
+    var PAR = { meglio: 'più simmetrico', uguale: 'invariato', lavoro: 'meno simmetrico', daconfermare: 'da confermare' }
+    $('confronto').innerHTML = c.map(function(x){
+      return '<div class="cfr-riga"><span><b>' + esc(x.nome) + '</b></span><span>' + num(x.prima) + '° → <b>' + num(x.dopo) + '°</b></span>' +
+        '<span style="font-weight:800;color:' + (x.esito === 'meglio' ? '#0a7d33' : x.esito === 'lavoro' ? '#b07500' : '#888') + '">' + PAR[x.esito] + '</span></div>'
+    }).join('') + '<div class="nota">' + (c.length && c[0].errore != null ? 'Conta solo una differenza oltre ±' + num(c[0].errore) + '° (l’errore delle tue passate). ' :
+      'Serve la misura con tre passate, prima e dopo, per dare un verdetto. ') + 'Si dice «dopo» i 3 Respiri, non «grazie a».</div>'
+    mostra('c-confronto', true)
+  }
+
+  // ═══ IL SALVATAGGIO ═══
+  var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  var SB = null, haiSessione = false, profId = null, pazNome = '', pazErrore = ''
+  var sessione = { id: null, manca047: false }, sessionePromessa = null
+  function disegnaPaziente(){
+    var el = $('paz-banda')
+    if (!SB || !haiSessione){ el.innerHTML = '<div class="paz-banda libera"><span>Non sei entrato: le misure <b>non si salvano</b>.</span><a href="login.html">Entra</a></div>'; return }
+    if (PID && pazNome){ el.innerHTML = '<div class="paz-banda"><span>👤 <b>' + esc(pazNome) + '</b><br><small>ogni misura si salva nella sua cartella</small></span></div>'; return }
+    el.innerHTML = '<div class="paz-banda libera"><span>🧪 <b>Prova libera</b> — le misure si salvano senza paziente.' + (pazErrore ? '<br><small>' + esc(pazErrore) + '</small>' : '') + '</span></div>'
+  }
+  async function avviaSupabase(){
+    try {
+      if (window.supabase && window.supabase.createClient){
+        SB = window.supabase.createClient(SB_URL, SB_KEY)
+        var r = await SB.auth.getSession()
+        var ses = r && r.data ? r.data.session : null
+        haiSessione = !!ses
+        if (ses){
+          try { var pr = await SB.from('professionals').select('id').eq('user_id', ses.user.id).maybeSingle(); profId = pr && pr.data ? pr.data.id : null } catch(e){}
+          if (PID){
+            try {
+              var pz = await SB.from('patients').select('nome,cognome').eq('id', PID).maybeSingle()
+              if (pz && pz.data) pazNome = ((pz.data.nome || '') + ' ' + (pz.data.cognome || '')).trim()
+              else pazErrore = 'Paziente non trovato fra i tuoi: le misure si salvano come libere.'
+            } catch(e){ pazErrore = 'Non riesco a leggere il paziente: le misure si salvano come libere.' }
+            if (pazNome) await riprendiSessione()
+          }
+        }
+      }
+    } catch(e){ SB = null; haiSessione = false }
+    disegnaPaziente()
+  }
+  async function riprendiSessione(){
+    try {
+      var r = await SB.from('test_sessioni').select('id,quando').eq('patient_id', PID).order('quando', { ascending: false }).limit(1).maybeSingle()
+      if (r.error){ if (/test_sessioni/.test(r.error.message || '')) sessione.manca047 = true; return }
+      if (r.data && (Date.now() - new Date(r.data.quando).getTime()) <= 4 * 3600e3) sessione.id = r.data.id
+    } catch(e){}
+  }
+  async function sessioneCorrente(){
+    if (sessione.id || sessione.manca047 || !profId) return sessione.id
+    if (sessionePromessa) return sessionePromessa
+    sessionePromessa = (async function(){
+      try {
+        var r = await SB.from('test_sessioni').insert({ professional_id: profId, patient_id: (PID && pazNome) ? PID : null, nome: null, eta: null, peso_kg: null })
+          .select('id,quando').maybeSingle()
+        if (r.error) throw r.error
+        sessione.id = r.data ? r.data.id : null
+      } catch(e){ if (/test_sessioni/.test((e && e.message) || '')) sessione.manca047 = true }
+      sessionePromessa = null
+      return sessione.id
+    })()
+    return sessionePromessa
+  }
+  function riga(p){
+    var r = p.r, lv = r.livelli
+    return {
+      professional_id: profId, patient_id: (PID && pazNome) ? PID : null,
+      quando: p.quando, momento: p.momento, nota: p.nota || null,
+      toracico_alto: lv.toracico_alto.valore, toracico: lv.toracico.valore, toracolombare: lv.toracolombare.valore, lombare: lv.lombare.valore,
+      massimo: r.massimo, livello_massimo: r.livelloMassimo,
+      n_passate: p.passate.length, errore: r.errore, passate: p.passate,
+      zero: p.zero, verso: p.verso, tarato: true,
+      dettagli: { versione: A.VERSIONE, sw: r.sw, fermo_ms: A.FERMO_MS, fermo_span: A.FERMO_SPAN }
+    }
+  }
+  function mancaTabella(e){
+    var m = String((e && (e.message || e.details)) || '')
+    return /atr_test/.test(m) && (e.code === '42P01' || e.code === 'PGRST205' || /exist|find the table|schema cache/i.test(m))
+  }
+  async function salva(p){
+    var el = $('salva-stato')
+    if (!SB || !haiSessione){ el.className = 'salva-stato'; el.textContent = 'Non salvata: non sei entrato col tuo account.'; return }
+    if (!profId){ el.className = 'salva-stato ko'; el.textContent = '⚠️ Non salvata: profilo professionista non trovato.'; return }
+    el.className = 'salva-stato'; el.textContent = '💾 Salvo…'
+    try {
+      var rg = riga(p)
+      var sid = await sessioneCorrente(); if (sid) rg.sessione_id = sid
+      var r = await SB.from('atr_test').insert(rg).select('id').maybeSingle()
+      if (r.error) throw r.error
+      p.id_db = r.data ? r.data.id : null
+      el.className = 'salva-stato ok'
+      el.textContent = '✓ Salvata ' + ((PID && pazNome) ? 'nella cartella di ' + pazNome : 'come prova libera') +
+        (sessione.id ? ', nella sessione' : '') + (p.momento ? ' · ' + (p.momento === 'pre' ? 'prima' : 'dopo') + ' dei 3 Respiri' : '')
+    } catch(e){
+      el.className = 'salva-stato ko'
+      el.textContent = mancaTabella(e) ? '⚠️ Non salvata: manca la migration 054_atr_test.sql nel database. I numeri restano su questo schermo.'
+        : '⚠️ Non salvata: ' + (e && e.message ? e.message : String(e))
+    }
+  }
+
+  $('btn-start').onclick = function(){ if (giro) avanti(); else avvia() }
+  $('btn-ferma').onclick = function(){
+    if (!giro) return
+    smetti(); giro = null
+    mostra('c-misura', false); mostra('c-setup', true)
+    voce('Misura fermata. Non ho salvato niente.')
+    aggiornaSetup()
+  }
+  window.__atr = { taratura: function(){ return tar }, passoTaratura: function(){ return passoTar }, giro: function(){ return giro },
+    prove: function(){ return prove }, riga: riga, avanti: avanti }
+  aggiornaSetup()
+  avviaSupabase()
+})()
+</script>
+<script src="js/pol-nav.js?v=nav-v1" defer></script><!-- nav-v1 · pulsante Indietro/Home -->
+</body>
+</html>
