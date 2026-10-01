@@ -191,7 +191,14 @@ sez('⭐ La misura in diretta: si disegna mentre arriva')
   const emetti = (ev, p) => page.evaluate(([ev, p]) => window.__emetti('oscillazione:C', ev, p), [ev, p])
 
   check('nessun errore JS in pagina', errori.length === 0, errori)
+  // live-partenza-v1 · prima del via, la partenza grande col conto alla rovescia
+  check('⭐ live-partenza-v1 · «pronti» arriva', await emetti('pronti', { titolo: 'Oscillazione Policettiva', sotto: 'Beccheggio · occhi chiusi', testo: 'Sali sulla tavola', avviso: '', secondi: 10 }))
+  await page.waitForTimeout(1300)
+  check('⭐ live-partenza-v1 · si apre la partenza grande col marchio e conta da sola', await page.evaluate(() => !!(window.PolPartenza && PolPartenza.aperta())) &&
+    /^(9|8)$/.test((await page.textContent('#pp-num')).trim()) && !!(await page.$('#pol-partenza .pp-parola')))
   check('la consegna funziona davvero', await emetti('via', { evento: 'beccheggio', occhi: 'chiusi', durata: 30, soglia: 2 }))
+  await page.waitForTimeout(1200)
+  check('⭐ live-partenza-v1 · al «via» la partenza si chiude', await page.evaluate(() => !PolPartenza.aperta()))
   await page.waitForTimeout(80)
   check('⭐ parte: misura in corso', /misura in corso/.test(await page.textContent('#v-stato')))
   check('e scrive che test è', /beccheggio/.test(await page.textContent('#v-sub')) &&

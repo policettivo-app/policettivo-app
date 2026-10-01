@@ -25,6 +25,7 @@
         nessun disegno: dopo 3 secondi di silenzio la pagina lo DICE. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/oscillazione.js?v=referto-paziente-v1"></script>
+<script src="js/partenza.js?v=partenza-v1"></script><!-- live-partenza-v1 -->
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;
@@ -248,6 +249,7 @@
     $('btn-frasi').style.display = frasi.length ? '' : 'none'
   }
 
+  var prontiIv = null, prontiStop = null     // live-partenza-v1
   function ascolta(canale){
     $('app-ingresso').style.display = 'none'
     $('app-visore').style.display = ''
@@ -256,7 +258,19 @@
     if (sub){ try { SB.removeChannel(sub) } catch(e){} }
     canaleOra = canale
     sub = SB.channel('oscillazione:' + canale, { config: { broadcast: { self: false } } })
+    // live-partenza-v1 · i secondi prima del via, in grande anche qui (come sulla TV)
+    sub.on('broadcast', { event: 'pronti' }, function(m){
+      var p = m.payload || {}
+      if (!window.PolPartenza) return
+      clearInterval(prontiIv); clearTimeout(prontiStop)
+      var n = Math.max(1, Math.min(60, Number(p.secondi) || 10))
+      try { PolPartenza.apri({ titolo: p.titolo, sotto: p.sotto, testo: p.testo, avviso: p.avviso, secondi: n }) } catch(e){ return }
+      prontiIv = setInterval(function(){ n--; if (n >= 1) PolPartenza.numero(n); else { clearInterval(prontiIv); PolPartenza.via() } }, 1000)
+      prontiStop = setTimeout(function(){ clearInterval(prontiIv); PolPartenza.chiudi() }, (n + 12) * 1000)
+    })
     sub.on('broadcast', { event: 'via' }, function(m){
+      clearInterval(prontiIv); clearTimeout(prontiStop)
+      try { if (window.PolPartenza && PolPartenza.aperta()) PolPartenza.via() } catch(e){}
       var p = m.payload || {}
       xs = []; ys = []; scala = 3; inCorso = true
       soglia = p.soglia || 0
