@@ -601,6 +601,20 @@ async function caricaSedute() {
   lista.innerHTML = html;
 }
 
+// feedback-v1 · il feedback del paziente sta in tre colonne (migration 056)
+function fbPazTesto(s) {
+  var p = [];
+  var b = s.feedback_paziente_benessere;
+  if (b != null && b !== '') p.push(Number(b) === 1 ? '1 stella' : b + ' stelle');
+  if (s.feedback_paziente_esercizi) p.push(String(s.feedback_paziente_esercizi).trim());
+  if (s.feedback_paziente_note) p.push(String(s.feedback_paziente_note).trim());
+  if (!p.length && s.feedback_paziente) p.push(String(s.feedback_paziente));
+  return p.filter(Boolean).join(' — ');
+}
+function fbPazHtml(s) {
+  return fbPazTesto(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function apriDet(el) {
   var raw = decodeURIComponent(el.getAttribute('data-session'));
   var s = JSON.parse(raw);
@@ -618,7 +632,7 @@ function apriDet(el) {
   if (s.tecniche) body += '<div class="det-sec"><div class="det-lbl">Tecniche</div><div class="det-val">' + s.tecniche + '</div></div>';
   if (s.risposta_paziente) body += '<div class="det-sec"><div class="det-lbl">Risposta paziente</div><div class="det-val">' + s.risposta_paziente + '</div></div>';
   if (s.note_cliniche) body += '<div class="det-sec"><div class="det-lbl">Note cliniche</div><div class="det-val">' + s.note_cliniche + '</div></div>';
-  if (s.feedback_paziente) body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + s.feedback_paziente + '</div></div>';
+  if (fbPazTesto(s)) body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + fbPazHtml(s) + '</div></div>';
   if (!body) body = '<div style="text-align:center;padding:32px;color:#999">Nessun dettaglio.</div>';
   document.getElementById('det-body').innerHTML = body;
   document.getElementById('det-modal').classList.add('open');
@@ -768,7 +782,7 @@ function diarioRenderBody(s) {
   if (s.tecniche)            body += '<div class="det-sec"><div class="det-lbl">Tecniche</div><div class="det-val">' + diarioEscHtml(s.tecniche) + '</div></div>';
   if (s.risposta_paziente)   body += '<div class="det-sec"><div class="det-lbl">Risposta paziente</div><div class="det-val">' + diarioEscHtml(s.risposta_paziente) + '</div></div>';
   if (s.note_cliniche)       body += '<div class="det-sec"><div class="det-lbl">Note cliniche</div><div class="det-val">' + diarioEscHtml(s.note_cliniche) + '</div></div>';
-  if (s.feedback_paziente)   body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + diarioEscHtml(s.feedback_paziente) + '</div></div>';
+  if (fbPazTesto(s))   body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + fbPazHtml(s) + '</div></div>';
   if (!body) body = '<div style="text-align:center;padding:32px;color:#999">Nessun dettaglio.</div>';
   document.getElementById('det-body').innerHTML = body;
 }
@@ -872,7 +886,7 @@ function diarioPDFSeduta() {
   h += '<div class="vb"><div class="lbl">VAS Fine</div><div class="vn vie">' + (s.vas_fine != null ? s.vas_fine : '-') + '</div></div></div>';
   [['Protocollo eseguito',s.protocollo_seduta],['Prossima seduta',s.protocollo_prossima],
    ['Tecniche utilizzate',s.tecniche],['Risposta paziente',s.risposta_paziente],
-   ['Note cliniche',s.note_cliniche],['Feedback paziente',s.feedback_paziente]].forEach(function(f) {
+   ['Note cliniche',s.note_cliniche],['Feedback paziente',fbPazTesto(s)]].forEach(function(f) {
     if (f[1]) h += '<div class="sec"><div class="lbl">' + f[0] + '</div><div class="val">' + diarioEscHtml(f[1]) + '</div></div>';
   });
   h += '<div class="foot">Generato con Policettivo® — ' + new Date().toLocaleDateString('it-IT') + '</div>';
@@ -914,7 +928,7 @@ async function diarioPDFCompleto() {
     h += '<div class="vb vie">VAS fine: ' + (s.vas_fine != null ? s.vas_fine : '-') + '</div></div>';
     [['Protocollo eseguito',s.protocollo_seduta],['Prossima seduta',s.protocollo_prossima],
      ['Tecniche utilizzate',s.tecniche],['Risposta paziente',s.risposta_paziente],
-     ['Note cliniche',s.note_cliniche],['Feedback paziente',s.feedback_paziente]].forEach(function(f) {
+     ['Note cliniche',s.note_cliniche],['Feedback paziente',fbPazTesto(s)]].forEach(function(f) {
       if (f[1]) h += '<div class="sec"><div class="lbl">' + f[0] + '</div><div class="val">' + diarioEscHtml(f[1]) + '</div></div>';
     });
     h += '</div>';

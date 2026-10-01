@@ -226,6 +226,20 @@ async function caricaSedute() {
   lista.innerHTML = html;
 }
 
+// feedback-v1 · il feedback del paziente sta in tre colonne (migration 056)
+function fbPazTesto(s) {
+  var p = [];
+  var b = s.feedback_paziente_benessere;
+  if (b != null && b !== '') p.push(Number(b) === 1 ? '1 stella' : b + ' stelle');
+  if (s.feedback_paziente_esercizi) p.push(String(s.feedback_paziente_esercizi).trim());
+  if (s.feedback_paziente_note) p.push(String(s.feedback_paziente_note).trim());
+  if (!p.length && s.feedback_paziente) p.push(String(s.feedback_paziente));
+  return p.filter(Boolean).join(' — ');
+}
+function fbPazHtml(s) {
+  return fbPazTesto(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function apriDet(el) {
   var raw = decodeURIComponent(el.getAttribute('data-session'));
   var s = JSON.parse(raw);
@@ -241,7 +255,7 @@ function apriDet(el) {
   if (s.tecniche) body += '<div class="det-sec"><div class="det-lbl">Tecniche</div><div class="det-val">' + s.tecniche + '</div></div>';
   if (s.risposta_paziente) body += '<div class="det-sec"><div class="det-lbl">Risposta paziente</div><div class="det-val">' + s.risposta_paziente + '</div></div>';
   if (s.note_cliniche) body += '<div class="det-sec"><div class="det-lbl">Note cliniche</div><div class="det-val">' + s.note_cliniche + '</div></div>';
-  if (s.feedback_paziente) body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + s.feedback_paziente + '</div></div>';
+  if (fbPazTesto(s)) body += '<div class="det-sec"><div class="det-lbl">Feedback paziente</div><div class="det-val">' + fbPazHtml(s) + '</div></div>';
   if (!body) body = '<div style="text-align:center;padding:32px;color:#999">Nessun dettaglio.</div>';
   document.getElementById('det-body').innerHTML = body;
   document.getElementById('det-modal').classList.add('open');

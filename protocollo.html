@@ -412,11 +412,13 @@
 
       if (ultimaSedutaId) {
         if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
-        await _supabase.rpc('update_session_feedback', { p_token: token, p_session_id: ultimaSedutaId, p_feedback: feedbackTesto })
+        var esitoFb = await _supabase.rpc('update_session_feedback', { p_token: token, p_session_id: ultimaSedutaId, p_feedback: feedbackTesto })
       } else {
         if (isPreview) { alert('Modalità anteprima: nessun dato salvato.'); return }
-        await _supabase.rpc('save_therapy_session', { p_token: token, p_data: { data_seduta: new Date().toISOString(), feedback_paziente: feedbackTesto } })
+        var esitoFb = await _supabase.rpc('save_therapy_session', { p_token: token, p_data: { data_seduta: new Date().toISOString(), feedback_paziente: feedbackTesto } })
       }
+      // feedback-v1 · se il salvataggio non riesce, il paziente non deve leggere il ringraziamento
+      if (!esitoFb || esitoFb.error || esitoFb.data === false) { alert('Il feedback non è stato salvato. Riprova tra qualche minuto.'); return }
 
       document.getElementById('feedback-success').classList.add('visible')
       document.querySelector('.btn-feedback').style.display = 'none'
