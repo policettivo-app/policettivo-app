@@ -1,4 +1,4 @@
-/* prova-nav.mjs — nav-v1 · partenza-v1
+/* prova-nav.mjs — nav-v1 · nav-v2 · partenza-v1
  * Il pulsante «‹ Indietro · ⌂ Home» su tutte le pagine del professionista,
  * e la schermata grande di partenza dei test.
  *   node prova-nav.mjs
@@ -64,6 +64,16 @@ try {
   const box = await p.evaluate(() => { const r = document.getElementById('pn-pil').getBoundingClientRect(); return { h: r.height, bottom: r.bottom, left: r.left } })
   check('⭐ grande da toccare col pollice (almeno 44 px)', box.h >= 44, box)
   check('⭐ si alza da sola sopra la barra fissa in fondo', box.bottom <= 800 - 70, box)
+  // nav-v2 · più discreto sul telefono
+  const largo = await p.evaluate(() => document.getElementById('pn-pil').getBoundingClientRect().width)
+  check('⭐ nav-v2 · sul telefono solo le icone: larga meno di 130 px (prima più di 200)', largo < 130 && largo > 70, largo)
+  check('⭐ nav-v2 · le parole restano per chi usa il lettore di schermo', await p.evaluate(() => document.querySelector('#pn-indietro .pn-t').textContent === 'Indietro' && document.getElementById('pn-home').getAttribute('aria-label') === 'Vai alla home'))
+  await p.evaluate(() => { const x = document.createElement('div'); x.id = 'lungo'; x.style.height = '3000px'; document.body.appendChild(x); window.scrollTo(0, 600) }); await p.waitForTimeout(400)
+  check('⭐ nav-v2 · scorrendo in giù va a riposo: piccola e trasparente', await p.evaluate(() => { const d = document.getElementById('pn-pil'), cs = getComputedStyle(d); return d.classList.contains('riposo') && Number(cs.opacity) < 0.5 && d.getBoundingClientRect().height < 40 }))
+  check('⭐ nav-v2 · a riposo si tocca ancora (non sparisce)', await vede(p))
+  await p.evaluate(() => window.scrollTo(0, 500)); await p.waitForTimeout(400)
+  check('⭐ nav-v2 · scorrendo in su torna piena', await p.evaluate(() => { const d = document.getElementById('pn-pil'); return !d.classList.contains('riposo') && Number(getComputedStyle(d).opacity) === 1 }))
+  await p.evaluate(() => { window.scrollTo(0, 0); document.getElementById('lungo').remove() }); await p.waitForTimeout(300)
   check('⭐ Home porta alla dashboard', (await p.getAttribute('#pn-home', 'href')) === 'dashboard.html')
   check('⭐ Indietro senza pagina precedente → la home', (await p.getAttribute('#pn-indietro', 'href')) === 'dashboard.html')
   await p.focus('#campo'); await p.waitForTimeout(200)

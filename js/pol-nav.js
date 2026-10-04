@@ -12,7 +12,13 @@
      – mentre si scrive (la tastiera del telefono la coprirebbe);
      – durante un test (schermata di partenza, schermo bloccato).
    Si alza da sola sopra le barre fisse in fondo alla pagina.
-   Solo navigazione: non legge e non scrive dati. */
+   Solo navigazione: non legge e non scrive dati.
+
+   nav-v2 (4 ott 2026) — PIÙ DISCRETO. «A volte nasconde scritte o testi… può
+   sembrare invasivo». Stesso posto, stessi colori, stesse regole, ma:
+   • sul telefono solo le due icone (‹ e ⌂): è larga meno della metà;
+   • mentre scorri in giù per leggere si rimpicciolisce e diventa trasparente;
+     torna piena appena scorri in su, in cima alla pagina, o la tocchi. */
 ;(function(){
   'use strict'
   if (window.__polNav) return
@@ -33,7 +39,9 @@
   var CSS = '' +
     '.pn-pil{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:calc(max(12px,env(safe-area-inset-bottom)) + var(--pn-su,0px));' +
     'z-index:950;display:flex;align-items:stretch;background:#111;border-radius:999px;box-shadow:0 6px 22px rgba(0,0,0,.28),0 0 0 1.5px #FFD008;' +
-    'font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden;transition:opacity .2s,transform .2s}' +
+    'font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden;transition:opacity .25s,transform .25s;transform-origin:left bottom}' +
+    '.pn-pil.riposo{opacity:.4;transform:scale(.78);box-shadow:0 2px 8px rgba(0,0,0,.18),0 0 0 1.5px #FFD008}' +
+    '.pn-pil.riposo:hover{opacity:1;transform:none}' +
     '.pn-pil.via{opacity:0;transform:translateY(12px);pointer-events:none}' +
     '.pn-pil a{display:flex;align-items:center;gap:7px;color:#fff;text-decoration:none;font-size:15px;font-weight:800;' +
     'padding:0 16px;min-height:48px;-webkit-tap-highlight-color:transparent;white-space:nowrap}' +
@@ -41,6 +49,9 @@
     '.pn-pil a i{font-style:normal;color:#FFD008;font-size:22px;line-height:1;font-weight:900}' +
     '.pn-pil .pn-sep{width:1px;background:#333;margin:10px 0}' +
     '.pn-spazio{height:76px}' +
+    '@media (max-width:700px){.pn-pil a{padding:0 15px;min-height:44px;gap:0}' +
+    '.pn-pil .pn-t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}' +
+    '.pn-spazio{height:64px}}' +
     '@media print{.pn-pil,.pn-spazio{display:none!important}}'
 
   function metti(){
@@ -51,9 +62,9 @@
     var riserva = /^[0-9a-f-]{36}$/i.test(pid) ? 'paziente.html?id=' + pid : 'dashboard.html'
     var d = document.createElement('nav'); d.className = 'pn-pil'; d.id = 'pn-pil'
     d.setAttribute('aria-label', 'Navigazione')
-    d.innerHTML = '<a href="' + riserva + '" id="pn-indietro" aria-label="Torna indietro"><i>‹</i>Indietro</a>' +
+    d.innerHTML = '<a href="' + riserva + '" id="pn-indietro" aria-label="Torna indietro"><i>‹</i><span class="pn-t">Indietro</span></a>' +
       '<span class="pn-sep"></span>' +
-      '<a href="dashboard.html" id="pn-home" aria-label="Vai alla home"><i>⌂</i>Home</a>'
+      '<a href="dashboard.html" id="pn-home" aria-label="Vai alla home"><i>⌂</i><span class="pn-t">Home</span></a>'
     document.body.appendChild(d)
     var sp = document.createElement('div'); sp.className = 'pn-spazio'; sp.setAttribute('aria-hidden', 'true')
     document.body.appendChild(sp)
@@ -98,6 +109,17 @@
       var occupato = !!document.querySelector('.pp-ov.on, .guard.on, .pol-ov.open, [data-nav-nascondi]')
       d.classList.toggle('via', !!(scrive || occupato))
     }
+    // nav-v2 · a riposo mentre si scorre in giù; piena scorrendo in su, in cima, o al tocco
+    var ultimoY = window.pageYOffset || 0
+    window.addEventListener('scroll', function(){
+      try {
+        var y = window.pageYOffset || 0
+        if (y < 40 || y < ultimoY - 6) d.classList.remove('riposo')
+        else if (y > ultimoY + 6) d.classList.add('riposo')
+        ultimoY = y
+      } catch(e){}
+    }, { passive: true })
+    d.addEventListener('touchstart', function(){ d.classList.remove('riposo') }, { passive: true })
     sistema()
     setInterval(sistema, 700)
     window.addEventListener('resize', sistema)
