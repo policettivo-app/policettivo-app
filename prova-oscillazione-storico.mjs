@@ -1,4 +1,4 @@
-/* prova-oscillazione-storico.mjs — oscillazione-app-v1 · test-sessioni-v1 · prove-confronto-v1
+/* prova-oscillazione-storico.mjs — oscillazione-app-v1 · test-sessioni-v1 · prove-confronto-v1 · momento-nota-v1
  *
  * Controlla, con un Supabase finto dentro Chromium:
  *   - oscillazione-storico.html: sessioni, confronto sessione contro sessione,
@@ -436,6 +436,40 @@ sez('⭐ prove-confronto-v1 · PROVA contro PROVA dentro una sessione')
   const r3 = await apri(browser, ST, { sessione: true, dati: [riga('z1', P1, SQ, '2026-10-03T08:18:05Z', 5.0)], sess: finto.sess }, '?pid=' + P1)
   check('⭐ con una prova sola in tutto il riquadro non compare', !(await r3.page.isVisible('#c-prove')) && r3.errori.length === 0)
   await r3.ctx.close()
+}
+
+sez('⭐ momento-nota-v1 · le prove segnate nel test arrivano già PRIMA / DOPO')
+{
+  const SQ = 'eeeeeeee-0000-0000-0000-000000000001'
+  const G = [
+    riga('m1', P1, SQ, '2026-10-04T07:00:00Z', 5.0, { momento: 'pre', momento_nota: 'neutro, mai provato <i>cuscini</i>' }),
+    riga('m2', P1, SQ, '2026-10-04T07:01:00Z', 5.2, { momento: 'pre', momento_nota: 'neutro, mai provato <i>cuscini</i>' }),
+    riga('m3', P1, SQ, '2026-10-04T07:10:00Z', 3.0, { momento: 'post', momento_nota: 'schema 1' }),
+    riga('m4', P1, SQ, '2026-10-04T07:20:00Z', 2.0, { momento: 'post', momento_nota: 'schema 2' }),
+    riga('m5', P1, SQ, '2026-10-04T07:21:00Z', 2.1, { momento: 'post', momento_nota: 'schema 2' }),
+    riga('m6', P1, SQ, '2026-10-04T07:30:00Z', 4.0)
+  ]
+  const finto = { sessione: true, dati: G, sess: [{ id: SQ, patient_id: P1, quando: '2026-10-04T06:59:00Z', nome: null, eta: null, peso_kg: null }] }
+  const { page, ctx, errori } = await apri(browser, ST, finto, '?pid=' + P1)
+  const esito = () => page.evaluate(() => document.getElementById('pv-esito').innerText)
+  check('⭐ chiede al database anche momento e descrizione', await page.evaluate(() => /momento,momento_nota/.test(window.__db.letture[0].sel)))
+  let t = await esito()
+  check('⭐⭐ senza toccare niente il confronto c’è già: PRIMA contro l’ULTIMO «dopo» (schema 2)', /si è mossa MENO/.test(t) && /2 prove prima · 2 prove dopo/.test(t), t)
+  check('⭐ e dice che cosa: le due descrizioni, senza diventare HTML', /«neutro, mai provato <i>cuscini<\/i>»/.test(t) && /«schema 2»/.test(t) && !/schema 1/.test(t) && !(await page.$('#pv-esito .nota i')), t)
+  check('⭐ ogni prova porta la sua etichetta PRIMA / DOPO con la descrizione', await page.evaluate(() => {
+    const e = [...document.querySelectorAll('#pv-lista .pv-info .etich')].map(x => x.textContent)
+    return e.length === 5 && /^PRIMA · neutro/.test(e[0]) && e[2] === 'DOPO · schema 1' && e[3] === 'DOPO · schema 2' }))
+  check('⭐ la prova non segnata resta senza etichetta e senza segno', await page.evaluate(() => { const r = document.querySelector('#pv-lista .pv-riga:nth-child(6)'); return !r.querySelector('.etich') && !r.classList.contains('pre') && !r.classList.contains('post') }))
+  check('⭐ con due «dopo» diversi si sceglie con quale confrontare', await page.evaluate(() => { const g = [...document.querySelectorAll('#pv-auto .pv-g')]; return g.length === 2 && g[0].textContent === 'DOPO · schema 1' && g[1].classList.contains('on') }))
+  await page.click('#pv-auto .pv-g:nth-child(1)'); await page.waitForTimeout(300)
+  t = await esito()
+  check('⭐⭐ scegliendo «schema 1» confronta il PRIMA con quello', /«schema 1»/.test(t) && !/schema 2/.test(t) && /2 prove prima · 1 prova dopo/.test(t), t)
+  await page.click('#pv-lista .pv-riga:nth-child(6) .pv-b.post'); await page.waitForTimeout(300)
+  check('⭐ a mano si può sempre aggiungere o correggere', /2 prove prima · 2 prove dopo/.test(await esito()))
+  check('⭐ il confronto fra sessioni NON vede il momento (condizioni come prima)', await page.evaluate(() => window.__storico.sessioni()[0].prove.every(p => !('momento' in p))))
+  check('⛔ la pagina non ha scritto niente', (await page.evaluate(() => window.__db.scritto)) === false)
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
 }
 
 } finally {

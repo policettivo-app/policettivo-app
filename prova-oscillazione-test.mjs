@@ -1716,7 +1716,7 @@ sez('⭐ taratura-guidata-v1 · dopo la taratura si ricalcola TUTTO')
 // il finto Supabase: sessione, profilo, paziente, insert e canale.
 // ⚠️ L'insert registra davvero la riga ricevuta: si controlla COSA arriva al
 //    database, non solo che la pagina non esploda.
-const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, senza053, conCanale, sessioneRecente }) => {
+const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, senza057, senza053, conCanale, sessioneRecente }) => {
   // test-sessioni-v1 — anche la tabella delle sessioni, e le letture della sessione
   window.__db = { righe: [], canale: [], sessioni: [], aggiornate: [] }
   const q = (tab) => {
@@ -1735,6 +1735,8 @@ const SUPA = ({ sessione, pazienteOk, insertErr, senza047, senza048, senza053, c
         if (st.riga) {
           if (insertErr) return { data: null, error: { message: insertErr } }
           // schermo-paziente-v1 · come risponde davvero PostgREST quando la colonna non c'è
+          if (senza057 && 'momento_nota' in st.riga) { window.__db.rifiutate057 = (window.__db.rifiutate057 || 0) + 1
+            return { data: null, error: { code: 'PGRST204', message: "Could not find the 'momento_nota' column of 'oscillazione_test' in the schema cache" } } }
           if (senza048 && 'momento' in st.riga) { window.__db.rifiutate = (window.__db.rifiutate || 0) + 1
             return { data: null, error: { code: 'PGRST204', message: "Could not find the 'momento' column of 'oscillazione_test' in the schema cache" } } }
           // monopodalico-v1 · la colonna appoggio manca (053 non lanciata)
@@ -2128,24 +2130,73 @@ sez('⭐ schermo-paziente-v1 · prima o dopo i 3 Respiri viaggia con la prova')
 {
   const { page, ctx, errori } = await apriApp(browser, { sessione: true }, '?dur=2&via=1')
   check('⭐ la scelta del momento c’è', await page.isVisible('#momento'))
-  check('e parte da «non indicato»', /non indicato/.test(await page.textContent('#momento .chip.on')))
+  check('e parte da «non segnata»', /non segnata/.test(await page.textContent('#momento .chip.on')))
   await PROVA_APP(page, true, 1)
   let db = await page.evaluate(() => window.__db)
   check('⭐ una prova «non indicata» si salva SENZA la colonna: identica a prima', db.righe.length === 1 && !('momento' in db.righe[0]), db.righe[0] && Object.keys(db.righe[0]))
   await page.click('#btn-nuova').catch(() => {})
   await page.waitForTimeout(100)
   await page.click('#momento .chip[data-m="pre"]')
-  check('⭐ il PARTI dice che è la prova PRIMA', /PRIMA dei 3R/.test(await page.textContent('#btn-start')), await page.textContent('#btn-start'))
+  check('⭐ il PARTI dice che è la prova PRIMA', /· PRIMA/.test(await page.textContent('#btn-start')) && !/3R/.test(await page.textContent('#btn-start')), await page.textContent('#btn-start'))
   await PROVA_APP(page, true, 2)
   db = await page.evaluate(() => window.__db)
   check('⭐⭐ la prova si salva col momento «pre»', db.righe.length === 2 && db.righe[1].momento === 'pre', db.righe.map(r => r.momento))
-  check('e lo dice sotto il risultato', /prima dei 3 Respiri/.test(await page.textContent('#salva-stato')), await page.textContent('#salva-stato'))
+  check('e lo dice sotto il risultato', /· PRIMA/.test(await page.textContent('#salva-stato')), await page.textContent('#salva-stato'))
   await page.click('#btn-nuova').catch(() => {})
   await page.waitForTimeout(100)
   await page.click('#momento .chip[data-m="post"]')
   await PROVA_APP(page, true, 3)
   db = await page.evaluate(() => window.__db)
   check('⭐⭐ e quella dopo col momento «post»', db.righe.length === 3 && db.righe[2].momento === 'post', db.righe.map(r => r.momento))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐ momento-nota-v1 · PRIMA / DOPO con la descrizione, in cima, e si salva')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true }, '?dur=2&via=1')
+  check('⭐ il riquadro è il PRIMO della preparazione (sopra «Che test»)', await page.evaluate(() => {
+    const b = document.getElementById('mn-box'), l = [...document.querySelectorAll('#c-setup label')].find(x => /Che test/.test(x.textContent))
+    return !!b && !!l && (b.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING) > 0 }))
+  check('⭐ senza segno la descrizione non si vede', !(await page.isVisible('#momento-nota')))
+  await page.click('#momento .chip[data-m="pre"]')
+  check('⭐ con PRIMA compare il campo, con l’esempio giusto', await page.isVisible('#momento-nota') && /neutro/.test(await page.getAttribute('#momento-nota', 'placeholder')))
+  await page.fill('#momento-nota', 'neutro, mai provato <b>cuscini</b>')
+  check('⭐ il PARTI dice PRIMA e la descrizione', /PRIMA · neutro, mai provato/.test(await page.textContent('#btn-start')), await page.textContent('#btn-start'))
+  await PROVA_APP(page, true, 1)
+  let db = await page.evaluate(() => window.__db)
+  check('⭐⭐ si salva «pre» con la descrizione', db.righe.length === 1 && db.righe[0].momento === 'pre' && db.righe[0].momento_nota === 'neutro, mai provato <b>cuscini</b>', db.righe[0] && [db.righe[0].momento, db.righe[0].momento_nota])
+  check('⭐ e sotto il risultato si legge, senza diventare HTML', /PRIMA · «neutro, mai provato <b>cuscini<\/b>»/.test(await page.textContent('#salva-stato')) && !(await page.$('#salva-stato b')), await page.textContent('#salva-stato'))
+  await page.click('#btn-nuova').catch(() => {}); await page.waitForTimeout(100)
+  await page.click('#momento .chip[data-m="post"]')
+  check('⭐ passando a DOPO il campo è vuoto (una descrizione per parte)', (await page.inputValue('#momento-nota')) === '')
+  check('⭐ fra i tasti pronti c’è «3 Respiri»', /3 Respiri/.test(await page.textContent('#mn-recenti')))
+  await page.fill('#momento-nota', 'schema 2')
+  await PROVA_APP(page, true, 2)
+  db = await page.evaluate(() => window.__db)
+  check('⭐⭐ si salva «post» con «schema 2»', db.righe.length === 2 && db.righe[1].momento === 'post' && db.righe[1].momento_nota === 'schema 2', db.righe.map(r => [r.momento, r.momento_nota]))
+  await page.click('#btn-nuova').catch(() => {}); await page.waitForTimeout(100)
+  check('⭐ la scelta resta per la prova successiva', /DOPO/.test(await page.textContent('#momento .chip.on')) && (await page.inputValue('#momento-nota')) === 'schema 2')
+  check('⭐ «schema 2» è diventato un tasto (un tocco la prossima volta)', /schema 2/.test(await page.textContent('#mn-recenti')))
+  await page.click('#momento .chip[data-m="pre"]')
+  check('⭐ tornando a PRIMA ritrova la sua descrizione', /neutro/.test(await page.inputValue('#momento-nota')))
+  await page.click('#momento .chip[data-m=""]')
+  await PROVA_APP(page, true, 3)
+  db = await page.evaluate(() => window.__db)
+  check('⭐⭐ una prova non segnata si salva SENZA le due colonne: identica a prima', db.righe.length === 3 && !('momento' in db.righe[2]) && !('momento_nota' in db.righe[2]), Object.keys(db.righe[2] || {}))
+  check('nessun errore JS in pagina', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐ momento-nota-v1 · senza la migration 057 la prova NON si perde, e tiene il PRIMA/DOPO')
+{
+  const { page, ctx, errori } = await apriApp(browser, { sessione: true, senza057: true }, '?dur=2&via=1')
+  await page.click('#momento .chip[data-m="post"]'); await page.fill('#momento-nota', 'schema 2')
+  await PROVA_APP(page, true, 1)
+  const db = await page.evaluate(() => window.__db)
+  check('il database ha rifiutato la colonna una volta', db.rifiutate057 === 1, db.rifiutate057)
+  check('⭐⭐ la prova si è salvata lo stesso, col momento e senza la descrizione', db.righe.length === 1 && db.righe[0].momento === 'post' && !('momento_nota' in db.righe[0]), db.righe[0] && Object.keys(db.righe[0]))
+  check('⭐ e dice quale SQL manca, per nome di file', /057_momento_nota\.sql/.test(await page.textContent('#salva-stato')), await page.textContent('#salva-stato'))
   check('nessun errore JS in pagina', errori.length === 0, errori)
   await ctx.close()
 }

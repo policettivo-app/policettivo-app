@@ -413,7 +413,7 @@
     return (r.configurazione || '(non indicata)') + ' · ' + r.evento +
            (r.occhi && r.occhi !== '-' ? ' · occhi ' + r.occhi : '') +
            (r.appoggio === 'dx' ? ' · piede destro' : r.appoggio === 'sx' ? ' · piede sinistro' : '') +
-           (r.momento === 'pre' ? ' · prima dei 3R' : r.momento === 'post' ? ' · dopo i 3R' : '')
+           (r.momento === 'pre' ? ' · PRIMA' : r.momento === 'post' ? ' · DOPO' : '')   // momento-nota-v1 · non solo i 3 Respiri
   }
   function asseDi(r){ return r.evento === 'rollio' ? 'gamma' : 'beta' }
   // come si legge: senza «(non indicata)» davanti, che è solo rumore sul foglio
@@ -648,7 +648,7 @@
       var vc = mediaDi(gruppi[kc], function(r){ return numeroO(r.velocita) })
       if (va > 0) out[(r0.configurazione ? r0.configurazione + ' · ' : '') + r0.evento +
         (r0.appoggio === 'dx' ? ' · piede destro' : r0.appoggio === 'sx' ? ' · piede sinistro' : '') +
-        (r0.momento === 'pre' ? ' · prima dei 3R' : r0.momento === 'post' ? ' · dopo i 3R' : '')] = vc / va
+        (r0.momento === 'pre' ? ' · PRIMA' : r0.momento === 'post' ? ' · DOPO' : '')] = vc / va
     })
     return out
   }

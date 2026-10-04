@@ -215,7 +215,7 @@
      3) «← Test» riporta alla pagina dei test (test.html), da cui si arriva
         anche al Confronto, che adesso è sessione contro sessione. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/oscillazione.js?v=monopodalico-v1"></script>
+<script src="js/oscillazione.js?v=momento-nota-v1"></script>
 <script src="js/partenza.js?v=partenza-v1"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -235,6 +235,13 @@
   .chip{border:1.5px solid #ddd;background:#fff;border-radius:999px;padding:9px 14px;
         font-size:14px;cursor:pointer;font-family:inherit}
   .chip.on{border-color:#111;background:#111;color:#fff;font-weight:700}
+  /* momento-nota-v1 */
+  .mn-box{border:2px solid #111;border-radius:16px;padding:12px 14px;margin:0 0 14px;background:#fffdf2}
+  .mn-tit{font-weight:800;font-size:15px;margin-bottom:8px}
+  .mn-chips .chip{flex:1;text-align:center;font-size:15px;padding:13px 10px;font-weight:700}
+  .mn-chips .chip.mn-pre.on{background:#2864dc;border-color:#2864dc}
+  .mn-chips .chip.mn-post.on{background:#FFD008;border-color:#FFD008;color:#111}
+  #mn-recenti .chip{font-size:13px;padding:7px 12px}
   input[type=text],select{width:100%;padding:12px;border:1.5px solid #ddd;border-radius:10px;
         font-size:16px;font-family:inherit;background:#fff}
   .btn{display:block;width:100%;padding:17px;border:0;border-radius:14px;background:#111;color:#fff;
@@ -412,6 +419,22 @@
 
   <div class="card" id="c-setup">
     <h2>1 · Prepara la prova</h2>
+    <!-- momento-nota-v1 · PRIMA o DOPO, e CHE COSA: si segna qui, in cima, prima
+         di partire. Non solo i 3 Respiri: qualunque schema o esercizio si stia
+         provando. Il Confronto poi mette le prove a posto da solo. -->
+    <div class="mn-box" id="mn-box">
+      <div class="mn-tit">Questa prova è…</div>
+      <div class="chips mn-chips" id="momento">
+        <button class="chip mn-pre" data-m="pre">PRIMA</button>
+        <button class="chip mn-post" data-m="post">DOPO</button>
+        <button class="chip on" data-m="">non segnata</button>
+      </div>
+      <div id="mn-dett" style="display:none">
+        <label for="momento-nota" id="mn-lbl">Descrizione</label>
+        <input type="text" id="momento-nota" maxlength="200" autocomplete="off">
+        <div class="chips" id="mn-recenti" style="margin-top:8px"></div>
+      </div>
+    </div>
     <label>1 · Che test</label>
     <div class="chips" id="chips">
       <button class="chip on" data-e="beccheggio">beccheggio</button>
@@ -451,14 +474,6 @@
     <div class="chips" id="piedi">
       <button class="chip on" data-p="scalzo">scalzo</button>
       <button class="chip" data-p="con scarpe">con scarpe</button>
-    </div>
-    <!-- schermo-paziente-v1 · prima o dopo i 3 Respiri: lo schermo del paziente
-         confronta le prove PRIMA con quelle DOPO. Non si indovina, si segna. -->
-    <label>4 · Momento</label>
-    <div class="chips" id="momento">
-      <button class="chip on" data-m="">non indicato</button>
-      <button class="chip" data-m="pre">prima dei 3 Respiri</button>
-      <button class="chip" data-m="post">dopo i 3 Respiri</button>
     </div>
     <label for="config">Configurazione (tavola e cuscini) — è la cosa che confronteremo</label>
     <input type="text" id="config" placeholder="es. tavola rettangolare, 1 cuscino sotto al centro">
@@ -610,6 +625,8 @@
   var occhi  = 'aperti'
   var piedi  = 'scalzo'
   var momento = ''                                  // schermo-paziente-v1 · '' | 'pre' | 'post'
+  var mnTesto = { pre: '', post: '' }, mnRicorda = function(){}   // momento-nota-v1
+  function mnNota(){ return (momento === 'pre' || momento === 'post') ? String(mnTesto[momento] || '').trim().slice(0, 200) : '' }
   var appoggioScelto = ''                           // monopodalico-v1 · '' due piedi | 'mono' destro poi sinistro
   var piedeOra = null                               // monopodalico-v1 · il piede della prova in corso: 'dx' | 'sx' | null
   var prove = []
@@ -825,7 +842,7 @@
     if (pf) pf.textContent = evento === 'taratura' ? 'taratura del verso · 15 secondi'
                                                    : evento + ' · occhi ' + occhi +
                                                      (appoggioScelto === 'mono' ? ' · UN PIEDE dx→sx' : '') +
-                                                     (momento === 'pre' ? ' · PRIMA dei 3R' : momento === 'post' ? ' · DOPO i 3R' : '')
+                                                     (momento === 'pre' ? ' · PRIMA' : momento === 'post' ? ' · DOPO' : '') + (mnNota() ? ' · ' + mnNota() : '')
     // monopodalico-v1 · come si appoggia, solo quando serve
     var cm = $('come-mono'); if (cm) cm.style.display = (appoggioScelto === 'mono' && eTest(evento)) ? '' : 'none'
     var ba = document.getElementById('blocco-appoggio'); if (ba) ba.style.opacity = eTest(evento) ? '1' : '0.45'
@@ -1550,7 +1567,7 @@
     var prova = {
       quando: new Date().toISOString(),
       evento: evento, occhi: eTest(evento) ? occhi : '-',
-      configurazione: conf, piedi: piedi, momento: momento,
+      configurazione: conf, piedi: piedi, momento: momento, momento_nota: mnNota(),
       appoggio: piedeOra || null,          // monopodalico-v1 · 'dx' | 'sx' | null = due piedi
       nota: $('nota').value || '', nota_dopo: '',
       durata_s: durata, attesa_s: Number($('attesa').value) || 5,
@@ -1999,6 +2016,7 @@
           (p.occhi && p.occhi !== '-' ? ', occhi ' + p.occhi : '') + ', ' + p.piedi +
           '  [' + new Date(p.quando).toLocaleString('it-IT') + ']' +
           (p.nota ? ' (' + p.nota + ')' : '') +
+          (p.momento ? ' · ' + (p.momento === 'pre' ? 'PRIMA' : 'DOPO') + (p.momento_nota ? ' «' + p.momento_nota + '»' : '') : '') +
           (p.nota_dopo ? ' — nota: ' + p.nota_dopo : ''),
         '  ' + p.durata_s + 's nominali, ' + p.durata_reale_s + 's reali, ' +
           p.campioni + ' campioni, ' + p.hz_reale + ' Hz reali, ritardo avvio ' + p.ritardo_avvio_s + 's',
@@ -2325,11 +2343,22 @@
       // cosi' una prova «non indicata» si salva identica a prima, anche
       // senza la migration 048.
       if (p.momento === 'pre' || p.momento === 'post') riga.momento = p.momento
+      // momento-nota-v1 · la descrizione, solo se c'è (colonna della migration 057)
+      if (riga.momento && p.momento_nota) riga.momento_nota = p.momento_nota
       // monopodalico-v1 · come il momento: nella riga SOLO se è una prova su un piede
       if (p.appoggio === 'dx' || p.appoggio === 'sx') riga.appoggio = p.appoggio
       var r = await SB.from('oscillazione_test').insert(riga).select('id').maybeSingle()
       // Migration 048 non lanciata: la prova NON si perde. Si risalva senza
       // il momento e lo si dice, per nome di file.
+      // momento-nota-v1 · 057 non lanciata: si risalva senza la descrizione (il
+      // PRIMA/DOPO resta) e lo si dice. Va guardata PRIMA della 048, perché
+      // «momento_nota» contiene la parola «momento».
+      var manca057 = false
+      if (r.error && riga.momento_nota && /momento_nota/.test(String(r.error.message || r.error.details || ''))){
+        delete riga.momento_nota; manca057 = true
+        r = await SB.from('oscillazione_test').insert(riga).select('id').maybeSingle()
+      }
+      if (!r.error && riga.momento) mnRicorda(riga.momento, p.momento_nota)
       var manca048 = false
       if (r.error && riga.momento && mancaColonnaMomento(r.error)){
         delete riga.momento; manca048 = true
@@ -2342,8 +2371,9 @@
         el.textContent = '✓ Salvata ' + ((PID && pazNome) ? 'nella cartella di ' + pazNome : 'come prova libera') +
           (sessione.id ? ', nella sessione' : '') +
           (sessione.manca047 ? ' (⚠️ senza sessione: manca la migration 047)' : '') +
-          (manca048 ? ' (⚠️ senza «prima/dopo i 3 Respiri»: manca la migration 048_oscillazione_momento.sql)' :
-           (riga.momento ? (riga.momento === 'pre' ? ' · prima dei 3 Respiri' : ' · dopo i 3 Respiri') : ''))
+          (manca048 ? ' (⚠️ senza «PRIMA/DOPO»: manca la migration 048_oscillazione_momento.sql)' :
+           (riga.momento ? (riga.momento === 'pre' ? ' · PRIMA' : ' · DOPO') + (riga.momento_nota ? ' · «' + riga.momento_nota + '»' : '') : '')) +
+          (manca057 ? ' (⚠️ senza la descrizione: manca la migration 057_momento_nota.sql)' : '')
       }
       disegnaSessione()
     } catch(e){
@@ -2521,6 +2551,49 @@
       aggiornaSpiega()
     })
   })
+  // momento-nota-v1 · la descrizione del PRIMA e del DOPO: una per parte. Le
+  // ultime usate diventano tasti (un tocco invece di riscrivere): si leggono dai
+  // TUOI test già salvati nel database, MAI dal dispositivo — sul telefono non
+  // resta scritto niente che riguardi un paziente.
+  ;(function(){
+    try {
+      var usate = { pre: [], post: [] }, chiesto = false
+      var leggi = function(){ return usate }
+      var metti = function(m, t, inTesta){
+        t = String(t || '').trim(); if ((m !== 'pre' && m !== 'post') || !t) return
+        var i = usate[m].indexOf(t)
+        if (i >= 0){ if (!inTesta) return; usate[m].splice(i, 1) }
+        if (inTesta) usate[m].unshift(t); else usate[m].push(t)
+        usate[m] = usate[m].slice(0, 6)
+      }
+      var dalDatabase = async function(){
+        if (chiesto || !SB || !haiSessione) return
+        chiesto = true
+        try {
+          var r = await SB.from('oscillazione_test').select('momento,momento_nota').order('quando', { ascending: false }).limit(80)
+          if (r && !r.error && r.data && r.data.forEach){ r.data.forEach(function(x){ metti(x.momento, x.momento_nota, false) }); disegna() }
+        } catch(e){}
+      }
+      var disegna = function(){
+        var d = $('mn-dett'); if (!d) return
+        if (momento !== 'pre' && momento !== 'post'){ d.style.display = 'none'; return }
+        d.style.display = ''
+        $('mn-lbl').textContent = momento === 'pre' ? 'PRIMA · com’è adesso (facoltativo)' : 'DOPO · che cosa hai fatto'
+        $('momento-nota').placeholder = momento === 'pre' ? 'es. neutro, mai provato nessun cuscino' : 'es. schema 2, 3 Respiri, esercizio…'
+        $('momento-nota').value = mnTesto[momento] || ''
+        dalDatabase()
+        var rec = leggi()[momento].slice()
+        if (momento === 'post' && rec.indexOf('3 Respiri') < 0) rec.push('3 Respiri')
+        $('mn-recenti').innerHTML = rec.slice(0, 6).map(function(t){ return '<button type="button" class="chip">' + escapeHtml(t) + '</button>' }).join('')
+        Array.prototype.forEach.call($('mn-recenti').querySelectorAll('.chip'), function(b){
+          b.addEventListener('click', function(){ mnTesto[momento] = b.textContent; $('momento-nota').value = b.textContent; aggiornaSpiega() })
+        })
+      }
+      mnRicorda = function(m, t){ try { metti(m, t, true); disegna() } catch(e){} }
+      Array.prototype.forEach.call(document.querySelectorAll('#momento .chip'), function(c){ c.addEventListener('click', disegna) })
+      $('momento-nota').addEventListener('input', function(){ if (momento) mnTesto[momento] = this.value; aggiornaSpiega() })
+    } catch(e){}
+  })()
   avviaSupabase()                                   // oscillazione-live-v1
   leggiTaratura()                                   // taratura-unica-v1
   $('appoggio').innerHTML = disegnoAppoggio()

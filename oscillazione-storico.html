@@ -117,6 +117,10 @@
   .pv-due .pv-l div{flex:1;height:22px;background:#f1f1f1;border-radius:6px;overflow:hidden}
   .pv-due .pv-l i{display:block;height:100%;border-radius:6px}
   .pv-due .pv-l em{font-style:normal;min-width:70px;text-align:right;font-variant-numeric:tabular-nums}
+  .pv-gruppi{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .pv-g{border:1.5px solid #ccc;background:#fff;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
+  .pv-g.on{background:#FFD008;border-color:#FFD008}
+  .pv-info .etich{max-width:100%;white-space:normal}
   details.pv-dett{margin-top:14px}
   details.pv-dett summary{cursor:pointer;font-weight:700;font-size:14px;padding:6px 0}
   svg.andamento{width:100%;height:auto;display:block}
@@ -156,6 +160,7 @@
       (anche più di una per parte): sotto compare che cosa è cambiato.</div>
     <label for="pv-sess">Sessione</label>
     <select id="pv-sess"></select>
+    <div id="pv-auto"></div>
     <div class="lista" id="pv-lista" style="margin-top:10px;max-height:460px"></div>
     <button class="btn vuoto" id="pv-azzera">↺ Togli tutti i segni</button>
     <div id="pv-esito"></div>
@@ -202,7 +207,7 @@
 <div id="stampa-qui"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/oscillazione.js?v=monopodalico-v1"></script>
+<script src="js/oscillazione.js?v=momento-nota-v1"></script>
 <script>
 ;(function(){
   'use strict'
@@ -255,7 +260,10 @@
     }
     // monopodalico-v1 · anche l'appoggio (053): le prove su un piede sono un'altra
     // condizione. Se la colonna non c'è, nessuna prova su un piede può esistere.
-    var r = await q(CAMPI + ',appoggio,sessione_id'), con047 = true
+    // momento-nota-v1 · anche PRIMA/DOPO e la descrizione (048, 057), se ci sono
+    var r = await q(CAMPI + ',momento,momento_nota,appoggio,sessione_id'), con047 = true
+    if (r.error && /momento_nota/.test(r.error.message || '')) r = await q(CAMPI + ',momento,appoggio,sessione_id')
+    if (r.error && /momento/.test(r.error.message || '')) r = await q(CAMPI + ',appoggio,sessione_id')
     if (r.error && /appoggio/.test(r.error.message || '')) r = await q(CAMPI + ',sessione_id')
     if (r.error && /sessione_id/.test(r.error.message || '')){ con047 = false; r = await q(CAMPI) }
     if (r.error){
@@ -266,6 +274,13 @@
       return
     }
     var test = (r.data || []).filter(function(t){ return t.velocita != null })
+    // momento-nota-v1 · qui il momento NON entra nella condizione (il confronto
+    // fra sessioni resta com'era): si tiene da parte per «Prova contro prova».
+    test.forEach(function(t){
+      t.pvMomento = (t.momento === 'pre' || t.momento === 'post') ? t.momento : null
+      t.pvNota = t.pvMomento ? String(t.momento_nota || '').trim() : ''
+      delete t.momento; delete t.momento_nota
+    })
 
     var righeSess = []
     if (con047){
@@ -494,23 +509,56 @@
   // confrontano con lo STESSO calcolo delle sessioni (PO.confrontoSessioni):
   // stesse soglie, stessi numeri. Legge e basta. Se qualcosa salta, il
   // riquadro sparisce e il resto della pagina resta in piedi.
-  var pvSess = null, pvPre = {}, pvPost = {}, pvGiro = 0
+  var pvSess = null, pvPre = {}, pvPost = {}, pvGiro = 0, pvDopo = null
+  // momento-nota-v1 · le prove già segnate durante il test si mettono a posto da sole:
+  // PRIMA = tutte le «prima»; DOPO = quelle della descrizione scelta (di partenza l'ultima fatta).
+  function pvDescrizioni(){
+    var o = []
+    pvSess.prove.slice().sort(function(x, y){ return new Date(x.quando) - new Date(y.quando) }).forEach(function(t){
+      if (t.pvMomento === 'post'){ var k = t.pvNota || ''; var i = o.indexOf(k); if (i >= 0) o.splice(i, 1); o.push(k) }
+    })
+    return o
+  }
+  function pvSegnaDaSole(quale){
+    pvPre = {}; pvPost = {}
+    var d = pvDescrizioni()
+    pvDopo = (quale != null && d.indexOf(quale) >= 0) ? quale : (d.length ? d[d.length - 1] : null)
+    pvSess.prove.forEach(function(t){
+      if (t.pvMomento === 'pre') pvPre[t.id] = true
+      else if (t.pvMomento === 'post' && (t.pvNota || '') === pvDopo) pvPost[t.id] = true
+    })
+  }
+  function pvAuto(){
+    var d = pvDescrizioni(), nPre = pvSess.prove.filter(function(t){ return t.pvMomento === 'pre' }).length
+    if (!d.length && !nPre){ $('pv-auto').innerHTML = ''; return }
+    var h = '<div class="nota">Le prove segnate durante il test sono già a posto.' +
+      (d.length > 1 ? ' Confronta il PRIMA con:' : '') + '</div>'
+    if (d.length > 1){
+      h += '<div class="pv-gruppi">' + d.map(function(k, i){
+        return '<button type="button" class="pv-g' + (k === pvDopo ? ' on' : '') + '" data-i="' + i + '">DOPO · ' + esc(k || 'senza descrizione') + '</button>'
+      }).join('') + '</div>'
+    }
+    $('pv-auto').innerHTML = h
+    Array.prototype.forEach.call($('pv-auto').querySelectorAll('.pv-g'), function(b){
+      b.onclick = function(){ try { pvSegnaDaSole(d[Number(b.getAttribute('data-i'))]); pvAuto(); pvLista(); pvConfronta() } catch(e){ pvVia() } }
+    })
+  }
   function oraS(q){ return new Date(q).toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) }
   function pvVia(){ try { $('c-prove').style.display = 'none' } catch(e){} }
   function pvPrepara(dalla){
     try {
       var cand = diQuesto.filter(function(s){ return s.prove.length >= 2 })
       if (!cand.length){ pvVia(); return }
-      if (dalla && cand.indexOf(dalla) >= 0 && dalla !== pvSess){ pvSess = dalla; pvPre = {}; pvPost = {} }
-      if (!pvSess || cand.indexOf(pvSess) < 0){ pvSess = cand[cand.length - 1]; pvPre = {}; pvPost = {} }
+      if (dalla && cand.indexOf(dalla) >= 0 && dalla !== pvSess){ pvSess = dalla; pvSegnaDaSole() }
+      if (!pvSess || cand.indexOf(pvSess) < 0){ pvSess = cand[cand.length - 1]; pvSegnaDaSole() }
       $('c-prove').style.display = ''
       $('pv-sess').innerHTML = cand.slice().reverse().map(function(s){
         return '<option value="' + diQuesto.indexOf(s) + '">' + data(s.quando) + ' ' + ora(s.quando) + ' · ' + s.prove.length + ' prove</option>'
       }).join('')
       $('pv-sess').value = String(diQuesto.indexOf(pvSess))
-      $('pv-sess').onchange = function(){ try { pvSess = diQuesto[Number(this.value)]; pvPre = {}; pvPost = {}; pvLista(); pvConfronta() } catch(e){ pvVia() } }
+      $('pv-sess').onchange = function(){ try { pvSess = diQuesto[Number(this.value)]; pvSegnaDaSole(); pvAuto(); pvLista(); pvConfronta() } catch(e){ pvVia() } }
       $('pv-azzera').onclick = function(){ try { pvPre = {}; pvPost = {}; pvLista(); pvConfronta() } catch(e){ pvVia() } }
-      pvLista(); pvConfronta()
+      pvAuto(); pvLista(); pvConfronta()
     } catch(e){ pvVia() }
   }
   function pvLista(){
@@ -522,6 +570,8 @@
       var cond = PO.nomeCond(PO.condizioneDi(t)).replace('occhi aperti', 'OA').replace('occhi chiusi', 'OC')
       var w = Math.max(2, Math.round(100 * (Number(t.velocita) || 0) / mx))
       return '<div class="pv-riga' + cl + '" data-id="' + esc(t.id) + '"><div class="pv-info"><b>' + oraS(t.quando) + '</b> · prova ' + (i + 1) +
+        (t.pvMomento ? '<span class="etich ' + (t.pvMomento === 'pre' ? 'pre' : 'post') + '">' + (t.pvMomento === 'pre' ? 'PRIMA' : 'DOPO') +
+          (t.pvNota ? ' · ' + esc(t.pvNota) : '') + '</span>' : '') +
         '<br><span class="cnd">' + esc(cond) + (t.nota ? ' · «' + esc(t.nota) + '»' : '') + '</span>' +
         '<div class="pv-barra"><i style="width:' + w + '%"></i></div></div>' +
         '<div class="pv-vel">' + PO.numIt(Number(t.velocita), 1) + ' °/s</div>' +
@@ -572,7 +622,8 @@
       if (mio !== pvGiro) return
       var e = PO.confrontoSessioni(a, b)
       var ore = function(l){ return l.slice().sort(function(x, y){ return new Date(x.quando) - new Date(y.quando) }).map(function(t){ return oraS(t.quando) }).join(', ') }
-      var h = '<div class="nota">PRIMA: <b>' + ore(a) + '</b> · DOPO: <b>' + ore(b) + '</b></div>'
+      var cosa = function(l){ var o = []; l.forEach(function(t){ if (t.pvNota && o.indexOf(t.pvNota) < 0) o.push(t.pvNota) }); return o.length ? ' — «' + o.map(esc).join('», «') + '»' : '' }
+      var h = '<div class="nota">PRIMA: <b>' + ore(a) + '</b>' + cosa(a) + '<br>DOPO: <b>' + ore(b) + '</b>' + cosa(b) + '</div>'
       var ultimaPre = Math.max.apply(null, a.map(function(t){ return +new Date(t.quando) }))
       var primaPost = Math.min.apply(null, b.map(function(t){ return +new Date(t.quando) }))
       if (ultimaPre > primaPost) h += '<div class="warn">⚠️ Una prova segnata PRIMA è stata fatta dopo una segnata DOPO: controlla i segni.</div>'
