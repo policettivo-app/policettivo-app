@@ -88,6 +88,37 @@
   .etich.pre{background:#2864dc;color:#fff}
   .etich.post{background:#FFD008;color:#111}
   .vuoto-msg{padding:18px;text-align:center;color:#777;font-size:14px}
+  /* prove-confronto-v1 · prova contro prova, dentro una sessione */
+  .pv-riga{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f3f3f3;font-size:13px}
+  .pv-riga:last-child{border-bottom:0}
+  .pv-riga.pre{background:#eaf1ff}
+  .pv-riga.post{background:#fff6d1}
+  .pv-info{flex:1;min-width:0}
+  .pv-info b{font-size:15px;font-variant-numeric:tabular-nums}
+  .pv-barra{height:8px;border-radius:4px;background:#eee;margin-top:6px;overflow:hidden}
+  .pv-barra i{display:block;height:100%;background:#999;border-radius:4px}
+  .pv-riga.pre .pv-barra i{background:#2864dc}
+  .pv-riga.post .pv-barra i{background:#e0b400}
+  .pv-vel{white-space:nowrap;font-weight:800;font-variant-numeric:tabular-nums;font-size:14px;min-width:64px;text-align:right}
+  .pv-btn{display:flex;flex-direction:column;gap:5px}
+  .pv-b{border:1.5px solid #ccc;background:#fff;color:#555;border-radius:9px;padding:7px 10px;font-size:11px;font-weight:800;
+        font-family:inherit;cursor:pointer;min-width:64px}
+  .pv-b.pre.on{background:#2864dc;border-color:#2864dc;color:#fff}
+  .pv-b.post.on{background:#FFD008;border-color:#FFD008;color:#111}
+  .pv-esito{border-radius:16px;padding:16px;margin-top:14px;color:#fff}
+  .pv-esito .pv-t{font-size:20px;font-weight:900;line-height:1.25}
+  .pv-esito .pv-s{font-size:13px;margin-top:6px;opacity:.95}
+  .pv-esito.meglio{background:#0a7d33}
+  .pv-esito.peggio{background:#c0392b}
+  .pv-esito.uguale{background:#6b6b6b}
+  .pv-due{margin-top:10px}
+  .pv-due .pv-l{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;font-weight:700}
+  .pv-due .pv-l span:first-child{width:54px}
+  .pv-due .pv-l div{flex:1;height:22px;background:#f1f1f1;border-radius:6px;overflow:hidden}
+  .pv-due .pv-l i{display:block;height:100%;border-radius:6px}
+  .pv-due .pv-l em{font-style:normal;min-width:70px;text-align:right;font-variant-numeric:tabular-nums}
+  details.pv-dett{margin-top:14px}
+  details.pv-dett summary{cursor:pointer;font-weight:700;font-size:14px;padding:6px 0}
   svg.andamento{width:100%;height:auto;display:block}
   #stampa-qui{display:none}
   @media print{
@@ -116,6 +147,20 @@
       il secondo come <b>DOPO</b>. Di partenza: la prima e l’ultima.</div>
     <div class="lista" id="lista" style="margin-top:8px"></div>
     <a class="btn giallo" id="btn-nuovo" href="prova-oscillazione.html">🎯 Fai un test nuovo</a>
+  </div>
+
+  <!-- prove-confronto-v1 · prova contro prova dentro una sessione. Legge e basta. -->
+  <div class="card" id="c-prove" style="display:none">
+    <h2>Prova contro prova</h2>
+    <div class="nota" style="margin-top:0">Segna le prove fatte <b>PRIMA</b> e quelle fatte <b>DOPO</b>
+      (anche più di una per parte): sotto compare che cosa è cambiato.</div>
+    <label for="pv-sess">Sessione</label>
+    <select id="pv-sess"></select>
+    <div class="lista" id="pv-lista" style="margin-top:10px;max-height:460px"></div>
+    <button class="btn vuoto" id="pv-azzera">↺ Togli tutti i segni</button>
+    <div id="pv-esito"></div>
+    <div id="pv-gomitoli"></div>
+    <details class="pv-dett" id="pv-dett" style="display:none"><summary>Tutti i numeri del confronto</summary><div id="pv-html"></div></details>
   </div>
 
   <div class="card" id="c-confronto" style="display:none">
@@ -325,6 +370,7 @@
     preparaSelect()
     preparaAndamento()
     confronta()
+    pvPrepara(dalla)   // prove-confronto-v1
   }
 
   function riassuntoCondizioni(s){
@@ -420,7 +466,8 @@
     var s = lista.slice().sort(function(x, y){ return x.velocita - y.velocita })
     return s[Math.floor((s.length - 1) / 2)]
   }
-  function disegnaCoppia(c, a, b, i){
+  function disegnaCoppia(c, a, b, i, dove, pref){
+    dove = dove || $('gomitoli'); pref = pref || 'g'   // prove-confronto-v1 · stessa funzione, altro riquadro
     var ga = a.filter(function(t){ return PO.condizioneDi(t) === c.condizione })
     var gb = b.filter(function(t){ return PO.condizioneDi(t) === c.condizione })
     var ta = mediana(ga), tb = mediana(gb)
@@ -430,16 +477,121 @@
     for (k = 0; k < sb.xs.length; k++) sc = Math.max(sc, Math.abs(sb.xs[k]), Math.abs(sb.ys[k]))
     var box = document.createElement('div')
     box.innerHTML = '<div class="domanda">' + esc(PO.nomeCond(c.condizione)) + ' · i gomitoli</div>' +
-      '<div class="tele"><div><canvas id="g-pre-' + i + '" width="500" height="500"></canvas>PRIMA</div>' +
-      '<div><canvas id="g-post-' + i + '" width="500" height="500"></canvas>DOPO</div></div>' +
+      '<div class="tele"><div><canvas id="' + pref + '-pre-' + i + '" width="500" height="500"></canvas>PRIMA</div>' +
+      '<div><canvas id="' + pref + '-post-' + i + '" width="500" height="500"></canvas>DOPO</div></div>' +
       '<div class="nota">Per parte, la prova <b>mediana</b> per velocità. Stessa scala.</div>'
-    $('gomitoli').appendChild(box)
+    dove.appendChild(box)
     var opz = function(t){
       var ca = Number(t.carico_avanti), cd = Number(t.carico_destra)
       return { parole: true, cuneo: true, carico: (t.carico_avanti != null && t.carico_destra != null) ? { x: cd, y: ca } : null }
     }
-    PO.disegna($('g-pre-' + i), sa.xs, sa.ys, sc, PO.ellisseDi(sa.xs, sa.ys), opz(ta))
-    PO.disegna($('g-post-' + i), sb.xs, sb.ys, sc, PO.ellisseDi(sb.xs, sb.ys), opz(tb))
+    PO.disegna($(pref + '-pre-' + i), sa.xs, sa.ys, sc, PO.ellisseDi(sa.xs, sa.ys), opz(ta))
+    PO.disegna($(pref + '-post-' + i), sb.xs, sb.ys, sc, PO.ellisseDi(sb.xs, sb.ys), opz(tb))
+  }
+
+  // ═══ prove-confronto-v1 · PROVA CONTRO PROVA ══════════════════════
+  // Dentro una sessione: si segnano le prove PRIMA e le prove DOPO e si
+  // confrontano con lo STESSO calcolo delle sessioni (PO.confrontoSessioni):
+  // stesse soglie, stessi numeri. Legge e basta. Se qualcosa salta, il
+  // riquadro sparisce e il resto della pagina resta in piedi.
+  var pvSess = null, pvPre = {}, pvPost = {}, pvGiro = 0
+  function oraS(q){ return new Date(q).toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) }
+  function pvVia(){ try { $('c-prove').style.display = 'none' } catch(e){} }
+  function pvPrepara(dalla){
+    try {
+      var cand = diQuesto.filter(function(s){ return s.prove.length >= 2 })
+      if (!cand.length){ pvVia(); return }
+      if (dalla && cand.indexOf(dalla) >= 0 && dalla !== pvSess){ pvSess = dalla; pvPre = {}; pvPost = {} }
+      if (!pvSess || cand.indexOf(pvSess) < 0){ pvSess = cand[cand.length - 1]; pvPre = {}; pvPost = {} }
+      $('c-prove').style.display = ''
+      $('pv-sess').innerHTML = cand.slice().reverse().map(function(s){
+        return '<option value="' + diQuesto.indexOf(s) + '">' + data(s.quando) + ' ' + ora(s.quando) + ' · ' + s.prove.length + ' prove</option>'
+      }).join('')
+      $('pv-sess').value = String(diQuesto.indexOf(pvSess))
+      $('pv-sess').onchange = function(){ try { pvSess = diQuesto[Number(this.value)]; pvPre = {}; pvPost = {}; pvLista(); pvConfronta() } catch(e){ pvVia() } }
+      $('pv-azzera').onclick = function(){ try { pvPre = {}; pvPost = {}; pvLista(); pvConfronta() } catch(e){ pvVia() } }
+      pvLista(); pvConfronta()
+    } catch(e){ pvVia() }
+  }
+  function pvLista(){
+    var prove = pvSess.prove.slice().sort(function(x, y){ return new Date(x.quando) - new Date(y.quando) })
+    var mx = 0.1
+    prove.forEach(function(t){ mx = Math.max(mx, Number(t.velocita) || 0) })
+    $('pv-lista').innerHTML = prove.map(function(t, i){
+      var cl = pvPre[t.id] ? ' pre' : (pvPost[t.id] ? ' post' : '')
+      var cond = PO.nomeCond(PO.condizioneDi(t)).replace('occhi aperti', 'OA').replace('occhi chiusi', 'OC')
+      var w = Math.max(2, Math.round(100 * (Number(t.velocita) || 0) / mx))
+      return '<div class="pv-riga' + cl + '" data-id="' + esc(t.id) + '"><div class="pv-info"><b>' + oraS(t.quando) + '</b> · prova ' + (i + 1) +
+        '<br><span class="cnd">' + esc(cond) + (t.nota ? ' · «' + esc(t.nota) + '»' : '') + '</span>' +
+        '<div class="pv-barra"><i style="width:' + w + '%"></i></div></div>' +
+        '<div class="pv-vel">' + PO.numIt(Number(t.velocita), 1) + ' °/s</div>' +
+        '<div class="pv-btn"><button type="button" class="pv-b pre' + (pvPre[t.id] ? ' on' : '') + '" data-l="pre">PRIMA</button>' +
+        '<button type="button" class="pv-b post' + (pvPost[t.id] ? ' on' : '') + '" data-l="post">DOPO</button></div></div>'
+    }).join('')
+    Array.prototype.forEach.call($('pv-lista').querySelectorAll('.pv-b'), function(b){
+      b.onclick = function(){
+        try {
+          var id = b.parentNode.parentNode.getAttribute('data-id'), l = b.getAttribute('data-l')
+          var mio = l === 'pre' ? pvPre : pvPost, altro = l === 'pre' ? pvPost : pvPre
+          if (mio[id]) delete mio[id]; else { mio[id] = true; delete altro[id] }
+          pvLista(); pvConfronta()
+        } catch(e){ pvVia() }
+      }
+    })
+  }
+  function pvBanner(c){
+    var cls = c.verdetto === 'PIÙ STABILE' ? 'meglio' : (c.verdetto === 'MENO STABILE' ? 'peggio' : 'uguale')
+    var tit = cls === 'meglio' ? '🟢 DOPO la tavola si è mossa MENO'
+            : cls === 'peggio' ? '🔴 DOPO la tavola si è mossa DI PIÙ'
+            : '⚪ Non si distingue dal PRIMA'
+    var d = (c.dv >= 0 ? '+' : '−') + Math.round(Math.abs(c.dv)) + '%'
+    var sotto = esc(PO.nomeCond(c.condizione)) + ' · velocità ' + d +
+      (cls === 'uguale' ? ' · dentro la variabilità della misura (±' + c.bandaVel + '%)'
+                        : ' · oltre la variabilità della misura (±' + c.bandaVel + '%)')
+    var mx = Math.max(c.a.velocita, c.b.velocita, 0.1)
+    var barra = function(n, v, col){
+      return '<div class="pv-l"><span>' + n + '</span><div><i style="width:' + Math.max(2, Math.round(100 * v / mx)) +
+        '%;background:' + col + '"></i></div><em>' + PO.numIt(v, 1) + ' °/s</em></div>'
+    }
+    return '<div class="pv-esito ' + cls + '"><div class="pv-t">' + tit + '</div><div class="pv-s">' + sotto + '</div></div>' +
+      '<div class="pv-due">' + barra('PRIMA', c.a.velocita, '#2864dc') + barra('DOPO', c.b.velocita, '#e0b400') + '</div>' +
+      '<div class="nota">' + (c.a.n === 1 ? '1 prova' : c.a.n + ' prove') + ' prima · ' + (c.b.n === 1 ? '1 prova' : c.b.n + ' prove') + ' dopo' +
+      (c.n < 3 ? ' · con meno di tre prove per parte la soglia è larga: una differenza piccola non si distingue.' : '') + '</div>'
+  }
+  async function pvConfronta(){
+    try {
+      var mio = ++pvGiro
+      $('pv-gomitoli').innerHTML = ''; $('pv-dett').style.display = 'none'; $('pv-html').innerHTML = ''
+      var a0 = pvSess.prove.filter(function(t){ return pvPre[t.id] }), b0 = pvSess.prove.filter(function(t){ return pvPost[t.id] })
+      if (!a0.length || !b0.length){
+        $('pv-esito').innerHTML = '<div class="nota">Segna almeno una prova <b>PRIMA</b> e una <b>DOPO</b>. ' +
+          'La barra sotto ogni prova è la sua velocità: più è corta, meno la tavola si è mossa.</div>'
+        return
+      }
+      var a = await conTracce(a0), b = await conTracce(b0)
+      if (mio !== pvGiro) return
+      var e = PO.confrontoSessioni(a, b)
+      var ore = function(l){ return l.slice().sort(function(x, y){ return new Date(x.quando) - new Date(y.quando) }).map(function(t){ return oraS(t.quando) }).join(', ') }
+      var h = '<div class="nota">PRIMA: <b>' + ore(a) + '</b> · DOPO: <b>' + ore(b) + '</b></div>'
+      var ultimaPre = Math.max.apply(null, a.map(function(t){ return +new Date(t.quando) }))
+      var primaPost = Math.min.apply(null, b.map(function(t){ return +new Date(t.quando) }))
+      if (ultimaPre > primaPost) h += '<div class="warn">⚠️ Una prova segnata PRIMA è stata fatta dopo una segnata DOPO: controlla i segni.</div>'
+      if (!e.condizioni.length){
+        h += '<div class="warn">⚠️ Le prove segnate non hanno <b>la stessa condizione</b> (stesso movimento, stessi occhi, ' +
+          'stesso appoggio): confrontarle mescolerebbe situazioni diverse. Segna prove dello stesso tipo.</div>'
+        $('pv-esito').innerHTML = h; return
+      }
+      e.condizioni.forEach(function(c){ h += pvBanner(c) })
+      if (e.soloA.length || e.soloB.length){
+        h += '<div class="nota">Non confrontate perché segnate da una parte sola: ' +
+          e.soloA.concat(e.soloB).map(function(k){ return esc(PO.nomeCond(k)) }).join(' · ') + '.</div>'
+      }
+      h += '<div class="nota">Questi sono i numeri. Che cosa li ha fatti cambiare lo valuti tu.</div>'
+      $('pv-esito').innerHTML = h
+      e.condizioni.forEach(function(c, i){ disegnaCoppia(c, a, b, i, $('pv-gomitoli'), 'pv') })
+      $('pv-html').innerHTML = e.html
+      $('pv-dett').style.display = ''
+    } catch(err){ pvVia() }
   }
 
   async function unaSola(s){

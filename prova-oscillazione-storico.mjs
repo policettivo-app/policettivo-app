@@ -1,4 +1,4 @@
-/* prova-oscillazione-storico.mjs — oscillazione-app-v1 · test-sessioni-v1
+/* prova-oscillazione-storico.mjs — oscillazione-app-v1 · test-sessioni-v1 · prove-confronto-v1
  *
  * Controlla, con un Supabase finto dentro Chromium:
  *   - oscillazione-storico.html: sessioni, confronto sessione contro sessione,
@@ -358,6 +358,84 @@ sez('⭐ il test si apre dall’applicazione')
   check('   e nelle azioni rapide', /polChiudiHub\(\);window\.location\.href='test\.html\?pid='\+patientId/.test(paz))
   check('l’Autotest si raggiunge ancora (la funzione c’è)', /function vaiAutotestPro/.test(paz))
   check('le visite di prima ci sono ancora', /visita\.html\?pid='\+patientId/.test(paz) && /valutazione-posturale\.html\?pid='\+patientId/.test(paz))
+}
+
+sez('⭐ prove-confronto-v1 · PROVA contro PROVA dentro una sessione')
+{
+  const SQ = 'dddddddd-0000-0000-0000-000000000001'
+  const G = [
+    riga('q1', P1, SQ, '2026-10-03T08:18:05Z', 5.0), riga('q2', P1, SQ, '2026-10-03T08:19:10Z', 5.2),
+    riga('q3', P1, SQ, '2026-10-03T08:20:15Z', 4.8), riga('q4', P1, SQ, '2026-10-03T08:31:00Z', 2.0, { nota: 'dopo <b>tecnica</b>' }),
+    riga('q5', P1, SQ, '2026-10-03T08:32:00Z', 2.1), riga('q6', P1, SQ, '2026-10-03T08:33:00Z', 1.9),
+    riga('q7', P1, SQ, '2026-10-03T08:34:00Z', 5.1), riga('q8', P1, SQ, '2026-10-03T08:35:00Z', 6.0, { evento: 'rollio' })
+  ]
+  const finto = { sessione: true, dati: G, sess: [{ id: SQ, patient_id: P1, quando: '2026-10-03T08:17:00Z', nome: null, eta: null, peso_kg: null }] }
+  const { page, ctx, errori } = await apri(browser, ST, finto, '?pid=' + P1)
+  const segna = async (n, l) => { await page.click('#pv-lista .pv-riga:nth-child(' + n + ') .pv-b.' + l); await page.waitForTimeout(250) }
+  const esito = () => page.evaluate(() => document.getElementById('pv-esito').innerText)
+  check('⭐ con UNA sessione sola il riquadro c’è lo stesso', await page.isVisible('#c-prove'))
+  check('⭐ elenca le 8 prove, in ordine di orario, con ore:minuti:secondi', await page.evaluate(() => {
+    const r = [...document.querySelectorAll('#pv-lista .pv-riga b')].map(b => b.textContent)
+    return r.length === 8 && r.every(t => /^\d\d:\d\d:\d\d$/.test(t)) && r.slice().sort().join() === r.join() }))
+  check('⭐ ogni prova ha la velocità e la barra', await page.evaluate(() =>
+    document.querySelectorAll('#pv-lista .pv-barra i').length === 8 && /5,0 °\/s/.test(document.querySelector('#pv-lista .pv-vel').textContent)))
+  check('⭐ la nota scritta nella prova si legge e non diventa HTML', await page.evaluate(() =>
+    /dopo <b>tecnica<\/b>/.test(document.getElementById('pv-lista').innerText) && !document.querySelector('#pv-lista .cnd b')))
+  check('senza segni: dice cosa fare', /Segna almeno una prova/.test(await esito()))
+  const tr0 = await page.evaluate(() => window.__db.tracce.length)
+
+  await segna(1, 'pre'); await segna(4, 'post')
+  let t = await esito()
+  check('⭐⭐ una contro una, 5,0 → 2,0: «si è mossa MENO», verde', /si è mossa MENO/.test(t) && await page.isVisible('#pv-esito .pv-esito.meglio'), t)
+  check('⭐ dice la percentuale e la variabilità', /−60%/.test(t) && /oltre la variabilità della misura \(±\d+%\)/.test(t), t)
+  check('⭐ dice gli orari di PRIMA e DOPO', await page.evaluate(() => { const b = document.querySelectorAll('#pv-esito .nota b'); return /^\d\d:\d\d:\d\d$/.test(b[0].textContent) && /^\d\d:\d\d:\d\d$/.test(b[1].textContent) }))
+  check('⭐ avvisa che con meno di tre prove la soglia è larga', /meno di tre prove per parte/.test(t))
+  check('⭐ due barre PRIMA/DOPO con i valori', await page.evaluate(() => { const e = [...document.querySelectorAll('#pv-esito .pv-l em')].map(x => x.textContent); return e.length === 2 && /5,0/.test(e[0]) && /2,0/.test(e[1]) }))
+  check('⭐ i due gomitoli sono disegnati', (await inchiostro(page, '#pv-pre-0')) > 300 && (await inchiostro(page, '#pv-post-0')) > 300)
+  check('⭐ non richiede tracce in più del necessario (al massimo le due segnate)', (await page.evaluate(() => window.__db.tracce.length)) - tr0 <= 2)
+  check('⭐ «tutti i numeri» c’è, con le quattro domande', await page.evaluate(() => document.getElementById('pv-dett').style.display !== 'none' && /È più stabile\?/.test(document.getElementById('pv-html').textContent)))
+  check('le righe segnate sono colorate', await page.evaluate(() => document.querySelector('#pv-lista .pv-riga:nth-child(1)').classList.contains('pre') && document.querySelector('#pv-lista .pv-riga:nth-child(4)').classList.contains('post')))
+
+  await segna(2, 'pre'); await segna(3, 'pre'); await segna(5, 'post'); await segna(6, 'post')
+  t = await esito()
+  check('⭐⭐ tre contro tre: ancora MENO, e non parla più di soglia larga', /si è mossa MENO/.test(t) && /3 prove prima · 3 prove dopo/.test(t) && !/meno di tre prove/.test(t), t)
+
+  await segna(4, 'pre')
+  check('⭐ una prova segnata DOPO e poi PRIMA cambia parte (mai tutt’e due)', await page.evaluate(() => { const r = document.querySelector('#pv-lista .pv-riga:nth-child(4)'); return r.classList.contains('pre') && !r.querySelector('.pv-b.post').classList.contains('on') }))
+  await page.click('#pv-azzera'); await page.waitForTimeout(200)
+  check('⭐ «togli tutti i segni» azzera', await page.evaluate(() => !document.querySelector('#pv-lista .pv-b.on')) && /Segna almeno/.test(await esito()))
+
+  await segna(4, 'pre'); await segna(7, 'post')
+  t = await esito()
+  check('⭐⭐ 2,0 → 5,1: «si è mossa DI PIÙ», rosso', /si è mossa DI PIÙ/.test(t) && await page.isVisible('#pv-esito .pv-esito.peggio'), t)
+  await page.click('#pv-azzera'); await segna(1, 'pre'); await segna(2, 'post')
+  t = await esito()
+  check('⭐⭐ 5,0 → 5,2: «non si distingue», grigio (dentro la variabilità)', /Non si distingue/.test(t) && /dentro la variabilità/.test(t) && await page.isVisible('#pv-esito .pv-esito.uguale'), t)
+  await page.click('#pv-azzera'); await segna(4, 'pre'); await segna(1, 'post')
+  check('⭐ PRIMA fatta dopo la DOPO: lo avvisa', /è stata fatta dopo una segnata DOPO/.test(await esito()))
+  await page.click('#pv-azzera'); await segna(1, 'pre'); await segna(8, 'post')
+  t = await esito()
+  check('⭐⭐ beccheggio contro rollio: NON confronta, e dice perché', /non hanno la stessa condizione/.test(t) && !(await page.$('#pv-esito .pv-esito')), t)
+  check('⭐ il confronto fra sessioni di prima non è stato toccato', await page.isVisible('#c-una') || await page.isVisible('#c-confronto'))
+  check('⛔ la pagina non ha scritto niente nel database', (await page.evaluate(() => window.__db.scritto)) === false)
+  check('nessun errore JS', errori.length === 0, errori)
+
+  await page.evaluate(() => { window.PolOscillazione.confrontoSessioni = () => { throw new Error('rotto apposta') } })
+  await page.click('#pv-azzera'); await segna(1, 'pre'); await segna(4, 'post')
+  check('⭐⭐ se il calcolo salta, il riquadro SPARISCE e la pagina resta in piedi', !(await page.isVisible('#c-prove')) && await page.isVisible('#c-scelta') && errori.length === 0, errori)
+  await ctx.close()
+
+  const r2 = await apri(browser, ST, { sessione: true }, '?pid=' + P1)
+  check('⭐ con più sessioni: si sceglie la sessione, di partenza l’ultima', await r2.page.evaluate(() => document.querySelectorAll('#pv-sess option').length === 3 && document.querySelectorAll('#pv-lista .pv-riga').length === 4))
+  await r2.page.selectOption('#pv-sess', { index: 2 }); await r2.page.waitForTimeout(200)
+  check('⭐ cambiando sessione cambia l’elenco delle prove', await r2.page.evaluate(() => /0?9:00|11:00|10:00|\d\d:00:00/.test(document.querySelector('#pv-lista .pv-riga b').textContent) && document.querySelectorAll('#pv-lista .pv-riga').length === 4))
+  check('⭐ il confronto sessione contro sessione c’è ancora, coi suoi gomitoli', await r2.page.isVisible('#c-confronto') && (await inchiostro(r2.page, '#g-pre-0')) > 300)
+  check('nessun errore JS', r2.errori.length === 0, r2.errori)
+  await r2.ctx.close()
+
+  const r3 = await apri(browser, ST, { sessione: true, dati: [riga('z1', P1, SQ, '2026-10-03T08:18:05Z', 5.0)], sess: finto.sess }, '?pid=' + P1)
+  check('⭐ con una prova sola in tutto il riquadro non compare', !(await r3.page.isVisible('#c-prove')) && r3.errori.length === 0)
+  await r3.ctx.close()
 }
 
 } finally {
