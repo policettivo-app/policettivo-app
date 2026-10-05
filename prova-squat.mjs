@@ -183,14 +183,18 @@ try {
   {
     const { page, ctx } = await apri()
     await page.click('#momento .chip[data-m="pre"]')
-    check('il pulsante dice «prima dei 3 Respiri»', /prima dei 3 Respiri/.test(await page.textContent('#pf-cosa')))
+    check('⭐ momento-nota-v2 · il riquadro è in cima alla preparazione, sopra «Cosa guardi»', await page.evaluate(() => { const b = document.getElementById('mn-box'), l = [...document.querySelectorAll('#c-setup label')].find(x => /Cosa guardi/.test(x.textContent)); return !!b && !!l && (b.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING) > 0 }))
+    check('⭐ momento-nota-v2 · con PRIMA compare la descrizione', await page.isVisible('#momento-nota'))
+    await page.fill('#momento-nota', 'neutro')
+    check('il pulsante dice «PRIMA · neutro», non più i 3 Respiri', /· PRIMA · neutro/.test(await page.textContent('#pf-cosa')) && !/3 Respiri/.test(await page.textContent('#pf-cosa')), await page.textContent('#pf-cosa'))
     await ctx.close()
   }
   {
     // due pagine non servono: si prova il confronto sui risultati veri di due squat
     const { page, ctx } = await apri()
-    await page.click('#momento .chip[data-m="pre"]'); await squat(page)
-    await page.click('#momento .chip[data-m="post"]'); await squat(page)
+    await page.click('#momento .chip[data-m="pre"]'); await page.fill('#momento-nota', 'neutro, mai <b>cuscini</b>'); await squat(page)
+    check('⭐ momento-nota-v2 · titolo e riga di salvataggio dicono PRIMA e la descrizione, senza HTML', /PRIMA · neutro, mai <b>cuscini<\/b>/.test(await page.textContent('#esito-tit')) && /PRIMA · «neutro/.test(await page.textContent('#salva-stato')) && !(await page.$('#esito-tit b, #salva-stato b')))
+    await page.click('#momento .chip[data-m="post"]'); await page.fill('#momento-nota', 'schema 2'); await squat(page)
     const vis = await page.isVisible('#c-confronto')
     await page.evaluate(() => { const p = window.__squat.prove(); p[1].r.fondo.media = 1.0; p[1].r.fondo.parola = window.PolSquat.parola('rollio', 1.0) })
     check('⭐ con un «prima» e un «dopo» compare il confronto', vis)
@@ -203,6 +207,9 @@ try {
     check('⭐ con la soglia misurata (0,8°): «meglio», cioè più al centro', c2.esito === 'meglio' && c2.errore === 0.8, c2)
     const righe = (await page.evaluate(() => window.__db.inserite)).filter(x => x.tab === 'squat_test').map(x => x.d.momento)
     check('⭐ salvati con il momento: pre e post', righe.join(',') === 'pre,post', righe)
+    const note = (await page.evaluate(() => window.__db.inserite)).filter(x => x.tab === 'squat_test').map(x => x.d.momento_nota)
+    check('⭐⭐ momento-nota-v2 · e con la descrizione di ciascuno', note[0] === 'neutro, mai <b>cuscini</b>' && note[1] === 'schema 2', note)
+    check('⭐ momento-nota-v2 · «schema 2» è diventato un tasto pronto, accanto a «3 Respiri»', /schema 2/.test(await page.textContent('#mn-recenti')) && /3 Respiri/.test(await page.textContent('#mn-recenti')))
     check('una sessione sola per i due squat', (await page.evaluate(() => window.__db.inserite)).filter(x => x.tab === 'test_sessioni').length === 1)
     await ctx.close()
   }

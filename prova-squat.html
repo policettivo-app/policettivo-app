@@ -21,6 +21,7 @@
        finché l'errore dello squat non è misurato (Fase 0). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/squat.js?v=squat-v1"></script>
+<script src="js/momento-nota.js?v=momento-nota-v2"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -122,25 +123,34 @@
   </div>
 
   <div class="card" id="c-confronto" style="display:none">
-    <h2>Prima e dopo i 3 Respiri</h2>
+    <h2>Prima e dopo</h2>
     <div id="confronto"></div>
   </div>
 
   <div class="card" id="c-setup">
     <h2>Prepara la prova</h2>
+    <!-- momento-nota-v2 · PRIMA o DOPO, e CHE COSA: in cima, prima di partire.
+         Non solo i 3 Respiri. Il comportamento sta in js/momento-nota.js. -->
+    <div class="mn-box" id="mn-box">
+      <div class="mn-tit">Questa prova è…</div>
+      <div class="chips mn-chips" id="momento">
+        <button class="chip mn-pre" data-m="pre">PRIMA</button>
+        <button class="chip mn-post" data-m="post">DOPO</button>
+        <button class="chip on" data-m="">non segnata</button>
+      </div>
+      <div id="mn-dett" style="display:none">
+        <label for="momento-nota" id="mn-lbl">Descrizione</label>
+        <input type="text" id="momento-nota" maxlength="200" autocomplete="off">
+        <div class="chips" id="mn-recenti"></div>
+      </div>
+    </div>
     <label>1 · Cosa guardi</label>
     <div class="chips" id="assi">
       <button class="chip on" data-a="rollio">destra – sinistra</button>
       <button class="chip" data-a="beccheggio">avanti – indietro</button>
     </div>
     <div class="spiega" id="spiega"></div>
-    <label>2 · Momento</label>
-    <div class="chips" id="momento">
-      <button class="chip on" data-m="">non indicato</button>
-      <button class="chip" data-m="pre">prima dei 3 Respiri</button>
-      <button class="chip" data-m="post">dopo i 3 Respiri</button>
-    </div>
-    <label>3 · Piedi</label>
+    <label>2 · Piedi</label>
     <div class="chips" id="piedi">
       <button class="chip on" data-p="scalzo">scalzo</button>
       <button class="chip" data-p="con scarpe">con scarpe</button>
@@ -256,12 +266,16 @@
     })
   }
   scegli('assi', 'data-a', function(v){ asse = v })
+  // momento-nota-v2 · la descrizione del PRIMA/DOPO (js/momento-nota.js); senza il file restano i tre tasti
+  function MNN(){ try { return window.PolMomento ? PolMomento.nota() : '' } catch(e){ return '' } }
+  function MNE(m, n){ return (m === 'pre' || m === 'post') ? ' · ' + (m === 'pre' ? 'PRIMA' : 'DOPO') + (n ? ' · ' + n : '') : '' }
   scegli('momento', 'data-m', function(v){ momento = v })
+  try { if (window.PolMomento) PolMomento.avvia({ tabella: 'squat_test', sb: function(){ return (SB && haiSessione) ? SB : null }, alCambio: function(){ aggiornaSetup() } }) } catch(e){}
   scegli('piedi', 'data-p', function(v){ piedi = v })
   function aggiornaSetup(){
     $('spiega').innerHTML = SPIEGA[asse]
     $('pf-cosa').textContent = 'squat · ' + (asse === 'rollio' ? 'destra – sinistra' : 'avanti – indietro') +
-      (momento ? ' · ' + (momento === 'pre' ? 'prima' : 'dopo') + ' dei 3 Respiri' : '')
+      MNE(momento, MNN())
     $('stato-taratura').innerHTML = tarato
       ? '<div class="tar ok">✓ Telefono tarato: destra e avanti sono quelli giusti.</div>'
       : '<div class="tar no">⚠️ <b>Questo telefono non è tarato</b>: destra e sinistra potrebbero essere scambiate. ' +
@@ -410,7 +424,7 @@
 
     // 4 · i numeri
     var r = SQ.calcola({ t: d.t, b: d.b, g: d.g, zero: zero, verso: verso, asse: asse, ritmo: RITMO, n: N, reazione: REAZ })
-    var p = { quando: new Date().toISOString(), asse: asse, momento: momento, piedi: piedi, nota: ($('nota').value || '').trim() || null,
+    var p = { quando: new Date().toISOString(), asse: asse, momento: momento, momento_nota: MNN(), piedi: piedi, nota: ($('nota').value || '').trim() || null,
       zero: zero, r: r, pts: punti(d, zero), d: d }
     prove.push(p)
     mostraEsito(p)
@@ -444,7 +458,7 @@
     var r = p.r
     mostra('c-esito', true)
     $('esito-tit').textContent = 'Squat · ' + (r.asse === 'rollio' ? 'destra – sinistra' : 'avanti – indietro') +
-      (p.momento ? ' · ' + (p.momento === 'pre' ? 'prima' : 'dopo') + ' dei 3 Respiri' : '')
+      MNE(p.momento, p.momento_nota)
     if (r.fondo.media == null){ $('esito').innerHTML = '<div class="err">I sensori non hanno dato abbastanza campioni. Rifai la prova.</div>'; return }
     var centro = r.fondo.parola === 'al centro'
     var fs = r.fasi
@@ -617,12 +631,21 @@
     try {
       var rg = riga(p)
       var sid = await sessioneCorrente(); if (sid) rg.sessione_id = sid
+      // momento-nota-v2 · la descrizione, solo se c'è; senza la 057 si risalva senza e lo si dice
+      var manca057 = false
+      if (rg.momento && p.momento_nota) rg.momento_nota = p.momento_nota
       var r = await SB.from('squat_test').insert(rg).select('id').maybeSingle()
+      if (r.error && rg.momento_nota && /momento_nota/.test(String(r.error.message || r.error.details || ''))){
+        delete rg.momento_nota; manca057 = true
+        r = await SB.from('squat_test').insert(rg).select('id').maybeSingle()
+      }
       if (r.error) throw r.error
+      try { if (rg.momento && window.PolMomento) PolMomento.ricorda(rg.momento, p.momento_nota) } catch(e){}
       p.id_db = r.data ? r.data.id : null
       el.className = 'salva-stato ok'
       el.textContent = '✓ Salvato ' + ((PID && pazNome) ? 'nella cartella di ' + pazNome : 'come prova libera') +
-        (sessione.id ? ', nella sessione' : '') + (sessione.manca047 ? ' (⚠️ senza sessione: manca la migration 047)' : '')
+        (sessione.id ? ', nella sessione' : '') + (sessione.manca047 ? ' (⚠️ senza sessione: manca la migration 047)' : '') +
+        MNE(rg.momento, rg.momento_nota ? '«' + rg.momento_nota + '»' : '') + (manca057 ? ' (⚠️ senza la descrizione: manca la migration 057_momento_nota.sql)' : '')
     } catch(e){
       el.className = 'salva-stato ko'
       el.textContent = mancaTabella(e) ? '⚠️ Non salvato: manca la migration 050_squat_test.sql nel database. I numeri restano su questo schermo.'

@@ -194,6 +194,25 @@ try {
     const t = fs.readFileSync('test.html', 'utf8')
     check('⭐ la tessera «Stepping test» porta a prova-stepping.html col paziente', /id: 'stepping'[^]*?prova-stepping\.html' \+ q/.test(t))
   }
+  sez('⭐ momento-nota-v2 · PRIMA / DOPO con la descrizione anche nello stepping')
+  {
+    const { page, ctx, errori } = await apri({ sessione: true }, '?via=1')
+    check('⭐ il riquadro è in cima alla preparazione', await page.evaluate(() => { const b = document.getElementById('mn-box'), c = document.getElementById('c-setup'); return !!b && c.querySelector('h2').nextElementSibling === b }))
+    check('⭐ parte da «non segnata», senza descrizione', /non segnata/.test(await page.textContent('#momento .chip.on')) && !(await page.isVisible('#momento-nota')))
+    await page.click('#momento .chip[data-m="pre"]'); await page.waitForTimeout(50)
+    check('⭐ con PRIMA compare la descrizione con l’esempio giusto', await page.isVisible('#momento-nota') && /neutro/.test(await page.getAttribute('#momento-nota', 'placeholder')))
+    await page.fill('#momento-nota', 'neutro')
+    await page.click('#momento .chip[data-m="post"]'); await page.waitForTimeout(50)
+    check('⭐ DOPO ha la sua descrizione (vuota) e il tasto «3 Respiri»', (await page.inputValue('#momento-nota')) === '' && /3 Respiri/.test(await page.textContent('#mn-recenti')))
+    await page.click('#mn-recenti .chip'); await page.waitForTimeout(50)
+    check('⭐ un tocco sul tasto pronto scrive la descrizione', (await page.inputValue('#momento-nota')) === '3 Respiri' && (await page.evaluate(() => PolMomento.nota())) === '3 Respiri')
+    await page.click('#momento .chip[data-m="pre"]'); await page.waitForTimeout(50)
+    check('⭐ tornando a PRIMA ritrova «neutro»', (await page.inputValue('#momento-nota')) === 'neutro')
+    check('⭐ nella pagina non c’è più scritto «3 Respiri» fuori dal tasto pronto', !/3 Respiri|3R/.test(await page.evaluate(() => { const c = document.body.cloneNode(true); c.querySelectorAll('#mn-recenti, script, style').forEach(x => x.remove()); return c.innerText })))
+    check('nessun errore JS', errori.length === 0, errori)
+    await ctx.close()
+  }
+
 } finally { await browser.close(); server.close() }
 
 console.log('\n' + '='.repeat(66))

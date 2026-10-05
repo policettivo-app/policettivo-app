@@ -19,6 +19,7 @@
      - Si salva in stepping_test (migration 055), nella sessione dei test. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/stepping.js?v=stepping-v1"></script>
+<script src="js/momento-nota.js?v=momento-nota-v2"></script>
 <script src="js/partenza.js?v=partenza-v1"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -161,7 +162,7 @@
     <div class="salva-stato" id="salva-stato"></div>
   </div>
   <div class="card" id="c-confronto" style="display:none">
-    <h2>Prima e dopo i 3 Respiri</h2>
+    <h2>Prima e dopo</h2>
     <div id="confronto"></div>
   </div>
 
@@ -176,6 +177,21 @@
   <!-- ─── LA PREPARAZIONE ─── -->
   <div class="card" id="c-setup">
     <h2>Come si fa</h2>
+    <!-- momento-nota-v2 · PRIMA o DOPO, e CHE COSA: in cima, prima di partire.
+         Non solo i 3 Respiri. Il comportamento sta in js/momento-nota.js. -->
+    <div class="mn-box" id="mn-box">
+      <div class="mn-tit">Questa prova è…</div>
+      <div class="chips mn-chips" id="momento">
+        <button class="chip mn-pre" data-m="pre">PRIMA</button>
+        <button class="chip mn-post" data-m="post">DOPO</button>
+        <button class="chip on" data-m="">non segnata</button>
+      </div>
+      <div id="mn-dett" style="display:none">
+        <label for="momento-nota" id="mn-lbl">Descrizione</label>
+        <input type="text" id="momento-nota" maxlength="200" autocomplete="off">
+        <div class="chips" id="mn-recenti"></div>
+      </div>
+    </div>
     <svg class="disegno" viewBox="0 0 420 200" role="img" aria-label="Vista dall'alto: il paziente ruota mentre marcia sul posto">
       <circle cx="210" cy="105" r="80" fill="none" stroke="#e3e3e3" stroke-width="2"/>
       <circle cx="210" cy="105" r="40" fill="none" stroke="#e3e3e3" stroke-width="2"/>
@@ -197,12 +213,6 @@
       <li><b>Tu resta vicino</b>: a occhi chiusi si può perdere l’equilibrio. Poi la seconda prova, dallo stesso punto.</li>
     </ol>
     <div id="stato-taratura"></div>
-    <label>Momento</label>
-    <div class="chips" id="momento">
-      <button class="chip on" data-m="">non indicato</button>
-      <button class="chip" data-m="pre">prima dei 3 Respiri</button>
-      <button class="chip" data-m="post">dopo i 3 Respiri</button>
-    </div>
     <label>Prove</label>
     <div class="chips" id="nprove">
       <button class="chip" data-n="1">1</button>
@@ -294,7 +304,11 @@
       }
     })
   }
+  // momento-nota-v2 · la descrizione del PRIMA/DOPO (js/momento-nota.js); senza il file restano i tre tasti
+  function MNN(){ try { return window.PolMomento ? PolMomento.nota() : '' } catch(e){ return '' } }
+  function MNE(m, n){ return (m === 'pre' || m === 'post') ? ' · ' + (m === 'pre' ? 'PRIMA' : 'DOPO') + (n ? ' · ' + n : '') : '' }
   scegli('momento', 'data-m', function(v){ momento = v || '' })
+  try { if (window.PolMomento) PolMomento.avvia({ tabella: 'stepping_test', sb: function(){ return (SB && haiSessione) ? SB : null }, alCambio: function(){ aggiornaSetup() } }) } catch(e){}
   scegli('nprove', 'data-n', function(v){ nProve = Math.max(1, Math.min(3, Number(v) || 2)) })
   function pulsante(ico, tit, cosa){ $('pf-icona').textContent = ico; $('pf-tit').textContent = tit; $('pf-cosa').textContent = cosa }
   function aggiornaSetup(){
@@ -303,7 +317,7 @@
       : '<div class="tar no">⚠️ <b>Prima la taratura del telefono</b>: una volta sola, 10 secondi, su un tavolo. Il pulsante giallo la fa partire.</div>'
     var rt = $('rifai-tar'); if (rt) rt.onclick = function(ev){ ev.preventDefault(); if (!inCorso) avviaTaratura() }
     if (!giro) pulsante(tar ? '▶' : '⚙︎', tar ? 'PARTI' : 'TARATURA', tar ? 'stepping · ' + F.PASSI + ' passi · ' + nProve + (nProve === 1 ? ' prova' : ' prove') +
-      (momento ? ' · ' + (momento === 'pre' ? 'prima' : 'dopo') + ' dei 3R' : '') : 'una volta sola · 10 secondi · su un tavolo')
+      MNE(momento, MNN()) : 'una volta sola · 10 secondi · su un tavolo')
   }
 
   // ═══ LA TARATURA: mezzo giro a destra sul tavolo ═══
@@ -465,7 +479,7 @@
     var prove = giro.prove
     giro = null
     var r = F.riassunto(prove)
-    var m = { quando: new Date().toISOString(), momento: momento || null, nota: $('nota').value || '', prove: prove, r: r, scala: tar.scala, verso: tar.verso }
+    var m = { quando: new Date().toISOString(), momento: momento || null, momento_nota: MNN(), nota: $('nota').value || '', prove: prove, r: r, scala: tar.scala, verso: tar.verso }
     misure.push(m)
     mostra('c-misura', false); mostra('c-pausa', false); mostra('c-setup', true); mostra('c-esito', true)
     disegnaEsito(m)
@@ -511,7 +525,7 @@
     $('confronto').innerHTML = '<div class="cfr-riga"><span><b>Rotazione</b></span><span>' + num0(c.prima) + '° → <b>' + num0(c.dopo) + '°</b></span>' +
       '<span style="font-weight:800;color:' + (c.esito === 'meglio' ? '#0a7d33' : c.esito === 'lavoro' ? '#b07500' : '#888') + '">' + PAR[c.esito] + '</span></div>' +
       '<div class="nota">' + (c.errore != null ? 'Conta solo una differenza oltre ±' + num0(c.errore) + '° (quanto ballano le tue prove). ' :
-      'Servono almeno due prove, prima e dopo, per dare un verdetto. ') + 'Si dice «dopo» i 3 Respiri, non «grazie a».</div>'
+      'Servono almeno due prove, prima e dopo, per dare un verdetto. ') + 'Si dice «dopo», non «grazie a».</div>'
     mostra('c-confronto', true)
   }
 
@@ -592,12 +606,21 @@
     try {
       var rg = riga(m)
       var sid = await sessioneCorrente(); if (sid) rg.sessione_id = sid
+      // momento-nota-v2 · la descrizione, solo se c'è; senza la 057 si risalva senza e lo si dice
+      var manca057 = false
+      if (rg.momento && m.momento_nota) rg.momento_nota = m.momento_nota
       var r = await SB.from('stepping_test').insert(rg).select('id').maybeSingle()
+      if (r.error && rg.momento_nota && /momento_nota/.test(String(r.error.message || r.error.details || ''))){
+        delete rg.momento_nota; manca057 = true
+        r = await SB.from('stepping_test').insert(rg).select('id').maybeSingle()
+      }
       if (r.error) throw r.error
+      try { if (rg.momento && window.PolMomento) PolMomento.ricorda(rg.momento, m.momento_nota) } catch(e){}
       m.id_db = r.data ? r.data.id : null
       el.className = 'salva-stato ok'
       el.textContent = '✓ Salvata ' + ((PID && pazNome) ? 'nella cartella di ' + pazNome : 'come prova libera') +
-        (sessione.id ? ', nella sessione' : '') + (m.momento ? ' · ' + (m.momento === 'pre' ? 'prima' : 'dopo') + ' dei 3 Respiri' : '')
+        (sessione.id ? ', nella sessione' : '') + MNE(rg.momento, rg.momento_nota ? '«' + rg.momento_nota + '»' : '') +
+        (manca057 ? ' (⚠️ senza la descrizione: manca la migration 057_momento_nota.sql)' : '')
     } catch(e){
       el.className = 'salva-stato ko'
       el.textContent = mancaTabella(e) ? '⚠️ Non salvata: manca la migration 055_stepping_test.sql nel database. I numeri restano su questo schermo.'

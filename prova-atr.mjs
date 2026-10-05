@@ -199,6 +199,41 @@ try {
     await ctx.close()
   }
 
+  sez('⭐ momento-nota-v2 · PRIMA / DOPO con la descrizione anche nell’ATR')
+  {
+    const { page, ctx, errori } = await apri({ sessione: true }, '?via=1')
+    await page.evaluate(() => localStorage.setItem('policettivo.atr.taratura.v1', JSON.stringify({ zero: 0.4, verso: 1 })))
+    await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(300)
+    check('⭐ il riquadro è in cima alla preparazione', await page.evaluate(() => { const b = document.getElementById('mn-box'), c = document.getElementById('c-setup'); return !!b && c.querySelector('h2').nextElementSibling === b }))
+    check('⭐ parte da «non segnata», senza descrizione', /non segnata/.test(await page.textContent('#momento .chip.on')) && !(await page.isVisible('#momento-nota')))
+    await page.click('#momento .chip[data-m="post"]'); await page.waitForTimeout(50)
+    await page.fill('#momento-nota', 'schema 2')
+    check('⭐ il PARTI dice «DOPO · schema 2», non i 3 Respiri', /· DOPO · schema 2/.test(await page.textContent('#btn-start')) && !/3R|3 Respiri/.test(await page.textContent('#btn-start')), await page.textContent('#btn-start'))
+    await page.evaluate(GUIDA, { valori: VALORI, errore: 0.4, tavolo: 0.6, verso: 1 })
+    await page.click('#passate .chip[data-n="1"]')
+    await page.click('#btn-start'); await page.waitForFunction(() => !!window.__atr.giro(), null, { timeout: 5000 })
+    for (let z = 0; z < 4; z++) { await zona(page, 0, K[z], VALORI[K[z]][0]); await page.click('#btn-start'); await page.waitForTimeout(30) }
+    await page.waitForSelector('#c-esito', { state: 'visible', timeout: 5000 }); await page.waitForTimeout(300)
+    const righe = await page.evaluate(() => window.__db.righe)
+    check('⭐⭐ si salva «post» con la descrizione «schema 2»', righe.length === 1 && righe[0].momento === 'post' && righe[0].momento_nota === 'schema 2', righe.map(r => [r.momento, r.momento_nota]))
+    check('⭐ e la riga di salvataggio lo dice', /DOPO · «schema 2»/.test(await page.textContent('#salva-stato')), await page.textContent('#salva-stato'))
+    check('nessun errore JS', errori.length === 0, errori)
+    await ctx.close()
+  }
+  {
+    const ctx = await browser.newContext({ viewport: { width: 400, height: 820 } })
+    const page = await ctx.newPage(); const errori = []; page.on('pageerror', e => errori.push(String(e)))
+    await page.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }))
+    await page.route('**/js/momento-nota.js*', r => r.abort())
+    await page.addInitScript(SUPA, { sessione: true })
+    await page.goto(B + 'prova-atr.html?via=1', { waitUntil: 'load' }); await page.waitForTimeout(400)
+    await page.evaluate(() => localStorage.setItem('policettivo.atr.taratura.v1', JSON.stringify({ zero: 0.4, verso: 1 })))
+    await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(300)
+    await page.click('#momento .chip[data-m="pre"]')
+    check('⭐⭐ se js/momento-nota.js non si carica la pagina regge: i tre tasti funzionano lo stesso', /· PRIMA/.test(await page.textContent('#btn-start')) && errori.length === 0, [await page.textContent('#btn-start'), errori])
+    await ctx.close()
+  }
+
   sez('⭐ dalla pagina dei test')
   {
     const t = fs.readFileSync('test.html', 'utf8')
