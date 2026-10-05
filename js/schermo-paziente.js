@@ -31,6 +31,10 @@
     copertina_nota:     'Stessa seduta, stesse condizioni: cambia solo il prima e il dopo.',
     prima:              'Prima',
     dopo:               'Dopo i 3 Respiri',
+    // momento-nota-v3 · il «dopo» non è più solo i 3 Respiri: se il professionista
+    // ha scritto che cosa ha fatto, lo schermo dice «Dopo · <quello>».
+    dopo_generico:      'Dopo',
+    copertina_sotto_generico: 'Prima e dopo, nella stessa seduta',
     // valutazioni-coerenti-v1 · la valutazione iniziale (scheda paziente)
     copertina_sotto_scheda: 'Valutazione iniziale · prima e dopo i cuscini',
     dopo_scheda:        'Dopo i cuscini',
@@ -174,6 +178,21 @@
   //   squat:  righe di squat_test (schermo-test-v1)
   //   atr:    righe di atr_test (atr-v1)
   //   stepping: righe di stepping_test (stepping-v1)
+  // momento-nota-v3 · la descrizione del «dopo» di una riga. Le prove segnate
+  // PRIMA del 4 ottobre 2026 non potevano avere una descrizione, e il tasto si
+  // chiamava «dopo i 3 Respiri»: per quelle il «dopo» è i 3 Respiri, come allora.
+  var DAL = '2026-10-04'
+  function notaDopo(r) {
+    var n = String((r && r.momento_nota) || '').trim()
+    if (n) return /^3 respiri$/i.test(n) ? '3 Respiri' : n
+    return (r && r.quando && String(r.quando).slice(0, 10) < DAL) ? '3 Respiri' : ''
+  }
+  // l'etichetta che legge il paziente: «Dopo i 3 Respiri» · «Dopo» · «Dopo · schema 2»
+  function etichettaDopo(n) {
+    if (n === undefined || n === '3 Respiri') return TESTI.dopo
+    if (!n) return TESTI.dopo_generico
+    return TESTI.dopo_generico + ' · ' + (n.length > 40 ? n.slice(0, 39) + '…' : n)
+  }
   function costruisciGiorni(o) {
     var piani = o.piani || [], per = {}, ordine = []
     function giorno(k) {
@@ -243,6 +262,27 @@
       var k = giornoDi(r.quando); if (!k) return
       var g = giorno(k)
       ;(g.nonSegnate = g.nonSegnate || []).push(r)
+    })
+
+    // momento-nota-v3 · CHE COSA è il «dopo» di ogni test, giorno per giorno.
+    // Se nello stesso giorno ci sono più «dopo» diversi (schema 1, schema 2…) lo
+    // schermo confronta il PRIMA con l'ULTIMO fatto: mescolarli darebbe una media
+    // di cose diverse. Gli altri restano nel database e nel Confronto.
+    ordine.forEach(function (k) {
+      var g = per[k]; g.dopoNota = {}; g.altriDopo = []
+      ;[['prove', 'prove'], ['squat', 'squat'], ['atrRighe', 'atr'], ['stRighe', 'st']].forEach(function (c) {
+        var l = g[c[0]] || []
+        var post = l.filter(function (r) { return r.momento === 'post' })
+          .sort(function (a, b) { return String(a.quando).localeCompare(String(b.quando)) })
+        if (!post.length) return
+        var N = notaDopo(post[post.length - 1])
+        g.dopoNota[c[1]] = N
+        var tolte = post.filter(function (r) { return notaDopo(r) !== N })
+        if (tolte.length) {
+          tolte.forEach(function (r) { var n = notaDopo(r) || 'senza descrizione'; if (g.altriDopo.indexOf(n) < 0) g.altriDopo.push(n) })
+          g[c[0]] = l.filter(function (r) { return r.momento !== 'post' || notaDopo(r) === N })
+        }
+      })
     })
 
     var out = ordine.map(function (k) { return per[k] }).filter(function (g) {
@@ -473,6 +513,7 @@
   global.PolSchermo = {
     TESTI: TESTI, SCAPOLA: SCAPOLA,
     esitoScapola: esitoScapola, giornoDi: giornoDi, dataLunga: dataLunga, dataCorta: dataCorta,
+    notaDopo: notaDopo, etichettaDopo: etichettaDopo,   // momento-nota-v3
     costruisciGiorni: costruisciGiorni, equilibrio: equilibrio, provaMediana: provaMediana,
     sintesi: sintesi, percorso: percorso, matriceAllineamento: matriceAllineamento,
     numIt: numIt, segno: segno,

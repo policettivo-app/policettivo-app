@@ -14,7 +14,7 @@
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
   <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
   <script src="js/stepping.js?v=stepping-v1"></script><!-- stepping-v1 -->
-  <script src="js/schermo-paziente.js?v=stepping-v1"></script>
+  <script src="js/schermo-paziente.js?v=momento-nota-v3"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
@@ -547,6 +547,7 @@ async function init() {
     try {
       const { data, error } = await _sb.from('squat_test').select('id,quando,asse,momento,piedi,fondo,inizio,discesa,risalita,coerenza,ripetizioni,tarato')
         .eq('patient_id', patientId).order('quando', { ascending: true })
+      if (!error) await conDescrizione('squat_test', data)   // momento-nota-v3
       if (!error) squatRighe = (data || []).filter(r => r.momento === 'pre' || r.momento === 'post')
     } catch (e) { squatRighe = [] }
     TVDATI.squat_test = squatRighe
@@ -558,6 +559,7 @@ async function init() {
     try {
       const { data, error } = await _sb.from('atr_test').select('id,quando,momento,toracico_alto,toracico,toracolombare,lombare,massimo,livello_massimo,n_passate,errore')
         .eq('patient_id', patientId).order('quando', { ascending: true })
+      if (!error) await conDescrizione('atr_test', data)   // momento-nota-v3
       if (!error) atrRighe = (data || []).filter(r => r.momento === 'pre' || r.momento === 'post')
     } catch (e) { atrRighe = [] }
     TVDATI.atr_test = atrRighe
@@ -569,6 +571,7 @@ async function init() {
     try {
       const { data, error } = await _sb.from('stepping_test').select('id,quando,momento,rotazione,n_prove,errore')
         .eq('patient_id', patientId).order('quando', { ascending: true })
+      if (!error) await conDescrizione('stepping_test', data)   // momento-nota-v3
       if (!error) stRighe = (data || []).filter(r => r.momento === 'pre' || r.momento === 'post')
     } catch (e) { stRighe = [] }
     TVDATI.stepping_test = stRighe
@@ -855,6 +858,33 @@ function costruisci() {
 /* valutazioni-coerenti-v1 — sulla valutazione iniziale il «dopo» è dopo i CUSCINI
    (slot «Dopo cuscini» della scheda), non dopo i 3 Respiri */
 function dopoDi() { const g = giorni[sel]; return g && g.scheda ? T.dopo_scheda : T.dopo }
+/* momento-nota-v3 — il «dopo» dei TEST dice che cosa si è fatto, se il professionista
+   l'ha scritto: «Dopo · schema 2». k = 'prove' | 'squat' | 'atr' | 'st'.
+   Le foto restano «Dopo i 3 Respiri»: sono le caselle della visita. */
+function dopoTest(k) {
+  try {
+    const g = giorni[sel]
+    if (!g || g.scheda || !S.etichettaDopo) return dopoDi()
+    return S.etichettaDopo(g.dopoNota ? g.dopoNota[k] : undefined)
+  } catch (e) { return dopoDi() }
+}
+// sulla scala dello squat c'è posto per una parola sola
+function dopoCorto(k) { const t = dopoTest(k); return t === T.dopo || t === T.dopo_scheda ? t : T.dopo_generico }
+// la copertina dice «Tecnica dei 3 Respiri» solo se tutti i «dopo» del giorno lo sono
+function soloTreRespiri(g) {
+  try { const d = g.dopoNota || {}; return Object.keys(d).every(k => d[k] === '3 Respiri') } catch (e) { return true }
+}
+/* la descrizione sta in una colonna nuova (057): si legge a parte, e se la colonna
+   non c'è le righe restano come sono. Non deve poter rompere il caricamento. */
+async function conDescrizione(tabella, righe) {
+  try {
+    if (!righe || !righe.length) return
+    const { data, error } = await _sb.from(tabella).select('id,momento_nota').eq('patient_id', patientId)
+    if (error || !data) return
+    const per = {}; data.forEach(r => { per[r.id] = r.momento_nota })
+    righe.forEach(r => { if (per[r.id]) r.momento_nota = per[r.id] })
+  } catch (e) {}
+}
 function testa(titolo, sotto) {
   const g = giorni[sel]
   return '<div class="testa"><span class="marchio">POLICETTIVO®</span>' +
@@ -881,7 +911,7 @@ function slideCopertina(g) {
     '<span class="marchio">POLICETTIVO®</span>' +
     '<div class="cop-nome">' + esc(nomeBreve) + '</div>' +
     '<div class="cop-tit">' + esc(T.copertina_titolo) + '</div>' +
-    '<div class="cop-sotto">' + esc(g.scheda ? T.copertina_sotto_scheda : T.copertina_sotto) + '</div>' +
+    '<div class="cop-sotto">' + esc(g.scheda ? T.copertina_sotto_scheda : (soloTreRespiri(g) ? T.copertina_sotto : (T.copertina_sotto_generico || T.copertina_sotto))) + '</div>' +
     '<div class="cop-data">' + esc(g.scheda ? (g.giorno ? S.dataLunga(g.giorno) : 'data non registrata') : S.dataLunga(g.giorno)) + '</div>' +
     '<svg class="cop-respiri" viewBox="0 0 380 380" aria-hidden="true">' + cerchi + '</svg>' +
     '<div class="cop-nota">' + esc(T.copertina_nota) + '</div></div>'
@@ -1087,7 +1117,7 @@ function slideEquilibrio(g, lista, da) {
       '<div class="eq-val"><span class="a">' + S.numIt(c.velA, 1) + '</span><span class="u">→</span><span class="b">' + S.numIt(c.velB, 1) + '</span><span class="u">°/s</span></div>' +
       '<div class="eq-delta" style="color:' + colD + '">' + S.segno(c.dv) + '</div>' +
       badge(c.esito, parola) +
-      '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoDi()) + '</span></div>' +
+      '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoTest('prove')) + '</span></div>' +
       '<div style="font-size:15px;color:#7A7A7A;font-weight:600">' + esc(T.eq_banda.replace('{b}', c.banda)) + '</div>' +
       '</div></div>'
   }).join('')
@@ -1112,7 +1142,7 @@ function scalaSquat(q) {
     '<line x1="' + cx + '" y1="30" x2="' + cx + '" y2="90" stroke="#54E2B5" stroke-width="3"/>' +
     '<text x="40" y="112" font-size="18" font-weight="800" fill="#777">' + lati[0] + '</text>' +
     '<text x="' + (W - 40) + '" y="112" text-anchor="end" font-size="18" font-weight="800" fill="#777">' + lati[1] + '</text>' +
-    punto(q.a, '#9a9a9a', esc(T.prima), false) + punto(q.b, '#FFD008', esc(dopoDi()), true) + '</svg>'
+    punto(q.a, '#9a9a9a', esc(T.prima), false) + punto(q.b, '#FFD008', esc(dopoCorto('squat')), true) + '</svg>'
 }
 function slideSquat(g) {
   const carte = g.sq.map(q => {
@@ -1130,6 +1160,7 @@ function slideSquat(g) {
   }).join('')
   return '<div class="slide" data-s="squat">' + testa(T.sq_titolo, T.sq_sotto) +
     '<div class="sq-area">' + carte + '</div>' +
+    '<div class="legenda" style="margin-top:10px"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoTest('squat')) + '</span></div>' +
     '<div class="criterio" style="margin-top:18px"><span class="ico">⊥</span><span>' + esc(T.sq_criterio.replace('{l}', S.numIt(g.sq[0].leggibile, 1))) + '</span></div></div>'
 }
 
@@ -1158,7 +1189,7 @@ function slideAtr(g) {
   const giudTutti = g.atr.livelli.some(z => z.esito !== 'daconfermare')
   return '<div class="slide" data-s="atr">' + testa(T.atr_titolo, T.atr_sotto) +
     '<div class="atr-area">' + righe +
-    '<div class="legenda" style="margin-top:6px"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoDi()) + '</span>' +
+    '<div class="legenda" style="margin-top:6px"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoTest('atr')) + '</span>' +
     (giudTutti && g.atr.errore != null ? '<span style="color:#7A7A7A">conta solo oltre ±' + S.numIt(g.atr.errore, 1) + '°</span>' : '<span style="color:#7A7A7A">' + esc(T.atr_nota_errore) + '</span>') + '</div></div>' +
     '<div class="criterio" style="margin-top:14px"><span class="ico">⟷</span><span>' + esc(T.atr_criterio) + '</span></div></div>'
 }
@@ -1185,7 +1216,7 @@ function slideStepping(g) {
     '<div class="eq-val"><span class="a">' + S.numIt(Math.abs(c.prima), 0) + '°</span><span class="u">→</span><span class="b">' + S.numIt(Math.abs(c.dopo), 0) + '°</span></div>' +
     '<div style="font-size:18px;color:#9a9a9a;font-weight:700">' + esc(c.dirPrima) + ' → ' + esc(c.dirDopo) + '</div>' +
     '<div>' + (giud ? badge(c.esito, T['st_' + c.esito] || '') : badge('uguale', T.st_daconfermare)) + '</div>' +
-    '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoDi()) + '</span></div>' +
+    '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(dopoTest('st')) + '</span></div>' +
     '<div style="font-size:15px;color:#7A7A7A;font-weight:600">' + esc(giud && c.errore != null ? 'Conta solo oltre ±' + S.numIt(c.errore, 0) + '°: sotto, è la variabilità normale della misura.' : T.st_nota_errore) + '</div>' +
     '</div></div>' +
     '<div class="criterio" style="margin-top:14px"><span class="ico">🧭</span><span>' + esc(T.st_criterio) + '</span></div></div>'
@@ -1204,7 +1235,7 @@ function slidePiedi(g) {
       '<div style="font-size:15px;color:#7A7A7A;font-weight:600;margin-top:8px">differenza ' + m.diff + '% · conta oltre ' + m.banda + '%</div></div></div>'
   }
   const blocchi = g.piedi.slice(0, 2).map(c => '<div class="pd-blocco"><div class="eq-cond">' + esc(maiuscola(c.nome)) + '</div>' +
-    riga(c.pre, T.prima) + riga(c.post, dopoDi()) + '</div>').join('')
+    riga(c.pre, T.prima) + riga(c.post, dopoTest('prove')) + '</div>').join('')
   return '<div class="slide" data-s="piedi">' + testa(T.piedi_titolo, T.piedi_sotto) +
     '<div class="pd-area">' + blocchi + '</div>' +
     '<div class="criterio" style="margin-top:18px"><span class="ico">🦶</span><span>' + esc(T.piedi_criterio) + '</span></div></div>'
@@ -1294,7 +1325,7 @@ function slidePercorso(perc) {
     graf = '<div class="perc-graf" onmousemove="tip(event)" onmouseleave="tip(null)">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
         '<div style="font-size:20px;font-weight:800">' + esc(T.eq_misura) + ' · <span style="color:#aaa">' + esc(maiuscola(perc.nome || '')) + '</span> <span style="color:#777;font-size:16px">(°/s, più basso = più fermo)</span></div>' +
-        '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(T.dopo) + '</span></div></div>' +
+        '<div class="legenda"><span><i></i>' + esc(T.prima) + '</span><span><i class="b"></i>' + esc(giorni.every(soloTreRespiri) ? T.dopo : (T.dopo_generico || T.dopo)) + '</span></div></div>' +
       '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">' + assi + linea('velA', '#9A9A9A', true) + linea('velB', '#FFD008', false) + etichette + bersagli + '</svg>' +
       '<div class="tip" id="tip"></div></div>'
   }
@@ -1353,13 +1384,18 @@ function disegnaProPrope() {
       '<br><a class="pbtn giallo" style="display:inline-block;margin-top:10px;text-decoration:none" href="upgrade.html">Passa a Premium</a></div>'
   }
   h += sezioneMisure(g)
+  // momento-nota-v3 · lo dice solo al professionista, mai sullo schermo del paziente
+  if (g.altriDopo && g.altriDopo.length) {
+    h += '<div class="msg info">In questo giorno ci sono <b>più «dopo» diversi</b>: lo schermo confronta il prima con <b>l’ultimo fatto</b>. ' +
+      'Gli altri (' + g.altriDopo.map(esc).join(', ') + ') li trovi nel Confronto.</div>'
+  }
   if (manca048) {
-    h += '<div class="msg ko">⚠️ <b>Manca la migration 048_oscillazione_momento.sql</b>: le prove di equilibrio non possono essere segnate «prima» o «dopo» i 3 Respiri, quindi l’equilibrio non compare. Il resto funziona.</div>'
+    h += '<div class="msg ko">⚠️ <b>Manca la migration 048_oscillazione_momento.sql</b>: le prove di equilibrio non possono essere segnate «prima» o «dopo», quindi l’equilibrio non compare. Il resto funziona.</div>'
   }
   const tutte = (g.prove || []).concat(g.nonSegnate || []).sort((a, b) => String(a.quando).localeCompare(String(b.quando)))
   if (tutte.length && !manca048) {
     h += '<div class="lbl">Prove di equilibrio di questo giorno</div>' +
-      '<div class="msg info" style="margin:0 0 6px">Segna quali prove sono <b>prima</b> e quali <b>dopo</b> i 3 Respiri: lo schermo confronta solo quelle segnate, condizione per condizione.</div>' +
+      '<div class="msg info" style="margin:0 0 6px">Segna quali prove sono <b>prima</b> e quali <b>dopo</b>: lo schermo confronta solo quelle segnate, condizione per condizione.</div>' +
       tutte.map(r => {
         const ora = new Date(r.quando).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
         const cond = window.PolOscillazione ? PolOscillazione.nomeCond(PolOscillazione.condizioneDi(Object.assign({}, r, { momento: null }))) : r.evento

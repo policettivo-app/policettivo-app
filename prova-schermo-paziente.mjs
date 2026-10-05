@@ -109,6 +109,13 @@ function dati(opts = {}) {
     prove.push(piede('2026-09-20T09:20:00Z', 1.1, 'pre', 'dx'), piede('2026-09-20T09:21:00Z', 2.3, 'pre', 'sx'),
                piede('2026-09-20T09:30:00Z', 1.2, 'post', 'dx'), piede('2026-09-20T09:31:00Z', 1.3, 'post', 'sx'))
   }
+  // momento-nota-v3 · il 5 ottobre: un PRIMA «neutro» e due «dopo» diversi (schema 1, poi schema 2)
+  const conNota = (r, n) => Object.assign(r, { momento_nota: n })
+  if (opts.note) {
+    prove.push(conNota(prova('2026-10-05T08:00:00Z', 'beccheggio', 5.0, 'pre', 1.5), 'neutro'), conNota(prova('2026-10-05T08:01:00Z', 'beccheggio', 5.2, 'pre', 1.5), 'neutro'),
+               conNota(prova('2026-10-05T08:10:00Z', 'beccheggio', 4.9, 'post', 1.4), 'schema 1'),
+               conNota(prova('2026-10-05T08:20:00Z', 'beccheggio', 2.0, 'post', 0.6), 'schema <b>2</b>'), conNota(prova('2026-10-05T08:21:00Z', 'beccheggio', 2.1, 'post', 0.6), 'schema <b>2</b>'))
+  }
   return {
     opts,
     patients: [{ id: PID, nome: 'Mario', cognome: 'Rossi', foto_url: opts.scheda ? JSON.stringify({
@@ -140,17 +147,26 @@ function dati(opts = {}) {
       { id: 'sq2', patient_id: PID, quando: '2026-09-20T09:41:00Z', asse: 'rollio', momento: 'pre', fondo: 2.0, coerenza: 4, ripetizioni: 5 },
       { id: 'sq3', patient_id: PID, quando: '2026-09-20T09:50:00Z', asse: 'rollio', momento: 'post', fondo: 0.6, coerenza: 3, ripetizioni: 5 },
       { id: 'sq4', patient_id: PID, quando: '2026-09-20T09:55:00Z', asse: 'rollio', momento: null, fondo: -3, coerenza: 5, ripetizioni: 5 }
-    ] : (opts.senza050 ? undefined : []),
+    ].concat(opts.note ? [
+      { id: 'sq5', patient_id: PID, quando: '2026-10-05T08:30:00Z', asse: 'rollio', momento: 'pre', fondo: 2.2, coerenza: 5, ripetizioni: 5 },
+      { id: 'sq6', patient_id: PID, quando: '2026-10-05T08:40:00Z', asse: 'rollio', momento: 'post', momento_nota: '3 respiri', fondo: 0.5, coerenza: 5, ripetizioni: 5 }
+    ] : []) : (opts.senza050 ? undefined : []),
     // atr-v1 · l'ATR del 20/09: prima toracico 6,0 dx (errore 0,5), dopo 3,1 dx (errore 0,4); lombare −1,5 → −1,4
     atr_test: opts.conTest ? [
       { id: 'at1', patient_id: PID, quando: '2026-09-20T10:00:00Z', momento: 'pre', toracico_alto: 1, toracico: 6, toracolombare: -3.2, lombare: -1.5, n_passate: 3, errore: 0.5 },
       { id: 'at2', patient_id: PID, quando: '2026-09-20T10:20:00Z', momento: 'post', toracico_alto: 0.5, toracico: 3.1, toracolombare: -3.2, lombare: -1.4, n_passate: 3, errore: 0.4 }
-    ] : (opts.senza054 ? undefined : []),
+    ].concat(opts.note ? [
+      { id: 'at3', patient_id: PID, quando: '2026-10-05T08:50:00Z', momento: 'pre', momento_nota: 'neutro', toracico_alto: 1, toracico: 6, toracolombare: -3, lombare: -1.5, n_passate: 3, errore: 0.5 },
+      { id: 'at4', patient_id: PID, quando: '2026-10-05T09:00:00Z', momento: 'post', momento_nota: 'schema <b>2</b>', toracico_alto: 0.5, toracico: 3, toracolombare: -3, lombare: -1.4, n_passate: 3, errore: 0.4 }
+    ] : []) : (opts.senza054 ? undefined : []),
     // stepping-v1 · lo stepping del 20/09: prima 48° (errore 20), dopo 12° (errore 15) → «più dritto»
     stepping_test: opts.conTest ? [
       { id: 'st1', patient_id: PID, quando: '2026-09-20T10:30:00Z', momento: 'pre', rotazione: 48, n_prove: 2, errore: 20 },
       { id: 'st2', patient_id: PID, quando: '2026-09-20T10:40:00Z', momento: 'post', rotazione: -12, n_prove: 2, errore: 15 }
-    ] : (opts.senza055 ? undefined : []),
+    ].concat(opts.note ? [
+      { id: 'st3', patient_id: PID, quando: '2026-10-05T09:10:00Z', momento: 'pre', rotazione: 40, n_prove: 2, errore: 20 },
+      { id: 'st4', patient_id: PID, quando: '2026-10-05T09:20:00Z', momento: 'post', rotazione: 10, n_prove: 2, errore: 15 }
+    ] : []) : (opts.senza055 ? undefined : []),
     foto_allineamenti: opts.allineate ? [
       { storage_path: 'visits/v-post/sag-pre.jpg', punti: { a: { x: 0.5, y: 0.1 }, b: { x: 0.5, y: 0.9 } } },
       { storage_path: 'visits/v-post/sag-post.jpg', punti: { a: { x: 0.52, y: 0.12 }, b: { x: 0.52, y: 0.92 } } },
@@ -1019,6 +1035,41 @@ sez('⭐ Un paziente senza niente di registrato')
   await page.waitForTimeout(400)
   check('⭐ lo dice con garbo, sul palco', /appena li registri/.test(await page.evaluate(() => document.getElementById('palco').innerText)))
   check('nessun errore JS in pagina', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐ momento-nota-v3 · il «dopo» dice che cosa si è fatto, test per test')
+{
+  const { page, ctx, errori } = await apri(browser, { conTest: true, note: true })
+  const ids = await slideIds(page)
+  check('⭐ si apre sull’ultimo giorno (5 ottobre), coi suoi test', ids.includes('eq:0') && ids.includes('atr') && ids.includes('stepping') && ids.includes('squat'), ids)
+  const cop = await testoSlide(page)
+  check('⭐⭐ la copertina NON dice più «Tecnica dei 3 Respiri» se i dopo sono altri', /Prima e dopo, nella stessa seduta/.test(cop) && !/3 Respiri/.test(cop), cop.slice(0, 200))
+  await vaiA(page, 'eq:0')
+  let t = await testoSlide(page)
+  check('⭐⭐ equilibrio: la legenda dice «Dopo · schema <b>2</b>» (l’ultimo fatto), scritto e non eseguito', /Dopo · schema <b>2<\/b>/.test(t) && !/3 Respiri/.test(t) && !(await page.$('.slide.on .legenda b')), t.slice(0, 300))
+  const eq = await page.evaluate(() => { const c = giorni[sel].eq.condizioni[0]; return { nA: c.nA, nB: c.nB, velB: c.velB } })
+  check('⭐⭐ e confronta il prima SOLO con le 2 prove di schema 2 (non le mescola con schema 1)', eq.nA === 2 && eq.nB === 2 && Math.abs(eq.velB - 2.05) < 0.01, eq)
+  await vaiA(page, 'atr'); t = await testoSlide(page)
+  check('⭐ ATR: «Dopo · schema <b>2</b>»', /Dopo · schema <b>2<\/b>/.test(t), t.slice(-200))
+  await vaiA(page, 'stepping'); t = await testoSlide(page)
+  check('⭐⭐ stepping segnato DOPO senza descrizione: solo «Dopo», non «i 3 Respiri»', /\bDopo\b/.test(t) && !/3 Respiri/.test(t) && !/Dopo ·/.test(t), t.slice(-200))
+  await vaiA(page, 'squat'); t = await testoSlide(page)
+  check('⭐ squat con descrizione «3 respiri»: resta «Dopo i 3 Respiri»', /Dopo i 3 Respiri/.test(t), t.slice(-300))
+  const pro = await page.evaluate(() => document.getElementById('pro-prove').innerText)
+  check('⭐ al professionista (non al paziente) dice che c’erano più «dopo» e quale è rimasto fuori', /più «dopo» diversi/.test(pro) && /schema 1/.test(pro), pro.slice(0, 300))
+  check('⛔ sulle slide del paziente «schema 1» non compare', !(await page.evaluate(() => /schema 1/.test(document.getElementById('slides').innerText))))
+  const pk = await page.evaluate(() => pacchettoTv())
+  check('⭐ il pacchetto della TV porta la descrizione (squat, ATR, equilibrio)', pk.atr_test.some(r => r.momento_nota === 'schema <b>2</b>') && pk.squat_test.some(r => r.momento_nota === '3 respiri') && pk.oscillazione_test.some(r => r.momento_nota === 'schema 1'))
+  // un giorno di settembre: come prima
+  await page.evaluate(() => scegliGiorno(giorni.findIndex(g => g.giorno === '2026-09-20'))); await page.waitForTimeout(500)
+  const cop2 = await page.evaluate(() => document.querySelector('#slides .slide.cop').textContent)
+  check('⭐⭐ i giorni di prima del 4 ottobre restano «Tecnica dei 3 Respiri»', /Tecnica dei 3 Respiri/.test(cop2), cop2.slice(0, 200))
+  await vaiA(page, 'eq:0')
+  check('⭐ e la loro legenda resta «Dopo i 3 Respiri»', /Dopo i 3 Respiri/.test(await testoSlide(page)))
+  await vaiA(page, 'percorso')
+  check('⭐ nel percorso, con giorni misti, la legenda è solo «Dopo»', await page.evaluate(() => { const l = document.querySelector('.slide.on .legenda'); return !!l && /Dopo/.test(l.innerText) && !/3 Respiri/.test(l.innerText) }))
+  check('nessun errore JS', errori.length === 0, errori)
   await ctx.close()
 }
 
