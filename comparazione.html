@@ -11,6 +11,7 @@
   <script src="js/postural-component.js"></script>
   <!-- valutazioni-coerenti-v1 · quali valutazioni entrano: lo stesso elenco di «Prima e dopo» -->
   <script src="js/valutazioni.js"></script>
+  <script src="js/misure-foto.js?v=foto-grandezza-v1"></script><!-- foto-grandezza-v1 · solo per portare due foto alla stessa grandezza -->
   <!-- ai-solo-premium-v1 : serve il modale, questa pagina chiama /api/ai-analisi -->
   <script src="utils-ai.js"></script>
   <style>
@@ -63,6 +64,7 @@
     .avviso-allin { font-size:11.5px; line-height:1.5; border-radius:8px; padding:8px 11px; margin-bottom:10px; }
     .avviso-allin.no { background:#2a2214; border:1px solid #6b5313; color:#ffd98a; }
     .avviso-allin.si { background:#12241d; border:1px solid #1d5c47; color:#7fe3c0; }
+    .avviso-allin.auto { background:#16202b; border:1px solid #2c4a66; color:#a9d0f5; } /* foto-grandezza-v1 */
 
     /* Le foto posturali sono verticali: a tutta larghezza il riquadro sarebbe
        quasi tutto nero. Si tiene stretto e centrato, e si allarga solo quando
@@ -293,6 +295,44 @@ let patient = null
 let professionalId = null
 let punti = []            // riga del tempo, in ordine cronologico
 let allineamenti = {}     // storage_path -> { a:{x,y}, b:{x,y} }
+/* foto-grandezza-v1 — i punti già confermati sulle foto (foto_misure), per portare
+   due foto alla stessa grandezza quando l'allineamento a mano non c'è.
+   L'allineamento a mano, sui riferimenti dello studio, VINCE sempre: è l'unico
+   che fa del confronto una misura. Quello automatico è solo per l'occhio. */
+let misureFoto = {}       // storage_path -> riga di foto_misure
+function allinCoppia(pathA, pathB, imgA, imgB) {
+  try {
+    if (!pathA || !pathB) return null
+    const ma = allineamenti[pathA], mb = allineamenti[pathB]
+    if (ma && mb) return { a: ma, b: mb, auto: false }
+    const PMF = window.PolMisure
+    if (!PMF || !PMF.allineamentoDaPunti) return null
+    const xa = misureFoto[pathA], xb = misureFoto[pathB]
+    if (!xa || !xb) return null
+    const fam = v => v === 'posteriore' ? 'frontale' : v
+    if (fam(xa.vista) !== fam(xb.vista)) return null
+    // le righe vecchie non hanno le dimensioni: valgono quelle vere della foto (se è già
+    // caricata), se no un formato verticale qualunque — basta per sapere se la coppia c'è
+    const dim = img => ({ W: (img && img.naturalWidth) || 3, H: (img && img.naturalHeight) || 4 })
+    const ia = dim(imgA), ib = dim(imgB)
+    const da = PMF.allineamentoDaPunti(xa, ia.W, ia.H), db = PMF.allineamentoDaPunti(xb, ib.W, ib.H)
+    return (da && db) ? { a: da, b: db, auto: true } : null
+  } catch (e) { return null }
+}
+async function caricaMisureFoto() {
+  try {
+    const paths = []
+    punti.forEach(pt => Object.keys(pt.foto).forEach(pl => ['pre','post'].forEach(f => {
+      const o = pt.foto[pl][f]; if (o && o.path) paths.push(o.path)
+    })))
+    if (!paths.length) return
+    const { data, error } = await _sb.from('foto_misure')
+      .select('storage_path,vista,punti,larghezza,altezza').in('storage_path', Array.from(new Set(paths)))
+    if (error || !data) return                 // tabella assente (049) o altro: le foto restano come sono
+    misureFoto = {}
+    data.forEach(r => { if (r.storage_path && r.punti) misureFoto[r.storage_path] = r })
+  } catch (e) {}
+}
 let fase = 'pre'
 let modo = 'confronto'    // 'confronto' | 'striscia'
 let selA = null, selB = null
@@ -399,6 +439,7 @@ async function init() {
   }
 
   await caricaAllineamenti()
+  await caricaMisureFoto()   // foto-grandezza-v1
 
   const ultimo = punti[punti.length - 1]
   document.getElementById('pt-sub').textContent =
@@ -709,9 +750,14 @@ function bloccoConfronto(pl) {
 
   const av = document.createElement('div')
   const allineato = !!(fa.path && fb.path && allineamenti[fa.path] && allineamenti[fb.path])
-  av.className = 'avviso-allin ' + (allineato ? 'si' : 'no')
+  const coppiaAuto = allineato ? null : allinCoppia(fa.path, fb.path)   // foto-grandezza-v1
+  av.className = 'avviso-allin ' + (allineato ? 'si' : (coppiaAuto ? 'auto' : 'no'))
   av.innerHTML = allineato
     ? '✓ <b>Foto allineate</b> sui riferimenti dello studio: la seconda è stata scalata e ruotata sulla prima.'
+    : coppiaAuto
+    ? '≈ <b>Stessa grandezza, in automatico.</b> La seconda foto è stata portata alla stessa altezza del corpo e allo stesso filo a piombo della prima, ' +
+      'dai punti confermati sulle foto: corregge la distanza e il telefono storto, <b>non la prospettiva</b>. ' +
+      'Resta un\'impressione visiva, non una misura: per una misura tocca <b>🎯 Allinea</b> e usa i riferimenti dello studio.'
     : '⚠️ <b>Foto non allineate: quella che vedi è un\'impressione visiva, non una misura.</b> ' +
       'Distanza dal muro, altezza della fotocamera e posizione dei piedi cambiano da un giorno all\'altro. ' +
       'Tocca <b>🎯 Allinea</b> e indica su ciascuna foto due riferimenti fissi — filo a piombo in alto e centro della crociera.'
@@ -800,12 +846,25 @@ function creaVisore(pl, fa, fb) {
      trasformazione che porta i riferimenti di B esattamente sopra quelli di A. */
   function applicaAllineamento() {
     imgB.style.transform = ''
-    if (stato.modo === 'affiancato') return false
-    const pa = fa.path && allineamenti[fa.path]
-    const pb = fb.path && allineamenti[fb.path]
+    // foto-grandezza-v1 · la coppia: a mano se c'è, se no dai punti delle foto
+    const cp = allinCoppia(fa.path, fb.path, imgA, imgB)
+    // affiancate: come sempre NON si tocca niente, tranne con la coppia automatica,
+    // che serve proprio a vederle grandi uguali una accanto all'altra
+    if (stato.modo === 'affiancato' && !(cp && cp.auto)) return false
+    const pa = cp && cp.a
+    const pb = cp && cp.b
     if (!pa || !pb || !pa.a || !pa.b || !pb.a || !pb.b) return false
-    const a1 = inBox(imgA, pa.a), a2 = inBox(imgA, pa.b)
-    const b1 = inBox(imgB, pb.a), b2 = inBox(imgB, pb.b)
+    const nelRiq = function (img, p) {
+      if (stato.modo !== 'affiancato') return inBox(img, p)
+      // affiancate: ogni foto sta nella SUA metà (stessa misura per tutt'e due)
+      const bw = img.parentNode.clientWidth, bh = img.parentNode.clientHeight
+      const iw = img.naturalWidth || 0, ih = img.naturalHeight || 0
+      if (!iw || !ih || !bw || !bh) return null
+      const s = Math.min(bw / iw, bh / ih)
+      return { x: (bw - iw*s)/2 + p.x * iw*s, y: (bh - ih*s)/2 + p.y * ih*s }
+    }
+    const a1 = nelRiq(imgA, pa.a), a2 = nelRiq(imgA, pa.b)
+    const b1 = nelRiq(imgB, pb.a), b2 = nelRiq(imgB, pb.b)
     if (!a1 || !a2 || !b1 || !b2) return false
     const dr = { x:a2.x - a1.x, y:a2.y - a1.y }
     const dp = { x:b2.x - b1.x, y:b2.y - b1.y }

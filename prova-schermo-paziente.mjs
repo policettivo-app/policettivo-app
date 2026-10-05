@@ -116,7 +116,8 @@ function dati(opts = {}) {
                conNota(prova('2026-10-05T08:10:00Z', 'beccheggio', 4.9, 'post', 1.4), 'schema 1'),
                conNota(prova('2026-10-05T08:20:00Z', 'beccheggio', 2.0, 'post', 0.6), 'schema <b>2</b>'), conNota(prova('2026-10-05T08:21:00Z', 'beccheggio', 2.1, 'post', 0.6), 'schema <b>2</b>'))
   }
-  return {
+  // foto-grandezza-v1 · il «dopo» scattato da più lontano (corpo al 50% invece del 75%) e con la testa più avanti
+  return rifinisci({
     opts,
     patients: [{ id: PID, nome: 'Mario', cognome: 'Rossi', foto_url: opts.scheda ? JSON.stringify({
       // valutazioni-coerenti-v1 · la valutazione iniziale: prima/dopo cuscini sul sagittale, frontale da sola
@@ -188,7 +189,14 @@ function dati(opts = {}) {
     ] : [],
     upserts: [],
     aggiornate: []
+  })
+}
+function rifinisci(D) {
+  if (D.opts.lontana && D.foto_misure.length) {
+    const r = D.foto_misure.find(x => x.storage_path === 'visits/v-post/sag-post.jpg')
+    r.punti = { filo_alto: { x: .5, y: .03 }, filo_basso: { x: .5, y: .97 }, orecchio: { x: .6, y: .30 }, spalla: { x: .55, y: .38 }, anca: { x: .5, y: .55 }, ginocchio: { x: .5, y: .68 }, caviglia: { x: .5, y: .80 } }
   }
+  return D
 }
 const FIRME = {
   'visits/v-post/sag-pre.jpg': '/foto/sag-pre.svg', 'visits/v-post/sag-post.jpg': '/foto/sag-post.svg',
@@ -1035,6 +1043,60 @@ sez('⭐ Un paziente senza niente di registrato')
   await page.waitForTimeout(400)
   check('⭐ lo dice con garbo, sul palco', /appena li registri/.test(await page.evaluate(() => document.getElementById('palco').innerText)))
   check('nessun errore JS in pagina', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('⭐ foto-grandezza-v1 · prima e dopo alla stessa grandezza, dai punti delle foto')
+{
+  const misura = page => page.evaluate(() => {
+    const sl = document.querySelector('#slides .slide.on')
+    const sovr = !!sl.querySelector('[data-allinea]')
+    const boxA = sovr ? sl.querySelector('[data-allinea]') : sl.querySelector('.riquadro.prima'), boxB = sovr ? boxA : sl.querySelector('.riquadro.dopo')
+    const ia = sovr ? boxA.querySelector('.ia') : boxA.querySelector('img'), ib = sovr ? boxA.querySelector('.ib') : boxB.querySelector('img')
+    const rett = (img, box) => { const bw = box.clientWidth, bh = box.clientHeight, s = Math.min(bw / img.naturalWidth, bh / img.naturalHeight)
+      return { x: (bw - img.naturalWidth * s) / 2, y: (bh - img.naturalHeight * s) / 2, w: img.naturalWidth * s, h: img.naturalHeight * s } }
+    const inB = (img, box, p) => { const r = rett(img, box); return { x: r.x + p.x * r.w, y: r.y + p.y * r.h } }
+    const tr = getComputedStyle(ib).transform
+    if (!tr || tr === 'none') return { nessuna: true }
+    const m = new DOMMatrix(tr), ap = p => ({ x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f })
+    const cavA = inB(ia, boxA, { x: .5, y: .90 }), earA = inB(ia, boxA, { x: .6, y: .15 })
+    const cavB = ap(inB(ib, boxB, { x: .5, y: .80 })), earB = ap(inB(ib, boxB, { x: .6, y: .30 }))
+    const sv = boxB.querySelector('svg.sovra')
+    return { scala: Math.hypot(m.a, m.b), piedi: Math.hypot(cavA.x - cavB.x, cavA.y - cavB.y), altezza: Math.abs((cavA.y - earA.y) - (cavB.y - earB.y)),
+             testa: earB.x - earA.x, svgUguale: sv ? getComputedStyle(sv).transform === tr : null }
+  })
+  let { page, ctx, errori } = await apri(browser, { misure: true, lontana: true })
+  await vaiA(page, 'foto:sagittale_dx'); await page.waitForTimeout(400)
+  let r = await misura(page)
+  check('⭐⭐ affiancate: il «dopo» scattato da lontano viene ingrandito finché il corpo è alto uguale', !r.nessuna && r.scala > 1.3 && r.altezza < 1.5, r)
+  check('⭐⭐ e i piedi stanno nello stesso punto del riquadro', r.piedi < 1.5, r)
+  check('⭐⭐ la testa più avanti resta più avanti: la postura non viene raddrizzata', r.testa > 5, r)
+  check('⭐ i punti disegnati sopra la foto si muovono insieme alla foto', r.svgUguale === true, r)
+  check('⭐ sotto le foto c’è scritto «Foto portate alla stessa grandezza»', /Foto portate alla stessa grandezza/.test(await testoSlide(page)))
+  await page.evaluate(() => setModoFoto('sagittale_dx', 'sovrapposte')); await page.waitForTimeout(600)
+  r = await misura(page)
+  check('⭐⭐ sovrapposte: stessa cosa, il «dopo» va sul «prima»', !r.nessuna && r.scala > 1.3 && r.altezza < 1.5 && r.piedi < 1.5, r)
+  check('⭐ e lo dice al posto di «non allineate»', /Foto portate alla stessa grandezza/.test(await testoSlide(page)) && !/non allineate/.test(await testoSlide(page)))
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+
+  ;({ page, ctx, errori } = await apri(browser, {}))
+  await vaiA(page, 'foto:sagittale_dx'); await page.waitForTimeout(400)
+  check('⭐ senza punti sulle foto: niente trasformazione, niente scritta — come prima', (await misura(page)).nessuna === true && !/stessa grandezza/.test(await testoSlide(page)))
+  await ctx.close()
+
+  ;({ page, ctx, errori } = await apri(browser, { misure: true, lontana: true, allineate: true }))
+  await vaiA(page, 'foto:sagittale_dx'); await page.waitForTimeout(400)
+  check('⭐⭐ con l’allineamento a mano dello studio vale quello: affiancate resta com’era', (await misura(page)).nessuna === true && !/stessa grandezza/.test(await testoSlide(page)))
+  await page.evaluate(() => setModoFoto('sagittale_dx', 'sovrapposte')); await page.waitForTimeout(600)
+  check('⭐ e sovrapposte dice «allineate sui riferimenti dello studio»', /riferimenti dello studio/.test(await testoSlide(page)))
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+
+  ;({ page, ctx, errori } = await apri(browser, { misure: true, lontana: true }))
+  await page.evaluate(() => { PolMisure.allineamentoDaPunti = () => { throw new Error('rotto apposta') } })
+  await vaiA(page, 'foto:sagittale_dx'); await page.waitForTimeout(400)
+  check('⭐⭐ se il calcolo salta le foto restano come sono e la pagina regge', (await misura(page)).nessuna === true && errori.length === 0, errori)
   await ctx.close()
 }
 

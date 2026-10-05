@@ -14,12 +14,12 @@
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
   <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
   <script src="js/stepping.js?v=stepping-v1"></script><!-- stepping-v1 -->
-  <script src="js/schermo-paziente.js?v=momento-nota-v3"></script>
+  <script src="js/schermo-paziente.js?v=foto-grandezza-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
   <!-- gradi-foto-v1 · i gradi sulle foto: punti confermati, riferimento personale -->
-  <script src="js/misure-foto.js?v=editor-punti-v1"></script>
+  <script src="js/misure-foto.js?v=foto-grandezza-v1"></script>
   <!-- editor-punti-v1 · l'editor dei punti sta in un file solo (lo usa anche la Fase 0) -->
   <script src="js/editor-punti.js?v=gradi-auto-v1"></script>
   <!-- tv-facile-v1 (25 set: TV accesa da sola, «in onda», tutto il collegamento in tv-collega.html) · tv-multi-v1 (25 set: TV aperta da questo computer senza codice) · tv-codice-v1 (25 set: la TV si collega con un codice, senza account) · tv-v1 (24 set: TV col telecomando) · schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
@@ -917,10 +917,60 @@ function slideCopertina(g) {
     '<div class="cop-nota">' + esc(T.copertina_nota) + '</div></div>'
 }
 
+/* foto-grandezza-v1 — la coppia di riferimenti per portare il «dopo» sul «prima»:
+   quella fatta a mano sui riferimenti dello studio se c'è (vince sempre), se no
+   quella ricavata dai punti già confermati sulle due foto (js/misure-foto.js):
+   stessa altezza del corpo, stesso filo a piombo, piedi nello stesso punto.
+   Solo per l'occhio: non tocca le foto salvate e non è una misura. */
+function allinCoppia(f, imgA, imgB) {
+  try {
+    if (!f || !f.pre || !f.post || !f.pre.path || !f.post.path) return null
+    const ma = allineamenti[f.pre.path], mb = allineamenti[f.post.path]
+    if (ma && mb) return { a: ma, b: mb, auto: false }
+    if (!PM || !PM.allineamentoDaPunti) return null
+    const xa = misure[f.pre.path], xb = misure[f.post.path]
+    if (!xa || !xb) return null
+    const fam = v => v === 'posteriore' ? 'frontale' : v
+    if (fam(xa.vista) !== fam(xb.vista)) return null
+    const dim = img => ({ W: (img && img.naturalWidth) || 3, H: (img && img.naturalHeight) || 4 })
+    const ia = dim(imgA), ib = dim(imgB)
+    const da = PM.allineamentoDaPunti(xa, ia.W, ia.H), db = PM.allineamentoDaPunti(xb, ib.W, ib.H)
+    return (da && db) ? { a: da, b: db, auto: true } : null
+  } catch (e) { return null }
+}
+/* affiancate: le due foto stanno in due riquadri uguali. Con la coppia AUTOMATICA
+   il «dopo» (foto e punti disegnati sopra) si porta alla grandezza del «prima». */
+function stessaGrandezza() {
+  try {
+    const g = giorni[sel]; if (!g) return
+    document.querySelectorAll('.slide.on .foto-area').forEach(area => {
+      const boxA = area.querySelector('.riquadro.prima'), boxB = area.querySelector('.riquadro.dopo')
+      if (!boxA || !boxB || boxB.hasAttribute('data-allinea')) return
+      const ia = boxA.querySelector('img'), ib = boxB.querySelector('img'), sv = boxB.querySelector('svg.sovra')
+      if (!ia || !ib) return
+      ib.style.transform = ''; if (sv) sv.style.transform = ''
+      const f = g.foto[boxB.getAttribute('data-plane')]
+      const cp = allinCoppia(f, ia, ib)
+      if (!cp || !cp.auto) return
+      const rett = (img, box) => {
+        const bw = box.clientWidth, bh = box.clientHeight, iw = img.naturalWidth, ih = img.naturalHeight
+        if (!iw || !ih || !bw || !bh) return null
+        const s = Math.min(bw / iw, bh / ih)
+        return { x: (bw - iw * s) / 2, y: (bh - ih * s) / 2, w: iw * s, h: ih * s }
+      }
+      const m = S.matriceAllineamento(rett(ia, boxA), rett(ib, boxB), cp.a, cp.b)
+      if (!m) return
+      const t = 'matrix(' + m.join(',') + ')'
+      ib.style.transformOrigin = '0 0'; ib.style.transform = t
+      if (sv) { sv.style.transformOrigin = '0 0'; sv.style.transform = t }
+    })
+  } catch (e) {}
+}
 function slideFoto(g, ps) {
   const f = g.foto[ps.plane]
   const modo = modoFoto[ps.plane] || 'affiancate'
   const allin = !!(f.pre.path && f.post.path && allineamenti[f.pre.path] && allineamenti[f.post.path])
+  const allinAuto = !allin && !!(allinCoppia(f) || {}).auto   // foto-grandezza-v1
   let corpo
   if (modo === 'sovrapposte') {
     corpo = '<div class="foto-area"><div class="sovrapp">' +
@@ -931,14 +981,16 @@ function slideFoto(g, ps) {
       '<div class="cursore"><span class="eti prima">' + esc(T.prima) + '</span>' +
         '<input type="range" min="0" max="100" value="100" aria-label="Da prima a dopo" oninput="mix(this,' + "'" + ps.plane + "'" + ')">' +
         '<span class="eti dopo">' + esc(dopoDi()) + '</span></div>' +
-      '<div class="allin">' + (allin ? 'Foto allineate sui riferimenti dello studio' : 'Foto non allineate: si guardano, non si misurano') + '</div>' +
+      '<div class="allin">' + (allin ? 'Foto allineate sui riferimenti dello studio' : (allinAuto ? esc(T.foto_stessa_grandezza || '') : 'Foto non allineate: si guardano, non si misurano')) + '</div>' +
       '</div></div>'
   } else {
     const col = (o, cls, eti) => '<div class="foto-col"><span class="eti ' + cls + '">' + esc(eti) + '</span>' +
       '<div class="riquadro ' + cls + '"' + (o.path ? ' data-misura="' + esc(o.path) + '" data-plane="' + ps.plane + '"' : '') + '>' +
-      '<img src="' + esc(o.url) + '" alt="' + esc(eti) + '" onload="disegnaSovra()" onerror="this.parentNode.innerHTML=\'<div class=vuoto>Questa foto non si è aperta. Ricarica la pagina.</div>\'">' +
+      '<img src="' + esc(o.url) + '" alt="' + esc(eti) + '" onload="disegnaSovra();stessaGrandezza()" onerror="this.parentNode.innerHTML=\'<div class=vuoto>Questa foto non si è aperta. Ricarica la pagina.</div>\'">' +
       '<svg class="sovra" aria-hidden="true"></svg></div></div>'
-    corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', dopoDi()) + '</div>' + strisciaGradi(ps.plane, f)
+    corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', dopoDi()) + '</div>' +
+      (allinAuto ? '<div class="allin stessa" style="text-align:center;font-size:16px;color:#8a8a8a;font-weight:600;margin-top:6px">' + esc(T.foto_stessa_grandezza || '') + '</div>' : '') +
+      strisciaGradi(ps.plane, f)
   }
   return '<div class="slide" data-s="foto">' +
     testa(T[ps.titolo], ps.sotto) + corpo +
@@ -1048,7 +1100,7 @@ function disegnaSovra() {
     svg.innerHTML = PM.svgMisura(m, { gradi: !!vediGradi[plane], rif: !!vediRif[plane], W: W, H: H })
   })
 }
-window.addEventListener('resize', function () { setTimeout(disegnaSovra, 60) })
+window.addEventListener('resize', function () { setTimeout(function () { disegnaSovra(); stessaGrandezza() }, 60) })
 
 /* Se le due foto sono state allineate in «Confronto nel tempo», nella vista
    sovrapposta la seconda si porta sulla prima. Stessa matematica, in
@@ -1060,7 +1112,8 @@ function allineaTutto() {
     const ia = box.querySelector('.ia'), ib = box.querySelector('.ib')
     if (!ia || !ib) return
     ib.style.transform = ''
-    const pa = f.pre.path && allineamenti[f.pre.path], pb = f.post.path && allineamenti[f.post.path]
+    const cp = allinCoppia(f, ia, ib)          // foto-grandezza-v1 · a mano, se no dai punti
+    const pa = cp && cp.a, pb = cp && cp.b
     if (!pa || !pb) return
     const bw = box.clientWidth, bh = box.clientHeight
     const rett = img => {
@@ -1356,6 +1409,7 @@ function vai(i, subito) {
   document.querySelectorAll('#puntini button').forEach((b, k) => b.classList.toggle('on', k === i))
   aggiornaFrecce()
   setTimeout(allineaTutto, 30)
+  setTimeout(stessaGrandezza, 40)   // foto-grandezza-v1
   setTimeout(disegnaSovra, 40)
   inviaTv()
 }

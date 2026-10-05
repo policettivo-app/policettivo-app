@@ -49,6 +49,7 @@
     criterio_piedi:     'Il riferimento è la simmetria: i due piedi appoggiati allo stesso modo.',
     foto_affiancate:    'Affiancate',
     foto_sovrapposte:   'Sovrapposte',
+    foto_stessa_grandezza: 'Foto portate alla stessa grandezza',   // foto-grandezza-v1
 
     spalla_titolo:      'La tua spalla rispetto alla linea',
     spalla_criterio:    'Il riferimento è la spalla in asse con il filo a piombo: né in avanti, né indietro.',

@@ -331,7 +331,45 @@
     return out
   }
 
+  /* foto-grandezza-v1 (5 ott 2026) — DUE FOTO ALLA STESSA GRANDEZZA, DAI PUNTI.
+     «Senza cavalletto le foto vengono più da vicino o più da lontano».
+     Dai punti già confermati sulla foto esce una coppia di riferimenti {a, b}
+     nello stesso formato dell'allineamento a mano (foto_allineamenti.punti,
+     coordinate 0-1 sull'immagine):
+       b = la base  (caviglia; di fronte e di spalle: il punto fra le caviglie)
+       a = il punto DRITTO SOPRA la base, lungo il filo a piombo, all'altezza
+           della testa del segmento (orecchio; di fronte: fra le spalle)
+     Portare a→a e b→b fra due foto corregge la DISTANZA (stessa altezza del
+     corpo) e l'INCLINAZIONE DEL TELEFONO (stesso filo), e appoggia i piedi
+     nello stesso punto. ⚠️ `a` NON è l'orecchio: se la testa è più avanti in
+     una foto, resta più avanti. La postura non si «raddrizza».
+     Non corregge la prospettiva: resta un'impressione visiva, non una misura.
+     Punti mancanti o corpo troppo piccolo → null (le foto restano come sono). */
+  function allineamentoDaPunti(m, W, H) {
+    try {
+      if (!m || !m.punti) return null
+      W = m.larghezza || W; H = m.altezza || H
+      if (!W || !H) return null
+      var p = m.punti, vista = m.vista === 'posteriore' ? 'frontale' : m.vista
+      var medio = function (u, v) { return (u && v) ? { x: (u.x + v.x) / 2, y: (u.y + v.y) / 2 } : null }
+      var cima = vista === 'sagittale' ? p.orecchio : medio(p.spalla_dx, p.spalla_sx)
+      var base = vista === 'sagittale' ? p.caviglia : medio(p.caviglia_dx, p.caviglia_sx)
+      if (!cima || !base) return null
+      var ok = function (q) { return isFinite(q.x) && isFinite(q.y) }
+      if (!ok(cima) || !ok(base)) return null
+      var assi = assiDaFilo(p, W, H)
+      // un filo «a piombo» inclinato più di 20° non è un filo: vale il bordo della foto
+      if (Math.abs(gradi(Math.atan2(assi.su.x, -assi.su.y))) > 20) assi = assiDaFilo({}, W, H)
+      var C = px(cima, W, H), B = px(base, W, H)
+      var h = (C.x - B.x) * assi.su.x + (C.y - B.y) * assi.su.y     // quanto la cima sta SOPRA la base, lungo il filo
+      if (!(h > 0.15 * H)) return null
+      var A = { x: B.x + assi.su.x * h, y: B.y + assi.su.y * h }
+      return { a: { x: A.x / W, y: A.y / H }, b: { x: B.x / W, y: B.y / H }, altezza: h / H }
+    } catch (e) { return null }
+  }
+
   global.PolMisure = {
+    allineamentoDaPunti: allineamentoDaPunti,   // foto-grandezza-v1
     ripetibilita: ripetibilita, erroreDi: erroreDi,
     svgMisura: svgMisura,
     ERRORE: ERRORE, PUNTI: PUNTI, VERSIONE: 'gradi-foto-v1',

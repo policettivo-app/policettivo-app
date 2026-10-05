@@ -196,6 +196,9 @@ const FINTO = (DB) => {
         if (DB.opts.senzaTipo && nome === 'clinical_notes' && String(stato.campi).indexOf('tipo') >= 0) {
           return Promise.resolve({ data:null, error:{ code:'42703', message:'column clinical_notes.tipo does not exist' } })
         }
+        if (nome === 'foto_misure' && DB.opts.erroreMisure) {
+          return Promise.resolve({ data:null, error:{ message:'relation "public.foto_misure" does not exist', code:'42P01' } })
+        }
         if (nome === 'foto_allineamenti' && DB.opts.erroreAllineamenti) {
           return Promise.resolve({ data:null, error:{ message:'relation "public.foto_allineamenti" does not exist', code:'42P01' } })
         }
@@ -590,6 +593,72 @@ sez('Allineamento — la geometria porta davvero B sopra A')
   const testo = await page.textContent('.avviso-allin')
   check('l\'allineamento salvato viene riletto alla riapertura', testo.includes('Foto allineate'))
   await ctx.close()
+}
+
+sez('⭐ foto-grandezza-v1 · due foto alla stessa grandezza, dai punti (senza allineamento a mano)')
+{
+  // A: corpo alto il 75% della foto. B: scattata da più lontano, corpo al 50%, testa più avanti.
+  const mis = (path, ear, ank, earX) => ({ patient_id: PID, storage_path: path, vista: 'sagittale', verso: 1, larghezza: null, altezza: null,
+    punti: { filo_alto:{x:.5,y:.03}, filo_basso:{x:.5,y:.97}, orecchio:{x:earX,y:ear}, spalla:{x:.5,y:ear+.1}, anca:{x:.5,y:.5}, ginocchio:{x:.5,y:.7}, caviglia:{x:.5,y:ank} } })
+  const d = datiBase()
+  d.foto_misure = [mis(PATH_SCHEDA_SAG, .15, .90, .50), mis(PATH_V2_SAG, .30, .80, .60)]
+  const { page, ctx } = await apri(browser, d)
+  await page.waitForTimeout(500)
+  const av = await page.$eval('.piano .avviso-allin', e => ({ c: e.className, t: e.textContent }))
+  check('⭐ lo dice: «Stessa grandezza, in automatico», e che NON è una misura', /auto/.test(av.c) && /Stessa grandezza, in automatico/.test(av.t) && /non una misura/.test(av.t) && /non la prospettiva/.test(av.t), av)
+  const misura = () => page.evaluate(() => {
+    const piano = document.querySelector('.piano')
+    const imgA = piano.querySelector('.lastra:nth-child(1) img'), imgB = piano.querySelector('.lastra:nth-child(2) img')
+    const box = img => { const aff = piano.querySelector('.visore').classList.contains('affianca'); const e = aff ? img.parentNode : piano.querySelector('.visore')
+      const bw = e.clientWidth, bh = e.clientHeight, s = Math.min(bw/img.naturalWidth, bh/img.naturalHeight)
+      return { x:(bw-img.naturalWidth*s)/2, y:(bh-img.naturalHeight*s)/2, w:img.naturalWidth*s, h:img.naturalHeight*s } }
+    const inBox = (img, p) => { const r = box(img); return { x:r.x+p.x*r.w, y:r.y+p.y*r.h } }
+    const tr = getComputedStyle(imgB).transform
+    if (!tr || tr === 'none') return { nessuna: true }
+    const m = new DOMMatrix(tr), ap = p => ({ x: m.a*p.x + m.c*p.y + m.e, y: m.b*p.x + m.d*p.y + m.f })
+    const cavA = inBox(imgA, {x:.5,y:.90}), earA = inBox(imgA, {x:.5,y:.15})
+    const cavB = ap(inBox(imgB, {x:.5,y:.80})), earB = ap(inBox(imgB, {x:.6,y:.30}))
+    return { scala: Math.hypot(m.a, m.b), piedi: Math.hypot(cavA.x-cavB.x, cavA.y-cavB.y), altezza: Math.abs((cavA.y-earA.y) - (cavB.y-earB.y)), testaAvanti: earB.x - earA.x }
+  })
+  let r = await misura()
+  check('⭐⭐ sovrapposte: la seconda foto viene ingrandita (corpo 50% → 75%: ×1,5)', !r.nessuna && Math.abs(r.scala - 1.5) < 0.02, r)
+  check('⭐⭐ i piedi finiscono nello stesso punto e il corpo è alto uguale (scarto < 1 px)', r.piedi < 1 && r.altezza < 1, r)
+  check('⭐⭐ la postura NON viene raddrizzata: la testa più avanti resta più avanti', r.testaAvanti > 5, r)
+  check('⭐ per il PDF e per l’AI resta «non allineato»: non è una misura', await page.evaluate(() => Object.values(visori).every(v => v.allineato() === false)))
+  await page.click('.piano .modi button:has-text("Affiancato")').catch(async () => { await page.evaluate(() => { [...document.querySelectorAll('.piano button')].find(b => b.textContent === 'Affiancato').click() }) })
+  await page.waitForTimeout(300)
+  r = await misura()
+  check('⭐⭐ affiancate: anche una accanto all’altra hanno la stessa grandezza', !r.nessuna && Math.abs(r.scala - 1.5) < 0.02 && r.piedi < 1 && r.altezza < 1, r)
+  await ctx.close()
+
+  // senza punti: tutto come prima
+  const s0 = await apri(browser, datiBase())
+  await s0.page.waitForTimeout(400)
+  check('⭐ senza punti sulle foto: nessuna trasformazione e l’avviso di sempre', (await s0.page.$eval('.piano .lastra:nth-child(2) img', i => i.style.transform)) === '' && /non allineate/.test(await s0.page.textContent('.piano .avviso-allin')))
+  await s0.ctx.close()
+
+  // una foto sola coi punti: niente
+  const d1 = datiBase(); d1.foto_misure = [mis(PATH_SCHEDA_SAG, .15, .90, .50)]
+  const s1 = await apri(browser, d1); await s1.page.waitForTimeout(400)
+  check('⭐ punti su una foto sola: non si inventa niente', (await s1.page.$eval('.piano .lastra:nth-child(2) img', i => i.style.transform)) === '')
+  await s1.ctx.close()
+
+  // l'allineamento a mano vince, e affiancate resta com'era
+  const d2 = datiBase({ allineamenti: [
+    { storage_path: PATH_SCHEDA_SAG, punti:{ a:{x:0.50,y:0.10}, b:{x:0.50,y:0.90} } },
+    { storage_path: PATH_V2_SAG,     punti:{ a:{x:0.60,y:0.20}, b:{x:0.58,y:0.80} } } ] })
+  d2.foto_misure = d.foto_misure
+  const s2 = await apri(browser, d2); await s2.page.waitForTimeout(400)
+  check('⭐⭐ con l’allineamento a mano vale quello: «Foto allineate» sui riferimenti dello studio', /Foto allineate/.test(await s2.page.textContent('.piano .avviso-allin')) && !/automatico/.test(await s2.page.textContent('.piano .avviso-allin')))
+  await s2.page.evaluate(() => { [...document.querySelectorAll('.piano button')].find(b => b.textContent === 'Affiancato').click() }); await s2.page.waitForTimeout(300)
+  check('⭐ e affiancate, con l’allineamento a mano, resta com’era (nessuna trasformazione)', (await s2.page.$eval('.piano .lastra:nth-child(2) img', i => i.style.transform)) === '')
+  await s2.ctx.close()
+
+  // la tabella delle misure non c'è (049 non lanciata): la pagina regge
+  const d3 = datiBase({ erroreMisure: true })
+  const s3 = await apri(browser, d3); await s3.page.waitForTimeout(400)
+  check('⭐ se le misure non si leggono la pagina resta in piedi, come prima', (await s3.page.$$('.piano')).length === 2)
+  await s3.ctx.close()
 }
 
 sez('Quando va storto: il motivo si legge a schermo')
