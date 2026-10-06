@@ -116,6 +116,15 @@
     .exp .btn { flex:1; }
     th.hide, td.hide { display:none; }
   }
+/* telefono-3 (6 ott 2026) — SOLO TELEFONO (schermo fino a 640 px): la testata si adatta invece di
+   spezzare il titolo o spingere i pulsanti fuori dallo schermo. Sopra i 640 px non cambia niente. */
+@media (max-width:640px){
+  .navbar{height:auto;min-height:60px;padding:8px 12px;gap:6px 8px;flex-wrap:wrap}
+  .navbar > div:first-child{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 120px}
+  .navbar-title{margin-left:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .navbar > div:last-child:not(:first-child){flex:0 0 auto;margin-left:auto}
+  .navbar .nav-btn{display:inline-flex;align-items:center;min-height:44px;padding:7px 12px;white-space:nowrap;flex:0 0 auto}
+}
 </style>
 </head>
 <body>
