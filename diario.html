@@ -104,6 +104,15 @@ input.fi { min-height: unset; resize: none; }
 .rf-banner-list li{ margin:0 0 2px; }
 .rf-banner-nota{ margin-top:6px; padding-top:6px; border-top:1px dashed rgba(220,38,38,.35); font-size:13px; color:#7f1d1d; line-height:1.45; }
 .rf-banner-nota-lbl{ font-weight:800; margin-right:4px; }
+/* telefono-2 (6 ott 2026) — SOLO TELEFONO (schermo fino a 640 px): la testata va su due righe
+   invece di spingere i pulsanti fuori dallo schermo. Sopra i 640 px non cambia niente. */
+@media (max-width:640px){
+  .topbar{flex-wrap:wrap;padding:10px 12px;gap:8px}
+  .topbar h1{order:-2;flex:1 1 auto;min-width:0}
+  .topbar .pname{order:-1;max-width:50%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .back-btn{flex:1 1 auto;min-height:44px;padding:8px 10px;font-size:13px;white-space:nowrap}
+  .topbar .back-btn:first-child{order:-3;flex:0 0 auto}
+}
 </style>
 </head>
 <body>

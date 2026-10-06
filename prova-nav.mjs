@@ -26,6 +26,13 @@ const server = http.createServer((req, res) => {
     res.end('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="margin:0"><p>pagina</p>' +
       '<script src="console-nav.js"></script><script src="js/pol-nav.js?v=nav-v1" defer></script></body>'); return
   }
+  // telefono-2 · come assegna-protocollo.html: un pulsante largo fisso che poggia SOPRA la barra in basso
+  if (u === '/prova-nav-due-barre.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="margin:0"><p>pagina</p>' +
+      '<button id="salva" style="position:fixed;left:12px;right:12px;bottom:70px;height:50px;width:calc(100% - 24px)">Assegna</button>' +
+      '<script src="console-nav.js"></script><script src="js/pol-nav.js?v=nav-v1" defer></script></body>'); return
+  }
   const f = path.join(ROOT, u.replace(/^\/+/, ''))
   if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end('no'); return }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' }); res.end(fs.readFileSync(f))
@@ -167,6 +174,14 @@ try {
   await ctx.close()
   ;({ p, ctx, errori } = await pagina(false, 'pagella.html?token=11111111-2222-3333-4444-555555555555'))
   check('⛔ telefono-1 · la pagella VERA aperta dal paziente: niente barra del professionista', !(await p.evaluate(() => !!document.getElementById('cnav-bar'))))
+  await ctx.close()
+
+  sez('⭐ telefono-2 · due barre una sopra l’altra')
+  ;({ p, ctx, errori } = await pagina(true, 'prova-nav-due-barre.html'))
+  const due = await p.evaluate(() => { const a = document.getElementById('pn-pil').getBoundingClientRect(), s = document.getElementById('salva').getBoundingClientRect(), b = document.getElementById('cnav-bar').getBoundingClientRect(); return { fondoPillola: Math.round(a.bottom), cimaPulsante: Math.round(s.top), cimaBarra: Math.round(b.top) } })
+  check('⭐ telefono-2 · la pillola sta sopra ANCHE il pulsante che poggia sulla barra (prima ci finiva sopra)', due.fondoPillola <= due.cimaPulsante && due.cimaPulsante < due.cimaBarra, due)
+  check('⭐ telefono-2 · e il pulsante «Assegna» si tocca per intero: nel suo angolo sinistro c’è lui, non la pillola', await p.evaluate(() => { const s = document.getElementById('salva'), r = s.getBoundingClientRect(); return document.elementFromPoint(r.left + 30, r.top + r.height / 2) === s }))
+  check('nessun errore JS', errori.length === 0, errori)
   await ctx.close()
 
   sez('⭐ partenza-v1 · la schermata di partenza')

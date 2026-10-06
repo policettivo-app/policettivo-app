@@ -95,17 +95,26 @@
       if (giro < 8 || (giro % 20) === 0) cercaFissi()
       giro++
       var h = window.innerHeight, su = 0
-      for (var i = 0; i < fissi.length; i++){
-        var e = fissi[i]
-        if (!e.isConnected) continue
-        var r = e.getBoundingClientRect()
-        // una barra in fondo: tocca il bordo basso (o ci galleggia sopra, come il
-        // grande PARTI dei test — atr-v1: prima la pillola ci finiva sopra),
-        // sta nella metà bassa, larga
-        if (r.width > window.innerWidth * 0.4 && r.height > 0 && r.height < h * 0.45 &&
-            r.bottom >= h - 48 && r.top > h * 0.5 && getComputedStyle(e).visibility !== 'hidden' &&
-            getComputedStyle(e).display !== 'none' && Number(getComputedStyle(e).opacity) > 0.05){
-          su = Math.max(su, Math.round(h - r.top))
+      /* telefono-2 (6 ott 2026) — BARRE UNA SOPRA L'ALTRA. In assegna-protocollo il
+         pulsante giallo «Assegna protocollo» sta fisso SOPRA la barra in basso: la
+         pillola si alzava sopra la barra e finiva sul pulsante. Ora si ripassa finché
+         l'altezza cresce: conta anche la barra che poggia su una già contata. */
+      var cresce = true, passate = 0
+      while (cresce && passate++ < 4){
+        cresce = false
+        for (var i = 0; i < fissi.length; i++){
+          var e = fissi[i]
+          if (!e.isConnected) continue
+          var r = e.getBoundingClientRect()
+          // una barra in fondo: tocca il bordo basso (o ci galleggia sopra, come il
+          // grande PARTI dei test — atr-v1: prima la pillola ci finiva sopra),
+          // sta nella metà bassa, larga
+          if (r.width > window.innerWidth * 0.4 && r.height > 0 && r.height < h * 0.45 &&
+              r.bottom >= h - 48 - su && r.top > h * 0.5 && getComputedStyle(e).visibility !== 'hidden' &&
+              getComputedStyle(e).display !== 'none' && Number(getComputedStyle(e).opacity) > 0.05){
+            var n = Math.round(h - r.top)
+            if (n > su){ su = n; cresce = true }
+          }
         }
       }
       d.style.setProperty('--pn-su', su + 'px')
