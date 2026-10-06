@@ -2,6 +2,16 @@
   const page = (window.location.pathname.split('/').pop() || 'index.html')
   if (['login.html', 'registrazione.html'].includes(page)) return
   if (document.querySelector('meta[name="hide-bottom-nav"]')?.content === 'true') return
+  /* telefono-1 (6 ott 2026) — LA BARRA E' DEL PROFESSIONISTA, NON DEL PAZIENTE.
+     pagella.html carica questo file e la barra «Dashboard · Cerca · Nuovo paz. ·
+     Ultima sed. · Profilo» compariva anche a chi apriva la pagella col proprio
+     link. Stessa regola di js/pol-nav.js: una pagina aperta col link del paziente
+     (?token=) non la mostra, a meno che l'abbia aperta il professionista (&pro=1).
+     Nel dubbio non si mostra. */
+  try {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('token') && q.get('pro') !== '1') return
+  } catch (e) { return }
 
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'

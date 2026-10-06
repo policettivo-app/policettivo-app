@@ -87,7 +87,13 @@
       }
     }
     function sistema(){
-      if ((giro++ % 20) === 0) cercaFissi()
+      /* telefono-1 (6 ott 2026) — le barre fisse si cercano anche nei primi giri.
+         Prima si cercavano al giro 0 e poi ogni 20 (14 secondi): la barra in basso
+         di console-nav.js viene disegnata un attimo DOPO il giro 0, e per 14 secondi
+         la pillola restava nascosta dietro. Misurato su visite, monitoraggio,
+         comparazione: coperta a 1,5 · 5 · 10 · 13 s, visibile a 15,5 s. */
+      if (giro < 8 || (giro % 20) === 0) cercaFissi()
+      giro++
       var h = window.innerHeight, su = 0
       for (var i = 0; i < fissi.length; i++){
         var e = fissi[i]
@@ -121,6 +127,9 @@
     }, { passive: true })
     d.addEventListener('touchstart', function(){ d.classList.remove('riposo') }, { passive: true })
     sistema()
+    // telefono-1 · un giro subito dopo che le altre barre si sono disegnate, senza aspettare 0,7 s
+    setTimeout(function(){ try { sistema() } catch(e){} }, 60)
+    window.addEventListener('load', function(){ try { sistema() } catch(e){} })
     setInterval(sistema, 700)
     window.addEventListener('resize', sistema)
     document.addEventListener('focusin', sistema)

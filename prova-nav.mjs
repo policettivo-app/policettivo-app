@@ -19,6 +19,13 @@ const server = http.createServer((req, res) => {
       '<input id="campo"><div id="barra" style="position:fixed;left:0;right:0;bottom:0;height:70px;background:#eee"></div>' +
       '<div class="guard" id="guard"></div><script src="js/pol-nav.js?v=nav-v1" defer></script></body>'); return
   }
+  // telefono-1 · una pagina con la barra VERA di console-nav.js, caricata come in visite.html:
+  // prima console-nav.js, poi pol-nav.js con defer
+  if (u === '/prova-nav-barra.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="margin:0"><p>pagina</p>' +
+      '<script src="console-nav.js"></script><script src="js/pol-nav.js?v=nav-v1" defer></script></body>'); return
+  }
   const f = path.join(ROOT, u.replace(/^\/+/, ''))
   if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end('no'); return }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' }); res.end(fs.readFileSync(f))
@@ -122,6 +129,44 @@ try {
   ;({ p, ctx } = await pagina(true, 'prova-nav-pagina.html'))
   await p.emulateMedia({ media: 'print' })
   check('⛔ in stampa non si vede', await p.evaluate(() => getComputedStyle(document.getElementById('pn-pil')).display === 'none'))
+  await ctx.close()
+
+  sez('⭐ telefono-1 · la barra in basso e la pillola')
+  const statoBarra = pg => pg.evaluate(() => {
+    const d = document.getElementById('pn-pil'), b = document.getElementById('cnav-bar')
+    if (!d || !b) return { pil: !!d, barra: !!b }
+    const r = d.getBoundingClientRect(), rb = b.getBoundingClientRect()
+    const sopra = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    return { pil: true, barra: true, fondoPillola: Math.round(r.bottom), cimaBarra: Math.round(rb.top), siTocca: d.contains(sopra) }
+  })
+  ;({ p, ctx, errori } = await pagina(true, 'prova-nav-barra.html'))
+  let sb = await statoBarra(p)
+  check('⭐ telefono-1 · dopo 0,9 secondi la pillola è già SOPRA la barra in basso (prima: dopo 14 secondi)', sb.pil && sb.barra && sb.fondoPillola <= sb.cimaBarra, sb)
+  check('⭐ telefono-1 · e si tocca davvero: sotto il dito c’è la pillola, non la barra', sb.siTocca === true, sb)
+  await p.waitForTimeout(3000); sb = await statoBarra(p)
+  check('⭐ telefono-1 · resta sopra la barra anche dopo', sb.fondoPillola <= sb.cimaBarra && sb.siTocca === true, sb)
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+  ;({ p, ctx } = await pagina(true, 'prova-nav-barra.html', 1280, 800))
+  sb = await statoBarra(p)
+  check('⭐ telefono-1 · vale anche sul computer', sb.fondoPillola <= sb.cimaBarra && sb.siTocca === true, sb)
+  await ctx.close()
+  ;({ p, ctx, errori } = await pagina(false, 'prova-nav-barra.html?token=abc'))
+  check('⛔ telefono-1 · pagina aperta col link del paziente (?token=): la barra del professionista NON c’è', !(await p.evaluate(() => !!document.getElementById('cnav-bar'))))
+  check('⛔ telefono-1 · e nemmeno i suoi pannelli (cerca, profilo)', !(await p.evaluate(() => !!document.getElementById('cnav-modal-search') || !!document.getElementById('cnav-overlay'))))
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+  ;({ p, ctx } = await pagina(true, 'prova-nav-barra.html?token=abc&preview=1'))
+  check('⛔ telefono-1 · neanche nell’anteprima del professionista (&preview=1): vede quello che vede il paziente', !(await p.evaluate(() => !!document.getElementById('cnav-bar'))))
+  await ctx.close()
+  ;({ p, ctx } = await pagina(true, 'prova-nav-barra.html?token=abc&pro=1'))
+  check('⭐ telefono-1 · se l’ha aperta il professionista (&pro=1) la barra c’è', await p.evaluate(() => !!document.getElementById('cnav-bar')))
+  await ctx.close()
+  ;({ p, ctx } = await pagina(true, 'prova-nav-barra.html'))
+  check('⭐ telefono-1 · senza ?token= la barra c’è come prima, con le sue cinque voci', await p.evaluate(() => document.querySelectorAll('#cnav-bar .cnav-btn').length === 5))
+  await ctx.close()
+  ;({ p, ctx, errori } = await pagina(false, 'pagella.html?token=11111111-2222-3333-4444-555555555555'))
+  check('⛔ telefono-1 · la pagella VERA aperta dal paziente: niente barra del professionista', !(await p.evaluate(() => !!document.getElementById('cnav-bar'))))
   await ctx.close()
 
   sez('⭐ partenza-v1 · la schermata di partenza')
