@@ -1,4 +1,4 @@
-/* js/guida-motore.js — guidato-v4 (7 ottobre 2026)
+/* js/guida-motore.js — guidato-v5 (7 ottobre 2026)
  *
  * ESERCIZI GUIDATI DAL TELEFONO: IL CALCOLO, IN UN FILE SOLO.
  * Primo esercizio: lo squat col telefono fra le due mani, in orizzontale,
@@ -25,7 +25,7 @@
 ;(function (global) {
   'use strict'
 
-  var VERSIONE = 'guidato-v4'
+  var VERSIONE = 'guidato-v5'
   var RITMI = {
     lento: { inizio: 3000, giu: 3000, fondo: 1000, su: 3000, piedi: 1000 },
     medio: { inizio: 3000, giu: 2000, fondo: 1000, su: 2000, piedi: 1000 }
@@ -119,56 +119,192 @@
     return d
   }
 
-  /* ── guidato-v4 · dai primi due tracciati veri (7 ott, iPhone) ──
-     Primo tracciato: chi fa l'esercizio ANTICIPA la voce e scende in 2 secondi,
-     non in 3. Secondo (errori fatti apposta): due squat dentro il tempo di uno,
-     una ripetizione saltata, telefono inclinato, una mano giù. Contando «a
-     finestre» sul ritmo ne uscivano 3 su 5 e un fondo di 3 metri.
-     Quindi il conto NON guarda più il programma: guarda i dati. Ogni volta che
-     il telefono torna fermo si chiude un MOVIMENTO (da fermo a fermo: velocità
-     finale zero) e si vede di quanto è sceso o salito. Una discesa seguita da
-     una risalita è uno squat, in qualunque momento sia stato fatto. Solo DOPO
-     lo si confronta col ritmo: a tempo, oppure fuori tempo. */
+  /* ── guidato-v5 · dal terzo tracciato vero (7 ott sera, iPhone) ──
+     Cinque squat fatti PIANO, come chiede la voce, e ne contava uno. Il conto
+     di prima cercava i momenti in cui il telefono è «fermo» per chiudere ogni
+     movimento: funziona con gli squat svelti (accelerazioni di 1-4 m/s²), ma
+     con quelli lenti l'accelerazione è piccola quanto il tremolio della mano,
+     e «fermo» e «in movimento» non si distinguono più. Contava peggio proprio
+     chi faceva l'esercizio come chiesto.
+     Adesso non si cerca più il fermo. Si ricostruisce la POSIZIONE (l'altezza
+     del telefono nel tempo) e si contano le sue VALLI: giù di almeno 20 cm e
+     poi di nuovo su. La deriva — l'errore fisso del sensore, che sommato due
+     volte cresce come una parabola — si toglie sottraendo alla velocità la sua
+     media su 8 secondi: chi parte da in piedi e torna in piedi ha velocità
+     media zero, quindi quella media È la deriva.
+     Per la pallina, che serve ADESSO, la media «centrata» degli ultimi 4
+     secondi non esiste ancora: la deriva si prolunga in linea retta. */
+  var FINESTRA = 8        // s: la finestra della media che toglie la deriva
+  var VALLE_GIU = 0.20    // m: quanto bisogna scendere perché sia una discesa
+  var VALLE_SU = 0.5      // quanta parte della discesa bisogna risalire perché lo squat sia chiuso
+  var VALLE_VEL = 0.08    // m/s: una discesa più lenta di così non si distingue dalla deriva
+  var VALLE_REL = 0.4     // una valle più piccola di così rispetto alle altre è deriva, non squat
+  var CONFERMA_MS = 300   // dal vivo uno squat si conta 0,3 s dopo che è finito
 
-  /* Il profilo dello spostamento fra due istanti. ordine 0: si arriva fermi
-     (velocità finale zero). ordine 1: si arriva fermi E allo stesso punto. */
-  function profilo(st, tDa, tA, ordine) {
+  /* somma nel tempo (trapezi); i buchi dei sensori si attraversano in linea retta */
+  function somma(t, x, da) {
+    var n = t.length, out = new Array(n - da), s = 0
+    out[0] = 0
+    for (var i = da + 1; i < n; i++) { s += (x[i] + x[i - 1]) / 2 * (t[i] - t[i - 1]) / 1000; out[i - da] = s }
+    return out
+  }
+  /* media mobile centrata su W secondi, troncata ai bordi */
+  function mediaCentrata(t, x, W) {
+    var n = t.length, out = new Array(n), c = new Array(n + 1), j0 = 0, j1 = 0, i
+    c[0] = 0
+    for (i = 0; i < n; i++) c[i + 1] = c[i] + x[i]
+    for (i = 0; i < n; i++) {
+      while (t[j0] < t[i] - W * 500) j0++
+      while (j1 < n && t[j1] <= t[i] + W * 500) j1++
+      out[i] = (c[j1] - c[j0]) / (j1 - j0)
+    }
+    return out
+  }
+  /* La posizione fino a adesso. Torna { t, p } (t in ms, p in metri; lo zero non
+     conta, contano i dislivelli). vivo = true: l'ultimo tratto con la deriva
+     prolungata in linea retta (per la pallina e per il conto in diretta). */
+  function posizione(st, vivo) {
+    var da = st.da
+    if (da == null || st.t.length - da < 12) return null
+    var t = st.t.slice(da), n = t.length, a = new Array(n), i
+    var b0 = st.zero ? st.zero.av : 0
+    for (i = 0; i < n; i++) a[i] = st.av[da + i] - b0
+    var v = somma(t, a, 0), W = FINESTRA, H = W * 500
+    var lungo = t[n - 1] - t[0]
+    var base
+    if (lungo < (W + 1) * 1000) {
+      // troppo presto per stimare la deriva: ci si fida dello zero preso da fermi
+      if (!vivo) { var m = media(v); base = v.map(function () { return m }) } else base = v.map(function () { return 0 })
+    } else {
+      base = mediaCentrata(t, v, W)
+      if (vivo) {
+        var j = n - 1, j2, k0 = 0, k1
+        while (j > 0 && t[j] > t[n - 1] - H) j--          // l'ultimo punto con la finestra intera
+        j2 = j; while (j2 > 0 && t[j2] > t[j] - 2000) j2--
+        var sl = j > j2 ? (base[j] - base[j2]) / (t[j] - t[j2]) : 0
+        for (i = j + 1; i < n; i++) base[i] = base[j] + sl * (t[i] - t[j])
+        while (k0 < n - 1 && t[k0] < t[0] + H) k0++        // e il primo
+        k1 = k0; while (k1 < n - 1 && t[k1] < t[k0] + 1000) k1++
+        var sl0 = k1 > k0 ? (base[k1] - base[k0]) / (t[k1] - t[k0]) : 0
+        for (i = 0; i < k0; i++) base[i] = base[k0] + sl0 * (t[i] - t[k0])
+      }
+    }
+    for (i = 0; i < n; i++) v[i] -= base[i]
+    return { t: t, p: somma(t, v, 0) }
+  }
+  /* Le valli: giù di almeno VALLE_GIU dal punto più alto, poi su di almeno metà. */
+  function valli(P, segno) {
+    var t = P.t, p = P.p, n = t.length, out = [], stato = 'su', top = p[0] * segno, itop = 0, pmin = 0, imin = 0, top0 = 0, itop0 = 0, i, x
+    for (i = 0; i < n; i++) {
+      x = p[i] * segno
+      if (stato === 'su') {
+        if (x > top) { top = x; itop = i }
+        if (x < top - VALLE_GIU) { stato = 'giu'; pmin = x; imin = i; top0 = top; itop0 = itop }
+      } else {
+        if (x < pmin) { pmin = x; imin = i }
+        if (x > pmin + Math.max(0.12, VALLE_SU * (top0 - pmin))) {
+          out.push({ itop: itop0, imin: imin, ifine: i, metri: top0 - pmin, top: top0, min: pmin })
+          stato = 'su'; top = x; itop = i
+        }
+      }
+    }
+    return { valli: out, aperta: stato === 'giu' ? { itop: itop0, imin: imin, metri: top0 - pmin, top: top0, min: pmin } : null, top: top }
+  }
+  /* Da una valle a uno squat coi suoi tempi (dal 10% al 90% del dislivello, riportati all'intero ÷ 0,6). */
+  function misura(P, V, segno) {
+    var t = P.t, p = P.p, D = V.metri, i
+    var a10 = V.itop, a90 = V.imin, b90 = V.imin, b10 = V.ifine
+    for (i = V.imin; i >= V.itop; i--) if (p[i] * segno >= V.top - 0.1 * D) { a10 = i; break }
+    for (i = a10; i <= V.imin; i++) if (p[i] * segno <= V.min + 0.1 * D) { a90 = i; break }
+    for (i = V.imin; i < p.length; i++) if (p[i] * segno >= V.min + 0.1 * D) { b90 = i; break }
+    // la risalita finisce quando si torna al 90% del dislivello, o dove smette di salire
+    // la risalita finisce quando si torna al 90% del dislivello; se non ci si torna
+    // (si è risaliti meno), dove si è arrivati più in alto nei 2 secondi dopo
+    var su = V.min + 0.9 * D, imax = V.ifine, trovato = false
+    for (i = b90; i < p.length && t[i] - t[V.ifine] <= 2000; i++) {
+      if (p[i] * segno > p[imax] * segno) imax = i
+      if (p[i] * segno >= su) { b10 = i; trovato = true; break }
+    }
+    if (!trovato) b10 = imax
+    return { t0: t[a10], tFondo: t[a90], tSu: t[b90], t1: t[b10], metri: D,
+      giuS: (t[a90] - t[a10]) / 600, suS: (t[b10] - t[b90]) / 600, fondoS: Math.max(0, (t[b90] - t[a90]) / 1000) }
+  }
+  /* Lo spostamento fra due istanti in cui si è fermi (velocità zero ai due capi:
+     tolta la media, un errore fisso del sensore sparisce) e quanto è durato
+     (dal 10% al 90% del dislivello, riportato all'intero ÷ 0,6). */
+  function profilo(st, tDa, tA) {
     var tt = [], aa = [], i
     for (i = 0; i < st.t.length; i++) if (st.t[i] >= tDa && st.t[i] <= tA) { tt.push(st.t[i] / 1000); aa.push(st.av[i]) }
     var n = tt.length
     if (n < 8) return null
-    var T = tt[n - 1] - tt[0]
-    var somma = function (c0, c1) {
-      var v = 0, d = 0, ds = [0]
-      for (var j = 1; j < n; j++) {
-        var dt = tt[j] - tt[j - 1]
-        var x0 = aa[j - 1] - c0 - c1 * (tt[j - 1] - tt[0]), x1 = aa[j] - c0 - c1 * (tt[j] - tt[0])
-        var vn = v + (x0 + x1) / 2 * dt
-        d += (v + vn) / 2 * dt; v = vn; ds.push(d)
+    var T = tt[n - 1] - tt[0], area = 0
+    for (i = 1; i < n; i++) area += (aa[i] + aa[i - 1]) / 2 * (tt[i] - tt[i - 1])
+    var c0 = area / T, v = 0, d = 0, ds = [0]
+    for (i = 1; i < n; i++) { var dt = tt[i] - tt[i - 1], vn = v + ((aa[i] - c0) + (aa[i - 1] - c0)) / 2 * dt; d += (v + vn) / 2 * dt; v = vn; ds.push(d) }
+    var E = ds[n - 1], a10 = null, a90 = null
+    if (Math.abs(E) < 0.02) return { metri: E, giuS: null }
+    for (i = 0; i < n; i++) { var q = ds[i] / E; if (a10 == null && q >= 0.1) a10 = tt[i]; if (q >= 0.9) { a90 = tt[i]; break } }
+    return { metri: E, giuS: a10 != null && a90 != null ? (a90 - a10) / 0.6 : null, t10: a10 != null ? a10 * 1000 : null, t90: a90 != null ? a90 * 1000 : null }
+  }
+
+  /* A prova finita, ora che si sa DOVE sono la discesa e la risalita, i loro
+     secondi e i centimetri si rimisurano sui dati grezzi, da fermo a fermo
+     (velocità zero ai due capi): la media che toglie la deriva arrotonda gli
+     spigoli e farebbe sembrare i movimenti più lenti di quel che sono. */
+  function affina(st, x) {
+    var g = profilo(st, x.t0 - 700, x.tFondo + 600, 0), u = profilo(st, x.tSu - 600, x.t1 + 700, 0)
+    var ok = function (p) { return p && p.giuS != null && Math.abs(p.metri) >= 0.5 * x.metri && Math.abs(p.metri) <= 1.8 * x.metri }
+    var m = []
+    // (anche gli istanti di partenza e di arrivo si prendono da qui: servono per dire «a tempo»)
+    if (ok(g)) { x.giuS = g.giuS; m.push(Math.abs(g.metri)); x.t0 = g.t10; x.tFondo = g.t90 } else x.giuS = null   // se non torna, meglio nessun numero che uno sbagliato
+    if (ok(u)) { x.suS = u.giuS; m.push(Math.abs(u.metri)); x.tSu = u.t10; x.t1 = u.t90 } else x.suS = null
+    x.fondoS = Math.max(0, (x.tSu - x.tFondo) / 1000)
+    if (m.length) x.metri = media(m)
+    x.vero = m.length === 2 || (m.length === 1 && x.metri >= 0.35)   // discesa E risalita confermate (una sola basta se lo squat è profondo)
+  }
+
+  /* Gli squat visti finora. vivo = conto in diretta (solo quelli finiti da un po'). */
+  function squatVisti(st, vivo) {
+    var P = posizione(st, vivo)
+    if (!P) return { P: null, squat: [], aperta: null, top: 0 }
+    // il verso di «giù»: i telefoni non concordano sul segno. Il primo dislivello vero, da in piedi, è una discesa.
+    // Si decide SOLO sulla posizione viva dei primi secondi, quella che parte dallo zero preso da fermi.
+    if (!st.segno && !vivo) return { P: P, squat: [], aperta: null, top: 0 }
+    if (!st.segno) {
+      var p0 = P.p[0], i
+      for (i = 0; i < P.p.length; i++) if (Math.abs(P.p[i] - p0) >= VALLE_GIU) { st.segno = P.p[i] < p0 ? 1 : -1; break }
+      if (!st.segno) return { P: P, squat: [], aperta: null, top: 0 }
+    }
+    var R = valli(P, st.segno), adesso = P.t[P.t.length - 1], ultimaPiedi = tempi(st, st.n).piedi
+    var q = R.valli.map(function (V) { return misura(P, V, st.segno) })
+    // La prova del nove di ogni valle: rimisurata sui dati grezzi fra i suoi due capi fermi,
+    // la discesa (o la risalita) deve esserci ancora. Una valle fatta solo di deriva lenta
+    // del sensore lì sparisce, perché nel piccolo la deriva è un errore fisso e si toglie.
+    q.forEach(function (x) { affina(st, x) })
+    q = q.filter(function (x) { return x.vero })
+    // e non dev'essere più lenta di VALLE_VEL, né a scendere né a salire: quella è deriva
+    q = q.filter(function (x) { return (x.giuS == null || x.metri / x.giuS >= VALLE_VEL) && (x.suS == null || x.metri / x.suS >= VALLE_VEL) })
+    q = q.filter(function (x) { return x.metri / Math.max(0.2, (x.tFondo - x.t0) / 1000 / 0.8) >= VALLE_VEL && x.t0 < ultimaPiedi })
+    if (q.length >= 2) {
+      var ord = q.map(function (x) { return x.metri }).sort(function (a, b) { return a - b }), med = ord[Math.floor(ord.length / 2)]
+      q = q.filter(function (x) { return x.metri >= VALLE_REL * med })
+    }
+    if (vivo) q = q.filter(function (x) { return adesso - x.t1 >= CONFERMA_MS || adesso - P.t[0] > st.fine })
+    return { P: P, squat: q, aperta: R.aperta, top: R.top }
+  }
+  function segnaTempo(st, lista) {   // a tempo? la discesa parte vicino a un «giù» e la risalita vicino al suo «su»
+    var presi = {}
+    lista.forEach(function (q) {
+      q.rip = null
+      var best = null
+      for (var r = 1; r <= st.n; r++) {
+        if (presi[r]) continue
+        var T = tempi(st, r), dg = q.t0 - T.giu, ds = q.tSu - T.su
+        if (dg >= -1000 && dg <= 2200 && ds >= -1500 && ds <= 2200 && (best == null || Math.abs(dg) < best.d)) best = { r: r, d: Math.abs(dg) }
       }
-      return { ds: ds, v: v, d: d }
-    }
-    var g = somma(0, 0), c0, c1 = 0
-    if (ordine === 0) c0 = g.v / T
-    else {
-      var det = T * (T * T * T / 6) - (T * T / 2) * (T * T / 2)
-      c0 = (g.v * (T * T * T / 6) - (T * T / 2) * g.d) / det
-      c1 = (T * g.d - (T * T / 2) * g.v) / det
-    }
-    var r = somma(c0, c1), ds = r.ds, im = 0
-    for (i = 1; i < n; i++) if (Math.abs(ds[i]) > Math.abs(ds[im])) im = i
-    var E = ds[im], out = { metri: E, tt: tt, ds: ds, im: im, giuS: null, suS: null, fondoS: null }
-    if (Math.abs(E) > 0.02) {
-      // quanto è durata la discesa: si cronometra dal 10% al 90% del fondo (gli estremi
-      // sono lenti e incerti) e si riporta al movimento intero dividendo per 0,6:
-      // un movimento dolce passa in quel tratto circa il 60% del suo tempo.
-      var a10 = null, a90 = null, b90 = null, b10 = null
-      for (i = 0; i <= im; i++) { var q = ds[i] / E; if (a10 == null && q >= 0.1) a10 = tt[i]; if (a90 == null && q >= 0.9) { a90 = tt[i]; break } }
-      for (i = n - 1; i >= im; i--) { var q2 = ds[i] / E; if (b10 == null && q2 >= 0.1) b10 = tt[i]; if (b90 == null && q2 >= 0.9) { b90 = tt[i]; break } }
-      if (a10 != null && a90 != null) out.giuS = (a90 - a10) / 0.6
-      if (ordine === 1 && b10 != null && b90 != null) { out.suS = (b10 - b90) / 0.6; if (a90 != null) out.fondoS = Math.max(0, b90 - a90) }
-    }
-    return out
+      if (best) { q.rip = best.r; presi[best.r] = true }
+    })
+    return lista
   }
 
   function crea(o) {
@@ -178,10 +314,9 @@
     return {
       ritmo: ritmo, n: n, prog: programma(ritmo, n), fine: durata(ritmo, n),
       soglie: { mani: s.mani || SOGLIE.mani, braccia: s.braccia || SOGLIE.braccia, movimento: s.movimento || SOGLIE.movimento },
-      t: [], av: [], roll: [], pitch: [], avSomma: 0,
-      G: null, zero: null, zeroAcc: { sx: 0, sy: 0, b: [], av: [] },
-      segno: 0, viva: null, scala: 0.6,
-      inMoto: false, tFermo: null, tPartenza: null, mov: [], squat: [], attesa: null,
+      t: [], av: [], roll: [], pitch: [],
+      G: null, zero: null, zeroAcc: { sx: 0, sy: 0, b: [], av: [] }, da: null,
+      segno: 0, scala: 0.5, vivo: { n: 0, discese: 0, corpo: 0, prof: 0, ultima: null, aTempo: 0 }, giroCalcolo: 0,
       fuori: { destra: 0, sinistra: 0, braccia: 0, maxDestra: 0, maxSinistra: 0, maxBraccia: 0 },
       cadeDa: null, caduta: false, piattoN: 0, senzaLineare: false
     }
@@ -192,103 +327,30 @@
   }
   function piuGrande(v) { return v.length ? v.reduce(function (p, q) { return Math.abs(q) > Math.abs(p) ? q : p }, 0) : null }
 
-  /* Quieto adesso? Negli ultimi 350 ms l'accelerazione verticale balla poco e
-     sta vicina al suo valore di riposo. «Poco» è relativo a quanto trema la
-     mano di chi tiene il telefono. */
-  var FERMO_MS = 350
-  var ALFA = 0.03            // quanto in fretta si aggiorna il valore di riposo, da fermi
-  var QUIETE_ACC = 0.15      // m/s²: quanto può stare lontana dal riposo la media della finestra
-  var QUIETE_VEL = 0.15      // m/s: sotto, la velocità stimata vale «fermo»
-  var QUIETE_LUNGA = 900     // ms di quiete continua: fermo comunque (la stima della velocità deriva)
-  var RIPARTI_MS = 4000      // mai fermo da tanto: il valore di riposo era sbagliato, lo si riprende
-  function fermoAdesso(st, adesso) {
-    var n = st.t.length, k = n - 1, w = []
-    while (k >= 0 && adesso - st.t[k] <= FERMO_MS) { w.push(st.av[k]); k-- }
-    if (w.length < 6) return false
-    var s = sd(w), riposo = st.bias != null ? st.bias : st.avSomma / n
-    st.mediaW = media(w)
-    // quanto trema la mano: il doppio della finestra più ferma vista finora (fra 0,05 e 0,3)
-    if (adesso > 600 && (st.sdMin == null || s < st.sdMin)) st.sdMin = s
-    var trema = Math.min(0.3, Math.max(0.05, (st.sdMin == null ? 0.1 : st.sdMin) * 2))
-    st.trema = trema
-    // la finestra più ferma da quando ci si muove: serve se il valore di riposo è sbagliato
-    if (st.cand == null || s < st.cand.sd) st.cand = { sd: s, media: st.mediaW }
-    return s < 0.22 + 1.5 * trema && Math.abs(st.mediaW - riposo) < QUIETE_ACC + trema / 2
-  }
-
-  /* Un movimento è finito (da tDa a tA, fermo ai due capi): cos'era? */
-  function chiudiMovimento(st, tDa, tA) {
-    if (tA - tDa < 250) return
-    var p0 = profilo(st, tDa, tA, 0)
-    if (!p0) return
-    var netto = p0.ds[p0.ds.length - 1], S = st.soglie.movimento
-    if (st.debug) st.debug.push([Math.round(tDa), Math.round(tA), r2(netto)])
-    // giù e subito su senza un vero fermo in fondo: alla fine si è (quasi) dove
-    // si era, ma in mezzo si è scesi parecchio. È uno squat intero in un movimento solo.
-    var p1 = profilo(st, tDa, tA, 1)
-    if (p1 && !st.attesa && Math.abs(p1.metri) >= S * 1.5 && Math.abs(netto) < 0.4 * Math.abs(p1.metri)) {
-      if (!st.segno) st.segno = p1.metri < 0 ? 1 : -1
-      if (p1.metri * st.segno < 0) {
-        nuovoSquat(st, { t0: tDa, tFondo: p1.tt[p1.im] * 1000, tSu: p1.tt[p1.im] * 1000, t1: tA, metri: Math.abs(p1.metri), giuS: p1.giuS, suS: p1.suS, fondoS: p1.fondoS })
-        return
-      }
-    }
-    if (Math.abs(netto) < S) return
-    if (!st.segno) st.segno = netto < 0 ? 1 : -1          // il primo movimento, da in piedi, è una discesa
-    var giu = netto * st.segno < 0
-    var m = { t0: tDa, t1: tA, metri: Math.abs(netto), giu: giu, secondi: p0.giuS }
-    st.mov.push(m)
-    if (giu) {
-      if (tDa >= tempi(st, st.n).piedi) return              // dopo l'ultima risalita: è il telefono che viene abbassato
-      if (st.attesa) { st.attesa.metri += m.metri; st.attesa.t1 = tA }   // discesa in due tempi: è la stessa
-      else st.attesa = { t0: tDa, t1: tA, metri: m.metri, secondi: m.secondi, id: st.mov.length }
-    } else if (st.attesa) {
-      nuovoSquat(st, { t0: st.attesa.t0, tFondo: st.attesa.t1, tSu: tDa, t1: tA, metri: (st.attesa.metri + m.metri) / 2,
-        giuS: st.attesa.secondi, suS: m.secondi, fondoS: Math.max(0, (tDa - st.attesa.t1) / 1000) })
-      st.attesa = null
-    }
-  }
-  function nuovoSquat(st, q) {
-    var rr = [], pp = [], j
-    for (j = 0; j < st.t.length; j++) if (st.t[j] >= q.t0 && st.t[j] <= q.t1) { rr.push(st.roll[j]); pp.push(st.pitch[j]) }
-    q.mani = r1(media(rr)); q.maniMax = r1(piuGrande(rr)); q.braccia = r1(piuGrande(pp))
-    // a tempo? la discesa parte vicino a un «giù» e la risalita vicino al suo «su»
-    q.rip = null
-    var best = null
-    for (var r = 1; r <= st.n; r++) {
-      if (st.squat.some(function (x) { return x.rip === r })) continue
-      var T = tempi(st, r), dg = q.t0 - T.giu, ds = q.tSu - T.su
-      if (dg >= -1000 && dg <= 2000 && ds >= -1500 && ds <= 2000 && (best == null || Math.abs(dg) < best.d)) best = { r: r, d: Math.abs(dg) }
-    }
-    if (best) q.rip = best.r
-    st.squat.push(q)
-    st.scala = st.squat.length === 1 ? q.metri : st.scala * 0.6 + q.metri * 0.4
-    if (st.viva) { st.viva.d = 0; st.viva.v = 0 }   // di nuovo in piedi: la pallina torna in cima
-  }
-
   /* Un campione: { t (ms dall'inizio della misura), ag:{x,y,z}, a:{x,y,z}|null }.
      Torna cosa mostrare ADESSO. */
   function aggiungi(st, c) {
     var L = leggi(c.ag, c.a, st.G)
     st.G = L.G; if (L.senzaLineare) st.senzaLineare = true
     var b = bersaglio(st.prog, c.t)
-    // la partenza: fermo, si prende lo zero (dopo il primo terzo, che è assestamento)
+    // la partenza: fermo, si prende lo zero (dopo il primo terzo, che è assestamento).
+    // Si chiude 0,8 s PRIMA del primo «giù»: c'è chi parte in anticipo.
     if (!st.zero) {
       if (c.t >= st.ritmo.inizio / 3 && c.t < st.ritmo.inizio - 800) {
         var rad = L.volante * Math.PI / 180
         st.zeroAcc.sx += Math.cos(rad); st.zeroAcc.sy += Math.sin(rad); st.zeroAcc.b.push(L.becco); st.zeroAcc.av.push(L.av)
+        if (st.da == null) st.da = st.t.length
       }
-      // lo zero si chiude 0,8 s PRIMA del primo «giù»: c'è chi parte in anticipo
       if (c.t >= st.ritmo.inizio - 800 && st.zeroAcc.b.length >= 3) {
         var bs = st.zeroAcc.b.slice().sort(function (p, q) { return p - q })
-        st.zero = { volante: Math.atan2(st.zeroAcc.sy, st.zeroAcc.sx) * 180 / Math.PI, becco: bs[Math.floor(bs.length / 2)], av: media(st.zeroAcc.av), trema: sd(st.zeroAcc.av) || 0, t: c.t }
+        st.zero = { volante: Math.atan2(st.zeroAcc.sy, st.zeroAcc.sx) * 180 / Math.PI, becco: bs[Math.floor(bs.length / 2)], av: media(st.zeroAcc.av), t: c.t }
       }
     }
     var z = st.zero
     var roll = z ? giro(L.volante - z.volante) : 0, pitch = z ? L.becco - z.becco : 0
     if (L.piatto) { roll = 0; st.piattoN++ }
     var dtp = st.t.length ? (c.t - st.t[st.t.length - 1]) / 1000 : 0
-    st.t.push(c.t); st.av.push(L.av); st.avSomma += L.av; st.roll.push(roll); st.pitch.push(pitch)
+    st.t.push(c.t); st.av.push(L.av); st.roll.push(roll); st.pitch.push(pitch)
     var lato = Math.abs(roll) < st.soglie.mani ? null : (roll > 0 ? 'destra' : 'sinistra')   // la mano PIÙ BASSA
     var braccia = Math.abs(pitch) >= st.soglie.braccia
     if (z && dtp > 0 && dtp < 0.25) {   // per quanto tempo, e fino a quanto
@@ -300,67 +362,51 @@
     // la caduta del telefono
     if (L.modulo < CADUTA_G) { if (st.cadeDa == null) st.cadeDa = c.t; if (c.t - st.cadeDa >= CADUTA_MS) st.caduta = true } else st.cadeDa = null
 
-    // la stima VIVA: una somma continua dell'accelerazione, tolto il valore di
-    // riposo. Muove la pallina e dice se la velocità è davvero vicina a zero.
-    // Il valore di riposo (l'errore fisso del sensore) si impara SOLO da fermi:
-    // la media di tutto, presa a metà di un movimento, è sbagliata.
-    if (z && st.bias == null) st.bias = z.av
-    var n = st.t.length, riposo = st.bias != null ? st.bias : st.avSomma / n
-    var V = st.viva
-    if (!V) V = st.viva = { v: 0, d: 0, tp: c.t, ap: 0 }
-    if (z) {
-      var dt = (c.t - V.tp) / 1000, an = L.av - riposo, vp = V.v
-      // (l'iPhone ogni tanto tace per 0,3 s: il buco si attraversa in linea retta, non si salta)
-      if (dt > 0 && dt < 0.6) { V.v += (an + V.ap) / 2 * dt; V.d += (V.v + vp) / 2 * dt }
-      V.ap = an
+    // il conto e la pallina: si ricalcolano una decina di volte al secondo su tutto quello che si è visto
+    if (z && ++st.giroCalcolo % 6 === 0) {
+      // il conto si fa sulla posizione «calma» (la stessa del riassunto finale); la pallina su quella viva
+      var S = squatVisti(st, true), C = squatVisti(st, false), V = st.vivo
+      S.squat = C.squat.filter(function (x) { return c.t - x.t1 >= CONFERMA_MS })
+      if (S.P) {
+        if (S.squat.length > V.n) {   // il conto in diretta non torna mai indietro
+          V.n = S.squat.length
+          var ult = S.squat[S.squat.length - 1]
+          V.ultima = ult.giuS != null ? { id: Math.round(ult.t0), secondi: ult.giuS, chiesti: st.ritmo.giu / 1000 } : null
+          V.aTempo = segnaTempo(st, S.squat).filter(function (x) { return x.rip != null }).length
+          var ord = S.squat.map(function (x) { return x.metri }).sort(function (p, q) { return p - q })
+          st.scala = ord[Math.floor(ord.length / 2)]
+        }
+        // la pallina: quanto si è sotto il punto più alto degli ultimi 6 secondi
+        var p = S.P.p, t = S.P.t, k = p.length - 1, top = -Infinity, i
+        for (i = k; i >= 0 && t[k] - t[i] <= 6000; i--) if (p[i] * (st.segno || 1) > top) top = p[i] * (st.segno || 1)
+        V.prof = Math.max(0, top - p[k] * (st.segno || 1))
+        if (!st.segno) V.prof = Math.abs(p[k] - p[0])   // prima discesa: il verso non si sa ancora, ma da in piedi si può solo scendere
+        V.corpo = Math.max(0, Math.min(1, V.prof / Math.max(0.25, st.scala)))
+        V.discese = V.n + (S.aperta && S.aperta.metri >= VALLE_GIU && S.squat.length <= V.n && V.corpo > 0.5 ? 1 : 0)
+      }
     }
-    V.tp = c.t
-
-    // fermo o in movimento: quando torna fermo, il movimento si chiude.
-    // «Fermo» = l'accelerazione è quieta E la velocità stimata è piccola: a metà
-    // di una salita a velocità costante l'accelerazione è quieta ma ci si muove
-    // (nel secondo tracciato vero una risalita veniva spezzata in due e persa).
-    // Se la quiete dura quasi un secondo, è fermo comunque (la stima deriva).
-    var quieto = fermoAdesso(st, c.t)
-    if (quieto) { if (st.quietoDa == null) st.quietoDa = c.t } else st.quietoDa = null
-    var fermo = quieto && (Math.abs(V.v) < QUIETE_VEL || c.t - st.quietoDa >= QUIETE_LUNGA)
-    if (z && c.t >= st.ritmo.inizio - 1000) {
-      if (fermo) {
-        if (st.inMoto) { st.inMoto = false; chiudiMovimento(st, st.tPartenza, c.t) }
-        st.tFermo = c.t
-      } else if (!st.inMoto) { st.inMoto = true; st.tPartenza = (st.tFermo != null ? st.tFermo : c.t) - FERMO_MS }
-    } else if (fermo) st.tFermo = c.t
-    if (fermo) {   // da fermi la velocità si riazzera; in piedi la pallina torna in cima
-      V.v = 0; if (!st.attesa) V.d = 0
-      if (st.bias != null) st.bias += ALFA * (st.mediaW - st.bias)
-      st.cand = null; st.fermoVisto = c.t
-    } else if (z && st.fermoVisto == null && st.cand && c.t - st.zero.t > RIPARTI_MS && st.cand.sd < 0.22 + 1.5 * (st.trema || 0.1)) {
-      // MAI fermo nei primi 4 secondi: il valore di riposo è partito sbagliato (partenza agitata).
-      // Si riparte dalla finestra più ferma vista finora; il movimento in corso si butta.
-      st.bias = st.cand.media; st.cand = null; st.fermoVisto = c.t; st.inMoto = false; st.tFermo = null; V.v = 0
-    }
-    // guidato-v4 · la pallina. La scala è la discesa SOLITA di questa persona (non cresce
-    // mentre si scende: prima la pallina restava incollata in fondo). Da fermi in fondo si
-    // aggancia alla discesa appena chiusa a conti fatti, più precisa della somma viva.
-    if (fermo && st.attesa && st.segno) V.d = -st.segno * st.attesa.metri
-    var prof = Math.max(0, st.segno ? -V.d * st.segno : Math.abs(V.d))
-
-    var ud = st.attesa ? st.attesa : (st.squat.length ? st.squat[st.squat.length - 1] : null)
+    var W = st.vivo
     return {
-      fase: b.fase, rip: b.rip, p: b.p, finito: c.t >= st.fine,
+      fase: b.fase, rip: b.rip, p: b.p, dentro: b.dentro, finito: c.t >= st.fine,
       pronto: !!z, roll: roll, pitch: pitch, piatto: L.piatto, lato: lato, braccia: braccia,
-      corpo: Math.max(0, Math.min(1, prof / st.scala)), profondita: prof, fermo: fermo,
-      ripetizioni: st.squat.length, discese: st.squat.length + (st.attesa ? 1 : 0), mezze: st.squat.length * 2 + (st.attesa ? 1 : 0),
-      aTempo: st.squat.filter(function (x) { return x.rip != null }).length, caduta: st.caduta,
-      // la discesa appena vista: quanto è durata rispetto a quanto chiedeva il ritmo
-      ultimaDiscesa: ud && (ud.secondi != null || ud.giuS != null) ? { id: Math.round(ud.t0), secondi: ud.secondi != null ? ud.secondi : ud.giuS, chiesti: st.ritmo.giu / 1000 } : null
+      corpo: W.corpo, profondita: W.prof,
+      ripetizioni: W.n, discese: Math.max(W.n, W.discese), mezze: W.n * 2 + (W.discese > W.n ? 1 : 0),
+      aTempo: W.aTempo, caduta: st.caduta, ultimaDiscesa: W.ultima
     }
   }
 
   /* A fine esercizio: i numeri, squat per squat, e il confronto col ritmo. */
   function riassunto(st) {
-    var ultimo = st.t.length ? st.t[st.t.length - 1] : 0
-    if (st.inMoto) { st.inMoto = false; chiudiMovimento(st, st.tPartenza, ultimo) }
+    // a prova finita si ricalcola tutto con calma, con la deriva tolta anche in fondo
+    if (st.zero && !st.segno) squatVisti(st, true)
+    var S = st.zero ? squatVisti(st, false) : { P: null, squat: [] }
+    var lista = segnaTempo(st, S.squat)
+    lista.forEach(function (q) {
+      var rr = [], pp = [], j
+      for (j = 0; j < st.t.length; j++) if (st.t[j] >= q.t0 && st.t[j] <= q.t1) { rr.push(st.roll[j]); pp.push(st.pitch[j]) }
+      q.mani = r1(media(rr)); q.maniMax = r1(piuGrande(rr)); q.braccia = r1(piuGrande(pp))
+    })
+    st.squat = lista
     var riga = function (q, i) {
       return { n: i + 1, rip: q.rip, aTempo: q.rip != null, da: r1(q.t0 / 1000), discesaCm: Math.round(q.metri * 100),
         giuS: r1(q.giuS), fondoS: r1(q.fondoS), suS: r1(q.suS), mani: q.mani, maniMax: q.maniMax, braccia: q.braccia }
@@ -378,8 +424,8 @@
     var F = st.fuori
     return {
       versione: VERSIONE, n: st.n, ritmo: st.ritmo, soglie: st.soglie,
-      fatti: fatti, aTempo: aTempo, fuoriTempo: fatti - aTempo, mancate: mancate, intere: fatti, mezze: fatti * 2 + (st.attesa ? 1 : 0),
-      discesaSola: !!st.attesa, squat: squat,
+      fatti: fatti, aTempo: aTempo, fuoriTempo: fatti - aTempo, mancate: mancate, intere: fatti, mezze: fatti * 2,
+      discesaSola: false, squat: squat, inDiretta: st.vivo.n,
       mani: { media: r1(mm), sd: r1(sd(mani)), lato: mm == null || Math.abs(mm) < st.soglie.mani ? null : (mm > 0 ? 'destra' : 'sinistra') },
       braccia: { max: br.length ? r1(piuGrande(br)) : null },
       fuori: { destraS: r1(F.destra), sinistraS: r1(F.sinistra), bracciaS: r1(F.braccia), destraMax: r1(F.maxDestra), sinistraMax: r1(F.maxSinistra), bracciaMax: r1(F.maxBraccia) },
@@ -412,14 +458,14 @@
     return out
   }
 
-  /* guidato-v4 · «SPIEGAMI»: cosa è andato come chiesto e cosa guardare.
+  /* guidato-v5 · «SPIEGAMI»: cosa è andato come chiesto e cosa guardare.
      Regole fisse sui numeri del riassunto: stesso esercizio → stesse frasi.
      Parla solo di quello che il telefono sente fra le mani (conto, tempo,
      altezza delle mani, inclinazione, regolarità). NON dice dove va il carico
      né com'è la schiena: non lo può sapere, e lo dichiara. */
   function spiega(r) {
     var bene = [], guarda = []
-    if (!r || !r.zero || r.campioni < 30) return { bene: bene, guarda: ['Il telefono non ha dato abbastanza dati: rifai la prova.'], nota: '' }
+    if (!r || !r.zero || r.campioni < 30) return { apertura: '', bene: bene, guarda: ['Il telefono non ha dato abbastanza dati: rifai la prova.'], chiusura: '', nota: '' }
     var num = function (x) { return Math.abs(x).toFixed(1).replace('.', ',') }
     var q = r.squat, f = r.fuori, S = r.soglie, t = r.tempi
     // quanti
@@ -457,12 +503,20 @@
       if (a != null && z != null && a > 0.3 && z < a * 0.7) guarda.push('Verso la fine acceleri: l’ultimo squat scende in ' + num(z) + ' secondi, il primo in ' + num(a) + '.')
     }
     var nota = 'Il telefono sente solo come si muove fra le tue mani. Non vede ginocchia, schiena e piedi e non sa dove va il carico: per quello c’è l’Overhead squat sulla Tavola. Cosa vogliono dire questi numeri lo decide il professionista.'
-    return { bene: bene, guarda: guarda, nota: nota }
+    // guidato-v5 · prima di tutto un incoraggiamento (chiesto da Giuliano), poi il bene, poi cosa migliorare.
+    // È proporzionato ai fatti: non loda quello che non c'è stato.
+    var k = guarda.length, apertura, chiusura
+    if (r.fatti === 0) { apertura = 'Nessun problema, capita. Rivediamo insieme come si fa e riprova con calma.'; chiusura = 'Parti quando senti «giù» e scendi seguendo il suono.' }
+    else if (r.fatti >= r.n && k === 0) { apertura = 'Ottimo lavoro! Hai fatto l’esercizio proprio come chiesto.'; chiusura = 'Continua così.' }
+    else if (r.fatti >= r.n && k <= 2) { apertura = 'Ben fatto! Li hai fatti tutti. ' + (k === 1 ? 'C’è una cosa sola da sistemare.' : 'Ci sono due cose da sistemare.'); chiusura = 'Alla prossima prova pensa solo alla prima: una cosa alla volta.' }
+    else if (r.fatti >= r.n) { apertura = 'Bene, li hai fatti tutti e ' + r.n + ': è il primo passo. Adesso lavoriamo sulla qualità.'; chiusura = 'Non serve sistemare tutto insieme: alla prossima prova pensa solo alla prima cosa dell’elenco.' }
+    else { apertura = 'Buon inizio: ne hai fatti ' + r.fatti + ' su ' + r.n + '. Vediamo cosa è andato bene e cosa migliorare.'; chiusura = 'Alla prossima prova pensa solo alla prima cosa dell’elenco: una alla volta.' }
+    return { apertura: apertura, bene: bene, guarda: guarda, chiusura: chiusura, nota: nota }
   }
 
   global.PolGuida = {
     VERSIONE: VERSIONE, RITMI: RITMI, SOGLIE: SOGLIE, REAZIONE: REAZIONE,
     durata: durata, programma: programma, faseDi: faseDi, bersaglio: bersaglio,
-    leggi: leggi, spostamento: spostamento, profilo: profilo, crea: crea, aggiungi: aggiungi, riassunto: riassunto, frasi: frasi, spiega: spiega, giro: giro
+    leggi: leggi, spostamento: spostamento, posizione: posizione, squatVisti: squatVisti, crea: crea, aggiungi: aggiungi, riassunto: riassunto, frasi: frasi, spiega: spiega, giro: giro
   }
 })(typeof window !== 'undefined' ? window : globalThis)

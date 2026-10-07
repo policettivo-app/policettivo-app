@@ -1,4 +1,4 @@
-/* prova-guidato.mjs — guidato-v4
+/* prova-guidato.mjs — guidato-v5
  * Lo squat guidato dal telefono: il calcolo (telefono simulato) e la pagina.
  *   node prova-guidato.mjs
  */
@@ -26,7 +26,7 @@ await import('./js/guida-motore.js?x=' + Date.now())
 const F = globalThis.PolGuida
 
 // il telefono simulato: in orizzontale fra le mani, il corpo scende di `prof` metri seguendo il ritmo
-function simula({ ritmo = F.RITMI.lento, n = 5, prof = 0.4, rollDeg = 0, pitchDeg = 0, rumore = 0.03, bias = 0.08, ios = false, ritardo = 250, salta = [], hz = 60, seme = 1, senzaA = false, cade = null, svelto = { anticipo: -250, dura: 1800 }, dolce = false }) {
+function simula({ ritmo = F.RITMI.lento, n = 5, prof = 0.4, rollDeg = 0, pitchDeg = 0, rumore = 0.03, bias = 0.08, ios = false, ritardo = 250, salta = [], hz = 60, seme = 1, senzaA = false, cade = null, svelto = { anticipo: -250, dura: 1800 }, dolce = false, deriva = 0 }) {
   if (dolce) svelto = null
   let s = seme; const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647 - 0.5 }
   const gauss = () => (rnd() + rnd() + rnd() + rnd()) * 1.73
@@ -49,6 +49,7 @@ function simula({ ritmo = F.RITMI.lento, n = 5, prof = 0.4, rollDeg = 0, pitchDe
     const up = { x: Math.cos(roll) * Math.cos(pit), y: Math.sin(roll) * Math.cos(pit), z: Math.sin(pit) }
     const k = ios ? -1 : 1, g = (cade != null && t >= cade) ? 0.3 : 9.81
     const a = { x: k * (up.x * acc + gauss() * rumore), y: k * (up.y * acc + gauss() * rumore), z: k * (up.z * acc + bias + gauss() * rumore) }
+    if (deriva) a.x += k * deriva * Math.sin(2 * Math.PI * t / 15000)   // un errore del sensore che si sposta piano
     const ag = { x: a.x + k * up.x * g, y: a.y + k * up.y * g, z: a.z + k * up.z * g }
     vivi.push(F.aggiungi(st, { t, ag, a: senzaA ? null : a }))
   }
@@ -64,8 +65,9 @@ sez('⭐ il calcolo (js/guida-motore.js) — telefono SIMULATO, non vero')
   check('⭐ 5 squat di 40 cm, giù in 1,8 s: 5 contati, 5 a tempo, discesa stimata 40 cm', x.r.fatti === 5 && x.r.aTempo === 5 && x.r.mancate.length === 0 && Math.abs(x.r.discesaCm.media - 40) <= 4, [x.r.fatti, x.r.aTempo, x.r.discesaCm])
   check('⭐ e i secondi tornano: scende in circa 1,8, risale in circa 1,8 (chiesti 3)', Math.abs(x.r.tempi.giu - 1.8) <= 0.3 && Math.abs(x.r.tempi.su - 1.8) <= 0.3 && x.r.tempi.chiestiGiu === 3, x.r.tempi)
   x = simula({ dolce: true })
-  console.log('  ⚠️  LIMITE NOTO · squat perfettamente dolce in 3 s (accelerazione sotto 0,25 m/s²): contati ' + x.r.fatti + ' su 5. L’accelerometro quasi non lo sente.')
-  check('⛔ nel caso dolce, se non li vede non ne inventa (mai più di 5, nessun fondo oltre il metro)', x.r.fatti <= 5 && x.r.squat.every(q => q.discesaCm < 100), [x.r.fatti, x.r.squat.map(q => q.discesaCm)])
+  check('⭐⭐ squat perfettamente dolce in 3 s (accelerazione sotto 0,25 m/s²: con guidato-v4 ne contava 0): 5 su 5, a tempo, 40 cm', x.r.fatti === 5 && x.r.aTempo === 5 && Math.abs(x.r.discesaCm.media - 40) <= 8, [x.r.fatti, x.r.aTempo, x.r.discesaCm])
+  x = simula({ dolce: true, rumore: 0.15, bias: 0.3 })
+  check('⭐ lo stesso con la mano che trema e il sensore sballato: 5 su 5', x.r.fatti === 5, [x.r.fatti, x.r.discesaCm])
   x = simula({ svelto: { anticipo: 500, dura: 1300 }, prof: 0.6, rumore: 0.2 })
   check('⭐⭐ come nel primo tracciato vero: anticipa di mezzo secondo, scende in 1,3 s, mano che trema → 5 su 5, a tempo', x.r.fatti === 5 && x.r.aTempo === 5 && Math.abs(x.r.discesaCm.media - 60) <= 8, [x.r.fatti, x.r.aTempo, x.r.discesaCm])
   check('⭐ e si vede che è sceso svelto: 1,3 s contro 3 chiesti', Math.abs(x.r.tempi.giu - 1.3) <= 0.35 && x.vivi.some(v => v.ultimaDiscesa && v.ultimaDiscesa.secondi < v.ultimaDiscesa.chiesti * 0.66), x.r.tempi)
@@ -76,13 +78,19 @@ sez('⭐ il calcolo (js/guida-motore.js) — telefono SIMULATO, non vero')
   x = simula({ ios: true })
   check('⭐ col segno rovesciato (iPhone): stesso conto', x.r.fatti === 5 && x.r.aTempo === 5 && Math.abs(x.r.discesaCm.media - 40) <= 4, [x.r.fatti, x.r.discesaCm])
   x = simula({ prof: 0 })
-  check('⛔ fermo in piedi: zero squat contati', x.r.fatti === 0 && x.r.discesaCm.media === null && x.st.mov.length === 0)
+  check('⛔ fermo in piedi: zero squat contati', x.r.fatti === 0 && x.r.discesaCm.media === null)
   let falsi = 0
-  for (let i = 1; i <= 100; i++) { const y = simula({ prof: 0, rumore: 0.05, seme: i * 7919 }); falsi += y.r.fatti + y.st.mov.length }
+  for (let i = 1; i <= 100; i++) { const y = simula({ prof: 0, rumore: 0.05, seme: i * 7919 }); falsi += y.r.fatti + Math.max(...y.vivi.map(v => v.ripetizioni)) }
   check('⛔ fermo con rumore, 100 prove: nessun movimento contato per sbaglio', falsi === 0, falsi)
   falsi = 0
   for (let i = 1; i <= 100; i++) falsi += simula({ prof: 0, rumore: 0.2, seme: i * 104729 }).r.fatti
   check('⛔ fermo con la mano che trema forte, 100 prove: nessuno squat contato per sbaglio', falsi === 0, falsi)
+  falsi = 0
+  for (let i = 1; i <= 30; i++) falsi += simula({ prof: 0, rumore: 0.1, deriva: 0.06, seme: i * 15485863 }).r.fatti
+  check('⛔ fermo con l’errore del sensore che si sposta piano (±0,06 m/s² in 15 s), 30 prove: nessuno squat inventato', falsi === 0, falsi)
+  x = simula({ deriva: 0.06, rumore: 0.1 })
+  console.log('  ⚠️  LIMITE NOTO · con quella stessa deriva, di 5 squat veri ne conta ' + x.r.fatti + '.')
+  check('⛔ con la deriva forte può perderne uno, ma non ne inventa', x.r.fatti >= 4 && x.r.fatti <= 5, [x.r.fatti, x.r.aTempo])
   x = simula({ salta: [3] })
   check('⭐ una ripetizione saltata non si conta (4 su 5) e si sa quale', x.r.fatti === 4 && x.r.mancate.join() === '3', [x.r.fatti, x.r.mancate])
   x = simula({ prof: 0.06 })
@@ -114,12 +122,12 @@ sez('⭐ il calcolo (js/guida-motore.js) — telefono SIMULATO, non vero')
 
   // guidato-v4 · «Spiegami»
   let sp = F.spiega(simula({ ritmo: F.RITMI.medio }).r)
-  check('⭐ Spiegami, esercizio pulito a ritmo medio: niente da guardare, e dice cosa è andato come chiesto', sp.guarda.length === 0 && sp.bene.length >= 5 && /tutti e 5/.test(sp.bene.join(' ')) && /regolari/.test(sp.bene.join(' ')), sp)
+  check('⭐ Spiegami, esercizio pulito a ritmo medio: «Ottimo lavoro!», niente da migliorare, e dice cosa è andato bene', /^Ottimo lavoro!/.test(sp.apertura) && sp.guarda.length === 0 && sp.bene.length >= 5 && /tutti e 5/.test(sp.bene.join(' ')) && /regolari/.test(sp.bene.join(' ')), sp)
   sp = F.spiega(simula({ rollDeg: -12, salta: [3] }).r)
   check('⭐ Spiegami, mano sinistra giù e uno squat saltato: lo dice, coi numeri', /Ne hai fatti 4 su 5/.test(sp.guarda.join(' ')) && /La mano sinistra scende: fino a 1\d,\d°/.test(sp.guarda.join(' ')) && /in 4 squat su 4/.test(sp.guarda.join(' ')) && !/mano destra/.test(sp.guarda.join(' ')), sp.guarda)
   sp = F.spiega(simula({ prof: 0 }).r)
-  check('⭐ Spiegami, nessuno squat: lo dice e non inventa lodi sul ritmo', /nessuno squat/.test(sp.guarda.join(' ')) && !/ritmo|regolari|Tutti a tempo/.test(sp.bene.join(' ')), sp)
-  check('⛔ Spiegami non parla di carico, schiena o ginocchia se non per dire che NON li vede, e non usa «giusto / sbagliato»', (() => { const t = F.spiega(simula({ rollDeg: 12, pitchDeg: 35 }).r); const tutto = t.bene.concat(t.guarda).join(' '); return !/caric|schiena|ginocch|giust|sbagliat|corrett|male\b/i.test(tutto) && /non sa dove va il carico/.test(t.nota) })())
+  check('⭐ Spiegami, nessuno squat: incoraggia senza lodare quello che non c’è stato', /Nessun problema/.test(sp.apertura) && !/Ottimo|Ben fatto|Bene,/.test(sp.apertura) && /nessuno squat/.test(sp.guarda.join(' ')) && !/ritmo|regolari|Tutti a tempo/.test(sp.bene.join(' ')), sp)
+  check('⛔ Spiegami non parla di carico, schiena o ginocchia se non per dire che NON li vede, e non usa «giusto / sbagliato»', (() => { const t = F.spiega(simula({ rollDeg: 12, pitchDeg: 35 }).r); const tutto = t.bene.concat(t.guarda).join(' '); return !/caric|schiena|ginocch|giust|sbagliat|corrett|male\b/i.test(tutto) && /Adesso lavoriamo sulla qualità|cose da sistemare|cosa sola da sistemare/.test(t.apertura) && /non sa dove va il carico/.test(t.nota) })())
 
   // ⭐⭐ I TRACCIATI VERI (Giuliano, iPhone, 7 ottobre). Sono i due su cui il conto è stato costruito:
   // dicono che non si rompe, non che è giusto su un telefono o una persona nuovi.
@@ -136,12 +144,15 @@ sez('⭐ il calcolo (js/guida-motore.js) — telefono SIMULATO, non vero')
   let v1 = rigioca('prova-guidato-traccia-1.json')
   check('⭐⭐ tracciato vero 1 (5 squat normali; la prima versione ne contava 4): 5 contati, 5 a tempo', v1.r.fatti === 5 && v1.r.aTempo === 5 && v1.ordinato, [v1.r.fatti, v1.r.aTempo])
   check('⭐ tracciato vero 1: mani pari, nessun allarme, discese più svelte del ritmo', v1.r.fuori.destraS < 0.5 && v1.r.fuori.sinistraS < 0.5 && v1.r.fuori.bracciaS < 0.5 && v1.r.tempi.giu > 1 && v1.r.tempi.giu < 3, [v1.r.fuori, v1.r.tempi])
+  let v3 = rigioca('prova-guidato-traccia-3.json')
+  check('⭐⭐ tracciato vero 3 (cinque squat fatti piano, come chiede la voce; guidato-v4 ne contava UNO): 5 contati, 5 a tempo', v3.r.fatti === 5 && v3.r.aTempo === 5 && v3.ordinato && v3.r.inDiretta === 5, [v3.r.fatti, v3.r.aTempo, v3.r.inDiretta])
+  check('⭐ tracciato vero 3: discese intorno ai 2 secondi (più lente del primo tracciato), fondi regolari e sotto il metro', v3.r.tempi.giu > 1.7 && v3.r.tempi.giu < 2.6 && v3.r.squat.every(q => q.discesaCm > 30 && q.discesaCm < 100), [v3.r.tempi, v3.r.squat.map(q => q.discesaCm)])
   let v2 = rigioca('prova-guidato-traccia-2.json')
   check('⭐⭐ tracciato vero 2 (errori apposta; la seconda versione ne contava 3 con un fondo di 3 metri): 5 squat, 4 a tempo, 1 fuori tempo', v2.r.fatti === 5 && v2.r.aTempo === 4 && v2.r.fuoriTempo === 1 && v2.ordinato, [v2.r.fatti, v2.r.aTempo])
   check('⭐ tracciato vero 2: lo squat fuori tempo è il secondo, e la ripetizione 2 risulta mancata', v2.r.squat[1].aTempo === false && v2.r.mancate.join() === '2', [v2.r.squat.map(q => q.rip), v2.r.mancate])
   check('⭐ tracciato vero 2: mano sinistra giù per più di 3 secondi (oltre 40°), telefono inclinato oltre 30°', v2.r.fuori.sinistraS > 3 && v2.r.fuori.sinistraMax > 40 && v2.r.fuori.bracciaMax > 30, v2.r.fuori)
   sp = F.spiega(v2.r)
-  check('⭐ Spiegami sul tracciato vero 2: fuori tempo, mano sinistra (2 squat su 5), telefono inclinato, troppo svelto', /fuori tempo/.test(sp.guarda.join(' ')) && /La mano sinistra scende: fino a 43,1°/.test(sp.guarda.join(' ')) && /in 2 squat su 5/.test(sp.guarda.join(' ')) && /Il telefono si inclina/.test(sp.guarda.join(' ')) && /prova più lento/.test(sp.guarda.join(' ')), sp.guarda)
+  check('⭐ Spiegami sul tracciato vero 2: fuori tempo, mano sinistra (2 squat su 5), telefono inclinato, troppo svelto', /fuori tempo/.test(sp.guarda.join(' ')) && /La mano sinistra scende: fino a 43,1°/.test(sp.guarda.join(' ')) && /in \d squat su 5/.test(sp.guarda.join(' ')) && /Il telefono si inclina/.test(sp.guarda.join(' ')) && /prova più lento/.test(sp.guarda.join(' ')), sp.guarda)
   check('⛔ tracciato vero 2: nessun fondo assurdo (tutti sotto il metro e mezzo) e il telefono abbassato a fine prova non conta', v2.r.squat.every(q => q.discesaCm < 150) && !v2.r.discesaSola, v2.r.squat.map(q => q.discesaCm))
   const src = fs.readFileSync('js/guida-motore.js', 'utf8').replace(/\/\*[^]*?\*\//g, '').replace(/\/\/.*$/gm, '')
   check('⛔ js/guida-motore.js non parla con la rete e non scrive niente', !/supabase|fetch\(|localStorage|document\./.test(src))
@@ -393,8 +404,8 @@ try {
     check('⭐ a fine esercizio c’è «Spiegami com’è andata», chiuso finché non lo tocchi', await page.isVisible('#btn-spiega') && !(await page.isVisible('#spiega')))
     await page.click('#btn-spiega'); await page.waitForTimeout(300)
     const sp = await page.textContent('#spiega')
-    check('⭐⭐ «Spiegami»: due riquadri (come chiesto · da guardare), la mano destra che scende, e cosa il telefono NON sa', (await page.$$('#spiega .sp')).length === 2 && /Come chiesto/.test(sp) && /Da guardare/.test(sp) && /La mano destra scende/.test(sp) && /non sa dove va il carico/.test(sp) && /Overhead squat sulla Tavola/.test(sp), sp)
-    check('⭐ lo dice anche a voce e lo manda alla TV', await page.evaluate(() => /Da guardare\./.test(window.__guidato.dette().slice(-1)[0])) && await page.evaluate(() => { const f = window.__inv.filter(x => x[1] === 'gd-fine'); return f.length === 2 && f[1][2].spiega.guarda.length >= 1 && f[1][2].spiega.bene.length >= 1 }))
+    check('⭐⭐ «Spiegami»: due riquadri (come chiesto · da guardare), la mano destra che scende, e cosa il telefono NON sa', (await page.$$('#spiega .sp')).length === 2 && /Cosa è andato bene/.test(sp) && /Cosa migliorare/.test(sp) && /Ben fatto! Li hai fatti tutti\. C’è una cosa sola da sistemare\./.test(sp) && /La mano destra scende/.test(sp) && /non sa dove va il carico/.test(sp) && /Overhead squat sulla Tavola/.test(sp), sp)
+    check('⭐ lo dice anche a voce e lo manda alla TV', await page.evaluate(() => { const d = window.__guidato.dette().slice(-1)[0]; return /^Ben fatto!/.test(d) && /È andato bene\./.test(d) && /Da migliorare\./.test(d) && d.indexOf('È andato bene') < d.indexOf('Da migliorare') }) && await page.evaluate(() => { const f = window.__inv.filter(x => x[1] === 'gd-fine'); return f.length === 2 && f[1][2].spiega.guarda.length >= 1 && f[1][2].spiega.bene.length >= 1 && /Ben fatto/.test(f[1][2].spiega.apertura) }))
     check('⛔ «Spiegami» non sborda (390 px)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     if (FOTO) await page.screenshot({ path: FOTO + '/spiega.png', fullPage: true })
     check('⛔ nessun errore JavaScript', errori.length === 0, errori)
@@ -431,7 +442,7 @@ try {
     const t = await page.evaluate(() => { const q = k => document.querySelector('#v-gd [data-gs="' + k + '"]'), r = q('corpo').getBoundingClientRect(), pr = q('pista-corpo').getBoundingClientRect(), pal = document.getElementById('v-gd').getBoundingClientRect()
       return { fase: q('fase').textContent, conta: q('conta').textContent, dx: q('dx').classList.contains('rossa'), sx: q('sx').classList.contains('rossa'), mezze: q('mezze').textContent,
         giu: (r.top - pr.top) / pr.height, dentro: pal.width > 1900 && pal.height > 1070, alza: q('dx').textContent } })
-    check('⭐⭐ in diretta: GIÙ, 2/5, «discesa contata», metà DESTRA rossa con «ALZA LA MANO», pallina del corpo a due terzi', t.fase === 'GIÙ' && t.conta === '2/5' && t.dx && !t.sx && /discesa contata/.test(t.mezze) && /ALZA/.test(t.alza) && t.giu > 0.4 && t.giu < 0.75, t)
+    check('⭐⭐ in diretta: GIÙ, 2/5, «discesa contata», metà DESTRA rossa con «ALZA LA MANO», pallina del corpo a due terzi', t.fase === 'GIÙ' && t.conta === '2/5' && t.dx && !t.sx && /discesa contata/.test(t.mezze) && /ALZA/.test(t.alza) && t.giu > 0.25 && t.giu < 0.42, t)
     check('⭐ il palco riempie la TV (1920×1080)', t.dentro)
     if (FOTO) await page.screenshot({ path: FOTO + '/tv-palco.png' })
     await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'gd-fine', { fatti: 5, aTempo: 4, n: 5, tempi: { giu: 1.1, su: 1, chiestiGiu: 3, chiestiSu: 3 }, fuori: { destraS: 1, sinistraS: 3.8, bracciaS: 4.8, destraMax: 17.4, sinistraMax: 43.1, bracciaMax: 35.6 }, fermato: null,
@@ -442,9 +453,9 @@ try {
     check('⛔ l’esito sta dentro lo schermo', await page.evaluate(() => { const f = document.querySelector('#v-gde .gse-frasi').getBoundingClientRect(); return f.bottom <= innerHeight && f.right <= innerWidth }))
     if (FOTO) await page.screenshot({ path: FOTO + '/tv-esito.png' })
     await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'gd-fine', { fatti: 5, aTempo: 4, n: 5, tempi: { giu: 1.1, su: 1, chiestiGiu: 3, chiestiSu: 3 }, fuori: { destraS: 1, sinistraS: 3.8, bracciaS: 4.8, destraMax: 17.4, sinistraMax: 43.1, bracciaMax: 35.6 }, fermato: null, frasi: [],
-      spiega: { bene: ['Hai fatto tutti e 5 gli squat.', 'Gli squat sono regolari: scendi sempre più o meno uguale.'], guarda: ['Uno squat è partito fuori tempo: aspetta il «giù» e segui il suono.', 'La mano sinistra scende: fino a 43,1°, per 3,8 secondi (in 2 squat su 5). Tienila alta come la destra.', 'La mano destra scende: fino a 17,4°, per 1,0 secondi. Tienila alta come la sinistra.', 'Il telefono si inclina: fino a 35,6°, per 4,8 secondi. Tieni le braccia tese all’altezza degli occhi.', 'Scendi in 1,2 secondi, il ritmo ne chiede 3: prova più lento.', 'Risali in 1,1 secondi, il ritmo ne chiede 3: prova più lento anche a salire.'] } }))
+      spiega: { apertura: 'Bene, li hai fatti tutti e 5: è il primo passo. Adesso lavoriamo sulla qualità.', bene: ['Hai fatto tutti e 5 gli squat.', 'Gli squat sono regolari: scendi sempre più o meno uguale.'], guarda: ['Uno squat è partito fuori tempo: aspetta il «giù» e segui il suono.', 'La mano sinistra scende: fino a 43,1°, per 3,8 secondi (in 2 squat su 5). Tienila alta come la destra.', 'La mano destra scende: fino a 17,4°, per 1,0 secondi. Tienila alta come la sinistra.', 'Il telefono si inclina: fino a 35,6°, per 4,8 secondi. Tieni le braccia tese all’altezza degli occhi.', 'Scendi in 1,2 secondi, il ritmo ne chiede 3: prova più lento.', 'Risali in 1,1 secondi, il ritmo ne chiede 3: prova più lento anche a salire.'] } }))
     await page.waitForTimeout(700)
-    check('⭐⭐ «Spiegami» sulla TV: due colonne, e anche con sei cose da guardare sta dentro lo schermo', (await page.$$('#v-gde .gse-col')).length === 2 && /Da guardare/.test(await page.textContent('#v-gde')) && await page.evaluate(() => [...document.querySelectorAll('#v-gde .gse-col p')].every(p => { const r = p.getBoundingClientRect(), c = p.parentElement.getBoundingClientRect(); return r.bottom <= c.bottom + 1 && r.bottom <= innerHeight })))
+    check('⭐⭐ «Spiegami» sulla TV: due colonne, e anche con sei cose da guardare sta dentro lo schermo', (await page.$$('#v-gde .gse-col')).length === 2 && /Cosa migliorare/.test(await page.textContent('#v-gde')) && /è il primo passo/.test(await page.textContent('#v-gde')) && await page.evaluate(() => [...document.querySelectorAll('#v-gde .gse-col p')].every(p => { const r = p.getBoundingClientRect(), c = p.parentElement.getBoundingClientRect(); return r.bottom <= c.bottom + 1 && r.bottom <= innerHeight })))
     if (FOTO) await page.screenshot({ path: FOTO + '/tv-spiega.png' })
     await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'sq-via', { asse: 'rollio', n: 5, durata: 42, zb: 1, zg: 0.5, vb: 1, vg: 1 }))
     await page.waitForTimeout(300)

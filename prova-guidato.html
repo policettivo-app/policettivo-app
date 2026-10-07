@@ -6,7 +6,10 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Squat guidato · in prova</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- guidato-v4 (7 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · IN PROVA
+<!-- guidato-v5 (7 ottobre 2026, sera) — LO SQUAT GUIDATO DAL TELEFONO · IN PROVA
+     v5, dal terzo tracciato vero (5 squat fatti piano, contato 1): il conto è rifatto sulle VALLI della
+     posizione (js/guida-motore.js); la pallina è la testa di un omino che fa lo squat; «Spiegami» apre
+     con un incoraggiamento, poi cosa è andato bene, poi cosa migliorare.
      v4: «📺 Mostra sulla TV» anche da questa pagina; «💬 Spiegami» a fine esercizio (regole fisse
      in js/guida-motore.js: cosa è andato come chiesto, cosa guardare); pallina del corpo più fedele.
      Il telefono fra le due mani, in orizzontale, braccia tese davanti agli occhi.
@@ -23,8 +26,8 @@
      js/guida-schermo.js, lo stesso che usa la TV; se la TV è collegata («Sulla
      TV») il palco ci va da solo, sul canale dei test: solo fasi e angoli. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/guida-motore.js?v=guidato-v4"></script>
-<script src="js/guida-schermo.js?v=guidato-v4"></script>
+<script src="js/guida-motore.js?v=guidato-v5"></script>
+<script src="js/guida-schermo.js?v=guidato-v5"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -71,6 +74,7 @@
   .frasi{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14.5px;line-height:1.6}
   .frasi p{margin:0 0 6px}.frasi p:last-child{margin:0;color:#667;font-style:italic}
   .gomitolo{display:block;margin:10px auto 0;width:100%;max-width:300px;height:auto}
+  .sp-apre{font-size:17px;font-weight:800;line-height:1.35;margin-top:14px}
   .sp{border-radius:14px;padding:12px 14px;margin-top:12px;font-size:14.5px;line-height:1.5}
   .sp h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.5px}
   .sp ul{margin:0;padding-left:20px}.sp li{margin-bottom:5px}
@@ -149,7 +153,7 @@
     <ol class="passi">
       <li><b>Telefono in orizzontale fra le due mani</b>, schermo verso di te, <b>braccia tese in avanti</b> all’altezza degli occhi. Tienilo saldo.</li>
       <li>Premi <b>PARTI</b>: tre secondi <b>fermo</b>, poi segui la <b>freccia</b> e il <b>suono</b>: scende il suono, scendi tu; sale, risali.</li>
-      <li>La pallina di sinistra è il <b>corpo</b>, quella di destra le <b>braccia</b>. Il cerchio tratteggiato è dove dovresti essere.</li>
+      <li>A sinistra ci sei <b>tu</b>: un omino che scende e risale con te. A destra le <b>braccia</b>. Il cerchio tratteggiato è dove chiede il ritmo.</li>
       <li>Se una mano scende, <b>la sua metà di schermo diventa rossa</b> («ALZA LA MANO») e la voce lo dice. Per smettere: <b>MI FERMO</b>.</li>
     </ol>
     <label>Ripetizioni</label>
@@ -654,14 +658,15 @@
     var e = ultimoEsito; if (!e) return
     var sp = F.spiega(e.r)
     var lista = function(v, vuoto){ return v.length ? '<ul>' + v.map(function(x){ return '<li>' + esc(x) + '</li>' }).join('') + '</ul>' : '<div>' + vuoto + '</div>' }
-    $('spiega').innerHTML = '<div class="sp si"><h3>✅ Come chiesto</h3>' + lista(sp.bene, '—') + '</div>' +
-      '<div class="sp no"><h3>👀 Da guardare</h3>' + lista(sp.guarda, 'Niente da segnalare.') + '</div>' +
+    $('spiega').innerHTML = (sp.apertura ? '<div class="sp-apre">' + esc(sp.apertura) + '</div>' : '') +
+      '<div class="sp si"><h3>✅ Cosa è andato bene</h3>' + lista(sp.bene, '—') + '</div>' +
+      '<div class="sp no"><h3>🔧 Cosa migliorare</h3>' + lista(sp.guarda, 'Niente: va bene così.') + '</div>' +
+      (sp.chiusura ? '<div class="sp-apre" style="font-size:15px;font-weight:700">' + esc(sp.chiusura) + '</div>' : '') +
       (sp.nota ? '<div class="nota">' + esc(sp.nota) + '</div>' : '')
     $('spiega').style.display = ''
-    // a voce: prima cosa guardare (al massimo tre), poi una cosa andata come chiesto
-    var dire = sp.guarda.slice(0, 3)
-    voce((dire.length ? 'Da guardare. ' + dire.join(' ') : 'Niente da segnalare.') + (sp.bene.length ? ' Come chiesto: ' + sp.bene.slice(0, 2).join(' ') : ''))
-    manda('gd-fine', { fatti: e.r.fatti, aTempo: e.r.aTempo, n: e.r.n, tempi: e.r.tempi, fuori: e.r.fuori, frasi: F.frasi(e.r), fermato: e.fermato || null, spiega: { bene: sp.bene, guarda: sp.guarda } })
+    // a voce: l'incoraggiamento, cosa è andato bene (al massimo tre), cosa migliorare (al massimo tre), la chiusura
+    voce([sp.apertura, sp.bene.length ? 'È andato bene. ' + sp.bene.slice(0, 3).join(' ') : '', sp.guarda.length ? 'Da migliorare. ' + sp.guarda.slice(0, 3).join(' ') : '', sp.chiusura].filter(Boolean).join(' '))
+    manda('gd-fine', { fatti: e.r.fatti, aTempo: e.r.aTempo, n: e.r.n, tempi: e.r.tempi, fuori: e.r.fuori, frasi: F.frasi(e.r), fermato: e.fermato || null, spiega: { apertura: sp.apertura, bene: sp.bene, guarda: sp.guarda } })
     try { $('spiega').scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch(err){}
   }
 
