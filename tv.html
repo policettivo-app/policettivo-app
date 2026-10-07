@@ -24,6 +24,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/oscillazione.js?v=monopodalico-v1"></script>
 <script src="js/partenza.js?v=partenza-v1"></script>
+<script src="js/guida-schermo.js?v=guidato-v3"></script><!-- guidato-v3 · il palco dello squat guidato, lo stesso del telefono -->
 <script src="js/qrcode.js?v=tv-qr-v1"></script><!-- tv-qr-v1 · il QR si crea qui, senza siti esterni -->
 <style>
   :root{--giallo:#FFD008;--fondo:#070707;--carta:#121212;--riga:#262626;--testo:#fff;--testo2:#b8b8b8;--testo3:#777}
@@ -238,6 +239,10 @@
     <div class="t-piede">Più bassa la velocità, più ferma la tavola · <b>soglie provvisorie</b> per un piede solo</div>
   </div>
 
+  <!-- guidato-v3 · LO SQUAT GUIDATO (arriva da prova-guidato.html): il palco e il suo esito, disegnati da js/guida-schermo.js -->
+  <div class="vista" id="v-gd" style="font-size:9px"></div>
+  <div class="vista" id="v-gde" style="font-size:9px"></div>
+
   <!-- ESITO DEL TEST -->
   <div class="vista" id="v-esito">
     <div class="t-testa">
@@ -300,7 +305,7 @@
   window.addEventListener('resize', scala); scala()
   function mostra(v){
     vistaOra = v
-    ;['attesa', 'pd', 'test', 'esito', 'sq', 'sqe', 'mono'].forEach(function(k){ $('v-' + k).classList.toggle('on', k === v) })
+    ;['attesa', 'pd', 'test', 'esito', 'sq', 'sqe', 'mono', 'gd', 'gde'].forEach(function(k){ var el = $('v-' + k); if (el) el.classList.toggle('on', k === v) })
   }
   function num(x, d){ return (x == null || isNaN(x)) ? '—' : Math.abs(Number(x)).toFixed(d == null ? 1 : d).replace('.', ',') }
 
@@ -596,6 +601,36 @@
     mostra('sqe')
   }
 
+  // ═══ guidato-v3 · LO SQUAT GUIDATO (arriva da prova-guidato.html sullo stesso canale dei test) ═══
+  // Il disegno è di js/guida-schermo.js, lo stesso del telefono. Se quel file non
+  // si carica, questi tre non fanno niente e il resto della TV va come prima.
+  var gdPalco = null, gdN = 5
+  function onGdVia(p){
+    try {
+      if (!window.PolGuidaSchermo) return
+      gdN = (p && p.n) || 5
+      gdPalco = PolGuidaSchermo.monta($('v-gd'))
+      gdPalco.disegna({ fase: 'inizio', n: gdN, sogliaMani: p && p.sogliaMani, sogliaBraccia: p && p.sogliaBraccia })
+      mostra('gd')
+    } catch(e){}
+  }
+  function onGdVivo(p){
+    try {
+      if (!window.PolGuidaSchermo || !p) return
+      if (!gdPalco) onGdVia({ n: p.n, sogliaMani: p.sogliaMani, sogliaBraccia: p.sogliaBraccia })
+      if (vistaOra !== 'gd') mostra('gd')
+      gdPalco.disegna(p)
+    } catch(e){}
+  }
+  function onGdFine(p){
+    try {
+      if (!window.PolGuidaSchermo) return
+      PolGuidaSchermo.esito($('v-gde'), p || {})
+      gdPalco = null
+      mostra('gde')
+    } catch(e){}
+  }
+
   // ═══ I CANALI ═══
   var subTv = null, subOsc = null, canTv = null, canOsc = null
   function ascoltaTv(c){
@@ -623,6 +658,9 @@
     subOsc.on('broadcast', { event: 'sq-fase' }, function(m){ onSqFase(m.payload || {}) })
     subOsc.on('broadcast', { event: 'sq-punti' }, function(m){ onSqPunti(m.payload) })
     subOsc.on('broadcast', { event: 'sq-fine' }, function(m){ onSqFine(m.payload) })
+    subOsc.on('broadcast', { event: 'gd-via' }, function(m){ onGdVia(m.payload || {}) })      // guidato-v3
+    subOsc.on('broadcast', { event: 'gd-vivo' }, function(m){ onGdVivo(m.payload) })
+    subOsc.on('broadcast', { event: 'gd-fine' }, function(m){ onGdFine(m.payload) })
     subOsc.subscribe()
   }
   /* ═══ tv-codice-v1 · IL COLLEGAMENTO COL CODICE ═══

@@ -6,21 +6,23 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Squat guidato · in prova</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- guidato-v2 (7 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · IN PROVA
-     v2, dal primo tracciato vero: si parte solo quando il telefono è FERMO (lo zero
-     era preso mentre ci si sistemava), il conto è sulla ripetizione intera, si
-     misurano i SECONDI di discesa e risalita e la voce dice «più lento».
+<!-- guidato-v3 (7 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · IN PROVA
      Il telefono fra le due mani, in orizzontale, braccia tese davanti agli occhi.
      La pagina dà il ritmo (freccia, tono che scende e sale, voce) e i sensori
-     dicono cosa succede davvero: mezze ripetizioni contate, una mano più bassa
-     (metà schermo rossa), telefono che si inclina.
+     dicono cosa succede davvero: squat contati, a tempo o fuori tempo, una mano
+     più bassa (metà schermo rossa), telefono che si inclina.
      - È una PROVA per l'amministratore: si apre da Test, non salva niente sul
        server, non riguarda nessun paziente.
      - I numeri sono STIME non validate (calcolo in js/guida-motore.js).
-     - Registra i sensori grezzi: «Scarica il tracciato» li dà in un file, per
-       misurare quanto sbaglia. Senza quel tocco non resta niente.
-     - Non dice mai «giusto / sbagliato»: descrive. Le soglie le sceglie chi prova. -->
-<script src="js/guida-motore.js?v=guidato-v2"></script>
+     - Registra i sensori grezzi: «Scarica il tracciato» li dà in un file.
+     - Non dice mai «giusto / sbagliato»: descrive.
+     v3, dai due tracciati veri: il conto segue i MOVIMENTI (da fermo a fermo), non
+     il ritmo; lo squat fuori tempo si conta e si dice; il palco è disegnato da
+     js/guida-schermo.js, lo stesso che usa la TV; se la TV è collegata («Sulla
+     TV») il palco ci va da solo, sul canale dei test: solo fasi e angoli. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/guida-motore.js?v=guidato-v3"></script>
+<script src="js/guida-schermo.js?v=guidato-v3"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -67,6 +69,11 @@
   .frasi{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14.5px;line-height:1.6}
   .frasi p{margin:0 0 6px}.frasi p:last-child{margin:0;color:#667;font-style:italic}
   .gomitolo{display:block;margin:10px auto 0;width:100%;max-width:300px;height:auto}
+  .tv-stato{border-radius:12px;padding:9px 12px;font-size:13px;margin:0 0 14px;background:#111;color:#fff;display:none}
+  .tv-stato.on{display:block}
+  .tag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;color:#fff;background:#0a7d33;white-space:nowrap}
+  .tag.no{background:#b07500}
+  #palco-gs{position:absolute;inset:0}
 
   /* ═══ IL PALCO: a tutto schermo, sempre in orizzontale per chi guarda ═══
      Tutte le misure sono in «em» e 1em = un centesimo dell'altezza del palco:
@@ -74,34 +81,11 @@
   .palco{position:fixed;left:50%;top:50%;z-index:9000;display:none;overflow:hidden;background:#050505;color:#fff;
      transform-origin:center center;user-select:none;-webkit-user-select:none;touch-action:none}
   .palco.on{display:block}
-  .meta{position:absolute;top:0;bottom:0;width:50%;background:rgba(10,125,51,.30);transition:background .18s linear}
-  .meta.sx{left:0}.meta.dx{right:0}
-  .meta .lato{position:absolute;top:4em;font-size:3.6em;font-weight:900;letter-spacing:.12em;opacity:.55}
-  .meta.sx .lato{left:1.2em}.meta.dx .lato{right:1.2em}
-  .meta .bassa{position:absolute;bottom:4.6em;font-size:5em;font-weight:900;line-height:1.05;opacity:0;transition:opacity .15s}
-  .meta.sx .bassa{left:.8em;text-align:left}.meta.dx .bassa{right:.8em;text-align:right}
-  .meta.rossa .bassa{opacity:1}
-  .pista{position:absolute;top:13em;width:11em;height:60em;border-radius:5.5em;background:rgba(0,0,0,.55);border:.35em solid rgba(255,255,255,.28)}
-  .pista.corpo{left:calc(50% - 46em)}.pista.braccia{left:calc(50% + 35em)}
-  .pista .nome{position:absolute;left:50%;top:-1.7em;transform:translateX(-50%);font-size:2.8em;font-weight:900;letter-spacing:.14em;white-space:nowrap;opacity:.85}
-  .pista .zona{position:absolute;left:0;right:0;background:rgba(10,125,51,.55)}
-  .pista .guida{position:absolute;left:50%;width:9.6em;height:9.6em;margin-left:-4.8em;border-radius:50%;border:.5em dashed rgba(255,208,8,.85)}
-  .pista .palla{position:absolute;left:50%;width:8.4em;height:8.4em;margin-left:-4.2em;border-radius:50%;background:#FFD008;border:.5em solid #111;
-     box-shadow:0 0 3em rgba(255,208,8,.55)}
-  .centro{position:absolute;left:50%;top:0;bottom:0;width:60em;margin-left:-30em;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:4em}
-  .freccia{width:26em;height:26em;transition:transform .35s ease}
-  .freccia.su{transform:rotate(180deg)}
-  .freccia.ferma{opacity:.25}
-  .fase{font-size:8.5em;font-weight:900;letter-spacing:.08em;line-height:1;margin-top:-.1em}
-  .conta{font-size:19em;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;margin-top:.05em}
-  .conta small{font-size:.42em;font-weight:800;opacity:.6}
-  .mezze{font-size:3em;font-weight:700;opacity:.75;letter-spacing:.06em}
   .mi-fermo{position:absolute;left:50%;bottom:3.5em;width:44em;margin-left:-22em;height:13em;border-radius:6.5em;border:.4em solid #fff;background:#111;color:#fff;
      font-family:inherit;font-size:1em;font-weight:900;cursor:pointer;z-index:6}
   .mi-fermo b{font-size:4.4em;letter-spacing:.08em}
   .gira-tasto{position:absolute;right:2em;top:2em;width:10em;height:10em;border-radius:50%;border:.3em solid rgba(255,255,255,.5);background:rgba(0,0,0,.5);color:#fff;font-family:inherit;font-size:1em;cursor:pointer;z-index:6}
   .gira-tasto b{font-size:5em;line-height:1}
-  .stima{position:absolute;left:2.4em;top:2.4em;font-size:2.4em;font-weight:700;opacity:.6;letter-spacing:.06em}
   .velo{position:absolute;inset:0;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;gap:2em;text-align:center;padding:4em 14em 19em;z-index:5}
   .velo.on{display:flex}
   .velo .v-tit{font-size:7em;font-weight:900;line-height:1.1;color:#FFD008}
@@ -117,6 +101,7 @@
   </div>
   <div class="sub">Il telefono ti guida mentre fai l’esercizio &middot; in prova</div>
 
+  <div class="tv-stato" id="tv-stato">📺 <b>TV collegata</b>: quello che vedi sul telefono va anche sullo schermo grande.</div>
   <div class="avviso">
     <b>È una prova, solo per te.</b> Non salva niente e non riguarda nessun paziente.
     I numeri sono <b>stime non ancora verificate</b>: servono a capire come deve essere lo schermo e quanto sbaglia il telefono.
@@ -154,7 +139,7 @@
       <li><b>Telefono in orizzontale fra le due mani</b>, schermo verso di te, <b>braccia tese in avanti</b> all’altezza degli occhi. Tienilo saldo.</li>
       <li>Premi <b>PARTI</b>: tre secondi <b>fermo</b>, poi segui la <b>freccia</b> e il <b>suono</b>: scende il suono, scendi tu; sale, risali.</li>
       <li>La pallina di sinistra è il <b>corpo</b>, quella di destra le <b>braccia</b>. Il cerchio tratteggiato è dove dovresti essere.</li>
-      <li>Se una mano scende, <b>la sua metà di schermo diventa rossa</b>. Per smettere: <b>MI FERMO</b>.</li>
+      <li>Se una mano scende, <b>la sua metà di schermo diventa rossa</b> («ALZA LA MANO») e la voce lo dice. Per smettere: <b>MI FERMO</b>.</li>
     </ol>
     <label>Ripetizioni</label>
     <div class="chips" id="nrip">
@@ -179,17 +164,7 @@
 
 <!-- ═══ IL PALCO ═══ -->
 <div class="palco" id="palco">
-  <div class="meta sx" id="m-sx"><div class="lato">SINISTRA</div><div class="bassa">PIÙ<br>BASSA</div></div>
-  <div class="meta dx" id="m-dx"><div class="lato">DESTRA</div><div class="bassa">PIÙ<br>BASSA</div></div>
-  <div class="stima">stime · in prova</div>
-  <div class="pista corpo"><div class="nome">CORPO</div><div class="guida" id="g-corpo"></div><div class="palla" id="p-corpo"></div></div>
-  <div class="pista braccia"><div class="nome">BRACCIA</div><div class="zona" id="z-braccia"></div><div class="palla" id="p-braccia"></div></div>
-  <div class="centro">
-    <svg class="freccia ferma" id="freccia" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 92 L12 46 H36 V8 H64 V46 H88 Z" fill="#FFD008" stroke="#111" stroke-width="3" stroke-linejoin="round"/></svg>
-    <div class="fase" id="s-fase">FERMO</div>
-    <div class="conta" id="s-conta">0<small>/5</small></div>
-    <div class="mezze" id="s-mezze"></div>
-  </div>
+  <div id="palco-gs"></div>
   <button class="mi-fermo" id="btn-fermo"><b>MI FERMO</b></button>
   <button class="gira-tasto" id="btn-gira" aria-label="Capovolgi lo schermo"><b>⟲</b></button>
   <div class="velo" id="velo"><div class="v-tit" id="v-tit"></div><div class="v-num" id="v-num"></div><div class="v-sotto" id="v-sotto"></div></div>
@@ -207,8 +182,9 @@
   function aspetta(ms){ return new Promise(function(r){ setTimeout(r, VIA ? 0 : ms) }) }
   function num1(x){ return x == null || isNaN(x) ? '—' : Math.abs(x).toFixed(1).replace('.', ',') }
 
-  if (!F){
-    $('err').style.display = ''; $('err').textContent = '⚠️ Non si è caricato il calcolo (js/guida-motore.js). Ricarica la pagina.'
+  var GS = window.PolGuidaSchermo
+  if (!F || !GS){
+    $('err').style.display = ''; $('err').textContent = '⚠️ Non si è caricato ' + (!F ? 'il calcolo (js/guida-motore.js)' : 'il disegno (js/guida-schermo.js)') + '. Ricarica la pagina.'
     $('btn-start').style.display = 'none'
     return
   }
@@ -288,7 +264,24 @@
   function tonoChiudi(){ try { if (tono){ tono.g.gain.value = 0; tono.o.stop(); tono = null } } catch(e){ tono = null } }
   function sbloccaVoce(){ try { if (!window.speechSynthesis) return; var u = new SpeechSynthesisUtterance(' '); u.lang = 'it-IT'; u.volume = 0.01; speechSynthesis.speak(u) } catch(e){} }
   var dette = []
-  function voce(t){ dette.push(t); try { if (!window.speechSynthesis) return; speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(t); u.lang = 'it-IT'; u.rate = 1.05; speechSynthesis.speak(u) } catch(e){} }
+  // Chi parla NON viene interrotto (chiesto da Giuliano il 7 ott: la correzione veniva
+  // tagliata da «Su» e «Giù»). Tre tipi di frase:
+  //  - 'ritmo' («Giù», «Su»): se qualcuno sta già parlando si SALTA, tanto il ritmo lo danno
+  //    il suono e la freccia;
+  //  - 'correzione': si dice solo se c'è silenzio, e poi nessuno la taglia;
+  //  - senza tipo (inizio, fine, fermato): taglia tutto e parla.
+  var saltate = 0
+  function parla(){ try { return !!(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) } catch(e){ return false } }
+  function voce(t, tipo){
+    try {
+      if (tipo && parla()){ saltate++; return false }
+      dette.push(t)
+      if (!window.speechSynthesis) return true
+      if (!tipo) speechSynthesis.cancel()
+      var u = new SpeechSynthesisUtterance(t); u.lang = 'it-IT'; u.rate = 1.05; speechSynthesis.speak(u)
+    } catch(e){}
+    return true
+  }
 
   // ── i sensori ──
   var ultimo = null          // l'ultimo campione grezzo
@@ -371,37 +364,20 @@
   }
   function inOrizzontale(){ var q = comeTenuto(); return q === 90 || q === 270 }
 
-  var NOMI = { inizio: 'FERMO', giu: 'GIÙ', fondo: 'FERMO', su: 'SU', piedi: 'IN PIEDI' }
-  function colore(el, rosso, forza){
-    el.style.background = rosso ? 'rgba(225,17,17,' + (0.45 + 0.4 * forza).toFixed(2) + ')' : 'rgba(10,125,51,' + (0.30 + 0.25 * forza).toFixed(2) + ')'
-    el.classList.toggle('rossa', !!rosso && forza >= 0)
+  var palcoGs = GS.monta($('palco-gs'))
+  // cosa mostrare ADESSO: lo stesso pacchetto va al disegno del telefono e, se c'è, alla TV
+  function statoSchermo(){
+    var v = vivo
+    if (!v || !st) return { fase: 'inizio', n: nRip, ripetizioni: 0, discese: 0, p: 0, corpo: 0, roll: 0, pitch: 0, lato: null, braccia: false, sogliaMani: sogliaMani, sogliaBraccia: F.SOGLIE.braccia }
+    return { fase: v.fase, n: st.n, ripetizioni: v.ripetizioni, discese: v.discese, p: v.p, corpo: v.corpo, roll: v.roll, pitch: v.pitch,
+      lato: v.lato, braccia: v.braccia, sogliaMani: st.soglie.mani, sogliaBraccia: st.soglie.braccia }
   }
   function disegna(){
     raf = null
     if (!inCorso) return
-    if (vivo && st){
-      var v = vivo
-      var forza = Math.max(0, Math.min(1, (Math.abs(v.roll) - st.soglie.mani) / (st.soglie.mani * 2)))
-      if (v.braccia){ colore($('m-sx'), true, 1); colore($('m-dx'), true, 1); $('m-sx').classList.remove('rossa'); $('m-dx').classList.remove('rossa') }
-      else { colore($('m-sx'), v.lato === 'sinistra', forza); colore($('m-dx'), v.lato === 'destra', forza) }
-      // il corpo: in alto = in piedi, in basso = giù. La pista è alta 60em, la palla 8,4.
-      var corsa = 60 - 8.4 - 1.4
-      $('p-corpo').style.top = (0.35 + corsa * v.corpo).toFixed(2) + 'em'
-      $('g-corpo').style.top = (-0.25 + corsa * v.p).toFixed(2) + 'em'
-      // le braccia: al centro = come alla partenza
-      var b = Math.max(-1, Math.min(1, v.pitch / (st.soglie.braccia * 2)))
-      $('p-braccia').style.top = (0.35 + corsa / 2 + corsa / 2 * b).toFixed(2) + 'em'
-      $('p-braccia').style.background = v.braccia ? '#e11' : '#FFD008'
-      var fr = $('freccia')
-      fr.classList.toggle('su', v.fase === 'su'); fr.classList.toggle('ferma', v.fase !== 'giu' && v.fase !== 'su')
-      $('s-fase').textContent = NOMI[v.fase] || ''
-      $('s-conta').innerHTML = v.ripetizioni + '<small>/' + st.n + '</small>'
-      $('s-mezze').textContent = v.discese > v.ripetizioni ? 'discesa contata' : ''
-    }
+    palcoGs.disegna(statoSchermo())
     raf = requestAnimationFrame(disegna)
   }
-  // la zona verde delle braccia: quanto è largo «all'altezza giusta»
-  function zonaBraccia(){ var corsa = 60 - 8.4 - 1.4; $('z-braccia').style.top = (0.35 + 4.2 + corsa / 4).toFixed(2) + 'em'; $('z-braccia').style.height = (corsa / 2).toFixed(2) + 'em' }
 
   function velo(tit, n, sotto){
     var si = tit != null
@@ -422,7 +398,7 @@
     animaOmino(false)
     st = null; vivo = null; ultimo = null
     ascolta(true)
-    $('palco').classList.add('on'); zonaBraccia(); sistemaPalco()
+    $('palco').classList.add('on'); palcoGs.disegna(statoSchermo()); sistemaPalco()
     // aspetta i sensori (un secondo e mezzo): senza, non si può fare
     var tA = Date.now()
     while (!ultimo && Date.now() - tA < 1500) await new Promise(function(r){ setTimeout(r, 50) })
@@ -463,7 +439,8 @@
     t0 = performance.now()
     voce('Fermo.')
     if (!raf) raf = requestAnimationFrame(disegna)
-    var faseDetta = '', ripContate = 0, mezzeContate = 0, tAvviso = -1e9, lentoDetto = 0
+    var faseDetta = '', ripContate = 0, disceseContate = 0, tAvviso = -1e9, lentoDetto = 0, lentoId = null, stortoDa = null, giroTv = 0
+    manda('gd-via', { n: st.n, sogliaMani: st.soglie.mani, sogliaBraccia: st.soglie.braccia })
     await new Promise(function(fine){
       var iv = setInterval(function(){
         if (mio !== giro || fermato){ clearInterval(iv); fine(); return }
@@ -473,23 +450,30 @@
         if (b.fase && k !== faseDetta){
           faseDetta = k
           reg.eventi.push([Math.round(t), k])
-          if (b.fase === 'giu') voce(b.rip === st.n && st.n > 1 ? 'Ultima. Giù.' : 'Giù.')
-          else if (b.fase === 'su') voce('Su.')
+          if (b.fase === 'giu') voce(b.rip === st.n && st.n > 1 ? 'Ultima. Giù.' : 'Giù.', 'ritmo')
+          else if (b.fase === 'su') voce('Su.', 'ritmo')
         }
         if (vivo){
-          if (vivo.mezze > mezzeContate){ mezzeContate = vivo.mezze; bip(1320, 45, 0.25); reg.eventi.push([Math.round(t), 'mezza ' + mezzeContate]) }
-          if (vivo.ripetizioni > ripContate){ ripContate = vivo.ripetizioni; setTimeout(function(){ bip(1760, 70, 0.25) }, 70) }
+          if (vivo.discese > disceseContate){ disceseContate = vivo.discese; bip(1320, 45, 0.25); reg.eventi.push([Math.round(t), 'discesa ' + disceseContate]) }
+          if (vivo.ripetizioni > ripContate){ ripContate = vivo.ripetizioni; bip(1760, 70, 0.25); reg.eventi.push([Math.round(t), 'squat ' + ripContate]) }
           if (vivo.caduta){ fermato = 'caduta'; clearInterval(iv); fine(); return }
-          // una correzione breve, descrittiva, mai più di una ogni 6 secondi e solo da fermi
-          if ((b.fase === 'fondo' || b.fase === 'piedi') && t - tAvviso > 6000){
-            if (vivo.braccia){ tAvviso = t; voce('Telefono all’altezza degli occhi.'); reg.eventi.push([Math.round(t), 'voce braccia']) }
-            else if (vivo.lato){ tAvviso = t; voce('Mano ' + vivo.lato + ' più bassa.'); reg.eventi.push([Math.round(t), 'voce mano ' + vivo.lato]) }
-            // il ritmo: se la discesa è durata meno di due terzi di quanto chiesto. Una volta ogni due ripetizioni.
-            else if (b.fase === 'piedi' && b.rip < st.n && vivo.ultimaDiscesa && vivo.ultimaDiscesa.rip === b.rip && b.rip >= lentoDetto + 2 &&
-                     vivo.ultimaDiscesa.secondi < vivo.ultimaDiscesa.chiesti * 0.66){
-              tAvviso = t; lentoDetto = b.rip; voce('Scendi più lento.'); reg.eventi.push([Math.round(t), 'voce lento'])
+          // una correzione breve: solo se la cosa dura da mezzo secondo, mai più di una ogni 4 secondi,
+          // e solo se nessuno sta parlando. Una volta partita, «Giù» e «Su» non la tagliano.
+          var storto = vivo.braccia ? 'braccia' : vivo.lato
+          if (!storto) stortoDa = null; else if (stortoDa == null) stortoDa = t
+          var libero = t - tAvviso > 4000
+          if (libero && storto && t - stortoDa >= 500){
+            if (voce(storto === 'braccia' ? 'Telefono all’altezza degli occhi.' : 'Alza la mano ' + storto + '.', 'correzione')){
+              tAvviso = t; reg.eventi.push([Math.round(t), storto === 'braccia' ? 'voce braccia' : 'voce mano ' + storto])
             }
           }
+          // il ritmo: se la discesa è durata meno di due terzi di quanto chiesto. Una volta ogni due squat, da in piedi.
+          else if (libero && b.fase === 'piedi' && b.rip < st.n && vivo.ultimaDiscesa && vivo.ultimaDiscesa.id !== lentoId && vivo.ripetizioni >= lentoDetto + 2 &&
+                   vivo.ultimaDiscesa.secondi < vivo.ultimaDiscesa.chiesti * 0.66){
+            if (voce('Scendi più lento.', 'correzione')){ tAvviso = t; lentoDetto = vivo.ripetizioni; lentoId = vivo.ultimaDiscesa.id; reg.eventi.push([Math.round(t), 'voce lento']) }
+          }
+          // la TV, se c'è: tre volte al secondo abbondanti, solo fasi e angoli
+          if (++giroTv % 3 === 0) manda('gd-vivo', pacchettoTv())
         }
         if (t >= st.fine + 700){ clearInterval(iv); fine() }
       }, 40)
@@ -521,7 +505,8 @@
     st = null
     if (fermato === 'caduta') voce('Mi fermo: il telefono è caduto.')
     else if (fermato) voce('Fermato.')
-    else voce('Fatto. ' + r.intere + (r.intere === 1 ? ' ripetizione contata.' : ' ripetizioni contate.'))
+    else voce('Fatto. ' + r.fatti + (r.fatti === 1 ? ' squat contato' : ' squat contati') + (r.aTempo === r.fatti ? (r.fatti > 1 ? ', tutti a tempo.' : r.fatti ? ', a tempo.' : '.') : ', ' + r.aTempo + ' a tempo.'))
+    manda('gd-fine', { fatti: r.fatti, aTempo: r.aTempo, n: r.n, tempi: r.tempi, fuori: r.fuori, frasi: F.frasi(r), fermato: fermato || null })
     if (!fermato){ bip(660, 120); setTimeout(function(){ bip(990, 220) }, 140) }
     disegnaEsito(ultimoEsito)
     mostra('c-esito', true)
@@ -553,18 +538,19 @@
   function disegnaEsito(e){
     var r = e.r
     $('e-tit').textContent = e.fermato === 'caduta' ? 'Fermato · telefono caduto' : e.fermato ? 'Fermato prima della fine' : 'Com’è andata'
-    var h = '<div class="grandi"><div><b>' + r.intere + '<small style="font-size:.5em;opacity:.6">/' + r.n + '</small></b><span>ripetizioni contate</span></div>' +
-      '<div><b>' + (r.mani.media == null ? '—' : num1(r.mani.media) + '°') + '</b><span>' + (r.mani.lato ? 'mano ' + r.mani.lato + ' più bassa' : 'mani pari') + '</span></div>' +
+    var h = '<div class="grandi"><div><b>' + r.fatti + '<small style="font-size:.5em;opacity:.6">/' + r.n + '</small></b><span>squat contati</span></div>' +
+      '<div><b>' + r.aTempo + '</b><span>a tempo con la voce</span></div>' +
       '<div><b>' + (r.tempi.giu == null ? '—' : num1(r.tempi.giu) + ' s') + '</b><span>per scendere (chiesti ' + r.tempi.chiestiGiu + ')</span></div></div>'
-    h += '<table class="rip"><tr><th>Rip.</th><th>Discesa</th><th>Giù</th><th>Su</th><th>Mani</th></tr>'
-    r.ripetizioni.forEach(function(x){
-      var lato = x.mani == null ? '' : Math.abs(x.mani) < r.soglie.mani ? '' : (x.mani > 0 ? ' dx' : ' sx')
-      h += '<tr><td>' + x.rip + '</td><td class="' + (x.giu ? '' : 'no') + '">' + (x.giu ? '~' + x.discesaCm + ' cm' : 'non vista') + '</td>' +
-        '<td>' + (x.giuS == null ? '—' : num1(x.giuS) + ' s') + '</td>' +
-        '<td class="' + (x.su ? '' : 'no') + '">' + (x.su ? (x.suS == null ? '—' : num1(x.suS) + ' s') : 'non vista') + '</td>' +
-        '<td>' + (x.mani == null ? '—' : num1(x.mani) + '°' + lato) + '</td></tr>'
+    h += '<table class="rip"><tr><th>Squat</th><th>Quando</th><th>Giù</th><th>Su</th><th>Mani</th></tr>'
+    r.squat.forEach(function(x){
+      var lato = x.maniMax == null || Math.abs(x.maniMax) < r.soglie.mani ? '' : (x.maniMax > 0 ? ' dx' : ' sx')
+      h += '<tr><td>' + x.n + ' <small style="color:#666">~' + x.discesaCm + ' cm</small></td>' +
+        '<td>' + (x.aTempo ? '<span class="tag">a tempo · ' + x.rip + 'ª</span>' : '<span class="tag no">fuori tempo</span>') + '</td>' +
+        '<td>' + (x.giuS == null ? '—' : num1(x.giuS) + ' s') + '</td><td>' + (x.suS == null ? '—' : num1(x.suS) + ' s') + '</td>' +
+        '<td class="' + (lato ? 'no' : '') + '">' + (x.maniMax == null ? '—' : num1(x.maniMax) + '°' + lato) + '</td></tr>'
     })
-    h += '</table><div class="nota">I <b>secondi</b> e l’altezza delle <b>mani</b> sono letti dai sensori. I <b>centimetri</b> sono una stima non ancora verificata.</div>'
+    if (!r.squat.length) h += '<tr><td colspan="5" class="no">nessuno squat visto</td></tr>'
+    h += '</table><div class="nota">I <b>secondi</b> e l’altezza delle <b>mani</b> (qui il massimo durante lo squat) sono letti dai sensori. I <b>centimetri</b> sono una stima non ancora verificata.</div>'
     h += gomitolo(e.serie, r.soglie.mani, r.soglie.braccia)
     h += '<div class="frasi">' + F.frasi(r).map(function(f){ return '<p>' + esc(f) + '</p>' }).join('') + '</div>'
     if (r.senzaLineare) h += '<div class="nota">⚠️ Questo telefono non dà l’accelerazione «senza gravità»: il conto dei movimenti è meno affidabile.</div>'
@@ -595,9 +581,43 @@
     try { navigator.share({ files: [f], title: 'Squat guidato · tracciato' }).catch(function(){}) } catch(e){}
   }
 
+  // ═══ LA TV (guidato-v3) ═══
+  // Se la TV è collegata all'account («Sulla TV»), il palco ci va da solo sullo
+  // stesso canale degli altri test. Sul canale passano solo fasi, angoli e conti:
+  // nessun nome, nessun paziente. Senza account o senza TV non succede niente.
+  var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  var canTv = null
+  function r2(x){ return Math.round((x || 0) * 100) / 100 }
+  function pacchettoTv(){
+    var v = statoSchermo()
+    return { fase: v.fase, n: v.n, ripetizioni: v.ripetizioni, discese: v.discese, p: r2(v.p), corpo: r2(v.corpo), roll: r2(v.roll), pitch: r2(v.pitch),
+      lato: v.lato, braccia: v.braccia, sogliaMani: v.sogliaMani, sogliaBraccia: v.sogliaBraccia }
+  }
+  function manda(ev, payload){ if (!canTv) return; try { canTv.send({ type: 'broadcast', event: ev, payload: payload }) } catch(e){} }
+  async function direttaTv(){
+    try {
+      if (canTv || !window.supabase || !window.supabase.createClient) return
+      var SB = window.supabase.createClient(SB_URL, SB_KEY)
+      var ses = (await SB.auth.getSession()).data.session
+      if (!ses) return
+      var c = await SB.rpc('oscillazione_canale'), can = c && !c.error ? c.data : null
+      if (!can){
+        var on = false; try { on = localStorage.getItem('policettivo.diretta.v1') === 'on' || localStorage.getItem('policettivo.tv.v1') === 'on' } catch(e){}
+        if (on){ var r = await SB.rpc('oscillazione_apri_canale'); can = r && !r.error ? r.data : null }
+      }
+      if (!can) return
+      var sub = SB.channel('oscillazione:' + can, { config: { broadcast: { self: false } } })
+      await sub.subscribe()
+      canTv = sub
+      $('tv-stato').classList.add('on')
+    } catch(e){ canTv = null }
+  }
+  direttaTv()
+
   $('btn-start').onclick = function(){ avvia() }
   window.__guidato = { vivo: function(){ return vivo }, stato: function(){ return st }, inCorso: function(){ return inCorso }, t0: function(){ return t0 },
-    esito: function(){ return ultimoEsito }, tracciato: tracciato, rot: function(){ return rot }, dette: function(){ return dette }, velo: function(){ return $('velo').classList.contains('on') } }
+    esito: function(){ return ultimoEsito }, tracciato: tracciato, tv: function(){ return !!canTv }, rot: function(){ return rot }, dette: function(){ return dette }, saltate: function(){ return saltate }, velo: function(){ return $('velo').classList.contains('on') } }
 })()
 </script>
 <script src="js/pol-nav.js?v=nav-v1" defer></script><!-- nav-v1 · pulsante Indietro/Home -->
