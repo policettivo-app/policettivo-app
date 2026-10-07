@@ -81,6 +81,13 @@ tr.delete-row td { color: #ffb3b3; }
 .meta { color: #7d8590; font-size: 11px; }
 .empty { text-align: center; padding: 40px 20px; color: #7d8590; font-size: 13px; }
 .info { font-size: 11px; color: #7d8590; margin-top: 16px; text-align: right; font-style: italic; }
+/* telefono-4 (6 ott 2026) — SOLO TELEFONO (schermo fino a 640 px): la tabella scorre nel suo riquadro invece di allargare la pagina.
+   Sopra i 640 px non cambia niente. */
+@media (max-width:640px){
+  table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+  .filters > div{min-width:0;max-width:100%}
+  .filters select,.filters input{max-width:100%;min-width:0}
+}
 </style>
   <script src="js/pol-lock.js"></script><!-- sess-lock-v1 -->
 </head>

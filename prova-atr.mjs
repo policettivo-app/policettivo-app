@@ -160,7 +160,9 @@ try {
   check('⛔ mai la parola «scoliosi» nel risultato', !/scoliosi/i.test(es))
   await page.waitForFunction(() => window.__db.righe.length === 1, null, { timeout: 5000 })
   const rg = await page.evaluate(() => window.__db.righe[0])
-  check('⭐⭐ salvata: quattro zone col segno, 3 passate, errore, momento, paziente', rg.toracico === 6 && rg.toracolombare < -3 && rg.n_passate === 3 && rg.errore > 0 && rg.momento === 'pre' && rg.patient_id === pid && rg.massimo === 6 && rg.livello_massimo === 'toracico', rg)
+  // telefono-4 · prove stabili · il sensore finto dà 5,99 o 6,01 secondo il momento in cui viene letto: il valore salvato
+  // si confronta entro 0,05° (a schermo è sempre «6,0°»). Prima si pretendeva 6 esatto: rosso 2 volte su 7.
+  check('⭐⭐ salvata: quattro zone col segno, 3 passate, errore, momento, paziente', Math.abs(rg.toracico - 6) < 0.05 && rg.toracolombare < -3 && rg.n_passate === 3 && rg.errore > 0 && rg.momento === 'pre' && rg.patient_id === pid && Math.abs(rg.massimo - 6) < 0.05 && rg.livello_massimo === 'toracico', rg)
   check('⭐ con la taratura usata', Math.abs(rg.zero - 0.4) < 0.08 && rg.verso === 1 && rg.tarato === true)
   check('⭐ nella sessione dei test', rg.sessione_id === 'SESS-1')
   check('⭐ il pulsante Indietro/Home torna', await page.evaluate(() => !document.body.hasAttribute('data-nav-nascondi')))

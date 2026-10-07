@@ -184,7 +184,9 @@ try {
     const { page, ctx } = await apri()
     await page.click('#momento .chip[data-m="pre"]')
     check('⭐ momento-nota-v2 · il riquadro è in cima alla preparazione, sopra «Cosa guardi»', await page.evaluate(() => { const b = document.getElementById('mn-box'), l = [...document.querySelectorAll('#c-setup label')].find(x => /Cosa guardi/.test(x.textContent)); return !!b && !!l && (b.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING) > 0 }))
-    check('⭐ momento-nota-v2 · con PRIMA compare la descrizione', await page.isVisible('#momento-nota'))
+    // telefono-4 · prove stabili · la descrizione compare un istante DOPO il tocco (js/momento-nota.js usa setTimeout 0):
+    // si ASPETTA che compaia (fino a 3 s) invece di guardare subito. Prima il controllo era rosso a lanci alterni.
+    check('⭐ momento-nota-v2 · con PRIMA compare la descrizione', await page.waitForSelector('#momento-nota', { state: 'visible', timeout: 3000 }).then(() => true, () => false))
     await page.fill('#momento-nota', 'neutro')
     check('il pulsante dice «PRIMA · neutro», non più i 3 Respiri', /· PRIMA · neutro/.test(await page.textContent('#pf-cosa')) && !/3 Respiri/.test(await page.textContent('#pf-cosa')), await page.textContent('#pf-cosa'))
     await ctx.close()

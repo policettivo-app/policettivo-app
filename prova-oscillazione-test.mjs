@@ -2160,7 +2160,8 @@ sez('⭐ momento-nota-v1 · PRIMA / DOPO con la descrizione, in cima, e si salva
     return !!b && !!l && (b.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING) > 0 }))
   check('⭐ senza segno la descrizione non si vede', !(await page.isVisible('#momento-nota')))
   await page.click('#momento .chip[data-m="pre"]')
-  check('⭐ con PRIMA compare il campo, con l’esempio giusto', await page.isVisible('#momento-nota') && /neutro/.test(await page.getAttribute('#momento-nota', 'placeholder')))
+  // telefono-4 · prove stabili · come in prova-squat.mjs: si aspetta che il campo compaia invece di guardare subito dopo il tocco
+  check('⭐ con PRIMA compare il campo, con l’esempio giusto', (await page.waitForSelector('#momento-nota', { state: 'visible', timeout: 3000 }).then(() => true, () => false)) && /neutro/.test(await page.getAttribute('#momento-nota', 'placeholder')))
   await page.fill('#momento-nota', 'neutro, mai provato <b>cuscini</b>')
   check('⭐ il PARTI dice PRIMA e la descrizione', /PRIMA · neutro, mai provato/.test(await page.textContent('#btn-start')), await page.textContent('#btn-start'))
   await PROVA_APP(page, true, 1)
