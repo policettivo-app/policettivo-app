@@ -45,14 +45,14 @@
     .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
     .stat-mini { background: #111; border: 1px solid #222; border-radius: 12px; padding: 16px 12px; text-align: center; }
     .stat-mini-val { font-size: 24px; font-weight: 700; color: #FFD008; }
-    .stat-mini-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .stat-mini-label { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
     .section { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
     .section-title { font-size: 13px; font-weight: 700; color: #FFD008; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
     .chart-container { height: 180px; position: relative; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
     .cal-day { width: 100%; aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; }
     .cal-done { background: #FFD008; color: #000; }
-    .cal-miss { background: #1a1a1a; color: #444; }
+    .cal-miss { background: #1a1a1a; color: #8a8a8a; }
     .cal-today { background: #333; color: #fff; }
     .cal-empty { background: transparent; }
     .history-list { display: flex; flex-direction: column; gap: 8px; }
@@ -60,9 +60,10 @@
     .history-emoji { font-size: 20px; }
     .history-info { flex: 1; }
     .history-date { font-size: 12px; font-weight: 600; color: #fff; }
-    .history-note { font-size: 11px; color: #666; margin-top: 2px; }
+    .history-note { font-size: 11px; color: #999; margin-top: 2px; }
     .history-check { font-size: 14px; }
     .btn-torna { width: 100%; padding: 16px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+/* grigi-2 (7 ott 2026) — pagine scure del paziente: i testi grigi troppo scuri (#444, #555, #666) schiariti a #8a8a8a / #999. Contrasto sul nero almeno 5:1 (soglia WCAG AA 4,5:1); prima fino a 1,8:1. */
   </style>
   <script src="js/pol-eventi.js"></script><!-- pol-eventi-v1 : misura come viene usata l'area paziente. Vedi js/pol-eventi.js -->
 </head>
@@ -242,7 +243,7 @@
 
     function renderHistory(entries) {
       const el = document.getElementById('history-list')
-      if (entries.length === 0) { el.innerHTML = '<div style="color:#555;font-size:13px;text-align:center;padding:20px">Nessuna sessione ancora.</div>'; return }
+      if (entries.length === 0) { el.innerHTML = '<div style="color:#999;font-size:13px;text-align:center;padding:20px">Nessuna sessione ancora.</div>'; return }
       const smileMap = (d,r,eq,en) => {
         const score = 10 - d - r/2 + eq/2 + en/2
         if (score >= 8) return '🤩'
@@ -260,10 +261,10 @@
         const en = e.energia !== null && e.energia !== undefined ? e.energia : 5
         const dettagli =
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0 8px">' +
-          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">DOLORE</div><div style="font-size:18px;font-weight:700;color:' + valColor('dolore',d) + '">' + d + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
-          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">RIGIDITA</div><div style="font-size:18px;font-weight:700;color:' + valColor('rigidita',r) + '">' + r + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
-          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">EQUILIBRIO</div><div style="font-size:18px;font-weight:700;color:' + valColor('equilibrio',eq) + '">' + eq + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
-          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#666;margin-bottom:2px">ENERGIA</div><div style="font-size:18px;font-weight:700;color:' + valColor('energia',en) + '">' + en + '<span style="font-size:10px;color:#555">/10</span></div></div>' +
+          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#999;margin-bottom:2px">DOLORE</div><div style="font-size:18px;font-weight:700;color:' + valColor('dolore',d) + '">' + d + '<span style="font-size:10px;color:#999">/10</span></div></div>' +
+          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#999;margin-bottom:2px">RIGIDITA</div><div style="font-size:18px;font-weight:700;color:' + valColor('rigidita',r) + '">' + r + '<span style="font-size:10px;color:#999">/10</span></div></div>' +
+          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#999;margin-bottom:2px">EQUILIBRIO</div><div style="font-size:18px;font-weight:700;color:' + valColor('equilibrio',eq) + '">' + eq + '<span style="font-size:10px;color:#999">/10</span></div></div>' +
+          '<div style="background:#222;border-radius:6px;padding:8px 10px"><div style="font-size:10px;color:#999;margin-bottom:2px">ENERGIA</div><div style="font-size:18px;font-weight:700;color:' + valColor('energia',en) + '">' + en + '<span style="font-size:10px;color:#999">/10</span></div></div>' +
           '</div>' +
           ((e.sway_pre != null || e.gradi_pre != null) ?
             '<div style="background:#15203a;border:1px solid #2a3a5a;border-radius:8px;padding:10px 12px;margin-bottom:8px">' +
@@ -277,8 +278,8 @@
           '<div onclick="toggleDetail(' + i + ')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">' +
           '<div style="font-size:22px">' + emoji + '</div>' +
           '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:#fff">' + data + '</div>' +
-          '<div style="font-size:11px;color:#555;margin-top:2px">Dolore ' + d + ' · Energia ' + en + ' · ' + (e.completato ? '✅ completata' : '⬜ non completata') + '</div></div>' +
-          '<div style="font-size:12px;color:#444">▼</div></div>' +
+          '<div style="font-size:11px;color:#999;margin-top:2px">Dolore ' + d + ' · Energia ' + en + ' · ' + (e.completato ? '✅ completata' : '⬜ non completata') + '</div></div>' +
+          '<div style="font-size:12px;color:#8a8a8a">▼</div></div>' +
           '<div id="detail-' + i + '" style="display:none;padding:0 14px 14px">' + dettagli + '</div>' +
           '</div>'
       }).join('')

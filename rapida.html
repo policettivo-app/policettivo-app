@@ -35,13 +35,13 @@
 body { font-family: 'Montserrat', sans-serif; background: #000; color: #fff; min-height: 100vh; }
 .navbar { background: #000; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; }
 .navbar-logo { background: #FFD008; color: #000; font-weight: 700; font-size: 11px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
-.btn-exit { background: transparent; border: 1px solid #333; color: #666; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
+.btn-exit { background: transparent; border: 1px solid #333; color: #999; padding: 6px 14px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; cursor: pointer; }
 .main { max-width: 480px; margin: 0 auto; padding: 24px 20px 60px; }
 .header-box { background: #111; border: 1px solid #FFD008; border-radius: 16px; padding: 20px; margin-bottom: 24px; text-align: center; }
 .header-icon { font-size: 36px; margin-bottom: 8px; }
 .header-title { font-size: 20px; font-weight: 900; color: #FFD008; margin-bottom: 4px; }
 .header-sub { font-size: 13px; color: #888; }
-.section-label { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+.section-label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
 .exercise-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
 .ex-item { background: #111; border: 1px solid #222; border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 14px; transition: border-color 0.2s; }
 .ex-item.done { border-color: #FFD008; background: #1a1a00; }
@@ -50,8 +50,8 @@ body { font-family: 'Montserrat', sans-serif; background: #000; color: #fff; min
 .ex-info { flex: 1; }
 .ex-name { font-size: 14px; font-weight: 700; color: #fff; }
 .ex-item.done .ex-name { color: #FFD008; }
-.ex-meta { font-size: 12px; color: #555; margin-top: 2px; }
-.ex-timer-btn { background: #1a1a1a; border: 1px solid #333; color: #666; padding: 6px 12px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.ex-meta { font-size: 12px; color: #999; margin-top: 2px; }
+.ex-timer-btn { background: #1a1a1a; border: 1px solid #333; color: #999; padding: 6px 12px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
 .ex-timer-btn.running { border-color: #FFD008; color: #FFD008; }
 .timer-mini { font-size: 13px; color: #FFD008; font-weight: 700; margin-top: 6px; display: none; }
 .timer-mini.visible { display: block; }
@@ -92,7 +92,7 @@ input[type=range] { width: 100%; accent-color: #FFD008; }
 .note-input:focus { border-color: #FFD008; }
 .btn-completa { width: 100%; padding: 18px; background: #FFD008; color: #000; border: none; border-radius: 14px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 900; cursor: pointer; margin-bottom: 12px; }
 .btn-completa:hover { background: #e6bc00; }
-.btn-salta { width: 100%; padding: 14px; background: transparent; border: 1px solid #333; color: #555; border-radius: 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; cursor: pointer; }
+.btn-salta { width: 100%; padding: 14px; background: transparent; border: 1px solid #333; color: #999; border-radius: 14px; font-family: 'Montserrat', sans-serif; font-size: 14px; cursor: pointer; }
 .completed-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; }
 .completed-overlay.show { display: flex; }
 .completed-icon { font-size: 80px; margin-bottom: 16px; }
@@ -100,6 +100,7 @@ input[type=range] { width: 100%; accent-color: #FFD008; }
 .completed-sub { font-size: 14px; color: #888; margin-bottom: 32px; }
 .btn-torna { padding: 18px 40px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; }
 .motivational { background: #111; border-radius: 12px; padding: 16px 20px; font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 24px; font-style: italic; }
+/* grigi-2 (7 ott 2026) — pagine scure del paziente: i testi grigi troppo scuri (#444, #555, #666) schiariti a #8a8a8a / #999. Contrasto sul nero almeno 5:1 (soglia WCAG AA 4,5:1); prima fino a 1,8:1. */
 </style>
   <script src="js/pol-eventi.js"></script><!-- pol-eventi-v1 : misura come viene usata l'area paziente. Vedi js/pol-eventi.js -->
   <script src="js/pol-sessione.js"></script><!-- daily-context-v1 : una seduta, una riga. Vedi js/pol-sessione.js -->
@@ -117,7 +118,7 @@ input[type=range] { width: 100%; accent-color: #FFD008; }
   </div>
   <div class="section-label">Il tuo protocollo di oggi</div>
   <div class="exercise-list" id="exercise-list">
-    <div style="color:#555;font-size:13px">Caricamento...</div>
+    <div style="color:#999;font-size:13px">Caricamento...</div>
   </div>
   <div class="diary-section">
     <div class="diary-title">Come ti senti?</div>
@@ -240,7 +241,7 @@ function chiudiVideo() {
 
 function renderExercises() {
   const list = document.getElementById('exercise-list')
-  if (!exercises.length) { list.innerHTML = '<div style="color:#555;font-size:13px">Nessun esercizio</div>'; return }
+  if (!exercises.length) { list.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio</div>'; return }
   list.innerHTML = exercises.map((e, i) => {
     const durata = e.durata || 90
     const nome = e.name || ('Esercizio ' + (i+1))
