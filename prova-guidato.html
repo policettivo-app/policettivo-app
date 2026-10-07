@@ -6,7 +6,9 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Squat guidato · in prova</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- guidato-v3 (7 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · IN PROVA
+<!-- guidato-v4 (7 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · IN PROVA
+     v4: «📺 Mostra sulla TV» anche da questa pagina; «💬 Spiegami» a fine esercizio (regole fisse
+     in js/guida-motore.js: cosa è andato come chiesto, cosa guardare); pallina del corpo più fedele.
      Il telefono fra le due mani, in orizzontale, braccia tese davanti agli occhi.
      La pagina dà il ritmo (freccia, tono che scende e sale, voce) e i sensori
      dicono cosa succede davvero: squat contati, a tempo o fuori tempo, una mano
@@ -21,8 +23,8 @@
      js/guida-schermo.js, lo stesso che usa la TV; se la TV è collegata («Sulla
      TV») il palco ci va da solo, sul canale dei test: solo fasi e angoli. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/guida-motore.js?v=guidato-v3"></script>
-<script src="js/guida-schermo.js?v=guidato-v3"></script>
+<script src="js/guida-motore.js?v=guidato-v4"></script>
+<script src="js/guida-schermo.js?v=guidato-v4"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -69,6 +71,11 @@
   .frasi{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14.5px;line-height:1.6}
   .frasi p{margin:0 0 6px}.frasi p:last-child{margin:0;color:#667;font-style:italic}
   .gomitolo{display:block;margin:10px auto 0;width:100%;max-width:300px;height:auto}
+  .sp{border-radius:14px;padding:12px 14px;margin-top:12px;font-size:14.5px;line-height:1.5}
+  .sp h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.5px}
+  .sp ul{margin:0;padding-left:20px}.sp li{margin-bottom:5px}
+  .sp.si{background:#eef9f0;border:1px solid #bfe3c9}.sp.si h3{color:#0a5e26}
+  .sp.no{background:#fff8e6;border:1px solid #f0dd9a}.sp.no h3{color:#7a5500}
   .tv-stato{border-radius:12px;padding:9px 12px;font-size:13px;margin:0 0 14px;background:#111;color:#fff;display:none}
   .tv-stato.on{display:block}
   .tag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;color:#fff;background:#0a7d33;white-space:nowrap}
@@ -102,6 +109,8 @@
   <div class="sub">Il telefono ti guida mentre fai l’esercizio &middot; in prova</div>
 
   <div class="tv-stato" id="tv-stato">📺 <b>TV collegata</b>: quello che vedi sul telefono va anche sullo schermo grande.</div>
+  <button class="btn vuoto" id="btn-tv" style="display:none;margin:0 0 14px">📺 Mostra sulla TV</button>
+  <div class="nota" id="tv-msg" style="margin:-6px 0 14px;display:none"></div>
   <div class="avviso">
     <b>È una prova, solo per te.</b> Non salva niente e non riguarda nessun paziente.
     I numeri sono <b>stime non ancora verificate</b>: servono a capire come deve essere lo schermo e quanto sbaglia il telefono.
@@ -111,6 +120,8 @@
   <div class="card" id="c-esito" style="display:none">
     <h2 id="e-tit">Com’è andata</h2>
     <div id="esito"></div>
+    <button class="btn" id="btn-spiega" style="background:#FFD008;color:#111">💬 Spiegami com’è andata</button>
+    <div id="spiega" style="display:none"></div>
     <button class="btn" id="btn-condividi" style="display:none">📤 Manda il tracciato</button>
     <button class="btn vuoto" id="btn-scarica">⬇️ Scarica il tracciato</button>
     <div class="nota">Il tracciato sono i numeri grezzi dei sensori di questa prova (nessun nome, nessun paziente). Mandalo in chat: serve a misurare quanto sbaglia il telefono.</div>
@@ -555,6 +566,7 @@
     h += '<div class="frasi">' + F.frasi(r).map(function(f){ return '<p>' + esc(f) + '</p>' }).join('') + '</div>'
     if (r.senzaLineare) h += '<div class="nota">⚠️ Questo telefono non dà l’accelerazione «senza gravità»: il conto dei movimenti è meno affidabile.</div>'
     $('esito').innerHTML = h
+    $('spiega').style.display = 'none'; $('spiega').innerHTML = ''; mostra('btn-spiega', r.zero && r.campioni >= 30)
     var file = fileTracciato()
     var puo = false
     try { puo = !!(file && navigator.canShare && navigator.canShare({ files: [file] })) } catch(err){}
@@ -595,25 +607,63 @@
       lato: v.lato, braccia: v.braccia, sogliaMani: v.sogliaMani, sogliaBraccia: v.sogliaBraccia }
   }
   function manda(ev, payload){ if (!canTv) return; try { canTv.send({ type: 'broadcast', event: ev, payload: payload }) } catch(e){} }
+  var SBc = null, sesTv = false
+  async function aggancia(can){
+    var sub = SBc.channel('oscillazione:' + can, { config: { broadcast: { self: false } } })
+    await sub.subscribe()
+    canTv = sub
+    $('tv-stato').classList.add('on'); mostra('btn-tv', false); mostra('tv-msg', false)
+  }
   async function direttaTv(){
     try {
       if (canTv || !window.supabase || !window.supabase.createClient) return
-      var SB = window.supabase.createClient(SB_URL, SB_KEY)
-      var ses = (await SB.auth.getSession()).data.session
+      SBc = window.supabase.createClient(SB_URL, SB_KEY)
+      var ses = (await SBc.auth.getSession()).data.session
       if (!ses) return
-      var c = await SB.rpc('oscillazione_canale'), can = c && !c.error ? c.data : null
+      sesTv = true
+      var c = await SBc.rpc('oscillazione_canale'), can = c && !c.error ? c.data : null
       if (!can){
         var on = false; try { on = localStorage.getItem('policettivo.diretta.v1') === 'on' || localStorage.getItem('policettivo.tv.v1') === 'on' } catch(e){}
-        if (on){ var r = await SB.rpc('oscillazione_apri_canale'); can = r && !r.error ? r.data : null }
+        if (on){ var r = await SBc.rpc('oscillazione_apri_canale'); can = r && !r.error ? r.data : null }
       }
-      if (!can) return
-      var sub = SB.channel('oscillazione:' + can, { config: { broadcast: { self: false } } })
-      await sub.subscribe()
-      canTv = sub
-      $('tv-stato').classList.add('on')
-    } catch(e){ canTv = null }
+      if (can) await aggancia(can); else mostra('btn-tv', true)   // guidato-v4 · il pulsante c'è solo se serve
+    } catch(e){ canTv = null; if (sesTv) mostra('btn-tv', true) }
+  }
+  // guidato-v4 · «📺 Mostra sulla TV» da qui (chiesto da Giuliano: prima bisognava passare da Test).
+  // Se l'account ha già una TV collegata si apre il canale dei test e basta; se non ne ha
+  // nessuna si va alla pagina che le collega (un posto solo: tv-collega.html).
+  $('btn-tv').onclick = async function(){
+    var msg = function(t){ $('tv-msg').innerHTML = t; mostra('tv-msg', true) }
+    try {
+      if (!SBc || !sesTv){ msg('Per usare la TV entra col tuo account.'); return }
+      msg('Cerco la TV…')
+      var e = await SBc.rpc('tv_elenco')
+      if (e.error){ msg('⚠️ Non riesco a leggere le TV collegate: ' + esc(e.error.message || '')); return }
+      if (!(e.data || []).length){ location.href = 'tv-collega.html'; return }
+      try { localStorage.setItem('policettivo.tv.v1', 'on'); localStorage.setItem('policettivo.diretta.v1', 'on') } catch(err){}
+      var c = await SBc.rpc('oscillazione_canale'), can = c && !c.error ? c.data : null
+      if (!can){ var r = await SBc.rpc('oscillazione_apri_canale'); can = r && !r.error ? r.data : null }
+      if (!can){ msg('⚠️ Non riesco ad aprire il canale della TV. Riprova, o collegala da Test → Schermo TV.'); return }
+      await aggancia(can)
+    } catch(err){ msg('⚠️ Non riesco a collegare la TV: ' + esc(err && err.message ? err.message : String(err))) }
   }
   direttaTv()
+
+  // ═══ SPIEGAMI (guidato-v4) ═══
+  $('btn-spiega').onclick = function(){
+    var e = ultimoEsito; if (!e) return
+    var sp = F.spiega(e.r)
+    var lista = function(v, vuoto){ return v.length ? '<ul>' + v.map(function(x){ return '<li>' + esc(x) + '</li>' }).join('') + '</ul>' : '<div>' + vuoto + '</div>' }
+    $('spiega').innerHTML = '<div class="sp si"><h3>✅ Come chiesto</h3>' + lista(sp.bene, '—') + '</div>' +
+      '<div class="sp no"><h3>👀 Da guardare</h3>' + lista(sp.guarda, 'Niente da segnalare.') + '</div>' +
+      (sp.nota ? '<div class="nota">' + esc(sp.nota) + '</div>' : '')
+    $('spiega').style.display = ''
+    // a voce: prima cosa guardare (al massimo tre), poi una cosa andata come chiesto
+    var dire = sp.guarda.slice(0, 3)
+    voce((dire.length ? 'Da guardare. ' + dire.join(' ') : 'Niente da segnalare.') + (sp.bene.length ? ' Come chiesto: ' + sp.bene.slice(0, 2).join(' ') : ''))
+    manda('gd-fine', { fatti: e.r.fatti, aTempo: e.r.aTempo, n: e.r.n, tempi: e.r.tempi, fuori: e.r.fuori, frasi: F.frasi(e.r), fermato: e.fermato || null, spiega: { bene: sp.bene, guarda: sp.guarda } })
+    try { $('spiega').scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch(err){}
+  }
 
   $('btn-start').onclick = function(){ avvia() }
   window.__guidato = { vivo: function(){ return vivo }, stato: function(){ return st }, inCorso: function(){ return inCorso }, t0: function(){ return t0 },

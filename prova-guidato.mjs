@@ -1,4 +1,4 @@
-/* prova-guidato.mjs — guidato-v3
+/* prova-guidato.mjs — guidato-v4
  * Lo squat guidato dal telefono: il calcolo (telefono simulato) e la pagina.
  *   node prova-guidato.mjs
  */
@@ -112,6 +112,15 @@ sez('⭐ il calcolo (js/guida-motore.js) — telefono SIMULATO, non vero')
   const fr = F.frasi(x.r).join(' ')
   check('⛔ le frasi descrivono, non giudicano', /stima/.test(fr) && /lo decide il professionista/.test(fr) && /Squat contati: 5/.test(fr) && !/corrett|sbagliat|giust|bravo|bene|male/i.test(fr), fr)
 
+  // guidato-v4 · «Spiegami»
+  let sp = F.spiega(simula({ ritmo: F.RITMI.medio }).r)
+  check('⭐ Spiegami, esercizio pulito a ritmo medio: niente da guardare, e dice cosa è andato come chiesto', sp.guarda.length === 0 && sp.bene.length >= 5 && /tutti e 5/.test(sp.bene.join(' ')) && /regolari/.test(sp.bene.join(' ')), sp)
+  sp = F.spiega(simula({ rollDeg: -12, salta: [3] }).r)
+  check('⭐ Spiegami, mano sinistra giù e uno squat saltato: lo dice, coi numeri', /Ne hai fatti 4 su 5/.test(sp.guarda.join(' ')) && /La mano sinistra scende: fino a 1\d,\d°/.test(sp.guarda.join(' ')) && /in 4 squat su 4/.test(sp.guarda.join(' ')) && !/mano destra/.test(sp.guarda.join(' ')), sp.guarda)
+  sp = F.spiega(simula({ prof: 0 }).r)
+  check('⭐ Spiegami, nessuno squat: lo dice e non inventa lodi sul ritmo', /nessuno squat/.test(sp.guarda.join(' ')) && !/ritmo|regolari|Tutti a tempo/.test(sp.bene.join(' ')), sp)
+  check('⛔ Spiegami non parla di carico, schiena o ginocchia se non per dire che NON li vede, e non usa «giusto / sbagliato»', (() => { const t = F.spiega(simula({ rollDeg: 12, pitchDeg: 35 }).r); const tutto = t.bene.concat(t.guarda).join(' '); return !/caric|schiena|ginocch|giust|sbagliat|corrett|male\b/i.test(tutto) && /non sa dove va il carico/.test(t.nota) })())
+
   // ⭐⭐ I TRACCIATI VERI (Giuliano, iPhone, 7 ottobre). Sono i due su cui il conto è stato costruito:
   // dicono che non si rompe, non che è giusto su un telefono o una persona nuovi.
   const rigioca = (file) => {
@@ -131,6 +140,8 @@ sez('⭐ il calcolo (js/guida-motore.js) — telefono SIMULATO, non vero')
   check('⭐⭐ tracciato vero 2 (errori apposta; la seconda versione ne contava 3 con un fondo di 3 metri): 5 squat, 4 a tempo, 1 fuori tempo', v2.r.fatti === 5 && v2.r.aTempo === 4 && v2.r.fuoriTempo === 1 && v2.ordinato, [v2.r.fatti, v2.r.aTempo])
   check('⭐ tracciato vero 2: lo squat fuori tempo è il secondo, e la ripetizione 2 risulta mancata', v2.r.squat[1].aTempo === false && v2.r.mancate.join() === '2', [v2.r.squat.map(q => q.rip), v2.r.mancate])
   check('⭐ tracciato vero 2: mano sinistra giù per più di 3 secondi (oltre 40°), telefono inclinato oltre 30°', v2.r.fuori.sinistraS > 3 && v2.r.fuori.sinistraMax > 40 && v2.r.fuori.bracciaMax > 30, v2.r.fuori)
+  sp = F.spiega(v2.r)
+  check('⭐ Spiegami sul tracciato vero 2: fuori tempo, mano sinistra (2 squat su 5), telefono inclinato, troppo svelto', /fuori tempo/.test(sp.guarda.join(' ')) && /La mano sinistra scende: fino a 43,1°/.test(sp.guarda.join(' ')) && /in 2 squat su 5/.test(sp.guarda.join(' ')) && /Il telefono si inclina/.test(sp.guarda.join(' ')) && /prova più lento/.test(sp.guarda.join(' ')), sp.guarda)
   check('⛔ tracciato vero 2: nessun fondo assurdo (tutti sotto il metro e mezzo) e il telefono abbassato a fine prova non conta', v2.r.squat.every(q => q.discesaCm < 150) && !v2.r.discesaSola, v2.r.squat.map(q => q.discesaCm))
   const src = fs.readFileSync('js/guida-motore.js', 'utf8').replace(/\/\*[^]*?\*\//g, '').replace(/\/\/.*$/gm, '')
   check('⛔ js/guida-motore.js non parla con la rete e non scrive niente', !/supabase|fetch\(|localStorage|document\./.test(src))
@@ -169,11 +180,15 @@ const SUPA = ({ email }) => {
 }
 
 // il Supabase finto del TELEFONO quando la TV è collegata: una sessione, il canale dei test aperto, e si vede cosa parte
-const SUPA_TV = () => {
-  window.__inv = []; window.__rpc = []
+const SUPA_TV = (o) => {
+  o = o || {}
+  window.__inv = []; window.__rpc = []; let aperto = !o.chiuso
   window.supabase = { createClient() { return {
     auth: { getSession: async () => ({ data: { session: { user: { id: 'U1', email: 'appuntamentimft@gmail.com' } } } }) },
-    rpc: async (nome) => { window.__rpc.push(nome); return { data: nome === 'oscillazione_canale' ? 'OSC1' : null, error: null } },
+    rpc: async (nome) => { window.__rpc.push(nome)
+      if (nome === 'tv_elenco') return { data: o.nessunaTv ? [] : [{ id: 't1', nome: 'TV' }], error: null }
+      if (nome === 'oscillazione_apri_canale') { aperto = true; return { data: 'OSC1', error: null } }
+      return { data: nome === 'oscillazione_canale' && aperto ? 'OSC1' : null, error: null } },
     channel(nome) { const c = { on() { return c }, subscribe() { return c }, send(m) { window.__inv.push([nome, m.event, m.payload, performance.now()]) } }; return c },
     from() { window.__from = true; const a = { select() { return a }, eq() { return a }, maybeSingle: async () => ({ data: null, error: null }) }; return a }
   } } }
@@ -204,7 +219,7 @@ async function apri(viewport, query, opz) {
   await page.route('https://fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }))
   if (opz && opz.blocca) await page.route(opz.blocca, r => r.abort())
   if (opz && opz.supa) await page.addInitScript(SUPA, opz.supa)
-  if (opz && opz.script) await page.addInitScript(opz.script)
+  if (opz && opz.script) await page.addInitScript(opz.script, opz.arg || null)
   // una voce finta che «parla» per un tempo vero: si vede chi taglia chi
   if (opz && opz.voceFinta) await page.addInitScript((ms) => {
     const V = window.__voce = { log: [], fino: 0 }
@@ -349,8 +364,9 @@ try {
     check('⭐ senza js/guida-schermo.js la pagina resta in piedi e dice cosa manca', /guida-schermo\.js/.test(await x.page.textContent('#err')) && !(await x.page.isVisible('#btn-start')) && x.errori.length === 0, x.errori)
     await x.ctx.close()
     const rpc = (src.match(/\.rpc\('([a-z_]+)'/g) || []).join(' ')
-    check('⛔ la pagina non legge e non scrive tabelle: solo il canale della TV (2 RPC del canale, nessun .from, nessun fetch)', !/\.from\(|fetch\(|XMLHttpRequest|sendBeacon|storage\./.test(src) && /oscillazione_canale/.test(rpc) && /oscillazione_apri_canale/.test(rpc) && (src.match(/\.rpc\(/g) || []).length === 2, rpc)
-    check('⛔ sul telefono resta scritta solo la scelta «capovolto»', (src.match(/localStorage\.setItem/g) || []).length === 1 && /CHIAVE_GIRO/.test(src) && !/sessionStorage|indexedDB/.test(src))
+    const nomi = [...new Set((src.match(/\.rpc\('([a-z_]+)'/g) || []).map(x => x.replace(/.*'([a-z_]+)'/, '$1')))].sort().join()
+    check('⛔ la pagina non legge e non scrive tabelle: solo il canale e l’elenco delle TV (nessun .from, nessun fetch)', !/\.from\(|fetch\(|XMLHttpRequest|sendBeacon|storage\./.test(src) && nomi === 'oscillazione_apri_canale,oscillazione_canale,tv_elenco', nomi)
+    check('⛔ sul telefono restano scritte solo la scelta «capovolto» e «TV accesa» (le stesse due chiavi di «La tua TV»)', (src.match(/localStorage\.setItem/g) || []).length === 3 && /CHIAVE_GIRO/.test(src) && /setItem\('policettivo\.tv\.v1', 'on'\)/.test(src) && /setItem\('policettivo\.diretta\.v1', 'on'\)/.test(src) && !/sessionStorage|indexedDB/.test(src))
     check('⛔ niente alert / confirm', !/\balert\(|\bconfirm\(/.test(src))
   }
 
@@ -358,7 +374,7 @@ try {
   {
     const { page, ctx, errori } = await apri({ width: 844, height: 390 }, '?via=1&n=1', { script: SUPA_TV })
     await page.waitForFunction(() => window.__guidato.tv(), null, { timeout: 4000 })
-    check('⭐ con la TV collegata lo dice in cima («TV collegata») e si aggancia al canale già aperto, senza aprirne', await page.isVisible('#tv-stato') && (await page.evaluate(() => window.__rpc.join())) === 'oscillazione_canale')
+    check('⭐ con la TV collegata lo dice in cima («TV collegata») e si aggancia al canale già aperto, senza aprirne; il pulsante non serve e non c’è', await page.isVisible('#tv-stato') && (await page.evaluate(() => window.__rpc.join())) === 'oscillazione_canale' && !(await page.isVisible('#btn-tv')))
     await page.click('#ritmo .chip[data-r="medio"]')
     await page.evaluate(TELEFONO, { prof: 0.4, rollDeg: 12 })
     await page.click('#btn-start')
@@ -372,10 +388,33 @@ try {
     check('⛔ sul canale passano solo fasi, angoli e conti (nessun nome, nessun paziente)', chiavi === 'braccia,corpo,discese,fase,lato,n,p,pitch,ripetizioni,roll,sogliaBraccia,sogliaMani' && vivi.some(x => x[2].lato === 'destra') && vivi.some(x => x[2].fase === 'su'), chiavi)
     check('⭐ l’esito che va alla TV: squat contati, a tempo, secondi, frasi', fine[0][2].fatti === 1 && fine[0][2].aTempo === 1 && fine[0][2].n === 1 && fine[0][2].tempi.giu > 0 && fine[0][2].frasi.length >= 4 && fine[0][2].fuori.destraS > 0, fine[0][2])
     check('⛔ la pagina non ha letto nessuna tabella', !(await page.evaluate(() => window.__from)))
+    // guidato-v4 · «Spiegami»
+    await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(200)
+    check('⭐ a fine esercizio c’è «Spiegami com’è andata», chiuso finché non lo tocchi', await page.isVisible('#btn-spiega') && !(await page.isVisible('#spiega')))
+    await page.click('#btn-spiega'); await page.waitForTimeout(300)
+    const sp = await page.textContent('#spiega')
+    check('⭐⭐ «Spiegami»: due riquadri (come chiesto · da guardare), la mano destra che scende, e cosa il telefono NON sa', (await page.$$('#spiega .sp')).length === 2 && /Come chiesto/.test(sp) && /Da guardare/.test(sp) && /La mano destra scende/.test(sp) && /non sa dove va il carico/.test(sp) && /Overhead squat sulla Tavola/.test(sp), sp)
+    check('⭐ lo dice anche a voce e lo manda alla TV', await page.evaluate(() => /Da guardare\./.test(window.__guidato.dette().slice(-1)[0])) && await page.evaluate(() => { const f = window.__inv.filter(x => x[1] === 'gd-fine'); return f.length === 2 && f[1][2].spiega.guarda.length >= 1 && f[1][2].spiega.bene.length >= 1 }))
+    check('⛔ «Spiegami» non sborda (390 px)', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    if (FOTO) await page.screenshot({ path: FOTO + '/spiega.png', fullPage: true })
     check('⛔ nessun errore JavaScript', errori.length === 0, errori)
     await ctx.close()
-    const x = await apri({ width: 844, height: 390 }, '?via=1&n=1')
-    check('⭐ senza account o senza TV: nessun avviso, nessun canale, e la prova si fa lo stesso', !(await x.page.isVisible('#tv-stato')) && !(await x.page.evaluate(() => window.__guidato.tv())))
+    let x = await apri({ width: 844, height: 390 }, '?via=1&n=1')
+    check('⭐ senza account: nessun avviso, nessun pulsante TV, nessun canale, e la prova si fa lo stesso', !(await x.page.isVisible('#tv-stato')) && !(await x.page.isVisible('#btn-tv')) && !(await x.page.evaluate(() => window.__guidato.tv())))
+    await x.ctx.close()
+    // guidato-v4 · il pulsante «Mostra sulla TV» da questa pagina
+    x = await apri({ width: 390, height: 844 }, '?via=1&n=1', { script: SUPA_TV, arg: { chiuso: true } })
+    await x.page.waitForSelector('#btn-tv', { state: 'visible', timeout: 4000 })
+    check('⭐ con l’account ma col canale chiuso: compare «📺 Mostra sulla TV»', !(await x.page.isVisible('#tv-stato')) && !(await x.page.evaluate(() => window.__guidato.tv())))
+    await x.page.click('#btn-tv')
+    await x.page.waitForFunction(() => window.__guidato.tv(), null, { timeout: 4000 })
+    check('⭐⭐ toccandolo: trova la TV dell’account, apre il canale dei test e si collega («TV collegata»)', await x.page.isVisible('#tv-stato') && !(await x.page.isVisible('#btn-tv')) && (await x.page.evaluate(() => window.__rpc.join())) === 'oscillazione_canale,tv_elenco,oscillazione_canale,oscillazione_apri_canale' && (await x.page.evaluate(() => localStorage.getItem('policettivo.tv.v1'))) === 'on', await x.page.evaluate(() => window.__rpc.join()))
+    check('⛔ nessun errore JavaScript', x.errori.length === 0, x.errori)
+    await x.ctx.close()
+    x = await apri({ width: 390, height: 844 }, '?via=1&n=1', { script: SUPA_TV, arg: { chiuso: true, nessunaTv: true } })
+    await x.page.waitForSelector('#btn-tv', { state: 'visible', timeout: 4000 })
+    await x.page.click('#btn-tv'); await x.page.waitForTimeout(600)
+    check('⭐ se l’account non ha nessuna TV collegata: porta a «La tua TV» per collegarla', /tv-collega\.html$/.test(x.page.url()), x.page.url())
     await x.ctx.close()
   }
 
@@ -402,6 +441,11 @@ try {
     check('⭐⭐ finito → l’esito in grande: 5/5 contati, 4 a tempo, 1,1 s, mano sinistra 43,1°, le frasi', await page.evaluate(() => window.__tv.vista()) === 'gde' && /5\/5/.test(e) && /a tempo con la voce/.test(e) && /1,1/.test(e) && /43,1°/.test(e) && /mano sinistra più bassa/.test(e) && /stime in prova/.test(e) && /lo decide il professionista/.test(e), e)
     check('⛔ l’esito sta dentro lo schermo', await page.evaluate(() => { const f = document.querySelector('#v-gde .gse-frasi').getBoundingClientRect(); return f.bottom <= innerHeight && f.right <= innerWidth }))
     if (FOTO) await page.screenshot({ path: FOTO + '/tv-esito.png' })
+    await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'gd-fine', { fatti: 5, aTempo: 4, n: 5, tempi: { giu: 1.1, su: 1, chiestiGiu: 3, chiestiSu: 3 }, fuori: { destraS: 1, sinistraS: 3.8, bracciaS: 4.8, destraMax: 17.4, sinistraMax: 43.1, bracciaMax: 35.6 }, fermato: null, frasi: [],
+      spiega: { bene: ['Hai fatto tutti e 5 gli squat.', 'Gli squat sono regolari: scendi sempre più o meno uguale.'], guarda: ['Uno squat è partito fuori tempo: aspetta il «giù» e segui il suono.', 'La mano sinistra scende: fino a 43,1°, per 3,8 secondi (in 2 squat su 5). Tienila alta come la destra.', 'La mano destra scende: fino a 17,4°, per 1,0 secondi. Tienila alta come la sinistra.', 'Il telefono si inclina: fino a 35,6°, per 4,8 secondi. Tieni le braccia tese all’altezza degli occhi.', 'Scendi in 1,2 secondi, il ritmo ne chiede 3: prova più lento.', 'Risali in 1,1 secondi, il ritmo ne chiede 3: prova più lento anche a salire.'] } }))
+    await page.waitForTimeout(700)
+    check('⭐⭐ «Spiegami» sulla TV: due colonne, e anche con sei cose da guardare sta dentro lo schermo', (await page.$$('#v-gde .gse-col')).length === 2 && /Da guardare/.test(await page.textContent('#v-gde')) && await page.evaluate(() => [...document.querySelectorAll('#v-gde .gse-col p')].every(p => { const r = p.getBoundingClientRect(), c = p.parentElement.getBoundingClientRect(); return r.bottom <= c.bottom + 1 && r.bottom <= innerHeight })))
+    if (FOTO) await page.screenshot({ path: FOTO + '/tv-spiega.png' })
     await page.evaluate(() => window.__emetti('oscillazione:OSC1', 'sq-via', { asse: 'rollio', n: 5, durata: 42, zb: 1, zg: 0.5, vb: 1, vg: 1 }))
     await page.waitForTimeout(300)
     check('⭐ e poi un altro test (lo squat sulla tavola) prende la TV come prima', await page.evaluate(() => window.__tv.vista()) === 'sq')

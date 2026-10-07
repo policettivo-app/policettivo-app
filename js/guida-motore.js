@@ -1,4 +1,4 @@
-/* js/guida-motore.js — guidato-v3 (7 ottobre 2026)
+/* js/guida-motore.js — guidato-v4 (7 ottobre 2026)
  *
  * ESERCIZI GUIDATI DAL TELEFONO: IL CALCOLO, IN UN FILE SOLO.
  * Primo esercizio: lo squat col telefono fra le due mani, in orizzontale,
@@ -25,7 +25,7 @@
 ;(function (global) {
   'use strict'
 
-  var VERSIONE = 'guidato-v3'
+  var VERSIONE = 'guidato-v4'
   var RITMI = {
     lento: { inizio: 3000, giu: 3000, fondo: 1000, su: 3000, piedi: 1000 },
     medio: { inizio: 3000, giu: 2000, fondo: 1000, su: 2000, piedi: 1000 }
@@ -119,7 +119,7 @@
     return d
   }
 
-  /* ── guidato-v3 · dai primi due tracciati veri (7 ott, iPhone) ──
+  /* ── guidato-v4 · dai primi due tracciati veri (7 ott, iPhone) ──
      Primo tracciato: chi fa l'esercizio ANTICIPA la voce e scende in 2 secondi,
      non in 3. Secondo (errori fatti apposta): due squat dentro il tempo di uno,
      una ripetizione saltata, telefono inclinato, una mano giù. Contando «a
@@ -180,7 +180,7 @@
       soglie: { mani: s.mani || SOGLIE.mani, braccia: s.braccia || SOGLIE.braccia, movimento: s.movimento || SOGLIE.movimento },
       t: [], av: [], roll: [], pitch: [], avSomma: 0,
       G: null, zero: null, zeroAcc: { sx: 0, sy: 0, b: [], av: [] },
-      segno: 0, viva: null, scala: 0.4,
+      segno: 0, viva: null, scala: 0.6,
       inMoto: false, tFermo: null, tPartenza: null, mov: [], squat: [], attesa: null,
       fuori: { destra: 0, sinistra: 0, braccia: 0, maxDestra: 0, maxSinistra: 0, maxBraccia: 0 },
       cadeDa: null, caduta: false, piattoN: 0, senzaLineare: false
@@ -262,6 +262,7 @@
     }
     if (best) q.rip = best.r
     st.squat.push(q)
+    st.scala = st.squat.length === 1 ? q.metri : st.scala * 0.6 + q.metri * 0.4
     if (st.viva) { st.viva.d = 0; st.viva.v = 0 }   // di nuovo in piedi: la pallina torna in cima
   }
 
@@ -338,8 +339,11 @@
       // Si riparte dalla finestra più ferma vista finora; il movimento in corso si butta.
       st.bias = st.cand.media; st.cand = null; st.fermoVisto = c.t; st.inMoto = false; st.tFermo = null; V.v = 0
     }
+    // guidato-v4 · la pallina. La scala è la discesa SOLITA di questa persona (non cresce
+    // mentre si scende: prima la pallina restava incollata in fondo). Da fermi in fondo si
+    // aggancia alla discesa appena chiusa a conti fatti, più precisa della somma viva.
+    if (fermo && st.attesa && st.segno) V.d = -st.segno * st.attesa.metri
     var prof = Math.max(0, st.segno ? -V.d * st.segno : Math.abs(V.d))
-    if (prof > st.scala) st.scala = prof
 
     var ud = st.attesa ? st.attesa : (st.squat.length ? st.squat[st.squat.length - 1] : null)
     return {
@@ -408,9 +412,57 @@
     return out
   }
 
+  /* guidato-v4 · «SPIEGAMI»: cosa è andato come chiesto e cosa guardare.
+     Regole fisse sui numeri del riassunto: stesso esercizio → stesse frasi.
+     Parla solo di quello che il telefono sente fra le mani (conto, tempo,
+     altezza delle mani, inclinazione, regolarità). NON dice dove va il carico
+     né com'è la schiena: non lo può sapere, e lo dichiara. */
+  function spiega(r) {
+    var bene = [], guarda = []
+    if (!r || !r.zero || r.campioni < 30) return { bene: bene, guarda: ['Il telefono non ha dato abbastanza dati: rifai la prova.'], nota: '' }
+    var num = function (x) { return Math.abs(x).toFixed(1).replace('.', ',') }
+    var q = r.squat, f = r.fuori, S = r.soglie, t = r.tempi
+    // quanti
+    if (r.fatti >= r.n) bene.push(r.n === 1 ? 'Hai fatto lo squat chiesto.' : 'Hai fatto tutti e ' + r.n + ' gli squat.')
+    else guarda.push(r.fatti === 0 ? 'Il telefono non ha visto nessuno squat su ' + r.n + '.' : 'Ne hai fatti ' + r.fatti + ' su ' + r.n + '.')
+    // a tempo
+    if (r.fatti > 0 && r.fuoriTempo === 0) bene.push(r.fatti === 1 ? 'A tempo con la voce.' : 'Tutti a tempo con la voce.')
+    else if (r.fuoriTempo > 0) guarda.push((r.fuoriTempo === 1 ? 'Uno squat è partito' : r.fuoriTempo + ' squat sono partiti') + ' fuori tempo: aspetta il «giù» e segui il suono.')
+    // le mani
+    var contaMano = function (segno) { return q.filter(function (x) { return x.maniMax != null && Math.abs(x.maniMax) >= S.mani && (x.maniMax > 0) === (segno > 0) }).length }
+    var nd = contaMano(1), ns = contaMano(-1)
+    if (f.destraS < 0.5 && f.sinistraS < 0.5) bene.push('Le due mani sono rimaste alla stessa altezza.')
+    else {
+      if (f.sinistraS >= 0.5) guarda.push('La mano sinistra scende: fino a ' + num(f.sinistraMax) + '°, per ' + num(f.sinistraS) + ' secondi' + (ns ? ' (in ' + ns + ' squat su ' + r.fatti + ')' : '') + '. Tienila alta come la destra.')
+      if (f.destraS >= 0.5) guarda.push('La mano destra scende: fino a ' + num(f.destraMax) + '°, per ' + num(f.destraS) + ' secondi' + (nd ? ' (in ' + nd + ' squat su ' + r.fatti + ')' : '') + '. Tienila alta come la sinistra.')
+    }
+    // il telefono davanti agli occhi
+    if (f.bracciaS < 0.5) bene.push('Il telefono è rimasto davanti agli occhi.')
+    else guarda.push('Il telefono si inclina: fino a ' + num(f.bracciaMax) + '°, per ' + num(f.bracciaS) + ' secondi. Tieni le braccia tese all’altezza degli occhi.')
+    // il ritmo
+    if (t.giu != null) {
+      if (t.giu < t.chiestiGiu * 0.66) guarda.push('Scendi in ' + num(t.giu) + ' secondi, il ritmo ne chiede ' + t.chiestiGiu + ': prova più lento.')
+      else bene.push('Scendi al ritmo chiesto (' + num(t.giu) + ' secondi).')
+    }
+    if (t.su != null) {
+      if (t.su < t.chiestiSu * 0.66) guarda.push('Risali in ' + num(t.su) + ' secondi, il ritmo ne chiede ' + t.chiestiSu + ': prova più lento anche a salire.')
+      else bene.push('Risali al ritmo chiesto (' + num(t.su) + ' secondi).')
+    }
+    // la regolarità (confronto fra gli squat di QUESTA prova: non servono centimetri veri)
+    if (q.length >= 3 && r.discesaCm.media) {
+      var cv = r.discesaCm.sd / r.discesaCm.media
+      if (cv < 0.15) bene.push('Gli squat sono regolari: scendi sempre più o meno uguale.')
+      else if (cv >= 0.3) guarda.push('La discesa cambia molto da uno squat all’altro.')
+      var a = q[0].giuS, z = q[q.length - 1].giuS
+      if (a != null && z != null && a > 0.3 && z < a * 0.7) guarda.push('Verso la fine acceleri: l’ultimo squat scende in ' + num(z) + ' secondi, il primo in ' + num(a) + '.')
+    }
+    var nota = 'Il telefono sente solo come si muove fra le tue mani. Non vede ginocchia, schiena e piedi e non sa dove va il carico: per quello c’è l’Overhead squat sulla Tavola. Cosa vogliono dire questi numeri lo decide il professionista.'
+    return { bene: bene, guarda: guarda, nota: nota }
+  }
+
   global.PolGuida = {
     VERSIONE: VERSIONE, RITMI: RITMI, SOGLIE: SOGLIE, REAZIONE: REAZIONE,
     durata: durata, programma: programma, faseDi: faseDi, bersaglio: bersaglio,
-    leggi: leggi, spostamento: spostamento, profilo: profilo, crea: crea, aggiungi: aggiungi, riassunto: riassunto, frasi: frasi, giro: giro
+    leggi: leggi, spostamento: spostamento, profilo: profilo, crea: crea, aggiungi: aggiungi, riassunto: riassunto, frasi: frasi, spiega: spiega, giro: giro
   }
 })(typeof window !== 'undefined' ? window : globalThis)

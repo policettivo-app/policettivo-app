@@ -1,4 +1,4 @@
-/* js/guida-schermo.js — guidato-v3 (7 ottobre 2026)
+/* js/guida-schermo.js — guidato-v4 (7 ottobre 2026)
  *
  * ESERCIZI GUIDATI: IL PALCO, DISEGNATO IN UN POSTO SOLO.
  * Lo usano il telefono (prova-guidato.html) e la TV (tv.html): due metà che
@@ -16,7 +16,7 @@
  */
 ;(function (g) {
   'use strict'
-  var VERSIONE = 'guidato-v3'
+  var VERSIONE = 'guidato-v4'
   var CSS = '' +
     '.gs{position:absolute;inset:0;overflow:hidden;background:#050505;color:#fff;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}' +
     '.gs-meta{position:absolute;top:0;bottom:0;width:50%;background:rgba(10,125,51,.30);transition:background .18s linear}' +
@@ -31,7 +31,7 @@
     '.gs-nome{position:absolute;left:50%;top:-1.7em;transform:translateX(-50%);font-size:2.8em;font-weight:900;letter-spacing:.14em;white-space:nowrap;opacity:.85}' +
     '.gs-zona{position:absolute;left:0;right:0;background:rgba(10,125,51,.55)}' +
     '.gs-guida{position:absolute;left:50%;width:9.6em;height:9.6em;margin-left:-4.8em;border-radius:50%;border:.5em dashed rgba(255,208,8,.85)}' +
-    '.gs-palla{position:absolute;left:50%;width:8.4em;height:8.4em;margin-left:-4.2em;border-radius:50%;background:#FFD008;border:.5em solid #111;box-shadow:0 0 3em rgba(255,208,8,.55)}' +
+    '.gs-palla{position:absolute;left:50%;width:8.4em;height:8.4em;margin-left:-4.2em;border-radius:50%;background:#FFD008;border:.5em solid #111;box-shadow:0 0 3em rgba(255,208,8,.55);transition:top .14s linear}' +
     '.gs-centro{position:absolute;left:50%;top:0;bottom:0;width:60em;margin-left:-30em;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:4em}' +
     '.gs-freccia{width:26em;height:26em;transition:transform .35s ease}' +
     '.gs-freccia.su{transform:rotate(180deg)}.gs-freccia.ferma{opacity:.25}' +
@@ -50,6 +50,10 @@
     '.gse-box b small{font-size:.4em;opacity:.6}' +
     '.gse-box span{display:block;font-size:2.7em;font-weight:700;color:#bbb;margin-top:.5em;text-transform:uppercase;letter-spacing:.05em}' +
     '.gse-box.no b{color:#ff6b5e}.gse-box.si b{color:#5fd68a}' +
+    '.gse-due{display:flex;gap:3em;flex:1;min-height:0}' +
+    '.gse-col{flex:1;border-radius:3em;padding:2.4em 3em;background:#101010;border:.3em solid #2a2a2a;overflow:hidden}' +
+    '.gse-col h3{margin:0 0 .5em;font-size:3.6em;font-weight:900}.gse-col.si h3{color:#5fd68a}.gse-col.no h3{color:#FFD008}' +
+    '.gse-col p{margin:0 0 .5em;font-size:2.9em;line-height:1.35;font-weight:600}' +
     '.gse-frasi{font-size:3.5em;line-height:1.45;font-weight:600}' +
     '.gse-frasi p{margin:0 0 .35em}.gse-frasi p:last-child{color:#999;font-style:italic;font-size:.82em}'
 
@@ -122,7 +126,13 @@
         '<div class="gse-box"><b>' + (t.giu == null ? '—' : num(t.giu) + '<small> s</small>') + '</b><span>per scendere · chiesti ' + (t.chiestiGiu || 3) + '</span></div>' +
         '<div class="gse-box ' + (mano ? 'no' : 'si') + '"><b>' + (mano ? num(gradi) + '°' : 'pari') + '</b><span>' + (mano ? 'mano ' + qualeMano + ' più bassa' : 'le due mani') + '</span></div>' +
       '</div>' +
-      '<div class="gse-frasi">' + (f.frasi || []).map(function (x) { return '<p>' + esc(x) + '</p>' }).join('') + '</div></div>'
+      (f.spiega ? '<div class="gse-due"><div class="gse-col si"><h3>✅ Come chiesto</h3>' + ((f.spiega.bene || []).map(function (x) { return '<p>' + esc(x) + '</p>' }).join('') || '<p>—</p>') + '</div>' +
+          '<div class="gse-col no"><h3>👀 Da guardare</h3>' + ((f.spiega.guarda || []).map(function (x) { return '<p>' + esc(x) + '</p>' }).join('') || '<p>Niente da segnalare.</p>') + '</div></div>'
+        : '<div class="gse-frasi">' + (f.frasi || []).map(function (x) { return '<p>' + esc(x) + '</p>' }).join('') + '</div>') + '</div>'
+    // se le cose da dire sono tante, il carattere della colonna si stringe finché ci stanno tutte
+    Array.prototype.forEach.call(el.querySelectorAll('.gse-col'), function (c) {
+      for (var k = 1; k > 0.5 && c.scrollHeight > c.clientHeight + 1; k -= 0.05) c.style.fontSize = k.toFixed(2) + 'em'
+    })
   }
 
   g.PolGuidaSchermo = { VERSIONE: VERSIONE, monta: monta, esito: esito, NOMI: NOMI }
