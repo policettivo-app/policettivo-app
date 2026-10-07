@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <style>body{visibility:hidden}</style>
+  <style>body{visibility:hidden}
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
+</style>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Admin</title>
@@ -25,7 +27,7 @@
     .stat-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #eee; text-align: center; }
     .stat-value { font-size: 32px; font-weight: 700; color: #000; }
     .stat-value.yellow { color: #FFD008; }
-    .stat-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
     .section { background: #fff; border-radius: 16px; padding: 28px 32px; border: 1px solid #eee; margin-bottom: 24px; }
     .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
     .section-title { font-size: 14px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 8px; display: inline-block; }
@@ -37,7 +39,7 @@
     .invite-link-box { background: #f0f9f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #2e7d32; word-break: break-all; margin-top: 12px; display: none; }
     .invite-link-box.visible { display: block; }
     .table { width: 100%; border-collapse: collapse; }
-    .table th { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .table th { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
     .table td { font-size: 13px; color: #333; padding: 12px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
     .table tr:last-child td { border-bottom: none; }
     .table tr:hover td { background: #fffdf0; }
@@ -49,7 +51,7 @@
     .action-btn.danger { border-color: #ffcdd2; color: #c62828; }
     .action-btn.warning { border-color: #ffe082; color: #f57f17; }
     .action-btn.success { border-color: #c8e6c9; color: #2e7d32; }
-    .empty-state { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+    .empty-state { text-align: center; padding: 40px; color: #666; font-size: 14px; }
     .copy-btn { background: #000; color: #FFD008; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 8px; }
     .badge-premium { display: inline-block; background: #2e7d32; color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
     .badge-free { display: inline-block; background: #eee; color: #666; padding: 2px 10px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
@@ -70,11 +72,11 @@
     .panel-close { background: transparent; border: 1px solid #444; color: #fff; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; }
     .panel-body { padding: 24px; }
     .panel-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 24px; }
-    .panel-tab { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #999; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.15s; }
+    .panel-tab { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.15s; }
     .panel-tab.active { color: #000; border-bottom-color: #FFD008; }
     .panel-section { display: none; }
     .panel-section.active { display: block; }
-    .p-label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
+    .p-label { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
     .p-input { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; margin-bottom: 14px; outline: none; color: #000; }
     .p-input:focus { border-color: #FFD008; }
     .p-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -88,7 +90,7 @@
     .act-count-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
     .act-count-box { background: #f5f5f5; border-radius: 10px; padding: 14px; text-align: center; }
     .act-count-num { font-size: 26px; font-weight: 700; color: #000; }
-    .act-count-lbl { font-size: 11px; color: #999; margin-top: 2px; }
+    .act-count-lbl { font-size: 11px; color: #666; margin-top: 2px; }
     .act-section-title { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 18px 0 8px; }
     .act-item { padding: 9px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
     .act-item:last-child { border-bottom: none; }
@@ -122,7 +124,7 @@
     .logo-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
     .btn-logo-upload { padding: 9px 20px; background: #FFD008; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; color: #000; }
     .btn-logo-remove { padding: 9px 20px; background: transparent; border: 1.5px solid #ffcdd2; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; color: #c62828; }
-    .logo-hint { font-size: 11px; color: #999; line-height: 1.5; margin-top: 10px; }
+    .logo-hint { font-size: 11px; color: #666; line-height: 1.5; margin-top: 10px; }
 /* telefono-3 (6 ott 2026) — SOLO TELEFONO (schermo fino a 640 px): la testata si adatta invece di
    spezzare il titolo o spingere i pulsanti fuori dallo schermo. Sopra i 640 px non cambia niente. */
 @media (max-width:640px){
@@ -185,7 +187,7 @@
     <div class="section ds-card">
       <div class="section-header">
         <div class="section-title ds-section-title-line">Professionisti registrati</div>
-        <span id="prof-count" style="font-size:12px;color:#999"></span>
+        <span id="prof-count" style="font-size:12px;color:#666"></span>
       </div>
       <div class="search-bar-admin">
         <input class="search-input-admin" type="text" id="admin-search" placeholder="🔍  Cerca per nome, email, città, centro/studio..." oninput="filterAdmin(this.value)">
@@ -198,7 +200,7 @@
       <div class="section-header">
         <div class="section-title ds-section-title-line">📊 Statistiche professionisti</div>
         <div style="display:flex;align-items:center;gap:12px">
-          <span id="stats-count" style="font-size:12px;color:#999"></span>
+          <span id="stats-count" style="font-size:12px;color:#666"></span>
           <button class="btn-csv" onclick="esportaCSV()">📥 Esporta CSV</button>
         </div>
       </div>
@@ -425,7 +427,7 @@
         const isPremium = (prof.piano || '').toLowerCase() === 'premium'
         /* ai-solo-premium-v1 : ai_uses e' un contatore storico, non un residuo.
            Un free non ha piu' analisi da spendere: si mostra il divieto. */
-        const aiUsesStr = isPremium ? '<span style="color:#2e7d32;font-size:11px;font-weight:700">AI ⭐</span>' : '<span style="font-size:11px;font-weight:700;color:#999">AI no</span>'
+        const aiUsesStr = isPremium ? '<span style="color:#2e7d32;font-size:11px;font-weight:700">AI ⭐</span>' : '<span style="font-size:11px;font-weight:700;color:#666">AI no</span>'
         return '<tr>' +
           '<td><button class="fav-btn ' + (isFav?'active':'') + '" onclick="toggleFavorite(\'' + prof.id + '\')">' + (isFav?'★':'☆') + '</button></td>' +
           '<td style="text-align:center;font-size:16px">' + dot + '</td>' +
@@ -435,11 +437,11 @@
           '<td>' + citta + '</td>' +
           '<td>' + getBadgeHtml(prof) + '</td>' +
           '<td style="text-align:center">' + aiUsesStr + '</td>' +
-          '<td style="font-size:12px;color:#888">' + dataReg + '</td>' +
+          '<td style="font-size:12px;color:#666">' + dataReg + '</td>' +
           '<td style="text-align:center;font-weight:700;color:#000">' + numPazienti + '</td>' +
           '<td style="text-align:center;color:#555">' + numSessioni + '</td>' +
           '<td style="text-align:center;color:#555">' + numVisite + '</td>' +
-          '<td style="font-size:12px;color:#888">' + ultimaStr + '</td>' +
+          '<td style="font-size:12px;color:#666">' + ultimaStr + '</td>' +
           '<td style="white-space:nowrap">' +
           (!isPremium
             ? '<button id="btn-piano-' + prof.id + '" class="action-btn premium-on" onclick="attivaPremiump(\'' + prof.id + '\')">⭐ Attiva Premium</button>'
@@ -1130,7 +1132,7 @@
           <div><label class="p-label">Cognome</label><input class="p-input" id="edit-cognome" type="text" placeholder="Rossi"></div>
         </div>
         <label class="p-label">Email</label>
-        <input class="p-input" id="p-email" type="email" placeholder="mario@email.it" readonly style="background:#f9f9f9;color:#999">
+        <input class="p-input" id="p-email" type="email" placeholder="mario@email.it" readonly style="background:#f9f9f9;color:#666">
         <div class="p-row">
           <div><label class="p-label">Qualifica</label><input class="p-input" id="edit-qualifica" type="text" placeholder="Fisioterapista"></div>
           <div><label class="p-label">Centro / Studio</label><input class="p-input" id="edit-centro" type="text" placeholder="Studio X"></div>
@@ -1149,7 +1151,7 @@
         <div class="piano-toggle-row">
           <div>
             <strong id="piano-label">Piano: Free</strong>
-            <div id="ai-uses-label" style="font-size:11px;color:#888;margin-top:2px"></div>
+            <div id="ai-uses-label" style="font-size:11px;color:#666;margin-top:2px"></div>
           </div>
           <button class="btn-toggle-piano" id="btn-toggle-piano" onclick="attivaPremiuPannello()">—</button>
         </div>
@@ -1164,7 +1166,7 @@
 
       <!-- TAB BRANDING -->
       <div class="panel-section" id="tab-branding">
-        <p style="font-size:12px;color:#999;margin-bottom:16px">Logo personalizzato del professionista. Appare nell'intestazione dei PDF generati.</p>
+        <p style="font-size:12px;color:#666;margin-bottom:16px">Logo personalizzato del professionista. Appare nell'intestazione dei PDF generati.</p>
         <div class="logo-preview-box">
           <img id="prof-logo-preview" src="" alt="Logo professionista" style="display:none">
           <div class="logo-placeholder" id="prof-logo-placeholder">Nessun logo caricato</div>
@@ -1184,7 +1186,7 @@
 
       <!-- TAB NOTE -->
       <div class="panel-section" id="tab-note">
-        <p style="font-size:12px;color:#999;margin-bottom:14px">Note private visibili solo all'admin. Non vengono mostrate al professionista.</p>
+        <p style="font-size:12px;color:#666;margin-bottom:14px">Note private visibili solo all'admin. Non vengono mostrate al professionista.</p>
         <textarea class="note-field" id="edit-note" placeholder="es. Contattato il 10/05, interessato ai cuscini GPL..."></textarea>
         <button class="btn-save" style="margin-top:12px" onclick="salvaNote()">💾 Salva nota</button>
       </div>

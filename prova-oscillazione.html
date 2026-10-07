@@ -253,7 +253,7 @@
   .metriche{width:100%;border-collapse:collapse;font-size:14px;margin-top:12px}
   .metriche th,.metriche td{padding:8px 6px;border-bottom:1px solid #f0f0f0;text-align:right}
   .metriche th:first-child,.metriche td:first-child{text-align:left;color:#555}
-  .metriche thead th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#888}
+  .metriche thead th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#666}
   .big{font-size:44px;font-weight:800;text-align:center;margin:10px 0;font-variant-numeric:tabular-nums}
   .stato{text-align:center;font-size:15px;color:#666;min-height:24px}
   .guard{position:fixed;inset:0;background:transparent;display:none;z-index:50}
@@ -318,13 +318,13 @@
   .mono-cfr .mono-lato{flex:1;background:#fff;border:1px solid #eee;border-radius:12px;text-align:center;padding:8px 4px}
   .mono-cfr .mono-k{font-size:12px;font-weight:800;letter-spacing:1.5px;color:#777}
   .mono-cfr .mono-v{font-size:34px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.1}
-  .mono-cfr .mono-u{font-size:12px;color:#888}
+  .mono-cfr .mono-u{font-size:12px;color:#666}
   .mono-cfr .mono-frasi{font-size:14px;line-height:1.5;margin-top:8px}
   /* confronto-v1 */
-  .titolo-omini{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#888;
+  .titolo-omini{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#666;
                 font-weight:700;margin:2px 0 6px}
   .cap-num{font-size:19px;font-weight:800;margin-top:2px}
-  .cap-min{font-size:11px;color:#999}
+  .cap-min{font-size:11px;color:#666}
   .cfr{border:1px solid #eee;border-radius:14px;padding:12px;margin-top:10px;background:#fff}
   .cfr-riga{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
             padding:7px 0;border-bottom:1px solid #f3f3f3;font-size:14px}
@@ -332,7 +332,7 @@
   .cfr-val{font-variant-numeric:tabular-nums;color:#555;font-size:13px}
   .cfr-d{font-weight:800;font-variant-numeric:tabular-nums;min-width:74px;text-align:right}
   .cfr-tele{display:flex;gap:8px;margin-top:10px}
-  .cfr-tele>div{flex:1;text-align:center;font-size:11px;color:#888}
+  .cfr-tele>div{flex:1;text-align:center;font-size:11px;color:#666}
   .cfr-sel{display:flex;gap:8px}
   .cfr-sel>div{flex:1}
   /* grafica-tavola-v1 */
@@ -382,6 +382,7 @@
 @media (max-width:640px){
   .parti-fisso{width:auto}
 }
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
 </style>
 </head>
 <body>
@@ -1803,7 +1804,7 @@
       var corpo = righe.map(function(r){
         var vals = lista.map(r[1])
         var st = statistiche(vals)
-        var cvTxt = (st.cv == null) ? '<span style="color:#999">serve una seconda prova</span>'
+        var cvTxt = (st.cv == null) ? '<span style="color:#666">serve una seconda prova</span>'
           : ('CV <b style="color:' + (st.cv <= 15 ? '#0a7d33' : (st.cv <= 30 ? '#b07500' : '#c0392b')) + '">' +
              Math.round(st.cv) + '%</b>')
         return '<div class="num">' + r[0] + ': ' +

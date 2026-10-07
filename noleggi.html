@@ -30,7 +30,7 @@
 
   .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .scard { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 12px; }
-  .scard .lbl { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
+  .scard .lbl { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
   .scard .val { font-size: 19px; font-weight: 800; margin-top: 3px; }
   .scard.tot { background: #fff8e1; border-color: #ffe082; }
   .scard.bad { background: #ffebee; border-color: #ffcdd2; }
@@ -42,10 +42,10 @@
   .fld.w4 { grid-column: span 4; }
   .fld.w6 { grid-column: span 6; }
   .fld.w12 { grid-column: span 12; }
-  .fld label { display: block; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; }
+  .fld label { display: block; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; }
   .fld input, .fld select, .fld textarea { width: 100%; padding: 9px 11px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 13px; background:#fff; }
   .fld input:focus, .fld select:focus, .fld textarea:focus { outline: none; border-color: #FFD008; }
-  .hint { font-size: 11px; color: #999; margin-top: 4px; }
+  .hint { font-size: 11px; color: #666; margin-top: 4px; }
 
   .btn { border: none; border-radius: 9px; padding: 11px 17px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
   .btn-pri { background: #FFD008; color: #000; }
@@ -62,7 +62,7 @@
   .filters .fld { grid-column:auto; min-width:160px; flex:1; }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .3px; padding: 8px 10px; border-bottom: 2px solid #eee; }
+  th { text-align: left; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: .3px; padding: 8px 10px; border-bottom: 2px solid #eee; }
   td { padding: 10px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
   th.r, td.r { text-align: right; }
   th.c, td.c { text-align: center; }
@@ -84,7 +84,7 @@
   .prev b { color:#0d47a1; }
   .prev.free { background:#fff8e1; border-color:#ffe082; color:#6b5500; }
   .prev.free b { color:#8a6d00; }
-  .prev.none { background:#fafafa; border-color:#eee; color:#888; }
+  .prev.none { background:#fafafa; border-color:#eee; color:#666; }
 
   /* noleggi-v3 : popup "ha pagato subito?" dopo la registrazione */
   .ov { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:9998; padding:20px; }
@@ -99,8 +99,8 @@
 
   .rowacts { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
   .desc-main { font-weight:700; }
-  .desc-sub { font-size:11px; color:#888; margin-top:2px; }
-  .empty { text-align: center; color: #999; padding: 30px; }
+  .desc-sub { font-size:11px; color:#666; margin-top:2px; }
+  .empty { text-align: center; color: #666; padding: 30px; }
   .msg { font-size:12px; font-weight:700; margin-left:10px; }
   .msg.ok { color:#2e7d32; }
   .msg.err { color:#c62828; }
@@ -120,7 +120,7 @@
   .exp { display:flex; gap:8px; align-items:flex-end; margin-left:auto; }
   .btn-xls { background:#00C48C; color:#fff; }
   .btn-csvv { background:#000; color:#fff; }
-  .sumnote { font-size:11px; color:#999; margin-top:10px; }
+  .sumnote { font-size:11px; color:#666; margin-top:10px; }
   td.rit { font-weight:800; color:#c62828; }
 
   @media (max-width: 760px) {
@@ -141,6 +141,7 @@
   .navbar > div:last-child:not(:first-child){flex:0 0 auto;margin-left:auto}
   .navbar .nav-btn{display:inline-flex;align-items:center;min-height:44px;padding:7px 12px;white-space:nowrap;flex:0 0 auto}
 }
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
 </style>
 </head>
 <body>
@@ -775,14 +776,14 @@ function render(){
         + lines
         + (n.note ? '<div style="margin-top:8px;color:#777">📝 ' + esc(n.note) + '</div>' : '')
         + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
-          + '<label style="font-size:11px;font-weight:700;color:#888">PREZZO €</label>'
+          + '<label style="font-size:11px;font-weight:700;color:#666">PREZZO €</label>'
           + '<input type="number" step="0.01" min="0" id="ed-prezzo-' + n.id + '" value="' + (Number(n.prezzo)||0) + '" style="width:110px;padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit">'
-          + '<label style="font-size:11px;font-weight:700;color:#888">ADDEBITO</label>'
+          + '<label style="font-size:11px;font-weight:700;color:#666">ADDEBITO</label>'
           + '<select id="ed-mod-' + n.id + '" style="padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit">'
             + '<option value="una_tantum"' + (n.modalita !== 'canone_mensile' ? ' selected' : '') + '>Una tantum</option>'
             + '<option value="canone_mensile"' + (n.modalita === 'canone_mensile' ? ' selected' : '') + '>Canone mensile</option>'
           + '</select>'
-          + '<label style="font-size:11px;font-weight:700;color:#888' + (n.tipo === 'vendita' ? ';display:none' : '') + '">RIENTRO PREVISTO</label>'
+          + '<label style="font-size:11px;font-weight:700;color:#666' + (n.tipo === 'vendita' ? ';display:none' : '') + '">RIENTRO PREVISTO</label>'
           + '<input type="date" id="ed-fine-' + n.id + '" value="' + (n.data_fine_prevista ? String(n.data_fine_prevista).substring(0,10) : '') + '" style="padding:7px 9px;border:1.5px solid #e2e2e5;border-radius:7px;font-family:inherit' + (n.tipo === 'vendita' ? ';display:none' : '') + '">'
           + '<button class="btn-mini btn-pri" onclick="salvaModifica(\'' + n.id + '\')">💾 Salva</button>'
           + '<span class="msg" id="msg-ed-' + n.id + '"></span>'

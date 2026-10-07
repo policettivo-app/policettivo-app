@@ -39,11 +39,11 @@
     .patient-header { background: #fff; border-radius: 16px; padding: 22px 26px; border: 1px solid #eee; margin-bottom: 22px; display: flex; align-items: center; gap: 16px; }
     .patient-avatar { width: 44px; height: 44px; border-radius: 50%; background: #FFD008; color: #000; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
     .patient-name { font-size: 20px; font-weight: 700; color: #000; }
-    .patient-sub { font-size: 12px; color: #888; margin-top: 2px; }
+    .patient-sub { font-size: 12px; color: #666; margin-top: 2px; }
 
     .section { background: #fff; border-radius: 16px; padding: 26px 28px; border: 1px solid #eee; margin-bottom: 22px; }
     .section-title { font-size: 13px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #FFD008; padding-bottom: 7px; display: inline-block; margin-bottom: 18px; }
-    .section-hint { font-size: 12px; color: #888; margin-bottom: 16px; line-height: 1.5; }
+    .section-hint { font-size: 12px; color: #666; margin-bottom: 16px; line-height: 1.5; }
 
     /* ── 3 CTA grosse (stile hub-card di paziente.html) ── */
     .cta-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
@@ -70,11 +70,11 @@
     .cons-row-ico { font-size: 20px; flex-shrink: 0; }
     .cons-row-info { flex: 1; min-width: 0; }
     .cons-row-title { font-size: 13px; font-weight: 700; color: #000; }
-    .cons-row-meta { font-size: 11px; color: #888; margin-top: 2px; }
+    .cons-row-meta { font-size: 11px; color: #666; margin-top: 2px; }
     .cons-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
     .btn-cons-view { background: transparent; border: 1.5px solid #ddd; color: #666; padding: 5px 11px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; }
     .btn-cons-view:hover { border-color: #FFD008; color: #000; }
-    .cons-empty { font-size: 12px; color: #999; padding: 10px 0; text-align: center; }
+    .cons-empty { font-size: 12px; color: #666; padding: 10px 0; text-align: center; }
 
     .badge-evt { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
     .badge-firma        { background: #000; color: #FFD008; }
@@ -82,14 +82,14 @@
     .badge-presa_visione{ background: #FFF8CC; color: #997a00; }
     .badge-rifiuto      { background: #ffe4e4; color: #b32a2a; }
     .badge-revoca       { background: #f5d6d6; color: #8a1c1c; }
-    .badge-mancante     { background: #f0f0f0; color: #999; }
+    .badge-mancante     { background: #f0f0f0; color: #666; }
 
     /* ── Stato attuale (per documento_tipo) ── */
     .stato-list { display: flex; flex-direction: column; gap: 10px; }
     .stato-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #fafafa; border: 1px solid #eee; border-radius: 10px; }
     .stato-row-info { flex: 1; min-width: 0; }
     .stato-row-tipo { font-size: 13px; font-weight: 700; color: #000; }
-    .stato-row-meta { font-size: 11px; color: #888; margin-top: 3px; }
+    .stato-row-meta { font-size: 11px; color: #666; margin-top: 3px; }
     .stato-row-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
     .btn-stato { background: transparent; border: 1.5px solid #ddd; color: #666; padding: 6px 12px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
     .btn-stato:hover { border-color: #FFD008; color: #000; }
@@ -131,7 +131,7 @@
     .btn-firma-clear:hover { border-color: #FFD008; color: #000; }
     .btn-firma-confirm { background: #FFD008; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
     .btn-firma-confirm:disabled { background: #eee; color: #aaa; cursor: not-allowed; }
-    .btn-firma-back { background: transparent; border: none; color: #888; font-size: 12px; cursor: pointer; text-decoration: underline; }
+    .btn-firma-back { background: transparent; border: none; color: #666; font-size: 12px; cursor: pointer; text-decoration: underline; }
 
     /* ── View cartaceo ── */
     .view-cartaceo { display: none; }
@@ -163,6 +163,7 @@
     .warn { color: #b26b00; font-size: 12px; padding: 8px 12px; background: #fff8dc; border: 1px solid #FFD008; border-radius: 8px; margin-bottom: 12px; }
 
     @media print { body { background: #fff; } .navbar, .patient-header, .section, .view-firma, .view-cartaceo { display: none !important; } }
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
   </style>
 </head>
 <body>
@@ -283,7 +284,7 @@
       <div class="cart-choice-list" id="cart-choice-list"></div>
       <div class="cart-attach-row">
         <span style="font-size:16px">📎</span>
-        <span style="flex:1">Allega scansione/foto <em style="color:#888;font-size:11px">(opzionale)</em></span>
+        <span style="flex:1">Allega scansione/foto <em style="color:#666;font-size:11px">(opzionale)</em></span>
         <label class="btn-cart-attach">
           Scegli file
           <input type="file" id="cart-file" accept="image/*,application/pdf" onchange="cartFileScelto()">
@@ -1106,7 +1107,7 @@
         '.firma-img{max-width:340px;max-height:120px;display:block}' +
         '.meta{margin-top:26px;font-size:10px;color:#555;line-height:1.6}' +
         '.meta b{color:#000}' +
-        '.foot{margin-top:30px;padding-top:12px;border-top:1px solid #eee;font-size:9px;color:#999;text-align:center}' +
+        '.foot{margin-top:30px;padding-top:12px;border-top:1px solid #eee;font-size:9px;color:#666;text-align:center}' +
         '</style></head><body><div class="page">' +
         '<div class="hdr">' +
           '<div class="titolare">' + safe(o.titolareStr || 'Titolare del trattamento') + '</div>' +
@@ -1156,7 +1157,7 @@
         const v = _versioni[t]
         return '<label class="cart-choice">' +
                  '<input type="checkbox" data-tipo="' + t + '" checked>' +
-                 '<span class="cart-choice-label">' + labels[t] + (v ? ' <em style="color:#888;font-weight:400;font-size:11px">(v' + esc(v.versione || '?') + ')</em>' : '') + '</span>' +
+                 '<span class="cart-choice-label">' + labels[t] + (v ? ' <em style="color:#666;font-weight:400;font-size:11px">(v' + esc(v.versione || '?') + ')</em>' : '') + '</span>' +
                '</label>'
       }).join('')
       window.scrollTo({ top: 0, behavior: 'smooth' })

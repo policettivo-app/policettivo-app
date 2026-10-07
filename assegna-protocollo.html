@@ -42,7 +42,7 @@
     .exercise-item.selected .exercise-num { background: #FFD008; color: #000; }
     .exercise-info { flex: 1; }
     .exercise-name { font-size: 14px; font-weight: 600; }
-    .exercise-meta { font-size: 11px; color: #999; margin-top: 2px; }
+    .exercise-meta { font-size: 11px; color: #666; margin-top: 2px; }
     .exercise-item.selected .exercise-meta { color: #aaa; }
     .exercise-cfg { margin-left: auto; }
     .cfg-toggle { display: flex; border: 1px solid #333; border-radius: 6px; overflow: hidden; }
@@ -65,9 +65,9 @@
     .toast-icon { font-size: 16px; flex-shrink: 0; }
     @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes slideOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
-    .exercise-desc { font-size: 11px; color: #999; margin-top: 3px; line-height: 1.4; }
+    .exercise-desc { font-size: 11px; color: #666; margin-top: 3px; line-height: 1.4; }
     .exercise-item.selected .exercise-desc { color: #bbb; }
-    .btn-video { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 3px 8px; background: transparent; border: 1px solid #666; border-radius: 5px; color: #999; font-size: 10px; font-weight: 700; font-family: 'Montserrat', sans-serif; cursor: pointer; flex-shrink: 0; text-decoration: none; }
+    .btn-video { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 3px 8px; background: transparent; border: 1px solid #666; border-radius: 5px; color: #666; font-size: 10px; font-weight: 700; font-family: 'Montserrat', sans-serif; cursor: pointer; flex-shrink: 0; text-decoration: none; }
     .btn-video:hover { border-color: #FFD008; color: #FFD008; }
     .exercise-item.selected .btn-video { border-color: #555; color: #aaa; }
     .exercise-item.selected .btn-video:hover { border-color: #FFD008; color: #FFD008; }
@@ -80,6 +80,7 @@
   .form-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
   .form-row .form-input{min-width:0}
 }
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
   </style>
 </head>
 <body>
@@ -136,7 +137,7 @@
       <div class="section-title">Esercizi Policettivo&#174;</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Clicca per selezionare. L'ordine di selezione diventa l'ordine del protocollo.</p>
       <div class="exercise-grid" id="exercise-grid">
-        <div style="color:#999;font-size:13px">Caricamento esercizi...</div>
+        <div style="color:#666;font-size:13px">Caricamento esercizi...</div>
       </div>
 
       <!-- Contenuti personalizzati -->
@@ -145,7 +146,7 @@
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#666">Contenuti personalizzati</div>
           <button onclick="caricaCustomVideos()" style="background:transparent;border:1px solid #ddd;color:#666;padding:4px 10px;border-radius:6px;font-family:Montserrat,sans-serif;font-size:11px;cursor:pointer">↻ Aggiorna</button>
         </div>
-        <p style="font-size:12px;color:#888;margin-bottom:12px">Seleziona i contenuti da aggiungere al protocollo. Appariranno in sequenza dopo gli esercizi standard.</p>
+        <p style="font-size:12px;color:#666;margin-bottom:12px">Seleziona i contenuti da aggiungere al protocollo. Appariranno in sequenza dopo gli esercizi standard.</p>
         <div id="custom-videos-grid"><div style="color:#bbb;font-size:12px;text-align:center;padding:12px">Caricamento...</div></div>
       </div>
 
@@ -326,7 +327,7 @@
                   '<div style="font-size:14px;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1">' + escHtml(v.titolo || 'Contenuto senza titolo') + '</div>' +
                   '<button onclick="apriVideoPreviewCustomById(\'' + v.id + '\', event)" style="background:transparent;border:1px solid #FFD008;color:#FFD008;border-radius:6px;padding:2px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">▶️ Vedi</button>' +
                 '</div>' +
-                '<div style="font-size:11px;color:#999;margin-top:2px">' + metaLine + '</div>' +
+                '<div style="font-size:11px;color:#666;margin-top:2px">' + metaLine + '</div>' +
               '</div>' +
               '<button onclick="scaricaCustomVideo(\'' + v.id + '\', event)" title="Scarica" style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid #00C48C;background:#fff;color:#00C48C;cursor:pointer;font-family:Montserrat,sans-serif;margin-right:6px">&#11015;</button>' +
               '<button onclick="eliminaCustomVideo(\'' + v.id + '\', event)" title="Elimina definitivamente" style="flex-shrink:0;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid #f5c6c6;background:#fff;color:#c62828;cursor:pointer;font-family:Montserrat,sans-serif;margin-right:6px">🗑</button>' +
@@ -346,7 +347,7 @@
                 '<div style="font-size:14px;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1">' + escHtml(v.titolo || 'Contenuto senza titolo') + '</div>' +
                 '<button onclick="apriVideoPreviewCustomById(\'' + v.id + '\', event)" style="background:transparent;border:1px solid #FFD008;color:#FFD008;border-radius:6px;padding:2px 8px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">▶️ Vedi</button>' +
               '</div>' +
-              '<div style="font-size:11px;color:#999;margin-top:2px">' + metaLine + '</div>' +
+              '<div style="font-size:11px;color:#666;margin-top:2px">' + metaLine + '</div>' +
             '</div>' +
             '<div style="display:flex;gap:6px;flex-shrink:0;align-items:center">' +
               '<div style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;background:#FFD008;color:#000;white-space:nowrap">✓ Nel protocollo</div>' +
@@ -483,7 +484,7 @@
     function renderExercisesList(gridId, list) {
       const grid = document.getElementById(gridId)
       if (!grid) return
-      if (!list.length) { grid.innerHTML = '<div style="color:#999;font-size:13px">Nessun esercizio disponibile</div>'; return }
+      if (!list.length) { grid.innerHTML = '<div style="color:#666;font-size:13px">Nessun esercizio disponibile</div>'; return }
       const presets = [{s:30,l:'30s'},{s:60,l:'1m'},{s:120,l:'2m'},{s:180,l:'3m'},{s:300,l:'5m'},{s:600,l:'10m'}]
       grid.innerHTML = list.map(function(ex) {
         const isSelected = selectedExercises.some(function(s) { return s.id === ex.id })

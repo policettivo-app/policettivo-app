@@ -17,17 +17,17 @@
   h1 { font-size: 22px; margin: 4px 0 14px; }
   .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
   .filters { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: end; }
-  .fld label { display: block; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; }
+  .fld label { display: block; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; }
   .fld input { width: 100%; padding: 9px 11px; border: 1.5px solid #e2e2e5; border-radius: 8px; font-family: inherit; font-size: 13px; }
   .fld input:focus { outline: none; border-color: #FFD008; }
   .btn-reset { background: #f0f0f0; border: none; border-radius: 8px; padding: 9px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
   .summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
   .scard { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 12px; }
-  .scard .lbl { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
+  .scard .lbl { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
   .scard .val { font-size: 19px; font-weight: 800; margin-top: 3px; }
   .scard.tot { background: #fff8e1; border-color: #ffe082; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .3px; padding: 8px 10px; border-bottom: 2px solid #eee; }
+  th { text-align: left; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: .3px; padding: 8px 10px; border-bottom: 2px solid #eee; }
   td { padding: 10px; border-bottom: 1px solid #f0f0f0; }
   th.r, td.r { text-align: right; }
   tr:hover td { background: #fcfcfc; }
@@ -42,7 +42,7 @@
   .annual { display: flex; flex-wrap: wrap; gap: 10px; }
   .ycard { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 10px 14px; font-size: 13px; }
   .ycard b { font-size: 16px; }
-  .empty { text-align: center; color: #999; padding: 30px; }
+  .empty { text-align: center; color: #666; padding: 30px; }
   .actions-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
   .btn-export { background: #000; color: #fff; border: none; border-radius: 8px; padding: 9px 14px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
   .section-title { font-size: 13px; font-weight: 800; margin: 0 0 10px; }
@@ -63,6 +63,7 @@
   .filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .filters .fld,.filters input{min-width:0}
 }
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
 </style>
   <script src="js/pol-lock.js"></script><!-- sess-lock-v1 -->
 </head>
@@ -195,7 +196,7 @@ function renderAnnual(){
     perAnno[anno] += _segno(f)*(Number(f.totale)||0);
   }
   var anni = Object.keys(perAnno).sort().reverse();
-  var html = anni.length ? '' : '<span style="color:#999;font-size:13px">Nessun dato.</span>';
+  var html = anni.length ? '' : '<span style="color:#666;font-size:13px">Nessun dato.</span>';
   for (var k=0;k<anni.length;k++){ html += '<div class="ycard">'+esc(anni[k])+': <b>'+fmtEur(perAnno[anni[k]])+'</b></div>'; }
   document.getElementById('annual').innerHTML = html;
 }

@@ -63,21 +63,21 @@
   .paz-banda.libera{background:#f2f2f2;color:#444}
   .paz-banda a{color:inherit;font-weight:700}
   /* la misura: si legge da lontano */
-  .m-passata{text-align:center;font-size:14px;font-weight:800;letter-spacing:1.5px;color:#888;text-transform:uppercase}
+  .m-passata{text-align:center;font-size:14px;font-weight:800;letter-spacing:1.5px;color:#666;text-transform:uppercase}
   .m-zona{text-align:center;font-size:40px;font-weight:900;line-height:1.05;margin:4px 0 2px}
   .m-dove{text-align:center;font-size:14px;color:#666}
   .m-vivo{text-align:center;font-size:88px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1;margin:12px 0 0}
   .m-lato{text-align:center;font-size:20px;font-weight:800;min-height:30px}
-  .m-fermo{text-align:center;font-size:13px;font-weight:700;color:#999;min-height:20px}
+  .m-fermo{text-align:center;font-size:13px;font-weight:700;color:#666;min-height:20px}
   .m-fermo.si{color:#0a7d33}
   .livella{position:relative;height:40px;border-radius:20px;background:#f1f1f1;border:1px solid #e3e3e3;margin:12px 0 4px;overflow:hidden}
   .livella .centro{position:absolute;left:50%;top:0;bottom:0;width:2px;background:#0a7d33;opacity:.6}
   .livella .bolla{position:absolute;top:5px;width:30px;height:30px;border-radius:50%;background:#FFD008;border:2px solid #111;left:calc(50% - 15px);transition:left .08s linear}
-  .livella-eti{display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#999;letter-spacing:1px}
+  .livella-eti{display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#666;letter-spacing:1px}
   .m-tenuto{margin-top:12px;background:#111;color:#fff;border-radius:14px;padding:10px 14px;text-align:center;font-size:15px}
   .m-tenuto b{color:#FFD008;font-size:22px}
   table.zone{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
-  table.zone th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#888;text-align:right;font-weight:700;padding:4px 6px}
+  table.zone th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#666;text-align:right;font-weight:700;padding:4px 6px}
   table.zone th:first-child{text-align:left}
   table.zone td{padding:7px 6px;border-top:1px solid #f1f1f1;text-align:right;font-variant-numeric:tabular-nums}
   table.zone td:first-child{text-align:left;font-weight:700}
@@ -86,7 +86,7 @@
   .z{border:1px solid #eee;border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
   .z.max{border:2px solid #111}
   .z-nome{font-weight:800;font-size:15px}
-  .z-singole{font-size:12px;color:#888}
+  .z-singole{font-size:12px;color:#666}
   .z-val{margin-left:auto;text-align:right}
   .z-val b{font-size:28px;font-weight:900;font-variant-numeric:tabular-nums;display:block;line-height:1.05}
   .z-val span{font-size:12.5px;color:#555;font-weight:700}
@@ -107,6 +107,7 @@
   .prova-riga{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #f3f3f3;font-size:14px}
   .grande{text-align:center;font-size:54px;font-weight:900;line-height:1.05;font-variant-numeric:tabular-nums}
   .grande-sub{text-align:center;font-size:18px;font-weight:800;color:#444}
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
 </style>
 </head>
 <body>
@@ -506,7 +507,7 @@
       frecce(m.prove)
     m.prove.forEach(function(p, i){
       h += '<div class="prova-riga"><span><b>Prova ' + (i + 1) + '</b></span><span>' + num0(p.rotazione) + '° ' + esc(F.direzione(p.rotazione)) + '</span>' +
-        '<span style="color:#888">' + p.passi_rilevati + ' passi contati</span></div>'
+        '<span style="color:#666">' + p.passi_rilevati + ' passi contati</span></div>'
     })
     h += '<div class="nota">' + (r.errore != null ? 'Fra una prova e l’altra il valore balla di <b>±' + num0(r.errore) + '°</b>: una differenza più piccola non si distingue dal rumore.'
       : 'Una prova sola: l’errore della misura non si conosce.') + '</div>'

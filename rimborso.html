@@ -41,7 +41,7 @@
   .btn-xls { background:#000; color:#fff; }
   .btn:disabled { opacity:.5; cursor:not-allowed; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
-  th { text-align:left; font-size:11px; color:#999; text-transform:uppercase; letter-spacing:.3px; padding:8px 8px; border-bottom:2px solid #eee; }
+  th { text-align:left; font-size:11px; color:#666; text-transform:uppercase; letter-spacing:.3px; padding:8px 8px; border-bottom:2px solid #eee; }
   td { padding:9px 8px; border-bottom:1px solid #f0f0f0; }
   th.r, td.r { text-align:right; }
   tr:hover td { background:#fcfcfc; }
@@ -49,7 +49,7 @@
   .pill { font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
   .pill.lav { background:#E6F9F2; color:#067a55; }
   .pill.cl { background:#fff3e0; color:#e65100; }
-  .empty { text-align:center; color:#999; padding:26px; font-size:13px; }
+  .empty { text-align:center; color:#666; padding:26px; font-size:13px; }
   .warn { background:#FFF9E5; border:1.5px solid #FFE49A; color:#7a5a00; border-radius:8px; padding:9px 12px; font-size:12.5px; line-height:1.5; margin-top:8px; }
   .stat { display:inline-block; background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:10px 14px; font-size:13px; font-weight:700; margin-right:10px; }
   .row-actions { display:flex; gap:6px; }
@@ -69,6 +69,7 @@
   .navbar > div:last-child:not(:first-child){flex:0 0 auto;margin-left:auto}
   .navbar .nav-btn{display:inline-flex;align-items:center;min-height:44px;padding:7px 12px;white-space:nowrap;flex:0 0 auto}
 }
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
 </style>
 </head>
 <body>
@@ -460,8 +461,8 @@ function renderOperatori(){
   var html='';
   for (var i=0;i<operatori.length;i++){ var o=operatori[i];
     html += '<tr>' +
-      '<td><b>'+esc(nomeOp(o))+'</b>'+(o.email?'<br><span style="color:#999;font-size:11px">'+esc(o.email)+'</span>':'')+'</td>' +
-      '<td>'+esc(o.veicolo||'—')+(o.alimentazione?' <span style="color:#999">('+esc(o.alimentazione)+')</span>':'')+'</td>' +
+      '<td><b>'+esc(nomeOp(o))+'</b>'+(o.email?'<br><span style="color:#666;font-size:11px">'+esc(o.email)+'</span>':'')+'</td>' +
+      '<td>'+esc(o.veicolo||'—')+(o.alimentazione?' <span style="color:#666">('+esc(o.alimentazione)+')</span>':'')+'</td>' +
       '<td>'+esc(o.targa||'—')+'</td>' +
       '<td class="r">'+(Number(o.tariffa_km)? fmtEur(o.tariffa_km).replace(' €',''):'—')+'</td>' +
       '<td>'+esc(o.tariffa_anno||'—')+'</td>' +

@@ -23,7 +23,7 @@
     .section { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #eee; margin-bottom: 16px; }
     .section-title { font-size: 13px; font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
     .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-    .video-count { font-size: 12px; color: #999; font-weight: 600; }
+    .video-count { font-size: 12px; color: #666; font-weight: 600; }
 
     /* Mode buttons */
     .mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
@@ -31,7 +31,7 @@
     .mode-btn:hover { border-color: #FFD008; background: #fffdf0; }
     .mode-icon { font-size: 28px; }
     .mode-label { font-size: 12px; font-weight: 700; color: #000; text-align: center; }
-    .mode-hint { font-size: 10px; color: #999; text-align: center; }
+    .mode-hint { font-size: 10px; color: #666; text-align: center; }
 
     /* Camera section */
     .camera-wrap { position: relative; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
@@ -67,12 +67,12 @@
     .video-card:last-child { margin-bottom: 0; }
     .video-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .video-card-title { font-size: 14px; font-weight: 700; color: #000; margin-bottom: 2px; }
-    .video-card-meta { font-size: 11px; color: #999; }
+    .video-card-meta { font-size: 11px; color: #666; }
     .video-card-desc { font-size: 12px; color: #555; margin-top: 8px; line-height: 1.6; }
     .video-card video, .video-card img { width: 100%; border-radius: 8px; margin-top: 10px; max-height: 220px; object-fit: contain; background: #000; display: block; }
     .btn-del-video { background: transparent; border: 1px solid #ffcdd2; color: #e53935; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; flex-shrink: 0; font-family: 'Montserrat', sans-serif; }
     .btn-del-video:hover { background: #ffebee; }
-    .empty-list { text-align: center; padding: 30px; color: #999; font-size: 13px; }
+    .empty-list { text-align: center; padding: 30px; color: #666; font-size: 13px; }
 
     /* Premium modal */
     .pm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9000; align-items: center; justify-content: center; padding: 24px; }
@@ -85,6 +85,7 @@
     .pm-close { width: 100%; background: transparent; border: 1px solid #ddd; border-radius: 10px; padding: 12px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; color: #666; }
 
     @media (max-width: 480px) { .mode-grid { grid-template-columns: 1fr; } .mode-btn { flex-direction: row; justify-content: flex-start; padding: 14px 16px; gap: 12px; } .mode-icon { font-size: 24px; } }
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
   </style>
 </head>
 <body>
@@ -174,7 +175,7 @@
           <input type="checkbox" id="salva-libreria" style="width:18px;height:18px;accent-color:#FFD008;cursor:pointer;margin-top:1px;flex-shrink:0">
           <span>📚 Salva anche nella libreria dello studio (riutilizzabile su altri pazienti)</span>
         </label>
-        <div style="font-size:11px;color:#888;margin-top:8px;padding-left:28px;line-height:1.5">Assicurati che chi compare nel video abbia firmato il consenso foto/video. Non includere nomi o dati clinici nell'audio o sullo sfondo.</div>
+        <div style="font-size:11px;color:#666;margin-top:8px;padding-left:28px;line-height:1.5">Assicurati che chi compare nel video abbia firmato il consenso foto/video. Non includere nomi o dati clinici nell'audio o sullo sfondo.</div>
       </div>
       <button class="btn-primary" id="btn-salva" onclick="salvaVideo()">💾 Salva</button>
     </div>

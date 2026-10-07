@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <style>body{visibility:hidden}</style>
+  <style>body{visibility:hidden}
+/* grigi-1 (7 ott 2026) — testi grigi #999 / #888 portati a #666 dove il fondo è chiaro: contrasto 5,7:1 invece di 2,9:1 (soglia WCAG AA 4,5:1). Sui fondi scuri restano com’erano. */
+</style>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Il mio Studio</title>
@@ -34,7 +36,7 @@
     .invite-link-box { background: #f0f9f0; border: 1px solid #c8e6c9; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #2e7d32; word-break: break-all; margin-top: 12px; display: none; }
     .invite-link-box.visible { display: block; }
     .table { width: 100%; border-collapse: collapse; }
-    .table th { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .table th { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
     .table td { font-size: 13px; color: #333; padding: 12px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
     .table tr:last-child td { border-bottom: none; }
     .table tr:hover td { background: #fffdf0; }
@@ -54,10 +56,10 @@
     .m-sel { padding: 5px 8px; border: 1.5px solid #ddd; border-radius: 7px; font-family: 'Montserrat', sans-serif; font-size: 11.5px; background: #fff; }
     .m-stato { font-size: 11px; font-weight: 700; }
     .m-stato.sosp { color: #c62828; }
-    .m-msg { font-size: 11px; color: #999; margin-top: 4px; display: block; }
+    .m-msg { font-size: 11px; color: #666; margin-top: 4px; display: block; }
     .m-msg.ok { color: #2e7d32; }
     .m-msg.err { color: #c62828; }
-    .empty-state { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+    .empty-state { text-align: center; padding: 40px; color: #666; font-size: 14px; }
     .copy-btn { background: #000; color: #FFD008; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 8px; }
     .chk { width: 18px; height: 18px; cursor: pointer; accent-color: #FFD008; }
     .select-member { padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; color: #000; min-width: 260px; }
@@ -65,7 +67,7 @@
     .perm-select { padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 12px; outline: none; background: #fff; color: #000; }
     .perm-select:focus { border-color: #FFD008; }
     .perm-select:disabled { opacity: 0.4; cursor: not-allowed; }
-    .hint { font-size: 12px; color: #999; margin-top: 8px; }
+    .hint { font-size: 12px; color: #666; margin-top: 8px; }
     .share-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
     .share-toolbar label { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
     .search-input-admin { flex: 1; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; outline: none; background: #fff; color: #000; }
@@ -108,7 +110,7 @@
     <div class="section ds-card">
       <div class="section-header">
         <div class="section-title ds-section-title-line">Membri dello studio</div>
-        <span id="membri-count" style="font-size:12px;color:#999"></span>
+        <span id="membri-count" style="font-size:12px;color:#666"></span>
       </div>
       <div id="membri-list"><div class="empty-state">Caricamento…</div></div>
     </div>
@@ -304,7 +306,7 @@
               '<input type="checkbox" class="chk" disabled> Vede dati clinici <em style="font-size:10px">(in arrivo)</em></label>'
           }
 
-          let azioni = '<span style="font-size:12px;color:#999">Non modificabile</span>'
+          let azioni = '<span style="font-size:12px;color:#666">Non modificabile</span>'
           if (!isMe && m.ruolo !== 'master') {
             azioni =
               '<div class="m-act">' +
@@ -322,7 +324,7 @@
           }
 
           return '<tr>' +
-            '<td><strong>' + nome + '</strong>' + (isMe ? ' <span style="font-size:11px;color:#999">(tu)</span>' : '') +
+            '<td><strong>' + nome + '</strong>' + (isMe ? ' <span style="font-size:11px;color:#666">(tu)</span>' : '') +
               (sospeso ? '<br><span class="m-stato sosp">⛔ Accesso sospeso</span>' : '') + '</td>' +
             '<td><span class="role-badge ' + roleClass + '">' + ruolo + '</span></td>' +
             '<td>' + permCell + '</td>' +
