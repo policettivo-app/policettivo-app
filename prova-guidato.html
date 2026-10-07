@@ -6,7 +6,10 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Squat guidato · in prova</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- guidato-v1 (7 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · PRIMA PROVA
+<!-- guidato-v2 (7 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · IN PROVA
+     v2, dal primo tracciato vero: si parte solo quando il telefono è FERMO (lo zero
+     era preso mentre ci si sistemava), il conto è sulla ripetizione intera, si
+     misurano i SECONDI di discesa e risalita e la voce dice «più lento».
      Il telefono fra le due mani, in orizzontale, braccia tese davanti agli occhi.
      La pagina dà il ritmo (freccia, tono che scende e sale, voce) e i sensori
      dicono cosa succede davvero: mezze ripetizioni contate, una mano più bassa
@@ -17,7 +20,7 @@
      - Registra i sensori grezzi: «Scarica il tracciato» li dà in un file, per
        misurare quanto sbaglia. Senza quel tocco non resta niente.
      - Non dice mai «giusto / sbagliato»: descrive. Le soglie le sceglie chi prova. -->
-<script src="js/guida-motore.js?v=guidato-v1"></script>
+<script src="js/guida-motore.js?v=guidato-v2"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -54,7 +57,7 @@
   /* l'esito */
   .grandi{display:flex;gap:10px;margin-bottom:6px}
   .grandi div{flex:1;border:1px solid #eee;border-radius:14px;padding:10px 8px;text-align:center}
-  .grandi b{display:block;font-size:34px;font-weight:900;line-height:1.05;font-variant-numeric:tabular-nums}
+  .grandi b{display:block;font-size:30px;font-weight:900;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap}
   .grandi span{font-size:11.5px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
   table.rip{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
   table.rip th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#666;text-align:right;font-weight:700;padding:4px 5px}
@@ -112,7 +115,7 @@
     <h1>🏋️ Squat guidato</h1>
     <a href="test.html" id="link-home">← Test</a>
   </div>
-  <div class="sub">Il telefono ti guida mentre fai l’esercizio &middot; prima prova</div>
+  <div class="sub">Il telefono ti guida mentre fai l’esercizio &middot; in prova</div>
 
   <div class="avviso">
     <b>È una prova, solo per te.</b> Non salva niente e non riguarda nessun paziente.
@@ -289,6 +292,7 @@
 
   // ── i sensori ──
   var ultimo = null          // l'ultimo campione grezzo
+  var giri = []              // le ultime velocità di rotazione
   var st = null, vivo = null, t0 = 0, reg = null, inCorso = false, wl = null, raf = null
   var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   var CHIAVE_GIRO = 'policettivo.guidato.capovolto.v1'
@@ -301,6 +305,11 @@
     var a = e.acceleration && e.acceleration.x != null ? e.acceleration : null
     var rr = e.rotationRate || {}
     ultimo = { ag: { x: ag.x, y: ag.y, z: ag.z }, a: a ? { x: a.x, y: a.y, z: a.z } : null }
+    // quanto sta ruotando adesso (gradi al secondo): serve a capire quando è fermo
+    if (rr.alpha != null){
+      var w = Math.sqrt(rr.alpha * rr.alpha + rr.beta * rr.beta + rr.gamma * rr.gamma)
+      giri.push([performance.now(), w]); if (giri.length > 120) giri.shift()
+    }
     if (!st) return
     var t = performance.now() - t0
     if (t < 0) return
@@ -352,6 +361,14 @@
     try { localStorage.setItem(CHIAVE_GIRO, capovolto ? '1' : '0') } catch(e){}
     sistemaPalco()
   }
+  // fermo = negli ultimi 700 ms ha ruotato in media meno di 12 gradi al secondo.
+  // Se il telefono non dà la rotazione, non si aspetta.
+  function fermoOra(){
+    if (!giri.length) return true
+    var ora = performance.now(), v = giri.filter(function(g){ return ora - g[0] <= 700 })
+    if (v.length < 10) return false
+    return v.reduce(function(a, g){ return a + g[1] }, 0) / v.length < 12
+  }
   function inOrizzontale(){ var q = comeTenuto(); return q === 90 || q === 270 }
 
   var NOMI = { inizio: 'FERMO', giu: 'GIÙ', fondo: 'FERMO', su: 'SU', piedi: 'IN PIEDI' }
@@ -379,7 +396,7 @@
       fr.classList.toggle('su', v.fase === 'su'); fr.classList.toggle('ferma', v.fase !== 'giu' && v.fase !== 'su')
       $('s-fase').textContent = NOMI[v.fase] || ''
       $('s-conta').innerHTML = v.ripetizioni + '<small>/' + st.n + '</small>'
-      $('s-mezze').textContent = v.mezze % 2 ? 'discesa contata' : ''
+      $('s-mezze').textContent = v.discese > v.ripetizioni ? 'discesa contata' : ''
     }
     raf = requestAnimationFrame(disegna)
   }
@@ -430,6 +447,14 @@
       if (mio !== giro || fermato) return
       sistemaPalco()
     }
+    // guidato-v2 · si parte solo da FERMI: lo zero preso mentre ci si sistema è sbagliato
+    // (nel primo tracciato vero il telefono ruotava ancora a 150°/s). Al massimo 6 secondi.
+    var tF = Date.now()
+    while (!VIA && !fermoOra() && Date.now() - tF < 6000){
+      velo('Fermo così', '', 'braccia tese, telefono davanti agli occhi')
+      await new Promise(function(r){ setTimeout(r, 100) })
+      if (mio !== giro || fermato) return
+    }
     velo(null)
     // si parte: il motore conta il tempo da qui
     var R = F.RITMI[ritmo]
@@ -438,7 +463,7 @@
     t0 = performance.now()
     voce('Fermo.')
     if (!raf) raf = requestAnimationFrame(disegna)
-    var faseDetta = '', ripContate = 0, mezzeContate = 0, tAvviso = -1e9
+    var faseDetta = '', ripContate = 0, mezzeContate = 0, tAvviso = -1e9, lentoDetto = 0
     await new Promise(function(fine){
       var iv = setInterval(function(){
         if (mio !== giro || fermato){ clearInterval(iv); fine(); return }
@@ -459,6 +484,11 @@
           if ((b.fase === 'fondo' || b.fase === 'piedi') && t - tAvviso > 6000){
             if (vivo.braccia){ tAvviso = t; voce('Telefono all’altezza degli occhi.'); reg.eventi.push([Math.round(t), 'voce braccia']) }
             else if (vivo.lato){ tAvviso = t; voce('Mano ' + vivo.lato + ' più bassa.'); reg.eventi.push([Math.round(t), 'voce mano ' + vivo.lato]) }
+            // il ritmo: se la discesa è durata meno di due terzi di quanto chiesto. Una volta ogni due ripetizioni.
+            else if (b.fase === 'piedi' && b.rip < st.n && vivo.ultimaDiscesa && vivo.ultimaDiscesa.rip === b.rip && b.rip >= lentoDetto + 2 &&
+                     vivo.ultimaDiscesa.secondi < vivo.ultimaDiscesa.chiesti * 0.66){
+              tAvviso = t; lentoDetto = b.rip; voce('Scendi più lento.'); reg.eventi.push([Math.round(t), 'voce lento'])
+            }
           }
         }
         if (t >= st.fine + 700){ clearInterval(iv); fine() }
@@ -525,18 +555,19 @@
     $('e-tit').textContent = e.fermato === 'caduta' ? 'Fermato · telefono caduto' : e.fermato ? 'Fermato prima della fine' : 'Com’è andata'
     var h = '<div class="grandi"><div><b>' + r.intere + '<small style="font-size:.5em;opacity:.6">/' + r.n + '</small></b><span>ripetizioni contate</span></div>' +
       '<div><b>' + (r.mani.media == null ? '—' : num1(r.mani.media) + '°') + '</b><span>' + (r.mani.lato ? 'mano ' + r.mani.lato + ' più bassa' : 'mani pari') + '</span></div>' +
-      '<div><b>' + (r.discesaCm.media == null ? '—' : '~' + r.discesaCm.media) + '</b><span>cm di discesa (stima)</span></div></div>'
-    h += '<table class="rip"><tr><th>Rip.</th><th>Giù</th><th>Su</th><th>Mani</th><th>Inclin.</th></tr>'
+      '<div><b>' + (r.tempi.giu == null ? '—' : num1(r.tempi.giu) + ' s') + '</b><span>per scendere (chiesti ' + r.tempi.chiestiGiu + ')</span></div></div>'
+    h += '<table class="rip"><tr><th>Rip.</th><th>Discesa</th><th>Giù</th><th>Su</th><th>Mani</th></tr>'
     r.ripetizioni.forEach(function(x){
       var lato = x.mani == null ? '' : Math.abs(x.mani) < r.soglie.mani ? '' : (x.mani > 0 ? ' dx' : ' sx')
       h += '<tr><td>' + x.rip + '</td><td class="' + (x.giu ? '' : 'no') + '">' + (x.giu ? '~' + x.discesaCm + ' cm' : 'non vista') + '</td>' +
-        '<td class="' + (x.su ? '' : 'no') + '">' + (x.su ? '~' + x.risalitaCm + ' cm' : 'non vista') + '</td>' +
-        '<td>' + (x.mani == null ? '—' : num1(x.mani) + '°' + lato) + '</td><td>' + (x.braccia == null ? '—' : num1(x.braccia) + '°') + '</td></tr>'
+        '<td>' + (x.giuS == null ? '—' : num1(x.giuS) + ' s') + '</td>' +
+        '<td class="' + (x.su ? '' : 'no') + '">' + (x.su ? (x.suS == null ? '—' : num1(x.suS) + ' s') : 'non vista') + '</td>' +
+        '<td>' + (x.mani == null ? '—' : num1(x.mani) + '°' + lato) + '</td></tr>'
     })
-    h += '</table>'
+    h += '</table><div class="nota">I <b>secondi</b> e l’altezza delle <b>mani</b> sono letti dai sensori. I <b>centimetri</b> sono una stima non ancora verificata.</div>'
     h += gomitolo(e.serie, r.soglie.mani, r.soglie.braccia)
     h += '<div class="frasi">' + F.frasi(r).map(function(f){ return '<p>' + esc(f) + '</p>' }).join('') + '</div>'
-    if (e.senzaLineare) h += '<div class="nota">⚠️ Questo telefono non dà l’accelerazione «senza gravità»: il conto dei movimenti è meno affidabile.</div>'
+    if (r.senzaLineare) h += '<div class="nota">⚠️ Questo telefono non dà l’accelerazione «senza gravità»: il conto dei movimenti è meno affidabile.</div>'
     $('esito').innerHTML = h
     var file = fileTracciato()
     var puo = false

@@ -1,4 +1,4 @@
-/* prova-guidato.mjs — guidato-v1
+/* prova-guidato.mjs — guidato-v2
  * Lo squat guidato dal telefono: il calcolo (telefono simulato) e la pagina.
  *   node prova-guidato.mjs
  */
@@ -26,11 +26,19 @@ await import('./js/guida-motore.js?x=' + Date.now())
 const F = globalThis.PolGuida
 
 // il telefono simulato: in orizzontale fra le mani, il corpo scende di `prof` metri seguendo il ritmo
-function simula({ ritmo = F.RITMI.lento, n = 5, prof = 0.4, rollDeg = 0, pitchDeg = 0, rumore = 0.03, bias = 0.08, ios = false, ritardo = 250, salta = [], hz = 60, seme = 1, senzaA = false, cade = null }) {
+function simula({ ritmo = F.RITMI.lento, n = 5, prof = 0.4, rollDeg = 0, pitchDeg = 0, rumore = 0.03, bias = 0.08, ios = false, ritardo = 250, salta = [], hz = 60, seme = 1, senzaA = false, cade = null, svelto = null }) {
   let s = seme; const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647 - 0.5 }
   const gauss = () => (rnd() + rnd() + rnd() + rnd()) * 1.73
   const prog = F.programma(ritmo, n), fine = F.durata(ritmo, n) + 800, dt = 1000 / hz
-  const z = (t) => { const b = F.bersaglio(prog, t - ritardo); return salta.includes(b.rip) ? 0 : -prof * b.p }
+  // svelto = { anticipo (ms prima della voce), dura (ms del movimento) }: come nel tracciato vero
+  const per = ritmo.giu + ritmo.fondo + ritmo.su + ritmo.piedi
+  const rampa = (x) => x <= 0 ? 0 : x >= 1 ? 1 : (1 - Math.cos(Math.PI * x)) / 2
+  const z = (t) => {
+    if (!svelto) { const b = F.bersaglio(prog, t - ritardo); return salta.includes(b.rip) ? 0 : -prof * b.p }
+    const k = Math.floor((t + svelto.anticipo - ritmo.inizio) / per); if (k < 0 || k >= n || salta.includes(k + 1)) return 0
+    const u = t + svelto.anticipo - ritmo.inizio - k * per
+    return -prof * (rampa(u / svelto.dura) - rampa((u - ritmo.giu - ritmo.fondo) / svelto.dura))
+  }
   const st = F.crea({ ritmo, n }); const vivi = []
   for (let t = 0; t <= fine; t += dt) {
     const h = dt / 1000, acc = (z(t + dt) - 2 * z(t) + z(t - dt)) / (h * h)
@@ -52,6 +60,12 @@ sez('⭐ il calcolo (js/guida-motore.js) — telefono SIMULATO, non vero')
   check('⭐ il bersaglio: 0 in piedi, 1 in fondo, a metà discesa 0,5', F.bersaglio(pr, 100).p === 0 && Math.abs(F.bersaglio(pr, 4500).p - 0.5) < 1e-9 && F.bersaglio(pr, 6500).p === 1 && F.bersaglio(pr, 6500).fase === 'fondo')
   let x = simula({})
   check('⭐ 5 squat di 40 cm: 5 contati, discesa stimata 40 cm', x.r.intere === 5 && x.r.mezze === 10 && Math.abs(x.r.discesaCm.media - 40) <= 2, x.r.discesaCm)
+  check('⭐ chi segue il ritmo: scende in circa 3 secondi, risale in circa 3', Math.abs(x.r.tempi.giu - 3) <= 0.3 && Math.abs(x.r.tempi.su - 3) <= 0.3 && x.r.tempi.chiestiGiu === 3, x.r.tempi)
+  x = simula({ svelto: { anticipo: 500, dura: 1300 }, prof: 0.6, rumore: 0.2 })
+  check('⭐⭐ come nel tracciato vero: anticipa di mezzo secondo, scende in 1,3 s, mano che trema → 5 su 5', x.r.intere === 5 && x.r.mezze === 10 && Math.abs(x.r.discesaCm.media - 60) <= 8, [x.r.intere, x.r.mezze, x.r.discesaCm])
+  check('⭐ e si vede che è sceso svelto: 1,3 s contro 3 chiesti', Math.abs(x.r.tempi.giu - 1.3) <= 0.3 && x.vivi.some(v => v.ultimaDiscesa && v.ultimaDiscesa.secondi < v.ultimaDiscesa.chiesti * 0.66), x.r.tempi)
+  x = simula({ svelto: { anticipo: -600, dura: 1500 }, prof: 0.5 })
+  check('⭐ chi invece parte in ritardo di 0,6 s: 5 su 5 lo stesso', x.r.intere === 5, x.r.intere)
   x = simula({ ios: true })
   check('⭐ col segno rovesciato (iPhone): stesso conto', x.r.intere === 5 && Math.abs(x.r.discesaCm.media - 40) <= 2)
   x = simula({ prof: 0 })
@@ -74,23 +88,36 @@ sez('⭐ il calcolo (js/guida-motore.js) — telefono SIMULATO, non vero')
   check('⭐ mano SINISTRA più bassa, anche su iPhone: lato «sinistra»', x.r.mani.lato === 'sinistra' && x.vivi.filter(v => v.fase === 'fondo').every(v => v.lato === 'sinistra'))
   x = simula({ rollDeg: 3 })
   check('⭐ sotto la soglia (3° con soglia 5°): nessun lato', x.r.mani.lato === null && x.vivi.every(v => v.lato === null))
-  x = simula({ pitchDeg: 25 })
-  check('⭐ telefono inclinato di 25°: «braccia» fuori', x.vivi.some(v => v.braccia) && Math.abs(x.r.braccia.max) >= 20, x.r.braccia)
+  x = simula({ pitchDeg: 35 })
+  check('⭐ telefono inclinato di 35°: «braccia» fuori · di 18° (uno squat normale) no', x.vivi.some(v => v.braccia) && Math.abs(x.r.braccia.max) >= 30 && !simula({ pitchDeg: 18 }).vivi.some(v => v.braccia), x.r.braccia)
   x = simula({ cade: 9000 })
   check('⭐ il telefono cade: se ne accorge', x.r.caduta === true && simula({}).r.caduta === false)
   x = simula({})
   const giu = x.vivi.filter(v => v.fase === 'giu' && v.rip === 3), fo = x.vivi.filter(v => v.fase === 'fondo' && v.rip === 3)
-  check('⭐ la pallina del corpo scende durante la discesa e resta giù in fondo', giu[giu.length - 1].corpo > 0.7 && fo.every(v => v.corpo > 0.6) && x.vivi.filter(v => v.fase === 'piedi' && v.rip === 3).slice(30).every(v => v.corpo === 0), [giu[giu.length - 1].corpo, Math.min(...fo.map(v => v.corpo))])
+  check('⭐ la pallina del corpo scende durante la discesa e resta giù in fondo', giu[giu.length - 1].corpo > 0.45 && fo.every(v => v.corpo > 0.4) && x.vivi.filter(v => v.fase === 'piedi' && v.rip === 3).every(v => v.corpo < 0.3) && x.vivi.filter(v => v.fase === 'piedi' && v.rip === 3).slice(-5).every(v => v.corpo < 0.05), [giu[giu.length - 1].corpo, Math.min(...fo.map(v => v.corpo))])
   const fr = F.frasi(x.r).join(' ')
   check('⛔ le frasi descrivono, non giudicano', /stima/.test(fr) && /lo decide il professionista/.test(fr) && !/corrett|sbagliat|giust|bravo|bene|male/i.test(fr), fr)
+  // ⭐⭐ IL TRACCIATO VERO (Giuliano, iPhone, 7 ottobre): con guidato-v1 erano uscite 4 ripetizioni su 5
+  const tr = JSON.parse(fs.readFileSync('prova-guidato-traccia-1.json', 'utf8'))
+  const sv = F.crea({ ritmo: F.RITMI[tr.scelte.ritmo], n: tr.scelte.n, soglie: { mani: tr.scelte.sogliaMani } })
+  let lati = 0, bracciaFuori = 0, maxMezze = 0, ordinato = true
+  for (let i = 0; i < tr.t.length; i++) {
+    const v = F.aggiungi(sv, { t: tr.t[i], ag: { x: tr.ag[i][0], y: tr.ag[i][1], z: tr.ag[i][2] }, a: { x: tr.a[i][0], y: tr.a[i][1], z: tr.a[i][2] } })
+    if (v.lato) lati++; if (v.braccia) bracciaFuori++
+    if (v.mezze < maxMezze) ordinato = false; maxMezze = Math.max(maxMezze, v.mezze)
+  }
+  const rv = F.riassunto(sv)
+  check('⭐⭐ tracciato vero: 5 ripetizioni su 5, 10 mezze su 10, il conto non torna mai indietro', rv.intere === 5 && rv.mezze === 10 && ordinato, [rv.intere, rv.mezze])
+  check('⭐ tracciato vero: mani pari (mai oltre 5°), nessun allarme «braccia»', rv.mani.lato === null && lati === 0 && bracciaFuori === 0, [rv.mani, lati, bracciaFuori])
+  check('⭐ tracciato vero: discese più svelte del ritmo (fra 1,5 e 3 s contro 3), risalite sotto i 2 s', rv.tempi.giu > 1.5 && rv.tempi.giu < 3 && rv.tempi.su < 2, rv.tempi)
   const src = fs.readFileSync('js/guida-motore.js', 'utf8').replace(/\/\*[^]*?\*\//g, '').replace(/\/\/.*$/gm, '')
   check('⛔ js/guida-motore.js non parla con la rete e non scrive niente', !/supabase|fetch\(|localStorage|document\./.test(src))
 }
 
 // il telefono finto nella pagina: segue il programma della pagina
-const TELEFONO = ({ prof, rollDeg, tenuto, nulla, cadeDopo }) => {
+const TELEFONO = ({ prof, rollDeg, tenuto, nulla, cadeDopo, ruota }) => {
   if (window.__ivT) clearInterval(window.__ivT)
-  window.__tel = { prof, rollDeg, tenuto, nulla, cadeDopo }
+  window.__tel = { prof, rollDeg, tenuto, nulla, cadeDopo, ruota }
   const Fm = window.PolGuida
   window.__ivT = setInterval(() => {
     const o = window.__tel
@@ -109,7 +136,7 @@ const TELEFONO = ({ prof, rollDeg, tenuto, nulla, cadeDopo }) => {
     const e = new Event('devicemotion')
     Object.defineProperty(e, 'accelerationIncludingGravity', { value: { x: a.x + up.x * g, y: a.y + up.y * g, z: a.z } })
     Object.defineProperty(e, 'acceleration', { value: a })
-    Object.defineProperty(e, 'rotationRate', { value: { alpha: 0, beta: 0, gamma: 0 } })
+    Object.defineProperty(e, 'rotationRate', { value: { alpha: o.ruota || 0, beta: 0, gamma: 0 } })
     window.dispatchEvent(e)
   }, 16)
 }
@@ -160,7 +187,7 @@ try {
     const e = await page.evaluate(() => window.__guidato.esito())
     check('⭐ a fine prova: 1 ripetizione contata su 1, circa 40 cm stimati', e.r.intere === 1 && Math.abs(e.r.discesaCm.media - 40) <= 6 && !e.fermato, e.r.discesaCm)
     check('⭐ il palco si chiude e compare l’esito', !(await page.evaluate(() => document.getElementById('palco').classList.contains('on'))) && await page.isVisible('#c-esito'))
-    check('⭐ l’esito: tabella, gomitolo, frasi, «stima»', (await page.$$('table.rip tr')).length === 2 && !!(await page.$('svg.gomitolo')) && /stima/.test(await page.textContent('#esito')))
+    check('⭐ l’esito: tabella coi secondi, gomitolo, frasi, «stima non ancora verificata»', (await page.$$('table.rip tr')).length === 2 && /\d,\d s/.test(await page.textContent('table.rip')) && !!(await page.$('svg.gomitolo')) && /stima non ancora verificata/.test(await page.textContent('#esito')) && /per scendere/.test(await page.textContent('.grandi')))
     check('⭐ la voce: fermo, giù, su, fatto', await page.evaluate(() => { const d = window.__guidato.dette().join('|'); return /Fermo\./.test(d) && /Giù\./.test(d) && /Su\./.test(d) && /Fatto\. 1 ripetizione contata/.test(d) }))
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#btn-scarica')])
     const tr = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'))
@@ -227,6 +254,17 @@ try {
     await page.evaluate(() => document.getElementById('btn-fermo').click())
     await page.waitForTimeout(300)
     check('⭐ fermato prima di partire: il palco si chiude, niente esito', !(await page.evaluate(() => document.getElementById('palco').classList.contains('on') || window.__guidato.inCorso())) && !(await page.isVisible('#c-esito')))
+    // guidato-v2 · finché il telefono si muove non si parte
+    await page.evaluate(() => { window.__tel.ruota = 120 })
+    await page.click('#btn-start')
+    await page.waitForFunction(() => /Fermo così/.test(document.getElementById('v-tit').textContent) && window.__guidato.velo(), null, { timeout: 9000 })
+    await page.waitForTimeout(600)
+    check('⭐⭐ finito il conto alla rovescia, se il telefono si muove ancora aspetta: «Fermo così»', await page.evaluate(() => window.__guidato.stato() === null && window.__guidato.velo()))
+    await page.evaluate(() => { window.__tel.ruota = 0 })
+    await page.waitForFunction(() => window.__guidato.stato() !== null && !window.__guidato.velo(), null, { timeout: 3000 })
+    check('⭐ appena è fermo, parte', true)
+    await page.evaluate(() => document.getElementById('btn-fermo').click())
+    await finita(page)
     check('⛔ nessun errore JavaScript', errori.length === 0, errori)
     await ctx.close()
   }
