@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Squat guidato · in prova</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- guidato-v1 (7 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · PRIMA PROVA
+     Il telefono fra le due mani, in orizzontale, braccia tese davanti agli occhi.
+     La pagina dà il ritmo (freccia, tono che scende e sale, voce) e i sensori
+     dicono cosa succede davvero: mezze ripetizioni contate, una mano più bassa
+     (metà schermo rossa), telefono che si inclina.
+     - È una PROVA per l'amministratore: si apre da Test, non salva niente sul
+       server, non riguarda nessun paziente.
+     - I numeri sono STIME non validate (calcolo in js/guida-motore.js).
+     - Registra i sensori grezzi: «Scarica il tracciato» li dà in un file, per
+       misurare quanto sbaglia. Senza quel tocco non resta niente.
+     - Non dice mai «giusto / sbagliato»: descrive. Le soglie le sceglie chi prova. -->
+<script src="js/guida-motore.js?v=guidato-v1"></script>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       font-size:16px;line-height:1.5;padding:16px;padding-bottom:140px}
+  .wrap{max-width:560px;margin:0 auto}
+  .testa{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  h1{font-size:22px;margin:0 0 4px}
+  .testa a{font-size:13px;color:#666;text-decoration:none;font-weight:700}
+  .sub{font-size:13px;color:#666;margin-bottom:14px}
+  .avviso{background:#fff8e6;border:1px solid #f0dd9a;border-radius:12px;padding:12px 14px;font-size:13px;color:#5c4300;margin-bottom:16px}
+  .card{background:#fff;border:1px solid #eee;border-radius:18px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .card h2{font-size:15px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.6px;color:#444}
+  label{display:block;font-size:13px;color:#666;margin:14px 0 6px;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1.5px solid #ddd;background:#fff;border-radius:999px;padding:9px 14px;font-size:14px;cursor:pointer;font-family:inherit;color:#111}
+  .chip.on{border-color:#111;background:#111;color:#fff;font-weight:700}
+  .passi{margin:6px 0 0;padding-left:0;list-style:none;counter-reset:p}
+  .passi li{counter-increment:p;position:relative;padding:0 0 10px 40px;font-size:14px;color:#333}
+  .passi li::before{content:counter(p);position:absolute;left:0;top:-1px;width:28px;height:28px;border-radius:50%;background:#111;color:#FFD008;
+     font-weight:900;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .disegni{display:flex;gap:10px;align-items:flex-end;justify-content:center;margin:4px 0 12px}
+  .disegni svg{display:block;width:50%;max-width:230px;height:auto}
+  .err{background:#fff5f5;border:2px solid #e11;border-radius:12px;padding:12px 14px;font-size:14px;color:#b00;margin-top:14px}
+  .nota{font-size:12.5px;color:#666;margin-top:10px;line-height:1.55}
+  .btn{display:block;width:100%;padding:15px;border:0;border-radius:14px;background:#111;color:#fff;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:12px}
+  .btn.vuoto{background:#fff;color:#111;border:1.5px solid #ddd;font-weight:600;font-size:15px;padding:12px}
+  .parti-fisso{position:fixed;left:16px;right:16px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:40;min-height:92px;border-radius:24px;
+     display:flex;align-items:center;gap:16px;justify-content:center;background:#FFD008;color:#111;box-shadow:0 8px 28px rgba(0,0,0,.22);
+     max-width:560px;margin:0 auto;padding:12px 20px;border:0;font-family:inherit;cursor:pointer}
+  .parti-fisso .pf-icona{width:62px;height:62px;border-radius:16px;background:#111;color:#FFD008;display:flex;align-items:center;justify-content:center;font-size:30px;flex:none}
+  .parti-fisso .pf-testo{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;text-align:left}
+  .parti-fisso .pf-testo b{font-size:24px;letter-spacing:.5px}
+  .parti-fisso .pf-testo small{font-size:13px;font-weight:600;opacity:.75;margin-top:3px}
+  /* l'esito */
+  .grandi{display:flex;gap:10px;margin-bottom:6px}
+  .grandi div{flex:1;border:1px solid #eee;border-radius:14px;padding:10px 8px;text-align:center}
+  .grandi b{display:block;font-size:34px;font-weight:900;line-height:1.05;font-variant-numeric:tabular-nums}
+  .grandi span{font-size:11.5px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  table.rip{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+  table.rip th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#666;text-align:right;font-weight:700;padding:4px 5px}
+  table.rip th:first-child,table.rip td:first-child{text-align:left}
+  table.rip td{padding:7px 5px;border-top:1px solid #f1f1f1;text-align:right;font-variant-numeric:tabular-nums}
+  table.rip td.no{color:#b3261e;font-weight:700}
+  .frasi{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14.5px;line-height:1.6}
+  .frasi p{margin:0 0 6px}.frasi p:last-child{margin:0;color:#667;font-style:italic}
+  .gomitolo{display:block;margin:10px auto 0;width:100%;max-width:300px;height:auto}
+
+  /* ═══ IL PALCO: a tutto schermo, sempre in orizzontale per chi guarda ═══
+     Tutte le misure sono in «em» e 1em = un centesimo dell'altezza del palco:
+     così il disegno è identico anche quando il palco viene ruotato. */
+  .palco{position:fixed;left:50%;top:50%;z-index:9000;display:none;overflow:hidden;background:#050505;color:#fff;
+     transform-origin:center center;user-select:none;-webkit-user-select:none;touch-action:none}
+  .palco.on{display:block}
+  .meta{position:absolute;top:0;bottom:0;width:50%;background:rgba(10,125,51,.30);transition:background .18s linear}
+  .meta.sx{left:0}.meta.dx{right:0}
+  .meta .lato{position:absolute;top:4em;font-size:3.6em;font-weight:900;letter-spacing:.12em;opacity:.55}
+  .meta.sx .lato{left:1.2em}.meta.dx .lato{right:1.2em}
+  .meta .bassa{position:absolute;bottom:4.6em;font-size:5em;font-weight:900;line-height:1.05;opacity:0;transition:opacity .15s}
+  .meta.sx .bassa{left:.8em;text-align:left}.meta.dx .bassa{right:.8em;text-align:right}
+  .meta.rossa .bassa{opacity:1}
+  .pista{position:absolute;top:13em;width:11em;height:60em;border-radius:5.5em;background:rgba(0,0,0,.55);border:.35em solid rgba(255,255,255,.28)}
+  .pista.corpo{left:calc(50% - 46em)}.pista.braccia{left:calc(50% + 35em)}
+  .pista .nome{position:absolute;left:50%;top:-1.7em;transform:translateX(-50%);font-size:2.8em;font-weight:900;letter-spacing:.14em;white-space:nowrap;opacity:.85}
+  .pista .zona{position:absolute;left:0;right:0;background:rgba(10,125,51,.55)}
+  .pista .guida{position:absolute;left:50%;width:9.6em;height:9.6em;margin-left:-4.8em;border-radius:50%;border:.5em dashed rgba(255,208,8,.85)}
+  .pista .palla{position:absolute;left:50%;width:8.4em;height:8.4em;margin-left:-4.2em;border-radius:50%;background:#FFD008;border:.5em solid #111;
+     box-shadow:0 0 3em rgba(255,208,8,.55)}
+  .centro{position:absolute;left:50%;top:0;bottom:0;width:60em;margin-left:-30em;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:4em}
+  .freccia{width:26em;height:26em;transition:transform .35s ease}
+  .freccia.su{transform:rotate(180deg)}
+  .freccia.ferma{opacity:.25}
+  .fase{font-size:8.5em;font-weight:900;letter-spacing:.08em;line-height:1;margin-top:-.1em}
+  .conta{font-size:19em;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;margin-top:.05em}
+  .conta small{font-size:.42em;font-weight:800;opacity:.6}
+  .mezze{font-size:3em;font-weight:700;opacity:.75;letter-spacing:.06em}
+  .mi-fermo{position:absolute;left:50%;bottom:3.5em;width:44em;margin-left:-22em;height:13em;border-radius:6.5em;border:.4em solid #fff;background:#111;color:#fff;
+     font-family:inherit;font-size:1em;font-weight:900;cursor:pointer;z-index:6}
+  .mi-fermo b{font-size:4.4em;letter-spacing:.08em}
+  .gira-tasto{position:absolute;right:2em;top:2em;width:10em;height:10em;border-radius:50%;border:.3em solid rgba(255,255,255,.5);background:rgba(0,0,0,.5);color:#fff;font-family:inherit;font-size:1em;cursor:pointer;z-index:6}
+  .gira-tasto b{font-size:5em;line-height:1}
+  .stima{position:absolute;left:2.4em;top:2.4em;font-size:2.4em;font-weight:700;opacity:.6;letter-spacing:.06em}
+  .velo{position:absolute;inset:0;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;gap:2em;text-align:center;padding:4em 14em 19em;z-index:5}
+  .velo.on{display:flex}
+  .velo .v-tit{font-size:7em;font-weight:900;line-height:1.1;color:#FFD008}
+  .velo .v-sotto{font-size:4.2em;font-weight:600;line-height:1.3;max-width:26em}
+  .velo .v-num{font-size:24em;font-weight:900;line-height:.9;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="testa">
+    <h1>🏋️ Squat guidato</h1>
+    <a href="test.html" id="link-home">← Test</a>
+  </div>
+  <div class="sub">Il telefono ti guida mentre fai l’esercizio &middot; prima prova</div>
+
+  <div class="avviso">
+    <b>È una prova, solo per te.</b> Non salva niente e non riguarda nessun paziente.
+    I numeri sono <b>stime non ancora verificate</b>: servono a capire come deve essere lo schermo e quanto sbaglia il telefono.
+  </div>
+
+  <!-- ─── L'ESITO ─── -->
+  <div class="card" id="c-esito" style="display:none">
+    <h2 id="e-tit">Com’è andata</h2>
+    <div id="esito"></div>
+    <button class="btn" id="btn-condividi" style="display:none">📤 Manda il tracciato</button>
+    <button class="btn vuoto" id="btn-scarica">⬇️ Scarica il tracciato</button>
+    <div class="nota">Il tracciato sono i numeri grezzi dei sensori di questa prova (nessun nome, nessun paziente). Mandalo in chat: serve a misurare quanto sbaglia il telefono.</div>
+  </div>
+
+  <!-- ─── LA PREPARAZIONE ─── -->
+  <div class="card" id="c-setup">
+    <h2>Come si fa</h2>
+    <div class="disegni">
+      <svg id="omino" viewBox="0 0 230 210" role="img" aria-label="Di fianco: squat con le braccia tese in avanti e il telefono fra le mani"></svg>
+      <svg viewBox="0 0 230 210" role="img" aria-label="Il telefono in orizzontale fra le due mani: la metà dalla parte della mano più bassa diventa rossa">
+        <g transform="rotate(8 115 92)">
+          <rect x="35" y="52" width="160" height="80" rx="12" fill="#111"/>
+          <rect x="42" y="59" width="73" height="66" rx="5" fill="#0a7d33"/>
+          <rect x="115" y="59" width="73" height="66" rx="5" fill="#e11"/>
+          <circle cx="97" cy="92" r="8" fill="#FFD008" stroke="#111" stroke-width="2"/><circle cx="133" cy="92" r="8" fill="#FFD008" stroke="#111" stroke-width="2"/>
+          <ellipse cx="30" cy="96" rx="15" ry="26" fill="#f3e2d3" stroke="#c9a88c" stroke-width="2"/>
+          <ellipse cx="200" cy="96" rx="15" ry="26" fill="#f3e2d3" stroke="#c9a88c" stroke-width="2"/>
+        </g>
+        <line x1="20" y1="92" x2="210" y2="92" stroke="#888" stroke-width="1.5" stroke-dasharray="4 5"/>
+        <text x="115" y="176" text-anchor="middle" font-size="12.5" font-weight="800" fill="#111">mano destra più bassa</text>
+        <text x="115" y="194" text-anchor="middle" font-size="12" font-weight="700" fill="#b00">→ metà destra rossa</text>
+      </svg>
+    </div>
+    <ol class="passi">
+      <li><b>Telefono in orizzontale fra le due mani</b>, schermo verso di te, <b>braccia tese in avanti</b> all’altezza degli occhi. Tienilo saldo.</li>
+      <li>Premi <b>PARTI</b>: tre secondi <b>fermo</b>, poi segui la <b>freccia</b> e il <b>suono</b>: scende il suono, scendi tu; sale, risali.</li>
+      <li>La pallina di sinistra è il <b>corpo</b>, quella di destra le <b>braccia</b>. Il cerchio tratteggiato è dove dovresti essere.</li>
+      <li>Se una mano scende, <b>la sua metà di schermo diventa rossa</b>. Per smettere: <b>MI FERMO</b>.</li>
+    </ol>
+    <label>Ripetizioni</label>
+    <div class="chips" id="nrip">
+      <button class="chip on" data-n="5">5</button><button class="chip" data-n="8">8</button><button class="chip" data-n="10">10</button>
+    </div>
+    <label>Ritmo</label>
+    <div class="chips" id="ritmo">
+      <button class="chip on" data-r="lento">lento · 3 s giù, 3 s su</button><button class="chip" data-r="medio">medio · 2 s giù, 2 s su</button>
+    </div>
+    <label>Quanto può scendere una mano prima del rosso</label>
+    <div class="chips" id="soglia">
+      <button class="chip" data-s="3">3°</button><button class="chip on" data-s="5">5°</button><button class="chip" data-s="8">8°</button>
+    </div>
+    <div class="nota">⚠️ Spazio libero davanti, pavimento stabile, <b>niente cuscini</b> in questa prova. Se senti dolore o perdi l’equilibrio, fermati.<br>
+      Il telefono <b>non vede</b> ginocchia, talloni e schiena, e non dice se l’esercizio è «giusto»: descrive cosa fa il telefono.</div>
+    <div class="err" id="err" style="display:none"></div>
+  </div>
+</div>
+
+<button class="parti-fisso" id="btn-start"><span class="pf-icona">▶</span>
+  <span class="pf-testo"><b>PARTI</b><small id="pf-cosa">squat guidato · 5 ripetizioni</small></span></button>
+
+<!-- ═══ IL PALCO ═══ -->
+<div class="palco" id="palco">
+  <div class="meta sx" id="m-sx"><div class="lato">SINISTRA</div><div class="bassa">PIÙ<br>BASSA</div></div>
+  <div class="meta dx" id="m-dx"><div class="lato">DESTRA</div><div class="bassa">PIÙ<br>BASSA</div></div>
+  <div class="stima">stime · in prova</div>
+  <div class="pista corpo"><div class="nome">CORPO</div><div class="guida" id="g-corpo"></div><div class="palla" id="p-corpo"></div></div>
+  <div class="pista braccia"><div class="nome">BRACCIA</div><div class="zona" id="z-braccia"></div><div class="palla" id="p-braccia"></div></div>
+  <div class="centro">
+    <svg class="freccia ferma" id="freccia" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 92 L12 46 H36 V8 H64 V46 H88 Z" fill="#FFD008" stroke="#111" stroke-width="3" stroke-linejoin="round"/></svg>
+    <div class="fase" id="s-fase">FERMO</div>
+    <div class="conta" id="s-conta">0<small>/5</small></div>
+    <div class="mezze" id="s-mezze"></div>
+  </div>
+  <button class="mi-fermo" id="btn-fermo"><b>MI FERMO</b></button>
+  <button class="gira-tasto" id="btn-gira" aria-label="Capovolgi lo schermo"><b>⟲</b></button>
+  <div class="velo" id="velo"><div class="v-tit" id="v-tit"></div><div class="v-num" id="v-num"></div><div class="v-sotto" id="v-sotto"></div></div>
+</div>
+
+<script>
+;(function(){
+  'use strict'
+  var $ = function(id){ return document.getElementById(id) }
+  var F = window.PolGuida
+  var Q = new URLSearchParams(location.search)
+  var VIA = Q.get('via') === '1'                       // solo per i controlli automatici: niente conto alla rovescia
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c] }) }
+  function mostra(id, si){ $(id).style.display = si ? '' : 'none' }
+  function aspetta(ms){ return new Promise(function(r){ setTimeout(r, VIA ? 0 : ms) }) }
+  function num1(x){ return x == null || isNaN(x) ? '—' : Math.abs(x).toFixed(1).replace('.', ',') }
+
+  if (!F){
+    $('err').style.display = ''; $('err').textContent = '⚠️ Non si è caricato il calcolo (js/guida-motore.js). Ricarica la pagina.'
+    $('btn-start').style.display = 'none'
+    return
+  }
+
+  // ── le scelte ──
+  var nRip = Math.max(1, Math.min(20, Number(Q.get('n')) || 5)), ritmo = 'lento', sogliaMani = 5
+  function scegli(id, attr, cb){
+    Array.prototype.forEach.call($(id).querySelectorAll('.chip'), function(b){
+      b.onclick = function(){
+        Array.prototype.forEach.call($(id).querySelectorAll('.chip'), function(x){ x.classList.remove('on') })
+        b.classList.add('on'); cb(b.getAttribute(attr)); $('pf-cosa').textContent = 'squat guidato · ' + nRip + (nRip === 1 ? ' ripetizione' : ' ripetizioni')
+      }
+    })
+  }
+  scegli('nrip', 'data-n', function(v){ nRip = Number(v) || 5 })
+  scegli('ritmo', 'data-r', function(v){ ritmo = F.RITMI[v] ? v : 'lento' })
+  scegli('soglia', 'data-s', function(v){ sogliaMani = Number(v) || 5 })
+  $('pf-cosa').textContent = 'squat guidato · ' + nRip + (nRip === 1 ? ' ripetizione' : ' ripetizioni')
+
+  // ── il disegno che si muove ──
+  var ominoT = null
+  function omino(p){
+    var A = { x: 96, y: 188 }, g = Math.PI / 180
+    var a = 28 * p * g, b = 78 * p * g, c = 26 * p * g
+    var K = { x: A.x + 46 * Math.sin(a), y: A.y - 46 * Math.cos(a) }
+    var H = { x: K.x - 50 * Math.sin(b), y: K.y - 50 * Math.cos(b) }
+    var S = { x: H.x + 58 * Math.sin(c), y: H.y - 58 * Math.cos(c) }
+    var T = { x: S.x + 20 * Math.sin(c), y: S.y - 20 * Math.cos(c) }
+    var M = { x: S.x + 52, y: T.y + 2 }
+    var l = function(P, R, w){ return '<line x1="' + P.x.toFixed(1) + '" y1="' + P.y.toFixed(1) + '" x2="' + R.x.toFixed(1) + '" y2="' + R.y.toFixed(1) + '" stroke="#111" stroke-width="' + w + '" stroke-linecap="round"/>' }
+    return '<line x1="20" y1="192" x2="210" y2="192" stroke="#ccc" stroke-width="3" stroke-linecap="round"/>' +
+      '<line x1="' + (M.x + 26) + '" y1="24" x2="' + (M.x + 26) + '" y2="180" stroke="#FFD008" stroke-width="6" stroke-linecap="round" opacity=".45"/>' +
+      '<circle cx="' + (M.x + 26) + '" cy="' + (24 + 150 * (M.y - 22) / 104).toFixed(1) + '" r="8" fill="#FFD008" stroke="#111" stroke-width="2.5"/>' +
+      l(A, { x: A.x + 24, y: A.y }, 7) + l(A, K, 8) + l(K, H, 9) + l(H, S, 10) + l(S, M, 6) +
+      '<circle cx="' + T.x.toFixed(1) + '" cy="' + T.y.toFixed(1) + '" r="12" fill="#f3e2d3" stroke="#111" stroke-width="3"/>' +
+      '<rect x="' + (M.x - 3).toFixed(1) + '" y="' + (M.y - 13).toFixed(1) + '" width="7" height="26" rx="2.5" fill="#111"/>'
+  }
+  function animaOmino(si){
+    clearInterval(ominoT)
+    if (!si) return
+    var t0 = Date.now()
+    var passo = function(){ var x = ((Date.now() - t0) % 5000) / 5000; $('omino').innerHTML = omino((1 - Math.cos(2 * Math.PI * x)) / 2) }
+    passo(); ominoT = setInterval(passo, 60)
+  }
+  animaOmino(true)
+
+  // ── suoni e voce ──
+  var actx = null, tono = null
+  function audio(){ try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume() } catch(e){} return actx }
+  function bip(freq, durMs, vol){
+    try {
+      var c = audio(); if (!c) return
+      var o = c.createOscillator(), g = c.createGain()
+      o.frequency.value = freq; o.connect(g); g.connect(c.destination)
+      g.gain.setValueAtTime(vol || 0.22, c.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + durMs / 1000)
+      o.start(); o.stop(c.currentTime + durMs / 1000)
+    } catch(e){}
+  }
+  // il tono che scende e sale: è la guida che si segue senza guardare
+  function tonoApri(){
+    try {
+      var c = audio(); if (!c || tono) return
+      var o = c.createOscillator(), g = c.createGain()
+      o.type = 'sine'; o.frequency.value = 440; g.gain.value = 0
+      o.connect(g); g.connect(c.destination); o.start()
+      tono = { o: o, g: g }
+    } catch(e){}
+  }
+  function tonoMetti(p, acceso){
+    if (!tono || !actx) return
+    try {
+      tono.o.frequency.setTargetAtTime(440 - 220 * p, actx.currentTime, 0.03)
+      tono.g.gain.setTargetAtTime(acceso ? 0.09 : 0, actx.currentTime, 0.05)
+    } catch(e){}
+  }
+  function tonoChiudi(){ try { if (tono){ tono.g.gain.value = 0; tono.o.stop(); tono = null } } catch(e){ tono = null } }
+  function sbloccaVoce(){ try { if (!window.speechSynthesis) return; var u = new SpeechSynthesisUtterance(' '); u.lang = 'it-IT'; u.volume = 0.01; speechSynthesis.speak(u) } catch(e){} }
+  var dette = []
+  function voce(t){ dette.push(t); try { if (!window.speechSynthesis) return; speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(t); u.lang = 'it-IT'; u.rate = 1.05; speechSynthesis.speak(u) } catch(e){} }
+
+  // ── i sensori ──
+  var ultimo = null          // l'ultimo campione grezzo
+  var st = null, vivo = null, t0 = 0, reg = null, inCorso = false, wl = null, raf = null
+  var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  var CHIAVE_GIRO = 'policettivo.guidato.capovolto.v1'
+  var capovolto = false
+  try { capovolto = localStorage.getItem(CHIAVE_GIRO) === '1' } catch(e){}
+  function tre(x){ return x == null ? null : Math.round(x * 1000) / 1000 }
+  function onMotion(e){
+    var ag = e.accelerationIncludingGravity
+    if (!ag || ag.x == null) return
+    var a = e.acceleration && e.acceleration.x != null ? e.acceleration : null
+    var rr = e.rotationRate || {}
+    ultimo = { ag: { x: ag.x, y: ag.y, z: ag.z }, a: a ? { x: a.x, y: a.y, z: a.z } : null }
+    if (!st) return
+    var t = performance.now() - t0
+    if (t < 0) return
+    try { vivo = F.aggiungi(st, { t: t, ag: ultimo.ag, a: ultimo.a }) } catch(err){ vivo = null }
+    if (reg && reg.t.length < 60000){
+      reg.t.push(Math.round(t))
+      reg.ag.push([tre(ag.x), tre(ag.y), tre(ag.z)])
+      reg.a.push(a ? [tre(a.x), tre(a.y), tre(a.z)] : null)
+      reg.rr.push([tre(rr.alpha), tre(rr.beta), tre(rr.gamma)])
+    }
+  }
+  function ascolta(si){
+    window.removeEventListener('devicemotion', onMotion)
+    if (si) window.addEventListener('devicemotion', onMotion)
+    if (si) document.body.setAttribute('data-nav-nascondi', ''); else document.body.removeAttribute('data-nav-nascondi')
+  }
+  function chiediPermessi(){
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function')
+      return DeviceMotionEvent.requestPermission().then(function(r){ return r === 'granted' }).catch(function(){ return false })
+    return Promise.resolve(true)
+  }
+
+  // ── il palco: sempre dritto per chi lo guarda ──
+  // Come è tenuto il telefono lo dice la gravità. Se il telefono è in orizzontale
+  // ma la pagina è rimasta in verticale (rotazione bloccata), il palco si gira da solo.
+  var rot = 0, fisico = null
+  function comeTenuto(){
+    if (!ultimo) return null
+    var L = F.leggi(ultimo.ag, ultimo.a, null), G = L.G
+    if (L.piatto) return fisico
+    var k = (IOS ? -1 : 1) * (capovolto ? -1 : 1)
+    var ang = Math.atan2(k * G.x, k * G.y) * 180 / Math.PI           // 0 = dritto in verticale, 90 = lato destro in alto
+    var q = ((Math.round(ang / 90) * 90) % 360 + 360) % 360
+    return q
+  }
+  function sistemaPalco(){
+    var q = comeTenuto(); if (q != null) fisico = q
+    var W = window.innerWidth, H = window.innerHeight, paginaOrizz = W > H
+    rot = 0
+    if (!paginaOrizz) rot = fisico === 270 ? 270 : 90
+    var p = $('palco'), w = (rot === 90 || rot === 270) ? H : W, h = (rot === 90 || rot === 270) ? W : H
+    p.style.width = w + 'px'; p.style.height = h + 'px'
+    p.style.fontSize = (Math.min(h, w * 0.5) / 100) + 'px'
+    p.style.transform = 'translate(-50%,-50%) rotate(' + rot + 'deg)'
+  }
+  window.addEventListener('resize', function(){ if ($('palco').classList.contains('on')) sistemaPalco() })
+  $('btn-gira').onclick = function(){
+    capovolto = !capovolto
+    try { localStorage.setItem(CHIAVE_GIRO, capovolto ? '1' : '0') } catch(e){}
+    sistemaPalco()
+  }
+  function inOrizzontale(){ var q = comeTenuto(); return q === 90 || q === 270 }
+
+  var NOMI = { inizio: 'FERMO', giu: 'GIÙ', fondo: 'FERMO', su: 'SU', piedi: 'IN PIEDI' }
+  function colore(el, rosso, forza){
+    el.style.background = rosso ? 'rgba(225,17,17,' + (0.45 + 0.4 * forza).toFixed(2) + ')' : 'rgba(10,125,51,' + (0.30 + 0.25 * forza).toFixed(2) + ')'
+    el.classList.toggle('rossa', !!rosso && forza >= 0)
+  }
+  function disegna(){
+    raf = null
+    if (!inCorso) return
+    if (vivo && st){
+      var v = vivo
+      var forza = Math.max(0, Math.min(1, (Math.abs(v.roll) - st.soglie.mani) / (st.soglie.mani * 2)))
+      if (v.braccia){ colore($('m-sx'), true, 1); colore($('m-dx'), true, 1); $('m-sx').classList.remove('rossa'); $('m-dx').classList.remove('rossa') }
+      else { colore($('m-sx'), v.lato === 'sinistra', forza); colore($('m-dx'), v.lato === 'destra', forza) }
+      // il corpo: in alto = in piedi, in basso = giù. La pista è alta 60em, la palla 8,4.
+      var corsa = 60 - 8.4 - 1.4
+      $('p-corpo').style.top = (0.35 + corsa * v.corpo).toFixed(2) + 'em'
+      $('g-corpo').style.top = (-0.25 + corsa * v.p).toFixed(2) + 'em'
+      // le braccia: al centro = come alla partenza
+      var b = Math.max(-1, Math.min(1, v.pitch / (st.soglie.braccia * 2)))
+      $('p-braccia').style.top = (0.35 + corsa / 2 + corsa / 2 * b).toFixed(2) + 'em'
+      $('p-braccia').style.background = v.braccia ? '#e11' : '#FFD008'
+      var fr = $('freccia')
+      fr.classList.toggle('su', v.fase === 'su'); fr.classList.toggle('ferma', v.fase !== 'giu' && v.fase !== 'su')
+      $('s-fase').textContent = NOMI[v.fase] || ''
+      $('s-conta').innerHTML = v.ripetizioni + '<small>/' + st.n + '</small>'
+      $('s-mezze').textContent = v.mezze % 2 ? 'discesa contata' : ''
+    }
+    raf = requestAnimationFrame(disegna)
+  }
+  // la zona verde delle braccia: quanto è largo «all'altezza giusta»
+  function zonaBraccia(){ var corsa = 60 - 8.4 - 1.4; $('z-braccia').style.top = (0.35 + 4.2 + corsa / 4).toFixed(2) + 'em'; $('z-braccia').style.height = (corsa / 2).toFixed(2) + 'em' }
+
+  function velo(tit, n, sotto){
+    var si = tit != null
+    $('velo').classList.toggle('on', si)
+    if (si){ $('v-tit').textContent = tit; $('v-num').textContent = n == null ? '' : n; $('v-sotto').textContent = sotto || '' }
+  }
+
+  // ═══ L'ESERCIZIO ═══
+  var fermato = null, giro = 0
+  async function avvia(){
+    if (inCorso) return
+    inCorso = true; fermato = null; dette = []
+    var mio = ++giro
+    $('err').style.display = 'none'
+    bip(660, 60); sbloccaVoce(); tonoApri()
+    if (!(await chiediPermessi())){ fallito('Il telefono non ha dato il permesso ai sensori di movimento. Su iPhone: Impostazioni → Safari → Movimento e orientamento.'); return }
+    try { if (navigator.wakeLock) wl = await navigator.wakeLock.request('screen') } catch(e){}
+    animaOmino(false)
+    st = null; vivo = null; ultimo = null
+    ascolta(true)
+    $('palco').classList.add('on'); zonaBraccia(); sistemaPalco()
+    // aspetta i sensori (un secondo e mezzo): senza, non si può fare
+    var tA = Date.now()
+    while (!ultimo && Date.now() - tA < 1500) await new Promise(function(r){ setTimeout(r, 50) })
+    if (mio !== giro) return
+    if (!ultimo){ fallito('Questo dispositivo non manda i dati dei sensori di movimento: la prova si fa dal telefono.'); return }
+    sistemaPalco()
+    // il telefono va in orizzontale
+    voce('Telefono in orizzontale fra le due mani. Braccia tese davanti agli occhi.')
+    var tO = Date.now()
+    while (!inOrizzontale()){
+      velo('Gira il telefono in orizzontale', '', 'fra le due mani, schermo verso di te')
+      sistemaPalco()
+      await new Promise(function(r){ setTimeout(r, 120) })
+      if (mio !== giro || fermato) return
+      if (VIA && Date.now() - tO > 1500) break
+    }
+    sistemaPalco()
+    for (var c = 5; c >= 1; c--){
+      velo('Braccia tese davanti agli occhi', c, 'Vedi lo schermo capovolto? Tocca ⟲ in alto a destra')
+      if (!VIA) bip(c === 1 ? 990 : 660, 70, 0.2)
+      await aspetta(1000)
+      if (mio !== giro || fermato) return
+      sistemaPalco()
+    }
+    velo(null)
+    // si parte: il motore conta il tempo da qui
+    var R = F.RITMI[ritmo]
+    st = F.crea({ ritmo: R, n: nRip, soglie: { mani: sogliaMani } })
+    reg = { t: [], ag: [], a: [], rr: [], eventi: [] }
+    t0 = performance.now()
+    voce('Fermo.')
+    if (!raf) raf = requestAnimationFrame(disegna)
+    var faseDetta = '', ripContate = 0, mezzeContate = 0, tAvviso = -1e9
+    await new Promise(function(fine){
+      var iv = setInterval(function(){
+        if (mio !== giro || fermato){ clearInterval(iv); fine(); return }
+        var t = performance.now() - t0, b = F.bersaglio(st.prog, t)
+        tonoMetti(b.p, b.fase === 'giu' || b.fase === 'su')
+        var k = b.rip + ':' + b.fase
+        if (b.fase && k !== faseDetta){
+          faseDetta = k
+          reg.eventi.push([Math.round(t), k])
+          if (b.fase === 'giu') voce(b.rip === st.n && st.n > 1 ? 'Ultima. Giù.' : 'Giù.')
+          else if (b.fase === 'su') voce('Su.')
+        }
+        if (vivo){
+          if (vivo.mezze > mezzeContate){ mezzeContate = vivo.mezze; bip(1320, 45, 0.25); reg.eventi.push([Math.round(t), 'mezza ' + mezzeContate]) }
+          if (vivo.ripetizioni > ripContate){ ripContate = vivo.ripetizioni; setTimeout(function(){ bip(1760, 70, 0.25) }, 70) }
+          if (vivo.caduta){ fermato = 'caduta'; clearInterval(iv); fine(); return }
+          // una correzione breve, descrittiva, mai più di una ogni 6 secondi e solo da fermi
+          if ((b.fase === 'fondo' || b.fase === 'piedi') && t - tAvviso > 6000){
+            if (vivo.braccia){ tAvviso = t; voce('Telefono all’altezza degli occhi.'); reg.eventi.push([Math.round(t), 'voce braccia']) }
+            else if (vivo.lato){ tAvviso = t; voce('Mano ' + vivo.lato + ' più bassa.'); reg.eventi.push([Math.round(t), 'voce mano ' + vivo.lato]) }
+          }
+        }
+        if (t >= st.fine + 700){ clearInterval(iv); fine() }
+      }, 40)
+    })
+    if (mio !== giro) return
+    chiudi()
+  }
+  function smetti(){
+    ascolta(false); tonoMetti(0, false)
+    if (raf){ cancelAnimationFrame(raf); raf = null }
+    try { if (wl) wl.release() } catch(e){}
+    wl = null
+    velo(null); $('palco').classList.remove('on')
+  }
+  function fallito(msg){
+    giro++; smetti(); tonoChiudi(); inCorso = false; st = null
+    animaOmino(true)
+    $('err').style.display = ''; $('err').textContent = '⚠️ ' + msg
+  }
+  var ultimoEsito = null
+  function chiudi(){
+    smetti(); tonoChiudi()
+    inCorso = false
+    animaOmino(true)
+    if (!st){ return }
+    var r = F.riassunto(st)
+    ultimoEsito = { r: r, fermato: fermato, quando: new Date().toISOString(), reg: reg, serie: { roll: st.roll.slice(), pitch: st.pitch.slice() },
+      scelte: { n: nRip, ritmo: ritmo, sogliaMani: sogliaMani }, capovolto: capovolto, ios: IOS, senzaLineare: !!(ultimo && !ultimo.a) }
+    st = null
+    if (fermato === 'caduta') voce('Mi fermo: il telefono è caduto.')
+    else if (fermato) voce('Fermato.')
+    else voce('Fatto. ' + r.intere + (r.intere === 1 ? ' ripetizione contata.' : ' ripetizioni contate.'))
+    if (!fermato){ bip(660, 120); setTimeout(function(){ bip(990, 220) }, 140) }
+    disegnaEsito(ultimoEsito)
+    mostra('c-esito', true)
+    try { $('c-esito').scrollIntoView({ block: 'start' }) } catch(e){}
+  }
+  $('btn-fermo').onclick = function(){
+    if (!inCorso) return
+    fermato = 'mano'
+    if (!st){ giro++; smetti(); tonoChiudi(); inCorso = false; animaOmino(true); voce('Fermato.') }
+  }
+
+  // ═══ L'ESITO ═══
+  function gomitolo(serie, sm, sb){
+    var n = serie.roll.length; if (n < 10) return ''
+    var lim = Math.max(sm * 2, sb, 10), i
+    for (i = 0; i < n; i++) lim = Math.max(lim, Math.abs(serie.roll[i]), Math.abs(serie.pitch[i]))
+    lim = Math.ceil(lim / 5) * 5
+    var passo = Math.max(1, Math.floor(n / 600)), pt = []
+    var X = function(v){ return (150 + v / lim * 130).toFixed(1) }, Y = function(v){ return (150 + v / lim * 130).toFixed(1) }
+    for (i = 0; i < n; i += passo) pt.push(X(serie.roll[i]) + ',' + Y(serie.pitch[i]))
+    return '<svg class="gomitolo" viewBox="0 0 300 300" role="img" aria-label="Il gomitolo: come si è mosso il telefono">' +
+      '<rect x="20" y="20" width="260" height="260" rx="14" fill="#fafafa" stroke="#e3e3e3" stroke-width="2"/>' +
+      '<rect x="' + X(-sm) + '" y="' + Y(-sb) + '" width="' + (sm / lim * 260).toFixed(1) + '" height="' + (sb / lim * 260).toFixed(1) + '" fill="#eaf7ee" stroke="#bfe3c9"/>' +
+      '<line x1="150" y1="20" x2="150" y2="280" stroke="#ddd"/><line x1="20" y1="150" x2="280" y2="150" stroke="#ddd"/>' +
+      '<polyline points="' + pt.join(' ') + '" fill="none" stroke="#111" stroke-width="1.6" stroke-linejoin="round" opacity=".8"/>' +
+      '<text x="24" y="146" font-size="10" font-weight="800" fill="#666">SX BASSA</text><text x="276" y="146" text-anchor="end" font-size="10" font-weight="800" fill="#666">DX BASSA</text>' +
+      '<text x="150" y="294" text-anchor="middle" font-size="10" font-weight="700" fill="#666">mani (↔) e inclinazione (↕) · bordo = ' + lim + '°</text></svg>'
+  }
+  function disegnaEsito(e){
+    var r = e.r
+    $('e-tit').textContent = e.fermato === 'caduta' ? 'Fermato · telefono caduto' : e.fermato ? 'Fermato prima della fine' : 'Com’è andata'
+    var h = '<div class="grandi"><div><b>' + r.intere + '<small style="font-size:.5em;opacity:.6">/' + r.n + '</small></b><span>ripetizioni contate</span></div>' +
+      '<div><b>' + (r.mani.media == null ? '—' : num1(r.mani.media) + '°') + '</b><span>' + (r.mani.lato ? 'mano ' + r.mani.lato + ' più bassa' : 'mani pari') + '</span></div>' +
+      '<div><b>' + (r.discesaCm.media == null ? '—' : '~' + r.discesaCm.media) + '</b><span>cm di discesa (stima)</span></div></div>'
+    h += '<table class="rip"><tr><th>Rip.</th><th>Giù</th><th>Su</th><th>Mani</th><th>Inclin.</th></tr>'
+    r.ripetizioni.forEach(function(x){
+      var lato = x.mani == null ? '' : Math.abs(x.mani) < r.soglie.mani ? '' : (x.mani > 0 ? ' dx' : ' sx')
+      h += '<tr><td>' + x.rip + '</td><td class="' + (x.giu ? '' : 'no') + '">' + (x.giu ? '~' + x.discesaCm + ' cm' : 'non vista') + '</td>' +
+        '<td class="' + (x.su ? '' : 'no') + '">' + (x.su ? '~' + x.risalitaCm + ' cm' : 'non vista') + '</td>' +
+        '<td>' + (x.mani == null ? '—' : num1(x.mani) + '°' + lato) + '</td><td>' + (x.braccia == null ? '—' : num1(x.braccia) + '°') + '</td></tr>'
+    })
+    h += '</table>'
+    h += gomitolo(e.serie, r.soglie.mani, r.soglie.braccia)
+    h += '<div class="frasi">' + F.frasi(r).map(function(f){ return '<p>' + esc(f) + '</p>' }).join('') + '</div>'
+    if (e.senzaLineare) h += '<div class="nota">⚠️ Questo telefono non dà l’accelerazione «senza gravità»: il conto dei movimenti è meno affidabile.</div>'
+    $('esito').innerHTML = h
+    var file = fileTracciato()
+    var puo = false
+    try { puo = !!(file && navigator.canShare && navigator.canShare({ files: [file] })) } catch(err){}
+    mostra('btn-condividi', puo)
+  }
+  function tracciato(){
+    var e = ultimoEsito; if (!e) return null
+    return { cosa: 'squat guidato · tracciato grezzo dei sensori', versione: F.VERSIONE, quando: e.quando, telefono: navigator.userAgent,
+      schermo: [window.innerWidth, window.innerHeight], ios: e.ios, capovolto: e.capovolto, fermato: e.fermato || null, scelte: e.scelte,
+      riassunto: e.r, eventi: e.reg ? e.reg.eventi : [], voce: dette.slice(),
+      t: e.reg ? e.reg.t : [], ag: e.reg ? e.reg.ag : [], a: e.reg ? e.reg.a : [], rr: e.reg ? e.reg.rr : [] }
+  }
+  function nomeFile(){ var d = new Date(), p = function(x){ return (x < 10 ? '0' : '') + x }
+    return 'squat-guidato-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.json' }
+  function fileTracciato(){ try { var t = tracciato(); return t ? new File([JSON.stringify(t)], nomeFile(), { type: 'application/json' }) : null } catch(e){ return null } }
+  $('btn-scarica').onclick = function(){
+    var t = tracciato(); if (!t) return
+    var u = URL.createObjectURL(new Blob([JSON.stringify(t)], { type: 'application/json' }))
+    var a = document.createElement('a'); a.href = u; a.download = nomeFile(); document.body.appendChild(a); a.click()
+    setTimeout(function(){ a.remove(); URL.revokeObjectURL(u) }, 2000)
+  }
+  $('btn-condividi').onclick = function(){
+    var f = fileTracciato(); if (!f) return
+    try { navigator.share({ files: [f], title: 'Squat guidato · tracciato' }).catch(function(){}) } catch(e){}
+  }
+
+  $('btn-start').onclick = function(){ avvia() }
+  window.__guidato = { vivo: function(){ return vivo }, stato: function(){ return st }, inCorso: function(){ return inCorso }, t0: function(){ return t0 },
+    esito: function(){ return ultimoEsito }, tracciato: tracciato, rot: function(){ return rot }, dette: function(){ return dette }, velo: function(){ return $('velo').classList.contains('on') } }
+})()
+</script>
+<script src="js/pol-nav.js?v=nav-v1" defer></script><!-- nav-v1 · pulsante Indietro/Home -->
+</body>
+</html>
