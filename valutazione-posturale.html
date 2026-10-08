@@ -425,7 +425,11 @@
     }
 
     /* ── EXTRA PHOTOS ROW (sezione G) ───────────────────────── */
-    .extra-photos-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+    /* capo-colonna-v1 (8 ott 2026) — sul telefono le foto di capo e stomatognatico stanno UNA SOTTO L'ALTRA.
+       minmax(0,1fr): una colonna non può mai allargarsi oltre la scheda (su iPhone la seconda foto usciva a destra e la pagina si rimpiccioliva). */
+    .extra-photos-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; margin-bottom:14px; }
+    .extra-photos-row > * { min-width:0; }
+    @media (max-width: 767px) { .extra-photos-row { grid-template-columns:minmax(0,1fr); gap:14px; } }
 
     /* ── ACQUISIZIONE RAPIDA ─────────────────────────────────── */
     #wc-rapid-banner { display:none; width:100%; font-size:12px; font-weight:700; color:#FFD008; text-align:center; padding:4px 0 2px; letter-spacing:.3px; }
