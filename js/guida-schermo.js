@@ -1,4 +1,4 @@
-/* js/guida-schermo.js — guidato-v7 (7 ottobre 2026)
+/* js/guida-schermo.js — guidato-v8 (8 ottobre 2026)
  *
  * ESERCIZI GUIDATI: IL PALCO, DISEGNATO IN UN POSTO SOLO.
  * Lo usano il telefono (prova-guidato.html) e la TV (tv.html): due metà che
@@ -16,7 +16,7 @@
  */
 ;(function (g) {
   'use strict'
-  var VERSIONE = 'guidato-v7'
+  var VERSIONE = 'guidato-v8'
   var CSS = '' +
     '.gs{position:absolute;inset:0;overflow:hidden;background:#050505;color:#fff;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}' +
     '.gs-meta{position:absolute;top:0;bottom:0;width:50%;background:rgba(10,125,51,.30);transition:background .18s linear}' +
@@ -31,7 +31,7 @@
     '.gs-omino{position:absolute;inset:0;width:100%;height:100%;overflow:visible}' +
     '.gs-nome{position:absolute;left:50%;top:-1.7em;transform:translateX(-50%);font-size:2.8em;font-weight:900;letter-spacing:.14em;white-space:nowrap;opacity:.85}' +
     '.gs-zona{position:absolute;left:0;right:0;background:rgba(10,125,51,.55)}' +
-    '.gs-guida{position:absolute;left:50%;width:9.6em;height:9.6em;margin-left:-4.8em;border-radius:50%;border:.5em dashed rgba(255,208,8,.85)}' +
+    '.gs-guida{position:absolute;left:50%;width:9.6em;height:9.6em;margin-left:-4.8em;border-radius:50%;border:.75em dashed #FFD008}' +
     '.gs-palla{position:absolute;left:50%;width:8.4em;height:8.4em;margin-left:-4.2em;border-radius:50%;background:#FFD008;border:.5em solid #111;box-shadow:0 0 3em rgba(255,208,8,.55);transition:top .14s linear}' +
     '.gs-centro{position:absolute;left:50%;top:0;bottom:0;width:60em;margin-left:-30em;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:4em}' +
     '.gs-freccia{width:26em;height:26em;transition:transform .35s ease}' +
@@ -69,18 +69,35 @@
 
   /* L'omino di fianco, dentro la pista (180 × 600: dieci unità = 1 em). La testa è la pallina
      gialla; qui si disegnano tronco, braccia tese col telefono, e gambe che si piegano. c = 0 in
-     piedi, 1 in fondo. */
+     piedi, 1 in fondo.
+     guidato-v8 · lo squat FATTO BENE (chiesto da Giuliano): le ginocchia non superano mai la punta
+     del piede, si scende portando il sedere indietro e il busto si inclina in avanti. I piedi stanno
+     fermi; le lunghezze di gamba, coscia e busto non cambiano mai; la testa scende e va un poco in
+     avanti (la pallina e il cerchio tratteggiato la seguono). */
   var TESTA_SU = 58, TESTA_CORSA = 250
+  var PIEDE = { x: 118, y: 586 }, PUNTA = 34, AVANTI = 24, GAMBA = 155, COSCIA = 155, BUSTO = 170, COLLO = 53, BRACCIO = 95
+  var GINOCCHIO_MAX = Math.asin((PUNTA - 4) / GAMBA)       // la tibia si inclina al massimo fin qui
+  function testa(c) { return { x: PIEDE.x + AVANTI * c, y: TESTA_SU + TESTA_CORSA * c - 5 } }
+  function posa(c) {
+    c = Math.max(0, Math.min(1, c || 0))
+    var T = testa(c), a = GINOCCHIO_MAX * Math.pow(c, 0.7)
+    var K = { x: PIEDE.x + GAMBA * Math.sin(a), y: PIEDE.y - GAMBA * Math.cos(a) }
+    // l'anca: a COSCIA dal ginocchio e a BUSTO + COLLO dalla testa, dalla parte di dietro
+    var R = BUSTO + COLLO, dx = T.x - K.x, dy = T.y - K.y, d = Math.min(COSCIA + R - 0.01, Math.sqrt(dx * dx + dy * dy)) || 1
+    var A = (COSCIA * COSCIA - R * R + d * d) / (2 * d), h = Math.sqrt(Math.max(0, COSCIA * COSCIA - A * A))
+    var P = { x: K.x + A * dx / d, y: K.y + A * dy / d }
+    var H1 = { x: P.x + h * dy / d, y: P.y - h * dx / d }, H2 = { x: P.x - h * dy / d, y: P.y + h * dx / d }
+    var H = H1.x < H2.x ? H1 : H2
+    var S = { x: H.x + (T.x - H.x) * BUSTO / R, y: H.y + (T.y - H.y) * BUSTO / R }
+    var my = T.y + 8, sy = S.y - my
+    var Mn = { x: S.x + Math.sqrt(Math.max(0, BRACCIO * BRACCIO - sy * sy)), y: my }
+    return { T: T, K: K, H: H, S: S, Mn: Mn, F: PIEDE, punta: { x: PIEDE.x + PUNTA, y: PIEDE.y } }
+  }
   function omino(c) {
-    var yT = TESTA_SU + TESTA_CORSA * c
-    var S = { x: 84 + 22 * c, y: yT + 56 }, H = { x: 84 - 24 * c, y: yT + 56 + 168 - 10 * c }, F = { x: 92, y: 586 }, L = 153
-    var dx = F.x - H.x, dy = F.y - H.y, d = Math.min(2 * L - 1, Math.sqrt(dx * dx + dy * dy)) || 1
-    var h = Math.sqrt(Math.max(0, L * L - d * d / 4)), M = { x: (H.x + F.x) / 2, y: (H.y + F.y) / 2 }
-    var K = { x: M.x + h * dy / d, y: M.y - h * dx / d }                    // il ginocchio va in avanti
-    var Mn = { x: S.x + 64, y: yT + 4 }
+    var q = posa(c)
     var l = function (a, b, w) { return '<line x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '" stroke="#fff" stroke-width="' + w + '" stroke-linecap="round"/>' }
-    return l(F, { x: F.x + 34, y: F.y }, 12) + l(F, K, 15) + l(K, H, 17) + l(H, S, 19) + l(S, Mn, 11) +
-      '<rect x="' + (Mn.x - 4).toFixed(1) + '" y="' + (Mn.y - 20).toFixed(1) + '" width="10" height="40" rx="3" fill="#fff"/>'
+    return l({ x: q.F.x - 10, y: q.F.y }, q.punta, 12) + l(q.F, q.K, 15) + l(q.K, q.H, 17) + l(q.H, q.S, 19) + l(q.S, q.Mn, 11) +
+      '<rect x="' + (q.Mn.x - 4).toFixed(1) + '" y="' + (q.Mn.y - 20).toFixed(1) + '" width="10" height="40" rx="3" fill="#fff"/>'
   }
 
   function monta(el) {
@@ -115,8 +132,11 @@
       // guidato-v7 · la pallina gialla è la TESTA di un omino che fa lo squat: si capisce a colpo
       // d'occhio che quello sei tu che scendi e risali. Il cerchio tratteggiato è dove chiede il ritmo.
       var c = Math.max(0, Math.min(1, v.corpo || 0))
+      var cg = Math.max(0, Math.min(1, v.p || 0))
       E.corpo.style.top = ((TESTA_SU + TESTA_CORSA * c) / 10 - 4.7).toFixed(2) + 'em'
-      E.guida.style.top = ((TESTA_SU + TESTA_CORSA * Math.max(0, Math.min(1, v.p || 0))) / 10 - 5.3).toFixed(2) + 'em'
+      E.corpo.style.left = (testa(c).x / 10).toFixed(2) + 'em'          // guidato-v8 · la testa va un poco in avanti
+      E.guida.style.top = ((TESTA_SU + TESTA_CORSA * cg) / 10 - 5.3).toFixed(2) + 'em'
+      E.guida.style.left = (testa(cg).x / 10).toFixed(2) + 'em'
       E.omino.innerHTML = omino(c)
       // le braccia: al centro = come alla partenza
       var b = Math.max(-1, Math.min(1, (v.pitch || 0) / (sb * 2)))
@@ -159,5 +179,5 @@
     })
   }
 
-  g.PolGuidaSchermo = { VERSIONE: VERSIONE, monta: monta, esito: esito, NOMI: NOMI }
+  g.PolGuidaSchermo = { VERSIONE: VERSIONE, monta: monta, esito: esito, NOMI: NOMI, posa: posa }
 })(typeof window !== 'undefined' ? window : globalThis)

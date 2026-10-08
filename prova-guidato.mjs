@@ -253,9 +253,10 @@ try {
     const { page, ctx, errori } = await apri({ width: 844, height: 390 }, '?via=1&n=1')
     check('⭐ dice che è un’anteprima, che i numeri sono stime e che non dà giudizi clinici', /Anteprima/.test(await page.textContent('.avviso')) && /stime non ancora verificate/.test(await page.textContent('.avviso')) && /non salva niente/i.test(await page.textContent('.avviso')) && /giudizi clinici/.test(await page.textContent('.avviso')))
     const sg = await page.textContent('#spiegazione')
-    check('⭐⭐ «Come si fa e a cosa serve»: equilibrio, stabilità, coordinazione; giù/su; mani pari; Cuscini Elicoidali o senza; fisioterapista o professionista formato nel Metodo Policettivo®; dolore → fermati', /equilibrio, stabilità e coordinazione fra braccia e corpo/.test(sg) && /«giù»/.test(sg) && /stessa altezza/.test(sg) && /Cuscini Elicoidali Policettivi/.test(sg) && /oppure senza/.test(sg) && /fisioterapista o del professionista formato nel Metodo Policettivo®/.test(sg) && /Se senti dolore, fermati/.test(sg) && (await page.$$('#spiegazione p')).length === 5, sg)
+    check('⭐⭐ «Come si fa e a cosa serve»: equilibrio, stabilità, coordinazione; giù/su; mani pari; Cuscini Elicoidali o senza; fisioterapista o professionista formato nel Metodo Policettivo®; dolore → fermati', /equilibrio, stabilità e coordinazione fra braccia e corpo/.test(sg) && /«giù»/.test(sg) && /stessa altezza/.test(sg) && /Cuscini Elicoidali Policettivi/.test(sg) && /oppure senza/.test(sg) && /fisioterapista o del professionista formato nel Metodo Policettivo®/.test(sg) && /Se senti dolore, fermati/.test(sg) && /sedere indietro/.test(sg) && /le ginocchia non superano la punta dei piedi/.test(sg) && /cerchio tratteggiato/.test(sg) && (await page.$$('#spiegazione p')).length === 6, sg)
     check('⛔ la spiegazione dice a cosa serve, non promette guarigioni né risultati', !/guarisc|cura |elimina|riduce il dolore|garantisc|migliora sicuramente|scientificamente/i.test(sg))
-    check('⭐ spiegazione a voce: «Sì» di partenza', await page.evaluate(() => document.querySelector('#avoce .chip.on').getAttribute('data-v')) === 'si')
+    check('⭐⭐ guidato-v8 · sul titolo il pulsante giallo «fatti spiegare come si fa e a cosa serve», visibile subito', await page.isVisible('#btn-spiegami') && /fatti spiegare come si fa e a cosa serve/.test(await page.textContent('#btn-spiegami')) && await page.evaluate(() => { const h = document.querySelector('#c-setup h2'); return h.nextElementSibling.id === 'btn-spiegami' }))
+    check('⛔ niente più «Spiegazione a voce prima di partire» Sì/No', !(await page.$('#avoce')))
     check('⭐ quattro passi, due disegni, l’omino si muove', (await page.$$('.passi li')).length === 4 && (await page.$$('.disegni svg')).length === 2 && (await page.innerHTML('#omino')).length > 200)
     check('⭐ avviso di sicurezza e cosa il telefono NON vede', /vicino a un appoggio/.test(await page.textContent('#c-setup')) && /non vede/.test(await page.textContent('#c-setup')))
     await page.click('#ritmo .chip[data-r="medio"]')
@@ -287,31 +288,56 @@ try {
     await ctx.close()
   }
 
-  sez('⭐ guidato-v6/v7 · la spiegazione a voce prima di partire, l’omino che la mostra, e SALTA')
+  sez('⭐⭐ guidato-v8 · la spiegazione si chiede PRIMA, col pulsante: omino, frase grande, voce senza ®')
   {
-    let x = await apri({ width: 844, height: 390 }, '?via=1&n=1', { voceFinta: 5000 })
-    await x.page.evaluate(TELEFONO, { prof: 0.4 })
-    await x.page.click('#btn-start')
-    await x.page.waitForFunction(() => document.getElementById('didascalia').classList.contains('on'), null, { timeout: 4000 })
-    check('⭐ con «Sì»: la frase scritta sul palco, SALTA ben visibile, e la voce la dice', await x.page.isVisible('#btn-salta') && /equilibrio/.test(await x.page.textContent('#didascalia')) && await x.page.evaluate(() => window.__voce.log.some(v => v[0] === 'parla' && /Cuscini Elicoidali/.test(v[1]))))
-    const posizioni = []
-    for (let k = 0; k < 6; k++) { posizioni.push(await x.page.evaluate(() => parseFloat(document.querySelector('[data-gs="corpo"]').style.top))); await x.page.waitForTimeout(330) }
-    check('⭐⭐ intanto l’omino fa lo squat: la testa scende e risale, freccia GIÙ/SU', Math.max(...posizioni) - Math.min(...posizioni) > 8 && /GIÙ|SU/.test(await x.page.textContent('[data-gs="fase"]')), posizioni)
+    let x = await apri({ width: 390, height: 844 }, '?via=1&n=1', { voceFinta: 700 })
+    await x.page.click('#btn-spiegami')
+    await x.page.waitForFunction(() => document.getElementById('sv').classList.contains('on'), null, { timeout: 3000 })
+    check('⭐ si apre la schermata: la prima frase scritta grande e detta a voce', /equilibrio, stabilità e coordinazione/.test(await x.page.textContent('#sv-frase')) && await x.page.evaluate(() => window.__voce.log.some(v => v[0] === 'parla' && /equilibrio/.test(v[1]))))
+    const teste = []
+    for (let k = 0; k < 5; k++) { teste.push(await x.page.evaluate(() => { const c = document.querySelectorAll('#sv-omino circle'); return parseFloat(c[c.length - 1].getAttribute('cy')) })); await x.page.waitForTimeout(400) }
+    check('⭐⭐ intanto l’omino fa lo squat, con la testa dentro il cerchio tratteggiato', Math.max(...teste) - Math.min(...teste) > 10 && await x.page.evaluate(() => !!document.querySelector('#sv-omino circle[stroke-dasharray]')), teste)
     if (FOTO) await x.page.screenshot({ path: FOTO + '/spiegazione.png' })
-    await x.page.click('#btn-salta')
-    await x.page.waitForFunction(() => window.__guidato.stato() !== null, null, { timeout: 4000 })
-    check('⭐ SALTA: la voce si zittisce subito e l’esercizio parte', !(await x.page.isVisible('#btn-salta')) && await x.page.evaluate(() => window.__voce.log.some(v => v[0] === 'taglia')))
-    await x.page.evaluate(() => document.getElementById('btn-fermo').click())
-    await finita(x.page)
-    await x.page.click('#avoce .chip[data-v="no"]')
-    check('⭐ «No» si ricorda', (await x.page.evaluate(() => localStorage.getItem('policettivo.guidato.spiegazione.v1'))) === 'no')
+    await x.page.waitForFunction(() => document.getElementById('sv-parti').style.display !== 'none', null, { timeout: 15000 })
+    const dette = await x.page.evaluate(() => window.__voce.log.filter(v => v[0] === 'parla').map(v => v[1]))
+    check('⭐⭐ la voce dice le sei frasi, una per volta, senza nessuna sovrapposta', dette.filter(t => t.trim().length > 1).length === 6, dette)
+    check('⭐⭐ la ® non si legge: «Metodo Policettivo» detto senza ®, né virgolette', dette.some(t => /Metodo Policettivo\. Se senti dolore/.test(t)) && !dette.some(t => /®|«|»/.test(t)), dette.filter(t => /Metodo/.test(t)))
+    check('⭐ a voce anche il sedere indietro, le ginocchia e il cerchio tratteggiato', dette.some(t => /sedere indietro/.test(t) && /punta dei piedi/.test(t)) && dette.some(t => /cerchio tratteggiato/.test(t)))
+    check('⭐ alla fine: «Ancora» e «PARTI»', await x.page.isVisible('#sv-ancora') && await x.page.isVisible('#sv-parti'))
+    if (FOTO) await x.page.screenshot({ path: FOTO + '/spiegazione-fine.png' })
+    // Chiudi a metà: si zittisce subito
+    await x.page.click('#sv-ancora')
+    await x.page.waitForTimeout(150)
+    await x.page.click('#sv-chiudi')
+    check('⭐ «Chiudi» a metà: la schermata si chiude e la voce si zittisce', !(await x.page.isVisible('#sv')) && await x.page.evaluate(() => window.__voce.log.some(v => v[0] === 'taglia')))
+    // PARTI dalla spiegazione: l'esercizio parte, e la spiegazione NON si ripete
+    await x.page.evaluate(TELEFONO, { prof: 0.4 })
+    await x.page.click('#btn-spiegami')
+    await x.page.waitForFunction(() => document.getElementById('sv-parti').style.display !== 'none', null, { timeout: 15000 })
     await x.page.evaluate(() => { window.__voce.log = [] })
-    await x.page.click('#btn-start')
-    await x.page.waitForFunction(() => window.__guidato.stato() !== null, null, { timeout: 4000 })
-    check('⭐ con «No» parte senza spiegazione', !(await x.page.evaluate(() => window.__voce.log.some(v => /Cuscini/.test(v[1])))))
-    await x.page.evaluate(() => document.getElementById('btn-fermo').click())
+    await x.page.click('#sv-parti')
+    await x.page.waitForFunction(() => window.__guidato.stato() !== null, null, { timeout: 6000 })
+    check('⭐⭐ «PARTI» dalla spiegazione: parte l’esercizio, senza ridire la spiegazione', !(await x.page.isVisible('#sv')) && !(await x.page.evaluate(() => window.__voce.log.some(v => /Cuscini/.test(v[1])))))
+    await finita(x.page)
+    const tutte = await x.page.evaluate(() => window.__voce.log.filter(v => v[0] === 'parla').map(v => v[1]))
+    check('⭐⭐ al primo «giù» la voce dice: «Giù. Segui il cerchio tratteggiato: tieni la testa dentro il cerchio.»', tutte.includes('Giù. Segui il cerchio tratteggiato: tieni la testa dentro il cerchio.'), tutte)
     check('⛔ nessun errore JavaScript', x.errori.length === 0, x.errori)
     await x.ctx.close()
+  }
+
+  sez('⭐⭐ guidato-v8 · l’omino fa lo squat bene: ginocchia mai oltre la punta del piede, sedere indietro')
+  {
+    const { page, ctx, errori } = await apri({ width: 844, height: 390 }, '')
+    const g = await page.evaluate(() => { const G = window.PolGuidaSchermo, L = (a, b) => Math.hypot(a.x - b.x, a.y - b.y), r = []
+      for (let i = 0; i <= 50; i++) { const q = G.posa(i / 50); r.push({ c: i / 50, gin: q.K.x - q.punta.x, anca: q.H.x, piede: q.F.x, testa: q.T.y, gamba: L(q.F, q.K), coscia: L(q.K, q.H), busto: L(q.H, q.S), braccio: L(q.S, q.Mn), sopra: q.K.y < q.F.y && q.H.y < q.F.y }) }
+      return r })
+    check('⭐⭐ in tutta la discesa il ginocchio resta DIETRO la punta del piede', g.every(q => q.gin <= 0), g.map(q => q.gin.toFixed(1)).join(' '))
+    check('⭐⭐ in fondo il sedere va indietro, dietro il tallone', g[50].anca < g[50].piede - 60, [g[50].anca, g[50].piede])
+    check('⭐ le ossa non si allungano né si accorciano (gamba, coscia, busto, braccio sempre uguali)', g.every(q => Math.abs(q.gamba - 155) < 0.5 && Math.abs(q.coscia - 155) < 0.5 && Math.abs(q.busto - 170) < 0.5 && Math.abs(q.braccio - 95) < 0.5))
+    check('⭐ la testa scende sempre, dall’alto al basso, senza salti', g.every((q, i) => i === 0 || q.testa > g[i - 1].testa) && g.every(q => q.sopra))
+    check('⭐ anche l’omino della pagina è lo stesso (stessa posa, in piccolo)', /PolGuidaSchermo|GS\.posa/.test(fs.readFileSync('prova-guidato.html', 'utf8')) && (await page.innerHTML('#omino')).includes('stroke-dasharray'))
+    check('⛔ nessun errore JavaScript', errori.length === 0, errori)
+    await ctx.close()
   }
 
   sez('⭐⭐ rotazione bloccata (pagina 390×844, telefono in orizzontale): il palco si gira da solo · mano destra più bassa')
@@ -363,7 +389,7 @@ try {
 
   sez('⭐ telefono tenuto in verticale: chiede di girarlo · MI FERMO funziona anche lì')
   {
-    const { page, ctx, errori } = await apri({ width: 390, height: 844 }, '?n=1&spiega=0')
+    const { page, ctx, errori } = await apri({ width: 390, height: 844 }, '?n=1')
     await page.evaluate(TELEFONO, { prof: 0.4, tenuto: 'verticale' })
     await page.click('#btn-start')
     await page.waitForFunction(() => window.__guidato.velo(), null, { timeout: 5000 })
@@ -410,7 +436,7 @@ try {
     const rpc = (src.match(/\.rpc\('([a-z_]+)'/g) || []).join(' ')
     const nomi = [...new Set((src.match(/\.rpc\('([a-z_]+)'/g) || []).map(x => x.replace(/.*'([a-z_]+)'/, '$1')))].sort().join()
     check('⛔ la pagina non legge e non scrive tabelle: solo il canale e l’elenco delle TV (nessun .from, nessun fetch)', !/\.from\(|fetch\(|XMLHttpRequest|sendBeacon|storage\./.test(src) && nomi === 'oscillazione_apri_canale,oscillazione_canale,tv_elenco', nomi)
-    check('⛔ sul telefono restano scritte solo «capovolto», «spiegazione a voce sì/no» e «TV accesa» (le stesse due chiavi di «La tua TV»)', (src.match(/localStorage\.setItem/g) || []).length === 4 && /CHIAVE_GIRO/.test(src) && /CHIAVE_VOCE/.test(src) && /setItem\('policettivo\.tv\.v1', 'on'\)/.test(src) && /setItem\('policettivo\.diretta\.v1', 'on'\)/.test(src) && !/sessionStorage|indexedDB/.test(src))
+    check('⛔ sul telefono restano scritte solo «capovolto» e «TV accesa» (le stesse due chiavi di «La tua TV»)', (src.match(/localStorage\.setItem/g) || []).length === 3 && /CHIAVE_GIRO/.test(src) && !/CHIAVE_VOCE/.test(src) && /setItem\('policettivo\.tv\.v1', 'on'\)/.test(src) && /setItem\('policettivo\.diretta\.v1', 'on'\)/.test(src) && !/sessionStorage|indexedDB/.test(src))
     check('⛔ niente alert / confirm', !/\balert\(|\bconfirm\(/.test(src))
   }
 

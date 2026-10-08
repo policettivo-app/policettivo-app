@@ -6,7 +6,11 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Squat guidato · in prova</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- guidato-v7 (8 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · ANTEPRIMA PER TUTTI I PROFESSIONISTI
+<!-- guidato-v8 (8 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · ANTEPRIMA PER TUTTI I PROFESSIONISTI
+     v8, dalla prova con una paziente nuova: la spiegazione si chiede PRIMA, col pulsante giallo
+     «fatti spiegare come si fa e a cosa serve» (omino + frase grande + voce); dopo PARTI non parte
+     più da sola. La ® non si legge a voce. L'omino fa lo squat bene: sedere indietro, ginocchia mai
+     oltre la punta dei piedi. Al primo «giù»: «segui il cerchio tratteggiato, testa dentro il cerchio».
      v7: durante la spiegazione a voce l'omino del palco FA lo squat e la frase è scritta sotto; spiegazione più corta.
      v6: aperto a tutti da Test (prima solo amministratore), per il corso del 10 ottobre; «come si fa e a
      cosa serve» scritto e, se si vuole, detto a voce prima di partire (Sì/No ricordato; «Salta» sempre).
@@ -31,7 +35,7 @@
      TV») il palco ci va da solo, sul canale dei test: solo fasi e angoli. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/guida-motore.js?v=guidato-v7"></script>
-<script src="js/guida-schermo.js?v=guidato-v7"></script>
+<script src="js/guida-schermo.js?v=guidato-v8"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -80,12 +84,21 @@
   .gomitolo{display:block;margin:10px auto 0;width:100%;max-width:300px;height:auto}
   .spieg{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:12px 14px;margin:0 0 14px;font-size:14.5px;line-height:1.55}
   .spieg p{margin:0 0 6px}.spieg p:last-child{margin:0}
-  .salta{position:absolute;right:3em;bottom:3.5em;height:13em;padding:0 5em;border-radius:6.5em;border:.4em solid #111;background:#FFD008;color:#111;font-family:inherit;font-size:1em;font-weight:900;cursor:pointer;z-index:7;display:none}
-  .salta b{font-size:4.4em;letter-spacing:.06em}
-  .salta.on{display:block}
-  .didascalia{position:absolute;left:50%;bottom:4.4em;transform:translateX(-50%);width:min(118em,92%);font-size:3.9em;font-weight:800;line-height:1.25;text-align:center;
-     background:rgba(0,0,0,.72);border-radius:.6em;padding:.5em .8em;z-index:6;display:none}
-  .didascalia.on{display:block}
+  /* guidato-v8 · «fatti spiegare»: prima di partire, a voce, con l'omino che lo fa */
+  .spiegami{display:flex;align-items:center;gap:14px;width:100%;margin:0 0 14px;padding:14px 16px;border:0;border-radius:16px;background:#FFD008;color:#111;
+     font-family:inherit;text-align:left;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+  .spiegami .sm-ico{width:52px;height:52px;border-radius:14px;background:#111;color:#FFD008;display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}
+  .spiegami b{display:block;font-size:17px;line-height:1.25}
+  .spiegami small{display:block;font-size:12.5px;font-weight:600;opacity:.75;margin-top:2px}
+  .sv{position:fixed;inset:0;z-index:9500;background:#fff;display:none;flex-direction:column;align-items:center;padding:calc(14px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));overflow:auto}
+  .sv.on{display:flex}
+  .sv-in{width:100%;max-width:560px;display:flex;flex-direction:column;align-items:center;gap:10px;flex:1}
+  .sv-tit{font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#555;align-self:flex-start}
+  .sv svg{width:100%;max-width:420px;max-height:46vh;height:auto;flex:none}
+  .sv-frase{font-size:21px;font-weight:800;line-height:1.35;text-align:center;min-height:5.4em;display:flex;align-items:center;justify-content:center}
+  .sv-punti{display:flex;gap:7px}.sv-punti i{width:9px;height:9px;border-radius:50%;background:#ddd}.sv-punti i.on{background:#111}
+  .sv-bott{display:flex;gap:10px;width:100%;margin-top:auto}
+  .sv-bott .btn{margin:0}
   .sp-apre{font-size:17px;font-weight:800;line-height:1.35;margin-top:14px}
   .sp{border-radius:14px;padding:12px 14px;margin-top:12px;font-size:14.5px;line-height:1.5}
   .sp h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.5px}
@@ -146,6 +159,8 @@
   <!-- ─── LA PREPARAZIONE ─── -->
   <div class="card" id="c-setup">
     <h2>Come si fa e a cosa serve</h2>
+    <button class="spiegami" id="btn-spiegami"><span class="sm-ico">▶</span>
+      <span><b>Tocca qui: fatti spiegare come si fa e a cosa serve</b><small>a voce, con l’omino che te lo fa vedere · mezzo minuto</small></span></button>
     <div class="spieg" id="spiegazione"></div>
     <div class="disegni">
       <svg id="omino" viewBox="0 0 230 210" role="img" aria-label="Di fianco: squat con le braccia tese in avanti e il telefono fra le mani"></svg>
@@ -165,8 +180,8 @@
     </div>
     <ol class="passi">
       <li><b>Telefono in orizzontale fra le due mani</b>, schermo verso di te, <b>braccia tese in avanti</b> all’altezza degli occhi. Tienilo saldo.</li>
-      <li>Premi <b>PARTI</b> (se vuoi, prima la spiegazione a voce: «SALTA» per saltarla), poi tre secondi <b>fermo</b>, poi segui la <b>freccia</b> e il <b>suono</b>: scende il suono, scendi tu; sale, risali.</li>
-      <li>A sinistra ci sei <b>tu</b>: un omino che scende e risale con te. A destra le <b>braccia</b>. Il cerchio tratteggiato è dove chiede il ritmo.</li>
+      <li>Premi <b>PARTI</b>, poi tre secondi <b>fermo</b>, poi segui la <b>freccia</b> e il <b>suono</b>: scende il suono, scendi tu; sale, risali. Scendi portando il <b>sedere indietro</b>: le ginocchia non superano la punta dei piedi.</li>
+      <li>A sinistra ci sei <b>tu</b>: un omino che scende e risale con te, la pallina gialla è la tua testa. <b>Segui il cerchio tratteggiato</b>: tieni la testa dentro il cerchio. A destra le <b>braccia</b>.</li>
       <li>Se una mano scende, <b>la sua metà di schermo diventa rossa</b> («ALZA LA MANO») e la voce lo dice. Per smettere: <b>MI FERMO</b>.</li>
     </ol>
     <label>Ripetizioni</label>
@@ -181,10 +196,6 @@
     <div class="chips" id="soglia">
       <button class="chip" data-s="3">3°</button><button class="chip on" data-s="5">5°</button><button class="chip" data-s="8">8°</button>
     </div>
-    <label>Spiegazione a voce prima di partire</label>
-    <div class="chips" id="avoce">
-      <button class="chip" data-v="si">Sì</button><button class="chip" data-v="no">No</button>
-    </div>
     <div class="nota">⚠️ Spazio libero davanti, pavimento stabile. Con i Cuscini Elicoidali sotto i piedi, la prima volta stai vicino a un appoggio. Se senti dolore o perdi l’equilibrio, fermati.<br>
       Il telefono <b>non vede</b> ginocchia, talloni e schiena, e non dice se l’esercizio è «giusto»: descrive cosa fa il telefono.</div>
     <div class="err" id="err" style="display:none"></div>
@@ -194,13 +205,26 @@
 <button class="parti-fisso" id="btn-start"><span class="pf-icona">▶</span>
   <span class="pf-testo"><b>PARTI</b><small id="pf-cosa">squat guidato · 5 ripetizioni</small></span></button>
 
+<!-- ═══ guidato-v8 · LA SPIEGAZIONE, prima di partire ═══ -->
+<div class="sv" id="sv" role="dialog" aria-label="Come si fa e a cosa serve">
+  <div class="sv-in">
+    <div class="sv-tit">Come si fa e a cosa serve</div>
+    <svg id="sv-omino" viewBox="22 0 150 200" role="img" aria-label="L’omino fa lo squat: sedere indietro, ginocchia dietro la punta dei piedi, testa dentro il cerchio tratteggiato"></svg>
+    <div class="sv-punti" id="sv-punti"></div>
+    <div class="sv-frase" id="sv-frase"></div>
+    <div class="sv-bott">
+      <button class="btn vuoto" id="sv-chiudi">✕ Chiudi</button>
+      <button class="btn vuoto" id="sv-ancora" style="display:none">↻ Ancora</button>
+      <button class="btn" id="sv-parti" style="display:none;background:#FFD008;color:#111">▶ PARTI</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ IL PALCO ═══ -->
 <div class="palco" id="palco">
   <div id="palco-gs"></div>
   <button class="mi-fermo" id="btn-fermo"><b>MI FERMO</b></button>
   <button class="gira-tasto" id="btn-gira" aria-label="Capovolgi lo schermo"><b>⟲</b></button>
-  <div class="didascalia" id="didascalia"></div>
-  <button class="salta" id="btn-salta"><b>SALTA ›</b></button>
   <div class="velo" id="velo"><div class="v-tit" id="v-tit"></div><div class="v-num" id="v-num"></div><div class="v-sotto" id="v-sotto"></div></div>
 </div>
 
@@ -240,27 +264,25 @@
 
   // ── il disegno che si muove ──
   var ominoT = null
-  function omino(p){
-    var A = { x: 96, y: 188 }, g = Math.PI / 180
-    var a = 28 * p * g, b = 78 * p * g, c = 26 * p * g
-    var K = { x: A.x + 46 * Math.sin(a), y: A.y - 46 * Math.cos(a) }
-    var H = { x: K.x - 50 * Math.sin(b), y: K.y - 50 * Math.cos(b) }
-    var S = { x: H.x + 58 * Math.sin(c), y: H.y - 58 * Math.cos(c) }
-    var T = { x: S.x + 20 * Math.sin(c), y: S.y - 20 * Math.cos(c) }
-    var M = { x: S.x + 52, y: T.y + 2 }
-    var l = function(P, R, w){ return '<line x1="' + P.x.toFixed(1) + '" y1="' + P.y.toFixed(1) + '" x2="' + R.x.toFixed(1) + '" y2="' + R.y.toFixed(1) + '" stroke="#111" stroke-width="' + w + '" stroke-linecap="round"/>' }
+  // guidato-v8 · è lo stesso omino del palco (js/guida-schermo.js, PolGuidaSchermo.posa), in piccolo:
+  // squat fatto bene, ginocchia mai oltre la punta del piede (la riga tratteggiata), sedere indietro.
+  // Con «cerchio» la testa sta dentro il cerchio tratteggiato, come si chiede durante l'esercizio.
+  function omino(p, cerchio){
+    var q = GS.posa(p), k = 0.32, X = function(P){ return { x: 58 + P.x * k, y: 192 - (586 - P.y) * k } }
+    var F = X(q.F), K = X(q.K), H = X(q.H), S = X(q.S), T = X(q.T), M = X(q.Mn), P = X(q.punta)
+    var l = function(A, B, w){ return '<line x1="' + A.x.toFixed(1) + '" y1="' + A.y.toFixed(1) + '" x2="' + B.x.toFixed(1) + '" y2="' + B.y.toFixed(1) + '" stroke="#111" stroke-width="' + w + '" stroke-linecap="round"/>' }
     return '<line x1="20" y1="192" x2="210" y2="192" stroke="#ccc" stroke-width="3" stroke-linecap="round"/>' +
-      '<line x1="' + (M.x + 26) + '" y1="24" x2="' + (M.x + 26) + '" y2="180" stroke="#FFD008" stroke-width="6" stroke-linecap="round" opacity=".45"/>' +
-      '<circle cx="' + (M.x + 26) + '" cy="' + (24 + 150 * (M.y - 22) / 104).toFixed(1) + '" r="8" fill="#FFD008" stroke="#111" stroke-width="2.5"/>' +
-      l(A, { x: A.x + 24, y: A.y }, 7) + l(A, K, 8) + l(K, H, 9) + l(H, S, 10) + l(S, M, 6) +
-      '<circle cx="' + T.x.toFixed(1) + '" cy="' + T.y.toFixed(1) + '" r="12" fill="#f3e2d3" stroke="#111" stroke-width="3"/>' +
-      '<rect x="' + (M.x - 3).toFixed(1) + '" y="' + (M.y - 13).toFixed(1) + '" width="7" height="26" rx="2.5" fill="#111"/>'
+      '<line x1="' + P.x.toFixed(1) + '" y1="196" x2="' + P.x.toFixed(1) + '" y2="118" stroke="#d11" stroke-width="2" stroke-dasharray="4 4" opacity=".7"/>' +
+      l({ x: F.x - 3, y: F.y }, P, 6) + l(F, K, 7) + l(K, H, 8) + l(H, S, 9) + l(S, M, 5) +
+      (cerchio ? '<circle cx="' + T.x.toFixed(1) + '" cy="' + T.y.toFixed(1) + '" r="17" fill="none" stroke="#c99a00" stroke-width="3" stroke-dasharray="5 4"/>' : '') +
+      '<circle cx="' + T.x.toFixed(1) + '" cy="' + T.y.toFixed(1) + '" r="11" fill="#FFD008" stroke="#111" stroke-width="3"/>' +
+      '<rect x="' + (M.x - 2.5).toFixed(1) + '" y="' + (M.y - 9).toFixed(1) + '" width="5" height="18" rx="2" fill="#111"/>'
   }
   function animaOmino(si){
     clearInterval(ominoT)
     if (!si) return
     var t0 = Date.now()
-    var passo = function(){ var x = ((Date.now() - t0) % 5000) / 5000; $('omino').innerHTML = omino((1 - Math.cos(2 * Math.PI * x)) / 2) }
+    var passo = function(){ var x = ((Date.now() - t0) % 5000) / 5000; $('omino').innerHTML = omino((1 - Math.cos(2 * Math.PI * x)) / 2, true) }
     passo(); ominoT = setInterval(passo, 60)
   }
   animaOmino(true)
@@ -312,7 +334,8 @@
       dette.push(t)
       if (!window.speechSynthesis) return true
       if (!tipo) speechSynthesis.cancel()
-      var u = new SpeechSynthesisUtterance(t); u.lang = 'it-IT'; u.rate = 1.05; speechSynthesis.speak(u)
+      // guidato-v8 · la ® non si legge (detta a voce è brutta da sentire), né le virgolette
+      var u = new SpeechSynthesisUtterance(String(t).replace(/®/g, '').replace(/[«»]/g, '')); u.lang = 'it-IT'; u.rate = 1.05; speechSynthesis.speak(u)
     } catch(e){}
     return true
   }
@@ -419,60 +442,73 @@
     if (si){ $('v-tit').textContent = tit; $('v-num').textContent = n == null ? '' : n; $('v-sotto').textContent = sotto || '' }
   }
 
-  // ═══ COME SI FA E A COSA SERVE (guidato-v6) ═══
+  // ═══ COME SI FA E A COSA SERVE (guidato-v6 · v8) ═══
   // Le parole che legge e sente chi fa l'esercizio: tutte qui, da far rileggere a Giuliano.
   // Dicono a cosa SERVE l'esercizio (cosa allena), non promettono risultati.
   var TESTI = {
-    // guidato-v7 · più corta (chiesto da Giuliano): cinque frasi, una per schermata
+    // guidato-v8 · sei frasi, una per schermata: in più il sedere indietro (ginocchia mai oltre
+    // la punta dei piedi) e il cerchio tratteggiato da seguire con la testa
     spiegazione: [
       'Lo squat guidato allena equilibrio, stabilità e coordinazione fra braccia e corpo.',
-      'Telefono in orizzontale fra le mani, braccia tese davanti agli occhi.',
-      'Al «giù» scendi piano, come per sederti; al «su» risali. Mani sempre alla stessa altezza.',
+      'Telefono in orizzontale fra le mani, braccia tese davanti agli occhi. Mani sempre alla stessa altezza.',
+      'Al «giù» scendi piano portando il sedere indietro, come per sederti: le ginocchia non superano la punta dei piedi. Al «su» risali.',
+      'Sullo schermo segui il cerchio tratteggiato: tieni la testa dentro il cerchio.',
       'Con i Cuscini Elicoidali Policettivi sotto i piedi, come ti è stato indicato, oppure senza.',
       'Segui le indicazioni del tuo fisioterapista o del professionista formato nel Metodo Policettivo®. Se senti dolore, fermati.'
-    ]
+    ],
+    // guidato-v8 · al primo «giù» (chiesto da Giuliano)
+    primoGiu: 'Giù. Segui il cerchio tratteggiato: tieni la testa dentro il cerchio.'
   }
   $('spiegazione').innerHTML = TESTI.spiegazione.map(function(x){ return '<p>' + esc(x) + '</p>' }).join('')
-  var CHIAVE_VOCE = 'policettivo.guidato.spiegazione.v1'
-  var aVoce = true
-  try { aVoce = localStorage.getItem(CHIAVE_VOCE) !== 'no' } catch(e){}
-  if (Q.get('spiega') === '0') aVoce = false
-  Array.prototype.forEach.call($('avoce').querySelectorAll('.chip'), function(b){
-    b.classList.toggle('on', (b.getAttribute('data-v') === 'si') === aVoce)
-    b.onclick = function(){
-      aVoce = b.getAttribute('data-v') === 'si'
-      Array.prototype.forEach.call($('avoce').querySelectorAll('.chip'), function(x){ x.classList.toggle('on', x === b) })
-      try { localStorage.setItem(CHIAVE_VOCE, aVoce ? 'si' : 'no') } catch(e){}
-    }
-  })
-  var saltaOra = false
-  $('btn-salta').onclick = function(){ saltaOra = true; try { if (window.speechSynthesis) speechSynthesis.cancel() } catch(e){} }
-  // la dice a voce, con il testo grande sul palco; «SALTA» la interrompe in qualunque momento
-  // guidato-v7 · mentre la voce spiega, l'omino sul palco FA lo squat (chiesto da Giuliano):
-  // scende e risale ogni 4 secondi con la freccia e GIÙ / SU, la frase che si sta dicendo è
-  // scritta sotto. È lo stesso palco dell'esercizio: chi guarda impara già dove guardare.
-  async function spiegaAVoce(mio){
-    saltaOra = false
-    $('btn-salta').classList.add('on'); $('didascalia').classList.add('on')
-    voce(TESTI.spiegazione.join(' '))
-    var t0s = Date.now(), n = TESTI.spiegazione.length
-    var mostra = function(){
-      var t = (Date.now() - t0s) / 1000, x = (t % 4) / 4, c = (1 - Math.cos(2 * Math.PI * x)) / 2
-      palcoGs.disegna({ fase: x < 0.5 ? 'giu' : 'su', n: nRip, ripetizioni: 0, discese: 0, p: c, corpo: c, roll: 0, pitch: 0, lato: null, braccia: false, sogliaMani: sogliaMani, sogliaBraccia: F.SOGLIE.braccia })
-      // una frase per volta, più o meno al ritmo della voce (circa 5 secondi l'una)
-      $('didascalia').textContent = TESTI.spiegazione[Math.min(n - 1, Math.floor(t / 5))]
-    }
-    mostra()
-    var iv = setInterval(mostra, 60)
-    await new Promise(function(r){ setTimeout(r, VIA ? 300 : 800) })
-    while (!saltaOra && Date.now() - t0s < 60000 && (parla() || (VIA && Date.now() - t0s < 600))){
-      await new Promise(function(r){ setTimeout(r, 200) })
-      if (mio !== giro || fermato) break
-    }
-    clearInterval(iv)
-    $('btn-salta').classList.remove('on'); $('didascalia').classList.remove('on')
-    palcoGs.disegna(statoSchermo())
+
+  // guidato-v8 · LA SPIEGAZIONE SI CHIEDE PRIMA, non parte più dopo PARTI (chiesto da Giuliano:
+  // con una paziente nuova non era intuitivo). Il pulsante giallo sul titolo apre una schermata
+  // con l'omino che fa lo squat (testa dentro il cerchio tratteggiato), la frase scritta grande e
+  // la voce che la dice, una frase per volta. «Chiudi» la ferma quando si vuole; alla fine
+  // «Ancora» o «PARTI».
+  var sv = { giro: 0, iv: null }
+  function svOmino(){
+    var t0 = Date.now()
+    clearInterval(sv.iv)
+    var passo = function(){ var x = ((Date.now() - t0) % 4000) / 4000; $('sv-omino').innerHTML = omino((1 - Math.cos(2 * Math.PI * x)) / 2, true) }
+    passo(); sv.iv = setInterval(passo, 50)
   }
+  function svFine(chiusa){
+    $('sv-chiudi').textContent = chiusa ? '✕ Chiudi' : 'Ho capito'
+    mostra('sv-ancora', true); mostra('sv-parti', true)
+  }
+  async function spiegami(){
+    var mio = ++sv.giro, n = TESTI.spiegazione.length
+    sbloccaVoce()
+    $('sv').classList.add('on'); document.body.style.overflow = 'hidden'
+    $('sv-chiudi').textContent = '✕ Chiudi'; mostra('sv-ancora', false); mostra('sv-parti', false)
+    animaOmino(false); svOmino()
+    for (var i = 0; i < n; i++){
+      $('sv-frase').textContent = TESTI.spiegazione[i]
+      $('sv-punti').innerHTML = TESTI.spiegazione.map(function(_, j){ return '<i' + (j === i ? ' class="on"' : '') + '></i>' }).join('')
+      voce(TESTI.spiegazione[i])
+      // si aspetta che la voce finisca la frase (senza voce: il tempo di leggerla)
+      var tI = Date.now(), minimo = VIA ? 80 : 900, massimo = VIA ? 600 : 16000
+      var senza = !window.speechSynthesis, leggi = VIA ? 80 : TESTI.spiegazione[i].length * 65
+      await new Promise(function(r){ setTimeout(r, minimo) })
+      while (mio === sv.giro && Date.now() - tI < massimo && (senza ? Date.now() - tI < leggi : parla()))
+        await new Promise(function(r){ setTimeout(r, 120) })
+      if (mio !== sv.giro) return
+      if (!VIA) await new Promise(function(r){ setTimeout(r, 350) })
+      if (mio !== sv.giro) return
+    }
+    svFine(false)
+  }
+  function svChiudi(){
+    sv.giro++; clearInterval(sv.iv)
+    try { if (window.speechSynthesis) speechSynthesis.cancel() } catch(e){}
+    $('sv').classList.remove('on'); document.body.style.overflow = ''
+    animaOmino(true)
+  }
+  $('btn-spiegami').onclick = function(){ spiegami() }
+  $('sv-chiudi').onclick = svChiudi
+  $('sv-ancora').onclick = function(){ spiegami() }
+  $('sv-parti').onclick = function(){ svChiudi(); avvia() }
 
   // ═══ L'ESERCIZIO ═══
   var fermato = null, giro = 0
@@ -494,8 +530,6 @@
     if (mio !== giro) return
     if (!ultimo){ fallito('Questo dispositivo non manda i dati dei sensori di movimento: la prova si fa dal telefono.'); return }
     sistemaPalco()
-    // guidato-v6 · prima, se si vuole, come si fa e a cosa serve
-    if (aVoce){ await spiegaAVoce(mio); if (mio !== giro || fermato) return }
     // il telefono va in orizzontale
     voce('Telefono in orizzontale fra le due mani. Braccia tese davanti agli occhi.')
     var tO = Date.now()
@@ -530,7 +564,7 @@
     t0 = performance.now()
     voce('Fermo.')
     if (!raf) raf = requestAnimationFrame(disegna)
-    var faseDetta = '', ripContate = 0, disceseContate = 0, tAvviso = -1e9, lentoDetto = 0, lentoId = null, stortoDa = null, giroTv = 0
+    var faseDetta = '', ripContate = 0, disceseContate = 0, tAvviso = -1e9, lentoDetto = 0, lentoId = null, stortoDa = null, giroTv = 0, primoGiu = false
     manda('gd-via', { n: st.n, sogliaMani: st.soglie.mani, sogliaBraccia: st.soglie.braccia })
     await new Promise(function(fine){
       var iv = setInterval(function(){
@@ -541,9 +575,14 @@
         if (b.fase && k !== faseDetta){
           faseDetta = k
           reg.eventi.push([Math.round(t), k])
-          if (b.fase === 'giu') voce(b.rip === st.n && st.n > 1 ? 'Ultima. Giù.' : 'Giù.', 'ritmo')
+          // guidato-v8 · al primo «giù» anche il cerchio tratteggiato. Non taglia nessuno: se qualcuno
+          // sta parlando, aspetta il silenzio (finché dura la prima discesa)
+          if (b.fase === 'giu' && b.rip === 1) primoGiu = true
+          else if (b.fase === 'giu') voce(b.rip === st.n && st.n > 1 ? 'Ultima. Giù.' : 'Giù.', 'ritmo')
           else if (b.fase === 'su') voce('Su.', 'ritmo')
         }
+        if (primoGiu && !(b.fase === 'giu' && b.rip === 1)) primoGiu = false
+        if (primoGiu && voce(TESTI.primoGiu, 'ritmo')){ primoGiu = false; reg.eventi.push([Math.round(t), 'voce cerchio']) }
         if (vivo){
           if (vivo.discese > disceseContate){ disceseContate = vivo.discese; bip(1320, 45, 0.25); reg.eventi.push([Math.round(t), 'discesa ' + disceseContate]) }
           if (vivo.ripetizioni > ripContate){ ripContate = vivo.ripetizioni; bip(1760, 70, 0.25); reg.eventi.push([Math.round(t), 'squat ' + ripContate]) }
@@ -573,7 +612,6 @@
     chiudi()
   }
   function smetti(){
-    $('btn-salta').classList.remove('on'); $('didascalia').classList.remove('on')
     ascolta(false); tonoMetti(0, false)
     if (raf){ cancelAnimationFrame(raf); raf = null }
     try { if (wl) wl.release() } catch(e){}
