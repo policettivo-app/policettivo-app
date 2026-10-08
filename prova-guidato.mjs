@@ -1,4 +1,4 @@
-/* prova-guidato.mjs — guidato-v6
+/* prova-guidato.mjs — guidato-v7
  * Lo squat guidato dal telefono: il calcolo (telefono simulato) e la pagina.
  *   node prova-guidato.mjs
  */
@@ -253,7 +253,7 @@ try {
     const { page, ctx, errori } = await apri({ width: 844, height: 390 }, '?via=1&n=1')
     check('⭐ dice che è un’anteprima, che i numeri sono stime e che non dà giudizi clinici', /Anteprima/.test(await page.textContent('.avviso')) && /stime non ancora verificate/.test(await page.textContent('.avviso')) && /non salva niente/i.test(await page.textContent('.avviso')) && /giudizi clinici/.test(await page.textContent('.avviso')))
     const sg = await page.textContent('#spiegazione')
-    check('⭐⭐ «Come si fa e a cosa serve»: equilibrio, stabilità, coordinazione; giù/su; mani pari; Cuscini Elicoidali o senza; fisioterapista o professionista formato nel Metodo Policettivo®; dolore → fermati', /equilibrio, la stabilità e la coordinazione fra braccia e corpo/.test(sg) && /«giù»/.test(sg) && /stessa altezza/.test(sg) && /Cuscini Elicoidali Policettivi/.test(sg) && /oppure senza/.test(sg) && /fisioterapista o del professionista formato nel Metodo Policettivo®/.test(sg) && /Se senti dolore, fermati/.test(sg), sg)
+    check('⭐⭐ «Come si fa e a cosa serve»: equilibrio, stabilità, coordinazione; giù/su; mani pari; Cuscini Elicoidali o senza; fisioterapista o professionista formato nel Metodo Policettivo®; dolore → fermati', /equilibrio, stabilità e coordinazione fra braccia e corpo/.test(sg) && /«giù»/.test(sg) && /stessa altezza/.test(sg) && /Cuscini Elicoidali Policettivi/.test(sg) && /oppure senza/.test(sg) && /fisioterapista o del professionista formato nel Metodo Policettivo®/.test(sg) && /Se senti dolore, fermati/.test(sg) && (await page.$$('#spiegazione p')).length === 5, sg)
     check('⛔ la spiegazione dice a cosa serve, non promette guarigioni né risultati', !/guarisc|cura |elimina|riduce il dolore|garantisc|migliora sicuramente|scientificamente/i.test(sg))
     check('⭐ spiegazione a voce: «Sì» di partenza', await page.evaluate(() => document.querySelector('#avoce .chip.on').getAttribute('data-v')) === 'si')
     check('⭐ quattro passi, due disegni, l’omino si muove', (await page.$$('.passi li')).length === 4 && (await page.$$('.disegni svg')).length === 2 && (await page.innerHTML('#omino')).length > 200)
@@ -287,13 +287,17 @@ try {
     await ctx.close()
   }
 
-  sez('⭐ guidato-v6 · la spiegazione a voce prima di partire, e SALTA')
+  sez('⭐ guidato-v6/v7 · la spiegazione a voce prima di partire, l’omino che la mostra, e SALTA')
   {
-    let x = await apri({ width: 844, height: 390 }, '?via=1&n=1', { voceFinta: 1500 })
+    let x = await apri({ width: 844, height: 390 }, '?via=1&n=1', { voceFinta: 5000 })
     await x.page.evaluate(TELEFONO, { prof: 0.4 })
     await x.page.click('#btn-start')
-    await x.page.waitForFunction(() => window.__guidato.velo() && /Come si fa/.test(document.getElementById('v-tit').textContent), null, { timeout: 4000 })
-    check('⭐ con «Sì»: sul palco «Come si fa», il testo, e SALTA ben visibile', await x.page.isVisible('#btn-salta') && /equilibrio/.test(await x.page.textContent('#v-sotto')) && await x.page.evaluate(() => window.__voce.log.some(v => v[0] === 'parla' && /Cuscini Elicoidali/.test(v[1]))))
+    await x.page.waitForFunction(() => document.getElementById('didascalia').classList.contains('on'), null, { timeout: 4000 })
+    check('⭐ con «Sì»: la frase scritta sul palco, SALTA ben visibile, e la voce la dice', await x.page.isVisible('#btn-salta') && /equilibrio/.test(await x.page.textContent('#didascalia')) && await x.page.evaluate(() => window.__voce.log.some(v => v[0] === 'parla' && /Cuscini Elicoidali/.test(v[1]))))
+    const posizioni = []
+    for (let k = 0; k < 6; k++) { posizioni.push(await x.page.evaluate(() => parseFloat(document.querySelector('[data-gs="corpo"]').style.top))); await x.page.waitForTimeout(330) }
+    check('⭐⭐ intanto l’omino fa lo squat: la testa scende e risale, freccia GIÙ/SU', Math.max(...posizioni) - Math.min(...posizioni) > 8 && /GIÙ|SU/.test(await x.page.textContent('[data-gs="fase"]')), posizioni)
+    if (FOTO) await x.page.screenshot({ path: FOTO + '/spiegazione.png' })
     await x.page.click('#btn-salta')
     await x.page.waitForFunction(() => window.__guidato.stato() !== null, null, { timeout: 4000 })
     check('⭐ SALTA: la voce si zittisce subito e l’esercizio parte', !(await x.page.isVisible('#btn-salta')) && await x.page.evaluate(() => window.__voce.log.some(v => v[0] === 'taglia')))

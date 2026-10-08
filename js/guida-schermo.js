@@ -1,4 +1,4 @@
-/* js/guida-schermo.js — guidato-v6 (7 ottobre 2026)
+/* js/guida-schermo.js — guidato-v7 (7 ottobre 2026)
  *
  * ESERCIZI GUIDATI: IL PALCO, DISEGNATO IN UN POSTO SOLO.
  * Lo usano il telefono (prova-guidato.html) e la TV (tv.html): due metà che
@@ -16,7 +16,7 @@
  */
 ;(function (g) {
   'use strict'
-  var VERSIONE = 'guidato-v6'
+  var VERSIONE = 'guidato-v7'
   var CSS = '' +
     '.gs{position:absolute;inset:0;overflow:hidden;background:#050505;color:#fff;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}' +
     '.gs-meta{position:absolute;top:0;bottom:0;width:50%;background:rgba(10,125,51,.30);transition:background .18s linear}' +
@@ -112,7 +112,7 @@
       if (v.braccia) { colore(E.sx, true, 1, false); colore(E.dx, true, 1, false) }
       else { colore(E.sx, v.lato === 'sinistra', forza, true); colore(E.dx, v.lato === 'destra', forza, true) }
       // il corpo: in alto = in piedi, in basso = giù. Il cerchio tratteggiato è dove chiede il ritmo.
-      // guidato-v6 · la pallina gialla è la TESTA di un omino che fa lo squat: si capisce a colpo
+      // guidato-v7 · la pallina gialla è la TESTA di un omino che fa lo squat: si capisce a colpo
       // d'occhio che quello sei tu che scendi e risali. Il cerchio tratteggiato è dove chiede il ritmo.
       var c = Math.max(0, Math.min(1, v.corpo || 0))
       E.corpo.style.top = ((TESTA_SU + TESTA_CORSA * c) / 10 - 4.7).toFixed(2) + 'em'

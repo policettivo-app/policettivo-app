@@ -6,7 +6,8 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Squat guidato · in prova</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- guidato-v6 (8 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · ANTEPRIMA PER TUTTI I PROFESSIONISTI
+<!-- guidato-v7 (8 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · ANTEPRIMA PER TUTTI I PROFESSIONISTI
+     v7: durante la spiegazione a voce l'omino del palco FA lo squat e la frase è scritta sotto; spiegazione più corta.
      v6: aperto a tutti da Test (prima solo amministratore), per il corso del 10 ottobre; «come si fa e a
      cosa serve» scritto e, se si vuole, detto a voce prima di partire (Sì/No ricordato; «Salta» sempre).
      Le frasi stanno tutte in TESTI qui sotto: le rilegge Giuliano.
@@ -29,8 +30,8 @@
      js/guida-schermo.js, lo stesso che usa la TV; se la TV è collegata («Sulla
      TV») il palco ci va da solo, sul canale dei test: solo fasi e angoli. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/guida-motore.js?v=guidato-v6"></script>
-<script src="js/guida-schermo.js?v=guidato-v6"></script>
+<script src="js/guida-motore.js?v=guidato-v7"></script>
+<script src="js/guida-schermo.js?v=guidato-v7"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -82,6 +83,9 @@
   .salta{position:absolute;right:3em;bottom:3.5em;height:13em;padding:0 5em;border-radius:6.5em;border:.4em solid #111;background:#FFD008;color:#111;font-family:inherit;font-size:1em;font-weight:900;cursor:pointer;z-index:7;display:none}
   .salta b{font-size:4.4em;letter-spacing:.06em}
   .salta.on{display:block}
+  .didascalia{position:absolute;left:50%;bottom:4.4em;transform:translateX(-50%);width:min(118em,92%);font-size:3.9em;font-weight:800;line-height:1.25;text-align:center;
+     background:rgba(0,0,0,.72);border-radius:.6em;padding:.5em .8em;z-index:6;display:none}
+  .didascalia.on{display:block}
   .sp-apre{font-size:17px;font-weight:800;line-height:1.35;margin-top:14px}
   .sp{border-radius:14px;padding:12px 14px;margin-top:12px;font-size:14.5px;line-height:1.5}
   .sp h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.5px}
@@ -195,6 +199,7 @@
   <div id="palco-gs"></div>
   <button class="mi-fermo" id="btn-fermo"><b>MI FERMO</b></button>
   <button class="gira-tasto" id="btn-gira" aria-label="Capovolgi lo schermo"><b>⟲</b></button>
+  <div class="didascalia" id="didascalia"></div>
   <button class="salta" id="btn-salta"><b>SALTA ›</b></button>
   <div class="velo" id="velo"><div class="v-tit" id="v-tit"></div><div class="v-num" id="v-num"></div><div class="v-sotto" id="v-sotto"></div></div>
 </div>
@@ -418,14 +423,13 @@
   // Le parole che legge e sente chi fa l'esercizio: tutte qui, da far rileggere a Giuliano.
   // Dicono a cosa SERVE l'esercizio (cosa allena), non promettono risultati.
   var TESTI = {
+    // guidato-v7 · più corta (chiesto da Giuliano): cinque frasi, una per schermata
     spiegazione: [
-      'Lo squat guidato allena l’equilibrio, la stabilità e la coordinazione fra braccia e corpo.',
-      'Tieni il telefono in orizzontale fra le due mani, braccia tese davanti agli occhi.',
-      'Quando senti «giù», scendi piano piegando le ginocchia, come per sederti. Quando senti «su», risali. Il suono scende e sale con te.',
-      'Tieni le due mani alla stessa altezza: se una scende, la sua metà dello schermo diventa rossa.',
-      'Puoi farlo con i Cuscini Elicoidali Policettivi sotto i piedi, nella configurazione che ti è stata indicata, oppure senza.',
-      'Per il risultato migliore segui le indicazioni del tuo fisioterapista o del professionista formato nel Metodo Policettivo®.',
-      'Se senti dolore, fermati.'
+      'Lo squat guidato allena equilibrio, stabilità e coordinazione fra braccia e corpo.',
+      'Telefono in orizzontale fra le mani, braccia tese davanti agli occhi.',
+      'Al «giù» scendi piano, come per sederti; al «su» risali. Mani sempre alla stessa altezza.',
+      'Con i Cuscini Elicoidali Policettivi sotto i piedi, come ti è stato indicato, oppure senza.',
+      'Segui le indicazioni del tuo fisioterapista o del professionista formato nel Metodo Policettivo®. Se senti dolore, fermati.'
     ]
   }
   $('spiegazione').innerHTML = TESTI.spiegazione.map(function(x){ return '<p>' + esc(x) + '</p>' }).join('')
@@ -444,21 +448,30 @@
   var saltaOra = false
   $('btn-salta').onclick = function(){ saltaOra = true; try { if (window.speechSynthesis) speechSynthesis.cancel() } catch(e){} }
   // la dice a voce, con il testo grande sul palco; «SALTA» la interrompe in qualunque momento
+  // guidato-v7 · mentre la voce spiega, l'omino sul palco FA lo squat (chiesto da Giuliano):
+  // scende e risale ogni 4 secondi con la freccia e GIÙ / SU, la frase che si sta dicendo è
+  // scritta sotto. È lo stesso palco dell'esercizio: chi guarda impara già dove guardare.
   async function spiegaAVoce(mio){
     saltaOra = false
-    $('btn-salta').classList.add('on')
-    velo('Come si fa', '', TESTI.spiegazione.slice(0, 3).join(' '))
+    $('btn-salta').classList.add('on'); $('didascalia').classList.add('on')
     voce(TESTI.spiegazione.join(' '))
-    var t0s = Date.now()
+    var t0s = Date.now(), n = TESTI.spiegazione.length
+    var mostra = function(){
+      var t = (Date.now() - t0s) / 1000, x = (t % 4) / 4, c = (1 - Math.cos(2 * Math.PI * x)) / 2
+      palcoGs.disegna({ fase: x < 0.5 ? 'giu' : 'su', n: nRip, ripetizioni: 0, discese: 0, p: c, corpo: c, roll: 0, pitch: 0, lato: null, braccia: false, sogliaMani: sogliaMani, sogliaBraccia: F.SOGLIE.braccia })
+      // una frase per volta, più o meno al ritmo della voce (circa 5 secondi l'una)
+      $('didascalia').textContent = TESTI.spiegazione[Math.min(n - 1, Math.floor(t / 5))]
+    }
+    mostra()
+    var iv = setInterval(mostra, 60)
     await new Promise(function(r){ setTimeout(r, VIA ? 300 : 800) })
     while (!saltaOra && Date.now() - t0s < 60000 && (parla() || (VIA && Date.now() - t0s < 600))){
-      var k = Math.min(TESTI.spiegazione.length - 1, Math.floor((Date.now() - t0s) / 6000) * 2)
-      velo('Come si fa', '', TESTI.spiegazione.slice(k, k + 2).join(' '))
       await new Promise(function(r){ setTimeout(r, 200) })
       if (mio !== giro || fermato) break
     }
-    $('btn-salta').classList.remove('on')
-    velo(null)
+    clearInterval(iv)
+    $('btn-salta').classList.remove('on'); $('didascalia').classList.remove('on')
+    palcoGs.disegna(statoSchermo())
   }
 
   // ═══ L'ESERCIZIO ═══
@@ -560,7 +573,7 @@
     chiudi()
   }
   function smetti(){
-    $('btn-salta').classList.remove('on')
+    $('btn-salta').classList.remove('on'); $('didascalia').classList.remove('on')
     ascolta(false); tonoMetti(0, false)
     if (raf){ cancelAnimationFrame(raf); raf = null }
     try { if (wl) wl.release() } catch(e){}
