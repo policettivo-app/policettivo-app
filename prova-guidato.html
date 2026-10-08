@@ -6,7 +6,10 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Squat guidato · in prova</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- guidato-v5 (7 ottobre 2026, sera) — LO SQUAT GUIDATO DAL TELEFONO · IN PROVA
+<!-- guidato-v6 (8 ottobre 2026) — LO SQUAT GUIDATO DAL TELEFONO · ANTEPRIMA PER TUTTI I PROFESSIONISTI
+     v6: aperto a tutti da Test (prima solo amministratore), per il corso del 10 ottobre; «come si fa e a
+     cosa serve» scritto e, se si vuole, detto a voce prima di partire (Sì/No ricordato; «Salta» sempre).
+     Le frasi stanno tutte in TESTI qui sotto: le rilegge Giuliano.
      v5, dal terzo tracciato vero (5 squat fatti piano, contato 1): il conto è rifatto sulle VALLI della
      posizione (js/guida-motore.js); la pallina è la testa di un omino che fa lo squat; «Spiegami» apre
      con un incoraggiamento, poi cosa è andato bene, poi cosa migliorare.
@@ -26,8 +29,8 @@
      js/guida-schermo.js, lo stesso che usa la TV; se la TV è collegata («Sulla
      TV») il palco ci va da solo, sul canale dei test: solo fasi e angoli. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/guida-motore.js?v=guidato-v5"></script>
-<script src="js/guida-schermo.js?v=guidato-v5"></script>
+<script src="js/guida-motore.js?v=guidato-v6"></script>
+<script src="js/guida-schermo.js?v=guidato-v6"></script>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -74,6 +77,11 @@
   .frasi{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14.5px;line-height:1.6}
   .frasi p{margin:0 0 6px}.frasi p:last-child{margin:0;color:#667;font-style:italic}
   .gomitolo{display:block;margin:10px auto 0;width:100%;max-width:300px;height:auto}
+  .spieg{background:#f4f7ff;border:1px solid #d6e0fb;border-radius:14px;padding:12px 14px;margin:0 0 14px;font-size:14.5px;line-height:1.55}
+  .spieg p{margin:0 0 6px}.spieg p:last-child{margin:0}
+  .salta{position:absolute;right:3em;bottom:3.5em;height:13em;padding:0 5em;border-radius:6.5em;border:.4em solid #111;background:#FFD008;color:#111;font-family:inherit;font-size:1em;font-weight:900;cursor:pointer;z-index:7;display:none}
+  .salta b{font-size:4.4em;letter-spacing:.06em}
+  .salta.on{display:block}
   .sp-apre{font-size:17px;font-weight:800;line-height:1.35;margin-top:14px}
   .sp{border-radius:14px;padding:12px 14px;margin-top:12px;font-size:14.5px;line-height:1.5}
   .sp h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.5px}
@@ -110,14 +118,14 @@
     <h1>🏋️ Squat guidato</h1>
     <a href="test.html" id="link-home">← Test</a>
   </div>
-  <div class="sub">Il telefono ti guida mentre fai l’esercizio &middot; in prova</div>
+  <div class="sub">Il telefono ti guida mentre fai l’esercizio &middot; anteprima</div>
 
   <div class="tv-stato" id="tv-stato">📺 <b>TV collegata</b>: quello che vedi sul telefono va anche sullo schermo grande.</div>
   <button class="btn vuoto" id="btn-tv" style="display:none;margin:0 0 14px">📺 Mostra sulla TV</button>
   <div class="nota" id="tv-msg" style="margin:-6px 0 14px;display:none"></div>
   <div class="avviso">
-    <b>È una prova, solo per te.</b> Non salva niente e non riguarda nessun paziente.
-    I numeri sono <b>stime non ancora verificate</b>: servono a capire come deve essere lo schermo e quanto sbaglia il telefono.
+    <b>Anteprima, in prova.</b> Non salva niente e non riguarda nessun paziente.
+    I numeri sono <b>stime non ancora verificate</b> e il telefono non dà giudizi clinici: guida l’esercizio e descrive come è andato.
   </div>
 
   <!-- ─── L'ESITO ─── -->
@@ -128,12 +136,13 @@
     <div id="spiega" style="display:none"></div>
     <button class="btn" id="btn-condividi" style="display:none">📤 Manda il tracciato</button>
     <button class="btn vuoto" id="btn-scarica">⬇️ Scarica il tracciato</button>
-    <div class="nota">Il tracciato sono i numeri grezzi dei sensori di questa prova (nessun nome, nessun paziente). Mandalo in chat: serve a misurare quanto sbaglia il telefono.</div>
+    <div class="nota">Il tracciato sono i numeri grezzi dei sensori di questa prova (nessun nome, nessun paziente). Se te lo chiediamo, scaricalo e mandacelo: serve a migliorare il conteggio.</div>
   </div>
 
   <!-- ─── LA PREPARAZIONE ─── -->
   <div class="card" id="c-setup">
-    <h2>Come si fa</h2>
+    <h2>Come si fa e a cosa serve</h2>
+    <div class="spieg" id="spiegazione"></div>
     <div class="disegni">
       <svg id="omino" viewBox="0 0 230 210" role="img" aria-label="Di fianco: squat con le braccia tese in avanti e il telefono fra le mani"></svg>
       <svg viewBox="0 0 230 210" role="img" aria-label="Il telefono in orizzontale fra le due mani: la metà dalla parte della mano più bassa diventa rossa">
@@ -152,7 +161,7 @@
     </div>
     <ol class="passi">
       <li><b>Telefono in orizzontale fra le due mani</b>, schermo verso di te, <b>braccia tese in avanti</b> all’altezza degli occhi. Tienilo saldo.</li>
-      <li>Premi <b>PARTI</b>: tre secondi <b>fermo</b>, poi segui la <b>freccia</b> e il <b>suono</b>: scende il suono, scendi tu; sale, risali.</li>
+      <li>Premi <b>PARTI</b> (se vuoi, prima la spiegazione a voce: «SALTA» per saltarla), poi tre secondi <b>fermo</b>, poi segui la <b>freccia</b> e il <b>suono</b>: scende il suono, scendi tu; sale, risali.</li>
       <li>A sinistra ci sei <b>tu</b>: un omino che scende e risale con te. A destra le <b>braccia</b>. Il cerchio tratteggiato è dove chiede il ritmo.</li>
       <li>Se una mano scende, <b>la sua metà di schermo diventa rossa</b> («ALZA LA MANO») e la voce lo dice. Per smettere: <b>MI FERMO</b>.</li>
     </ol>
@@ -168,7 +177,11 @@
     <div class="chips" id="soglia">
       <button class="chip" data-s="3">3°</button><button class="chip on" data-s="5">5°</button><button class="chip" data-s="8">8°</button>
     </div>
-    <div class="nota">⚠️ Spazio libero davanti, pavimento stabile, <b>niente cuscini</b> in questa prova. Se senti dolore o perdi l’equilibrio, fermati.<br>
+    <label>Spiegazione a voce prima di partire</label>
+    <div class="chips" id="avoce">
+      <button class="chip" data-v="si">Sì</button><button class="chip" data-v="no">No</button>
+    </div>
+    <div class="nota">⚠️ Spazio libero davanti, pavimento stabile. Con i Cuscini Elicoidali sotto i piedi, la prima volta stai vicino a un appoggio. Se senti dolore o perdi l’equilibrio, fermati.<br>
       Il telefono <b>non vede</b> ginocchia, talloni e schiena, e non dice se l’esercizio è «giusto»: descrive cosa fa il telefono.</div>
     <div class="err" id="err" style="display:none"></div>
   </div>
@@ -182,6 +195,7 @@
   <div id="palco-gs"></div>
   <button class="mi-fermo" id="btn-fermo"><b>MI FERMO</b></button>
   <button class="gira-tasto" id="btn-gira" aria-label="Capovolgi lo schermo"><b>⟲</b></button>
+  <button class="salta" id="btn-salta"><b>SALTA ›</b></button>
   <div class="velo" id="velo"><div class="v-tit" id="v-tit"></div><div class="v-num" id="v-num"></div><div class="v-sotto" id="v-sotto"></div></div>
 </div>
 
@@ -400,6 +414,53 @@
     if (si){ $('v-tit').textContent = tit; $('v-num').textContent = n == null ? '' : n; $('v-sotto').textContent = sotto || '' }
   }
 
+  // ═══ COME SI FA E A COSA SERVE (guidato-v6) ═══
+  // Le parole che legge e sente chi fa l'esercizio: tutte qui, da far rileggere a Giuliano.
+  // Dicono a cosa SERVE l'esercizio (cosa allena), non promettono risultati.
+  var TESTI = {
+    spiegazione: [
+      'Lo squat guidato allena l’equilibrio, la stabilità e la coordinazione fra braccia e corpo.',
+      'Tieni il telefono in orizzontale fra le due mani, braccia tese davanti agli occhi.',
+      'Quando senti «giù», scendi piano piegando le ginocchia, come per sederti. Quando senti «su», risali. Il suono scende e sale con te.',
+      'Tieni le due mani alla stessa altezza: se una scende, la sua metà dello schermo diventa rossa.',
+      'Puoi farlo con i Cuscini Elicoidali Policettivi sotto i piedi, nella configurazione che ti è stata indicata, oppure senza.',
+      'Per il risultato migliore segui le indicazioni del tuo fisioterapista o del professionista formato nel Metodo Policettivo®.',
+      'Se senti dolore, fermati.'
+    ]
+  }
+  $('spiegazione').innerHTML = TESTI.spiegazione.map(function(x){ return '<p>' + esc(x) + '</p>' }).join('')
+  var CHIAVE_VOCE = 'policettivo.guidato.spiegazione.v1'
+  var aVoce = true
+  try { aVoce = localStorage.getItem(CHIAVE_VOCE) !== 'no' } catch(e){}
+  if (Q.get('spiega') === '0') aVoce = false
+  Array.prototype.forEach.call($('avoce').querySelectorAll('.chip'), function(b){
+    b.classList.toggle('on', (b.getAttribute('data-v') === 'si') === aVoce)
+    b.onclick = function(){
+      aVoce = b.getAttribute('data-v') === 'si'
+      Array.prototype.forEach.call($('avoce').querySelectorAll('.chip'), function(x){ x.classList.toggle('on', x === b) })
+      try { localStorage.setItem(CHIAVE_VOCE, aVoce ? 'si' : 'no') } catch(e){}
+    }
+  })
+  var saltaOra = false
+  $('btn-salta').onclick = function(){ saltaOra = true; try { if (window.speechSynthesis) speechSynthesis.cancel() } catch(e){} }
+  // la dice a voce, con il testo grande sul palco; «SALTA» la interrompe in qualunque momento
+  async function spiegaAVoce(mio){
+    saltaOra = false
+    $('btn-salta').classList.add('on')
+    velo('Come si fa', '', TESTI.spiegazione.slice(0, 3).join(' '))
+    voce(TESTI.spiegazione.join(' '))
+    var t0s = Date.now()
+    await new Promise(function(r){ setTimeout(r, VIA ? 300 : 800) })
+    while (!saltaOra && Date.now() - t0s < 60000 && (parla() || (VIA && Date.now() - t0s < 600))){
+      var k = Math.min(TESTI.spiegazione.length - 1, Math.floor((Date.now() - t0s) / 6000) * 2)
+      velo('Come si fa', '', TESTI.spiegazione.slice(k, k + 2).join(' '))
+      await new Promise(function(r){ setTimeout(r, 200) })
+      if (mio !== giro || fermato) break
+    }
+    $('btn-salta').classList.remove('on')
+    velo(null)
+  }
+
   // ═══ L'ESERCIZIO ═══
   var fermato = null, giro = 0
   async function avvia(){
@@ -420,6 +481,8 @@
     if (mio !== giro) return
     if (!ultimo){ fallito('Questo dispositivo non manda i dati dei sensori di movimento: la prova si fa dal telefono.'); return }
     sistemaPalco()
+    // guidato-v6 · prima, se si vuole, come si fa e a cosa serve
+    if (aVoce){ await spiegaAVoce(mio); if (mio !== giro || fermato) return }
     // il telefono va in orizzontale
     voce('Telefono in orizzontale fra le due mani. Braccia tese davanti agli occhi.')
     var tO = Date.now()
@@ -497,6 +560,7 @@
     chiudi()
   }
   function smetti(){
+    $('btn-salta').classList.remove('on')
     ascolta(false); tonoMetti(0, false)
     if (raf){ cancelAnimationFrame(raf); raf = null }
     try { if (wl) wl.release() } catch(e){}

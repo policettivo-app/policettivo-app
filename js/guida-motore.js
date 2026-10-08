@@ -1,4 +1,4 @@
-/* js/guida-motore.js — guidato-v5 (7 ottobre 2026)
+/* js/guida-motore.js — guidato-v6 (7 ottobre 2026)
  *
  * ESERCIZI GUIDATI DAL TELEFONO: IL CALCOLO, IN UN FILE SOLO.
  * Primo esercizio: lo squat col telefono fra le due mani, in orizzontale,
@@ -25,7 +25,7 @@
 ;(function (global) {
   'use strict'
 
-  var VERSIONE = 'guidato-v5'
+  var VERSIONE = 'guidato-v6'
   var RITMI = {
     lento: { inizio: 3000, giu: 3000, fondo: 1000, su: 3000, piedi: 1000 },
     medio: { inizio: 3000, giu: 2000, fondo: 1000, su: 2000, piedi: 1000 }
@@ -458,7 +458,7 @@
     return out
   }
 
-  /* guidato-v5 · «SPIEGAMI»: cosa è andato come chiesto e cosa guardare.
+  /* guidato-v6 · «SPIEGAMI»: cosa è andato come chiesto e cosa guardare.
      Regole fisse sui numeri del riassunto: stesso esercizio → stesse frasi.
      Parla solo di quello che il telefono sente fra le mani (conto, tempo,
      altezza delle mani, inclinazione, regolarità). NON dice dove va il carico
