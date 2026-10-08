@@ -63,14 +63,18 @@
     .legend-row { display: flex; gap: 20px; flex-wrap: wrap; font-size: 11px; color: #666; margin-bottom: 14px; }
     .legend-row span { display: flex; align-items: center; gap: 4px; }
     /* Side panel */
-    .panel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; }
+    /* email-prof-v1 · il pannello sta SOPRA la barra in basso (console-nav, z-index 9000): prima la barra copriva gli ultimi pulsanti */
+    .panel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9400; display: none; }
+    .p-hint { font-size: 11.5px; color: #666; margin: -6px 0 12px; line-height: 1.4; }
+    .p-hint.cambia { color: #7c5f00; font-weight: 700; }
+    #tab-dati .btn-save { position: sticky; bottom: 12px; z-index: 5; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
     .panel-overlay.open { display: block; }
-    .side-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 500px; max-width: 100vw; background: #fff; z-index: 1001; overflow-y: auto; transform: translateX(100%); transition: transform 0.3s ease; box-shadow: -4px 0 32px rgba(0,0,0,0.25); }
+    .side-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 500px; max-width: 100vw; background: #fff; z-index: 9500; overflow-y: auto; transform: translateX(100%); transition: transform 0.3s ease; box-shadow: -4px 0 32px rgba(0,0,0,0.25); }
     .side-panel.open { transform: translateX(0); }
     .panel-header { background: #000; color: #fff; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
     .panel-header h2 { font-size: 15px; font-weight: 700; margin: 0; }
     .panel-close { background: transparent; border: 1px solid #444; color: #fff; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; }
-    .panel-body { padding: 24px; }
+    .panel-body { padding: 24px 24px 48px; }
     .panel-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 24px; }
     .panel-tab { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.15s; }
     .panel-tab.active { color: #000; border-bottom-color: #FFD008; }
@@ -760,6 +764,18 @@
       document.querySelectorAll('.panel-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name))
     }
 
+    // email-prof-v1 · sotto il campo email: si vede subito se è stata cambiata e non ancora salvata
+    function aggiornaHintEmail() {
+      const h = document.getElementById('p-email-hint'); if (!h) return
+      const v = (document.getElementById('p-email').value || '').trim().toLowerCase()
+      const old = ((_panelProfData && _panelProfData.email) || '').trim().toLowerCase()
+      const cambia = v && v !== old
+      h.className = 'p-hint' + (cambia ? ' cambia' : '')
+      h.textContent = cambia ? '✏️ Nuova email non ancora salvata (prima era ' + (old || 'vuota') + '): premi «💾 Salva modifiche».'
+        : 'È l’email con cui entra nell’app. Se la cambi, da quel momento entra con la nuova; la password resta la stessa.'
+    }
+    document.addEventListener('input', function (e) { if (e.target && e.target.id === 'p-email') aggiornaHintEmail() })
+
     async function apriPannello(profId) {
       savedScrollY = window.scrollY
       currentProfId = profId
@@ -780,6 +796,7 @@
       const _cachedEmail = (_statsCache.find(s => s.prof.id === profId)?.prof?.email) || prof.email || ''
       document.getElementById('p-email').value = _cachedEmail
       _panelProfData.email = _cachedEmail
+      aggiornaHintEmail()
       document.getElementById('edit-qualifica').value      = prof.qualifica || ''
       document.getElementById('edit-centro').value         = prof.centro || ''
       document.getElementById('edit-citta').value          = prof.citta || ''
@@ -854,6 +871,9 @@
     async function resetAccessoProf() {
       const email = _panelProfData?.email
       if (!email) { alert('Email non disponibile per questo professionista.'); return }
+      // email-prof-v1 · se nel campo c'è un'email nuova non ancora salvata, il reset partirebbe verso quella vecchia
+      const nelCampo = (document.getElementById('p-email').value || '').trim().toLowerCase()
+      if (nelCampo && nelCampo !== email.toLowerCase()) { alert('Hai scritto una nuova email ma non l’hai ancora salvata.\n\nPrima premi «💾 Salva modifiche», poi invia il reset: così arriva a ' + nelCampo + '.'); return }
       if (!confirm('Inviare email di reset password a:\n' + email + '\n\nIl professionista riceverà un link per impostare una nuova password.')) return
       const { error } = await _supabase.auth.resetPasswordForEmail(email, {
         redirectTo: 'https://app.policettivo.it/reset-password.html'
@@ -978,9 +998,27 @@
         .from('professionals').select('user_id').eq('id', currentProfId).maybeSingle()
 
       if (!prof || !prof.user_id) { alert('Errore: user_id non trovato per questo professionista.'); return }
+      const adminToken = await getAdminToken()
+
+      // email-prof-v1 · Step 1b — l'email di accesso, se è cambiata (si fa nel server, solo per l'amministratore)
+      const emailNuova = (document.getElementById('p-email').value || '').trim().toLowerCase()
+      const emailVecchia = ((_panelProfData && _panelProfData.email) || '').trim().toLowerCase()
+      if (emailNuova && emailNuova !== emailVecchia) {
+        if (!confirm('Cambio l’email di accesso?\n\nDa:  ' + (emailVecchia || '(nessuna)') + '\nA:     ' + emailNuova + '\n\nDa adesso entrerà con la nuova email. La password resta la stessa.')) return
+        const rE = await fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+          body: JSON.stringify({ action: 'update-email', userId: prof.user_id, email: emailNuova })
+        })
+        const jE = await rE.json().catch(() => ({}))
+        if (!rE.ok) { alert('⚠️ Email NON cambiata: ' + (jE.error || rE.status) + '\n\nNon ho salvato nemmeno il resto: correggi e riprova.'); return }
+        _panelProfData.email = jE.email || emailNuova
+        document.getElementById('p-email').value = _panelProfData.email
+        const c = _statsCache.find(x => x.prof.id === currentProfId); if (c) c.prof.email = _panelProfData.email
+        aggiornaHintEmail()
+      }
 
       // Step 2 — aggiorna profiles via API con service key (bypassa RLS)
-      const adminToken = await getAdminToken()
       const r1 = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
@@ -1013,7 +1051,7 @@
 
       const nomeCompleto = document.getElementById('edit-nome').value + ' ' + document.getElementById('edit-cognome').value
       document.getElementById('panel-title').textContent = nomeCompleto.trim()
-      alert('Modifiche salvate ✓')
+      alert('Modifiche salvate ✓' + (emailNuova && emailNuova !== emailVecchia ? '\n\nEmail di accesso cambiata: ora è ' + _panelProfData.email + '. Se serve, adesso puoi inviare il reset password: arriva al nuovo indirizzo.' : ''))
       loadStatsProfessionisti()
     }
 
@@ -1132,7 +1170,8 @@
           <div><label class="p-label">Cognome</label><input class="p-input" id="edit-cognome" type="text" placeholder="Rossi"></div>
         </div>
         <label class="p-label">Email</label>
-        <input class="p-input" id="p-email" type="email" placeholder="mario@email.it" readonly style="background:#f9f9f9;color:#666">
+        <input class="p-input" id="p-email" type="email" placeholder="mario@email.it" autocomplete="off" autocapitalize="none" spellcheck="false">
+        <div class="p-hint" id="p-email-hint">È l’email con cui entra nell’app. Se la cambi, da quel momento entra con la nuova; la password resta la stessa.</div>
         <div class="p-row">
           <div><label class="p-label">Qualifica</label><input class="p-input" id="edit-qualifica" type="text" placeholder="Fisioterapista"></div>
           <div><label class="p-label">Centro / Studio</label><input class="p-input" id="edit-centro" type="text" placeholder="Studio X"></div>

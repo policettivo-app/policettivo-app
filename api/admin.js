@@ -116,6 +116,7 @@ export default async function handler(req, res) {
     case 'list-user-emails':   return handleListUserEmails(svc, req, res)
     case 'update-piano':       return handleUpdatePiano(svc, req, res)
     case 'update-profile':     return handleUpdateProfile(svc, req, res)
+    case 'update-email':       return handleUpdateEmail(svc, req, res)   // email-prof-v1
     case 'delete-user':        return handleDeleteUser(svc, req, res)
     case 'list-invites':       return handleListInvites(svc, req, res)
     case 'create-invite':      return handleCreateInvite(svc, req, res)
@@ -159,6 +160,45 @@ async function handleUpdateProfile(svc, req, res) {
   if (error) return res.status(500).json({ error: error.message })
 
   return res.status(200).json({ ok: true })
+}
+
+// ── update-email (email-prof-v1, 8 ott 2026) ─────────────────────────────────
+// Chiesto da Giuliano: se un professionista ha sbagliato l'email, il reset
+// password gli arriva all'indirizzo sbagliato e non c'è via d'uscita. Solo
+// l'amministratore può cambiarla (il controllo sta nel server, sopra), e la
+// cambia DOVE CONTA: nell'account di accesso (Supabase Auth, con la chiave di
+// servizio). La password resta la stessa. Se la tabella professionals ha anche
+// lei una colonna email, si allinea; se non ce l'ha, non è un errore.
+export function validaEmail(v) {
+  const e = String(v == null ? '' : v).trim().toLowerCase()
+  if (!e) return { ok: false, motivo: 'Scrivi la nuova email.' }
+  if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return { ok: false, motivo: 'Questa non sembra un’email valida: ' + e }
+  return { ok: true, email: e }
+}
+async function handleUpdateEmail(svc, req, res) {
+  const { userId, email } = req.body || {}
+  if (!userId) return res.status(400).json({ error: 'userId obbligatorio' })
+  const v = validaEmail(email)
+  if (!v.ok) return res.status(400).json({ error: v.motivo })
+  if (v.email === ADMIN_EMAIL) return res.status(400).json({ error: 'Questa è l’email dell’amministratore: non si assegna a un professionista.' })
+
+  const { data: prima, error: e0 } = await svc.auth.admin.getUserById(userId)
+  if (e0 || !prima || !prima.user) return res.status(404).json({ error: 'Account non trovato' })
+  const vecchia = (prima.user.email || '').toLowerCase()
+  if (vecchia === ADMIN_EMAIL) return res.status(403).json({ error: 'L’email dell’amministratore non si cambia da qui.' })
+  if (vecchia === v.email) return res.status(200).json({ ok: true, email: v.email, invariata: true })
+
+  const { error: e1 } = await svc.auth.admin.updateUserById(userId, { email: v.email, email_confirm: true })
+  if (e1) {
+    const m = String(e1.message || '')
+    if (/already|registered|exists|duplicate/i.test(m)) return res.status(409).json({ error: 'Esiste già un account con l’email ' + v.email + '.' })
+    return res.status(500).json({ error: 'Non riesco a cambiare l’email: ' + m })
+  }
+  // la copia nella tabella professionals, se c'è (42703 / PGRST204 = la colonna non esiste: va bene così)
+  let tabella = 'aggiornata'
+  const { error: e2 } = await svc.from('professionals').update({ email: v.email }).eq('user_id', userId)
+  if (e2) tabella = (e2.code === '42703' || e2.code === 'PGRST204' || /column/i.test(e2.message || '')) ? 'senza colonna' : 'errore: ' + e2.message
+  return res.status(200).json({ ok: true, email: v.email, vecchia: vecchia, tabella: tabella })
 }
 
 // ── delete-user ──────────────────────────────────────────────────────────────
