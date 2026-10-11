@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/pol-2fa.js?v=due-fattori-v1"></script><!-- due-fattori-v1 -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #000; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -34,6 +35,18 @@
     </div>
     <div class="divider"></div>
     <div class="error-msg" id="error-msg"></div>
+    <!-- due-fattori-v1 — il passo del codice: compare SOLO a chi lo ha attivato dal proprio profilo -->
+    <div id="passo-codice" style="display:none">
+      <label for="codice-2fa">Codice dall’app di autenticazione</label>
+      <p style="font-size:13px;color:#555;line-height:1.5;margin-bottom:14px">Apri l’app di autenticazione sul telefono e scrivi il codice a 6 cifre.</p>
+      <input type="text" id="codice-2fa" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="••••••" style="font-size:24px;font-weight:700;letter-spacing:8px;text-align:center">
+      <button class="btn ds-btn-primary" id="codice-btn" onclick="confermaCodice()">Conferma</button>
+      <div style="text-align:center;margin-top:16px">
+        <button onclick="annullaCodice()" style="background:transparent;border:none;color:#666;font-family:Montserrat,sans-serif;font-size:12px;cursor:pointer;text-decoration:underline">Torna all’accesso</button>
+      </div>
+      <p style="font-size:12px;color:#666;line-height:1.5;margin-top:18px;text-align:center">Hai perso il telefono? Scrivi a chi gestisce Policettivo: può farti rientrare.</p>
+    </div>
+    <div id="passo-password">
     <label for="email">Email</label>
     <input type="email" id="email" placeholder="tuanome@email.it">
     <label for="password">Password</label>
@@ -51,6 +64,7 @@
       <p style="font-size:12px;color:#999;margin-bottom:12px">Non hai ancora un account?</p>
       <a href="registrazione.html" style="display:block;padding:14px;background:#000;color:#FFD008;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;text-align:center;text-decoration:none">Registrati gratuitamente →</a>
     </div>
+    </div><!-- /passo-password -->
     <div class="footer-note" style="margin-top:16px">Sistema Policettivo® — Solo per professionisti autorizzati</div>
   </div>
   <script>
@@ -75,8 +89,40 @@
           : 'Credenziali non valide. Riprova.')
         btn.disabled = false; btn.textContent = 'Accedi'; return
       }
-      window.location.href = 'dashboard.html'
+      await dopoPassword()
     }
+    // due-fattori-v1 — dopo la password: chi ha attivato il codice lo deve dare, tutti gli altri entrano come sempre.
+    // Un intoppo in questo controllo NON deve chiudere fuori nessuno: si entra come prima.
+    async function dopoPassword() {
+      let serve = false
+      try { serve = !!(window.PolDueFattori && await PolDueFattori.serveCodice(_supabase)) } catch (e) { console.warn('[due-fattori] controllo saltato:', e) }
+      if (!serve) { window.location.href = 'dashboard.html'; return }
+      mostraPassoCodice()
+    }
+    function mostraPassoCodice() {
+      document.getElementById('error-msg').style.display = 'none'
+      document.getElementById('passo-password').style.display = 'none'
+      document.getElementById('passo-codice').style.display = 'block'
+      const c = document.getElementById('codice-2fa'); c.value = ''; try { c.focus() } catch (e) {}
+    }
+    async function confermaCodice() {
+      const btn = document.getElementById('codice-btn'), c = document.getElementById('codice-2fa')
+      document.getElementById('error-msg').style.display = 'none'
+      btn.disabled = true; btn.textContent = 'Controllo...'
+      try { await PolDueFattori.verifica(_supabase, c.value); window.location.href = 'dashboard.html' }
+      catch (e) { showError(e && e.corto ? e.message : PolDueFattori.parole(e)); btn.disabled = false; btn.textContent = 'Conferma'; c.value = ''; try { c.focus() } catch (x) {} }
+    }
+    async function annullaCodice() {
+      try { await _supabase.auth.signOut({ scope: 'local' }) } catch (e) {}
+      document.getElementById('error-msg').style.display = 'none'
+      document.getElementById('passo-codice').style.display = 'none'
+      document.getElementById('passo-password').style.display = 'block'
+      const b = document.getElementById('login-btn'); b.disabled = false; b.textContent = 'Accedi'
+      document.getElementById('password').value = ''
+    }
+    document.getElementById('codice-2fa').addEventListener('keydown', e => { if (e.key === 'Enter') confermaCodice() })
+    // chi riapre questa pagina con la password già data ma il codice ancora da dare, riparte dal codice
+    ;(async function () { try { if (window.PolDueFattori) { const s = await _supabase.auth.getSession(); if (s && s.data && s.data.session && await PolDueFattori.serveCodice(_supabase)) mostraPassoCodice() } } catch (e) {} })()
     function showError(msg) { const el = document.getElementById('error-msg'); el.textContent = msg; el.style.display = 'block'; }
     document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
     function mostraResetPassword() {

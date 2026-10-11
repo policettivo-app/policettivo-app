@@ -882,6 +882,22 @@
       alert('Email di reset password inviata a ' + email + ' ✓')
     }
 
+    // due-fattori-v1 · chi ha perso il telefono non riesce più a dare il codice: glielo toglie l’amministratore (azione mfa-reset).
+    async function togliSecondoFattore() {
+      const prof = _panelProfData
+      if (!prof || !prof.user_id) { alert('Errore: user_id non trovato per questo professionista.'); return }
+      const chi = prof.email || ((prof.nome || '') + ' ' + (prof.cognome || '')).trim() || 'questo professionista'
+      if (!confirm('Tolgo il codice sul telefono a:\n' + chi + '\n\nDa adesso entrerà con la sola password e potrà riattivarlo dal suo profilo.\n\nFallo solo se sei sicuro che a chiedertelo sia davvero lui.')) return
+      const tok = await getAdminToken()
+      let r, j = {}
+      try {
+        r = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ action: 'mfa-reset', userId: prof.user_id }) })
+        j = await r.json().catch(() => ({}))
+      } catch (e) { alert('⚠️ Non tolto: il server non ha risposto (' + e.message + ').'); return }
+      if (!r.ok) { alert('⚠️ Non tolto: ' + (j.error || r.status)); return }
+      alert(j.tolti ? 'Codice sul telefono tolto ✓\n\n' + chi + ' ora entra con la sola password.' : 'Questo professionista non aveva il codice attivo: non c’era niente da togliere.')
+    }
+
     async function uploadLogo(file) {
       if (!file || !currentProfId) return
       const allowed = ['image/png', 'image/jpeg', 'image/svg+xml']
@@ -1164,6 +1180,7 @@
           <button class="btn-panel-action" onclick="copiaLinkAccesso()">📋 Copia link accesso</button>
           <button class="btn-panel-action wa" onclick="inviaLinkAccesso()">📲 Invia WhatsApp</button>
           <button class="btn-panel-action reset" style="grid-column:1/-1" onclick="resetAccessoProf()">🔑 Invia reset password via email</button>
+          <button class="btn-panel-action reset" style="grid-column:1/-1" id="btn-togli-2fa" onclick="togliSecondoFattore()">🛡️ Togli il codice sul telefono (telefono perso)</button><!-- due-fattori-v1 -->
         </div>
         <div class="p-row">
           <div><label class="p-label">Nome</label><input class="p-input" id="edit-nome" type="text" placeholder="Mario"></div>

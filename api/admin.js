@@ -122,6 +122,7 @@ export default async function handler(req, res) {
     case 'create-invite':      return handleCreateInvite(svc, req, res)
     case 'delete-invite':      return handleDeleteInvite(svc, req, res)
     case 'professionalStats':  return handleProfessionalStats(svc, req, res)
+    case 'mfa-reset':          return handleMfaReset(svc, req, res)       // due-fattori-v1
     default:                   return res.status(400).json({ error: 'action sconosciuta: ' + action })
   }
 }
@@ -257,6 +258,25 @@ async function handleListInvites(svc, req, res) {
     .order('created_at', { ascending: false })
   if (error) return res.status(500).json({ error: error.message })
   return res.status(200).json({ inviti: data || [] })
+}
+
+// ── mfa-reset (due-fattori-v1) ───────────────────────────────────────────────
+// Toglie a un account il secondo fattore (il codice sul telefono): serve a chi
+// ha perso il telefono. Solo l'amministratore della piattaforma arriva fin qui.
+// Non tocca password, email né dati: da quel momento si entra con la sola password.
+async function handleMfaReset(svc, req, res) {
+  const { userId } = req.body || {}
+  if (!userId) return res.status(400).json({ error: 'userId obbligatorio' })
+  const { data, error } = await svc.auth.admin.mfa.listFactors({ userId })
+  if (error) return res.status(500).json({ error: 'Non riesco a leggere i fattori: ' + (error.message || '') })
+  const fattori = (data && data.factors) || []
+  let tolti = 0
+  for (const f of fattori) {
+    const { error: e1 } = await svc.auth.admin.mfa.deleteFactor({ id: f.id, userId })
+    if (e1) return res.status(500).json({ error: 'Tolti ' + tolti + ' su ' + fattori.length + ', poi: ' + (e1.message || ''), tolti })
+    tolti++
+  }
+  return res.status(200).json({ ok: true, tolti })
 }
 
 // ── create-invite ────────────────────────────────────────────────────────────

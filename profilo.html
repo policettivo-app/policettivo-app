@@ -136,6 +136,7 @@
     .doc-titolare-hint { font-size: 11px; color: #666; margin-top: 4px; font-style: italic; }
   </style>
   <script src="js/pol-lock.js"></script><!-- sess-lock-v1 : blocco schermo per inattività -->
+  <script src="js/pol-2fa.js?v=due-fattori-v1"></script><!-- due-fattori-v1 : codice sul telefono + esci dagli altri dispositivi -->
 </head>
 <body>
   <nav class="navbar">
@@ -340,6 +341,12 @@
       </div>
       <button class="btn-save" onclick="cambiaPassword()">Cambia password</button>
       <span class="lst-status" id="pw-status"></span>
+    </div>
+
+    <!-- SICUREZZA DELL'ACCESSO (marker: due-fattori-v1) — il riquadro lo disegna js/pol-2fa.js -->
+    <div class="card" id="sic-card">
+      <div class="card-title">🛡️ Sicurezza dell’accesso</div>
+      <div id="sic-corpo"><p style="font-size:12px;color:#666">Carico…</p></div>
     </div>
 
     <!-- CODICE STATISTICHE (marker: stat-pin-v1) -->
@@ -1417,6 +1424,8 @@
     }
 
     init()
+    // due-fattori-v1 — il riquadro «Sicurezza dell’accesso»: se qualcosa va storto resta dentro il riquadro
+    try { if (window.PolDueFattori) PolDueFattori.montaProfilo(_supabase, document.getElementById('sic-corpo')) } catch (e) { console.warn('[due-fattori]', e) }
   </script>
 <script src="js/pol-nav.js?v=nav-v1" defer></script><!-- nav-v1 · pulsante Indietro/Home -->
 </body>
