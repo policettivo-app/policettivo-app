@@ -264,6 +264,12 @@
     .wizard-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300; align-items: center; justify-content: center; padding: 20px; }
     .wizard-overlay.open { display: flex; }
     .wizard-box { background: #fff; border-radius: 20px; padding: 40px 36px; width: 100%; max-width: 520px; }
+    /* benvenuto-scorre-v1 (10 ott 2026) — con i caratteri grandi del telefono la finestra di benvenuto era piu' alta dello schermo:
+       i pulsanti finivano sotto la barra in basso e non si poteva scorrere. Ora sta sopra la barra, non supera lo schermo e scorre dentro. */
+    .wizard-overlay { z-index: 9500; padding: 12px; }
+    .wizard-box { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; box-sizing: border-box; }
+    .wizard-actions { flex-wrap: wrap; gap: 12px; }
+    @media (max-width: 480px) { .wizard-box { padding: 24px 20px; } }
     .wizard-step { display: none; }
     .wizard-step.active { display: block; }
     .wizard-badge { background: var(--yellow); color: #000; font-size: 10px; font-weight: 700; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
