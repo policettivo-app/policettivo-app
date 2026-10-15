@@ -56,6 +56,25 @@
   };
 
   w.polFotoElimina = function (slot) {
+    /* foto-archivio-v1 — la foto esce dalla casella ma NON si perde: resta
+       nell'archivio della scheda come «sostituita». La casella si svuota dal
+       database (una sola casella), non riscrivendo tutto dalla copia in pagina. */
+    if (w.PolFotoArchivio && typeof patient !== 'undefined' && patient && typeof _supabase !== 'undefined' && _supabase) {
+      if (!confirm('Togliere questa foto dalla casella?\n\nResta nell\'archivio foto del paziente.')) return;
+      w.PolFotoArchivio.inCoda(async function () {
+        try {
+          var c = await w.PolFotoArchivio.impostaCasellaScheda(_supabase, _pid(), slot, null);
+          patient.foto_url = c.foto_url;
+          var vecchio = w.PolFotoArchivio.percorsoDi(c.prima);
+          if (vecchio) await w.PolFotoArchivio.segnaSostituita(_supabase, _pid(), vecchio, 'scheda', slot);
+          if (typeof _fotoLoaded !== 'undefined') { try { _fotoLoaded = false; } catch (e) {} }
+          _svuotaCasella(slot);
+        } catch (e) {
+          alert('Foto non tolta: ' + (e && e.message ? e.message : 'riprova'));
+        }
+      });
+      return;
+    }
     if (!confirm('Eliminare questa foto?')) return;
     var u = _urls(); delete u[slot];
     if (typeof patient !== 'undefined' && patient) {
@@ -64,6 +83,10 @@
         _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', _pid());
       }
     }
+    _svuotaCasella(slot);
+  };
+
+  function _svuotaCasella(slot) {
     var el = document.getElementById('slot-' + slot);
     if (el) {
       el.classList.remove('has-photo');

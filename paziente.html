@@ -18,6 +18,7 @@
 <script src="js/foto-actions.js"></script>
   <script src="js/foto-paziente.js"></script>
   <script src="js/foto-resolver.js"></script>
+  <script src="js/foto-archivio.js?v=foto-archivio-v1"></script>
   <script src="js/elicoidali-exercises.js"></script><!-- conteggio-completo-v1 : servono i titoli degli elicoidali -->
   <script src="js/camera-pol.js"></script>
   <script src="js/hub.js"></script>
@@ -2017,12 +2018,7 @@
           dataUrl = 'data:' + img.mediaType + ';base64,' + img.data
         }
         showFotoPreview(slot, dataUrl)
-        let urls = {}
-        try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
-        try { urls[slot] = { storage_path: await polUploadFotoIniziale(dataUrl, patientId, slot, _supabase) } }
-        catch (e) { console.warn('[foto] upload storage fallito, salvo base64', e); urls[slot] = dataUrl }
-        patient.foto_url = JSON.stringify(urls)
-        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+        await salvaFotoScheda(slot, dataUrl)   // foto-archivio-v1
         _fotoLoaded = false  // forza ricarica scheda Foto con la nuova
         chiudiFotoLibreriaModal()
       } catch(e) {
@@ -2060,12 +2056,7 @@
         c2.getContext('2d').drawImage(tmp, 0, 0, w, h)
         const dataUrl = c2.toDataURL('image/jpeg', 0.82)
         showFotoPreview(slot, dataUrl)
-        let urls = {}
-        try { urls = JSON.parse(patient.foto_url || '{}') } catch(_) {}
-        try { urls[slot] = { storage_path: await polUploadFotoIniziale(dataUrl, patientId, slot, _supabase) } }
-        catch (e) { console.warn('[foto] upload storage fallito, salvo base64', e); urls[slot] = dataUrl }
-        patient.foto_url = JSON.stringify(urls)
-        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+        await salvaFotoScheda(slot, dataUrl)   // foto-archivio-v1
       }
       tmp.src = rawDataUrl
     }
@@ -2147,12 +2138,7 @@
         c2.getContext('2d').drawImage(tmp, 0, 0, w, h)
         const dataUrl = c2.toDataURL('image/jpeg', 0.82)
         showFotoPreview(slot, dataUrl)
-        let urls = {}
-        try { urls = JSON.parse(patient.foto_url || '{}') } catch(_) {}
-        try { urls[slot] = { storage_path: await polUploadFotoIniziale(dataUrl, patientId, slot, _supabase) } }
-        catch (e) { console.warn('[foto] upload storage fallito, salvo base64', e); urls[slot] = dataUrl }
-        patient.foto_url = JSON.stringify(urls)
-        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+        await salvaFotoScheda(slot, dataUrl)   // foto-archivio-v1
       }
       tmp.src = raw.toDataURL()
     }
@@ -2190,16 +2176,61 @@
       } else { fallback() }
     }
 
+    /* foto-archivio-v1 — UN solo punto salva la foto di una casella della scheda.
+       Prima c'erano quattro copie dello stesso codice, che riscrivevano TUTTO
+       patients.foto_url partendo dalla copia in pagina: due scatti ravvicinati
+       (o PC + telefono) si cancellavano a vicenda, e la foto sostituita spariva
+       dall'app. Adesso il file prende numero del paziente, data e ora nel nome;
+       la casella si cambia da sola, nel database; la foto vecchia resta in
+       archivio come «sostituita». Se il caricamento non riesce NON si scrive
+       niente nel database (niente base64) e lo si dice sopra la foto. */
+    function salvaFotoScheda(slot, dataUrl) {
+      if (!window.PolFotoArchivio) return _salvaFotoSchedaVecchio(slot, dataUrl)
+      return PolFotoArchivio.inCoda(async function () {
+        try {
+          const r = await PolFotoArchivio.carica(_supabase, { patientId: patientId, cartella: patientId + '/iniziali', casella: slot, origine: 'scheda', dataUrl: dataUrl })
+          const c = await PolFotoArchivio.impostaCasellaScheda(_supabase, patientId, slot, { storage_path: r.storage_path })
+          patient.foto_url = c.foto_url
+          const vecchio = PolFotoArchivio.percorsoDi(c.prima)
+          if (vecchio && vecchio !== r.storage_path) await PolFotoArchivio.segnaSostituita(_supabase, patientId, vecchio, 'scheda', slot)
+          _fotoLoaded = false
+          return true
+        } catch (e) {
+          console.warn('[foto-archivio] foto non salvata', e)
+          _fotoNonSalvata(slot, e)
+          return false
+        }
+      })
+    }
+
+    function _fotoNonSalvata(slot, e) {
+      const el = document.getElementById('slot-' + slot)
+      if (el) {
+        const b = document.createElement('div')
+        b.className = 'foto-non-salvata'
+        b.style.cssText = 'position:absolute;left:0;right:0;top:0;z-index:3;background:#c62828;color:#fff;font-size:12px;font-weight:700;padding:6px 8px;text-align:center'
+        b.textContent = '⚠️ Foto non salvata — riprova'
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative'
+        el.appendChild(b)
+      }
+      showPazToast('⚠️ Foto non salvata' + (e && e.message ? ': ' + e.message : '') + ' — riprova')
+    }
+
+    // Solo se js/foto-archivio.js non si carica: il salvataggio di prima, uguale.
+    async function _salvaFotoSchedaVecchio(slot, dataUrl) {
+      let urls = {}
+      try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
+      try { urls[slot] = { storage_path: await polUploadFotoIniziale(dataUrl, patientId, slot, _supabase) } }
+      catch (e) { console.warn('[foto] upload storage fallito, salvo base64', e); urls[slot] = dataUrl }
+      patient.foto_url = JSON.stringify(urls)
+      await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+    }
+
     async function handleFoto(slot, input) {
       const file = input.files[0]; if (!file) return
       resizeImage(file, 1200, 1600, async (dataUrl) => {
         showFotoPreview(slot, dataUrl)
-        let urls = {}
-        try { urls = JSON.parse(patient.foto_url || '{}') } catch(e) {}
-        try { urls[slot] = { storage_path: await polUploadFotoIniziale(dataUrl, patientId, slot, _supabase) } }
-        catch (e) { console.warn('[foto] upload storage fallito, salvo base64', e); urls[slot] = dataUrl }
-        patient.foto_url = JSON.stringify(urls)
-        await _supabase.from('patients').update({ foto_url: patient.foto_url }).eq('id', patientId)
+        await salvaFotoScheda(slot, dataUrl)   // foto-archivio-v1
       })
     }
 
@@ -3588,9 +3619,14 @@
             if (iniz[slot]) {
               const _u = await polResolveFoto(iniz[slot], _supabase)
               if (!_u) continue
+              /* foto-archivio-v1 — la data della foto viene dal nome del file
+                 (…_<millisecondi>.jpg). Prima qui c'era la data di creazione del
+                 paziente: una data FALSA. Se il nome non ce l'ha: «data non registrata». */
+              const _pIn = window.PolFotoArchivio ? PolFotoArchivio.percorsoDi(iniz[slot]) : null
               fotoIniziali.push({
                 _url: _u,
-                _data: patient.created_at || patient.data_creazione || null,
+                _data: _pIn ? PolFotoArchivio.dataDaPercorso(_pIn) : null,
+                _conOra: true,
                 _iniziale: true,
                 _slot: slot,
                 _storagePath: (iniz[slot] && typeof iniz[slot] === 'object' && iniz[slot].storage_path) ? iniz[slot].storage_path
@@ -3625,13 +3661,43 @@
           }
           for (const f of (foto || [])) {
             f._data = f.data_scatto || dataByVisit[f.visit_id] || null
+            f._conOra = !!f.data_scatto     // foto-archivio-v1: la data della visita non è l'ora della foto
             if (f.storage_path && _signed[f.storage_path]) f._url = _signed[f.storage_path]
           }
           fotoVisite = (foto || []).filter(f => f._url)
         }
 
+        /* foto-archivio-v1 — le foto uscite da una casella (sostituite o tolte)
+           non spariscono più: stanno nel registro foto_storico e si vedono qui,
+           più chiare, con «sostituita il …». */
+        let fotoFuori = []
+        if (window.PolFotoArchivio) {
+          const _visti = new Set()
+          fotoIniziali.forEach(f => { if (f._storagePath) _visti.add(f._storagePath) })
+          fotoVisite.forEach(f => { if (f.storage_path) _visti.add(f.storage_path) })
+          const _sto = (await PolFotoArchivio.storicoPaziente(_supabase, patientId))
+            .filter(r => r.storage_path && !r.eliminata_il && !_visti.has(r.storage_path))
+          if (_sto.length) {
+            const { data: _slS } = await _supabase.storage.from('clinical-docs').createSignedUrls(_sto.map(r => r.storage_path), 7200)
+            const _mS = {}
+            ;(_slS || []).forEach(s => { if (s && s.signedUrl && s.path) _mS[s.path] = s.signedUrl })
+            const _SL = { 'prima-sx': 'Prima cuscini · Sinistro', 'prima-dx': 'Prima cuscini · Destro', 'dopo-sx': 'Dopo cuscini · Sinistro', 'dopo-dx': 'Dopo cuscini · Destro', 'frontale': 'Posturale · Frontale', 'posteriore': 'Posturale · Posteriore', 'podo-sotto': 'Piede · Da sotto', 'podo-dietro': 'Piede · Da dietro' }
+            fotoFuori = _sto.filter(r => _mS[r.storage_path]).map(r => ({
+              _url: _mS[r.storage_path],
+              _data: r.scattata_il || PolFotoArchivio.dataDaPercorso(r.storage_path),
+              _conOra: true,
+              _storico: r,
+              _numero: r.numero,
+              storage_path: r.storage_path,
+              tipo: 'libera',
+              titolo: (_SL[r.casella] || (r.casella || 'Foto').replace(/[-_]/g, ' ')),
+              note: ''
+            }))
+          }
+        }
+
         // 4) iniziali in cima (più importanti), poi foto visite
-        _allFoto = fotoIniziali.concat(fotoVisite)
+        _allFoto = fotoIniziali.concat(fotoVisite).concat(fotoFuori)   // foto-archivio-v1
         _allFoto.forEach((f, i) => { f._idx = i })
         loading.style.display = 'none'
         if (_allFoto.length === 0) { empty.style.display = 'block'; return }
@@ -3665,16 +3731,19 @@
       if (list.length === 0) { grid.innerHTML = ''; empty.style.display = 'block'; _fotoRenderSelbar(); return }
       empty.style.display = 'none'
       grid.innerHTML = list.map(f => {
-        const d = f._data ? new Date(f._data).toLocaleDateString('it-IT') : ''
+        // foto-archivio-v1 — data E ora; «data non registrata» se non si conosce
+        const d = window.PolFotoArchivio ? PolFotoArchivio.dataOra(f._data, !f._conOra) : (f._data ? new Date(f._data).toLocaleDateString('it-IT') : '')
         const label = (f.tipo && f.tipo !== 'libera') ? f.tipo : (f.titolo || 'Foto')
         const sel = _fotoSel.has(f._idx)
-        return '<div style="position:relative;border:1px solid ' + (sel ? '#c62828' : '#eee') + ';border-radius:10px;overflow:hidden;background:#fff">' +
+        const fuori = f._storico ? (f._storico.sostituita_il ? 'sostituita il ' + PolFotoArchivio.dataOra(f._storico.sostituita_il) : 'non in una casella') : ''
+        return '<div style="position:relative;border:1px solid ' + (sel ? '#c62828' : '#eee') + ';border-radius:10px;overflow:hidden;background:#fff' + (fuori ? ';opacity:.6' : '') + '">' +
           '<label style="position:absolute;top:6px;left:6px;z-index:2;background:rgba(255,255,255,.92);border-radius:6px;padding:3px;display:flex" onclick="event.stopPropagation()">' +
             '<input type="checkbox" ' + (sel ? 'checked' : '') + ' onchange="_fotoToggleSel(' + f._idx + ',this.checked)" style="width:18px;height:18px;accent-color:#c62828;cursor:pointer"></label>' +
           '<div style="cursor:pointer" onclick="window.open(\'' + f._url + '\',\'_blank\')">' +
             '<img src="' + f._url + '" style="width:100%;height:120px;object-fit:cover;display:block" loading="lazy">' +
             '<div style="padding:7px 9px"><div style="font-size:12px;font-weight:700;color:#000;text-transform:capitalize">' + label + '</div>' +
-            '<div style="font-size:11px;color:#666">' + d + '</div></div>' +
+            '<div style="font-size:11px;color:#666">' + d + '</div>' +
+            (fuori ? '<div class="foto-fuori" style="font-size:11px;color:#8a5a00;font-weight:700">' + fuori + '</div>' : '') + '</div>' +
           '</div>' +
         '</div>'
       }).join('')
@@ -3716,7 +3785,18 @@
     }
 
     async function _fotoEliminaUno(f) {
-      if (f._iniziale) {
+      // foto-archivio-v1 — foto fuori casella (dal registro): si toglie il file
+      // solo se nessun altro lo usa, e nel registro resta «eliminata».
+      if (f._storico) {
+        await _fotoRimuoviFileSeOrfano(f.storage_path)
+        return
+      }
+      if (f._iniziale && window.PolFotoArchivio && f._slot) {
+        // la casella si svuota dal database, non dalla copia in pagina
+        const c = await PolFotoArchivio.impostaCasellaScheda(_supabase, patientId, f._slot, null)
+        patient.foto_url = c.foto_url
+        if (f._storagePath) await _fotoRimuoviFileSeOrfano(f._storagePath)
+      } else if (f._iniziale) {
         let u = {}; try { u = JSON.parse(patient.foto_url || '{}') } catch (e) {}
         if (f._slot && Object.prototype.hasOwnProperty.call(u, f._slot)) {
           delete u[f._slot]
@@ -3736,6 +3816,15 @@
 
     async function _fotoRimuoviFileSeOrfano(path) {
       try {
+        /* foto-archivio-v1 — prima si guardava solo visit_photos: eliminare la
+           copia «visita» di una foto della scheda cancellava il file anche alla
+           scheda. Adesso si guarda anche patients.foto_url; nel dubbio non si cancella. */
+        if (window.PolFotoArchivio) {
+          if (await PolFotoArchivio.fileInUso(_supabase, path, { patientId: patientId })) return
+          await _supabase.storage.from('clinical-docs').remove([path])
+          await PolFotoArchivio.segnaEliminata(_supabase, patientId, path)
+          return
+        }
         const { data: altri } = await _supabase.from('visit_photos').select('id').eq('storage_path', path).limit(1)
         if (altri && altri.length) return
         await _supabase.storage.from('clinical-docs').remove([path])
