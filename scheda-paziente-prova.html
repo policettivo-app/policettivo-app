@@ -16,7 +16,10 @@
        stessa scelta salvata di esercizio.html), «⚠ Ho dolore — interrompi», ← esercizio precedente, il
        promemoria dei 3 Respiri, a fine seduta 🔥 giorni di fila + frase motivante + promemoria della sera.
        scheda-paziente-v4 (18:52): immagine dell'esercizio (elenco in js/scheda-immagini.js) nella lista e in
-       «Adesso tocca a»; in cima la faccina dell'andamento come protocollo.html (loadSmile), dai dati veri. -->
+       «Adesso tocca a»; in cima la faccina dell'andamento come protocollo.html (loadSmile), dai dati veri.
+       scheda-paziente-v5 (19:21): mentre si fa l'esercizio si vede la sua INFOGRAFICA (tocca = ingrandisci),
+       il timer sta in un pannello sotto e NON parte da solo («▶ AVVIA»); in anteprima, finita la seduta,
+       la faccina mostra come cambierebbe (senza salvare). -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
@@ -113,6 +116,29 @@
     .btn-diary { width: 100%; padding: 14px; background: #1a1a1a; border: 1px solid #FFD008; color: #FFD008; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
     .thumb { width: 52px; height: 68px; object-fit: cover; border-radius: 10px; flex-shrink: 0; border: 1px solid #333; }
     .foto-annuncio { height: min(30vh, 230px); width: auto; max-width: 80vw; object-fit: cover; border-radius: 16px; border: 2px solid #FFD008; }
+    .palco-centro.pieno { justify-content: flex-start; overflow: hidden; gap: 10px; }
+    .es-testa { flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+    .palco-centro.pieno .nome-es { font-size: 21px; }
+    .palco-centro.pieno .frase { font-size: 13px; }
+    .figura { flex: 1; min-height: 0; width: 100%; background: none; border: none; padding: 0; position: relative; cursor: zoom-in; display: flex; justify-content: center; }
+    .figura img { height: 100%; max-width: 100%; object-fit: contain; border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.6); }
+    .lente { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.75); color: #fff; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 20px; white-space: nowrap; }
+    .pill-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; flex-shrink: 0; }
+    .pillbtn { background: #1a1a1a; border: 1px solid #333; color: #ddd; border-radius: 20px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .pillbtn.giallo { border-color: #FFD008; color: #FFD008; }
+    .pillbtn.rosso { border-color: #c62828; color: #ef9a9a; }
+    .pillbtn.rosso.chiede { background: #3a0d0d; color: #fff; }
+    .pannello { display: flex; align-items: center; gap: 12px; width: 100%; background: #111; border: 1px solid #262626; border-radius: 20px; padding: 10px; }
+    .pannello .grande { padding: 16px 10px; }
+    .anello.mini { width: 92px; flex-shrink: 0; }
+    .anello.mini .cifra { font-size: 30px; }
+    .anello.mini .sotto { font-size: 9px; margin-top: 2px; }
+    .rip-mini { text-align: center; min-width: 92px; }
+    .rip-mini b { display: block; font-size: 40px; font-weight: 900; color: #FFD008; line-height: 1; }
+    .rip-mini span { font-size: 11px; color: #aaa; font-weight: 700; }
+    .es .f3r { font-size: 11px; color: #FFD008; margin-top: 4px; line-height: 1.4; }
+    .modal .sch.alta { aspect-ratio: auto; max-height: 78vh; overflow-y: auto; background: #000; }
+    .modal .sch.alta img { height: auto; object-fit: initial; }
     .annuncio { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer; }
     .nome-grande { font-size: clamp(32px, 10vw, 46px); font-weight: 900; line-height: 1.1; color: #fff; max-width: 440px; }
     .q-grande { font-size: 22px; font-weight: 800; color: #FFD008; }
@@ -193,7 +219,7 @@
   </div>
 
 <script>
-/* scheda-paziente-v1 · scheda-paziente-v2 · scheda-paziente-v3 · scheda-paziente-v4 */
+/* scheda-paziente-v1 · scheda-paziente-v2 · scheda-paziente-v3 · scheda-paziente-v4 · scheda-paziente-v5 */
 (function () {
   'use strict'
 
@@ -210,6 +236,9 @@
     tocca: 'Tocca un esercizio per fare solo quello',
     vuota: 'Il tuo fisioterapista non ha ancora preparato la scheda.',
     adessoTocca: 'Adesso tocca a', via: 'VIA!',
+    avvia: '▶  AVVIA', riprendiBtn: '▶  RIPRENDI', pausaBtn: '⏸  PAUSA', ingrandisci: '🔍 Tocca per ingrandire',
+    video: '▶ Video', doloreCorto: '⚠ Ho dolore', prec: '← Prima',
+    smileAnteprima: '🧪 Anteprima: così cambierebbe la faccina. Col paziente vero si salva da sola.',
     // ↓ testi presi così come sono da esercizio.html (l'app di oggi)
     hint3r: '💛 La Tecnica dei 3 Respiri è il tuo rituale di igiene posturale quotidiana. Eseguila sempre, ogni giorno, anche nei giorni in cui salti gli altri esercizi.',
     dolore1: '⚠ Ho dolore — interrompi',
@@ -291,7 +320,7 @@
   let passi = [], iPasso = 0
   let timer = null, scadenza = 0, restante = 0, inPausa = false, durataPasso = 0
   let inizioSeduta = 0, wake = null, chiedeUscita = false, chiedeDolore = false
-  let immagini = {}, smile = null
+  let immagini = {}, smile = null, diarioLetto = null
   let tre = {}   // righe che sono la Tecnica dei 3 Respiri (slug 0-3r come in esercizio.html, o il nome)
   // 🔊 stessa scelta salvata di esercizio.html (chiave policettivo_sound)
   let suono = true
@@ -359,7 +388,12 @@
     const lista = window.SCHEDA_IMMAGINI || []
     const nome = String(r.nome || '').toLowerCase()
     const t = lista.find(function (x) {
-      return (x.slug && slug && x.slug === slug) || (x.id && r.elicoidale_id && x.id === r.elicoidale_id) || (x.nome && nome.indexOf(String(x.nome).toLowerCase()) > -1)
+      if (x.slug && slug && x.slug === slug) return true
+      if (x.id && r.elicoidale_id && x.id === r.elicoidale_id) return true
+      if (!x.nome) return false
+      // «schema 1» trova «Schema 1» e «Schema 1 — …», ma non «Schema 10»
+      const k = nome.indexOf(String(x.nome).toLowerCase())
+      return k > -1 && !/\d/.test(nome.charAt(k + String(x.nome).length))
     })
     return t || null
   }
@@ -395,7 +429,7 @@
     // La faccina dell'andamento dai giorni veri del diario (il professionista li può leggere).
     try {
       const { data: dd, error: de } = await sb.from('diary_entries').select('data, completato').eq('patient_id', patientId).order('data', { ascending: false }).limit(30)
-      if (!de) smile = calcolaSmile(dd || [], new Date())
+      if (!de) { diarioLetto = dd || []; smile = calcolaSmile(diarioLetto, new Date()) }
     } catch (e) {}
     const h = new Date().getHours()
     momento = h < 14 ? 'mattina' : 'sera'
@@ -454,7 +488,8 @@
     html = '<div class="smile"><div class="smile-big" id="smile-emoji">' + (sm ? sm.emoji : '🙂') + '</div>' +
       '<div class="smile-title">' + (sm ? sm.titolo : T.pagellaTit) + '</div>' +
       '<div class="smile-sub">' + (sm ? frasiSm[Math.floor(Math.random() * frasiSm.length)] : T.pagellaSub) + '</div>' +
-      '<button class="btn-pagella" onclick="soloAnteprima(this)">' + T.pagellaBtn + '</button></div>' + html
+      '<button class="btn-pagella" onclick="soloAnteprima(this)">' + T.pagellaBtn + '</button>' +
+      (sm && sm.anteprima ? '<div class="avviso-prova" style="margin-top:10px">' + T.smileAnteprima + '</div>' : '') + '</div>' + html
     html += '<div class="sez">' + T.sezione + '</div>'
     if (giri > 1) html += '<div class="giro">' + T.giroTutta(giri) + '</div>'
     let n = 0
@@ -468,6 +503,7 @@
         (im ? '<img class="thumb" src="' + esc(im.img) + '" alt="' + esc(im.alt || r.nome) + '" loading="lazy">' : '') + '<div class="c">' +
         '<div class="t">' + esc(r.nome) + q + '</div><div class="q">' + quanto(r) + '</div>' +
         (r.testo ? '<div class="f">' + esc(r.testo) + '</div>' : '') +
+        (tre[r.id] ? '<div class="f3r">' + T.hint3r + '</div>' : '') +
       '</div><span class="play">▶</span></button>'
     })
     html += '<div class="avviso-prova" style="text-align:center;margin-top:6px">' + T.tocca + '</div>'
@@ -529,6 +565,7 @@
     if (!timer) return
     if (!inPausa) { inPausa = true; restante = Math.max(0, scadenza - Date.now()) } else { inPausa = false; scadenza = Date.now() + restante }
     const b = $('btn-pausa'); if (b) { b.textContent = inPausa ? T.riprendi : T.pausa; b.setAttribute('aria-label', inPausa ? 'Riprendi' : 'Pausa') }
+    aggiornaAvvia()
   }
 
   function intestazione(p) {
@@ -557,6 +594,7 @@
     intestazione(p)
     const r = p.riga
     const im = immagini[r.id]
+    $('centro').className = 'palco-centro'
     $('centro').innerHTML = '<div class="annuncio" onclick="mostra()">' +
       (im ? '<img class="foto-annuncio" src="' + esc(im.img) + '" alt="' + esc(im.alt || r.nome) + '">' : '') +
       '<div class="etichetta">' + T.adessoTocca + '</div>' +
@@ -570,30 +608,65 @@
     }, mostra)
   }
 
+  // La schermata dell'esercizio (scheda-paziente-v5): in alto il nome, in mezzo l'infografica che fa capire
+  // a colpo d'occhio cosa si fa, sotto il pannello del timer. Il tempo NON parte da solo: «▶ AVVIA».
+  let partito = false
   window.mostra = function () {
-    ferma()
+    ferma(); partito = false; chiedeDolore = false
     const p = passi[iPasso]
     intestazione(p)
     const r = p.riga
     const m = media[r.id]
-    const testa = '<div class="etichetta">' + (p.serieTot > 1 ? T.serie(p.serie, p.serieTot) : '&nbsp;') + '</div>' +
+    const im = immagini[r.id]
+    const figura = im && (im.scheda || im.img)
+    const testa = '<div class="es-testa">' +
+      (p.serieTot > 1 ? '<div class="etichetta">' + T.serie(p.serie, p.serieTot) + '</div>' : '') +
       '<div class="nome-es">' + esc(r.nome) + '</div>' +
-      (r.testo ? '<div class="frase">' + esc(r.testo) + '</div>' : '') +
-      (m ? '<button class="guarda" onclick="guarda()">' + T.guarda + '</button>' : '') +
-      (tre[r.id] ? '<div class="hint-3r">' + T.hint3r + '</div>' : '')
-    chiedeDolore = false
-    const sotto = '<div class="sotto-es">' +
-      (iPasso > 0 ? '<button class="link" id="btn-prec" onclick="indietro()">' + T.precedente + '</button>' : '') +
-      '<button class="btn-dolore" id="btn-dolore" onclick="dolore()">' + T.dolore1 + '</button></div>'
-    if (r.misura === 'tempo') {
-      $('centro').innerHTML = testa + anello('', r.secondi, T.secondi) + sotto
-      $('giu').innerHTML = '<button class="tondo" id="btn-pausa" onclick="pausa()" aria-label="Pausa">' + T.pausa + '</button>' +
-        '<button class="grande scuro" onclick="avanti()">' + T.salta + ' Avanti</button>'
-      conta(Number(r.secondi), aggiornaAnello, avanti)
+      (r.testo ? '<div class="frase">' + esc(r.testo) + '</div>' : '') + '</div>'
+    const pill = '<div class="pill-row">' +
+      (iPasso > 0 ? '<button class="pillbtn" id="btn-prec" onclick="indietro()">' + T.prec + '</button>' : '') +
+      (m ? '<button class="pillbtn giallo guarda" onclick="guarda()">' + T.video + '</button>' : '') +
+      '<button class="pillbtn rosso" id="btn-dolore" onclick="dolore()">' + T.doloreCorto + '</button></div>'
+    const centro = $('centro')
+    if (figura) {
+      centro.className = 'palco-centro pieno'
+      centro.innerHTML = testa +
+        '<button class="figura" onclick="ingrandisci()" aria-label="' + esc(T.ingrandisci) + '">' +
+          '<img src="' + esc(figura) + '" alt="' + esc(im.alt || r.nome) + '"><span class="lente">' + T.ingrandisci + '</span></button>' +
+        pill + (tre[r.id] && !im.scheda ? '<div class="hint-3r">' + T.hint3r + '</div>' : '')
     } else {
-      $('centro').innerHTML = testa + '<div><div class="rip-grandi">' + r.ripetizioni + '</div><div class="rip-sotto">' + T.ripetizioni + '</div></div>' + sotto
-      $('giu').innerHTML = '<button class="grande" id="btn-fatto" onclick="avanti()">' + T.fatto + '</button>'
+      centro.className = 'palco-centro'
+      centro.innerHTML = testa + (tre[r.id] ? '<div class="hint-3r">' + T.hint3r + '</div>' : '') +
+        (r.misura === 'tempo' ? anello('', r.secondi, T.secondi)
+          : '<div><div class="rip-grandi">' + r.ripetizioni + '</div><div class="rip-sotto">' + T.ripetizioni + '</div></div>') + pill
     }
+    if (r.misura === 'tempo') {
+      $('giu').innerHTML = '<div class="pannello">' + (figura ? anello('mini', r.secondi, T.secondi) : '') +
+        '<button class="grande" id="btn-avvia" onclick="avvia()">' + T.avvia + '</button>' +
+        '<button class="tondo" onclick="avanti()" aria-label="Avanti">' + T.salta + '</button></div>'
+    } else {
+      $('giu').innerHTML = '<div class="pannello">' + (figura ? '<div class="rip-mini"><b>' + r.ripetizioni + '</b><span>' + T.ripetizioni + '</span></div>' : '') +
+        '<button class="grande" id="btn-fatto" onclick="avanti()">' + T.fatto + '</button></div>'
+    }
+  }
+  window.avvia = function () {
+    const p = passi[iPasso]; if (!p) return
+    if (!partito) { partito = true; conta(Number(p.riga.secondi), aggiornaAnello, avanti) }
+    else pausa()
+    aggiornaAvvia()
+  }
+  function aggiornaAvvia() {
+    const b = $('btn-avvia'); if (!b) return
+    b.textContent = !partito ? T.avvia : (inPausa ? T.riprendiBtn : T.pausaBtn)
+    b.classList.toggle('scuro', partito && !inPausa)
+  }
+  window.ingrandisci = function () {
+    const p = passi[iPasso]; if (!p) return
+    const im = immagini[p.riga.id]; if (!im) return
+    $('modal-tt').textContent = p.riga.nome
+    $('modal-sch').className = 'sch alta'
+    $('modal-sch').innerHTML = '<img src="' + esc(im.scheda || im.img) + '" alt="' + esc(im.alt || p.riga.nome) + '">'
+    $('modal').classList.add('show')
   }
 
   window.avanti = function () {
@@ -634,6 +707,7 @@
     const minuti = rapido ? null : Math.max(1, Math.round((Date.now() - inizioSeduta) / 60000))
     const giri = es.length ? es[0].giri : 1
     $('dove').innerHTML = ''
+    $('centro').className = 'palco-centro'
     $('centro').innerHTML = '<div class="festa"><div class="coppa">🏆</div><h2>' + T.bravo + '</h2><p>' + T.finito + '</p>' +
       '<div class="riep"><div><b>' + nomi.size + '</b><span>' + T.fattiN + '</span></div>' + (minuti ? '<div><b>' + minuti + '</b><span>' + T.tempoN + '</span></div>' : '') +
       (giri > 1 ? '<div><b>' + giri + '</b><span>' + T.giriN + '</span></div>' : '') + '</div>' +
@@ -646,6 +720,13 @@
       '<div class="sera-hint">' + T.seraHint + '</div></div>'
     $('dove').innerHTML = '<button class="suono" id="btn-suono" onclick="cambiaSuono()" aria-label="Musica">' + (suono ? '🔊' : '🔇') + '</button>'
     setTimeout(musica, 300)
+    // 🧪 In anteprima niente si salva: la faccina della casa si aggiorna solo sullo schermo, per far vedere come cambierebbe.
+    try {
+      const oggi = new Date(), g = oggi.getFullYear() + '-' + String(oggi.getMonth() + 1).padStart(2, '0') + '-' + String(oggi.getDate()).padStart(2, '0')
+      diarioLetto = (diarioLetto || []).filter(function (e) { return e.data !== g }).concat([{ data: g, completato: true }])
+      smile = calcolaSmile(diarioLetto, oggi); smile.anteprima = true
+      disegnaCasa()
+    } catch (e) {}
     $('giu').innerHTML = '<button class="grande" onclick="chiudiFine()">' + T.torna + '</button>'
     coriandoli()
   }
@@ -689,6 +770,7 @@
     const m = media[p.riga.id]; if (!m) return
     if (timer && !inPausa) pausa()          // guardando il video il tempo si ferma
     $('modal-tt').textContent = p.riga.nome
+    $('modal-sch').className = 'sch'
     $('modal-sch').innerHTML = m.yt
       ? '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(m.yt) + '?rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>'
       : (m.foto ? '<img src="' + esc(m.url) + '" alt="">' : '<video src="' + esc(m.url) + '" controls playsinline preload="metadata"></video>')
