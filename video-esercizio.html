@@ -43,6 +43,8 @@
     .countdown-bar-fill { height: 4px; background: #FFD008; border-radius: 2px; width: 0%; transition: width 1s linear; }
     .cam-controls { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn-rec { flex: 1; padding: 14px 10px; background: #ff4444; color: #fff; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-pausa { flex: 1; padding: 14px 10px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }   /* video-pausa-v1 */
+    .rec-badge.in-pausa { color: #FFD008; }
     .btn-stop { flex: 1; padding: 14px 10px; background: #333; color: #fff; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
     .btn-snap { flex: 1; padding: 14px 10px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
     .btn-cancel-cam { padding: 14px 16px; background: transparent; border: 1px solid #ddd; color: #666; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; cursor: pointer; }
@@ -146,6 +148,7 @@
       </div>
       <div class="cam-controls">
         <button class="btn-rec"  id="btn-start-rec" onclick="iniziaRegistrazione()" style="display:none">⏺ Inizia registrazione</button>
+        <button class="btn-pausa" id="btn-pausa-rec" onclick="pausaRiprendi()" style="display:none">⏸ Pausa</button><!-- video-pausa-v1 -->
         <button class="btn-stop" id="btn-stop-rec"  onclick="fermaRegistrazione()" style="display:none">⏹ Ferma</button>
         <button class="btn-snap" id="btn-snap"       onclick="scattaFoto()"          style="display:none">📸 Scatta foto</button>
         <button class="btn-cancel-cam" onclick="chiudiCamera()">✕ Annulla</button>
@@ -281,7 +284,18 @@
       }
       mediaRecorder.start(1000)
 
+      /* video-pausa-v1 — la registrazione si può mettere in pausa (girare un
+         cuscino, cambiare posizione) e riprendere: nel video finale le pause
+         non ci sono, i pezzi sono uno di seguito all'altro. I 40 secondi
+         contano solo il tempo registrato. Se il browser non sa mettere in
+         pausa, il pulsante non compare e tutto resta come prima. */
+      inPausa = false
       let secs = 40
+      const _pb = document.getElementById('btn-pausa-rec')
+      _pb.textContent = '⏸ Pausa'
+      _pb.style.display = (typeof mediaRecorder.pause === 'function' && typeof mediaRecorder.resume === 'function') ? 'flex' : 'none'
+      document.getElementById('rec-badge').textContent = '🔴 REC'
+      document.getElementById('rec-badge').classList.remove('in-pausa')
       document.getElementById('rec-badge').style.display        = 'block'
       document.getElementById('countdown-overlay').style.display = 'flex'
       document.getElementById('btn-start-rec').style.display    = 'none'
@@ -290,6 +304,7 @@
       document.getElementById('countdown-fill').style.width = '0%'
 
       countdownInterval = setInterval(() => {
+        if (inPausa) return
         secs--
         document.getElementById('countdown-num').textContent = secs
         document.getElementById('countdown-fill').style.width = ((40 - secs) / 40 * 100) + '%'
@@ -299,7 +314,35 @@
 
     function fermaRegistrazione() {
       clearInterval(countdownInterval)
+      inPausa = false
+      const _pb = document.getElementById('btn-pausa-rec'); if (_pb) _pb.style.display = 'none'
       if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop()
+    }
+
+    // video-pausa-v1 — pausa / riprendi durante la registrazione
+    let inPausa = false
+    function pausaRiprendi() {
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') return
+      const btn = document.getElementById('btn-pausa-rec')
+      const badge = document.getElementById('rec-badge')
+      try {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.pause()
+          inPausa = true
+          btn.textContent = '▶ Riprendi'
+          badge.textContent = '⏸ IN PAUSA'
+          badge.classList.add('in-pausa')
+        } else if (mediaRecorder.state === 'paused') {
+          mediaRecorder.resume()
+          inPausa = false
+          btn.textContent = '⏸ Pausa'
+          badge.textContent = '🔴 REC'
+          badge.classList.remove('in-pausa')
+        }
+      } catch (e) {
+        btn.style.display = 'none'
+        inPausa = false
+      }
     }
 
     function scattaFoto() {
@@ -317,6 +360,8 @@
 
     function chiudiCamera() {
       clearInterval(countdownInterval)
+      inPausa = false
+      const _pb = document.getElementById('btn-pausa-rec'); if (_pb) _pb.style.display = 'none'
       if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null }
       document.getElementById('camera-section').style.display   = 'none'
       document.getElementById('mode-section').style.display     = 'block'
