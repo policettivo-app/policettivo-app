@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policettivo® — Scheda nuova (prova)</title>
+  <!-- scheda-editor-v1 · PASSO 2 del PIANO-scheda-allenamento: editor del professionista.
+       IN PROVA: pagina nuova, tabelle della migration 059, il paziente NON vede niente
+       (visibile_paziente resta false). Non tocca assegna-protocollo / protocollo / esercizio. -->
+  <link rel="stylesheet" href="css/design-system.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="policettivo-globals.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/elicoidali-exercises.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; padding-bottom: 160px; }
+    .navbar { background: #000; padding: 6px 12px; min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .navbar-brand { color: #FFD008; font-size: 16px; font-weight: 700; letter-spacing: 1px; }
+    .btn-back { background: transparent; border: 1px solid #333; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: inherit; font-size: 12px; text-decoration: none; min-height: 40px; display: inline-flex; align-items: center; }
+    .main { max-width: 700px; margin: 0 auto; padding: 20px 16px 40px; }
+    .prova-badge { display: inline-block; background: #fff4c2; border: 1px solid #FFD008; color: #000; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; margin-bottom: 10px; }
+    h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .sub { font-size: 13px; color: #666; margin-bottom: 16px; }
+    .banner-err { background: #fff3f3; border: 1px solid #ffcdd2; color: #b71c1c; border-radius: 12px; padding: 14px 16px; font-size: 13px; font-weight: 600; margin-bottom: 16px; display: none; }
+    .banner-err.show { display: block; }
+    .card { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding-bottom: 8px; margin-bottom: 14px; border-bottom: 2px solid #FFD008; }
+    .lbl { font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; display: block; }
+    .inp { width: 100%; padding: 11px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-family: inherit; font-size: 14px; outline: none; background: #fff; }
+    .inp:focus { border-color: #FFD008; }
+    textarea.inp { resize: vertical; min-height: 60px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* Righe della scheda */
+    .riga { border: 2px solid #eee; border-radius: 14px; padding: 14px; margin-bottom: 10px; background: #fff; }
+    .riga.nota { background: #fffbea; border-color: #f3e3a0; }
+    .riga.err { border-color: #e53935; }
+    .riga-top { display: flex; align-items: flex-start; gap: 10px; }
+    .num { width: 30px; height: 30px; border-radius: 50%; background: #000; color: #FFD008; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .riga.nota .num { background: #FFD008; color: #000; }
+    .riga-nome { flex: 1; min-width: 0; }
+    .riga-nome .t { font-size: 15px; font-weight: 700; word-break: break-word; }
+    .riga-nome .m { font-size: 11px; color: #666; margin-top: 2px; }
+    .mini { background: transparent; border: 1.5px solid #ddd; border-radius: 8px; width: 36px; height: 36px; font-size: 15px; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+    .mini:disabled { opacity: .3; cursor: default; }
+    .mini.del { border-color: #f5c6c6; color: #c62828; }
+    .blocco { margin-top: 12px; }
+    .seg { display: flex; border: 1.5px solid #000; border-radius: 10px; overflow: hidden; }
+    .seg button { flex: 1; padding: 9px 6px; border: none; background: #fff; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .seg button.on { background: #000; color: #FFD008; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .chip { min-width: 52px; padding: 9px 12px; border-radius: 9px; border: 1.5px solid #ddd; background: #fff; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .chip.on { background: #FFD008; border-color: #000; }
+    .chip-altro { width: 92px; padding: 9px 8px; border-radius: 9px; border: 1.5px dashed #999; font-family: inherit; font-size: 14px; font-weight: 700; text-align: center; }
+    .chip-altro.on { border-style: solid; border-color: #000; background: #FFD008; }
+    .stepper { display: inline-flex; align-items: center; border: 1.5px solid #ddd; border-radius: 10px; overflow: hidden; }
+    .stepper button { width: 40px; height: 38px; border: none; background: #f5f5f5; font-size: 18px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .stepper span { min-width: 40px; text-align: center; font-size: 15px; font-weight: 800; }
+    .due { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: end; }
+    .msg-err { color: #c62828; font-size: 12px; font-weight: 600; margin-top: 8px; }
+    .vuoto { text-align: center; color: #888; font-size: 13px; padding: 18px 8px; }
+
+    .aggiungi { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btn { padding: 14px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; border: 2px solid #000; background: #fff; }
+    .btn.giallo { background: #FFD008; }
+    .btn.nero { background: #000; color: #FFD008; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .salva { position: fixed; bottom: 76px; left: 12px; right: 12px; max-width: 676px; margin: 0 auto; padding: 16px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: inherit; font-size: 16px; font-weight: 800; cursor: pointer; z-index: 950; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+    .salva:disabled { opacity: .5; }
+    .salva.fatto { background: #000; color: #FFD008; }
+
+    /* Scelta esercizio */
+    .sheet { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 9000; align-items: flex-end; justify-content: center; }
+    .sheet.show { display: flex; }
+    .sheet-box { background: #fff; width: 100%; max-width: 700px; max-height: 88vh; border-radius: 18px 18px 0 0; display: flex; flex-direction: column; }
+    .sheet-head { padding: 16px 16px 10px; border-bottom: 1px solid #eee; }
+    .sheet-head .row { justify-content: space-between; margin-bottom: 10px; }
+    .sheet-head b { font-size: 16px; }
+    .sheet-body { overflow-y: auto; padding: 8px 16px 24px; }
+    .gruppo { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; }
+    .voce { display: flex; align-items: center; gap: 10px; border: 1.5px solid #eee; border-radius: 10px; padding: 11px 12px; margin-bottom: 6px; cursor: pointer; background: #fff; width: 100%; text-align: left; font-family: inherit; }
+    .voce:hover { border-color: #FFD008; }
+    .voce .t { font-size: 14px; font-weight: 600; flex: 1; min-width: 0; }
+    .voce .m { font-size: 11px; color: #666; flex-shrink: 0; }
+
+    /* Anteprima */
+    .ante-giro { background: #000; color: #FFD008; border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 800; margin-bottom: 10px; }
+    .ante-riga { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    .ante-riga:last-child { border-bottom: none; }
+    .ante-riga .q { font-size: 11px; font-weight: 700; background: #f0f0f0; border-radius: 6px; padding: 2px 6px; }
+    .ante-nota { font-style: italic; color: #555; }
+    .stima { font-size: 13px; color: #444; margin-top: 10px; }
+
+    .toast-container { position: fixed; bottom: 150px; left: 12px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    .toast { background: #1a1a1a; color: #fff; padding: 14px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; max-width: 420px; }
+    .toast.error { border-left: 4px solid #ff4444; }
+    .toast.success { border-left: 4px solid #FFD008; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <span class="navbar-brand">POLICETTIVO®</span>
+    <a class="btn-back" id="btn-back" href="dashboard.html">← Scheda paziente</a>
+  </nav>
+
+  <div class="main">
+    <span class="prova-badge">🧪 IN PROVA — il paziente non la vede</span>
+    <h1>Scheda di allenamento</h1>
+    <div class="sub" id="paz-nome">Caricamento…</div>
+    <div class="banner-err" id="banner-err"></div>
+
+    <!-- MODELLI -->
+    <div class="card" id="card-modelli">
+      <div class="card-title">Parti da un modello</div>
+      <div id="modelli-box"><div class="vuoto">Caricamento…</div></div>
+    </div>
+
+    <!-- RIGHE -->
+    <div class="card">
+      <div class="card-title">Esercizi e note, in ordine</div>
+      <div id="righe"></div>
+      <div class="aggiungi">
+        <button class="btn giallo" id="btn-add-es" onclick="apriScelta()">+ Esercizio</button>
+        <button class="btn" id="btn-add-nota" onclick="aggiungiNota()">+ Nota</button>
+      </div>
+    </div>
+
+    <!-- TUTTA LA SCHEDA -->
+    <div class="card">
+      <div class="card-title">Tutta la scheda</div>
+      <span class="lbl">Ripeti tutta la scheda</span>
+      <div class="chips" id="ripeti-chips"></div>
+      <div class="blocco">
+        <span class="lbl">Recupero fra un esercizio e l'altro</span>
+        <div class="chips" id="recupero-chips"></div>
+      </div>
+      <div class="blocco">
+        <span class="lbl">Ritmo delle ripetizioni (per la voce, dopo)</span>
+        <div class="chips" id="ritmo-chips"></div>
+      </div>
+    </div>
+
+    <!-- ANTEPRIMA -->
+    <div class="card">
+      <div class="card-title">Come la vedrà il paziente (anteprima)</div>
+      <div id="anteprima"></div>
+    </div>
+
+    <!-- SALVA COME MODELLO -->
+    <div class="card">
+      <div class="card-title">Salva come modello dello studio</div>
+      <div class="row">
+        <input class="inp" id="modello-nome" placeholder="Es. Respiri + schema 2 + schema 1" style="flex:1;min-width:180px">
+        <button class="btn nero" id="btn-modello" onclick="salvaModello()">Salva modello</button>
+      </div>
+      <div class="sub" style="margin:8px 0 0">Il modello resta nello studio e si riusa su altri pazienti. Non tocca la scheda di questo paziente.</div>
+    </div>
+  </div>
+
+  <button class="salva" id="btn-salva" onclick="salvaScheda()">✓ Salva la scheda</button>
+
+  <!-- Scelta dell'esercizio -->
+  <div class="sheet" id="sheet" onclick="if(event.target===this)chiudiScelta()">
+    <div class="sheet-box">
+      <div class="sheet-head">
+        <div class="row"><b>Scegli l'esercizio</b><button class="mini" onclick="chiudiScelta()" aria-label="Chiudi">✕</button></div>
+        <input class="inp" id="cerca" placeholder="Cerca per nome…" oninput="disegnaScelta()">
+      </div>
+      <div class="sheet-body" id="scelta"></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+<script>
+/* scheda-editor-v1 */
+(function () {
+  'use strict'
+  const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  const params = new URLSearchParams(location.search)
+  const patientId = params.get('id')
+
+  const TEMPI = [30, 60, 90, 120]
+  const RIPS = [5, 10, 15]
+  const RIPETI = [1, 2, 3]
+  const RECUPERI = [0, 15, 30, 45, 60]
+  const RITMI = [2, 3, 4]
+  const QUANDO = [['sempre', 'Sempre'], ['mattina', 'Mattina'], ['sera', 'Sera']]
+
+  // ── stato ──
+  let prof = null, paziente = null
+  let scheda = null            // riga di scheda_allenamento del paziente (o null)
+  let righe = []               // quelle nell'editor
+  let righeSalvate = []        // le ultime lette/salvate: servono per rimettere a posto se un salvataggio fallisce
+  let impost = { ripeti_volte: 1, recupero_sec: 30, ritmo_sec: 3 }
+  let libreria = [], videoPaz = [], modelli = []
+  let sporco = false, salvando = false
+  let confermaModello = null
+
+  // ── funzioni pure (provate dal test) ──
+  function clampInt(v, min, max) {
+    const n = Math.round(Number(v))
+    if (!Number.isFinite(n) || n < min || n > max) return null
+    return n
+  }
+  function valida(r) {
+    if (r.tipo === 'nota') return (String(r.testo || '').trim() ? null : 'Scrivi il testo della nota')
+    if (!String(r.nome || '').trim()) return 'Manca il nome dell\'esercizio'
+    if (r.misura === 'tempo') return (clampInt(r.secondi, 1, 3600) === null ? 'Tempo fra 1 e 3600 secondi' : null)
+    if (r.misura === 'ripetizioni') return (clampInt(r.ripetizioni, 1, 500) === null ? 'Ripetizioni fra 1 e 500' : null)
+    return 'Scegli «a tempo» o «ripetizioni»'
+  }
+  function durataRiga(r, ritmo) {
+    if (r.tipo !== 'esercizio') return 0
+    const una = r.misura === 'tempo' ? (Number(r.secondi) || 0) : (Number(r.ripetizioni) || 0) * ritmo
+    return una * (Number(r.serie) || 1)
+  }
+  // Stima in secondi: lavoro + un recupero dopo ogni serie, tranne l'ultima di tutta la scheda.
+  function stimaSecondi(rr, imp) {
+    const es = rr.filter(function (r) { return r.tipo === 'esercizio' })
+    if (!es.length) return 0
+    const lavoro = es.reduce(function (s, r) { return s + durataRiga(r, Number(imp.ritmo_sec) || 3) }, 0)
+    const serie = es.reduce(function (s, r) { return s + (Number(r.serie) || 1) }, 0)
+    const giri = Number(imp.ripeti_volte) || 1
+    const pause = serie * giri - 1
+    return lavoro * giri + pause * (Number(imp.recupero_sec) || 0)
+  }
+  function fmtTempo(s) {
+    s = Math.round(s)
+    if (s < 60) return s + ' s'
+    if (s >= 3600) { const h = Math.floor(s / 3600), mm = Math.round((s % 3600) / 60); return h + ' h' + (mm ? ' ' + mm + ' min' : '') }
+    const m = Math.floor(s / 60), r = s % 60
+    return r ? m + ' min ' + r + ' s' : m + ' min'
+  }
+  function versoDb(r, schedaId, i) {
+    const es = r.tipo === 'esercizio'
+    return {
+      scheda_id: schedaId, ordine: i + 1, tipo: r.tipo,
+      exercise_id: es ? (r.exercise_id || null) : null,
+      video_id: es ? (r.video_id || null) : null,
+      elicoidale_id: es ? (r.elicoidale_id || null) : null,
+      nome: es ? String(r.nome).trim() : null,
+      misura: es ? r.misura : null,
+      secondi: es && r.misura === 'tempo' ? clampInt(r.secondi, 1, 3600) : null,
+      ripetizioni: es && r.misura === 'ripetizioni' ? clampInt(r.ripetizioni, 1, 500) : null,
+      serie: clampInt(r.serie, 1, 20) || 1,
+      quando: r.quando || 'sempre',
+      ritmo_sec: null, recupero_sec: null,
+      guidato_sensore: false,
+      testo: String(r.testo || '').trim() || null
+    }
+  }
+  function daDb(x) {
+    return {
+      tipo: x.tipo, nome: x.nome || '', exercise_id: x.exercise_id, video_id: x.video_id, elicoidale_id: x.elicoidale_id,
+      misura: x.misura || 'tempo', secondi: x.secondi, ripetizioni: x.ripetizioni,
+      serie: x.serie || 1, quando: x.quando || 'sempre', testo: x.testo || ''
+    }
+  }
+  window.SchedaProva = { valida: valida, stimaSecondi: stimaSecondi, versoDb: versoDb, fmtTempo: fmtTempo }
+
+  // ── utilità ──
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
+  function $(id) { return document.getElementById(id) }
+  function toast(msg, tipo) {
+    const t = document.createElement('div')
+    t.className = 'toast ' + (tipo || 'error')
+    t.textContent = msg
+    $('toast-container').appendChild(t)
+    setTimeout(function () { t.remove() }, 4000)
+  }
+  function mancaMigration(err) {
+    if (!err) return false
+    const m = String(err.message || '')
+    return err.code === '42P01' || err.code === 'PGRST205' || (/scheda_allenamento/.test(m) && /(does not exist|schema cache|not find)/i.test(m))
+  }
+  function erroreBanner(msg) { const b = $('banner-err'); b.textContent = msg; b.classList.add('show') }
+  function segnaSporco() {
+    sporco = true
+    const b = $('btn-salva'); b.classList.remove('fatto'); b.textContent = '✓ Salva la scheda'
+  }
+
+  // ── caricamento ──
+  async function init() {
+    if (!patientId) { erroreBanner('Manca il paziente: apri questa pagina dalla scheda del paziente.'); bloccaTutto(); return }
+    $('btn-back').href = 'paziente.html?id=' + encodeURIComponent(patientId)
+    const { data: au } = await sb.auth.getUser()
+    const user = au && au.user
+    if (!user) { location.href = 'login.html'; return }
+    const { data: p } = await sb.from('professionals').select('*').eq('user_id', user.id).maybeSingle()
+    prof = p
+    if (!prof) { erroreBanner('Questa pagina è solo per il professionista.'); bloccaTutto(); return }
+
+    const { data: paz } = await sb.from('patients').select('id, nome, cognome').eq('id', patientId).maybeSingle()
+    paziente = paz
+    $('paz-nome').textContent = paziente ? ('Paziente: ' + paziente.nome + ' ' + paziente.cognome) : 'Paziente non trovato'
+    if (!paziente) { bloccaTutto(); return }
+
+    const [poli, studio, vid] = await Promise.all([
+      sb.from('exercises').select('id, nome, durata_default, video_url, fonte').eq('active', true).eq('fonte', 'policettivo').order('nome'),
+      sb.from('exercises').select('id, nome, durata_default, video_url, fonte').eq('active', true).eq('fonte', 'studio').order('nome'),
+      sb.from('exercise_videos').select('id, titolo, tipo, durata, created_at').eq('patient_id', patientId).order('created_at', { ascending: false })
+    ])
+    libreria = [].concat(poli.data || [], studio.data || [])
+    videoPaz = vid.data || []
+
+    const ok = await caricaScheda()
+    if (!ok) return
+    await caricaModelli()
+    disegnaTutto()
+  }
+
+  function bloccaTutto() {
+    ['btn-salva', 'btn-add-es', 'btn-add-nota', 'btn-modello'].forEach(function (id) { $(id).disabled = true })
+  }
+
+  async function caricaScheda() {
+    const { data, error } = await sb.from('scheda_allenamento').select('*')
+      .eq('patient_id', patientId).neq('stato', 'archiviata')
+      .order('aggiornato_il', { ascending: false }).limit(1)
+    if (error) {
+      if (mancaMigration(error)) erroreBanner('Manca la migration 059_scheda_allenamento.sql nel database: senza, la scheda non si può salvare.')
+      else erroreBanner('Non riesco a leggere la scheda: ' + error.message)
+      bloccaTutto(); disegnaTutto(); return false
+    }
+    scheda = (data && data[0]) || null
+    if (scheda) {
+      impost = { ripeti_volte: scheda.ripeti_volte, recupero_sec: scheda.recupero_sec, ritmo_sec: Number(scheda.ritmo_sec) }
+      const { data: rr, error: e2 } = await sb.from('scheda_allenamento_righe').select('*').eq('scheda_id', scheda.id).order('ordine')
+      if (e2) { erroreBanner('Non riesco a leggere le righe della scheda: ' + e2.message); bloccaTutto(); return false }
+      righeSalvate = (rr || []).map(daDb)
+      righe = righeSalvate.map(function (r) { return Object.assign({}, r) })
+    }
+    return true
+  }
+
+  async function caricaModelli() {
+    modelli = []
+    if (prof && prof.studio_id) {
+      const { data } = await sb.from('scheda_allenamento').select('id, nome, ripeti_volte, recupero_sec, ritmo_sec, aggiornato_il')
+        .is('patient_id', null).eq('studio_id', prof.studio_id).neq('stato', 'archiviata').order('nome')
+      modelli = data || []
+    }
+  }
+
+  // ── disegno ──
+  function disegnaTutto() { disegnaRighe(); disegnaImpost(); disegnaAnteprima(); disegnaModelli() }
+
+  function disegnaModelli() {
+    const box = $('modelli-box')
+    if (!prof || !prof.studio_id) { box.innerHTML = '<div class="vuoto">I modelli servono uno studio collegato al tuo profilo.</div>'; return }
+    if (!modelli.length) { box.innerHTML = '<div class="vuoto">Nessun modello ancora. Prepara una scheda qui sotto e salvala come modello.</div>'; return }
+    box.innerHTML = modelli.map(function (m) {
+      const chiede = confermaModello === m.id
+      return '<div class="voce" style="cursor:default">' +
+        '<span class="t">' + esc(m.nome || 'Modello senza nome') + '</span>' +
+        '<button class="chip' + (chiede ? ' on' : '') + '" data-modello="' + m.id + '" onclick="usaModello(\'' + m.id + '\')">' +
+          (chiede ? 'Sostituisce le righe: tocca ancora' : 'Usa') + '</button>' +
+      '</div>'
+    }).join('')
+  }
+
+  function chipsHtml(valori, attuale, onclickFn, fmt, altro) {
+    let html = valori.map(function (v) {
+      return '<button class="chip' + (v === attuale ? ' on' : '') + '" onclick="' + onclickFn + '(' + v + ')">' + fmt(v) + '</button>'
+    }).join('')
+    if (altro) {
+      const fuori = valori.indexOf(attuale) === -1 && attuale != null
+      html += '<input class="chip-altro' + (fuori ? ' on' : '') + '" type="number" inputmode="numeric" min="' + altro.min + '" max="' + altro.max +
+        '" placeholder="' + altro.ph + '" value="' + (fuori ? attuale : '') + '" onchange="' + onclickFn + '(this.value, true)" aria-label="' + altro.ph + '">'
+    }
+    return html
+  }
+
+  function disegnaImpost() {
+    $('ripeti-chips').innerHTML = chipsHtml(RIPETI, impost.ripeti_volte, 'setRipeti', function (v) { return v === 1 ? '1 volta' : v + ' volte' }, { min: 1, max: 20, ph: 'altro' })
+    $('recupero-chips').innerHTML = chipsHtml(RECUPERI, impost.recupero_sec, 'setRecupero', function (v) { return v === 0 ? 'nessuno' : v + ' s' }, { min: 0, max: 600, ph: 'altro s' })
+    $('ritmo-chips').innerHTML = chipsHtml(RITMI, impost.ritmo_sec, 'setRitmo', function (v) { return v + ' s' }, { min: 1, max: 20, ph: 'altro s' })
+  }
+
+  function disegnaRighe() {
+    const box = $('righe')
+    if (!righe.length) { box.innerHTML = '<div class="vuoto">La scheda è vuota. Aggiungi un esercizio o una nota.</div>'; return }
+    box.innerHTML = righe.map(function (r, i) {
+      const err = r._mostraErr ? valida(r) : null
+      const sposta = '<button class="mini" onclick="sposta(' + i + ',-1)" aria-label="Sposta su"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+        '<button class="mini" onclick="sposta(' + i + ',1)" aria-label="Sposta giù"' + (i === righe.length - 1 ? ' disabled' : '') + '>↓</button>' +
+        '<button class="mini del" onclick="togli(' + i + ')" aria-label="Togli">✕</button>'
+      const quando = '<div class="blocco"><span class="lbl">Quando</span><div class="seg">' + QUANDO.map(function (q) {
+        return '<button class="' + (r.quando === q[0] ? 'on' : '') + '" onclick="setQuando(' + i + ',\'' + q[0] + '\')">' + q[1] + '</button>'
+      }).join('') + '</div></div>'
+
+      if (r.tipo === 'nota') {
+        return '<div class="riga nota' + (err ? ' err' : '') + '" data-riga="' + i + '">' +
+          '<div class="riga-top"><div class="num">✎</div><div class="riga-nome"><div class="t">Nota</div></div>' + sposta + '</div>' +
+          '<div class="blocco"><textarea class="inp" placeholder="Es. Questo la sera, gli altri la mattina" oninput="setTesto(' + i + ', this.value)">' + esc(r.testo) + '</textarea></div>' +
+          quando + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') +
+        '</div>'
+      }
+      const nEs = righe.slice(0, i + 1).filter(function (x) { return x.tipo === 'esercizio' }).length
+      const fonte = r.elicoidale_id ? 'Cuscini Elicoidali' : (r.video_id ? 'Video del paziente' : (r.exercise_id ? 'Libreria' : 'Scritto a mano'))
+      const misura = '<div class="blocco"><div class="seg">' +
+          '<button class="' + (r.misura === 'tempo' ? 'on' : '') + '" onclick="setMisura(' + i + ',\'tempo\')">⏱ A tempo</button>' +
+          '<button class="' + (r.misura === 'ripetizioni' ? 'on' : '') + '" onclick="setMisura(' + i + ',\'ripetizioni\')">🔁 Ripetizioni</button>' +
+        '</div><div class="chips">' +
+        (r.misura === 'tempo'
+          ? chipsHtml(TEMPI, Number(r.secondi), 'setSecondi.bind(null,' + i + ')', function (v) { return v + ' s' }, { min: 1, max: 3600, ph: 'altro s' })
+          : chipsHtml(RIPS, Number(r.ripetizioni), 'setRip.bind(null,' + i + ')', function (v) { return v + '' }, { min: 1, max: 500, ph: 'altro' })) +
+        '</div></div>'
+      const serie = '<div class="blocco"><span class="lbl">Serie</span><div class="stepper">' +
+        '<button onclick="setSerie(' + i + ',-1)" aria-label="Una serie in meno">−</button><span>' + (r.serie || 1) + '</span>' +
+        '<button onclick="setSerie(' + i + ',1)" aria-label="Una serie in più">+</button></div></div>'
+      const frase = '<div class="blocco"><span class="lbl">Frase per il paziente (facoltativa)</span>' +
+        '<input class="inp" placeholder="Es. piano, respira col naso" value="' + esc(r.testo) + '" oninput="setTesto(' + i + ', this.value)"></div>'
+      return '<div class="riga' + (err ? ' err' : '') + '" data-riga="' + i + '">' +
+        '<div class="riga-top"><div class="num">' + nEs + '</div>' +
+          '<div class="riga-nome"><div class="t">' + esc(r.nome) + '</div><div class="m">' + fonte + '</div></div>' + sposta + '</div>' +
+        misura + serie + quando + frase + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') +
+      '</div>'
+    }).join('')
+  }
+
+  function disegnaAnteprima() {
+    const box = $('anteprima')
+    if (!righe.length) { box.innerHTML = '<div class="vuoto">Qui comparirà la scheda come la leggerà il paziente.</div>'; return }
+    const giri = impost.ripeti_volte
+    let html = giri > 1 ? '<div class="ante-giro">Tutta la scheda ' + giri + ' volte · recupero ' + (impost.recupero_sec ? impost.recupero_sec + ' s' : 'nessuno') + '</div>' : ''
+    let n = 0
+    html += righe.map(function (r) {
+      const q = r.quando !== 'sempre' ? ' <span class="q">' + (r.quando === 'mattina' ? 'mattina' : 'sera') + '</span>' : ''
+      if (r.tipo === 'nota') return '<div class="ante-riga ante-nota">✎ ' + esc(r.testo || '…') + q + '</div>'
+      n++
+      const quanto = r.misura === 'tempo' ? fmtTempo(Number(r.secondi) || 0) : (Number(r.ripetizioni) || 0) + ' ripetizioni'
+      const serie = (r.serie || 1) > 1 ? ' × ' + r.serie + ' serie' : ''
+      return '<div class="ante-riga"><b>' + n + '.</b><div style="flex:1"><div><b>' + esc(r.nome) + '</b>' + q + '</div>' +
+        '<div style="font-size:12px;color:#666">' + quanto + serie + (r.testo ? ' · ' + esc(r.testo) : '') + '</div></div></div>'
+    }).join('')
+    const s = stimaSecondi(righe, impost)
+    if (s > 0) html += '<div class="stima">Durata stimata: circa <b>' + fmtTempo(s) + '</b> (tutte le righe, recuperi compresi; le ripetizioni contate a ' + impost.ritmo_sec + ' s l\'una).</div>'
+    box.innerHTML = html
+  }
+
+  // ── azioni sulle righe ──
+  function ridisegna() { segnaSporco(); disegnaRighe(); disegnaAnteprima() }
+  window.sposta = function (i, d) {
+    const j = i + d; if (j < 0 || j >= righe.length) return
+    const t = righe[i]; righe[i] = righe[j]; righe[j] = t; ridisegna()
+  }
+  window.togli = function (i) { righe.splice(i, 1); ridisegna() }
+  window.setQuando = function (i, q) { righe[i].quando = q; ridisegna() }
+  window.setMisura = function (i, m) {
+    const r = righe[i]; r.misura = m
+    if (m === 'tempo' && !r.secondi) r.secondi = 60
+    if (m === 'ripetizioni' && !r.ripetizioni) r.ripetizioni = 10
+    ridisegna()
+  }
+  // Un numero fuori misura non si accetta: resta quello di prima e si dice il limite.
+  window.setSecondi = function (i, v) {
+    const n = clampInt(v, 1, 3600)
+    if (n === null) { toast('Tempo: da 1 a 3600 secondi (un\'ora)'); disegnaRighe(); return }
+    righe[i].secondi = n; ridisegna()
+  }
+  window.setRip = function (i, v) {
+    const n = clampInt(v, 1, 500)
+    if (n === null) { toast('Ripetizioni: da 1 a 500'); disegnaRighe(); return }
+    righe[i].ripetizioni = n; ridisegna()
+  }
+  window.setSerie = function (i, d) { righe[i].serie = Math.min(20, Math.max(1, (righe[i].serie || 1) + d)); ridisegna() }
+  // Il testo si scrive senza ridisegnare la riga (altrimenti il cursore salta via)
+  window.setTesto = function (i, v) { righe[i].testo = v; segnaSporco(); disegnaAnteprima() }
+  window.setRipeti = function (v) { const n = clampInt(v, 1, 20); if (n === null) { toast('Ripeti: da 1 a 20'); disegnaImpost(); return } impost.ripeti_volte = n; segnaSporco(); disegnaImpost(); disegnaAnteprima() }
+  window.setRecupero = function (v) { const n = clampInt(v, 0, 600); if (n === null) { toast('Recupero: da 0 a 600 secondi'); disegnaImpost(); return } impost.recupero_sec = n; segnaSporco(); disegnaImpost(); disegnaAnteprima() }
+  window.setRitmo = function (v) { const n = clampInt(v, 1, 20); if (n === null) { toast('Ritmo: da 1 a 20 secondi'); disegnaImpost(); return } impost.ritmo_sec = n; segnaSporco(); disegnaImpost(); disegnaAnteprima() }
+
+  window.aggiungiNota = function () { righe.push({ tipo: 'nota', testo: '', quando: 'sempre', serie: 1 }); ridisegna(); scorriInFondo() }
+  function aggiungiEsercizio(base) {
+    righe.push(Object.assign({ tipo: 'esercizio', misura: 'tempo', secondi: 60, ripetizioni: null, serie: 1, quando: 'sempre', testo: '' }, base))
+    chiudiScelta(); ridisegna(); scorriInFondo()
+  }
+  function scorriInFondo() { const r = document.querySelectorAll('.riga'); if (r.length) r[r.length - 1].scrollIntoView({ block: 'center' }) }
+  function secDefault(v) { return clampInt(v, 1, 3600) || 60 }
+
+  // ── scelta esercizio ──
+  window.apriScelta = function () { $('cerca').value = ''; disegnaScelta(); $('sheet').classList.add('show') }
+  window.chiudiScelta = function () { $('sheet').classList.remove('show') }
+  window.disegnaScelta = function () {
+    const q = $('cerca').value.trim().toLowerCase()
+    const passa = function (t) { return !q || String(t || '').toLowerCase().indexOf(q) > -1 }
+    const voce = function (azione, titolo, meta) { return '<button class="voce" onclick="' + azione + '"><span class="t">' + esc(titolo) + '</span><span class="m">' + esc(meta) + '</span></button>' }
+    let html = ''
+    const vid = videoPaz.filter(function (v) { return passa(v.titolo) })
+    if (vid.length) html += '<div class="gruppo">Video e foto di questo paziente</div>' + vid.map(function (v) {
+      return voce('scegliVideo(\'' + v.id + '\')', v.titolo || 'Contenuto senza titolo', v.tipo === 'video' ? '📹' : '📷')
+    }).join('')
+    const st = libreria.filter(function (e) { return e.fonte === 'studio' && passa(e.nome) })
+    if (st.length) html += '<div class="gruppo">Libreria dello studio</div>' + st.map(function (e) { return voce('scegliLib(\'' + e.id + '\')', e.nome, (e.video_url ? '▶ ' : '') + (e.durata_default || 60) + ' s') }).join('')
+    const po = libreria.filter(function (e) { return e.fonte === 'policettivo' && passa(e.nome) })
+    if (po.length) html += '<div class="gruppo">Esercizi Policettivo®</div>' + po.map(function (e) { return voce('scegliLib(\'' + e.id + '\')', e.nome, (e.video_url ? '▶ ' : '') + (e.durata_default || 60) + ' s') }).join('')
+    const el = (window.EXERCISES_ELICOIDALI || []).filter(function (e) { return passa(e.title) })
+    if (el.length) html += '<div class="gruppo">Cuscini Elicoidali</div>' + el.map(function (e) { return voce('scegliEli(\'' + e.id + '\')', e.title, e.default_duration + ' s') }).join('')
+    html += '<div class="gruppo">Non è in elenco?</div><div class="row"><input class="inp" id="nome-libero" placeholder="Es. Tre respiri profondi" style="flex:1;min-width:160px" value="' + esc($('cerca').value) + '">' +
+      '<button class="btn giallo" onclick="scegliLibero()">Aggiungi</button></div>'
+    $('scelta').innerHTML = html
+  }
+  window.scegliLib = function (id) { const e = libreria.find(function (x) { return x.id === id }); if (e) aggiungiEsercizio({ nome: e.nome, exercise_id: e.id, secondi: secDefault(e.durata_default) }) }
+  window.scegliVideo = function (id) { const v = videoPaz.find(function (x) { return x.id === id }); if (v) aggiungiEsercizio({ nome: v.titolo || 'Video personalizzato', video_id: v.id, secondi: secDefault(v.durata) }) }
+  window.scegliEli = function (id) { const e = (window.EXERCISES_ELICOIDALI || []).find(function (x) { return x.id === id }); if (e) aggiungiEsercizio({ nome: e.title, elicoidale_id: e.id, secondi: secDefault(e.default_duration) }) }
+  window.scegliLibero = function () {
+    const n = $('nome-libero').value.trim()
+    if (!n) { toast('Scrivi il nome dell\'esercizio'); return }
+    aggiungiEsercizio({ nome: n })
+  }
+
+  // ── salvataggio ──
+  function controllaTutte() {
+    let primo = -1
+    righe.forEach(function (r, i) { r._mostraErr = true; if (valida(r) && primo < 0) primo = i })
+    if (primo >= 0) {
+      disegnaRighe()
+      const el = document.querySelector('[data-riga="' + primo + '"]'); if (el) el.scrollIntoView({ block: 'center' })
+      toast('Controlla la riga segnata in rosso: ' + valida(righe[primo]))
+      return false
+    }
+    return true
+  }
+
+  // Riscrive le righe di una scheda. Se l'inserimento fallisce rimette quelle di prima.
+  async function scriviRighe(schedaId, nuove, vecchie) {
+    const { error: eDel } = await sb.from('scheda_allenamento_righe').delete().eq('scheda_id', schedaId)
+    if (eDel) return 'non riesco a togliere le righe vecchie (' + eDel.message + ')'
+    if (!nuove.length) return null
+    const { error: eIns } = await sb.from('scheda_allenamento_righe').insert(nuove.map(function (r, i) { return versoDb(r, schedaId, i) }))
+    if (!eIns) return null
+    let rimesso = ''
+    if (vecchie && vecchie.length) {
+      const { error: eRip } = await sb.from('scheda_allenamento_righe').insert(vecchie.map(function (r, i) { return versoDb(r, schedaId, i) }))
+      rimesso = eRip ? ' — ATTENZIONE: non sono riuscito a rimettere la versione di prima' : ' — è rimasta la versione di prima'
+    }
+    return eIns.message + rimesso
+  }
+
+  window.salvaScheda = async function () {
+    if (salvando) return
+    if (!controllaTutte()) return
+    salvando = true
+    const btn = $('btn-salva'); btn.disabled = true; btn.textContent = 'Salvo…'
+    try {
+      const campi = { ripeti_volte: impost.ripeti_volte, recupero_sec: impost.recupero_sec, ritmo_sec: impost.ritmo_sec, aggiornato_il: new Date().toISOString() }
+      if (!scheda) {
+        const { data, error } = await sb.from('scheda_allenamento').insert(Object.assign({
+          patient_id: patientId, nome: 'Scheda di ' + (paziente ? paziente.nome : ''), stato: 'prova', visibile_paziente: false
+        }, campi)).select().single()
+        if (error) { toast(mancaMigration(error) ? 'Manca la migration 059_scheda_allenamento.sql' : 'Non salvata: ' + error.message); return }
+        scheda = data
+      } else {
+        const { error } = await sb.from('scheda_allenamento').update(campi).eq('id', scheda.id)
+        if (error) { toast('Non salvata: ' + error.message); return }
+      }
+      const err = await scriviRighe(scheda.id, righe, righeSalvate)
+      if (err) { toast('Righe non salvate: ' + err); return }
+      righeSalvate = righe.map(function (r) { const c = Object.assign({}, r); delete c._mostraErr; return c })
+      sporco = false
+      btn.classList.add('fatto'); btn.textContent = '✓ Salvata'
+      toast('Scheda salvata (in prova, il paziente non la vede)', 'success')
+    } finally {
+      salvando = false; btn.disabled = false
+      if (sporco) btn.textContent = '✓ Salva la scheda'
+    }
+  }
+
+  window.salvaModello = async function () {
+    const nome = $('modello-nome').value.trim()
+    if (!nome) { toast('Dai un nome al modello'); $('modello-nome').focus(); return }
+    if (!righe.length) { toast('La scheda è vuota: niente da salvare come modello'); return }
+    if (!prof || !prof.studio_id) { toast('Il tuo profilo non ha uno studio collegato'); return }
+    if (!controllaTutte()) return
+    const btn = $('btn-modello'); btn.disabled = true
+    try {
+      const { data, error } = await sb.from('scheda_allenamento').insert({
+        studio_id: prof.studio_id, nome: nome, stato: 'prova',
+        ripeti_volte: impost.ripeti_volte, recupero_sec: impost.recupero_sec, ritmo_sec: impost.ritmo_sec
+      }).select().single()
+      if (error) { toast('Modello non salvato: ' + error.message); return }
+      const err = await scriviRighe(data.id, righe, null)
+      if (err) { toast('Modello creato ma righe non salvate: ' + err); return }
+      $('modello-nome').value = ''
+      await caricaModelli(); disegnaModelli()
+      toast('Modello «' + nome + '» salvato', 'success')
+    } finally { btn.disabled = false }
+  }
+
+  window.usaModello = async function (id) {
+    if (righe.length && confermaModello !== id) { confermaModello = id; disegnaModelli(); return }
+    confermaModello = null
+    const m = modelli.find(function (x) { return x.id === id })
+    const { data, error } = await sb.from('scheda_allenamento_righe').select('*').eq('scheda_id', id).order('ordine')
+    if (error) { toast('Non riesco a leggere il modello: ' + error.message); return }
+    righe = (data || []).map(daDb)
+    if (m) impost = { ripeti_volte: m.ripeti_volte, recupero_sec: m.recupero_sec, ritmo_sec: Number(m.ritmo_sec) }
+    segnaSporco(); disegnaTutto()
+    toast('Modello caricato: ricordati di salvare', 'success')
+  }
+
+  window.addEventListener('beforeunload', function (e) { if (sporco) { e.preventDefault(); e.returnValue = '' } })
+
+  init().catch(function (e) { console.error('[scheda-prova]', e); erroreBanner('Errore di caricamento: ' + (e && e.message || e)) })
+})()
+</script>
+<script src="js/pol-nav.js?v=nav-v1" defer></script>
+</body>
+</html>
