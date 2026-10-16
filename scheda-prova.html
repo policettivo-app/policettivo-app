@@ -8,13 +8,16 @@
        IN PROVA: pagina nuova, tabelle della migration 059, il paziente NON vede niente
        (visibile_paziente resta false). Non tocca assegna-protocollo / protocollo / esercizio.
        v2 (prove di Giuliano 16/10): scelta a tre card con più esercizi insieme, video visibili,
-       anteprima nera modificabile, note vuote non salvate, 60 s / 3×10 di partenza. -->
+       anteprima nera modificabile, note vuote non salvate, 60 s / 3×10 di partenza.
+       v3 (16/10 18:06): «Esercizi di base» = gli Esercizi Policettivo® della libreria (come in
+       assegna-protocollo: Schema 1…6, Barchetta, 3 Respiri, coi LORO video); nei «Tuoi esercizi»
+       si modifica la nota del video del paziente e si elimina dalla libreria (stesse regole di
+       assegna-protocollo: il file non si cancella se è anche in libreria). scheda-editor-v3 -->
   <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
-  <script src="js/scheda-base.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; padding-bottom: 160px; }
@@ -102,6 +105,10 @@
     .voce .t { font-size: 14px; font-weight: 600; }
     .voce .m { font-size: 11px; color: #666; }
 
+    .gest { display: flex; gap: 6px; flex-wrap: wrap; margin: -2px 0 10px 36px; }
+    .gbtn { background: #fff; border: 1.5px solid #ddd; border-radius: 8px; padding: 6px 10px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .gbtn.del { border-color: #f5c6c6; color: #c62828; }
+    .gnota { width: 100%; margin-top: 4px; }
     /* Video */
     .modal-video { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 9500; align-items: center; justify-content: center; padding: 16px; }
     .modal-video.show { display: flex; }
@@ -226,7 +233,7 @@
   <div class="toast-container" id="toast-container"></div>
 
 <script>
-/* scheda-editor-v2 */
+/* scheda-editor-v2 · scheda-editor-v3 */
 (function () {
   'use strict'
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -351,25 +358,27 @@
 
   // ── il catalogo: da dove si sceglie (tre card) ──
   function catalogo() {
-    const base = (window.SCHEDA_BASE || []).map(function (e) {
-      return { key: 'b:' + e.id, card: 'base', nome: e.nome, meta: 'Cuscini Elicoidali', elicoidale_id: e.id, yt: e.yt }
+    // ⭐ Di base = gli «Esercizi Policettivo®» della libreria (fonte policettivo), coi loro video:
+    //    sono quelli che Giuliano vede in assegna-protocollo. scheda-editor-v3
+    const base = libreria.filter(function (e) { return e.fonte === 'policettivo' }).map(function (e) {
+      return { key: 'x:' + e.id, card: 'base', nome: e.nome, meta: [e.durata_default ? fmtTempo(e.durata_default) : '', e.livello || ''].filter(Boolean).join(' · '),
+               exercise_id: e.id, yt: ytId(e.video_url), url: ytId(e.video_url) ? null : e.video_url }
     })
     // ⚠️ js/elicoidali-exercises.js dichiara la lista con «const»: NON sta su window
     // (per questo nella v1 i video dei cuscini non comparivano). Si legge per nome.
     const listaEli = (typeof EXERCISES_ELICOIDALI !== 'undefined' && Array.isArray(EXERCISES_ELICOIDALI)) ? EXERCISES_ELICOIDALI : []
     const eli = listaEli.map(function (e) {
-      return { key: 'e:' + e.id, card: 'tutti', gruppo: 'Cuscini Elicoidali', nome: e.title, meta: e.level, elicoidale_id: e.id, yt: ytId(e.video_url) }
-    })
-    const poli = libreria.filter(function (e) { return e.fonte === 'policettivo' }).map(function (e) {
-      return { key: 'x:' + e.id, card: 'tutti', gruppo: 'Altri esercizi Policettivo®', nome: e.nome, meta: e.livello || '', exercise_id: e.id, yt: ytId(e.video_url), url: ytId(e.video_url) ? null : e.video_url }
+      return { key: 'e:' + e.id, card: 'tutti', nome: e.title, meta: e.level, elicoidale_id: e.id, yt: ytId(e.video_url) }
     })
     const vid = videoPaz.map(function (v) {
-      return { key: 'v:' + v.id, card: 'tuoi', gruppo: 'Registrati per questo paziente', nome: v.titolo || 'Contenuto senza titolo', meta: v.tipo === 'video' ? '📹 video' : '📷 foto', video_id: v.id, url: v.url, foto: v.tipo !== 'video' }
+      return { key: 'v:' + v.id, card: 'tuoi', gruppo: 'Registrati per questo paziente', nome: v.titolo || 'Contenuto senza titolo', meta: v.tipo === 'video' ? '📹 video' : '📷 foto',
+               video_id: v.id, url: v.url, foto: v.tipo !== 'video', nota: v.descrizione || '', tipoGest: 'video' }
     })
     const studio = libreria.filter(function (e) { return e.fonte === 'studio' }).map(function (e) {
-      return { key: 'x:' + e.id, card: 'tuoi', gruppo: 'La tua libreria', nome: e.nome, meta: e.livello || '', exercise_id: e.id, yt: ytId(e.video_url), url: ytId(e.video_url) ? null : e.video_url }
+      return { key: 'x:' + e.id, card: 'tuoi', gruppo: 'La tua libreria', nome: e.nome, meta: e.livello || '', exercise_id: e.id,
+               yt: ytId(e.video_url), url: ytId(e.video_url) ? null : e.video_url, tipoGest: 'lib' }
     })
-    return [].concat(base, eli, poli, vid, studio)
+    return [].concat(base, eli, vid, studio)
   }
   // Il video di una riga già messa nella scheda
   function videoDiRiga(r) {
@@ -605,14 +614,15 @@
 
   // ── scelta esercizi: tre card, spunte, «Aggiungi N» ──
   const CARD = {
-    base:  { ico: '⭐', tt: 'Esercizi di base', dd: 'Tre respiri e gli schemi che vanno bene per quasi tutti' },
-    tutti: { ico: '📚', tt: 'Tutti gli esercizi', dd: 'La libreria Policettivo® coi video' },
+    base:  { ico: '⭐', tt: 'Esercizi di base', dd: 'Tecnica dei 3 respiri e gli schemi Policettivo®' },
+    tutti: { ico: '📚', tt: 'Tutti gli esercizi', dd: 'La libreria dei Cuscini Elicoidali coi video' },
     tuoi:  { ico: '🎥', tt: 'I tuoi esercizi', dd: 'Registrati da te per questo paziente e la tua libreria' }
   }
   window.apriScelta = function () { scelti = []; vaiCard(null); $('sheet').classList.add('show') }
   window.chiudiScelta = function () { $('sheet').classList.remove('show') }
   window.vaiCard = function (c) {
     cardAperta = c
+    gestAperta = null; gestElimina = null
     $('cerca').value = ''
     $('cerca').style.display = c ? '' : 'none'
     $('scelta-indietro').style.display = c ? '' : 'none'
@@ -645,7 +655,7 @@
           '<button class="tocca" onclick="spunta(\'' + esc(x.key) + '\')"><span class="spunta">' + (sel ? (scelti.indexOf(x.key) + 1) : '') + '</span>' +
             '<span><div class="t">' + esc(x.nome) + '</div>' + (x.meta ? '<div class="m">' + esc(x.meta) + '</div>' : '') + '</span></button>' +
           ((x.yt || x.url) ? '<button class="vedi" onclick="vediVoce(\'' + esc(x.key) + '\')">▶ Vedi</button>' : '') +
-        '</div>'
+        '</div>' + gestioneHtml(x)
       }).join('')
       if (!lista.length) html = '<div class="vuoto">' + (q ? 'Nessun esercizio con questo nome.' : (cardAperta === 'tuoi'
         ? 'Nessun esercizio registrato. Si registrano da «Assegna protocollo», come prima: poi compaiono qui.'
@@ -657,6 +667,71 @@
     const b = $('btn-aggiungi-scelti')
     b.disabled = !n
     b.textContent = n ? ('Aggiungi ' + n + (n === 1 ? ' esercizio' : ' esercizi') + ' alla scheda') : 'Scegli uno o più esercizi'
+  }
+  // ── «I tuoi esercizi»: nota del video del paziente, elimina dalla libreria (scheda-editor-v3) ──
+  let gestAperta = null      // chiave della voce con la nota aperta
+  let gestElimina = null     // chiave della voce che chiede conferma per eliminare
+  function gestioneHtml(x) {
+    if (!x.tipoGest) return ''
+    const k = esc(x.key)
+    let html = '<div class="gest" data-gest="' + k + '">'
+    if (x.tipoGest === 'video') html += '<button class="gbtn" onclick="apriNota(\'' + k + '\')">✏️ Nota per il paziente</button>'
+    html += '<button class="gbtn del" onclick="eliminaVoce(\'' + k + '\')">' +
+      (gestElimina === x.key ? (x.tipoGest === 'video' ? 'Tolgo dal paziente e dai protocolli: tocca ancora' : 'Tolgo dalla libreria: tocca ancora') : '🗑 ' + (x.tipoGest === 'video' ? 'Elimina' : 'Elimina dalla libreria')) + '</button>'
+    if (gestAperta === x.key) {
+      html += '<div class="gnota"><textarea class="inp" id="nota-' + k + '" placeholder="Es. piano, respira col naso; fermati se senti dolore">' + esc(x.nota) + '</textarea>' +
+        '<div class="row" style="margin-top:6px"><button class="btn giallo" style="padding:10px 16px" onclick="salvaNota(\'' + k + '\')">Salva nota</button>' +
+        '<button class="btn" style="padding:10px 16px" onclick="apriNota(null)">Annulla</button></div></div>'
+    }
+    return html + '</div>'
+  }
+  window.apriNota = function (key) { gestAperta = gestAperta === key ? null : key; gestElimina = null; disegnaScelta() }
+  window.salvaNota = async function (key) {
+    const x = catalogo().find(function (c) { return c.key === key }); if (!x || !x.video_id) return
+    const testo = document.getElementById('nota-' + key).value.trim()
+    const { data, error } = await sb.from('exercise_videos').update({ descrizione: testo || null }).eq('id', x.video_id).select()
+    if (error) { toast('Nota non salvata: ' + error.message); return }
+    if (!data || !data.length) { toast('Nota non salvata: questo video non risulta tuo (è di un altro professionista?)'); return }
+    const v = videoPaz.find(function (z) { return z.id === x.video_id }); if (v) v.descrizione = testo || null
+    gestAperta = null; disegnaScelta()
+    toast('Nota salvata', 'success')
+  }
+  // Stesse regole di assegna-protocollo.html (eliminaCustomVideo / eliminaEsercizioLib):
+  // il file di un video del paziente si cancella solo se NON è anche in libreria;
+  // eliminare dalla libreria non cancella il file (lo usano i pazienti che l'hanno già).
+  window.eliminaVoce = async function (key) {
+    if (gestElimina !== key) { gestElimina = key; gestAperta = null; disegnaScelta(); return }
+    gestElimina = null
+    const x = catalogo().find(function (c) { return c.key === key }); if (!x) return
+    if (x.tipoGest === 'video') {
+      const v = videoPaz.find(function (z) { return z.id === x.video_id }); if (!v) return
+      let path = null
+      if (typeof v.url === 'string' && v.url.indexOf('/videos/') > -1) path = decodeURIComponent(v.url.split('/videos/')[1].split('?')[0])
+      let inLibreria = false
+      if (path) {
+        const pub = sb.storage.from('videos').getPublicUrl(path)
+        const pubUrl = pub && pub.data && pub.data.publicUrl
+        if (pubUrl) {
+          const { data: inLib, error: libErr } = await sb.from('exercises').select('id').eq('video_url', pubUrl).limit(1)
+          if (libErr) { toast('Non riesco a controllare la libreria: non elimino niente'); disegnaScelta(); return }
+          inLibreria = !!(inLib && inLib.length)
+        }
+      }
+      const { error } = await sb.from('exercise_videos').delete().eq('id', v.id)
+      if (error) { toast('Non eliminato: ' + error.message); disegnaScelta(); return }
+      if (path && !inLibreria) { try { await sb.storage.from('videos').remove([path]) } catch (e) {} }
+      videoPaz = videoPaz.filter(function (z) { return z.id !== v.id })
+      toast(inLibreria ? 'Tolto dal paziente. Resta nella libreria dello studio.' : 'Eliminato', 'success')
+    } else {
+      const e = libreria.find(function (z) { return z.id === x.exercise_id })
+      if (!e || e.fonte !== 'studio') { toast('Gli esercizi ufficiali Policettivo® non si possono eliminare'); return }
+      const { error } = await sb.from('exercises').delete().eq('id', e.id)
+      if (error) { toast('Non eliminato: ' + error.message); disegnaScelta(); return }
+      libreria = libreria.filter(function (z) { return z.id !== e.id })
+      toast('Tolto dalla libreria. Il video resta ai pazienti che l\'hanno già.', 'success')
+    }
+    scelti = scelti.filter(function (k) { return k !== key })
+    disegnaScelta(); disegnaRighe()
   }
   function liberoHtml() {
     return '<div class="row"><input class="inp" id="nome-libero" placeholder="Es. Tre respiri profondi" style="flex:1;min-width:160px">' +
@@ -670,7 +745,7 @@
   window.aggiungiScelti = function () {
     const cat = catalogo()
     const nuovi = scelti.map(function (k) { return cat.find(function (x) { return x.key === k }) }).filter(Boolean).map(function (x) {
-      return nuovoEsercizio({ nome: x.nome, exercise_id: x.exercise_id || null, video_id: x.video_id || null, elicoidale_id: x.elicoidale_id || null })
+      return nuovoEsercizio({ nome: x.nome, exercise_id: x.exercise_id || null, video_id: x.video_id || null, elicoidale_id: x.elicoidale_id || null, testo: x.nota || '' })
     })
     if (!nuovi.length) return
     righe = righe.concat(nuovi)
