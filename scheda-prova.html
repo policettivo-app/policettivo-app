@@ -190,6 +190,7 @@
     <div class="card">
       <div class="card-title">Anteprima — più o meno come la vedrà il paziente</div>
       <div id="anteprima"></div>
+      <button class="btn nero" id="btn-vedi-paziente" style="width:100%;margin-top:12px" onclick="vediComePaziente()">👁 Apri la scheda come la vede il paziente</button><!-- scheda-paziente-v1 -->
     </div>
 
     <!-- SALVA COME MODELLO -->
@@ -869,6 +870,11 @@
     toast('Modello caricato: ricordati di salvare', 'success')
   }
 
+  // scheda-paziente-v1 · l'anteprima del paziente legge il database: prima si salva.
+  window.vediComePaziente = function () {
+    if (sporco || !scheda) { toast(scheda ? 'Prima salva le modifiche, poi la apri' : 'Prima salva la scheda, poi la apri'); return }
+    location.href = 'scheda-paziente-prova.html?id=' + encodeURIComponent(patientId)
+  }
   window.addEventListener('beforeunload', function (e) { if (sporco) { e.preventDefault(); e.returnValue = '' } })
 
   init().catch(function (e) { console.error('[scheda-prova]', e); erroreBanner('Errore di caricamento: ' + (e && e.message || e)) })

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Policettivo® — Il tuo allenamento (anteprima)</title>
+  <!-- scheda-paziente-v1 · PASSO 3 del PIANO-scheda-allenamento: il foglio del PAZIENTE.
+       IN PROVA: lo apre SOLO il professionista dall'editor (scheda-prova.html), per vedere
+       come lo vedrà il paziente. Legge le tabelle della 059 coi permessi del professionista;
+       nessuna RPC paziente, niente salvato nel diario. Modo principale «Inizia» SENZA audio. -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/elicoidali-exercises.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { background: #000; }
+    body { font-family: 'Montserrat', sans-serif; color: #fff; min-height: 100vh; }
+    button { font-family: inherit; }
+    .barra-prova { background: #FFD008; color: #000; font-size: 12px; font-weight: 700; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .barra-prova a { color: #000; font-weight: 800; white-space: nowrap; }
+    .main { max-width: 480px; margin: 0 auto; padding: 22px 18px 60px; }
+    .err { background: #2a0f0f; border: 1px solid #5a2a2a; color: #ff8a80; border-radius: 12px; padding: 14px; font-size: 13px; font-weight: 600; margin-bottom: 16px; display: none; }
+    .err.show { display: block; }
+
+    /* ── Casa ── */
+    .saluto { font-size: 14px; color: #999; margin-bottom: 4px; }
+    .titolo { font-size: 28px; font-weight: 900; line-height: 1.1; margin-bottom: 18px; }
+    .titolo span { color: #FFD008; }
+    .eroe { background: linear-gradient(160deg, #1c1c1c 0%, #0b0b0b 100%); border: 1px solid #2a2a2a; border-radius: 22px; padding: 20px; margin-bottom: 18px; position: relative; overflow: hidden; }
+    .eroe::after { content: ''; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(255,208,8,.25), rgba(255,208,8,0) 70%); }
+    .numeri { display: flex; gap: 10px; margin-bottom: 18px; position: relative; z-index: 1; }
+    .numero { flex: 1; background: #000; border: 1px solid #262626; border-radius: 14px; padding: 12px 8px; text-align: center; }
+    .numero b { display: block; font-size: 22px; font-weight: 900; color: #FFD008; }
+    .numero span { font-size: 11px; color: #999; font-weight: 600; }
+    .quando { display: flex; background: #000; border: 1px solid #333; border-radius: 12px; overflow: hidden; margin-bottom: 14px; position: relative; z-index: 1; }
+    .quando button { flex: 1; padding: 11px; border: none; background: transparent; color: #aaa; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .quando button.on { background: #FFD008; color: #000; }
+    .inizia { width: 100%; padding: 20px; border: none; border-radius: 16px; background: #FFD008; color: #000; font-size: 20px; font-weight: 900; letter-spacing: .5px; cursor: pointer; box-shadow: 0 8px 30px rgba(255,208,8,.25); position: relative; z-index: 1; }
+    .inizia:active { transform: scale(.98); }
+    .voce-btn { width: 100%; margin-top: 10px; padding: 14px; border-radius: 14px; border: 1px solid #333; background: transparent; color: #777; font-size: 14px; font-weight: 700; position: relative; z-index: 1; }
+    .sez { font-size: 12px; font-weight: 800; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin: 22px 0 12px; }
+    .giro { display: inline-flex; align-items: center; gap: 6px; background: #1a1a1a; border: 1px solid #333; color: #FFD008; border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 800; margin-bottom: 12px; }
+    .es { background: #111; border: 1px solid #222; border-radius: 16px; padding: 14px; margin-bottom: 10px; display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; color: #fff; cursor: pointer; }
+    .es:active { border-color: #FFD008; }
+    .es .n { width: 38px; height: 38px; border-radius: 50%; background: #FFD008; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .es .c { flex: 1; min-width: 0; }
+    .es .t { font-size: 15px; font-weight: 700; }
+    .es .q { font-size: 13px; color: #FFD008; font-weight: 700; margin-top: 3px; }
+    .es .f { font-size: 12px; color: #aaa; margin-top: 3px; }
+    .es .play { font-size: 12px; color: #000; background: #FFD008; border-radius: 20px; padding: 6px 10px; font-weight: 800; flex-shrink: 0; }
+    .nota { border: 1px dashed #444; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; color: #ddd; font-size: 14px; display: flex; gap: 10px; }
+    .pill { display: inline-block; font-size: 10px; font-weight: 800; background: #262626; color: #ddd; border-radius: 6px; padding: 2px 6px; margin-left: 6px; vertical-align: middle; }
+
+    /* ── Allenamento (schermo intero) ── */
+    .palco { position: fixed; inset: 0; background: #000; z-index: 100; display: none; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom)); }
+    .palco.show { display: flex; }
+    .palco-su { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .chiudi { background: #1a1a1a; border: 1px solid #333; color: #ccc; width: 44px; height: 44px; border-radius: 12px; font-size: 18px; cursor: pointer; }
+    .dove { font-size: 13px; font-weight: 700; color: #aaa; text-align: right; }
+    .dove b { color: #FFD008; }
+    .avanz { height: 6px; background: #1f1f1f; border-radius: 6px; margin: 12px 0 0; overflow: hidden; }
+    .avanz div { height: 100%; background: #FFD008; width: 0; transition: width .4s; }
+    .palco-centro { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; min-height: 0; }
+    .etichetta { font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #FFD008; }
+    .etichetta.riposo { color: #7fd1ff; }
+    .nome-es { font-size: 26px; font-weight: 900; line-height: 1.15; max-width: 420px; }
+    .frase { font-size: 15px; color: #ccc; max-width: 380px; line-height: 1.4; }
+    .serie { font-size: 14px; font-weight: 700; color: #aaa; }
+    .anello { position: relative; width: min(64vw, 260px); aspect-ratio: 1; }
+    .anello svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .anello .fondo { stroke: #1f1f1f; }
+    .anello .arco { stroke: #FFD008; stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
+    .anello.riposo .arco { stroke: #7fd1ff; }
+    .anello .dentro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .anello .cifra { font-size: clamp(52px, 18vw, 76px); font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+    .anello .sotto { font-size: 13px; color: #999; font-weight: 700; margin-top: 6px; }
+    .rip-grandi { font-size: clamp(80px, 30vw, 120px); font-weight: 900; color: #FFD008; line-height: 1; }
+    .rip-sotto { font-size: 18px; font-weight: 800; margin-top: -6px; }
+    .guarda { background: transparent; border: 1px solid #FFD008; color: #FFD008; border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .prossimo { background: #111; border: 1px solid #222; border-radius: 14px; padding: 12px 14px; font-size: 13px; color: #aaa; max-width: 360px; width: 100%; }
+    .prossimo b { color: #fff; display: block; font-size: 15px; margin-top: 2px; }
+    .palco-giu { display: flex; gap: 10px; align-items: center; }
+    .tondo { width: 56px; height: 56px; border-radius: 50%; border: 1px solid #333; background: #1a1a1a; color: #fff; font-size: 20px; cursor: pointer; flex-shrink: 0; }
+    .grande { flex: 1; padding: 18px; border: none; border-radius: 16px; background: #FFD008; color: #000; font-size: 18px; font-weight: 900; cursor: pointer; }
+    .grande.scuro { background: #1a1a1a; color: #fff; border: 1px solid #333; }
+    .pronti { font-size: clamp(96px, 34vw, 150px); font-weight: 900; color: #FFD008; line-height: 1; }
+
+    /* ── Fine ── */
+    .festa { text-align: center; }
+    .festa .coppa { font-size: 84px; animation: salta 1s ease-in-out infinite alternate; }
+    @keyframes salta { from { transform: translateY(0) } to { transform: translateY(-12px) } }
+    .festa h2 { font-size: 30px; font-weight: 900; color: #FFD008; margin: 8px 0 6px; }
+    .festa p { color: #ccc; font-size: 15px; margin-bottom: 18px; }
+    .riep { display: flex; gap: 10px; margin-bottom: 22px; }
+    .riep div { flex: 1; background: #111; border: 1px solid #222; border-radius: 14px; padding: 12px 6px; }
+    .riep b { display: block; font-size: 22px; color: #FFD008; font-weight: 900; }
+    .riep span { font-size: 11px; color: #999; font-weight: 700; }
+    .facce { display: flex; justify-content: space-between; gap: 6px; margin: 10px 0 8px; }
+    .facce button { flex: 1; font-size: 34px; padding: 10px 0; background: #111; border: 2px solid #222; border-radius: 14px; cursor: pointer; }
+    .facce button.on { border-color: #FFD008; background: #1f1a00; }
+    .avviso-prova { font-size: 12px; color: #888; margin-top: 8px; }
+    .coriandoli { position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden; }
+    .coriandoli i { position: absolute; top: -20px; width: 8px; height: 14px; border-radius: 2px; animation: cade linear forwards; }
+    @keyframes cade { to { transform: translateY(110vh) rotate(720deg); opacity: .9 } }
+
+    /* Video */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 300; align-items: center; justify-content: center; padding: 16px; }
+    .modal.show { display: flex; }
+    .modal .box { width: 100%; max-width: 640px; }
+    .modal .tt { color: #FFD008; font-weight: 800; margin-bottom: 10px; }
+    .modal .sch { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; }
+    .modal .sch iframe, .modal .sch video, .modal .sch img { width: 100%; height: 100%; border: 0; object-fit: contain; display: block; }
+    @media (prefers-reduced-motion: reduce) { .festa .coppa, .coriandoli i { animation: none } }
+  </style>
+</head>
+<body>
+  <div class="barra-prova">
+    <span>🧪 Anteprima: così la vedrà il paziente</span>
+    <a id="torna" href="#">← Torna a modificare</a>
+  </div>
+
+  <div class="main" id="casa">
+    <div class="err" id="err"></div>
+    <div class="saluto" id="saluto"></div>
+    <div class="titolo" id="titolo">Caricamento…</div>
+    <div id="contenuto"></div>
+  </div>
+
+  <div class="palco" id="palco">
+    <div>
+      <div class="palco-su">
+        <button class="chiudi" onclick="esci()" aria-label="Esci">✕</button>
+        <div class="dove" id="dove"></div>
+      </div>
+      <div class="avanz"><div id="avanz"></div></div>
+    </div>
+    <div class="palco-centro" id="centro"></div>
+    <div class="palco-giu" id="giu"></div>
+  </div>
+
+  <div class="modal" id="modal" onclick="if(event.target===this)chiudiVideo()">
+    <div class="box">
+      <div class="tt" id="modal-tt"></div>
+      <div class="sch" id="modal-sch"></div>
+      <button class="grande" style="width:100%;margin-top:14px" onclick="chiudiVideo()">Chiudi</button>
+    </div>
+  </div>
+
+<script>
+/* scheda-paziente-v1 */
+(function () {
+  'use strict'
+
+  /* ⚖️ LE PAROLE CHE LEGGE IL PAZIENTE — tutte qui, da far rileggere a Giuliano. */
+  const T = {
+    saluto: function (nome) { return 'Ciao ' + nome + ' 👋' },
+    titolo: 'Il tuo <span>allenamento</span>',
+    esercizi: 'esercizi', durata: 'minuti circa', giri: 'giri',
+    adesso: 'Adesso è…', mattina: '☀️ Mattina', sera: '🌙 Sera',
+    inizia: '▶  INIZIA',
+    conVoce: '🔊 Con la voce — presto',
+    sezione: 'Gli esercizi di oggi',
+    giroTutta: function (n) { return '🔁 Tutta la scheda ' + n + ' volte' },
+    tocca: 'Tocca un esercizio per fare solo quello',
+    vuota: 'Il tuo fisioterapista non ha ancora preparato la scheda.',
+    pronti: 'Preparati', via: 'VIA!',
+    secondi: 'secondi', ripetizioni: 'ripetizioni',
+    serie: function (a, b) { return 'Serie ' + a + ' di ' + b },
+    giro: function (a, b) { return 'Giro <b>' + a + '</b> di ' + b },
+    esercizio: function (a, b) { return 'Esercizio <b>' + a + '</b> di ' + b },
+    fatto: '✓  FATTO', pausa: '⏸', riprendi: '▶', salta: '⏭',
+    guarda: '▶ Guarda come si fa',
+    riposa: 'Riposa', respira: 'Respira con calma', dopo: 'Dopo:',
+    saltaRiposo: 'Salta il riposo',
+    bravo: 'Bravo!', finito: 'Allenamento finito. Ottimo lavoro!',
+    fattiN: 'esercizi', tempoN: 'minuti', giriN: 'giri',
+    comeStai: 'Come ti senti adesso?',
+    grazie: 'Grazie! Il tuo fisioterapista lo vedrà.',
+    nonSalva: '🧪 Anteprima: in prova non si salva niente nel diario.',
+    torna: 'Torna alla scheda',
+    esciChiede: 'Vuoi smettere? Tocca ✕ ancora per uscire.'
+  }
+
+  const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  const patientId = new URLSearchParams(location.search).get('id')
+  const PRONTI_SEC = 3
+
+  let paziente = null, scheda = null, righe = [], media = {}
+  let momento = 'mattina'
+  let passi = [], iPasso = 0
+  let timer = null, scadenza = 0, restante = 0, inPausa = false, durataPasso = 0
+  let inizioSeduta = 0, wake = null, chiedeUscita = false
+
+  // ── funzioni pure (provate dal test) ──
+  function righeDelMomento(rr, m) {
+    return rr.filter(function (r) { return !m || r.quando === 'sempre' || r.quando === m })
+  }
+  // L'elenco dei passi della seduta: ogni serie di ogni esercizio, giro dopo giro,
+  // con un riposo fra un passo e l'altro (mai dopo l'ultimo). Le note non sono passi.
+  function costruisciPassi(rr, sch, solo) {
+    const es = rr.filter(function (r) { return r.tipo === 'esercizio' })
+    const giri = solo != null ? 1 : (Number(sch.ripeti_volte) || 1)
+    const lista = solo != null ? [es[solo]] : es
+    const out = []
+    for (let g = 1; g <= giri; g++) {
+      lista.forEach(function (r) {
+        const tot = Number(r.serie) || 1
+        for (let s = 1; s <= tot; s++) {
+          if (out.length) {
+            const rec = r.recupero_sec != null ? Number(r.recupero_sec) : (Number(sch.recupero_sec) || 0)
+            if (rec > 0) out.push({ tipo: 'riposo', secondi: rec })
+          }
+          out.push({ tipo: 'es', riga: r, serie: s, serieTot: tot, giro: g, giri: giri, nEs: es.indexOf(r) + 1, totEs: es.length })
+        }
+      })
+    }
+    return out
+  }
+  function stimaMinuti(rr, sch) {
+    const p = costruisciPassi(rr, sch)
+    const ritmo = Number(sch.ritmo_sec) || 3
+    const s = p.reduce(function (a, x) {
+      if (x.tipo === 'riposo') return a + x.secondi
+      return a + (x.riga.misura === 'tempo' ? Number(x.riga.secondi) : Number(x.riga.ripetizioni) * ritmo)
+    }, 0)
+    return Math.max(1, Math.round(s / 60))
+  }
+  function ytId(url) {
+    if (!url) return null
+    const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/)
+    return m ? m[1] : null
+  }
+  window.SchedaPaziente = { costruisciPassi: costruisciPassi, righeDelMomento: righeDelMomento, stimaMinuti: stimaMinuti }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
+  function $(id) { return document.getElementById(id) }
+  function errore(m) { const e = $('err'); e.textContent = m; e.classList.add('show') }
+  function quanto(r) {
+    const q = r.misura === 'tempo'
+      ? (r.secondi >= 60 && r.secondi % 60 === 0 ? (r.secondi / 60) + ' min' : r.secondi + ' s')
+      : r.ripetizioni + ' ' + T.ripetizioni
+    return (r.serie > 1 ? r.serie + ' × ' : '') + q
+  }
+
+  // ── caricamento (coi permessi del professionista: è un'anteprima) ──
+  async function init() {
+    $('torna').href = 'scheda-prova.html?id=' + encodeURIComponent(patientId || '')
+    if (!patientId) { errore('Manca il paziente.'); return }
+    const { data: au } = await sb.auth.getUser()
+    if (!au || !au.user) { location.href = 'login.html'; return }
+    const { data: pz } = await sb.from('patients').select('id, nome').eq('id', patientId).maybeSingle()
+    paziente = pz
+    const { data: sc, error } = await sb.from('scheda_allenamento').select('*').eq('patient_id', patientId).neq('stato', 'archiviata')
+      .order('aggiornato_il', { ascending: false }).limit(1)
+    if (error) { errore('Non riesco a leggere la scheda: ' + error.message); return }
+    scheda = sc && sc[0]
+    if (scheda) {
+      const { data: rr } = await sb.from('scheda_allenamento_righe').select('*').eq('scheda_id', scheda.id).order('ordine')
+      righe = rr || []
+      await caricaMedia()
+    }
+    const h = new Date().getHours()
+    momento = h < 14 ? 'mattina' : 'sera'
+    disegnaCasa()
+  }
+
+  // Il video di ogni esercizio: video del paziente → libreria → cuscini → niente (si va col nome).
+  async function caricaMedia() {
+    const exIds = righe.map(function (r) { return r.exercise_id }).filter(Boolean)
+    const vIds = righe.map(function (r) { return r.video_id }).filter(Boolean)
+    const [ex, vv] = await Promise.all([
+      exIds.length ? sb.from('exercises').select('*').in('id', exIds) : Promise.resolve({ data: [] }),
+      vIds.length ? sb.from('exercise_videos').select('*').in('id', vIds) : Promise.resolve({ data: [] })
+    ])
+    const eli = (typeof EXERCISES_ELICOIDALI !== 'undefined' && Array.isArray(EXERCISES_ELICOIDALI)) ? EXERCISES_ELICOIDALI : []
+    righe.forEach(function (r) {
+      let m = null
+      if (r.video_id) { const v = (vv.data || []).find(function (x) { return x.id === r.video_id }); if (v && v.url) m = { url: v.url, foto: v.tipo !== 'video' } }
+      if (!m && r.exercise_id) { const e = (ex.data || []).find(function (x) { return x.id === r.exercise_id }); if (e && e.video_url) m = ytId(e.video_url) ? { yt: ytId(e.video_url) } : { url: e.video_url } }
+      if (!m && r.elicoidale_id) { const e = eli.find(function (x) { return x.id === r.elicoidale_id }); if (e && e.video_url) m = { yt: ytId(e.video_url) } }
+      if (m) media[r.id] = m
+    })
+  }
+
+  function haMomenti() { return righe.some(function (r) { return r.quando !== 'sempre' }) }
+  function righeOggi() { return haMomenti() ? righeDelMomento(righe, momento) : righe }
+
+  // ── Casa ──
+  function disegnaCasa() {
+    $('saluto').textContent = paziente ? T.saluto(paziente.nome) : ''
+    $('titolo').innerHTML = T.titolo
+    const box = $('contenuto')
+    const rr = righeOggi()
+    const es = rr.filter(function (r) { return r.tipo === 'esercizio' })
+    if (!scheda || !righe.length) { box.innerHTML = '<div class="nota">' + T.vuota + '</div>'; return }
+    const giri = Number(scheda.ripeti_volte) || 1
+    let html = '<div class="eroe">' +
+      '<div class="numeri">' +
+        '<div class="numero"><b>' + es.length + '</b><span>' + T.esercizi + '</span></div>' +
+        '<div class="numero"><b>' + (es.length ? stimaMinuti(rr, scheda) : 0) + '</b><span>' + T.durata + '</span></div>' +
+        (giri > 1 ? '<div class="numero"><b>' + giri + '</b><span>' + T.giri + '</span></div>' : '') +
+      '</div>' +
+      (haMomenti() ? '<div class="quando" aria-label="' + T.adesso + '">' +
+        '<button class="' + (momento === 'mattina' ? 'on' : '') + '" onclick="setMomento(\'mattina\')">' + T.mattina + '</button>' +
+        '<button class="' + (momento === 'sera' ? 'on' : '') + '" onclick="setMomento(\'sera\')">' + T.sera + '</button></div>' : '') +
+      '<button class="inizia" id="btn-inizia" onclick="inizia()"' + (es.length ? '' : ' disabled') + '>' + T.inizia + '</button>' +
+      '<button class="voce-btn" disabled>' + T.conVoce + '</button>' +
+    '</div>'
+    html += '<div class="sez">' + T.sezione + '</div>'
+    if (giri > 1) html += '<div class="giro">' + T.giroTutta(giri) + '</div>'
+    let n = 0
+    rr.forEach(function (r) {
+      const q = r.quando !== 'sempre' ? '<span class="pill">' + (r.quando === 'mattina' ? '☀️' : '🌙') + '</span>' : ''
+      if (r.tipo === 'nota') { html += '<div class="nota"><span>✎</span><span>' + esc(r.testo) + q + '</span></div>'; return }
+      const idx = es.indexOf(r)
+      n++
+      html += '<button class="es" onclick="inizia(' + idx + ')"><div class="n">' + n + '</div><div class="c">' +
+        '<div class="t">' + esc(r.nome) + q + '</div><div class="q">' + quanto(r) + '</div>' +
+        (r.testo ? '<div class="f">' + esc(r.testo) + '</div>' : '') +
+      '</div><span class="play">▶</span></button>'
+    })
+    html += '<div class="avviso-prova" style="text-align:center;margin-top:6px">' + T.tocca + '</div>'
+    box.innerHTML = html
+  }
+  window.setMomento = function (m) { momento = m; disegnaCasa() }
+
+  // ── Allenamento ──
+  window.inizia = function (solo) {
+    passi = costruisciPassi(righeOggi(), scheda, solo)
+    if (!passi.length) return
+    iPasso = 0; inizioSeduta = Date.now(); chiedeUscita = false
+    $('palco').classList.add('show'); document.body.style.overflow = 'hidden'
+    // Lo schermo resta acceso dove il telefono lo permette; non si aspetta la risposta per partire.
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (w) { wake = w }).catch(function () {}) } catch (e) {}
+    pronti()
+  }
+
+  function ferma() { if (timer) { clearInterval(timer); timer = null } }
+  // Conto alla rovescia che regge alle pause e al telefono lento: si guarda l'orologio, non si contano i tic.
+  function conta(secondi, ogniTic, allaFine) {
+    ferma(); inPausa = false; durataPasso = secondi; restante = secondi * 1000
+    scadenza = Date.now() + restante
+    const tic = function () {
+      if (inPausa) return
+      restante = Math.max(0, scadenza - Date.now())
+      ogniTic(Math.ceil(restante / 1000), restante / (secondi * 1000))
+      if (restante <= 0) { ferma(); allaFine() }
+    }
+    tic(); timer = setInterval(tic, 200)
+  }
+  window.pausa = function () {
+    if (!timer) return
+    if (!inPausa) { inPausa = true; restante = Math.max(0, scadenza - Date.now()) } else { inPausa = false; scadenza = Date.now() + restante }
+    const b = $('btn-pausa'); if (b) { b.textContent = inPausa ? T.riprendi : T.pausa; b.setAttribute('aria-label', inPausa ? 'Riprendi' : 'Pausa') }
+  }
+
+  function intestazione(p) {
+    const es = p.tipo === 'es' ? p : passi.slice(iPasso).find(function (x) { return x.tipo === 'es' })
+    $('dove').innerHTML = (es.giri > 1 ? T.giro(es.giro, es.giri) + ' · ' : '') + T.esercizio(es.nEs, es.totEs)
+    const fatti = passi.slice(0, iPasso).filter(function (x) { return x.tipo === 'es' }).length
+    const tot = passi.filter(function (x) { return x.tipo === 'es' }).length
+    $('avanz').style.width = Math.round(fatti / tot * 100) + '%'
+  }
+
+  function anello(classe, cifra, sotto) {
+    const C = 2 * Math.PI * 54
+    return '<div class="anello ' + classe + '"><svg viewBox="0 0 120 120"><circle class="fondo" cx="60" cy="60" r="54" fill="none" stroke-width="9"/>' +
+      '<circle class="arco" id="arco" cx="60" cy="60" r="54" fill="none" stroke-width="9" stroke-dasharray="' + C + '" stroke-dashoffset="0"/></svg>' +
+      '<div class="dentro"><div class="cifra" id="cifra">' + cifra + '</div><div class="sotto">' + sotto + '</div></div></div>'
+  }
+  function aggiornaAnello(sec, frazione) {
+    const C = 2 * Math.PI * 54
+    const c = $('cifra'); if (c) c.textContent = sec
+    const a = $('arco'); if (a) a.setAttribute('stroke-dashoffset', String(C * (1 - frazione)))
+  }
+
+  function pronti() {
+    const p = passi[iPasso]
+    intestazione(p)
+    if (p.tipo !== 'es') return mostra()
+    const r = p.riga
+    $('centro').innerHTML = '<div class="etichetta">' + T.pronti + '</div><div class="nome-es">' + esc(r.nome) + '</div>' +
+      '<div class="pronti" id="cifra">' + PRONTI_SEC + '</div>'
+    $('giu').innerHTML = '<button class="grande scuro" onclick="mostra()">' + T.via + '</button>'
+    conta(PRONTI_SEC, function (s) { const c = $('cifra'); if (c) c.textContent = s > 0 ? s : T.via }, mostra)
+  }
+
+  window.mostra = function () {
+    ferma()
+    const p = passi[iPasso]
+    intestazione(p)
+    if (p.tipo === 'riposo') return riposo(p)
+    const r = p.riga
+    const m = media[r.id]
+    const testa = '<div class="etichetta">' + (p.serieTot > 1 ? T.serie(p.serie, p.serieTot) : '&nbsp;') + '</div>' +
+      '<div class="nome-es">' + esc(r.nome) + '</div>' +
+      (r.testo ? '<div class="frase">' + esc(r.testo) + '</div>' : '') +
+      (m ? '<button class="guarda" onclick="guarda()">' + T.guarda + '</button>' : '')
+    if (r.misura === 'tempo') {
+      $('centro').innerHTML = testa + anello('', r.secondi, T.secondi)
+      $('giu').innerHTML = '<button class="tondo" id="btn-pausa" onclick="pausa()" aria-label="Pausa">' + T.pausa + '</button>' +
+        '<button class="grande scuro" onclick="avanti()">' + T.salta + ' Avanti</button>'
+      conta(Number(r.secondi), aggiornaAnello, avanti)
+    } else {
+      $('centro').innerHTML = testa + '<div><div class="rip-grandi">' + r.ripetizioni + '</div><div class="rip-sotto">' + T.ripetizioni + '</div></div>'
+      $('giu').innerHTML = '<button class="grande" id="btn-fatto" onclick="avanti()">' + T.fatto + '</button>'
+    }
+  }
+
+  function riposo(p) {
+    const dopo = passi.slice(iPasso + 1).find(function (x) { return x.tipo === 'es' })
+    $('centro').innerHTML = '<div class="etichetta riposo">' + T.riposa + '</div>' +
+      anello('riposo', p.secondi, T.respira) +
+      (dopo ? '<div class="prossimo">' + T.dopo + '<b>' + esc(dopo.riga.nome) + (dopo.serieTot > 1 ? ' · ' + T.serie(dopo.serie, dopo.serieTot) : '') + '</b></div>' : '')
+    $('giu').innerHTML = '<button class="tondo" id="btn-pausa" onclick="pausa()" aria-label="Pausa">' + T.pausa + '</button>' +
+      '<button class="grande scuro" id="btn-salta-riposo" onclick="avanti()">' + T.saltaRiposo + '</button>'
+    conta(p.secondi, aggiornaAnello, avanti)
+  }
+
+  window.avanti = function () {
+    ferma(); chiedeUscita = false
+    iPasso++
+    if (iPasso >= passi.length) return fine()
+    // Dopo un riposo si parte subito (il riposo è già la preparazione); il «Preparati» solo dove serve.
+    passi[iPasso].tipo === 'es' && passi[iPasso - 1].tipo !== 'riposo' ? pronti() : mostra()
+  }
+
+  window.esci = function () {
+    if (!chiedeUscita) { chiedeUscita = true; const d = $('dove'); d.innerHTML = '<b>' + T.esciChiede + '</b>'; return }
+    chiudiPalco()
+  }
+  function chiudiPalco() {
+    ferma(); $('palco').classList.remove('show'); document.body.style.overflow = ''
+    try { if (wake) wake.release() } catch (e) {} wake = null
+  }
+
+  function fine() {
+    $('avanz').style.width = '100%'
+    const es = passi.filter(function (x) { return x.tipo === 'es' })
+    const nomi = new Set(es.map(function (x) { return x.riga.id }))
+    const minuti = Math.max(1, Math.round((Date.now() - inizioSeduta) / 60000))
+    const giri = es.length ? es[0].giri : 1
+    $('dove').innerHTML = ''
+    $('centro').innerHTML = '<div class="festa"><div class="coppa">🏆</div><h2>' + T.bravo + '</h2><p>' + T.finito + '</p>' +
+      '<div class="riep"><div><b>' + nomi.size + '</b><span>' + T.fattiN + '</span></div><div><b>' + minuti + '</b><span>' + T.tempoN + '</span></div>' +
+      (giri > 1 ? '<div><b>' + giri + '</b><span>' + T.giriN + '</span></div>' : '') + '</div>' +
+      '<div class="etichetta" style="color:#fff;letter-spacing:0;text-transform:none;font-size:16px">' + T.comeStai + '</div>' +
+      '<div class="facce" id="facce">' + ['😣', '🙁', '😐', '🙂', '😄'].map(function (f, i) {
+        return '<button onclick="faccia(' + (i + 1) + ')" aria-label="Voto ' + (i + 1) + ' su 5">' + f + '</button>' }).join('') + '</div>' +
+      '<div class="avviso-prova" id="dopo-faccia">' + T.nonSalva + '</div></div>'
+    $('giu').innerHTML = '<button class="grande" onclick="chiudiFine()">' + T.torna + '</button>'
+    coriandoli()
+  }
+  window.faccia = function (v) {
+    document.querySelectorAll('#facce button').forEach(function (b, i) { b.classList.toggle('on', i === v - 1) })
+    $('dopo-faccia').textContent = T.grazie + ' ' + T.nonSalva
+  }
+  window.chiudiFine = function () { chiudiPalco(); const c = document.querySelector('.coriandoli'); if (c) c.remove() }
+  function coriandoli() {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const box = document.createElement('div'); box.className = 'coriandoli'
+    const colori = ['#FFD008', '#ffffff', '#7fd1ff', '#ff8a80']
+    for (let i = 0; i < 60; i++) {
+      const c = document.createElement('i')
+      c.style.left = Math.random() * 100 + '%'
+      c.style.background = colori[i % colori.length]
+      c.style.animationDuration = (2 + Math.random() * 2) + 's'
+      c.style.animationDelay = (Math.random() * .8) + 's'
+      box.appendChild(c)
+    }
+    document.body.appendChild(box)
+    setTimeout(function () { box.remove() }, 5000)
+  }
+
+  // ── video ──
+  window.guarda = function () {
+    const p = passi[iPasso]; if (!p || p.tipo !== 'es') return
+    const m = media[p.riga.id]; if (!m) return
+    if (timer && !inPausa) pausa()          // guardando il video il tempo si ferma
+    $('modal-tt').textContent = p.riga.nome
+    $('modal-sch').innerHTML = m.yt
+      ? '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(m.yt) + '?rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>'
+      : (m.foto ? '<img src="' + esc(m.url) + '" alt="">' : '<video src="' + esc(m.url) + '" controls playsinline preload="metadata"></video>')
+    $('modal').classList.add('show')
+  }
+  window.chiudiVideo = function () { $('modal').classList.remove('show'); $('modal-sch').innerHTML = '' }
+
+  init().catch(function (e) { console.error('[scheda-paziente]', e); errore('Errore di caricamento: ' + (e && e.message || e)) })
+})()
+</script>
+</body>
+</html>
