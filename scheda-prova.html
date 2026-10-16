@@ -178,10 +178,8 @@
       <div class="card-title">Tutta la scheda</div>
       <span class="lbl">Ripeti tutta la scheda</span>
       <div class="chips" id="ripeti-chips"></div>
-      <div class="blocco">
-        <span class="lbl">Recupero fra un esercizio e l'altro</span>
-        <div class="chips" id="recupero-chips"></div>
-      </div>
+      <!-- scheda-editor-v5 · niente recupero (Giuliano 16/10: «il riposo non serve»): fra un esercizio
+           e l'altro il paziente vede 3 s di «Adesso tocca a…». La colonna recupero_sec resta nel database. -->
       <div class="blocco">
         <span class="lbl">Ritmo delle ripetizioni (per la voce, dopo)</span>
         <div class="chips" id="ritmo-chips"></div>
@@ -244,7 +242,7 @@
   <div class="toast-container" id="toast-container"></div>
 
 <script>
-/* scheda-editor-v2 · scheda-editor-v3 · scheda-editor-v4 */
+/* scheda-editor-v2 · scheda-editor-v3 · scheda-editor-v4 · scheda-editor-v5 */
 (function () {
   'use strict'
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -300,7 +298,8 @@
     const lavoro = es.reduce(function (s, r) { return s + durataRiga(r, Number(imp.ritmo_sec) || 3) }, 0)
     const serie = es.reduce(function (s, r) { return s + (Number(r.serie) || 1) }, 0)
     const giri = Number(imp.ripeti_volte) || 1
-    return lavoro * giri + (serie * giri - 1) * (Number(imp.recupero_sec) || 0)
+    // scheda-editor-v5: niente recupero; fra un passo e l'altro ci sono i 3 s di «Adesso tocca a…»
+    return lavoro * giri + (serie * giri - 1) * 3
   }
   function fmtTempo(s) {
     s = Math.round(s)
@@ -495,7 +494,6 @@
 
   function disegnaImpost() {
     $('ripeti-chips').innerHTML = chipsHtml(RIPETI, impost.ripeti_volte, 'setRipeti', function (v) { return v === 1 ? '1 volta' : v + ' volte' }, { min: 1, max: 20, ph: 'altro' })
-    $('recupero-chips').innerHTML = chipsHtml(RECUPERI, impost.recupero_sec, 'setRecupero', function (v) { return v === 0 ? 'nessuno' : v + ' s' }, { min: 0, max: 600, ph: 'altro s' })
     $('ritmo-chips').innerHTML = chipsHtml(RITMI, impost.ritmo_sec, 'setRitmo', function (v) { return v + ' s' }, { min: 1, max: 20, ph: 'altro s' })
   }
 
@@ -549,7 +547,7 @@
     if (!vere.length) { box.innerHTML = '<div class="ante"><div class="ante-sub" style="margin:0">Qui compare la scheda come la vedrà il paziente.</div></div>'; return }
     const giri = impost.ripeti_volte
     let html = '<div class="ante"><div class="ante-testa">Il tuo allenamento</div>' +
-      '<div class="ante-sub">' + (paziente ? esc(paziente.nome) + ' · ' : '') + 'recupero ' + (impost.recupero_sec ? impost.recupero_sec + ' s' : 'nessuno') + '</div>' +
+      '<div class="ante-sub">' + (paziente ? esc(paziente.nome) : '') + '</div>' +
       (giri > 1 ? '<div class="ante-giro">🔁 Tutta la scheda ' + giri + ' volte</div>' : '')
     let n = 0
     righe.forEach(function (r, i) {
@@ -566,7 +564,7 @@
       '</div>' + az + '</div>'
     })
     const s = stimaSecondi(vere, impost)
-    if (s > 0) html += '<div class="stima">Durata stimata: circa <b>' + fmtTempo(s) + '</b> (tutte le righe, recuperi compresi; ripetizioni contate a ' + impost.ritmo_sec + ' s l\'una).</div>'
+    if (s > 0) html += '<div class="stima">Durata stimata: circa <b>' + fmtTempo(s) + '</b> (tutte le righe; ripetizioni contate a ' + impost.ritmo_sec + ' s l\'una).</div>'
     box.innerHTML = html + '</div>'
   }
 
