@@ -17,6 +17,7 @@
   <script src="utils-premium.js"></script>
   <script src="utils-ai.js"></script>
   <script src="js/foto-resolver.js"></script>
+  <script src="js/foto-archivio.js?v=foto-archivio-v1"></script>
   <script src="js/camera-pol.js"></script>
   <style>
     /* ====== RESET & BASE ====== */
@@ -3431,8 +3432,8 @@
     } else {
       el.className = 's3-slot has-photo'
       el.onclick = e => { if (!e.target.closest('button')) openLightboxSlot(slotKey) }
-      const dt = photo.data_scatto
-        ? new Date(photo.data_scatto).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit' })
+      const dt = photo.data_scatto   // foto-archivio-v1: anche l'ora
+        ? new Date(photo.data_scatto).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
         : ''
       el.innerHTML =
         '<img src="' + escH(photo.url) + '" alt="' + shortLabel + '"' +
@@ -3966,6 +3967,19 @@
 
   /* Una foto importata condivide il file con la posturale: prima di
      cancellarlo dallo storage si controlla che nessun'altra riga lo usi. */
+  /* foto-archivio-v1 — una foto esce da una casella: il file NON si cancella,
+     resta nell'archivio del paziente come «sostituita». Le foto della scheda
+     paziente (/iniziali/) restano alla scheda. Senza js/foto-archivio.js:
+     comportamento di prima. */
+  async function _fuoriCasellaVisita(storagePath, id, casella) {
+    if (!storagePath || storagePath.indexOf('/iniziali/') >= 0) return
+    if (window.PolFotoArchivio && patientId) {
+      await PolFotoArchivio.segnaSostituita(_sb, patientId, storagePath, 'visita', casella)
+      return
+    }
+    if (!(await _pathCondiviso(storagePath, id))) await _sb.storage.from(S3_BUCKET).remove([storagePath]).catch(() => {})
+  }
+
   async function _pathCondiviso(storagePath, escludiId) {
     if (!storagePath) return true
     try {
@@ -4051,7 +4065,7 @@
       }
       window._librFoto = lista
       grid.innerHTML = lista.map((ft, i) => {
-        const d = ft.data ? new Date(ft.data).toLocaleDateString('it-IT') : ''
+        const d = ft.data ? (ft.oraNota ? new Date(ft.data).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : new Date(ft.data).toLocaleDateString('it-IT')) : ''   // foto-archivio-v1
         const dl = d ? '<div style="font-size:10px;color:#666;font-weight:600">' + d + '</div>' : ''
         return '<div style="border:1.5px solid #eee;border-radius:10px;overflow:hidden;cursor:pointer;background:#fff" onclick="scegliFotoLibreria(' + i + ')">' +
           '<img src="' + ft.url + '" style="width:100%;height:110px;object-fit:cover;display:block" loading="lazy">' +
@@ -4070,7 +4084,7 @@
       const { data: pat } = await _sb.from('patients').select('foto_url, created_at').eq('id', patientId).maybeSingle()
       const LBL = { 'prima-sx':'Prima cuscini · Sx','prima-dx':'Prima cuscini · Dx','dopo-sx':'Dopo cuscini · Sx','dopo-dx':'Dopo cuscini · Dx','frontale':'Posturale · Frontale','posteriore':'Posturale · Posteriore','podo-sotto':'Piede · Da sotto','podo-dietro':'Piede · Da dietro' }
       const iniz = JSON.parse(pat?.foto_url || '{}')
-      for (const slot of Object.keys(LBL)) { if (iniz[slot]) { const _u = await polResolveFoto(iniz[slot], _sb); if (_u) out.push({ url: _u, label: LBL[slot] || slot, data: pat?.created_at || null }) } }
+      for (const slot of Object.keys(LBL)) { if (iniz[slot]) { const _u = await polResolveFoto(iniz[slot], _sb); if (_u) { const _pp = window.PolFotoArchivio ? PolFotoArchivio.percorsoDi(iniz[slot]) : null; out.push({ url: _u, label: LBL[slot] || slot, data: _pp ? PolFotoArchivio.dataDaPercorso(_pp) : null, oraNota: true }) } } }   // foto-archivio-v1: mai la data di creazione del paziente
     } catch(e) {}
     try {
       const { data: visite } = await _sb.from('visits').select('id, data_visita').eq('patient_id', patientId)
@@ -4081,7 +4095,7 @@
         for (const p of (fts || [])) {
           if (!p.storage_path) continue
           const { data: su } = await _sb.storage.from(S3_BUCKET).createSignedUrl(p.storage_path, 7200)
-          if (su && su.signedUrl) out.push({ url: su.signedUrl, label: (p.tipo || 'Foto').replace(/_/g,' '), data: p.data_scatto || dataBy[p.visit_id] || null })
+          if (su && su.signedUrl) out.push({ url: su.signedUrl, label: (p.tipo || 'Foto').replace(/_/g,' '), data: p.data_scatto || dataBy[p.visit_id] || null, oraNota: !!p.data_scatto })
         }
       }
     } catch(e) {}
@@ -4180,22 +4194,27 @@
 
   async function uploadVisitPhoto(slotKey, blob, dataUrl) {
     const slot = S3_SLOTS.find(s => s.key === slotKey); if (!slot) return
-    const ts   = Date.now()
-    const path = `visits/${visitId}/${slotKey}_${ts}.jpg`
 
-    // Rimuovi foto precedente se esiste. visita-importa-posturale-v1: se il
-    // file e' condiviso con la posturale da cui la foto e' stata importata,
-    // si toglie solo la riga, MAI il file.
-    if (step3Photos[slotKey]?.storage_path) {
-      const vecchia = step3Photos[slotKey]
-      if (!(await _pathCondiviso(vecchia.storage_path, vecchia.id))) {
-        await _sb.storage.from(S3_BUCKET).remove([vecchia.storage_path]).catch(() => {})
-      }
-      if (vecchia.id) await _sb.from('visit_photos').delete().eq('id', vecchia.id)
+    /* foto-archivio-v1 — PRIMA si carica la nuova (col numero del paziente,
+       data e ora nel nome), POI la vecchia esce dalla casella. Il file vecchio
+       NON si cancella piu': resta nell'archivio del paziente come «sostituita».
+       Prima si cancellava la vecchia e poi si caricava: se il caricamento
+       falliva, la casella restava vuota e la foto vecchia era persa. */
+    let path, quando
+    if (window.PolFotoArchivio && patientId) {
+      const r = await PolFotoArchivio.carica(_sb, { patientId: patientId, cartella: 'visits/' + visitId, casella: slotKey, origine: 'visita', visitId: visitId, blob: blob, mime: 'image/jpeg', ext: 'jpg' })
+      path = r.storage_path; quando = r.scattata_il
+    } else {
+      path = `visits/${visitId}/${slotKey}_${Date.now()}.jpg`
+      const { error: upErr } = await _sb.storage.from(S3_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+      if (upErr) throw new Error(upErr.message)
     }
 
-    const { error: upErr } = await _sb.storage.from(S3_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true })
-    if (upErr) throw new Error(upErr.message)
+    if (step3Photos[slotKey]?.storage_path) {
+      const vecchia = step3Photos[slotKey]
+      await _fuoriCasellaVisita(vecchia.storage_path, vecchia.id, slotKey)
+      if (vecchia.id) await _sb.from('visit_photos').delete().eq('id', vecchia.id)
+    }
 
     /* visita-foto-uguale-v1 — QUI stava il motivo per cui la foto appena
        scattata restava bianca: `clinical-docs` e' un bucket PRIVATO, e
@@ -4212,7 +4231,8 @@
       tipo:         slot.tipo,
       storage_path: path,
       url_pubblico: null,
-      ordine:       slot.ordine
+      ordine:       slot.ordine,
+      ...(quando ? { data_scatto: quando } : {})
     }).select('id, data_scatto').maybeSingle()
     if (insErr) throw new Error(insErr.message)
 
@@ -4227,11 +4247,8 @@
 
   async function removeVisitPhoto(slotKey) {
     const photo = step3Photos[slotKey]; if (!photo) return
-    // visita-importa-posturale-v1 — file condiviso con la posturale: si toglie
-    // la riga di questa visita, il file resta a chi lo usa ancora.
-    if (photo.storage_path && !(await _pathCondiviso(photo.storage_path, photo.id))) {
-      await _sb.storage.from(S3_BUCKET).remove([photo.storage_path]).catch(() => {})
-    }
+    // foto-archivio-v1 — la casella si svuota, il file resta nell'archivio
+    await _fuoriCasellaVisita(photo.storage_path, photo.id, slotKey)
     if (photo.id) {
       await _sb.from('visit_photos').delete().eq('id', photo.id)
     }

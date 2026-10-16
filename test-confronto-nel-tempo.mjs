@@ -307,6 +307,14 @@ const FINTO = (DB) => {
              cambiare pagina: se non aspettasse, se ne andrebbe lo stesso
              e il test lo vedrebbe. */
           if ((DB.opts.rpcAppeso || []).indexOf(nome) >= 0) return new Promise(function () {})
+          /* foto-archivio-v1 — il registro della migration 058 (le funzioni non
+             passano dentro addInitScript: per questo sta qui, acceso da un'opzione) */
+          if (DB.opts.registro058 && nome === 'foto_registra') {
+            const n = (DB.foto_storico = DB.foto_storico || []).length + 1
+            DB.foto_storico.push({ id: 'st' + n, patient_id: args.p_patient, numero: n, origine: args.p_origine, casella: args.p_casella, scattata_il: args.p_scattata })
+            return Promise.resolve({ data: { id: 'st' + n, numero: n }, error: null })
+          }
+          if (DB.opts.registro058 && nome === 'foto_segna_sostituita') return Promise.resolve({ data: 1, error: null })
           const r = (DB.rpc || {})[nome]
           const val = (typeof r === 'function') ? r(args) : r
           if (val && val.error) return Promise.resolve(val)
@@ -931,14 +939,91 @@ sez('Rivalutazione — svuotare la casella non svuota la scheda paziente')
   check('la casella torna vuota a schermo',
     await page.$eval('#slot-sagittale_sx_pre', el => !el.classList.contains('filled')))
 
-  // Controprova: una foto scattata in questa visita si cancella eccome.
+  /* foto-archivio-v1 — decisione di Giuliano (F2A, 15 ott): togliere una foto
+     dalla casella NON cancella piu' il file, nemmeno se e' stata scattata in
+     questa visita. Esce dalla casella e resta nell'archivio come «sostituita». */
   await page.evaluate(() => removePhoto('frontale_pre'))
   await page.waitForTimeout(400)
   const dopo = await page.evaluate(() => window.__chiamate.rimossi)
-  check('una foto scattata in questa visita si cancella normalmente',
-    dopo.some(p => p.indexOf('visits/v3/frontale_pre') >= 0), dopo)
+  check('foto-archivio-v1: anche una foto di questa visita NON si cancella più da Storage',
+    !dopo.some(p => p.indexOf('visits/v3/frontale_pre') >= 0), dopo)
+  const segn = await page.evaluate(() => window.__chiamate.rpc.filter(c => c.nome === 'foto_segna_sostituita').map(c => c.args.p_path))
+  check('foto-archivio-v1: …ed è segnata «sostituita» nel registro', segn.indexOf('visits/v3/frontale_pre_3.jpg') >= 0, segn)
+  check('foto-archivio-v1: la foto della scheda non viene segnata (resta alla scheda)', !segn.some(p => p.indexOf('/iniziali/') >= 0), segn)
   await ctx.close()
 }
+
+/* foto-archivio-v1 — il registro finto, con le regole della migration 058 */
+function rpc058(d) {
+  d.foto_storico = d.foto_storico || []
+  d.opts = Object.assign({}, d.opts || {}, { registro058: true })
+  return d
+}
+async function fileFoto(page) {
+  return page.evaluateHandle(async () => {
+    const c = document.createElement('canvas'); c.width = 40; c.height = 60
+    c.getContext('2d').fillRect(0, 0, 40, 60)
+    const b = await new Promise(r => c.toBlob(r, 'image/png'))
+    return new File([b], 'scatto.png', { type: 'image/png' })
+  })
+}
+
+sez('foto-archivio-v1 · posturale: «Sostituisci» non cancella la foto vecchia')
+{
+  const { page, ctx, errori } = await apriPagina(browser, rpc058(datiPosturale()), 'valutazione-posturale.html', '?id=v3')
+  const f = await fileFoto(page)
+  await page.evaluate(file => uploadPhoto(file, 'frontale_pre', true), f)
+  await page.waitForTimeout(400)
+  const C = await page.evaluate(() => window.__chiamate)
+  const nuovo = C.upload[C.upload.length - 1] || ''
+  check('nome nuovo: visits/v3/n0001_data_ora_frontale-pre_<ms>.jpg', /^visits\/v3\/n0001_\d{4}-\d\d-\d\d_\d\d-\d\d_frontale-pre_\d{13}\.jpg$/.test(nuovo), nuovo)
+  check('la foto vecchia NON è cancellata da Storage', !C.rimossi.some(p => p.indexOf('frontale_pre_3') >= 0), C.rimossi)
+  check('la foto vecchia è segnata «sostituita»', C.rpc.some(c => c.nome === 'foto_segna_sostituita' && c.args.p_path === 'visits/v3/frontale_pre_3.jpg'))
+  check('registrata come origine posturale', C.rpc.some(c => c.nome === 'foto_registra' && c.args.p_origine === 'posturale' && c.args.p_visit === 'v3'))
+  const riga = await page.evaluate(() => window.__DB.visit_photos.find(r => r.id === 'p9'))
+  check('la casella punta alla foto nuova', riga && riga.storage_path === nuovo, riga)
+  const meta = await page.$eval('#date-frontale_pre', e => e.textContent)
+  check('sotto la casella si legge data e ora (gg/mm/aaaa hh:mm)', /\d\d\/\d\d\/\d{4} \d\d:\d\d/.test(meta), meta)
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('foto-archivio-v1 · posturale senza js/foto-archivio.js: come prima')
+{
+  const { page, ctx, errori } = await apriPagina(browser, datiPosturale(), 'valutazione-posturale.html', '?id=v3', { blocca: ['**/js/foto-archivio.js*'] })
+  const f = await fileFoto(page)
+  await page.evaluate(file => uploadPhoto(file, 'frontale_pre', true), f)
+  await page.waitForTimeout(400)
+  const C = await page.evaluate(() => window.__chiamate)
+  check('salva col nome di prima', /^visits\/v3\/frontale_pre_\d{13}\.jpg$/.test(C.upload[C.upload.length - 1] || ''), C.upload)
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+}
+
+sez('foto-archivio-v1 · visita fisioterapica: «Sostituisci» non cancella la foto vecchia')
+{
+  const d = rpc058(datiBase())
+  d.visits.find(v => v.id === 'vf').stato = 'bozza'
+  d.visit_photos.push({ id: 'pf1', visit_id: 'vf', tipo: 'sagittale_sx', storage_path: 'visits/vf/sagittale_sx_1.jpg', data_scatto: '2026-08-15T09:10:00Z', ordine: 1 })
+  d.urlFoto['visits/vf/sagittale_sx_1.jpg'] = '/foto/v1-sag.svg'
+  const { page, ctx, errori } = await apriPagina(browser, d, 'visita.html', '?id=vf')
+  const chiave = await page.evaluate(() => (S3_SLOTS.find(s => s.tipo === 'sagittale_sx') || S3_SLOTS[0]).key)
+  const pieno = await page.evaluate(k => !!(step3Photos[k] && step3Photos[k].storage_path), chiave)
+  if (!pieno) await page.evaluate(k => { step3Photos[k] = { id: 'pf1', storage_path: 'visits/vf/sagittale_sx_1.jpg', url: '/foto/v1-sag.svg' } }, chiave)
+  const f = await fileFoto(page)
+  await page.evaluate(async ({ file, k }) => { const r = await compressImage(file); return uploadVisitPhoto(k, r.blob, r.dataUrl) }, { file: f, k: chiave })
+  await page.waitForTimeout(300)
+  const C = await page.evaluate(() => window.__chiamate)
+  const nuovo = C.upload[C.upload.length - 1] || ''
+  check('nome nuovo col numero: visits/vf/n0001_…', /^visits\/vf\/n0001_\d{4}-\d\d-\d\d_\d\d-\d\d_[a-z0-9-]+_\d{13}\.jpg$/.test(nuovo), nuovo)
+  check('la foto vecchia NON è cancellata da Storage', C.rimossi.indexOf('visits/vf/sagittale_sx_1.jpg') < 0, C.rimossi)
+  check('la foto vecchia è segnata «sostituita»', C.rpc.some(c => c.nome === 'foto_segna_sostituita' && c.args.p_path === 'visits/vf/sagittale_sx_1.jpg'))
+  const ins = C.insert.filter(x => x.tabella === 'visit_photos').pop()
+  check('la riga nuova ha data_scatto con l\'ora del salvataggio', ins && ins.riga.data_scatto && /T\d\d:\d\d/.test(ins.riga.data_scatto), ins)
+  check('nessun errore JS', errori.length === 0, errori)
+  await ctx.close()
+}
+
 
 sez('Rivalutazione — il contrassegno nel PDF')
 {

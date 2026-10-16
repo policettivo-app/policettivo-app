@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="css/design-system.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/camera-pol.js"></script>
+  <script src="js/foto-archivio.js?v=foto-archivio-v1"></script>
   <script src="js/configurazioni.js"></script><!-- config-vocabolario-v1 : NPL/GPL si scrivono in js/configurazioni.js e da nessun'altra parte -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -2265,7 +2266,7 @@
         out.push({
           url: u, storage_path: path || null, id: 'scheda-' + k, source: 'scheda',
           label: 'Scheda paziente — ' + (_SLOT_SCHEDA[k] || k.replace(/-/g, ' ')),
-          data: _dataDaPercorso(path)
+          data: _dataDaPercorso(path), oraNota: true
         })
       }
     } catch (e) {}
@@ -2286,7 +2287,7 @@
         for (const p of _p) {
           const su = _map[p.storage_path]
           if (su) {
-            out.push({ url: su, storage_path: p.storage_path, id: p.id, source: 'visit', label: (p.tipo || 'Foto').replace(/_/g,' '), data: p.data_scatto || dataBy[p.visit_id] || null })
+            out.push({ url: su, storage_path: p.storage_path, id: p.id, source: 'visit', label: (p.tipo || 'Foto').replace(/_/g,' '), data: p.data_scatto || dataBy[p.visit_id] || null, oraNota: !!p.data_scatto })
           }
         }
       }
@@ -2297,7 +2298,7 @@
 
   function _libGridHTML(lista) {
     return lista.map((ft, i) => {
-      const d = ft.data ? new Date(ft.data).toLocaleDateString('it-IT') : ''
+      const d = ft.data ? (ft.oraNota ? new Date(ft.data).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : new Date(ft.data).toLocaleDateString('it-IT')) : ''   // foto-archivio-v1
       const scheda = ft.source === 'scheda'
       const dataLine = d
         ? '<div style="font-size:10px;color:#666;font-weight:600">' + (scheda ? 'caricata il ' : '') + d + '</div>'
@@ -2352,8 +2353,14 @@
     if (ft.source === 'visit' && ft.id) {
       await _sb.from('visit_photos').delete().eq('id', ft.id)
       if (ft.storage_path) {
-        const { data: others } = await _sb.from('visit_photos').select('id').eq('storage_path', ft.storage_path).limit(1)
-        if (!others || !others.length) await _sb.storage.from('clinical-docs').remove([ft.storage_path])
+        // foto-archivio-v1 — si guarda anche la scheda paziente (patients.foto_url)
+        const _inUso = window.PolFotoArchivio
+          ? await PolFotoArchivio.fileInUso(_sb, ft.storage_path, { patientId: patientId })
+          : !!((await _sb.from('visit_photos').select('id').eq('storage_path', ft.storage_path).limit(1)).data || []).length
+        if (!_inUso) {
+          await _sb.storage.from('clinical-docs').remove([ft.storage_path])
+          if (window.PolFotoArchivio) await PolFotoArchivio.segnaEliminata(_sb, patientId, ft.storage_path)
+        }
       }
     } else if (ft.source === 'base64' && ft.slot) {
       const { data: pat } = await _sb.from('patients').select('foto_url').eq('id', patientId).maybeSingle()
@@ -2413,8 +2420,14 @@
       if (ft.source === 'visit' && ft.id) {
         await _sb.from('visit_photos').delete().eq('id', ft.id)
         if (ft.storage_path) {
-          const { data: others } = await _sb.from('visit_photos').select('id').eq('storage_path', ft.storage_path).limit(1)
-          if (!others || !others.length) await _sb.storage.from('clinical-docs').remove([ft.storage_path])
+          // foto-archivio-v1 — si guarda anche la scheda paziente (patients.foto_url)
+          const _inUso = window.PolFotoArchivio
+            ? await PolFotoArchivio.fileInUso(_sb, ft.storage_path, { patientId: patientId })
+            : !!((await _sb.from('visit_photos').select('id').eq('storage_path', ft.storage_path).limit(1)).data || []).length
+          if (!_inUso) {
+            await _sb.storage.from('clinical-docs').remove([ft.storage_path])
+            if (window.PolFotoArchivio) await PolFotoArchivio.segnaEliminata(_sb, patientId, ft.storage_path)
+          }
         }
       } else if (ft.source === 'base64' && ft.slot) {
         const { data: pat } = await _sb.from('patients').select('foto_url').eq('id', patientId).maybeSingle()
@@ -2467,6 +2480,7 @@
       const pubUrl = urlData.publicUrl
       let dbErr, saved
       if (isReplace && photos[tipo]?.id) {
+        if (photos[tipo].storage_path && photos[tipo].storage_path !== storage_path) await _fuoriCasella(photos[tipo].storage_path, photos[tipo].id, tipo)   // foto-archivio-v1
         const r = await _sb.from('visit_photos')
           .update({ storage_path, url_pubblico: pubUrl, data_scatto })
           .eq('id', photos[tipo].id)
@@ -2789,11 +2803,11 @@
 
     try {
       let blob = await compressImage(file)
-      const data_scatto = dataOriginale || new Date().toISOString()
-
-      const path = 'visits/' + visitId + '/' + tipo + '_' + Date.now() + '.jpg'
-      const { error: storErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
-      if (storErr) { showToast('Errore upload: ' + storErr.message); setIndicator('error', ''); return }
+      // foto-archivio-v1 — nome col numero del paziente, data e ora
+      const _up = await _caricaFotoVisita(blob, tipo)
+      if (!_up) { setIndicator('error', ''); return }
+      const path = _up.path
+      const data_scatto = dataOriginale || _up.quando
 
       const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
       const pubUrl = urlData.publicUrl
@@ -2804,9 +2818,9 @@
         // precarica-pre-da-scheda-v1 — stessa regola di removePhoto: la foto
         // vecchia si cancella solo se quel file non lo usa nessun altro.
         // Sostituire una casella precaricata non deve svuotare la scheda.
-        if (photos[tipo].storage_path && !(await _fileCondiviso(photos[tipo].storage_path, photos[tipo].id))) {
-          await _sb.storage.from('clinical-docs').remove([photos[tipo].storage_path])
-        }
+        // foto-archivio-v1 — la foto vecchia esce dalla casella ma il file
+        // NON si cancella: resta nell'archivio del paziente come «sostituita».
+        await _fuoriCasella(photos[tipo].storage_path, photos[tipo].id, tipo)
         const r = await _sb.from('visit_photos')
           .update({ storage_path: path, url_pubblico: pubUrl, data_scatto })
           .eq('id', photos[tipo].id)
@@ -2842,6 +2856,39 @@
      da comparazione.html e da questa casella. Cancellarlo qui vorrebbe dire
      far sparire la foto iniziale del paziente da tutte le altre parti.
      Ritorna true se il file NON si puo' toccare. Nel dubbio: non si tocca. */
+  /* foto-archivio-v1 — carica una foto della visita col nome nuovo
+     (n0042_data_ora_casella_ms.jpg, numero del paziente). Se la migration 058
+     non c'e' o js/foto-archivio.js non arriva: nome e caricamento di prima.
+     Se il caricamento non riesce: messaggio e null (niente nel database). */
+  async function _caricaFotoVisita(blob, casella) {
+    try {
+      if (window.PolFotoArchivio && patientId) {
+        const r = await PolFotoArchivio.carica(_sb, { patientId: patientId, cartella: 'visits/' + visitId, casella: casella, origine: 'posturale', visitId: visitId, blob: blob, mime: 'image/jpeg', ext: 'jpg' })
+        return { path: r.storage_path, quando: r.scattata_il }
+      }
+      const path = 'visits/' + visitId + '/' + casella + '_' + Date.now() + '.jpg'
+      const { error } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+      if (error) throw new Error(error.message)
+      return { path: path, quando: new Date().toISOString() }
+    } catch (e) {
+      showToast('⚠️ Foto non salvata: ' + (e && e.message ? e.message : 'riprova'))
+      return null
+    }
+  }
+
+  /* foto-archivio-v1 — una foto esce da una casella (sostituita o tolta):
+     il FILE non si cancella piu', resta nell'archivio del paziente come
+     «sostituita». Senza js/foto-archivio.js: comportamento di prima. */
+  async function _fuoriCasella(storage_path, id, casella) {
+    if (!storage_path) return
+    if (_daScheda(storage_path)) return                // è della scheda paziente: lì resta
+    if (window.PolFotoArchivio && patientId) {
+      await PolFotoArchivio.segnaSostituita(_sb, patientId, storage_path, 'posturale', casella)
+      return
+    }
+    if (!(await _fileCondiviso(storage_path, id))) await _sb.storage.from('clinical-docs').remove([storage_path])
+  }
+
   async function _fileCondiviso(storage_path, escludiId) {
     if (!storage_path) return true
     if (_daScheda(storage_path)) return true          // è della scheda paziente
@@ -2856,9 +2903,8 @@
     const p = photos[tipo]
     if (!p) return
     const scheda = _daScheda(p.storage_path)
-    if (p.storage_path && !(await _fileCondiviso(p.storage_path, p.id))) {
-      await _sb.storage.from('clinical-docs').remove([p.storage_path])
-    }
+    // foto-archivio-v1 — la casella si svuota, il file resta in archivio
+    await _fuoriCasella(p.storage_path, p.id, tipo)
     if (p.id)           await _sb.from('visit_photos').delete().eq('id', p.id)
     delete photos[tipo]
     updatePhotoSlot(tipo)
@@ -2922,16 +2968,16 @@
     btn.disabled = true; btn.textContent = 'Caricamento…'
     try {
       const blob = await compressImage(flPendingFile)
-      const path = 'visits/' + visitId + '/libera_' + Date.now() + '.jpg'
-      const { error: upErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg' })
-      if (upErr) { showToast('Errore upload'); btn.disabled = false; btn.textContent = 'Aggiungi foto'; return }
+      const _up = await _caricaFotoVisita(blob, 'libera')   // foto-archivio-v1
+      if (!_up) { btn.disabled = false; btn.textContent = 'Aggiungi foto'; return }
+      const path = _up.path
 
       const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
       const titolo     = document.getElementById('fl-titolo').value.trim() || null
       const descrizione = document.getElementById('fl-desc').value.trim() || null
 
       const { data: np, error: dbErr } = await _sb.from('visit_photos')
-        .insert({ visit_id: visitId, tipo: 'libera', storage_path: path, url_pubblico: urlData.publicUrl, ordine: 99, titolo, descrizione })
+        .insert({ visit_id: visitId, tipo: 'libera', storage_path: path, url_pubblico: urlData.publicUrl, ordine: 99, titolo, descrizione, data_scatto: _up.quando })
         .select().maybeSingle()
       if (dbErr || !np) { showToast('Errore salvataggio'); btn.disabled = false; btn.textContent = 'Aggiungi foto'; return }
 
@@ -2943,7 +2989,8 @@
     } catch (e) { showToast('Errore: ' + e.message); btn.disabled = false; btn.textContent = 'Aggiungi foto' }
   }
   async function removeFotoLibera(id, storagePath) {
-    if (storagePath) await _sb.storage.from('clinical-docs').remove([storagePath])
+    // foto-archivio-v1 — tolta dalla visita, il file resta in archivio
+    await _fuoriCasella(storagePath, id, 'libera')
     await _sb.from('visit_photos').delete().eq('id', id)
     fotoLibere = fotoLibere.filter(p => String(p.id) !== String(id))
     renderFotoLibere()
@@ -4473,12 +4520,12 @@ ISTRUZIONI:
   async function rapidUploadFotoLibera(file) {
     try {
       const blob = await compressImage(file)
-      const path = 'visits/' + visitId + '/libera_' + Date.now() + '.jpg'
-      const { error: upErr } = await _sb.storage.from('clinical-docs').upload(path, blob, { contentType: 'image/jpeg' })
-      if (upErr) { showToast('Errore upload foto libera'); return }
+      const _up = await _caricaFotoVisita(blob, 'libera')   // foto-archivio-v1
+      if (!_up) return
+      const path = _up.path
       const { data: urlData } = _sb.storage.from('clinical-docs').getPublicUrl(path)
       const { data: np, error: dbErr } = await _sb.from('visit_photos')
-        .insert({ visit_id: visitId, tipo: 'libera', storage_path: path, url_pubblico: urlData.publicUrl, ordine: 99 })
+        .insert({ visit_id: visitId, tipo: 'libera', storage_path: path, url_pubblico: urlData.publicUrl, ordine: 99, data_scatto: _up.quando })
         .select().maybeSingle()
       if (dbErr || !np) { showToast('Errore salvataggio foto libera'); return }
       fotoLibere.push(np)

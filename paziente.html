@@ -1694,7 +1694,7 @@
         try {
           const urls = JSON.parse(patient.foto_url)
           polResolveFotoMappa(urls, _supabase).then(function(resolved){
-            Object.keys(resolved).forEach(k => { if (resolved[k]) showFotoPreview(k, resolved[k]) })
+            Object.keys(resolved).forEach(k => { if (resolved[k]) { showFotoPreview(k, resolved[k]); _etichettaOraCasella(k) } })   // foto-archivio-v1
           })
         } catch(e) {}
       }
@@ -1907,7 +1907,7 @@
       })
       grid.innerHTML = ordinate.map(({ f, i }) => {
         const label = f.titolo || f.tipo || 'Foto'
-        const d = f._data ? new Date(f._data).toLocaleDateString('it-IT') : ''
+        const d = window.PolFotoArchivio ? (f._data ? PolFotoArchivio.dataOra(f._data, !f._conOra) : '') : (f._data ? new Date(f._data).toLocaleDateString('it-IT') : '')   // foto-archivio-v1
         const dataLine = d ? '<div style="font-size:10px;color:#666;font-weight:600">' + d + '</div>' : ''
         const selP = _pickerSel.has(f._idx)
         return '<div id="pick-card-' + f._idx + '" style="position:relative;border:2px solid ' + (selP ? '#c62828' : '#eee') + ';border-radius:10px;overflow:hidden;background:#fff">' +
@@ -2191,6 +2191,7 @@
           const r = await PolFotoArchivio.carica(_supabase, { patientId: patientId, cartella: patientId + '/iniziali', casella: slot, origine: 'scheda', dataUrl: dataUrl })
           const c = await PolFotoArchivio.impostaCasellaScheda(_supabase, patientId, slot, { storage_path: r.storage_path })
           patient.foto_url = c.foto_url
+          _etichettaOraCasella(slot)
           const vecchio = PolFotoArchivio.percorsoDi(c.prima)
           if (vecchio && vecchio !== r.storage_path) await PolFotoArchivio.segnaSostituita(_supabase, patientId, vecchio, 'scheda', slot)
           _fotoLoaded = false
@@ -2210,6 +2211,7 @@
         b.className = 'foto-non-salvata'
         b.style.cssText = 'position:absolute;left:0;right:0;top:0;z-index:3;background:#c62828;color:#fff;font-size:12px;font-weight:700;padding:6px 8px;text-align:center'
         b.textContent = '⚠️ Foto non salvata — riprova'
+        const _t = el.querySelector('.foto-ora'); if (_t) _t.textContent = 'non salvata'
         if (getComputedStyle(el).position === 'static') el.style.position = 'relative'
         el.appendChild(b)
       }
@@ -2257,7 +2259,27 @@
       }) : ''
       el.innerHTML = '<img src="' + src + '" alt="foto">' + _bar +
         '<input type="file" id="input-' + slot + '" accept="image/*" style="display:none" onchange="handleFoto(\'' + slot + '\',this)">'
+      _etichettaOraCasella(slot, String(src || '').indexOf('data:') === 0)
       if (slot === 'prima-sx' || slot === 'prima-dx') avviaAIHintPrima()
+    }
+
+    /* foto-archivio-v1 — sulla casella si legge quando è stata salvata la foto
+       («16/10/2026 · 12:11»), presa dal nome del file. Se non si conosce:
+       «data non registrata». Mai la data di creazione del paziente. */
+    function _etichettaOraCasella(slot, inSalvataggio) {
+      const el = document.getElementById('slot-' + slot); if (!el || !window.PolFotoArchivio) return
+      let v = null
+      try { v = JSON.parse(patient.foto_url || '{}')[slot] } catch (e) {}
+      const p = PolFotoArchivio.percorsoDi(v)
+      let t = el.querySelector('.foto-ora')
+      if (!t) {
+        t = document.createElement('div')
+        t.className = 'foto-ora'
+        t.style.cssText = 'position:absolute;left:6px;top:58px;white-space:nowrap;z-index:4;background:rgba(0,0,0,.62);color:#fff;font-size:11px;font-weight:600;padding:2px 6px;border-radius:5px;pointer-events:none'
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative'
+        el.appendChild(t)
+      }
+      t.textContent = inSalvataggio ? 'salvataggio…' : p ? PolFotoArchivio.dataOra(PolFotoArchivio.dataDaPercorso(p)) : (v ? 'data non registrata' : 'salvataggio…')
     }
 
     async function avviaAIHintPrima() {

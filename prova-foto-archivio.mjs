@@ -193,7 +193,7 @@ function datiBase(opts = {}) {
 }
 
 async function apri(browser, dati, opts = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  const ctx = await browser.newContext({ viewport: process.env.FOTO_TEL ? { width: 390, height: 844 } : { width: 1280, height: 900 } })
   for (const p of (opts.blocca || [])) await ctx.route(p, r => r.abort())
   await ctx.route('**://cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '/* finto */' }))
   await ctx.route('**://cdnjs.cloudflare.com/**', r => r.fulfill({ status: 200, contentType: 'text/javascript', body: '/* finto */' }))
@@ -387,6 +387,28 @@ try {
     check('la foto si salva col percorso di prima', /\/iniziali\/dopo-sx_\d{13}\.png$/.test(percorso(casella(D, 'dopo-sx')) || ''), D.patients[0].foto_url)
     await page.evaluate(() => { _fotoLoaded = false; return caricaFoto() })
     check('l\'archivio si apre', (await page.$$('#foto-grid > div')).length >= 3)
+    check('nessun errore JS', errori.length === 0, errori)
+    await ctx.close()
+  }
+
+  sez('Percorso vero: scelgo il file → Cartella → Foto')
+  {
+    const { page, ctx, errori } = await apri(browser, datiBase())
+    fs.writeFileSync('/tmp/prova.png', PNG)
+    await page.setInputFiles('#input-prima-sx', '/tmp/prova.png')
+    await page.waitForTimeout(800)
+    const D = await db(page)
+    check('salvata dal campo file vero', /n0001_/.test(percorso(casella(D, 'prima-sx')) || ''), D.patients[0].foto_url)
+    const et = await page.$eval('#slot-prima-sx .foto-ora', e => e.textContent).catch(() => null)
+    check('sulla casella si legge «gg/mm/aaaa · hh:mm»', /^\d\d\/\d\d\/\d{4} · \d\d:\d\d$/.test(et || ''), et)
+    if (process.env.FOTO_SCREEN) await page.locator('#slot-prima-sx').screenshot({ path: process.env.FOTO_SCREEN })
+    const et2 = await page.$eval('#slot-frontale .foto-ora', e => e.textContent).catch(() => null)
+    check('su una casella vecchia la data viene dal nome del file (01/07/2025)', /^01\/07\/2025 · /.test(et2 || ''), et2)
+    await page.evaluate(() => { toggleCartella(true); clinicalNotesSwitchTab('foto') })
+    await page.waitForTimeout(800)
+    const t = await page.$$eval('#foto-grid > div', els => els.map(e => e.textContent))
+    check('in Cartella → Foto la nuova ha data · ora', t.some(x => / · \d\d:\d\d/.test(x) && !/sostituita/.test(x)), t)
+    check('in Cartella → Foto la vecchia «sostituita il»', t.some(x => /sostituita il/.test(x)), t)
     check('nessun errore JS', errori.length === 0, errori)
     await ctx.close()
   }
