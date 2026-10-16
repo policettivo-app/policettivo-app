@@ -4,14 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Policettivo® — Scheda nuova (prova)</title>
-  <!-- scheda-editor-v1 · PASSO 2 del PIANO-scheda-allenamento: editor del professionista.
+  <!-- scheda-editor-v1 · scheda-editor-v2 · PASSO 2 del PIANO-scheda-allenamento: editor del PROFESSIONISTA.
        IN PROVA: pagina nuova, tabelle della migration 059, il paziente NON vede niente
-       (visibile_paziente resta false). Non tocca assegna-protocollo / protocollo / esercizio. -->
+       (visibile_paziente resta false). Non tocca assegna-protocollo / protocollo / esercizio.
+       v2 (prove di Giuliano 16/10): scelta a tre card con più esercizi insieme, video visibili,
+       anteprima nera modificabile, note vuote non salvate, 60 s / 3×10 di partenza. -->
   <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
+  <script src="js/scheda-base.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; padding-bottom: 160px; }
@@ -33,15 +36,17 @@
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
     /* Righe della scheda */
-    .riga { border: 2px solid #eee; border-radius: 14px; padding: 14px; margin-bottom: 10px; background: #fff; }
+    .riga { border: 2px solid #eee; border-radius: 14px; padding: 14px; margin-bottom: 10px; background: #fff; transition: box-shadow .3s, border-color .3s; }
     .riga.nota { background: #fffbea; border-color: #f3e3a0; }
     .riga.err { border-color: #e53935; }
+    .riga.lampo { border-color: #FFD008; box-shadow: 0 0 0 4px rgba(255,208,8,.45); }
     .riga-top { display: flex; align-items: flex-start; gap: 10px; }
     .num { width: 30px; height: 30px; border-radius: 50%; background: #000; color: #FFD008; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .riga.nota .num { background: #FFD008; color: #000; }
     .riga-nome { flex: 1; min-width: 0; }
     .riga-nome .t { font-size: 15px; font-weight: 700; word-break: break-word; }
-    .riga-nome .m { font-size: 11px; color: #666; margin-top: 2px; }
+    .riga-nome .m { font-size: 11px; color: #666; margin-top: 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .vedi { background: #000; color: #FFD008; border: none; border-radius: 6px; padding: 3px 9px; font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
     .mini { background: transparent; border: 1.5px solid #ddd; border-radius: 8px; width: 36px; height: 36px; font-size: 15px; cursor: pointer; font-family: inherit; flex-shrink: 0; }
     .mini:disabled { opacity: .3; cursor: default; }
     .mini.del { border-color: #f5c6c6; color: #c62828; }
@@ -54,10 +59,6 @@
     .chip.on { background: #FFD008; border-color: #000; }
     .chip-altro { width: 92px; padding: 9px 8px; border-radius: 9px; border: 1.5px dashed #999; font-family: inherit; font-size: 14px; font-weight: 700; text-align: center; }
     .chip-altro.on { border-style: solid; border-color: #000; background: #FFD008; }
-    .stepper { display: inline-flex; align-items: center; border: 1.5px solid #ddd; border-radius: 10px; overflow: hidden; }
-    .stepper button { width: 40px; height: 38px; border: none; background: #f5f5f5; font-size: 18px; font-weight: 700; cursor: pointer; font-family: inherit; }
-    .stepper span { min-width: 40px; text-align: center; font-size: 15px; font-weight: 800; }
-    .due { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: end; }
     .msg-err { color: #c62828; font-size: 12px; font-weight: 600; margin-top: 8px; }
     .vuoto { text-align: center; color: #888; font-size: 13px; padding: 18px 8px; }
 
@@ -71,29 +72,65 @@
     .salva:disabled { opacity: .5; }
     .salva.fatto { background: #000; color: #FFD008; }
 
-    /* Scelta esercizio */
+    /* Scelta esercizi: tre card, poi l'elenco con le spunte */
     .sheet { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 9000; align-items: flex-end; justify-content: center; }
     .sheet.show { display: flex; }
-    .sheet-box { background: #fff; width: 100%; max-width: 700px; max-height: 88vh; border-radius: 18px 18px 0 0; display: flex; flex-direction: column; }
-    .sheet-head { padding: 16px 16px 10px; border-bottom: 1px solid #eee; }
-    .sheet-head .row { justify-content: space-between; margin-bottom: 10px; }
-    .sheet-head b { font-size: 16px; }
-    .sheet-body { overflow-y: auto; padding: 8px 16px 24px; }
-    .gruppo { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; }
-    .voce { display: flex; align-items: center; gap: 10px; border: 1.5px solid #eee; border-radius: 10px; padding: 11px 12px; margin-bottom: 6px; cursor: pointer; background: #fff; width: 100%; text-align: left; font-family: inherit; }
-    .voce:hover { border-color: #FFD008; }
-    .voce .t { font-size: 14px; font-weight: 600; flex: 1; min-width: 0; }
-    .voce .m { font-size: 11px; color: #666; flex-shrink: 0; }
+    .sheet-box { background: #fff; width: 100%; max-width: 700px; height: 90vh; border-radius: 18px 18px 0 0; display: flex; flex-direction: column; }
+    .sheet-head { padding: 14px 16px 10px; border-bottom: 1px solid #eee; }
+    .sheet-head .row { justify-content: space-between; flex-wrap: nowrap; }
+    .sheet-head b { font-size: 16px; flex: 1; }
+    .sheet-body { overflow-y: auto; padding: 10px 16px 16px; flex: 1; }
+    .sheet-foot { padding: 12px 16px 16px; border-top: 1px solid #eee; }
+    .sheet-foot .btn { width: 100%; }
+    .tre { display: flex; flex-direction: column; gap: 12px; }
+    .card-scelta { display: flex; align-items: center; gap: 14px; text-align: left; width: 100%; padding: 18px; border-radius: 16px; border: none; cursor: pointer; font-family: inherit; }
+    .card-scelta.c1 { background: #FFD008; color: #000; }
+    .card-scelta.c2 { background: #000; color: #fff; }
+    .card-scelta.c3 { background: #fff; color: #000; border: 2px solid #000; }
+    .card-scelta .ico { font-size: 30px; flex-shrink: 0; }
+    .card-scelta .tt { font-size: 17px; font-weight: 800; }
+    .card-scelta .dd { font-size: 12px; opacity: .8; margin-top: 3px; }
+    .card-scelta.c2 .tt { color: #FFD008; }
+    .card-scelta .cnt { margin-left: auto; background: #000; color: #FFD008; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+    .card-scelta.c2 .cnt { background: #FFD008; color: #000; }
+    .gruppo { font-size: 11px; font-weight: 800; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 8px; }
+    .voce { display: flex; align-items: center; gap: 10px; border: 2px solid #eee; border-radius: 12px; padding: 10px 12px; margin-bottom: 6px; background: #fff; }
+    .voce.sel { border-color: #000; background: #fffbea; }
+    .voce .spunta { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #bbb; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+    .voce.sel .spunta { background: #000; border-color: #000; color: #FFD008; }
+    .voce .tocca { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; background: none; border: none; text-align: left; font-family: inherit; padding: 2px 0; }
+    .voce .t { font-size: 14px; font-weight: 600; }
+    .voce .m { font-size: 11px; color: #666; }
 
-    /* Anteprima */
-    .ante-giro { background: #000; color: #FFD008; border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 800; margin-bottom: 10px; }
-    .ante-riga { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
-    .ante-riga:last-child { border-bottom: none; }
-    .ante-riga .q { font-size: 11px; font-weight: 700; background: #f0f0f0; border-radius: 6px; padding: 2px 6px; }
-    .ante-nota { font-style: italic; color: #555; }
-    .stima { font-size: 13px; color: #444; margin-top: 10px; }
+    /* Video */
+    .modal-video { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 9500; align-items: center; justify-content: center; padding: 16px; }
+    .modal-video.show { display: flex; }
+    .modal-video .box { width: 100%; max-width: 640px; }
+    .modal-video .titolo { color: #FFD008; font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+    .modal-video .schermo { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; }
+    .modal-video .schermo iframe, .modal-video .schermo video, .modal-video .schermo img { width: 100%; height: 100%; border: 0; object-fit: contain; display: block; }
 
-    .toast-container { position: fixed; bottom: 150px; left: 12px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    /* Anteprima: com'è il lato paziente (nero e giallo) */
+    .ante { background: #000; border-radius: 18px; padding: 18px 14px; color: #fff; }
+    .ante-testa { color: #FFD008; font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+    .ante-sub { color: #aaa; font-size: 12px; margin-bottom: 14px; }
+    .ante-giro { display: inline-block; background: #FFD008; color: #000; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 800; margin-bottom: 12px; }
+    .ante-es { background: #111; border: 1px solid #222; border-radius: 14px; padding: 14px; margin-bottom: 10px; display: flex; gap: 12px; align-items: center; }
+    .ante-es .n { width: 36px; height: 36px; border-radius: 50%; background: #FFD008; color: #000; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ante-es .c { flex: 1; min-width: 0; }
+    .ante-es .t { font-size: 15px; font-weight: 700; }
+    .ante-es .q { font-size: 13px; color: #FFD008; font-weight: 700; margin-top: 2px; }
+    .ante-es .f { font-size: 12px; color: #bbb; margin-top: 3px; font-style: italic; }
+    .ante-nota { border: 1px dashed #444; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; color: #ddd; font-size: 13px; font-style: italic; display: flex; gap: 10px; align-items: center; }
+    .ante-nota .c { flex: 1; }
+    .pill { display: inline-block; font-size: 10px; font-weight: 800; background: #333; color: #fff; border-radius: 6px; padding: 2px 6px; margin-left: 6px; font-style: normal; vertical-align: middle; }
+    .ante-az { display: flex; gap: 6px; flex-shrink: 0; }
+    .ante-az button { width: 38px; height: 38px; border-radius: 10px; border: 1px solid #333; background: #1a1a1a; color: #fff; font-size: 15px; cursor: pointer; }
+    .ante-az button.del { color: #ff8a80; border-color: #5a2a2a; }
+    .stima { font-size: 12px; color: #aaa; margin-top: 12px; }
+    .stima b { color: #FFD008; }
+
+    .toast-container { position: fixed; bottom: 150px; left: 12px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none; }
     .toast { background: #1a1a1a; color: #fff; padding: 14px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; max-width: 420px; }
     .toast.error { border-left: 4px solid #ff4444; }
     .toast.success { border-left: 4px solid #FFD008; }
@@ -106,7 +143,7 @@
   </nav>
 
   <div class="main">
-    <span class="prova-badge">🧪 IN PROVA — il paziente non la vede</span>
+    <span class="prova-badge">🧪 IN PROVA — lato professionista, il paziente non la vede</span>
     <h1>Scheda di allenamento</h1>
     <div class="sub" id="paz-nome">Caricamento…</div>
     <div class="banner-err" id="banner-err"></div>
@@ -122,7 +159,7 @@
       <div class="card-title">Esercizi e note, in ordine</div>
       <div id="righe"></div>
       <div class="aggiungi">
-        <button class="btn giallo" id="btn-add-es" onclick="apriScelta()">+ Esercizio</button>
+        <button class="btn giallo" id="btn-add-es" onclick="apriScelta()">+ Esercizi</button>
         <button class="btn" id="btn-add-nota" onclick="aggiungiNota()">+ Nota</button>
       </div>
     </div>
@@ -144,7 +181,7 @@
 
     <!-- ANTEPRIMA -->
     <div class="card">
-      <div class="card-title">Come la vedrà il paziente (anteprima)</div>
+      <div class="card-title">Anteprima — più o meno come la vedrà il paziente</div>
       <div id="anteprima"></div>
     </div>
 
@@ -161,21 +198,35 @@
 
   <button class="salva" id="btn-salva" onclick="salvaScheda()">✓ Salva la scheda</button>
 
-  <!-- Scelta dell'esercizio -->
+  <!-- Scelta degli esercizi -->
   <div class="sheet" id="sheet" onclick="if(event.target===this)chiudiScelta()">
     <div class="sheet-box">
       <div class="sheet-head">
-        <div class="row"><b>Scegli l'esercizio</b><button class="mini" onclick="chiudiScelta()" aria-label="Chiudi">✕</button></div>
-        <input class="inp" id="cerca" placeholder="Cerca per nome…" oninput="disegnaScelta()">
+        <div class="row">
+          <button class="mini" id="scelta-indietro" onclick="vaiCard(null)" aria-label="Torna alle tre card" style="display:none">←</button>
+          <b id="scelta-titolo">Aggiungi esercizi</b>
+          <button class="mini" onclick="chiudiScelta()" aria-label="Chiudi">✕</button>
+        </div>
+        <input class="inp" id="cerca" placeholder="Cerca per nome…" oninput="disegnaScelta()" style="display:none;margin-top:10px">
       </div>
       <div class="sheet-body" id="scelta"></div>
+      <div class="sheet-foot"><button class="btn giallo" id="btn-aggiungi-scelti" onclick="aggiungiScelti()" disabled>Scegli uno o più esercizi</button></div>
+    </div>
+  </div>
+
+  <!-- Video -->
+  <div class="modal-video" id="modal-video" onclick="if(event.target===this)chiudiVideo()">
+    <div class="box">
+      <div class="titolo" id="video-titolo"></div>
+      <div class="schermo" id="video-schermo"></div>
+      <button class="btn giallo" style="width:100%;margin-top:14px" onclick="chiudiVideo()">Chiudi</button>
     </div>
   </div>
 
   <div class="toast-container" id="toast-container"></div>
 
 <script>
-/* scheda-editor-v1 */
+/* scheda-editor-v2 */
 (function () {
   'use strict'
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -184,8 +235,11 @@
   const params = new URLSearchParams(location.search)
   const patientId = params.get('id')
 
+  // Di partenza (Giuliano, 16/10): ogni esercizio 1 minuto; a ripetizioni 3 serie da 10.
+  const DEF_SECONDI = 60, DEF_RIP = 10, DEF_SERIE_RIP = 3
   const TEMPI = [30, 60, 90, 120]
   const RIPS = [5, 10, 15]
+  const SERIE = [1, 2, 3]
   const RIPETI = [1, 2, 3]
   const RECUPERI = [0, 15, 30, 45, 60]
   const RITMI = [2, 3, 4]
@@ -193,13 +247,15 @@
 
   // ── stato ──
   let prof = null, paziente = null
-  let scheda = null            // riga di scheda_allenamento del paziente (o null)
-  let righe = []               // quelle nell'editor
-  let righeSalvate = []        // le ultime lette/salvate: servono per rimettere a posto se un salvataggio fallisce
+  let scheda = null
+  let righe = []
+  let righeSalvate = []
   let impost = { ripeti_volte: 1, recupero_sec: 30, ritmo_sec: 3 }
   let libreria = [], videoPaz = [], modelli = []
   let sporco = false, salvando = false
   let confermaModello = null
+  let cardAperta = null          // null = le tre card · 'base' · 'tutti' · 'tuoi'
+  let scelti = []                // chiavi delle voci spuntate, nell'ordine in cui si toccano
 
   // ── funzioni pure (provate dal test) ──
   function clampInt(v, min, max) {
@@ -207,6 +263,7 @@
     if (!Number.isFinite(n) || n < min || n > max) return null
     return n
   }
+  function notaVuota(r) { return r.tipo === 'nota' && !String(r.testo || '').trim() }
   function valida(r) {
     if (r.tipo === 'nota') return (String(r.testo || '').trim() ? null : 'Scrivi il testo della nota')
     if (!String(r.nome || '').trim()) return 'Manca il nome dell\'esercizio'
@@ -219,15 +276,13 @@
     const una = r.misura === 'tempo' ? (Number(r.secondi) || 0) : (Number(r.ripetizioni) || 0) * ritmo
     return una * (Number(r.serie) || 1)
   }
-  // Stima in secondi: lavoro + un recupero dopo ogni serie, tranne l'ultima di tutta la scheda.
   function stimaSecondi(rr, imp) {
     const es = rr.filter(function (r) { return r.tipo === 'esercizio' })
     if (!es.length) return 0
     const lavoro = es.reduce(function (s, r) { return s + durataRiga(r, Number(imp.ritmo_sec) || 3) }, 0)
     const serie = es.reduce(function (s, r) { return s + (Number(r.serie) || 1) }, 0)
     const giri = Number(imp.ripeti_volte) || 1
-    const pause = serie * giri - 1
-    return lavoro * giri + pause * (Number(imp.recupero_sec) || 0)
+    return lavoro * giri + (serie * giri - 1) * (Number(imp.recupero_sec) || 0)
   }
   function fmtTempo(s) {
     s = Math.round(s)
@@ -261,7 +316,17 @@
       serie: x.serie || 1, quando: x.quando || 'sempre', testo: x.testo || ''
     }
   }
-  window.SchedaProva = { valida: valida, stimaSecondi: stimaSecondi, versoDb: versoDb, fmtTempo: fmtTempo }
+  function ytId(url) {
+    if (!url) return null
+    const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/)
+    return m ? m[1] : null
+  }
+  function quantoTesto(r) {
+    const q = r.misura === 'tempo' ? fmtTempo(Number(r.secondi) || 0) : (Number(r.ripetizioni) || 0) + ' ripetizioni'
+    const s = Number(r.serie) || 1
+    return s > 1 ? s + ' × ' + q : q
+  }
+  window.SchedaProva = { valida: valida, stimaSecondi: stimaSecondi, versoDb: versoDb, fmtTempo: fmtTempo, ytId: ytId, quantoTesto: quantoTesto }
 
   // ── utilità ──
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
@@ -284,6 +349,38 @@
     const b = $('btn-salva'); b.classList.remove('fatto'); b.textContent = '✓ Salva la scheda'
   }
 
+  // ── il catalogo: da dove si sceglie (tre card) ──
+  function catalogo() {
+    const base = (window.SCHEDA_BASE || []).map(function (e) {
+      return { key: 'b:' + e.id, card: 'base', nome: e.nome, meta: 'Cuscini Elicoidali', elicoidale_id: e.id, yt: e.yt }
+    })
+    // ⚠️ js/elicoidali-exercises.js dichiara la lista con «const»: NON sta su window
+    // (per questo nella v1 i video dei cuscini non comparivano). Si legge per nome.
+    const listaEli = (typeof EXERCISES_ELICOIDALI !== 'undefined' && Array.isArray(EXERCISES_ELICOIDALI)) ? EXERCISES_ELICOIDALI : []
+    const eli = listaEli.map(function (e) {
+      return { key: 'e:' + e.id, card: 'tutti', gruppo: 'Cuscini Elicoidali', nome: e.title, meta: e.level, elicoidale_id: e.id, yt: ytId(e.video_url) }
+    })
+    const poli = libreria.filter(function (e) { return e.fonte === 'policettivo' }).map(function (e) {
+      return { key: 'x:' + e.id, card: 'tutti', gruppo: 'Altri esercizi Policettivo®', nome: e.nome, meta: e.livello || '', exercise_id: e.id, yt: ytId(e.video_url), url: ytId(e.video_url) ? null : e.video_url }
+    })
+    const vid = videoPaz.map(function (v) {
+      return { key: 'v:' + v.id, card: 'tuoi', gruppo: 'Registrati per questo paziente', nome: v.titolo || 'Contenuto senza titolo', meta: v.tipo === 'video' ? '📹 video' : '📷 foto', video_id: v.id, url: v.url, foto: v.tipo !== 'video' }
+    })
+    const studio = libreria.filter(function (e) { return e.fonte === 'studio' }).map(function (e) {
+      return { key: 'x:' + e.id, card: 'tuoi', gruppo: 'La tua libreria', nome: e.nome, meta: e.livello || '', exercise_id: e.id, yt: ytId(e.video_url), url: ytId(e.video_url) ? null : e.video_url }
+    })
+    return [].concat(base, eli, poli, vid, studio)
+  }
+  // Il video di una riga già messa nella scheda
+  function videoDiRiga(r) {
+    const cat = catalogo()
+    let v = null
+    if (r.video_id) v = cat.find(function (c) { return c.video_id === r.video_id })
+    else if (r.exercise_id) v = cat.find(function (c) { return c.exercise_id === r.exercise_id })
+    else if (r.elicoidale_id) v = cat.find(function (c) { return c.elicoidale_id === r.elicoidale_id })
+    return v && (v.yt || v.url) ? v : null
+  }
+
   // ── caricamento ──
   async function init() {
     if (!patientId) { erroreBanner('Manca il paziente: apri questa pagina dalla scheda del paziente.'); bloccaTutto(); return }
@@ -301,9 +398,9 @@
     if (!paziente) { bloccaTutto(); return }
 
     const [poli, studio, vid] = await Promise.all([
-      sb.from('exercises').select('id, nome, durata_default, video_url, fonte').eq('active', true).eq('fonte', 'policettivo').order('nome'),
-      sb.from('exercises').select('id, nome, durata_default, video_url, fonte').eq('active', true).eq('fonte', 'studio').order('nome'),
-      sb.from('exercise_videos').select('id, titolo, tipo, durata, created_at').eq('patient_id', patientId).order('created_at', { ascending: false })
+      sb.from('exercises').select('*').eq('active', true).eq('fonte', 'policettivo').order('nome'),
+      sb.from('exercises').select('*').eq('active', true).eq('fonte', 'studio').order('nome'),
+      sb.from('exercise_videos').select('*').eq('patient_id', patientId).order('created_at', { ascending: false })
     ])
     libreria = [].concat(poli.data || [], studio.data || [])
     videoPaz = vid.data || []
@@ -356,8 +453,8 @@
     if (!modelli.length) { box.innerHTML = '<div class="vuoto">Nessun modello ancora. Prepara una scheda qui sotto e salvala come modello.</div>'; return }
     box.innerHTML = modelli.map(function (m) {
       const chiede = confermaModello === m.id
-      return '<div class="voce" style="cursor:default">' +
-        '<span class="t">' + esc(m.nome || 'Modello senza nome') + '</span>' +
+      return '<div class="voce">' +
+        '<span class="t" style="flex:1">' + esc(m.nome || 'Modello senza nome') + '</span>' +
         '<button class="chip' + (chiede ? ' on' : '') + '" data-modello="' + m.id + '" onclick="usaModello(\'' + m.id + '\')">' +
           (chiede ? 'Sostituisce le righe: tocca ancora' : 'Usa') + '</button>' +
       '</div>'
@@ -384,7 +481,8 @@
 
   function disegnaRighe() {
     const box = $('righe')
-    if (!righe.length) { box.innerHTML = '<div class="vuoto">La scheda è vuota. Aggiungi un esercizio o una nota.</div>'; return }
+    if (!righe.length) { box.innerHTML = '<div class="vuoto">La scheda è vuota. Tocca «+ Esercizi» qui sotto.</div>'; return }
+    let nEs = 0
     box.innerHTML = righe.map(function (r, i) {
       const err = r._mostraErr ? valida(r) : null
       const sposta = '<button class="mini" onclick="sposta(' + i + ',-1)" aria-label="Sposta su"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
@@ -396,29 +494,30 @@
 
       if (r.tipo === 'nota') {
         return '<div class="riga nota' + (err ? ' err' : '') + '" data-riga="' + i + '">' +
-          '<div class="riga-top"><div class="num">✎</div><div class="riga-nome"><div class="t">Nota</div></div>' + sposta + '</div>' +
+          '<div class="riga-top"><div class="num">✎</div><div class="riga-nome"><div class="t">Nota</div><div class="m">Se resta vuota non si salva</div></div>' + sposta + '</div>' +
           '<div class="blocco"><textarea class="inp" placeholder="Es. Questo la sera, gli altri la mattina" oninput="setTesto(' + i + ', this.value)">' + esc(r.testo) + '</textarea></div>' +
           quando + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') +
         '</div>'
       }
-      const nEs = righe.slice(0, i + 1).filter(function (x) { return x.tipo === 'esercizio' }).length
-      const fonte = r.elicoidale_id ? 'Cuscini Elicoidali' : (r.video_id ? 'Video del paziente' : (r.exercise_id ? 'Libreria' : 'Scritto a mano'))
+      nEs++
+      const fonte = r.video_id ? 'Registrato per il paziente' : (r.exercise_id ? 'Libreria' : (r.elicoidale_id ? 'Cuscini Elicoidali' : 'Scritto a mano'))
+      const v = videoDiRiga(r)
+      const vedi = v ? '<button class="vedi" onclick="vediRiga(' + i + ')">▶ Vedi</button>' : ''
       const misura = '<div class="blocco"><div class="seg">' +
           '<button class="' + (r.misura === 'tempo' ? 'on' : '') + '" onclick="setMisura(' + i + ',\'tempo\')">⏱ A tempo</button>' +
           '<button class="' + (r.misura === 'ripetizioni' ? 'on' : '') + '" onclick="setMisura(' + i + ',\'ripetizioni\')">🔁 Ripetizioni</button>' +
         '</div><div class="chips">' +
         (r.misura === 'tempo'
-          ? chipsHtml(TEMPI, Number(r.secondi), 'setSecondi.bind(null,' + i + ')', function (v) { return v + ' s' }, { min: 1, max: 3600, ph: 'altro s' })
-          : chipsHtml(RIPS, Number(r.ripetizioni), 'setRip.bind(null,' + i + ')', function (v) { return v + '' }, { min: 1, max: 500, ph: 'altro' })) +
+          ? chipsHtml(TEMPI, Number(r.secondi), 'setSecondi.bind(null,' + i + ')', function (x) { return x + ' s' }, { min: 1, max: 3600, ph: 'altro s' })
+          : chipsHtml(RIPS, Number(r.ripetizioni), 'setRip.bind(null,' + i + ')', function (x) { return x + '' }, { min: 1, max: 500, ph: 'altro' })) +
         '</div></div>'
-      const serie = '<div class="blocco"><span class="lbl">Serie</span><div class="stepper">' +
-        '<button onclick="setSerie(' + i + ',-1)" aria-label="Una serie in meno">−</button><span>' + (r.serie || 1) + '</span>' +
-        '<button onclick="setSerie(' + i + ',1)" aria-label="Una serie in più">+</button></div></div>'
+      const serie = '<div class="blocco"><span class="lbl">Serie</span><div class="chips" style="margin-top:0">' +
+        chipsHtml(SERIE, Number(r.serie) || 1, 'setSerie.bind(null,' + i + ')', function (x) { return x + '' }, { min: 1, max: 20, ph: 'altro' }) + '</div></div>'
       const frase = '<div class="blocco"><span class="lbl">Frase per il paziente (facoltativa)</span>' +
         '<input class="inp" placeholder="Es. piano, respira col naso" value="' + esc(r.testo) + '" oninput="setTesto(' + i + ', this.value)"></div>'
       return '<div class="riga' + (err ? ' err' : '') + '" data-riga="' + i + '">' +
         '<div class="riga-top"><div class="num">' + nEs + '</div>' +
-          '<div class="riga-nome"><div class="t">' + esc(r.nome) + '</div><div class="m">' + fonte + '</div></div>' + sposta + '</div>' +
+          '<div class="riga-nome"><div class="t">' + esc(r.nome) + '</div><div class="m">' + fonte + vedi + '</div></div>' + sposta + '</div>' +
         misura + serie + quando + frase + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') +
       '</div>'
     }).join('')
@@ -426,22 +525,29 @@
 
   function disegnaAnteprima() {
     const box = $('anteprima')
-    if (!righe.length) { box.innerHTML = '<div class="vuoto">Qui comparirà la scheda come la leggerà il paziente.</div>'; return }
+    const vere = righe.filter(function (r) { return !notaVuota(r) })
+    if (!vere.length) { box.innerHTML = '<div class="ante"><div class="ante-sub" style="margin:0">Qui compare la scheda come la vedrà il paziente.</div></div>'; return }
     const giri = impost.ripeti_volte
-    let html = giri > 1 ? '<div class="ante-giro">Tutta la scheda ' + giri + ' volte · recupero ' + (impost.recupero_sec ? impost.recupero_sec + ' s' : 'nessuno') + '</div>' : ''
+    let html = '<div class="ante"><div class="ante-testa">Il tuo allenamento</div>' +
+      '<div class="ante-sub">' + (paziente ? esc(paziente.nome) + ' · ' : '') + 'recupero ' + (impost.recupero_sec ? impost.recupero_sec + ' s' : 'nessuno') + '</div>' +
+      (giri > 1 ? '<div class="ante-giro">🔁 Tutta la scheda ' + giri + ' volte</div>' : '')
     let n = 0
-    html += righe.map(function (r) {
-      const q = r.quando !== 'sempre' ? ' <span class="q">' + (r.quando === 'mattina' ? 'mattina' : 'sera') + '</span>' : ''
-      if (r.tipo === 'nota') return '<div class="ante-riga ante-nota">✎ ' + esc(r.testo || '…') + q + '</div>'
+    righe.forEach(function (r, i) {
+      if (notaVuota(r)) return
+      const q = r.quando !== 'sempre' ? '<span class="pill">' + (r.quando === 'mattina' ? '☀️ mattina' : '🌙 sera') + '</span>' : ''
+      const az = '<div class="ante-az"><button onclick="modificaRiga(' + i + ')" aria-label="Modifica">✏️</button>' +
+        '<button class="del" onclick="togli(' + i + ')" aria-label="Togli">🗑</button></div>'
+      if (r.tipo === 'nota') { html += '<div class="ante-nota"><div class="c">✎ ' + esc(r.testo) + q + '</div>' + az + '</div>'; return }
       n++
-      const quanto = r.misura === 'tempo' ? fmtTempo(Number(r.secondi) || 0) : (Number(r.ripetizioni) || 0) + ' ripetizioni'
-      const serie = (r.serie || 1) > 1 ? ' × ' + r.serie + ' serie' : ''
-      return '<div class="ante-riga"><b>' + n + '.</b><div style="flex:1"><div><b>' + esc(r.nome) + '</b>' + q + '</div>' +
-        '<div style="font-size:12px;color:#666">' + quanto + serie + (r.testo ? ' · ' + esc(r.testo) : '') + '</div></div></div>'
-    }).join('')
-    const s = stimaSecondi(righe, impost)
-    if (s > 0) html += '<div class="stima">Durata stimata: circa <b>' + fmtTempo(s) + '</b> (tutte le righe, recuperi compresi; le ripetizioni contate a ' + impost.ritmo_sec + ' s l\'una).</div>'
-    box.innerHTML = html
+      html += '<div class="ante-es"><div class="n">' + n + '</div><div class="c">' +
+        '<div class="t">' + esc(r.nome) + q + '</div>' +
+        '<div class="q">' + quantoTesto(r) + '</div>' +
+        (r.testo ? '<div class="f">' + esc(r.testo) + '</div>' : '') +
+      '</div>' + az + '</div>'
+    })
+    const s = stimaSecondi(vere, impost)
+    if (s > 0) html += '<div class="stima">Durata stimata: circa <b>' + fmtTempo(s) + '</b> (tutte le righe, recuperi compresi; ripetizioni contate a ' + impost.ritmo_sec + ' s l\'una).</div>'
+    box.innerHTML = html + '</div>'
   }
 
   // ── azioni sulle righe ──
@@ -451,11 +557,19 @@
     const t = righe[i]; righe[i] = righe[j]; righe[j] = t; ridisegna()
   }
   window.togli = function (i) { righe.splice(i, 1); ridisegna() }
+  window.modificaRiga = function (i) {
+    const el = document.querySelector('[data-riga="' + i + '"]')
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('lampo'); setTimeout(function () { el.classList.remove('lampo') }, 1600)
+  }
   window.setQuando = function (i, q) { righe[i].quando = q; ridisegna() }
   window.setMisura = function (i, m) {
-    const r = righe[i]; r.misura = m
-    if (m === 'tempo' && !r.secondi) r.secondi = 60
-    if (m === 'ripetizioni' && !r.ripetizioni) r.ripetizioni = 10
+    const r = righe[i]
+    if (r.misura === m) return
+    r.misura = m
+    if (m === 'tempo') { if (!r.secondi) r.secondi = DEF_SECONDI; if (r.serie === DEF_SERIE_RIP) r.serie = 1 }
+    if (m === 'ripetizioni') { if (!r.ripetizioni) r.ripetizioni = DEF_RIP; if ((r.serie || 1) === 1) r.serie = DEF_SERIE_RIP }
     ridisegna()
   }
   // Un numero fuori misura non si accetta: resta quello di prima e si dice il limite.
@@ -469,54 +583,130 @@
     if (n === null) { toast('Ripetizioni: da 1 a 500'); disegnaRighe(); return }
     righe[i].ripetizioni = n; ridisegna()
   }
-  window.setSerie = function (i, d) { righe[i].serie = Math.min(20, Math.max(1, (righe[i].serie || 1) + d)); ridisegna() }
-  // Il testo si scrive senza ridisegnare la riga (altrimenti il cursore salta via)
+  window.setSerie = function (i, v) {
+    const n = clampInt(v, 1, 20)
+    if (n === null) { toast('Serie: da 1 a 20'); disegnaRighe(); return }
+    righe[i].serie = n; ridisegna()
+  }
   window.setTesto = function (i, v) { righe[i].testo = v; segnaSporco(); disegnaAnteprima() }
   window.setRipeti = function (v) { const n = clampInt(v, 1, 20); if (n === null) { toast('Ripeti: da 1 a 20'); disegnaImpost(); return } impost.ripeti_volte = n; segnaSporco(); disegnaImpost(); disegnaAnteprima() }
   window.setRecupero = function (v) { const n = clampInt(v, 0, 600); if (n === null) { toast('Recupero: da 0 a 600 secondi'); disegnaImpost(); return } impost.recupero_sec = n; segnaSporco(); disegnaImpost(); disegnaAnteprima() }
   window.setRitmo = function (v) { const n = clampInt(v, 1, 20); if (n === null) { toast('Ritmo: da 1 a 20 secondi'); disegnaImpost(); return } impost.ritmo_sec = n; segnaSporco(); disegnaImpost(); disegnaAnteprima() }
 
-  window.aggiungiNota = function () { righe.push({ tipo: 'nota', testo: '', quando: 'sempre', serie: 1 }); ridisegna(); scorriInFondo() }
-  function aggiungiEsercizio(base) {
-    righe.push(Object.assign({ tipo: 'esercizio', misura: 'tempo', secondi: 60, ripetizioni: null, serie: 1, quando: 'sempre', testo: '' }, base))
-    chiudiScelta(); ridisegna(); scorriInFondo()
+  window.aggiungiNota = function () { righe.push({ tipo: 'nota', testo: '', quando: 'sempre', serie: 1 }); ridisegna(); scorriInFondo(true) }
+  function nuovoEsercizio(base) {
+    return Object.assign({ tipo: 'esercizio', misura: 'tempo', secondi: DEF_SECONDI, ripetizioni: null, serie: 1, quando: 'sempre', testo: '' }, base)
   }
-  function scorriInFondo() { const r = document.querySelectorAll('.riga'); if (r.length) r[r.length - 1].scrollIntoView({ block: 'center' }) }
-  function secDefault(v) { return clampInt(v, 1, 3600) || 60 }
+  function scorriInFondo(fuoco) {
+    const r = document.querySelectorAll('.riga'); if (!r.length) return
+    const ult = r[r.length - 1]; ult.scrollIntoView({ block: 'center' })
+    if (fuoco) { const t = ult.querySelector('textarea'); if (t) t.focus() }
+  }
 
-  // ── scelta esercizio ──
-  window.apriScelta = function () { $('cerca').value = ''; disegnaScelta(); $('sheet').classList.add('show') }
-  window.chiudiScelta = function () { $('sheet').classList.remove('show') }
-  window.disegnaScelta = function () {
-    const q = $('cerca').value.trim().toLowerCase()
-    const passa = function (t) { return !q || String(t || '').toLowerCase().indexOf(q) > -1 }
-    const voce = function (azione, titolo, meta) { return '<button class="voce" onclick="' + azione + '"><span class="t">' + esc(titolo) + '</span><span class="m">' + esc(meta) + '</span></button>' }
-    let html = ''
-    const vid = videoPaz.filter(function (v) { return passa(v.titolo) })
-    if (vid.length) html += '<div class="gruppo">Video e foto di questo paziente</div>' + vid.map(function (v) {
-      return voce('scegliVideo(\'' + v.id + '\')', v.titolo || 'Contenuto senza titolo', v.tipo === 'video' ? '📹' : '📷')
-    }).join('')
-    const st = libreria.filter(function (e) { return e.fonte === 'studio' && passa(e.nome) })
-    if (st.length) html += '<div class="gruppo">Libreria dello studio</div>' + st.map(function (e) { return voce('scegliLib(\'' + e.id + '\')', e.nome, (e.video_url ? '▶ ' : '') + (e.durata_default || 60) + ' s') }).join('')
-    const po = libreria.filter(function (e) { return e.fonte === 'policettivo' && passa(e.nome) })
-    if (po.length) html += '<div class="gruppo">Esercizi Policettivo®</div>' + po.map(function (e) { return voce('scegliLib(\'' + e.id + '\')', e.nome, (e.video_url ? '▶ ' : '') + (e.durata_default || 60) + ' s') }).join('')
-    const el = (window.EXERCISES_ELICOIDALI || []).filter(function (e) { return passa(e.title) })
-    if (el.length) html += '<div class="gruppo">Cuscini Elicoidali</div>' + el.map(function (e) { return voce('scegliEli(\'' + e.id + '\')', e.title, e.default_duration + ' s') }).join('')
-    html += '<div class="gruppo">Non è in elenco?</div><div class="row"><input class="inp" id="nome-libero" placeholder="Es. Tre respiri profondi" style="flex:1;min-width:160px" value="' + esc($('cerca').value) + '">' +
-      '<button class="btn giallo" onclick="scegliLibero()">Aggiungi</button></div>'
-    $('scelta').innerHTML = html
+  // ── scelta esercizi: tre card, spunte, «Aggiungi N» ──
+  const CARD = {
+    base:  { ico: '⭐', tt: 'Esercizi di base', dd: 'Tre respiri e gli schemi che vanno bene per quasi tutti' },
+    tutti: { ico: '📚', tt: 'Tutti gli esercizi', dd: 'La libreria Policettivo® coi video' },
+    tuoi:  { ico: '🎥', tt: 'I tuoi esercizi', dd: 'Registrati da te per questo paziente e la tua libreria' }
   }
-  window.scegliLib = function (id) { const e = libreria.find(function (x) { return x.id === id }); if (e) aggiungiEsercizio({ nome: e.nome, exercise_id: e.id, secondi: secDefault(e.durata_default) }) }
-  window.scegliVideo = function (id) { const v = videoPaz.find(function (x) { return x.id === id }); if (v) aggiungiEsercizio({ nome: v.titolo || 'Video personalizzato', video_id: v.id, secondi: secDefault(v.durata) }) }
-  window.scegliEli = function (id) { const e = (window.EXERCISES_ELICOIDALI || []).find(function (x) { return x.id === id }); if (e) aggiungiEsercizio({ nome: e.title, elicoidale_id: e.id, secondi: secDefault(e.default_duration) }) }
+  window.apriScelta = function () { scelti = []; vaiCard(null); $('sheet').classList.add('show') }
+  window.chiudiScelta = function () { $('sheet').classList.remove('show') }
+  window.vaiCard = function (c) {
+    cardAperta = c
+    $('cerca').value = ''
+    $('cerca').style.display = c ? '' : 'none'
+    $('scelta-indietro').style.display = c ? '' : 'none'
+    $('scelta-titolo').textContent = c ? CARD[c].tt : 'Aggiungi esercizi'
+    disegnaScelta()
+    $('scelta').scrollTop = 0
+  }
+  window.disegnaScelta = function () {
+    const cat = catalogo()
+    const nScelti = function (c) { return scelti.filter(function (k) { return cat.some(function (x) { return x.key === k && x.card === c }) }).length }
+    let html = ''
+    if (!cardAperta) {
+      html = '<div class="tre">' + ['base', 'tutti', 'tuoi'].map(function (c, i) {
+        const tot = cat.filter(function (x) { return x.card === c }).length
+        const sel = nScelti(c)
+        return '<button class="card-scelta c' + (i + 1) + '" data-card="' + c + '" onclick="vaiCard(\'' + c + '\')">' +
+          '<span class="ico">' + CARD[c].ico + '</span><span><div class="tt">' + CARD[c].tt + '</div><div class="dd">' + CARD[c].dd + ' · ' + tot + '</div></span>' +
+          (sel ? '<span class="cnt">' + sel + ' ✓</span>' : '') + '</button>'
+      }).join('') + '</div>' +
+      '<div class="gruppo">Non è in nessuna card?</div>' + liberoHtml()
+    } else {
+      const q = $('cerca').value.trim().toLowerCase()
+      const lista = cat.filter(function (x) { return x.card === cardAperta && (!q || x.nome.toLowerCase().indexOf(q) > -1) })
+      let gruppo = null
+      html = lista.map(function (x) {
+        let testa = ''
+        if (x.gruppo && x.gruppo !== gruppo) { gruppo = x.gruppo; testa = '<div class="gruppo">' + esc(gruppo) + '</div>' }
+        const sel = scelti.indexOf(x.key) > -1
+        return testa + '<div class="voce' + (sel ? ' sel' : '') + '" data-key="' + esc(x.key) + '">' +
+          '<button class="tocca" onclick="spunta(\'' + esc(x.key) + '\')"><span class="spunta">' + (sel ? (scelti.indexOf(x.key) + 1) : '') + '</span>' +
+            '<span><div class="t">' + esc(x.nome) + '</div>' + (x.meta ? '<div class="m">' + esc(x.meta) + '</div>' : '') + '</span></button>' +
+          ((x.yt || x.url) ? '<button class="vedi" onclick="vediVoce(\'' + esc(x.key) + '\')">▶ Vedi</button>' : '') +
+        '</div>'
+      }).join('')
+      if (!lista.length) html = '<div class="vuoto">' + (q ? 'Nessun esercizio con questo nome.' : (cardAperta === 'tuoi'
+        ? 'Nessun esercizio registrato. Si registrano da «Assegna protocollo», come prima: poi compaiono qui.'
+        : 'Nessun esercizio.')) + '</div>'
+      if (cardAperta === 'tuoi') html += '<div class="gruppo">Scrivilo a mano</div>' + liberoHtml()
+    }
+    $('scelta').innerHTML = html
+    const n = scelti.length
+    const b = $('btn-aggiungi-scelti')
+    b.disabled = !n
+    b.textContent = n ? ('Aggiungi ' + n + (n === 1 ? ' esercizio' : ' esercizi') + ' alla scheda') : 'Scegli uno o più esercizi'
+  }
+  function liberoHtml() {
+    return '<div class="row"><input class="inp" id="nome-libero" placeholder="Es. Tre respiri profondi" style="flex:1;min-width:160px">' +
+      '<button class="btn" onclick="scegliLibero()">Aggiungi</button></div>'
+  }
+  window.spunta = function (key) {
+    const i = scelti.indexOf(key)
+    if (i > -1) scelti.splice(i, 1); else scelti.push(key)
+    disegnaScelta()
+  }
+  window.aggiungiScelti = function () {
+    const cat = catalogo()
+    const nuovi = scelti.map(function (k) { return cat.find(function (x) { return x.key === k }) }).filter(Boolean).map(function (x) {
+      return nuovoEsercizio({ nome: x.nome, exercise_id: x.exercise_id || null, video_id: x.video_id || null, elicoidale_id: x.elicoidale_id || null })
+    })
+    if (!nuovi.length) return
+    righe = righe.concat(nuovi)
+    chiudiScelta(); ridisegna(); scorriInFondo()
+    toast(nuovi.length === 1 ? 'Aggiunto 1 esercizio' : 'Aggiunti ' + nuovi.length + ' esercizi', 'success')
+  }
   window.scegliLibero = function () {
     const n = $('nome-libero').value.trim()
     if (!n) { toast('Scrivi il nome dell\'esercizio'); return }
-    aggiungiEsercizio({ nome: n })
+    righe.push(nuovoEsercizio({ nome: n }))
+    chiudiScelta(); ridisegna(); scorriInFondo()
   }
 
+  // ── video ──
+  function apriVideo(v) {
+    $('video-titolo').textContent = v.nome
+    let html
+    if (v.yt) html = '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(v.yt) + '?rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>'
+    else if (v.foto) html = '<img src="' + esc(v.url) + '" alt="">'
+    else html = '<video src="' + esc(v.url) + '" controls playsinline preload="metadata"></video>'
+    $('video-schermo').innerHTML = html
+    $('modal-video').classList.add('show')
+  }
+  window.vediVoce = function (key) { const v = catalogo().find(function (x) { return x.key === key }); if (v) apriVideo(v) }
+  window.vediRiga = function (i) { const v = videoDiRiga(righe[i]); if (v) apriVideo(Object.assign({}, v, { nome: righe[i].nome })) }
+  window.chiudiVideo = function () { $('modal-video').classList.remove('show'); $('video-schermo').innerHTML = '' }
+
   // ── salvataggio ──
+  // Le note lasciate vuote non si salvano: si tolgono e basta.
+  function togliNoteVuote() {
+    const prima = righe.length
+    righe = righe.filter(function (r) { return !notaVuota(r) })
+    if (righe.length !== prima) { disegnaRighe(); disegnaAnteprima() }
+  }
   function controllaTutte() {
+    togliNoteVuote()
     let primo = -1
     righe.forEach(function (r, i) { r._mostraErr = true; if (valida(r) && primo < 0) primo = i })
     if (primo >= 0) {
@@ -528,7 +718,6 @@
     return true
   }
 
-  // Riscrive le righe di una scheda. Se l'inserimento fallisce rimette quelle di prima.
   async function scriviRighe(schedaId, nuove, vecchie) {
     const { error: eDel } = await sb.from('scheda_allenamento_righe').delete().eq('scheda_id', schedaId)
     if (eDel) return 'non riesco a togliere le righe vecchie (' + eDel.message + ')'
@@ -575,9 +764,9 @@
   window.salvaModello = async function () {
     const nome = $('modello-nome').value.trim()
     if (!nome) { toast('Dai un nome al modello'); $('modello-nome').focus(); return }
-    if (!righe.length) { toast('La scheda è vuota: niente da salvare come modello'); return }
     if (!prof || !prof.studio_id) { toast('Il tuo profilo non ha uno studio collegato'); return }
     if (!controllaTutte()) return
+    if (!righe.length) { toast('La scheda è vuota: niente da salvare come modello'); return }
     const btn = $('btn-modello'); btn.disabled = true
     try {
       const { data, error } = await sb.from('scheda_allenamento').insert({
