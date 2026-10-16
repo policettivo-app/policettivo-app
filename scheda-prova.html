@@ -20,7 +20,7 @@
   <script src="js/elicoidali-exercises.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; padding-bottom: 160px; }
+    body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; padding-bottom: 240px; }
     .navbar { background: #000; padding: 6px 12px; min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
     .navbar-brand { color: #FFD008; font-size: 16px; font-weight: 700; letter-spacing: 1px; }
     .btn-back { background: transparent; border: 1px solid #333; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: inherit; font-size: 12px; text-decoration: none; min-height: 40px; display: inline-flex; align-items: center; }
@@ -71,7 +71,13 @@
     .btn.nero { background: #000; color: #FFD008; }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
 
-    .salva { position: fixed; bottom: 76px; left: 12px; right: 12px; max-width: 676px; margin: 0 auto; padding: 16px; background: #FFD008; color: #000; border: none; border-radius: 12px; font-family: inherit; font-size: 16px; font-weight: 800; cursor: pointer; z-index: 950; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+    .barra-giu { position: fixed; bottom: 76px; left: 12px; right: 12px; max-width: 676px; margin: 0 auto; z-index: 950; background: #fff; border-radius: 16px; padding: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.22); }
+    .barra-su { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+    .bb { padding: 12px 6px; border-radius: 10px; border: 2px solid #000; background: #fff; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+    .bb.giallo { background: #FFD008; }
+    .bb.nero { background: #000; color: #FFD008; }
+    .bb:disabled { opacity: .4; cursor: not-allowed; }
+    .salva { width: 100%; padding: 14px; background: #FFD008; color: #000; border: none; border-radius: 10px; font-family: inherit; font-size: 16px; font-weight: 800; cursor: pointer; }
     .salva:disabled { opacity: .5; }
     .salva.fatto { background: #000; color: #FFD008; }
 
@@ -137,7 +143,7 @@
     .stima { font-size: 12px; color: #aaa; margin-top: 12px; }
     .stima b { color: #FFD008; }
 
-    .toast-container { position: fixed; bottom: 150px; left: 12px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none; }
+    .toast-container { position: fixed; bottom: 250px; left: 12px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none; }
     .toast { background: #1a1a1a; color: #fff; padding: 14px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; max-width: 420px; }
     .toast.error { border-left: 4px solid #ff4444; }
     .toast.success { border-left: 4px solid #FFD008; }
@@ -165,10 +171,6 @@
     <div class="card">
       <div class="card-title">Esercizi e note, in ordine</div>
       <div id="righe"></div>
-      <div class="aggiungi">
-        <button class="btn giallo" id="btn-add-es" onclick="apriScelta()">+ Esercizi</button>
-        <button class="btn" id="btn-add-nota" onclick="aggiungiNota()">+ Nota</button>
-      </div>
     </div>
 
     <!-- TUTTA LA SCHEDA -->
@@ -190,7 +192,7 @@
     <div class="card">
       <div class="card-title">Anteprima — più o meno come la vedrà il paziente</div>
       <div id="anteprima"></div>
-      <button class="btn nero" id="btn-vedi-paziente" style="width:100%;margin-top:12px" onclick="vediComePaziente()">👁 Apri la scheda come la vede il paziente</button><!-- scheda-paziente-v1 -->
+
     </div>
 
     <!-- SALVA COME MODELLO -->
@@ -204,7 +206,15 @@
     </div>
   </div>
 
-  <button class="salva" id="btn-salva" onclick="salvaScheda()">✓ Salva la scheda</button>
+  <!-- scheda-editor-v4 · i comandi stanno SEMPRE in basso: aggiungere, nota, vedere come il paziente, salvare -->
+  <div class="barra-giu" id="barra-giu">
+    <div class="barra-su">
+      <button class="bb giallo" id="btn-add-es" onclick="apriScelta()">+ Esercizi</button>
+      <button class="bb" id="btn-add-nota" onclick="aggiungiNota()">+ Nota</button>
+      <button class="bb nero" id="btn-vedi-paziente" onclick="vediComePaziente()" aria-label="Apri la scheda come la vede il paziente">👁 Paziente</button><!-- scheda-paziente-v1 -->
+    </div>
+    <button class="salva" id="btn-salva" onclick="salvaScheda()">✓ Salva la scheda</button>
+  </div>
 
   <!-- Scelta degli esercizi -->
   <div class="sheet" id="sheet" onclick="if(event.target===this)chiudiScelta()">
@@ -234,7 +244,7 @@
   <div class="toast-container" id="toast-container"></div>
 
 <script>
-/* scheda-editor-v2 · scheda-editor-v3 */
+/* scheda-editor-v2 · scheda-editor-v3 · scheda-editor-v4 */
 (function () {
   'use strict'
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -422,7 +432,7 @@
   }
 
   function bloccaTutto() {
-    ['btn-salva', 'btn-add-es', 'btn-add-nota', 'btn-modello'].forEach(function (id) { $(id).disabled = true })
+    ['btn-salva', 'btn-add-es', 'btn-add-nota', 'btn-modello', 'btn-vedi-paziente'].forEach(function (id) { $(id).disabled = true })
   }
 
   async function caricaScheda() {
@@ -491,7 +501,7 @@
 
   function disegnaRighe() {
     const box = $('righe')
-    if (!righe.length) { box.innerHTML = '<div class="vuoto">La scheda è vuota. Tocca «+ Esercizi» qui sotto.</div>'; return }
+    if (!righe.length) { box.innerHTML = '<div class="vuoto">La scheda è vuota. Tocca «+ Esercizi» in basso.</div>'; return }
     let nEs = 0
     box.innerHTML = righe.map(function (r, i) {
       const err = r._mostraErr ? valida(r) : null
