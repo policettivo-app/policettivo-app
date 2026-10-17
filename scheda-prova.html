@@ -25,6 +25,11 @@
     .navbar-brand { color: #FFD008; font-size: 16px; font-weight: 700; letter-spacing: 1px; }
     .btn-back { background: transparent; border: 1px solid #333; color: #fff; padding: 6px 14px; border-radius: 6px; font-family: inherit; font-size: 12px; text-decoration: none; min-height: 40px; display: inline-flex; align-items: center; }
     .main { max-width: 700px; margin: 0 auto; padding: 20px 16px 40px; }
+    .prova-badge.on { background: #e8f5e9; border-color: #2e7d32; }
+    .visibile-card { border: 2px solid #FFD008; }
+    .vis-stato { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+    .vis-stato.on { color: #2e7d32; }
+    #btn-visibile { width: 100%; }
     .prova-badge { display: inline-block; background: #fff4c2; border: 1px solid #FFD008; color: #000; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; margin-bottom: 10px; }
     h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
     .sub { font-size: 13px; color: #666; margin-bottom: 16px; }
@@ -156,12 +161,19 @@
   </nav>
 
   <div class="main">
-    <span class="prova-badge">🧪 IN PROVA — lato professionista, il paziente non la vede</span>
+    <span class="prova-badge" id="badge-stato">🧪 IN PROVA — lato professionista, il paziente non la vede</span>
     <h1>Scheda di allenamento</h1>
     <div class="sub" id="paz-nome">Caricamento…</div>
     <div class="banner-err" id="banner-err"></div>
 
     <!-- MODELLI -->
+    <!-- scheda-collega-v1 · l'interruttore per paziente: accesa, il paziente vede la scheda al posto del
+         protocollo; spenta, vede l'app di prima. È anche il «torna indietro» per un paziente. -->
+    <div class="card visibile-card" id="card-visibile">
+      <div class="card-title">Il paziente la vede?</div>
+      <div id="visibile-box"><div class="vuoto">Caricamento…</div></div>
+    </div>
+
     <div class="card" id="card-modelli">
       <div class="card-title">Parti da un modello</div>
       <div id="modelli-box"><div class="vuoto">Caricamento…</div></div>
@@ -242,7 +254,7 @@
   <div class="toast-container" id="toast-container"></div>
 
 <script>
-/* scheda-editor-v2 · scheda-editor-v3 · scheda-editor-v4 · scheda-editor-v5 */
+/* scheda-editor-v2 · v3 · v4 · v5 · scheda-collega-v1 */
 (function () {
   'use strict'
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -430,6 +442,36 @@
     disegnaTutto()
   }
 
+  // ── scheda-collega-v1 · visibile al paziente ──
+  let chiedeVisibile = false
+  function disegnaVisibile() {
+    const box = $('visibile-box'); if (!box) return
+    const on = !!(scheda && scheda.visibile_paziente)
+    $('badge-stato').textContent = on ? '✅ VISIBILE AL PAZIENTE — la vede nella sua app' : '🧪 IN PROVA — lato professionista, il paziente non la vede'
+    $('badge-stato').classList.toggle('on', on)
+    if (!scheda) { box.innerHTML = '<div class="sub" style="margin:0">Prima salva la scheda: poi potrai renderla visibile.</div>'; return }
+    box.innerHTML = on
+      ? '<div class="vis-stato on">✅ Sì: al posto del protocollo vede questa scheda.</div>' +
+        '<button class="btn" id="btn-visibile" onclick="cambiaVisibile()">' + (chiedeVisibile ? 'Torna al protocollo di prima: tocca ancora' : 'Nascondi al paziente') + '</button>' +
+        '<div class="sub" style="margin:8px 0 0">Nascondendola, il paziente rivede subito l\'app di prima. Le modifiche che salvi qui gli arrivano alla prossima apertura.</div>'
+      : '<div class="vis-stato">No: vede ancora il protocollo di prima.</div>' +
+        '<button class="btn giallo" id="btn-visibile" onclick="cambiaVisibile()">' + (chiedeVisibile ? 'La vedrà al posto del protocollo: tocca ancora' : '👁 Rendi visibile al paziente') + '</button>' +
+        '<div class="sub" style="margin:8px 0 0">Si torna indietro quando vuoi, con un tocco.</div>'
+  }
+  window.cambiaVisibile = async function () {
+    if (!scheda) { toast('Prima salva la scheda'); return }
+    if (sporco) { toast('Prima salva le modifiche'); return }
+    if (!chiedeVisibile) { chiedeVisibile = true; disegnaVisibile(); return }
+    chiedeVisibile = false
+    const nuovo = !scheda.visibile_paziente
+    const b = $('btn-visibile'); if (b) b.disabled = true
+    const { data, error } = await sb.from('scheda_allenamento').update({ visibile_paziente: nuovo, stato: nuovo ? 'attiva' : 'prova', aggiornato_il: new Date().toISOString() }).eq('id', scheda.id).select()
+    if (error || !data || !data.length) { toast('Non cambiato: ' + (error ? error.message : 'nessun permesso su questo paziente')); disegnaVisibile(); return }
+    scheda = Object.assign(scheda, data[0])
+    disegnaVisibile()
+    toast(nuovo ? 'Visibile: il paziente la vede nella sua app' : 'Nascosta: il paziente rivede l\'app di prima', 'success')
+  }
+
   function bloccaTutto() {
     ['btn-salva', 'btn-add-es', 'btn-add-nota', 'btn-modello', 'btn-vedi-paziente'].forEach(function (id) { $(id).disabled = true })
   }
@@ -464,7 +506,7 @@
   }
 
   // ── disegno ──
-  function disegnaTutto() { disegnaRighe(); disegnaImpost(); disegnaAnteprima(); disegnaModelli() }
+  function disegnaTutto() { disegnaRighe(); disegnaImpost(); disegnaAnteprima(); disegnaModelli(); disegnaVisibile() }
 
   function disegnaModelli() {
     const box = $('modelli-box')
@@ -838,6 +880,7 @@
       righeSalvate = righe.map(function (r) { const c = Object.assign({}, r); delete c._mostraErr; return c })
       sporco = false
       btn.classList.add('fatto'); btn.textContent = '✓ Salvata'
+      disegnaVisibile()
       toast('Scheda salvata (in prova, il paziente non la vede)', 'success')
     } finally {
       salvando = false; btn.disabled = false

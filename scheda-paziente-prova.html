@@ -21,11 +21,16 @@
        il timer sta in un pannello sotto e NON parte da solo («▶ AVVIA»); in anteprima, finita la seduta,
        la faccina mostra come cambierebbe (senza salvare).
        scheda-paziente-v8 (17/10 14:11): in ogni esercizio «🔊 Spiegami l'esercizio a voce» (voce del telefono,
-       testi in js/scheda-immagini.js trascritti dalle infografiche); in alto a sinistra «🏠 Inizio». -->
+       testi in js/scheda-immagini.js trascritti dalle infografiche); in alto a sinistra «🏠 Inizio».
+       scheda-collega-v1 (17/10): con ?token=… è la pagina del PAZIENTE VERO. Legge get_scheda_paziente
+       (migration 060: solo se il professionista l'ha resa visibile) e salva nel diario con le stesse
+       chiamate di esercizio.html / rapida.html (save_diary_entry + polSessione). Pagella e diario
+       restano quelli di protocollo.html. Con ?preview=1 non salva niente. -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
   <script src="js/scheda-immagini.js"></script>
+  <script src="js/pol-sessione.js"></script><!-- scheda-collega-v1 : una seduta, una riga, come le altre pagine -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { background: #000; }
@@ -137,6 +142,11 @@
     .pannello { display: flex; align-items: center; gap: 12px; width: 100%; background: #111; border: 1px solid #262626; border-radius: 20px; padding: 10px; }
     .pannello .grande { padding: 16px 10px; }
     .anello.mini { width: 92px; flex-shrink: 0; }
+    /* scheda-paziente-v9 · «avanti» ben visibile: bordo giallo, icona grande e la parola */
+    .avanti-btn { flex-shrink: 0; width: 86px; align-self: stretch; border-radius: 16px; border: 2px solid #FFD008; background: #1f1a00; color: #FFD008; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+    .avanti-btn b { font-size: 26px; line-height: 1; }
+    .avanti-btn span { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+    .avanti-btn:active { background: #FFD008; color: #000; }
     .anello.mini .cifra { font-size: 30px; }
     .anello.mini .sotto { font-size: 9px; margin-top: 2px; }
     .rip-mini { text-align: center; min-width: 92px; }
@@ -145,6 +155,8 @@
     .es .f3r { font-size: 11px; color: #FFD008; margin-top: 4px; line-height: 1.4; }
     .modal .sch.alta { aspect-ratio: auto; max-height: 78vh; overflow-y: auto; background: #000; }
     .modal .sch.alta img { height: auto; object-fit: initial; }
+    .barra-paz { padding: 10px 16px; }
+    .barra-paz a { color: #FFD008; font-weight: 700; font-size: 14px; text-decoration: none; }
     .annuncio { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer; }
     .nome-grande { font-size: clamp(32px, 10vw, 46px); font-weight: 900; line-height: 1.1; color: #fff; max-width: 440px; }
     .q-grande { font-size: 22px; font-weight: 800; color: #FFD008; }
@@ -192,7 +204,8 @@
   </style>
 </head>
 <body>
-  <div class="barra-prova">
+  <div class="barra-paz" id="barra-paz" hidden><a id="home-paz" href="protocollo.html">← La tua home</a></div>
+  <div class="barra-prova" id="barra-prova">
     <span>🧪 Anteprima: così la vedrà il paziente</span>
     <a id="torna" href="#">← Torna a modificare</a>
   </div>
@@ -225,7 +238,7 @@
   </div>
 
 <script>
-/* scheda-paziente-v1 · v2 · v3 · v4 · v5 · scheda-paziente-v8 */
+/* scheda-paziente-v1 · v2 · v3 · v4 · v5 · scheda-paziente-v8 · scheda-collega-v1 */
 (function () {
   'use strict'
 
@@ -242,7 +255,10 @@
     giroTutta: function (n) { return '🔁 Tutta la scheda ' + n + ' volte' },
     tocca: 'Tocca un esercizio per fare solo quello',
     vuota: 'Il tuo fisioterapista non ha ancora preparato la scheda.',
-    adessoTocca: 'Adesso tocca a', via: 'VIA!',
+    adessoTocca: 'Adesso tocca a', via: 'VIA!', prossimo: 'Avanti',
+    grazieVero: 'Grazie!', salvato: '✓ Seduta segnata nel tuo diario.', nonSalvato: '⚠️ Non sono riuscito a segnarla nel diario: controlla la connessione e riprova dalla home.',
+    doloreSalvato: 'Ti sei fermato per dolore: l’ho segnato nel tuo diario e il tuo fisioterapista lo vedrà. Se il dolore continua, contattalo.',
+    nessunaScheda: 'Il tuo fisioterapista non ha ancora preparato la scheda.',
     avvia: '▶  AVVIA', riprendiBtn: '▶  RIPRENDI', pausaBtn: '⏸  PAUSA', ingrandisci: '🔍 Tocca per ingrandire',
     video: '▶ Video', doloreCorto: '⚠ Ho dolore', prec: '← Prima',
     smileAnteprima: '🧪 Anteprima: così cambierebbe la faccina. Col paziente vero si salva da sola.',
@@ -319,7 +335,14 @@
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-  const patientId = new URLSearchParams(location.search).get('id')
+  const QS = new URLSearchParams(location.search)
+  const patientId = QS.get('id')
+  // scheda-collega-v1 · il paziente vero arriva col suo token (da protocollo.html)
+  const token = QS.get('token')
+  const MODO_PAZIENTE = !!token
+  const IN_PROVA = QS.get('preview') === '1'
+  const SALVA = MODO_PAZIENTE && !IN_PROVA
+  const protocolloId = QS.get('pp') || null
   const ANNUNCIO_SEC = 3   // «Adesso tocca a…»: 3 secondi, poi parte da solo
 
   let paziente = null, scheda = null, righe = [], media = {}
@@ -417,7 +440,49 @@
   }
 
   // ── caricamento (coi permessi del professionista: è un'anteprima) ──
+  // ── scheda-collega-v1 · il paziente vero: tutto dalla funzione del token, niente accesso al database ──
+  async function initPaziente() {
+    $('barra-prova').style.display = 'none'
+    $('barra-paz').hidden = false
+    $('home-paz').href = 'protocollo.html?token=' + encodeURIComponent(token) + (IN_PROVA ? '&preview=1' : '')
+    try { if (window.polSessione) polSessione.avvia() } catch (e) {}
+    try { const { data: pz } = await sb.rpc('get_patient_by_token', { p_token: token }); paziente = Array.isArray(pz) ? pz[0] : pz } catch (e) {}
+    const { data: d, error } = await sb.rpc('get_scheda_paziente', { p_token: token })
+    if (error || !d || !d.scheda) { $('titolo').innerHTML = T.titolo; $('contenuto').innerHTML = '<div class="nota">' + T.nessunaScheda + '</div>'; return }
+    scheda = d.scheda
+    const eli = (typeof EXERCISES_ELICOIDALI !== 'undefined' && Array.isArray(EXERCISES_ELICOIDALI)) ? EXERCISES_ELICOIDALI : []
+    righe = (d.righe || []).map(function (r) { return Object.assign({ quando: 'sempre', serie: 1 }, r) })
+    righe.forEach(function (r) {
+      let m = null
+      if (r.vid_url) m = { url: r.vid_url, foto: r.vid_tipo && r.vid_tipo !== 'video' }
+      if (!m && r.ex_video_url) m = ytId(r.ex_video_url) ? { yt: ytId(r.ex_video_url) } : { url: r.ex_video_url }
+      const eRiga = r.elicoidale_id ? eli.find(function (x) { return x.id === r.elicoidale_id }) : null
+      if (!m && eRiga && eRiga.video_url) m = { yt: ytId(eRiga.video_url) }
+      if (m) media[r.id] = m
+      if (r.ex_slug === '0-3r' || /3\s*respiri|tre\s+respiri/i.test(r.nome || '')) tre[r.id] = true
+      const im = immagineDi(r, r.ex_slug); if (im) immagini[r.id] = im
+      descrizioni[r.id] = r.vid_descrizione || r.ex_descrizione || (eRiga && eRiga.description) || ''
+    })
+    momento = new Date().getHours() < 14 ? 'mattina' : 'sera'
+    disegnaCasa()
+    if (QS.get('fatto') === '1') giaFatto()
+  }
+
+  // Il diario, con le stesse chiamate delle pagine di oggi. Non deve MAI rompere la seduta.
+  async function salvaNelDiario(campi, modalita, extra) {
+    if (!SALVA) return null
+    try {
+      const base = Object.assign({ patient_protocol_id: protocolloId, data: new Date().toISOString().split('T')[0], dolore: 0, rigidita: 0, equilibrio: 5, energia: 5, session_type: 'main' }, campi)
+      const pieno = (window.polSessione && polSessione.campi) ? Object.assign(base, polSessione.campi(modalita, extra || {})) : base
+      const { error } = await sb.rpc('save_diary_entry', { p_token: token, p_data: pieno })
+      if (error) return false
+      try { if (window.polSessione) polSessione.chiudi() } catch (e) {}
+      return true
+    } catch (e) { return false }
+  }
+
   async function init() {
+    if (MODO_PAZIENTE) return initPaziente()
     $('torna').href = 'scheda-prova.html?id=' + encodeURIComponent(patientId || '')
     if (!patientId) { errore('Manca il paziente.'); return }
     const { data: au } = await sb.auth.getUser()
@@ -495,7 +560,7 @@
     '</div>'
     const sm = smile
     const frasiSm = sm ? T.smileFrasi[sm.tipo] : null
-    html = '<div class="smile"><div class="smile-big" id="smile-emoji">' + (sm ? sm.emoji : '🙂') + '</div>' +
+    if (!MODO_PAZIENTE) html = '<div class="smile"><div class="smile-big" id="smile-emoji">' + (sm ? sm.emoji : '🙂') + '</div>' +
       '<div class="smile-title">' + (sm ? sm.titolo : T.pagellaTit) + '</div>' +
       '<div class="smile-sub">' + (sm ? frasiSm[Math.floor(Math.random() * frasiSm.length)] : T.pagellaSub) + '</div>' +
       '<button class="btn-pagella" onclick="soloAnteprima(this)">' + T.pagellaBtn + '</button>' +
@@ -517,7 +582,7 @@
       '</div><span class="play">▶</span></button>'
     })
     html += '<div class="avviso-prova" style="text-align:center;margin-top:6px">' + T.tocca + '</div>'
-    html += diarioHtml()
+    if (!MODO_PAZIENTE) html += diarioHtml()
     box.innerHTML = html
   }
   window.setMomento = function (m) { momento = m; disegnaCasa() }
@@ -694,7 +759,7 @@
     if (r.misura === 'tempo') {
       $('giu').innerHTML = '<div class="pannello">' + (figura ? anello('mini', r.secondi, T.secondi) : '') +
         '<button class="grande" id="btn-avvia" onclick="avvia()">' + T.avvia + '</button>' +
-        '<button class="tondo" onclick="avanti()" aria-label="Avanti">' + T.salta + '</button></div>'
+        '<button class="avanti-btn" id="btn-avanti" onclick="avanti()" aria-label="Esercizio successivo"><b>⏭</b><span>' + T.prossimo + '</span></button></div>'
     } else {
       $('giu').innerHTML = '<div class="pannello">' + (figura ? '<div class="rip-mini"><b>' + r.ripetizioni + '</b><span>' + T.ripetizioni + '</span></div>' : '') +
         '<button class="grande" id="btn-fatto" onclick="avanti()">' + T.fatto + '</button></div>'
@@ -738,8 +803,14 @@
     const b = $('btn-dolore'); if (!b) return
     if (!chiedeDolore) { chiedeDolore = true; if (timer && !inPausa) pausa(); b.textContent = T.dolore2; b.classList.add('chiede'); return }
     chiedeDolore = false
+    const p = passi[iPasso]
     chiudiPalco()
-    const e = $('err'); e.textContent = T.doloreAnteprima; e.classList.add('show')
+    const e = $('err')
+    if (SALVA) {
+      e.textContent = T.doloreSalvato
+      salvaNelDiario({ dolore: 7, completato: false, interrotto_per_dolore: true, note: 'Sessione interrotta per dolore durante ' + (p ? p.riga.nome : 'esercizio') }, 'guided')
+    } else e.textContent = T.doloreAnteprima
+    e.classList.add('show')
     window.scrollTo(0, 0)
   }
   window.esci = function () {
@@ -765,12 +836,13 @@
       '<div class="etichetta" style="color:#fff;letter-spacing:0;text-transform:none;font-size:16px">' + T.comeStai + '</div>' +
       '<div class="facce" id="facce">' + ['😣', '🙁', '😐', '🙂', '😄'].map(function (f, i) {
         return '<button onclick="faccia(' + (i + 1) + ')" aria-label="Voto ' + (i + 1) + ' su 5">' + f + '</button>' }).join('') + '</div>' +
-      '<div class="avviso-prova" id="dopo-faccia">' + T.nonSalva + '</div>' +
-      '<div class="streak"><div class="streak-num">🔥</div><div class="streak-lab">' + T.streak + '</div><div class="streak-ant">' + T.streakAnteprima + '</div></div>' +
+      '<div class="avviso-prova" id="dopo-faccia">' + (MODO_PAZIENTE ? '' : T.nonSalva) + '</div>' +
+      '<div class="streak"><div class="streak-num" id="streak-num">🔥</div><div class="streak-lab">' + T.streak + '</div><div class="streak-ant" id="streak-ant">' + (MODO_PAZIENTE ? '' : T.streakAnteprima) + '</div></div>' +
       '<div class="motivante">' + T.frasi[Math.floor(Math.random() * T.frasi.length)] + '</div>' +
       '<div class="sera-hint">' + T.seraHint + '</div></div>'
     $('dove').innerHTML = '<button class="suono" id="btn-suono" onclick="cambiaSuono()" aria-label="Musica">' + (suono ? '🔊' : '🔇') + '</button>'
     setTimeout(musica, 300)
+    if (MODO_PAZIENTE) { registraFine(rapido, es); $('giu').innerHTML = '<button class="grande" onclick="chiudiFine()">' + T.torna + '</button>'; coriandoli(); return }
     // 🧪 In anteprima niente si salva: la faccina della casa si aggiorna solo sullo schermo, per far vedere come cambierebbe.
     try {
       const oggi = new Date(), g = oggi.getFullYear() + '-' + String(oggi.getMonth() + 1).padStart(2, '0') + '-' + String(oggi.getDate()).padStart(2, '0')
@@ -781,6 +853,23 @@
     $('giu').innerHTML = '<button class="grande" onclick="chiudiFine()">' + T.torna + '</button>'
     coriandoli()
   }
+  // scheda-collega-v1 · fine seduta del paziente vero: una riga nel diario (come esercizio.html / rapida.html),
+  // poi i giorni di fila veri. Se non si salva, lo si dice: niente «fatto» finto.
+  async function registraFine(rapido, es) {
+    const nomi = Array.from(new Set(es.map(function (x) { return x.riga.nome })))
+    const ok = await salvaNelDiario({ completato: true, note: rapido ? 'Esercizi della scheda segnati come eseguiti.' : 'Scheda completata con la guida.' },
+      rapido ? 'manual' : 'guided', { esercizi_completati: nomi })
+    const av = $('dopo-faccia')
+    if (ok === false && av) av.textContent = T.nonSalvato
+    else if (ok && av) av.textContent = T.salvato
+    if (!SALVA) return
+    try {
+      const { data: dd } = await sb.rpc('get_diary_entries', { p_token: token, p_limit: 30 })
+      const sm = calcolaSmile(dd || [], new Date())
+      const n = $('streak-num'); if (n && sm.streak > 0) n.textContent = sm.streak
+    } catch (e) {}
+  }
+
   // La musichetta di fine seduta: lo stesso file di esercizio.html e rapida.html.
   let audio = null
   function musica() {
@@ -796,6 +885,7 @@
   }
   window.faccia = function (v) {
     document.querySelectorAll('#facce button').forEach(function (b, i) { b.classList.toggle('on', i === v - 1) })
+    if (MODO_PAZIENTE) { const ff = $('facce'); if (ff) ff.setAttribute('data-scelta', v); return }
     $('dopo-faccia').textContent = T.grazie + ' ' + T.nonSalva
   }
   window.chiudiFine = function () { chiudiPalco(); const c = document.querySelector('.coriandoli'); if (c) c.remove() }
