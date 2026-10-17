@@ -31,7 +31,10 @@
        del database fatta per questo) e nella nota, che il professionista legge in Monitoraggio.
        scheda-npl-v1 (17/10): NPL / GPL (migration 061) come in protocollo.html ed esercizio.html: il badge
        accanto a ogni esercizio, e per esteso in «Adesso tocca a…» e nella schermata dell'esercizio.
-       Vale quella della riga, altrimenti quella della scheda; se non c'è nessuna delle due, niente badge. -->
+       Vale quella della riga, altrimenti quella della scheda; se non c'è nessuna delle due, niente badge.
+       scheda-volte-v1 (17/10): con «Mattina e sera» sulla scheda (migration 062) il paziente vede sempre
+       il selettore Mattina / Sera e la riga che gli ricorda le due volte, anche se nessun esercizio è
+       «solo mattina» o «solo sera». -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
@@ -170,6 +173,7 @@
     .cfg-pill.npl, .cfg-grande.npl { background: #000; color: #FFD008; border: 1.5px solid #FFD008; }
     .cfg-pill.gpl, .cfg-grande.gpl { background: #FFD008; color: #000; border: 1.5px solid #000; }
     .cfg-grande { display: inline-block; font-size: 14px; font-weight: 800; border-radius: 20px; padding: 6px 14px; }
+    .due-volte { position: relative; z-index: 1; font-size: 13px; font-weight: 700; color: #FFD008; margin-bottom: 8px; text-align: center; }
     .nome-grande { font-size: clamp(32px, 10vw, 46px); font-weight: 900; line-height: 1.1; color: #fff; max-width: 440px; }
     .q-grande { font-size: 22px; font-weight: 800; color: #FFD008; }
     .pallini { display: flex; gap: 10px; margin-top: 8px; }
@@ -262,6 +266,7 @@
     titolo: 'Il tuo <span>allenamento</span>',
     esercizi: 'esercizi', durata: 'minuti circa', giri: 'giri',
     adesso: 'Adesso è…', mattina: '☀️ Mattina', sera: '🌙 Sera',
+    dueVolte: '☀️🌙 Da fare due volte al giorno: la mattina e la sera',
     inizia: '▶  INIZIA',
     spiegami: '🔊 Spiegami l’esercizio a voce', fermaVoce: '⏹ Ferma la voce',
     fisioDice: 'Il tuo fisioterapista ti dice: ',
@@ -445,9 +450,12 @@
     return t || null
   }
   // scheda-npl-v1 · quella della riga, altrimenti quella della scheda; solo 'NPL' o 'GPL'
+  function volteDa(rr, volte) {
+    return (Number(volte) === 2 || (rr || []).some(function (r) { return r.quando && r.quando !== 'sempre' })) ? 2 : 1
+  }
   function cfgOk(c) { const k = String(c || '').toUpperCase(); return (k === 'NPL' || k === 'GPL') ? k : null }
   function cfgRiga(r, sch) { return r && r.tipo === 'esercizio' ? (cfgOk(r.configurazione) || cfgOk(sch && sch.configurazione)) : null }
-  window.SchedaPaziente = { costruisciPassi: costruisciPassi, righeDelMomento: righeDelMomento, stimaMinuti: stimaMinuti, calcolaSmile: calcolaSmile, immagineDi: immagineDi, cfgRiga: cfgRiga }
+  window.SchedaPaziente = { costruisciPassi: costruisciPassi, righeDelMomento: righeDelMomento, stimaMinuti: stimaMinuti, calcolaSmile: calcolaSmile, immagineDi: immagineDi, cfgRiga: cfgRiga, volteDa: volteDa }
 
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
   function $(id) { return document.getElementById(id) }
@@ -563,7 +571,8 @@
     })
   }
 
-  function haMomenti() { return righe.some(function (r) { return r.quando !== 'sempre' }) }
+  // scheda-volte-v1 · due volte se lo dice la scheda, oppure (schede di prima) se una riga è solo mattina / solo sera
+  function haMomenti() { return volteDa(righe, scheda && scheda.volte_giorno) === 2 }
   function righeOggi() { return haMomenti() ? righeDelMomento(righe, momento) : righe }
 
   // ── Casa ──
@@ -581,7 +590,7 @@
         '<div class="numero"><b>' + (es.length ? stimaMinuti(rr, scheda) : 0) + '</b><span>' + T.durata + '</span></div>' +
         (giri > 1 ? '<div class="numero"><b>' + giri + '</b><span>' + T.giri + '</span></div>' : '') +
       '</div>' +
-      (haMomenti() ? '<div class="quando" aria-label="' + T.adesso + '">' +
+      (haMomenti() ? '<div class="due-volte">' + T.dueVolte + '</div><div class="quando" aria-label="' + T.adesso + '">' +
         '<button class="' + (momento === 'mattina' ? 'on' : '') + '" onclick="setMomento(\'mattina\')">' + T.mattina + '</button>' +
         '<button class="' + (momento === 'sera' ? 'on' : '') + '" onclick="setMomento(\'sera\')">' + T.sera + '</button></div>' : '') +
       '<button class="inizia" id="btn-inizia" onclick="inizia()"' + (es.length ? '' : ' disabled') + '>' + T.inizia + '</button>' +
