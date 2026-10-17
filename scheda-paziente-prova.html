@@ -28,11 +28,15 @@
        restano quelli di protocollo.html. Con ?preview=1 non salva niente.
        scheda-collega-v2 (17/10): «Come ti senti rispetto a prima?» con tre risposte (Peggio / Come prima /
        Meglio) che col paziente vero si SALVANO sulla stessa riga della seduta (risposta_post, la colonna
-       del database fatta per questo) e nella nota, che il professionista legge in Monitoraggio. -->
+       del database fatta per questo) e nella nota, che il professionista legge in Monitoraggio.
+       scheda-npl-v1 (17/10): NPL / GPL (migration 061) come in protocollo.html ed esercizio.html: il badge
+       accanto a ogni esercizio, e per esteso in «Adesso tocca a…» e nella schermata dell'esercizio.
+       Vale quella della riga, altrimenti quella della scheda; se non c'è nessuna delle due, niente badge. -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
   <script src="js/scheda-immagini.js"></script>
+  <script src="js/configurazioni.js"></script><!-- scheda-npl-v1 : NPL/GPL si scrivono in js/configurazioni.js -->
   <script src="js/pol-sessione.js"></script><!-- scheda-collega-v1 : una seduta, una riga, come le altre pagine -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -161,6 +165,11 @@
     .barra-paz { padding: 10px 16px; }
     .barra-paz a { color: #FFD008; font-weight: 700; font-size: 14px; text-decoration: none; }
     .annuncio { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer; }
+    /* scheda-npl-v1 · NPL nero con scritta gialla, GPL il contrario (come in protocollo.html) */
+    .cfg-pill { display: inline-block; font-size: 10px; font-weight: 800; border-radius: 6px; padding: 2px 7px; margin-left: 6px; vertical-align: middle; letter-spacing: .5px; }
+    .cfg-pill.npl, .cfg-grande.npl { background: #000; color: #FFD008; border: 1.5px solid #FFD008; }
+    .cfg-pill.gpl, .cfg-grande.gpl { background: #FFD008; color: #000; border: 1.5px solid #000; }
+    .cfg-grande { display: inline-block; font-size: 14px; font-weight: 800; border-radius: 20px; padding: 6px 14px; }
     .nome-grande { font-size: clamp(32px, 10vw, 46px); font-weight: 900; line-height: 1.1; color: #fff; max-width: 440px; }
     .q-grande { font-size: 22px; font-weight: 800; color: #FFD008; }
     .pallini { display: flex; gap: 10px; margin-top: 8px; }
@@ -435,11 +444,20 @@
     })
     return t || null
   }
-  window.SchedaPaziente = { costruisciPassi: costruisciPassi, righeDelMomento: righeDelMomento, stimaMinuti: stimaMinuti, calcolaSmile: calcolaSmile, immagineDi: immagineDi }
+  // scheda-npl-v1 · quella della riga, altrimenti quella della scheda; solo 'NPL' o 'GPL'
+  function cfgOk(c) { const k = String(c || '').toUpperCase(); return (k === 'NPL' || k === 'GPL') ? k : null }
+  function cfgRiga(r, sch) { return r && r.tipo === 'esercizio' ? (cfgOk(r.configurazione) || cfgOk(sch && sch.configurazione)) : null }
+  window.SchedaPaziente = { costruisciPassi: costruisciPassi, righeDelMomento: righeDelMomento, stimaMinuti: stimaMinuti, calcolaSmile: calcolaSmile, immagineDi: immagineDi, cfgRiga: cfgRiga }
 
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
   function $(id) { return document.getElementById(id) }
   function errore(m) { const e = $('err'); e.textContent = m; e.classList.add('show') }
+  function pillCfg(r) { const c = cfgRiga(r, scheda); return c ? '<span class="cfg-pill ' + c.toLowerCase() + '">' + c + '</span>' : '' }
+  function cfgGrande(r) {
+    const c = cfgRiga(r, scheda); if (!c) return ''
+    const d = (window.polConfig && polConfig.desc) ? polConfig.desc(c) : (c === 'NPL' ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale')
+    return '<div class="cfg-grande ' + c.toLowerCase() + '">' + c + ' — ' + esc(d) + '</div>'
+  }
   function quanto(r) {
     const q = r.misura === 'tempo'
       ? (r.secondi >= 60 && r.secondi % 60 === 0 ? (r.secondi / 60) + ' min' : r.secondi + ' s')
@@ -587,7 +605,7 @@
       const im = immagini[r.id]
       html += '<button class="es" onclick="inizia(' + idx + ')"><div class="n">' + n + '</div>' +
         (im ? '<img class="thumb" src="' + esc(im.img) + '" alt="' + esc(im.alt || r.nome) + '" loading="lazy">' : '') + '<div class="c">' +
-        '<div class="t">' + esc(r.nome) + q + '</div><div class="q">' + quanto(r) + '</div>' +
+        '<div class="t">' + esc(r.nome) + q + pillCfg(r) + '</div><div class="q">' + quanto(r) + '</div>' +
         (r.testo ? '<div class="f">' + esc(r.testo) + '</div>' : '') +
         (tre[r.id] ? '<div class="f3r">' + T.hint3r + '</div>' : '') +
       '</div><span class="play">▶</span></button>'
@@ -687,7 +705,7 @@
       '<div class="etichetta">' + T.adessoTocca + '</div>' +
       '<div class="nome-grande">' + esc(r.nome) + '</div>' +
       (p.serieTot > 1 ? '<div class="serie">' + T.serie(p.serie, p.serieTot) + '</div>' : '') +
-      '<div class="q-grande">' + quanto(Object.assign({}, r, { serie: 1 })) + '</div>' +
+      '<div class="q-grande">' + quanto(Object.assign({}, r, { serie: 1 })) + '</div>' + cfgGrande(r) +
       '<div class="pallini" id="pallini">' + '<i></i>'.repeat(ANNUNCIO_SEC) + '</div></div>'
     $('giu').innerHTML = '<button class="grande" id="btn-via" onclick="mostra()">' + T.via + '</button>'
     conta(ANNUNCIO_SEC, function (sec) {
@@ -747,7 +765,7 @@
     const figura = im && (im.scheda || im.img)
     const testa = '<div class="es-testa">' +
       (p.serieTot > 1 ? '<div class="etichetta">' + T.serie(p.serie, p.serieTot) + '</div>' : '') +
-      '<div class="nome-es">' + esc(r.nome) + '</div>' +
+      '<div class="nome-es">' + esc(r.nome) + '</div>' + cfgGrande(r) +
       (r.testo ? '<div class="frase">' + esc(r.testo) + '</div>' : '') + '</div>'
     const pill = (vocePossibile() ? '<button class="pillbtn voce" id="btn-voce" onclick="spiegami()">' + T.spiegami + '</button>' : '') +
       '<div class="pill-row">' +

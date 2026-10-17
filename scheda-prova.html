@@ -13,11 +13,15 @@
        assegna-protocollo: Schema 1…6, Barchetta, 3 Respiri, coi LORO video); nei «Tuoi esercizi»
        si modifica la nota del video del paziente e si elimina dalla libreria (stesse regole di
        assegna-protocollo: il file non si cancella se è anche in libreria). scheda-editor-v3 -->
+  <!-- scheda-npl-v1 (17/10): NPL/GPL sulla scheda e sulla riga (migration 061, come in assegna-protocollo:
+       riga → scheda) e il pulsante «📋 Copia dal protocollo» (decisione A di Giuliano): porta nella scheda
+       esercizi, durate e NPL/GPL del protocollo attivo; poi si controlla, si salva, si rende visibile. -->
   <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
+  <script src="js/configurazioni.js"></script><!-- scheda-npl-v1 : NPL/GPL si scrivono in js/configurazioni.js -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Montserrat', sans-serif; background: #f5f5f5; color: #000; padding-bottom: 240px; }
@@ -148,6 +152,16 @@
     .stima { font-size: 12px; color: #aaa; margin-top: 12px; }
     .stima b { color: #FFD008; }
 
+    /* scheda-npl-v1 · NPL nero con scritta gialla, GPL il contrario (come in assegna-protocollo) */
+    .seg.cfg button.on.npl { background: #000; color: #FFD008; }
+    .seg.cfg button.on.gpl { background: #FFD008; color: #000; }
+    .seg.cfg button.on.eredita { background: #eee; color: #000; }
+    .cfg-pill { display: inline-block; font-size: 10px; font-weight: 800; border-radius: 6px; padding: 2px 7px; margin-left: 6px; vertical-align: middle; font-style: normal; }
+    .cfg-pill.npl { background: #000; color: #FFD008; border: 1px solid #FFD008; }
+    .cfg-pill.gpl { background: #FFD008; color: #000; border: 1px solid #000; }
+    .prot-riga { font-size: 13px; color: #333; margin-bottom: 10px; line-height: 1.4; }
+    .prot-riga b { font-weight: 800; }
+    #btn-copia-prot { width: 100%; }
     .toast-container { position: fixed; bottom: 250px; left: 12px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none; }
     .toast { background: #1a1a1a; color: #fff; padding: 14px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; max-width: 420px; }
     .toast.error { border-left: 4px solid #ff4444; }
@@ -174,6 +188,12 @@
       <div id="visibile-box"><div class="vuoto">Caricamento…</div></div>
     </div>
 
+    <!-- scheda-npl-v1 · Copia dal protocollo attivo -->
+    <div class="card" id="card-protocollo" style="display:none">
+      <div class="card-title">Parti dal protocollo</div>
+      <div id="protocollo-box"></div>
+    </div>
+
     <div class="card" id="card-modelli">
       <div class="card-title">Parti da un modello</div>
       <div id="modelli-box"><div class="vuoto">Caricamento…</div></div>
@@ -192,6 +212,10 @@
       <div class="chips" id="ripeti-chips"></div>
       <!-- scheda-editor-v5 · niente recupero (Giuliano 16/10: «il riposo non serve»): fra un esercizio
            e l'altro il paziente vede 3 s di «Adesso tocca a…». La colonna recupero_sec resta nel database. -->
+      <div class="blocco" id="blocco-cfg">
+        <span class="lbl">Configurazione (vale per tutti gli esercizi)</span>
+        <div id="cfg-scheda"></div>
+      </div>
       <div class="blocco">
         <span class="lbl">Ritmo delle ripetizioni (per la voce, dopo)</span>
         <div class="chips" id="ritmo-chips"></div>
@@ -254,7 +278,7 @@
   <div class="toast-container" id="toast-container"></div>
 
 <script>
-/* scheda-editor-v2 · v3 · v4 · v5 · scheda-collega-v1 */
+/* scheda-editor-v2 · v3 · v4 · v5 · scheda-collega-v1 · scheda-npl-v1 */
 (function () {
   'use strict'
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -278,7 +302,9 @@
   let scheda = null
   let righe = []
   let righeSalvate = []
-  let impost = { ripeti_volte: 1, recupero_sec: 30, ritmo_sec: 3 }
+  let impost = { ripeti_volte: 1, recupero_sec: 30, ritmo_sec: 3, configurazione: null }
+  let haCfg = true               // scheda-npl-v1: false = manca la migration 061 (NPL/GPL non si salvano, il resto sì)
+  let protocollo = null, confermaCopia = false
   let libreria = [], videoPaz = [], modelli = []
   let sporco = false, salvando = false
   let confermaModello = null
@@ -335,14 +361,43 @@
       quando: r.quando || 'sempre',
       ritmo_sec: null, recupero_sec: null,
       guidato_sensore: false,
-      testo: String(r.testo || '').trim() || null
+      testo: String(r.testo || '').trim() || null,
+      configurazione: es ? cfgOk(r.configurazione) : null
     }
+  }
+  // scheda-npl-v1 · solo 'NPL' o 'GPL'; tutto il resto = vuoto (vale quella della scheda)
+  function cfgOk(c) { const k = String(c || '').toUpperCase(); return (k === 'NPL' || k === 'GPL') ? k : null }
+  function cfgDi(r, imp) { return r.tipo === 'esercizio' ? (cfgOk(r.configurazione) || cfgOk(imp && imp.configurazione)) : null }
+  // Dal protocollo attivo alle righe della scheda: stesso ordine di esercizio.html
+  // (esercizi della libreria per «ordine», poi i Cuscini Elicoidali, poi i video del paziente),
+  // stesse durate di ripiego (durata → durata_default → 90 s; cuscini e video 60 s).
+  // NPL/GPL: sulla riga solo se diversa da quella generale del protocollo, che va sulla scheda.
+  function daProtocollo(prot, ppe, exById, eli, vids, listaEli) {
+    const gen = cfgOk(prot && prot.configurazione_generale)
+    const sec = function (v, ripiego) { return clampInt(v, 1, 3600) || ripiego }
+    const es = (ppe || []).slice().sort(function (a, b) { return (a.ordine || 0) - (b.ordine || 0) }).map(function (e) {
+      const ex = exById[e.exercise_id] || null
+      const c = cfgOk(e.configurazione)
+      return { tipo: 'esercizio', nome: (ex && ex.nome) || 'Esercizio', exercise_id: e.exercise_id || null, video_id: null, elicoidale_id: null,
+               misura: 'tempo', secondi: sec(e.durata || (ex && ex.durata_default), 90), ripetizioni: null, serie: 1, quando: 'sempre', testo: '',
+               configurazione: c && c !== gen ? c : null }
+    })
+    const ce = (eli || []).slice().sort(function (a, b) { return (a.ordine || 0) - (b.ordine || 0) }).map(function (e) {
+      const def = (listaEli || []).find(function (x) { return x.id === e.elicoidale_id })
+      return { tipo: 'esercizio', nome: (def && def.title) || e.elicoidale_id, exercise_id: null, video_id: null, elicoidale_id: e.elicoidale_id,
+               misura: 'tempo', secondi: sec(e.durata, 60), ripetizioni: null, serie: 1, quando: 'sempre', testo: '', configurazione: null }
+    })
+    const cv = (vids || []).slice().sort(function (a, b) { return String(a.created_at || '') < String(b.created_at || '') ? -1 : 1 }).map(function (v) {
+      return { tipo: 'esercizio', nome: v.titolo || 'Contenuto personalizzato', exercise_id: null, video_id: v.id, elicoidale_id: null,
+               misura: 'tempo', secondi: sec(v.durata, 60), ripetizioni: null, serie: 1, quando: 'sempre', testo: v.descrizione || '', configurazione: null }
+    })
+    return { righe: [].concat(es, ce, cv), configurazione: gen }
   }
   function daDb(x) {
     return {
       tipo: x.tipo, nome: x.nome || '', exercise_id: x.exercise_id, video_id: x.video_id, elicoidale_id: x.elicoidale_id,
       misura: x.misura || 'tempo', secondi: x.secondi, ripetizioni: x.ripetizioni,
-      serie: x.serie || 1, quando: x.quando || 'sempre', testo: x.testo || ''
+      serie: x.serie || 1, quando: x.quando || 'sempre', testo: x.testo || '', configurazione: cfgOk(x.configurazione)
     }
   }
   function ytId(url) {
@@ -355,7 +410,8 @@
     const s = Number(r.serie) || 1
     return s > 1 ? s + ' × ' + q : q
   }
-  window.SchedaProva = { valida: valida, stimaSecondi: stimaSecondi, versoDb: versoDb, fmtTempo: fmtTempo, ytId: ytId, quantoTesto: quantoTesto }
+  window.SchedaProva = { valida: valida, stimaSecondi: stimaSecondi, versoDb: versoDb, fmtTempo: fmtTempo, ytId: ytId, quantoTesto: quantoTesto,
+                        cfgOk: cfgOk, cfgDi: cfgDi, daProtocollo: daProtocollo }
 
   // ── utilità ──
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
@@ -373,6 +429,16 @@
     return err.code === '42P01' || err.code === 'PGRST205' || (/scheda_allenamento/.test(m) && /(does not exist|schema cache|not find)/i.test(m))
   }
   function erroreBanner(msg) { const b = $('banner-err'); b.textContent = msg; b.classList.add('show') }
+  // scheda-npl-v1 · la 061 non lanciata: colonna «configurazione» che non c'è
+  function mancaColonnaCfg(err) {
+    if (!err) return false
+    const m = String(err.message || '')
+    return err.code === '42703' || err.code === 'PGRST204' || (/configurazione/.test(m) && /(does not exist|schema cache|not find)/i.test(m))
+  }
+  // Senza la 061 si salva tutto il resto: la colonna nuova non si manda.
+  function senzaCfg(o) { if (haCfg) return o; const c = Object.assign({}, o); delete c.configurazione; return c }
+  function pillCfg(c) { return c ? '<span class="cfg-pill ' + c.toLowerCase() + '">' + c + '</span>' : '' }
+  function descCfg(c) { return (window.polConfig && polConfig.desc) ? polConfig.desc(c) : (c === 'NPL' ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale') }
   function segnaSporco() {
     sporco = true
     const b = $('btn-salva'); b.classList.remove('fatto'); b.textContent = '✓ Salva la scheda'
@@ -423,7 +489,7 @@
     prof = p
     if (!prof) { erroreBanner('Questa pagina è solo per il professionista.'); bloccaTutto(); return }
 
-    const { data: paz } = await sb.from('patients').select('id, nome, cognome').eq('id', patientId).maybeSingle()
+    const { data: paz } = await sb.from('patients').select('id, nome, cognome, configurazione_default').eq('id', patientId).maybeSingle()
     paziente = paz
     $('paz-nome').textContent = paziente ? ('Paziente: ' + paziente.nome + ' ' + paziente.cognome) : 'Paziente non trovato'
     if (!paziente) { bloccaTutto(); return }
@@ -438,6 +504,8 @@
 
     const ok = await caricaScheda()
     if (!ok) return
+    await controllaCfg()
+    await caricaProtocollo()
     await caricaModelli()
     disegnaTutto()
   }
@@ -487,26 +555,92 @@
     }
     scheda = (data && data[0]) || null
     if (scheda) {
-      impost = { ripeti_volte: scheda.ripeti_volte, recupero_sec: scheda.recupero_sec, ritmo_sec: Number(scheda.ritmo_sec) }
+      impost = { ripeti_volte: scheda.ripeti_volte, recupero_sec: scheda.recupero_sec, ritmo_sec: Number(scheda.ritmo_sec), configurazione: cfgOk(scheda.configurazione) }
       const { data: rr, error: e2 } = await sb.from('scheda_allenamento_righe').select('*').eq('scheda_id', scheda.id).order('ordine')
       if (e2) { erroreBanner('Non riesco a leggere le righe della scheda: ' + e2.message); bloccaTutto(); return false }
       righeSalvate = (rr || []).map(daDb)
       righe = righeSalvate.map(function (r) { return Object.assign({}, r) })
+    } else {
+      // scheda nuova: si parte dalla configurazione abituale del paziente, come in assegna-protocollo (si vede e si cambia)
+      impost.configurazione = cfgOk(paziente && paziente.configurazione_default)
     }
     return true
+  }
+
+  // ── scheda-npl-v1 · c'è la colonna della 061? Se no, si dice quale SQL manca e il resto funziona come prima ──
+  async function controllaCfg() {
+    let error = null
+    try { error = (await sb.from('scheda_allenamento').select('configurazione').limit(1)).error } catch (e) { error = { message: String(e && e.message || e) } }
+    haCfg = !error
+    if (error && mancaColonnaCfg(error)) erroreBanner('Manca la migration 061_scheda_configurazione.sql nel database: NPL/GPL non si salvano (il resto della scheda sì).')
+    else if (error) erroreBanner('Non riesco a controllare NPL/GPL: ' + error.message + ' — NPL/GPL non si salvano, il resto sì.')
+  }
+
+  // ── scheda-npl-v1 · il protocollo attivo (lo stesso che paziente.html mostra come «attivo») ──
+  async function caricaProtocollo() {
+    protocollo = null
+    // una card in più non deve poter rompere l'editor: se la lettura non riesce, la card non compare
+    try {
+      const { data, error } = await sb.from('patient_protocols').select('*').eq('patient_id', patientId).eq('stato', 'attivo')
+        .order('created_at', { ascending: false }).limit(1)
+      if (!error && data && data[0]) protocollo = data[0]
+    } catch (e) {}
+  }
+  function disegnaProtocollo() {
+    const card = $('card-protocollo'), box = $('protocollo-box'); if (!card || !box) return
+    if (!protocollo) { card.style.display = 'none'; return }
+    card.style.display = ''
+    const gen = cfgOk(protocollo.configurazione_generale)
+    box.innerHTML = '<div class="prot-riga">Protocollo attivo: <b>' + esc(protocollo.nome_personalizzato || 'Protocollo') + '</b>' + pillCfg(gen) +
+        (protocollo.data_inizio ? ' · dal ' + esc(String(protocollo.data_inizio).split('-').reverse().join('/')) : '') + '</div>' +
+      '<button class="btn giallo" id="btn-copia-prot" onclick="copiaDalProtocollo()">' +
+        (confermaCopia ? 'Sostituisce le righe di adesso: tocca ancora' : '📋 Copia dal protocollo') + '</button>' +
+      '<div class="sub" style="margin:8px 0 0">Porta qui esercizi, durate e NPL/GPL del protocollo. Il protocollo non cambia; poi controlla e salva.</div>'
+  }
+  window.copiaDalProtocollo = async function () {
+    if (!protocollo) return
+    if (righe.length && !confermaCopia) { confermaCopia = true; disegnaProtocollo(); return }
+    confermaCopia = false
+    const b = $('btn-copia-prot'); if (b) b.disabled = true
+    try {
+      const pid = protocollo.id
+      const [ppe, eli, vid] = await Promise.all([
+        sb.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', pid).order('ordine'),
+        sb.from('patient_protocol_elicoidali').select('*').eq('patient_protocol_id', pid).order('ordine'),
+        sb.from('exercise_videos').select('*').eq('protocol_id', pid).order('created_at')
+      ])
+      const errore = ppe.error || eli.error || vid.error
+      if (errore) { toast('Non riesco a leggere il protocollo: ' + errore.message + ' — la scheda non è cambiata'); disegnaProtocollo(); return }
+      const ids = (ppe.data || []).map(function (e) { return e.exercise_id }).filter(Boolean)
+      const exById = {}
+      libreria.forEach(function (e) { exById[e.id] = e })
+      const mancano = ids.filter(function (id) { return !exById[id] })
+      if (mancano.length) {
+        const { data: ex } = await sb.from('exercises').select('*').in('id', mancano)
+        ;(ex || []).forEach(function (e) { exById[e.id] = e })
+      }
+      const listaEli = (typeof EXERCISES_ELICOIDALI !== 'undefined' && Array.isArray(EXERCISES_ELICOIDALI)) ? EXERCISES_ELICOIDALI : []
+      const r = daProtocollo(protocollo, ppe.data, exById, eli.data, vid.data, listaEli)
+      if (!r.righe.length) { toast('Il protocollo non ha esercizi: niente da copiare'); disegnaProtocollo(); return }
+      righe = r.righe
+      impost.ripeti_volte = 1
+      if (r.configurazione) impost.configurazione = r.configurazione
+      segnaSporco(); disegnaTutto()
+      toast('Copiati ' + r.righe.length + (r.righe.length === 1 ? ' esercizio' : ' esercizi') + ' dal protocollo: controlla e salva', 'success')
+    } finally { const b2 = $('btn-copia-prot'); if (b2) b2.disabled = false }
   }
 
   async function caricaModelli() {
     modelli = []
     if (prof && prof.studio_id) {
-      const { data } = await sb.from('scheda_allenamento').select('id, nome, ripeti_volte, recupero_sec, ritmo_sec, aggiornato_il')
+      const { data } = await sb.from('scheda_allenamento').select('*')
         .is('patient_id', null).eq('studio_id', prof.studio_id).neq('stato', 'archiviata').order('nome')
       modelli = data || []
     }
   }
 
   // ── disegno ──
-  function disegnaTutto() { disegnaRighe(); disegnaImpost(); disegnaAnteprima(); disegnaModelli(); disegnaVisibile() }
+  function disegnaTutto() { disegnaRighe(); disegnaImpost(); disegnaAnteprima(); disegnaModelli(); disegnaVisibile(); disegnaProtocollo() }
 
   function disegnaModelli() {
     const box = $('modelli-box')
@@ -537,6 +671,13 @@
   function disegnaImpost() {
     $('ripeti-chips').innerHTML = chipsHtml(RIPETI, impost.ripeti_volte, 'setRipeti', function (v) { return v === 1 ? '1 volta' : v + ' volte' }, { min: 1, max: 20, ph: 'altro' })
     $('ritmo-chips').innerHTML = chipsHtml(RITMI, impost.ritmo_sec, 'setRitmo', function (v) { return v + ' s' }, { min: 1, max: 20, ph: 'altro s' })
+    const bc = $('blocco-cfg'); if (bc) bc.style.display = haCfg ? '' : 'none'
+    const c = cfgOk(impost.configurazione)
+    $('cfg-scheda').innerHTML = '<div class="seg cfg">' +
+      '<button class="npl' + (c === 'NPL' ? ' on' : '') + '" onclick="setCfgScheda(\'NPL\')">NPL</button>' +
+      '<button class="gpl' + (c === 'GPL' ? ' on' : '') + '" onclick="setCfgScheda(\'GPL\')">GPL</button>' +
+      '<button class="eredita' + (!c ? ' on' : '') + '" onclick="setCfgScheda(null)">Nessuna</button></div>' +
+      '<div class="sub" style="margin:6px 0 0">' + (c ? esc(c + ' — ' + descCfg(c)) : 'Il paziente non vede nessuna indicazione del cuscino.') + '</div>'
   }
 
   function disegnaRighe() {
@@ -573,12 +714,18 @@
         '</div></div>'
       const serie = '<div class="blocco"><span class="lbl">Serie</span><div class="chips" style="margin-top:0">' +
         chipsHtml(SERIE, Number(r.serie) || 1, 'setSerie.bind(null,' + i + ')', function (x) { return x + '' }, { min: 1, max: 20, ph: 'altro' }) + '</div></div>'
+      const cS = cfgOk(impost.configurazione), cR = cfgOk(r.configurazione)
+      const cfg = haCfg ? '<div class="blocco"><span class="lbl">Configurazione</span><div class="seg cfg">' +
+          '<button class="eredita' + (!cR ? ' on' : '') + '" onclick="setCfgRiga(' + i + ',null)">' + (cS ? 'Come la scheda (' + cS + ')' : 'Come la scheda') + '</button>' +
+          '<button class="npl' + (cR === 'NPL' ? ' on' : '') + '" onclick="setCfgRiga(' + i + ',\'NPL\')">NPL</button>' +
+          '<button class="gpl' + (cR === 'GPL' ? ' on' : '') + '" onclick="setCfgRiga(' + i + ',\'GPL\')">GPL</button>' +
+        '</div></div>' : ''
       const frase = '<div class="blocco"><span class="lbl">Frase per il paziente (facoltativa)</span>' +
         '<input class="inp" placeholder="Es. piano, respira col naso" value="' + esc(r.testo) + '" oninput="setTesto(' + i + ', this.value)"></div>'
       return '<div class="riga' + (err ? ' err' : '') + '" data-riga="' + i + '">' +
         '<div class="riga-top"><div class="num">' + nEs + '</div>' +
           '<div class="riga-nome"><div class="t">' + esc(r.nome) + '</div><div class="m">' + fonte + vedi + '</div></div>' + sposta + '</div>' +
-        misura + serie + quando + frase + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') +
+        misura + serie + quando + cfg + frase + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') +
       '</div>'
     }).join('')
   }
@@ -600,7 +747,7 @@
       if (r.tipo === 'nota') { html += '<div class="ante-nota"><div class="c">✎ ' + esc(r.testo) + q + '</div>' + az + '</div>'; return }
       n++
       html += '<div class="ante-es"><div class="n">' + n + '</div><div class="c">' +
-        '<div class="t">' + esc(r.nome) + q + '</div>' +
+        '<div class="t">' + esc(r.nome) + q + (haCfg ? pillCfg(cfgDi(r, impost)) : '') + '</div>' +
         '<div class="q">' + quantoTesto(r) + '</div>' +
         (r.testo ? '<div class="f">' + esc(r.testo) + '</div>' : '') +
       '</div>' + az + '</div>'
@@ -652,6 +799,9 @@
   window.setRipeti = function (v) { const n = clampInt(v, 1, 20); if (n === null) { toast('Ripeti: da 1 a 20'); disegnaImpost(); return } impost.ripeti_volte = n; segnaSporco(); disegnaImpost(); disegnaAnteprima() }
   window.setRecupero = function (v) { const n = clampInt(v, 0, 600); if (n === null) { toast('Recupero: da 0 a 600 secondi'); disegnaImpost(); return } impost.recupero_sec = n; segnaSporco(); disegnaImpost(); disegnaAnteprima() }
   window.setRitmo = function (v) { const n = clampInt(v, 1, 20); if (n === null) { toast('Ritmo: da 1 a 20 secondi'); disegnaImpost(); return } impost.ritmo_sec = n; segnaSporco(); disegnaImpost(); disegnaAnteprima() }
+
+  window.setCfgScheda = function (c) { impost.configurazione = cfgOk(c); segnaSporco(); disegnaImpost(); disegnaRighe(); disegnaAnteprima() }
+  window.setCfgRiga = function (i, c) { righe[i].configurazione = cfgOk(c); ridisegna() }
 
   window.aggiungiNota = function () { righe.push({ tipo: 'nota', testo: '', quando: 'sempre', serie: 1 }); ridisegna(); scorriInFondo(true) }
   function nuovoEsercizio(base) {
@@ -848,11 +998,11 @@
     const { error: eDel } = await sb.from('scheda_allenamento_righe').delete().eq('scheda_id', schedaId)
     if (eDel) return 'non riesco a togliere le righe vecchie (' + eDel.message + ')'
     if (!nuove.length) return null
-    const { error: eIns } = await sb.from('scheda_allenamento_righe').insert(nuove.map(function (r, i) { return versoDb(r, schedaId, i) }))
+    const { error: eIns } = await sb.from('scheda_allenamento_righe').insert(nuove.map(function (r, i) { return senzaCfg(versoDb(r, schedaId, i)) }))
     if (!eIns) return null
     let rimesso = ''
     if (vecchie && vecchie.length) {
-      const { error: eRip } = await sb.from('scheda_allenamento_righe').insert(vecchie.map(function (r, i) { return versoDb(r, schedaId, i) }))
+      const { error: eRip } = await sb.from('scheda_allenamento_righe').insert(vecchie.map(function (r, i) { return senzaCfg(versoDb(r, schedaId, i)) }))
       rimesso = eRip ? ' — ATTENZIONE: non sono riuscito a rimettere la versione di prima' : ' — è rimasta la versione di prima'
     }
     return eIns.message + rimesso
@@ -864,7 +1014,7 @@
     salvando = true
     const btn = $('btn-salva'); btn.disabled = true; btn.textContent = 'Salvo…'
     try {
-      const campi = { ripeti_volte: impost.ripeti_volte, recupero_sec: impost.recupero_sec, ritmo_sec: impost.ritmo_sec, aggiornato_il: new Date().toISOString() }
+      const campi = senzaCfg({ ripeti_volte: impost.ripeti_volte, recupero_sec: impost.recupero_sec, ritmo_sec: impost.ritmo_sec, configurazione: cfgOk(impost.configurazione), aggiornato_il: new Date().toISOString() })
       if (!scheda) {
         const { data, error } = await sb.from('scheda_allenamento').insert(Object.assign({
           patient_id: patientId, nome: 'Scheda di ' + (paziente ? paziente.nome : ''), stato: 'prova', visibile_paziente: false
@@ -896,10 +1046,10 @@
     if (!righe.length) { toast('La scheda è vuota: niente da salvare come modello'); return }
     const btn = $('btn-modello'); btn.disabled = true
     try {
-      const { data, error } = await sb.from('scheda_allenamento').insert({
+      const { data, error } = await sb.from('scheda_allenamento').insert(senzaCfg({
         studio_id: prof.studio_id, nome: nome, stato: 'prova',
-        ripeti_volte: impost.ripeti_volte, recupero_sec: impost.recupero_sec, ritmo_sec: impost.ritmo_sec
-      }).select().single()
+        ripeti_volte: impost.ripeti_volte, recupero_sec: impost.recupero_sec, ritmo_sec: impost.ritmo_sec, configurazione: cfgOk(impost.configurazione)
+      })).select().single()
       if (error) { toast('Modello non salvato: ' + error.message); return }
       const err = await scriviRighe(data.id, righe, null)
       if (err) { toast('Modello creato ma righe non salvate: ' + err); return }
@@ -916,7 +1066,7 @@
     const { data, error } = await sb.from('scheda_allenamento_righe').select('*').eq('scheda_id', id).order('ordine')
     if (error) { toast('Non riesco a leggere il modello: ' + error.message); return }
     righe = (data || []).map(daDb)
-    if (m) impost = { ripeti_volte: m.ripeti_volte, recupero_sec: m.recupero_sec, ritmo_sec: Number(m.ritmo_sec) }
+    if (m) impost = { ripeti_volte: m.ripeti_volte, recupero_sec: m.recupero_sec, ritmo_sec: Number(m.ritmo_sec), configurazione: cfgOk(m.configurazione) || impost.configurazione }
     segnaSporco(); disegnaTutto()
     toast('Modello caricato: ricordati di salvare', 'success')
   }
