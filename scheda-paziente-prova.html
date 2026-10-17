@@ -19,7 +19,9 @@
        «Adesso tocca a»; in cima la faccina dell'andamento come protocollo.html (loadSmile), dai dati veri.
        scheda-paziente-v5 (19:21): mentre si fa l'esercizio si vede la sua INFOGRAFICA (tocca = ingrandisci),
        il timer sta in un pannello sotto e NON parte da solo («▶ AVVIA»); in anteprima, finita la seduta,
-       la faccina mostra come cambierebbe (senza salvare). -->
+       la faccina mostra come cambierebbe (senza salvare).
+       scheda-paziente-v8 (17/10 14:11): in ogni esercizio «🔊 Spiegami l'esercizio a voce» (voce del telefono,
+       testi in js/scheda-immagini.js trascritti dalle infografiche); in alto a sinistra «🏠 Inizio». -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
@@ -123,6 +125,10 @@
     .figura { flex: 1; min-height: 0; width: 100%; background: none; border: none; padding: 0; position: relative; cursor: zoom-in; display: flex; justify-content: center; }
     .figura img { height: 100%; max-width: 100%; object-fit: contain; border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.6); }
     .lente { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.75); color: #fff; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 20px; white-space: nowrap; }
+    .pillbtn.voce { display: block; width: 100%; max-width: 400px; margin: 0 auto; flex-shrink: 0; border-color: #FFD008; color: #000; background: #FFD008; padding: 11px 14px; font-size: 14px; }
+    .pillbtn.voce.on { background: #1a1a1a; color: #FFD008; }
+    .casa-btn { width: auto !important; padding: 0 12px; font-size: 15px !important; display: inline-flex; align-items: center; gap: 6px; }
+    .casa-btn span { font-size: 13px; font-weight: 700; }
     .pill-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; flex-shrink: 0; }
     .pillbtn { background: #1a1a1a; border: 1px solid #333; color: #ddd; border-radius: 20px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
     .pillbtn.giallo { border-color: #FFD008; color: #FFD008; }
@@ -201,7 +207,7 @@
   <div class="palco" id="palco">
     <div>
       <div class="palco-su">
-        <button class="chiudi" onclick="esci()" aria-label="Esci">✕</button>
+        <button class="chiudi casa-btn" onclick="esci()" aria-label="Torna all'inizio">🏠 <span>Inizio</span></button>
         <div class="dove" id="dove"></div>
       </div>
       <div class="avanz"><div id="avanz"></div></div>
@@ -219,7 +225,7 @@
   </div>
 
 <script>
-/* scheda-paziente-v1 · scheda-paziente-v2 · scheda-paziente-v3 · scheda-paziente-v4 · scheda-paziente-v5 */
+/* scheda-paziente-v1 · v2 · v3 · v4 · v5 · scheda-paziente-v8 */
 (function () {
   'use strict'
 
@@ -230,7 +236,8 @@
     esercizi: 'esercizi', durata: 'minuti circa', giri: 'giri',
     adesso: 'Adesso è…', mattina: '☀️ Mattina', sera: '🌙 Sera',
     inizia: '▶  INIZIA',
-    conVoce: '🔊 Con la voce — presto',
+    spiegami: '🔊 Spiegami l’esercizio a voce', fermaVoce: '⏹ Ferma la voce',
+    fisioDice: 'Il tuo fisioterapista ti dice: ',
     sezione: 'Gli esercizi di oggi',
     giroTutta: function (n) { return '🔁 Tutta la scheda ' + n + ' volte' },
     tocca: 'Tocca un esercizio per fare solo quello',
@@ -306,7 +313,7 @@
     grazie: 'Grazie! Il tuo fisioterapista lo vedrà.',
     nonSalva: '🧪 Anteprima: in prova non si salva niente nel diario.',
     torna: 'Torna alla scheda',
-    esciChiede: 'Vuoi smettere? Tocca ✕ ancora per uscire.'
+    esciChiede: 'Vuoi tornare all’inizio? Tocca 🏠 ancora.'
   }
 
   const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -320,7 +327,7 @@
   let passi = [], iPasso = 0
   let timer = null, scadenza = 0, restante = 0, inPausa = false, durataPasso = 0
   let inizioSeduta = 0, wake = null, chiedeUscita = false, chiedeDolore = false
-  let immagini = {}, smile = null, diarioLetto = null
+  let immagini = {}, smile = null, diarioLetto = null, descrizioni = {}
   let tre = {}   // righe che sono la Tecnica dei 3 Respiri (slug 0-3r come in esercizio.html, o il nome)
   // 🔊 stessa scelta salvata di esercizio.html (chiave policettivo_sound)
   let suono = true
@@ -447,13 +454,17 @@
     const eli = (typeof EXERCISES_ELICOIDALI !== 'undefined' && Array.isArray(EXERCISES_ELICOIDALI)) ? EXERCISES_ELICOIDALI : []
     righe.forEach(function (r) {
       let m = null
-      if (r.video_id) { const v = (vv.data || []).find(function (x) { return x.id === r.video_id }); if (v && v.url) m = { url: v.url, foto: v.tipo !== 'video' } }
+      const vRiga = r.video_id ? (vv.data || []).find(function (x) { return x.id === r.video_id }) : null
+      if (vRiga && vRiga.url) m = { url: vRiga.url, foto: vRiga.tipo !== 'video' }
       const exRiga = r.exercise_id ? (ex.data || []).find(function (x) { return x.id === r.exercise_id }) : null
       if (exRiga && exRiga.slug === '0-3r') tre[r.id] = true
       if (/3\s*respiri|tre\s+respiri/i.test(r.nome || '')) tre[r.id] = true
       const im = immagineDi(r, exRiga && exRiga.slug); if (im) immagini[r.id] = im
       if (!m && exRiga && exRiga.video_url) m = ytId(exRiga.video_url) ? { yt: ytId(exRiga.video_url) } : { url: exRiga.video_url }
-      if (!m && r.elicoidale_id) { const e = eli.find(function (x) { return x.id === r.elicoidale_id }); if (e && e.video_url) m = { yt: ytId(e.video_url) } }
+      const eRiga = r.elicoidale_id ? eli.find(function (x) { return x.id === r.elicoidale_id }) : null
+      if (!m && eRiga && eRiga.video_url) m = { yt: ytId(eRiga.video_url) }
+      // per la voce, se l'esercizio non ha un testo suo in js/scheda-immagini.js
+      descrizioni[r.id] = (vRiga && vRiga.descrizione) || (exRiga && (exRiga.descrizione_paziente || exRiga.descrizione)) || (eRiga && eRiga.description) || ''
       if (m) media[r.id] = m
     })
   }
@@ -481,7 +492,6 @@
         '<button class="' + (momento === 'sera' ? 'on' : '') + '" onclick="setMomento(\'sera\')">' + T.sera + '</button></div>' : '') +
       '<button class="inizia" id="btn-inizia" onclick="inizia()"' + (es.length ? '' : ' disabled') + '>' + T.inizia + '</button>' +
       '<button class="gia-fatto" id="btn-gia-fatto" onclick="giaFatto()"' + (es.length ? '' : ' disabled') + '>' + T.giaFatto + '<span>' + T.giaFattoSub + '</span></button>' +
-      '<button class="voce-btn" disabled>' + T.conVoce + '</button>' +
     '</div>'
     const sm = smile
     const frasiSm = sm ? T.smileFrasi[sm.tipo] : null
@@ -590,6 +600,7 @@
 
   // «Adesso tocca a…»: 3 secondi col nome grande, poi l'esercizio parte da solo. Un tocco lo salta.
   function annuncio() {
+    zitto()
     const p = passi[iPasso]
     intestazione(p)
     const r = p.riga
@@ -608,11 +619,50 @@
     }, mostra)
   }
 
+  // ── 🔊 Spiegami l'esercizio a voce (scheda-paziente-v8): la voce del telefono, nessun costo, niente rete.
+  // Il testo: quello di js/scheda-immagini.js → la descrizione della libreria → nome e quanto dura.
+  // In coda la frase del fisioterapista. Il tempo NON si ferma: si può ascoltare facendo l'esercizio.
+  function testoVoce(r) {
+    const im = immagini[r.id]
+    let t = (im && im.voce) || (descrizioni[r.id] ? r.nome + '. ' + descrizioni[r.id] : '')
+    if (!t) t = r.nome + '. ' + quanto(r).replace('×', 'per') + '.'
+    if (r.testo) t += ' ' + T.fisioDice + r.testo
+    return t
+  }
+  // (niente «lookbehind» nelle espressioni: sugli iPhone meno recenti bloccherebbe tutta la pagina)
+  function frasiDa(t) { return (String(t).match(/[^.;:!?]+[.;:!?]*/g) || []).map(function (x) { return x.trim() }).filter(Boolean) }
+  let parlando = false
+  function vocePossibile() { return 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined' }
+  function zitto() {
+    parlando = false
+    try { if (vocePossibile()) speechSynthesis.cancel() } catch (e) {}
+    const b = $('btn-voce'); if (b) { b.textContent = T.spiegami; b.classList.remove('on') }
+  }
+  window.spiegami = function () {
+    if (parlando) { zitto(); return }
+    const p = passi[iPasso]; if (!p || !vocePossibile()) return
+    try { speechSynthesis.cancel() } catch (e) {}
+    const voci = speechSynthesis.getVoices ? speechSynthesis.getVoices() : []
+    const it = voci.find(function (v) { return /^it/i.test(v.lang) })
+    // Una frase alla volta: su alcuni telefoni un testo lungo si interrompe a metà.
+    const pezzi = frasiDa(testoVoce(p.riga))
+    parlando = true
+    const b = $('btn-voce'); if (b) { b.textContent = T.fermaVoce; b.classList.add('on') }
+    pezzi.forEach(function (f, k) {
+      const u = new SpeechSynthesisUtterance(f)
+      u.lang = 'it-IT'; if (it) u.voice = it; u.rate = 0.95
+      if (k === pezzi.length - 1) u.onend = function () { if (parlando) zitto() }
+      speechSynthesis.speak(u)
+    })
+  }
+  window.SchedaPaziente.testoVoce = testoVoce
+  window.SchedaPaziente.frasiDa = frasiDa
+
   // La schermata dell'esercizio (scheda-paziente-v5): in alto il nome, in mezzo l'infografica che fa capire
   // a colpo d'occhio cosa si fa, sotto il pannello del timer. Il tempo NON parte da solo: «▶ AVVIA».
   let partito = false
   window.mostra = function () {
-    ferma(); partito = false; chiedeDolore = false
+    ferma(); zitto(); partito = false; chiedeDolore = false
     const p = passi[iPasso]
     intestazione(p)
     const r = p.riga
@@ -623,7 +673,8 @@
       (p.serieTot > 1 ? '<div class="etichetta">' + T.serie(p.serie, p.serieTot) + '</div>' : '') +
       '<div class="nome-es">' + esc(r.nome) + '</div>' +
       (r.testo ? '<div class="frase">' + esc(r.testo) + '</div>' : '') + '</div>'
-    const pill = '<div class="pill-row">' +
+    const pill = (vocePossibile() ? '<button class="pillbtn voce" id="btn-voce" onclick="spiegami()">' + T.spiegami + '</button>' : '') +
+      '<div class="pill-row">' +
       (iPasso > 0 ? '<button class="pillbtn" id="btn-prec" onclick="indietro()">' + T.prec + '</button>' : '') +
       (m ? '<button class="pillbtn giallo guarda" onclick="guarda()">' + T.video + '</button>' : '') +
       '<button class="pillbtn rosso" id="btn-dolore" onclick="dolore()">' + T.doloreCorto + '</button></div>'
@@ -670,14 +721,14 @@
   }
 
   window.avanti = function () {
-    ferma(); chiedeUscita = false
+    ferma(); zitto(); chiedeUscita = false
     iPasso++
     if (iPasso >= passi.length) return fine()
     annuncio()
   }
 
   window.indietro = function () {
-    ferma(); chiedeUscita = false
+    ferma(); zitto(); chiedeUscita = false
     if (iPasso > 0) iPasso--
     mostra()
   }
@@ -696,7 +747,7 @@
     chiudiPalco()
   }
   function chiudiPalco() {
-    ferma(); if (audio) { try { audio.pause() } catch (e) {} audio = null } $('palco').classList.remove('show'); document.body.style.overflow = ''
+    ferma(); zitto(); if (audio) { try { audio.pause() } catch (e) {} audio = null } $('palco').classList.remove('show'); document.body.style.overflow = ''
     try { if (wake) wake.release() } catch (e) {} wake = null
   }
 
