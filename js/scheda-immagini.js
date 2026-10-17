@@ -1,4 +1,4 @@
-/* scheda-paziente-v4 · scheda-paziente-v5 · scheda-paziente-v6 — LE IMMAGINI DEGLI ESERCIZI nella scheda del paziente.
+/* scheda-paziente-v4 · scheda-paziente-v5 · scheda-paziente-v6 · scheda-paziente-v7 — LE IMMAGINI DEGLI ESERCIZI nella scheda del paziente.
  *
  * Un elenco solo, in un file solo: per dare le immagini a un altro esercizio
  * si mettono i file in img/esercizi/ e si aggiunge UNA riga qui. La pagina non
@@ -32,7 +32,10 @@ window.SCHEDA_IMMAGINI = [
   { nome: 'schema 5',
     img: 'img/esercizi/schema-5.jpg', scheda: 'img/esercizi/schema-5-scheda.jpg',
     alt: 'Schema 5: circolazione, da largo a stretto' },
+  { nome: 'schema 6',
+    img: 'img/esercizi/schema-6.jpg', scheda: 'img/esercizi/schema-6-scheda.jpg',
+    alt: 'Schema 6: monopodalico, appoggio destro e sinistro sulla croce' },
   { nome: 'barchetta',
-    img: 'img/esercizi/barchetta.jpg', scheda: 'img/esercizi/barchetta-scheda.jpg',
-    alt: 'Schema Barchetta: inversione ed eversione con i piedi sulla croce' }
+    img: 'img/esercizi/barchetta-2.jpg', scheda: 'img/esercizi/barchetta-2-scheda.jpg',   // -2: corretta il 17/10 (nome nuovo = niente copia vecchia in memoria)
+    alt: 'Barchetta: inversione ed eversione con i piedi al centro sulla croce' }
 ];
