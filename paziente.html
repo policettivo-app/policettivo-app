@@ -1013,8 +1013,9 @@
       </div>
       <div class="actions-row">
         <button class="btn-primary" onclick="window.location.href='assegna-protocollo.html?id=' + patientId">+ Assegna protocollo</button>
-        <button class="btn-secondary" onclick="window.location.href='scheda-prova.html?id=' + patientId">🧪 Scheda nuova (prova)</button><!-- scheda-editor-v1 · solo professionista, il paziente non la vede -->
+        <button class="btn-secondary" onclick="window.location.href='scheda-prova.html?id=' + patientId">📋 Scheda di allenamento</button><!-- scheda-editor-v1 · scheda-collega-v3 -->
       </div>
+      <div id="scheda-nuova-stato" style="margin-top:10px"></div><!-- scheda-collega-v3 · quale delle due vede il paziente -->
     </div>
 
     <!-- STORICO PROTOCOLLI -->
@@ -5106,6 +5107,30 @@
       </div>
     </div>
   </div>
+<script>
+/* scheda-collega-v3 — QUALE DELLE DUE VEDE IL PAZIENTE.
+   Con l'interruttore acceso nell'editor il paziente vede la scheda nuova al posto del protocollo:
+   qui, sotto i pulsanti del protocollo, lo si dice in una riga. Sola lettura; se qualcosa non va
+   la riga resta vuota e la pagina è come prima. */
+(function () {
+  function vai() {
+    try {
+      if (typeof _supabase === 'undefined' || typeof patientId === 'undefined' || !patientId) return
+      const box = document.getElementById('scheda-nuova-stato'); if (!box) return
+      _supabase.from('scheda_allenamento').select('visibile_paziente, aggiornato_il').eq('patient_id', patientId)
+        .neq('stato', 'archiviata').order('aggiornato_il', { ascending: false }).limit(1)
+        .then(function (r) {
+          const s = r && !r.error && r.data && r.data[0]
+          if (!s) return
+          box.innerHTML = s.visibile_paziente
+            ? '<div style="background:#e8f5e9;border:1px solid #2e7d32;color:#1b5e20;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600">✅ Il paziente vede la <b>scheda di allenamento</b> al posto del protocollo. Si cambia dalla scheda («Il paziente la vede?»).</div>'
+            : '<div style="background:#fff8e1;border:1px solid #FFD008;color:#5d4600;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600">🧪 C’è una scheda di allenamento in prova: il paziente vede ancora il protocollo.</div>'
+        }, function () {})
+    } catch (e) {}
+  }
+  if (document.readyState === 'complete') vai(); else window.addEventListener('load', vai)
+})()
+</script>
 <script src="js/pol-nav.js?v=nav-v1" defer></script><!-- nav-v1 · pulsante Indietro/Home -->
 </body>
 </html>
