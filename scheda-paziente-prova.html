@@ -25,7 +25,10 @@
        scheda-collega-v1 (17/10): con ?token=… è la pagina del PAZIENTE VERO. Legge get_scheda_paziente
        (migration 060: solo se il professionista l'ha resa visibile) e salva nel diario con le stesse
        chiamate di esercizio.html / rapida.html (save_diary_entry + polSessione). Pagella e diario
-       restano quelli di protocollo.html. Con ?preview=1 non salva niente. -->
+       restano quelli di protocollo.html. Con ?preview=1 non salva niente.
+       scheda-collega-v2 (17/10): «Come ti senti rispetto a prima?» con tre risposte (Peggio / Come prima /
+       Meglio) che col paziente vero si SALVANO sulla stessa riga della seduta (risposta_post, la colonna
+       del database fatta per questo) e nella nota, che il professionista legge in Monitoraggio. -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
@@ -186,7 +189,9 @@
     .riep b { display: block; font-size: 22px; color: #FFD008; font-weight: 900; }
     .riep span { font-size: 11px; color: #999; font-weight: 700; }
     .facce { display: flex; justify-content: space-between; gap: 6px; margin: 10px 0 8px; }
-    .facce button { flex: 1; font-size: 34px; padding: 10px 0; background: #111; border: 2px solid #222; border-radius: 14px; cursor: pointer; }
+    .facce button { flex: 1; padding: 10px 0; background: #111; border: 2px solid #222; border-radius: 14px; cursor: pointer; color: #fff; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .facce .fe { font-size: 34px; line-height: 1; }
+    .facce .ft { font-size: 12px; font-weight: 700; color: #ccc; }
     .facce button.on { border-color: #FFD008; background: #1f1a00; }
     .avviso-prova { font-size: 12px; color: #888; margin-top: 8px; }
     .coriandoli { position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden; }
@@ -238,7 +243,7 @@
   </div>
 
 <script>
-/* scheda-paziente-v1 · v2 · v3 · v4 · v5 · scheda-paziente-v8 · scheda-collega-v1 */
+/* scheda-paziente-v1 · v2 · v3 · v4 · v5 · scheda-paziente-v8 · scheda-collega-v1 · scheda-collega-v2 */
 (function () {
   'use strict'
 
@@ -325,7 +330,10 @@
     guarda: '▶ Guarda come si fa',
     bravo: 'Bravo!', finito: 'Allenamento finito. Ottimo lavoro!',
     fattiN: 'esercizi', tempoN: 'minuti', giriN: 'giri',
-    comeStai: 'Come ti senti adesso?',
+    comeStai: 'Rispetto a prima di cominciare, come ti senti?',
+    risposte: [{ e: '🙁', k: 'worse', t: 'Peggio' }, { e: '😐', k: 'same', t: 'Come prima' }, { e: '🙂', k: 'better', t: 'Meglio' }],
+    notaRisposta: function (t) { return ' Dopo la seduta si sente: ' + t.toLowerCase() + '.' },
+    grazieSalvato: '✓ Grazie! L’ho segnato nel tuo diario: il tuo fisioterapista lo vedrà.',
     grazie: 'Grazie! Il tuo fisioterapista lo vedrà.',
     nonSalva: '🧪 Anteprima: in prova non si salva niente nel diario.',
     torna: 'Torna alla scheda',
@@ -469,6 +477,7 @@
   }
 
   // Il diario, con le stesse chiamate delle pagine di oggi. Non deve MAI rompere la seduta.
+  let ultimaSeduta = null, salvataggioFine = null
   async function salvaNelDiario(campi, modalita, extra) {
     if (!SALVA) return null
     try {
@@ -476,6 +485,8 @@
       const pieno = (window.polSessione && polSessione.campi) ? Object.assign(base, polSessione.campi(modalita, extra || {})) : base
       const { error } = await sb.rpc('save_diary_entry', { p_token: token, p_data: pieno })
       if (error) return false
+      // la stessa seduta (stessa chiave client_session_id): un secondo salvataggio aggiorna QUESTA riga
+      ultimaSeduta = pieno
       try { if (window.polSessione) polSessione.chiudi() } catch (e) {}
       return true
     } catch (e) { return false }
@@ -834,8 +845,8 @@
       '<div class="riep"><div><b>' + nomi.size + '</b><span>' + T.fattiN + '</span></div>' + (minuti ? '<div><b>' + minuti + '</b><span>' + T.tempoN + '</span></div>' : '') +
       (giri > 1 ? '<div><b>' + giri + '</b><span>' + T.giriN + '</span></div>' : '') + '</div>' +
       '<div class="etichetta" style="color:#fff;letter-spacing:0;text-transform:none;font-size:16px">' + T.comeStai + '</div>' +
-      '<div class="facce" id="facce">' + ['😣', '🙁', '😐', '🙂', '😄'].map(function (f, i) {
-        return '<button onclick="faccia(' + (i + 1) + ')" aria-label="Voto ' + (i + 1) + ' su 5">' + f + '</button>' }).join('') + '</div>' +
+      '<div class="facce" id="facce">' + T.risposte.map(function (r, i) {
+        return '<button onclick="faccia(' + (i + 1) + ')" aria-label="' + r.t + '"><span class="fe">' + r.e + '</span><span class="ft">' + r.t + '</span></button>' }).join('') + '</div>' +
       '<div class="avviso-prova" id="dopo-faccia">' + (MODO_PAZIENTE ? '' : T.nonSalva) + '</div>' +
       '<div class="streak"><div class="streak-num" id="streak-num">🔥</div><div class="streak-lab">' + T.streak + '</div><div class="streak-ant" id="streak-ant">' + (MODO_PAZIENTE ? '' : T.streakAnteprima) + '</div></div>' +
       '<div class="motivante">' + T.frasi[Math.floor(Math.random() * T.frasi.length)] + '</div>' +
@@ -857,8 +868,10 @@
   // poi i giorni di fila veri. Se non si salva, lo si dice: niente «fatto» finto.
   async function registraFine(rapido, es) {
     const nomi = Array.from(new Set(es.map(function (x) { return x.riga.nome })))
-    const ok = await salvaNelDiario({ completato: true, note: rapido ? 'Esercizi della scheda segnati come eseguiti.' : 'Scheda completata con la guida.' },
+    ultimaSeduta = null
+    salvataggioFine = salvaNelDiario({ completato: true, note: rapido ? 'Esercizi della scheda segnati come eseguiti.' : 'Scheda completata con la guida.' },
       rapido ? 'manual' : 'guided', { esercizi_completati: nomi })
+    const ok = await salvataggioFine
     const av = $('dopo-faccia')
     if (ok === false && av) av.textContent = T.nonSalvato
     else if (ok && av) av.textContent = T.salvato
@@ -885,8 +898,21 @@
   }
   window.faccia = function (v) {
     document.querySelectorAll('#facce button').forEach(function (b, i) { b.classList.toggle('on', i === v - 1) })
-    if (MODO_PAZIENTE) { const ff = $('facce'); if (ff) ff.setAttribute('data-scelta', v); return }
+    if (MODO_PAZIENTE) { rispondi(v); return }
     $('dopo-faccia').textContent = T.grazie + ' ' + T.nonSalva
+  }
+  // scheda-collega-v2 · la risposta va sulla STESSA riga della seduta appena salvata (upsert per client_session_id)
+  async function rispondi(v) {
+    const r = T.risposte[v - 1]; if (!r) return
+    const av = $('dopo-faccia')
+    if (!SALVA) { if (av) av.textContent = T.grazie + ' ' + T.nonSalva; return }
+    const ok = await salvataggioFine
+    if (!ok || !ultimaSeduta) { if (av) av.textContent = T.nonSalvato; return }
+    try {
+      const dati = Object.assign({}, ultimaSeduta, { risposta_post: r.k, note: String(ultimaSeduta.note || '') + T.notaRisposta(r.t) })
+      const { error } = await sb.rpc('save_diary_entry', { p_token: token, p_data: dati })
+      if (av) av.textContent = error ? T.nonSalvato : T.grazieSalvato
+    } catch (e) { if (av) av.textContent = T.nonSalvato }
   }
   window.chiudiFine = function () { chiudiPalco(); const c = document.querySelector('.coriandoli'); if (c) c.remove() }
   function coriandoli() {
