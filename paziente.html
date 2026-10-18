@@ -1011,9 +1011,11 @@
       <div id="protocollo-info" style="margin-bottom:16px">
         <p style="font-size:13px;color:#666">Caricamento protocollo...</p>
       </div>
+      <!-- scheda-strada-v1 (18/10, decisione A di Giuliano): la scheda di allenamento è la strada normale;
+           il protocollo resta sotto come rete, si assegna ancora ma in secondo piano. -->
       <div class="actions-row">
-        <button class="btn-primary" onclick="window.location.href='assegna-protocollo.html?id=' + patientId">+ Assegna protocollo</button>
-        <button class="btn-secondary" onclick="window.location.href='scheda-prova.html?id=' + patientId">📋 Scheda di allenamento</button><!-- scheda-editor-v1 · scheda-collega-v3 -->
+        <button class="btn-primary" id="btn-scheda-allenamento" style="font-size:15px;padding:14px 24px" onclick="window.location.href='scheda-prova.html?id=' + patientId">📋 Scheda di allenamento</button><!-- scheda-editor-v1 · scheda-collega-v3 · scheda-strada-v1 -->
+        <button class="btn-secondary" id="btn-assegna-protocollo" style="font-size:12px;padding:10px 16px;color:#666" onclick="window.location.href='assegna-protocollo.html?id=' + patientId">+ Assegna protocollo (come prima)</button>
       </div>
       <div id="scheda-nuova-stato" style="margin-top:10px"></div><!-- scheda-collega-v3 · quale delle due vede il paziente -->
     </div>
@@ -5121,7 +5123,16 @@
         .neq('stato', 'archiviata').order('aggiornato_il', { ascending: false }).limit(1)
         .then(function (r) {
           const s = r && !r.error && r.data && r.data[0]
-          if (!s) return
+          // scheda-strada-v1 · nessuna scheda ma un protocollo attivo: si dice come passarlo alla scheda
+          if (!s) {
+            if (r && r.error) return
+            _supabase.from('patient_protocols').select('id').eq('patient_id', patientId).eq('stato', 'attivo').limit(1)
+              .then(function (p) {
+                if (!p || p.error || !p.data || !p.data.length) return
+                box.innerHTML = '<div style="background:#f5f5f5;border:1px solid #ddd;color:#333;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600">Il paziente fa ancora il protocollo. Per passarlo alla scheda: <b>📋 Scheda di allenamento</b> → <b>Copia dal protocollo</b> → Salva → Rendi visibile.</div>'
+              }, function () {})
+            return
+          }
           box.innerHTML = s.visibile_paziente
             ? '<div style="background:#e8f5e9;border:1px solid #2e7d32;color:#1b5e20;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600">✅ Il paziente vede la <b>scheda di allenamento</b> al posto del protocollo. Si cambia dalla scheda («Il paziente la vede?»).</div>'
             : '<div style="background:#fff8e1;border:1px solid #FFD008;color:#5d4600;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600">🧪 C’è una scheda di allenamento in prova: il paziente vede ancora il protocollo.</div>'
