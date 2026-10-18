@@ -18,7 +18,11 @@
        esercizi, durate e NPL/GPL del protocollo attivo; poi si controlla, si salva, si rende visibile.
        scheda-volte-v1 (17/10, decisione B): «Quante volte al giorno» sulla scheda (migration 062), 1 volta
        di partenza oppure «Mattina e sera». Solo con «Mattina e sera» per ogni riga si sceglie
-       Mattina e sera / Solo mattina / Solo sera; con «1 volta» la scelta non serve e non compare. -->
+       Mattina e sera / Solo mattina / Solo sera; con «1 volta» la scelta non serve e non compare.
+       scheda-compatta-v1 (18/10, decisione B: «semplice, pratico, non deve spaventare»): ogni esercizio
+       è UNA riga («Schema 1 · 1 min · NPL») e i comandi si aprono con un tocco, uno alla volta;
+       «Tutta la scheda» sta sopra gli esercizi (decide cosa compare nelle righe); il ritmo delle
+       ripetizioni sta in «Altre impostazioni», chiuso. Niente cambia nel database. -->
   <link rel="stylesheet" href="css/design-system.css">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="policettivo-globals.css">
@@ -165,6 +169,20 @@
     .prot-riga { font-size: 13px; color: #333; margin-bottom: 10px; line-height: 1.4; }
     .prot-riga b { font-weight: 800; }
     #btn-copia-prot { width: 100%; }
+    /* scheda-compatta-v1 · riga chiusa = nome + una riga corta; aperta = i comandi */
+    .riga { padding: 12px 14px; }
+    .riga-top { cursor: pointer; align-items: center; }
+    .riga-corpo { display: none; border-top: 1px solid #eee; margin-top: 12px; }
+    .riga.aperta { border-color: #000; }
+    .riga.aperta .riga-corpo { display: block; }
+    .riga .apri { font-size: 12px; font-weight: 800; color: #555; background: #f2f2f2; border-radius: 8px; padding: 7px 10px; flex-shrink: 0; }
+    .riga.aperta .apri { background: #000; color: #FFD008; }
+    .riga-nome .m { font-size: 13px; color: #333; font-weight: 600; margin-top: 3px; }
+    .riga-az { display: flex; gap: 6px; margin-top: 12px; }
+    .riga-az .mini { width: auto; padding: 0 12px; font-size: 13px; font-weight: 700; }
+    .fatto-riga { width: 100%; margin-top: 14px; padding: 12px; border-radius: 10px; border: 2px solid #000; background: #FFD008; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+    .altro { margin-top: 14px; }
+    .altro summary { font-size: 12px; font-weight: 700; color: #666; cursor: pointer; padding: 6px 0; }
     .toast-container { position: fixed; bottom: 250px; left: 12px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none; }
     .toast { background: #1a1a1a; color: #fff; padding: 14px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; max-width: 420px; }
     .toast.error { border-left: 4px solid #ff4444; }
@@ -202,12 +220,6 @@
       <div id="modelli-box"><div class="vuoto">Caricamento…</div></div>
     </div>
 
-    <!-- RIGHE -->
-    <div class="card">
-      <div class="card-title">Esercizi e note, in ordine</div>
-      <div id="righe"></div>
-    </div>
-
     <!-- TUTTA LA SCHEDA -->
     <div class="card">
       <div class="card-title">Tutta la scheda</div>
@@ -215,18 +227,29 @@
         <span class="lbl">Quante volte al giorno</span>
         <div id="volte-scheda"></div>
       </div>
-      <span class="lbl">Ripeti tutta la scheda</span>
-      <div class="chips" id="ripeti-chips"></div>
       <!-- scheda-editor-v5 · niente recupero (Giuliano 16/10: «il riposo non serve»): fra un esercizio
            e l'altro il paziente vede 3 s di «Adesso tocca a…». La colonna recupero_sec resta nel database. -->
       <div class="blocco" id="blocco-cfg">
         <span class="lbl">Configurazione (vale per tutti gli esercizi)</span>
         <div id="cfg-scheda"></div>
       </div>
-      <div class="blocco">
-        <span class="lbl">Ritmo delle ripetizioni (per la voce, dopo)</span>
-        <div class="chips" id="ritmo-chips"></div>
-      </div>
+      <details class="altro" id="altro-impost">
+        <summary>⚙️ Altre impostazioni</summary>
+        <div class="blocco">
+          <span class="lbl">Ripeti tutta la scheda di seguito</span>
+          <div class="chips" id="ripeti-chips"></div>
+        </div>
+        <div class="blocco">
+          <span class="lbl">Ritmo delle ripetizioni (per la voce)</span>
+          <div class="chips" id="ritmo-chips"></div>
+        </div>
+      </details>
+    </div>
+
+    <!-- RIGHE · scheda-compatta-v1: una riga per esercizio, si apre con un tocco -->
+    <div class="card">
+      <div class="card-title">Esercizi e note, in ordine</div>
+      <div id="righe"></div>
     </div>
 
     <!-- ANTEPRIMA -->
@@ -314,6 +337,7 @@
   let haVolte = true             // scheda-volte-v1: false = manca la migration 062
   let haCfg = true               // scheda-npl-v1: false = manca la migration 061 (NPL/GPL non si salvano, il resto sì)
   let protocollo = null, confermaCopia = false
+  let rigaAperta = null          // scheda-compatta-v1: la riga aperta (l'oggetto, così resta giusta anche spostando)
   let libreria = [], videoPaz = [], modelli = []
   let sporco = false, salvando = false
   let confermaModello = null
@@ -711,7 +735,10 @@
       '<button class="' + (!v2 ? 'on' : '') + '" onclick="setVolte(1)">1 volta</button>' +
       '<button class="' + (v2 ? 'on' : '') + '" onclick="setVolte(2)">☀️🌙 Mattina e sera</button></div>' +
       (v2 ? '<div class="sub" style="margin:6px 0 0">Per ogni esercizio puoi scegliere anche solo mattina o solo sera.</div>' : '')
-    $('ripeti-chips').innerHTML = chipsHtml(RIPETI, impost.ripeti_volte, 'setRipeti', function (v) { return v === 1 ? '1 volta' : v + ' volte' }, { min: 1, max: 20, ph: 'altro' })
+    // scheda-compatta-v1 · «giri», non «volte»: non si confonde con «Quante volte al giorno»
+    $('ripeti-chips').innerHTML = chipsHtml(RIPETI, impost.ripeti_volte, 'setRipeti', function (v) { return v === 1 ? '1 giro' : v + ' giri' }, { min: 1, max: 20, ph: 'altro' })
+    // se non sono quelle di partenza, «Altre impostazioni» si mostra aperta: niente di scelto resta nascosto
+    if (impost.ripeti_volte !== 1 || Number(impost.ritmo_sec) !== 3) { const d = $('altro-impost'); if (d) d.open = true }
     $('ritmo-chips').innerHTML = chipsHtml(RITMI, impost.ritmo_sec, 'setRitmo', function (v) { return v + ' s' }, { min: 1, max: 20, ph: 'altro s' })
     const bc = $('blocco-cfg'); if (bc) bc.style.display = haCfg ? '' : 'none'
     const c = cfgOk(impost.configurazione)
@@ -722,15 +749,28 @@
       '<div class="sub" style="margin:6px 0 0">' + (c ? esc(c + ' — ' + descCfg(c)) : 'Il paziente non vede nessuna indicazione del cuscino.') + '</div>'
   }
 
+  // scheda-compatta-v1 · la riga chiusa dice solo l'essenziale: quanto, NPL/GPL, il momento
+  function riassunto(r) {
+    const pz = [quantoTesto(r)]
+    const c = haCfg ? cfgDi(r, impost) : null
+    if (r.quando === 'mattina') pz.push('☀️ solo mattina')
+    if (r.quando === 'sera') pz.push('🌙 solo sera')
+    return esc(pz.join(' · ')) + (c ? pillCfg(c) : '')
+  }
   function disegnaRighe() {
     const box = $('righe')
     if (!righe.length) { box.innerHTML = '<div class="vuoto">La scheda è vuota. Tocca «+ Esercizi» in basso.</div>'; return }
     let nEs = 0
     box.innerHTML = righe.map(function (r, i) {
       const err = r._mostraErr ? valida(r) : null
-      const sposta = '<button class="mini" onclick="sposta(' + i + ',-1)" aria-label="Sposta su"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
-        '<button class="mini" onclick="sposta(' + i + ',1)" aria-label="Sposta giù"' + (i === righe.length - 1 ? ' disabled' : '') + '>↓</button>' +
-        '<button class="mini del" onclick="togli(' + i + ')" aria-label="Togli">✕</button>'
+      const aperta = r === rigaAperta || !!err
+      const cls = (r.tipo === 'nota' ? ' nota' : '') + (err ? ' err' : '') + (aperta ? ' aperta' : '')
+      const apri = '<span class="apri">' + (aperta ? 'Chiudi' : '✏️ Modifica') + '</span>'
+      const az = '<div class="riga-az">' +
+        '<button class="mini" onclick="sposta(' + i + ',-1)" aria-label="Sposta su"' + (i === 0 ? ' disabled' : '') + '>↑ Su</button>' +
+        '<button class="mini" onclick="sposta(' + i + ',1)" aria-label="Sposta giù"' + (i === righe.length - 1 ? ' disabled' : '') + '>↓ Giù</button>' +
+        '<button class="mini del" onclick="togli(' + i + ')" aria-label="Togli">✕ Togli</button></div>'
+      const fatto = '<button class="fatto-riga" onclick="chiudiRiga()">✓ Fatto</button>'
       // scheda-volte-v1 · con «1 volta» il momento non serve: non si mostra
       const mostraQuando = !haVolte || impost.volte_giorno === 2
       const quando = !mostraQuando ? '' : '<div class="blocco"><span class="lbl">Quando</span><div class="seg">' + (haVolte ? QUANDO_2 : QUANDO).map(function (q) {
@@ -738,16 +778,18 @@
       }).join('') + '</div></div>'
 
       if (r.tipo === 'nota') {
-        return '<div class="riga nota' + (err ? ' err' : '') + '" data-riga="' + i + '">' +
-          '<div class="riga-top"><div class="num">✎</div><div class="riga-nome"><div class="t">Nota</div><div class="m">Se resta vuota non si salva</div></div>' + sposta + '</div>' +
-          '<div class="blocco"><textarea class="inp" placeholder="Es. Questo la sera, gli altri la mattina" oninput="setTesto(' + i + ', this.value)">' + esc(r.testo) + '</textarea></div>' +
-          quando + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') +
-        '</div>'
+        const anteprimaNota = String(r.testo || '').trim()
+        return '<div class="riga' + cls + '" data-riga="' + i + '">' +
+          '<div class="riga-top" onclick="apriRiga(' + i + ')"><div class="num">✎</div><div class="riga-nome"><div class="t">Nota</div>' +
+            '<div class="m">' + (anteprimaNota ? esc(anteprimaNota.length > 60 ? anteprimaNota.slice(0, 60) + '…' : anteprimaNota) : 'Vuota: se resta così non si salva') + '</div></div>' + apri + '</div>' +
+          '<div class="riga-corpo">' +
+            '<div class="blocco"><textarea class="inp" placeholder="Es. Questo la sera, gli altri la mattina" oninput="setTesto(' + i + ', this.value)">' + esc(r.testo) + '</textarea></div>' +
+            quando + az + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') + fatto +
+          '</div></div>'
       }
       nEs++
-      const fonte = r.video_id ? 'Registrato per il paziente' : (r.exercise_id ? 'Libreria' : (r.elicoidale_id ? 'Cuscini Elicoidali' : 'Scritto a mano'))
       const v = videoDiRiga(r)
-      const vedi = v ? '<button class="vedi" onclick="vediRiga(' + i + ')">▶ Vedi</button>' : ''
+      const vedi = v ? '<button class="vedi" onclick="event.stopPropagation();vediRiga(' + i + ')">▶ Vedi</button>' : ''
       const misura = '<div class="blocco"><div class="seg">' +
           '<button class="' + (r.misura === 'tempo' ? 'on' : '') + '" onclick="setMisura(' + i + ',\'tempo\')">⏱ A tempo</button>' +
           '<button class="' + (r.misura === 'ripetizioni' ? 'on' : '') + '" onclick="setMisura(' + i + ',\'ripetizioni\')">🔁 Ripetizioni</button>' +
@@ -766,12 +808,25 @@
         '</div></div>' : ''
       const frase = '<div class="blocco"><span class="lbl">Frase per il paziente (facoltativa)</span>' +
         '<input class="inp" placeholder="Es. piano, respira col naso" value="' + esc(r.testo) + '" oninput="setTesto(' + i + ', this.value)"></div>'
-      return '<div class="riga' + (err ? ' err' : '') + '" data-riga="' + i + '">' +
-        '<div class="riga-top"><div class="num">' + nEs + '</div>' +
-          '<div class="riga-nome"><div class="t">' + esc(r.nome) + '</div><div class="m">' + fonte + vedi + '</div></div>' + sposta + '</div>' +
-        misura + serie + quando + cfg + frase + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') +
+      return '<div class="riga' + cls + '" data-riga="' + i + '">' +
+        '<div class="riga-top" onclick="apriRiga(' + i + ')"><div class="num">' + nEs + '</div>' +
+          '<div class="riga-nome"><div class="t">' + esc(r.nome) + '</div><div class="m">' + riassunto(r) + ' ' + vedi + '</div></div>' + apri + '</div>' +
+        '<div class="riga-corpo">' + misura + serie + quando + cfg + frase + az + (err ? '<div class="msg-err">' + esc(err) + '</div>' : '') + fatto + '</div>' +
       '</div>'
     }).join('')
+  }
+  // Una riga aperta alla volta: toccando un'altra, quella di prima si chiude.
+  window.apriRiga = function (i) {
+    rigaAperta = rigaAperta === righe[i] ? null : righe[i]
+    disegnaRighe()
+    const el = document.querySelector('[data-riga="' + i + '"]')
+    if (el && rigaAperta) el.scrollIntoView({ block: 'nearest' })
+  }
+  window.chiudiRiga = function () {
+    const i = righe.indexOf(rigaAperta)
+    rigaAperta = null; disegnaRighe()
+    const el = i > -1 ? document.querySelector('[data-riga="' + i + '"]') : null
+    if (el) el.scrollIntoView({ block: 'nearest' })
   }
 
   function disegnaAnteprima() {
@@ -810,6 +865,7 @@
   }
   window.togli = function (i) { righe.splice(i, 1); ridisegna() }
   window.modificaRiga = function (i) {
+    rigaAperta = righe[i]; disegnaRighe()
     const el = document.querySelector('[data-riga="' + i + '"]')
     if (!el) return
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -860,7 +916,7 @@
   window.setCfgScheda = function (c) { impost.configurazione = cfgOk(c); segnaSporco(); disegnaImpost(); disegnaRighe(); disegnaAnteprima() }
   window.setCfgRiga = function (i, c) { righe[i].configurazione = cfgOk(c); ridisegna() }
 
-  window.aggiungiNota = function () { righe.push({ tipo: 'nota', testo: '', quando: 'sempre', serie: 1 }); ridisegna(); scorriInFondo(true) }
+  window.aggiungiNota = function () { const n = { tipo: 'nota', testo: '', quando: 'sempre', serie: 1 }; righe.push(n); rigaAperta = n; ridisegna(); scorriInFondo(true) }
   function nuovoEsercizio(base) {
     return Object.assign({ tipo: 'esercizio', misura: 'tempo', secondi: DEF_SECONDI, ripetizioni: null, serie: 1, quando: 'sempre', testo: '' }, base)
   }
