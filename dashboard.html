@@ -820,7 +820,7 @@
 
       document.getElementById('user-email').textContent = session.user.email
       const _username = session.user.email.split('@')[0]
-      document.getElementById('welcome-msg').textContent = 'Bentornato, ' + _username
+      document.getElementById('welcome-msg').textContent = 'Bentornato, ' + _username  // semplice-1: sotto si mette il nome vero, appena arriva
       const _avEl = document.getElementById('d-avatar-initials')
       if (_avEl) _avEl.textContent = _username.charAt(0).toUpperCase()
 
@@ -836,6 +836,20 @@
       const emailForPremiumCheck = isAdminPreview ? null : session.user.email
       const { profId: _profId } = await window.policettivoCheckPremium(_supabase, effectiveUserId, emailForPremiumCheck)
       currentProfessionalId = _profId
+      // semplice-1 (19/10) · il saluto col NOME del profilo, non con la prima parte dell'email.
+      // Se il nome non arriva resta com'era; non blocca niente.
+      if (currentProfessionalId) {
+        _supabase.from('professionals').select('profiles(nome)').eq('id', currentProfessionalId).maybeSingle().then(function (r) {
+          try {
+            const pr = r && r.data && r.data.profiles
+            const n = pr && (Array.isArray(pr) ? (pr[0] && pr[0].nome) : pr.nome)
+            if (n && String(n).trim()) {
+              document.getElementById('welcome-msg').textContent = 'Bentornato, ' + String(n).trim()
+              const av = document.getElementById('d-avatar-initials'); if (av) av.textContent = String(n).trim().charAt(0).toUpperCase()
+            }
+          } catch (e) {}
+        }, function () {})
+      }
       if (!currentProfessionalId) {
         console.error('[dashboard] currentProfessionalId è null — nessun record professionals trovato per userId:', effectiveUserId)
         const lm = document.getElementById('loading-msg')
@@ -1291,11 +1305,19 @@
       // resta visibile il pallino sul pulsante Consenso come promemoria.
       if (id) window.location.href = 'paziente.html?id=' + id
     }
+    // semplice-1 (19/10) · eliminare un paziente cancella anche il suo diario e i protocolli, per sempre.
+    // Prima bastava un «OK» toccato per sbaglio: adesso si scrive ELIMINA. E se un passo non riesce
+    // ci si FERMA e lo si dice, invece di andare avanti a cancellare il resto senza saperlo.
     async function eliminaPaziente(id, nome) {
-      if (!confirm('Eliminare ' + nome + '? Operazione irreversibile.')) return
-      await _supabase.from('diary_entries').delete().eq('patient_id', id)
-      await _supabase.from('patient_protocols').delete().eq('patient_id', id)
-      await _supabase.from('patients').delete().eq('id', id)
+      if (!confirm('Eliminare ' + nome + '?\n\nSi cancellano per sempre anche il suo diario e i protocolli. Non si torna indietro.')) return
+      const scritto = prompt('Per confermare scrivi ELIMINA (in maiuscolo).')
+      if (scritto === null) return
+      if (String(scritto).trim() !== 'ELIMINA') { alert('Non hai scritto ELIMINA: il paziente NON è stato eliminato.'); return }
+      const passi = [['il diario', 'diary_entries', 'patient_id'], ['i protocolli', 'patient_protocols', 'patient_id'], ['il paziente', 'patients', 'id']]
+      for (const [cosa, tab, col] of passi) {
+        const { error } = await _supabase.from(tab).delete().eq(col, id)
+        if (error) { alert('Mi sono fermato: non riesco a cancellare ' + cosa + ' (' + error.message + ').'); loadPatients(); loadStats(); return }
+      }
       loadPatients(); loadStats()
     }
     function openGuida() { document.getElementById('guida-overlay').style.display = 'flex' }
