@@ -431,6 +431,14 @@
     .hub-card.hub-fisio { background: #000; color: #fff; }
     .hub-card.hub-cartella { background: #1d1d1f; color: #fff; grid-column: 1 / -1; flex-direction: row; align-items: center; padding: 14px 18px; }
     .hub-card.hub-cartella .hub-card-desc { margin-left: auto; font-size: 11px; opacity: 0.5; }
+    /* semplice-2 (19/10, decisione A) · i 3 riquadri grandi (Test, Prima e dopo, Cartella) in UNA riga di 3
+       pulsanti: sempre in cima e visibili, un terzo dello spazio. La descrizione resta solo al computer. */
+    .hub-section.hub-riga .hub-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .hub-section.hub-riga .hub-card.hub-cartella { grid-column: auto; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 12px 6px; gap: 4px; }
+    .hub-section.hub-riga .hub-card-icon { font-size: 22px; }
+    .hub-section.hub-riga .hub-card-title { font-size: 13px; }
+    .hub-section.hub-riga .hub-card.hub-cartella .hub-card-desc { display: none; }
+    @media (min-width: 720px) { .hub-section.hub-riga .hub-card.hub-cartella .hub-card-desc { display: block; margin: 2px 0 0; } }
     .hub-card-icon { font-size: 28px; line-height: 1; }
     .hub-card.hub-cartella .hub-card-icon { font-size: 20px; }
     .hub-card-title { font-size: 15px; font-weight: 700; line-height: 1.2; }
@@ -675,8 +683,8 @@
       </div>
     </div>
 
-    <!-- HUB: cartella clinica -->
-    <div class="hub-section">
+    <!-- HUB: cartella clinica · semplice-2: una riga di 3 pulsanti -->
+    <div class="hub-section hub-riga">
       <div class="hub-grid">
         <!-- test-sessioni-v1 · i test del paziente, ben in vista accanto alla cartella -->
         <button class="hub-card hub-cartella" style="background:#FFD008;color:#111" onclick="window.location.href='test.html?pid='+patientId">
@@ -691,7 +699,8 @@
           <span class="hub-card-title">Prima e dopo</span>
           <span class="hub-card-desc" style="color:#fff;opacity:.75">Da mostrare al paziente · va sulla TV da sola →</span>
         </button>
-        <button class="hub-card hub-cartella" onclick="window.location.href='cartella.html?id='+patientId">
+        <!-- semplice-2 · prima ricaricava la pagina e lasciava la cartella CHIUSA: ora la apre subito, come la barra in basso -->
+        <button class="hub-card hub-cartella" onclick="toggleCartella(true)">
           <span class="hub-card-icon">📁</span>
           <span class="hub-card-title">Cartella Clinica</span>
           <span class="hub-card-desc">Documenti · Note · Sintesi AI · PDF →</span>
@@ -2790,7 +2799,7 @@
 
     function _navApriDaAncora() {
       var h = (window.location.hash || '').replace('#','')
-      if (h !== 'cartella' && h !== 'relazione') return
+      if (h !== 'cartella' && h !== 'relazione' && h !== 'cartella-clinica') return  // semplice-2: anche dal rimando di cartella.html
       var box = document.getElementById('cartella-container')
       if (!box) return
       toggleCartella(true)
@@ -5114,7 +5123,7 @@
         <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='tv-collega.html'"><span class="ico">🖥</span><span class="lbl">La tua TV</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();apriModaleAIP()"><span class="ico">🤖</span><span class="lbl">Analisi AI Policettivo&reg;</span></button>
         <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='diario.html?pid='+patientId"><span class="ico">📖</span><span class="lbl">Diario</span></button>
-        <button class="pol-hub-btn" onclick="polChiudiHub();window.location.href='cartella.html?id='+patientId"><span class="ico">📁</span><span class="lbl">Cartella clinica</span></button>
+        <button class="pol-hub-btn" onclick="polChiudiHub();toggleCartella(true)"><span class="ico">📁</span><span class="lbl">Cartella clinica</span></button><!-- semplice-2 -->
       </div>
     </div>
   </div>
