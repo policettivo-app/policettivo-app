@@ -60,6 +60,8 @@
       #sez-anagrafica .section-header { flex-direction: column; align-items: flex-start; gap: 12px; }
       #sez-anagrafica .qa-group { justify-content: flex-start; }
     }
+    .mon-riga { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .mon-riga .btn-primary { padding: 12px 2px; font-size: 12px; white-space: nowrap; text-align: center; }
     .msg-sub { border-top: 1px solid #eee; margin-top: 22px; padding-top: 18px; }
     .msg-sub-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
     .btn-qa { background: transparent; border: 1.5px solid #ddd; color: #666; padding: 5px 11px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: border-color 0.15s, color 0.15s; }
@@ -886,173 +888,7 @@
       <div id="visite-list"><div class="visite-loading">Caricamento…</div></div>
     </div>
 
-    <!-- FOTO SAGITTALI -->
-    <div class="section ds-card">
-      <div class="section-title-plain ds-section-title-line">Foto posturali — Piano sagittale</div>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta le foto prima e dopo la Tecnica dei 3 Respiri. Poi seleziona il piano scapolare.</p>
-      <div class="foto-group-label"><span class="step-label">PRIMA</span> Piano sagittale — prima dei 3R</div>
-      <div class="foto-grid-2">
-        <div class="foto-slot" id="slot-prima-sx" onclick="triggerInput('prima-sx')"><div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
-        <div class="foto-slot" id="slot-prima-dx" onclick="triggerInput('prima-dx')"><div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
-      </div>
-      <div class="piano-scapolare-box">
-        <div class="piano-scapolare-title">Piano scapolare — prima dei 3R</div>
-        <div class="osservazione-buttons">
-          <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare in asse (prima)',this)">In asse</button>
-          <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare anteriore (prima)',this)">Anteriore</button>
-          <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare posteriore (prima)',this)">Posteriore</button>
-        </div>
-        <div id="ai-hint-prima" style="display:none;margin-top:10px;font-size:12px;color:#666;line-height:1.5"></div>
-      </div>
-      <hr class="confronto-divider">
-      <div class="foto-group-label"><span class="step-label">DOPO</span> Piano sagittale — dopo i 3R</div>
-      <div class="foto-grid-2">
-        <div class="foto-slot" id="slot-dopo-sx" onclick="triggerInput('dopo-sx')"><div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
-        <div class="foto-slot" id="slot-dopo-dx" onclick="triggerInput('dopo-dx')"><div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
-      </div>
-      <div class="piano-scapolare-box">
-        <div class="piano-scapolare-title">Piano scapolare — dopo i 3R</div>
-        <div class="osservazione-buttons">
-          <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare in asse (dopo)',this)">In asse</button>
-          <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare anteriore (dopo)',this)">Anteriore</button>
-          <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare posteriore (dopo)',this)">Posteriore</button>
-        </div>
-      </div>
-      <div style="margin-top:12px">
-        <div class="osservazione-label">Note piano sagittale:</div>
-        <textarea class="notes-textarea" id="note-sagittale" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
-      </div>
-      <input type="file" id="input-prima-sx" accept="image/*" style="display:none" onchange="handleFoto('prima-sx',this)">
-      <input type="file" id="input-prima-dx" accept="image/*" style="display:none" onchange="handleFoto('prima-dx',this)">
-      <input type="file" id="input-dopo-sx" accept="image/*" style="display:none" onchange="handleFoto('dopo-sx',this)">
-      <input type="file" id="input-dopo-dx" accept="image/*" style="display:none" onchange="handleFoto('dopo-dx',this)">
-      <div class="saving-indicator" id="saving-sagittale">✓ Salvato</div>
-    </div>
-
-    <!-- PIANO FRONTALE -->
-    <div class="section ds-card">
-      <div class="section-title-plain ds-section-title-line">Piano frontale e posteriore <span class="section-optional">(facoltativo)</span></div>
-      <div class="foto-grid-2" style="margin-bottom:16px">
-        <div>
-          <div class="foto-group-label">Piano frontale</div>
-          <div class="foto-slot" id="slot-frontale" onclick="triggerInput('frontale')"><div class="foto-label">Vista frontale</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
-          <input type="file" id="input-frontale" accept="image/*" style="display:none" onchange="handleFoto('frontale',this)">
-        </div>
-        <div>
-          <div class="foto-group-label">Piano posteriore</div>
-          <div class="foto-slot" id="slot-posteriore" onclick="triggerInput('posteriore')"><div class="foto-label">Vista posteriore</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
-          <input type="file" id="input-posteriore" accept="image/*" style="display:none" onchange="handleFoto('posteriore',this)">
-        </div>
-      </div>
-      <div class="osservazione-group">
-        <div class="osservazione-label">Rotazione superiore:</div>
-        <div class="osservazione-buttons">
-          <button class="obs-btn" onclick="selectObs('rotazione-sup','Rotazione superiore normale',this)">Normale</button>
-          <button class="obs-btn" onclick="selectObs('rotazione-sup','Rotazione superiore sinistra',this)">Sinistra</button>
-          <button class="obs-btn" onclick="selectObs('rotazione-sup','Rotazione superiore destra',this)">Destra</button>
-        </div>
-      </div>
-      <div class="osservazione-group">
-        <div class="osservazione-label">Inclinazione capo:</div>
-        <div class="osservazione-buttons">
-          <button class="obs-btn" onclick="selectObs('inclinazione-capo','Inclinazione capo normale',this)">Normale</button>
-          <button class="obs-btn" onclick="selectObs('inclinazione-capo','Inclinazione capo sinistra',this)">Sinistra</button>
-          <button class="obs-btn" onclick="selectObs('inclinazione-capo','Inclinazione capo destra',this)">Destra</button>
-        </div>
-      </div>
-      <div>
-        <div class="osservazione-label">Note piano frontale/posteriore:</div>
-        <textarea class="notes-textarea" id="note-frontale" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
-      </div>
-      <div class="saving-indicator" id="saving-frontale">✓ Salvato</div>
-    </div>
-
-    <!-- PODOSCOPIO -->
-    <div class="section ds-card">
-      <div class="section-title-plain ds-section-title-line">Osservazione podoscopica</div>
-      <div class="foto-grid-2" style="margin-bottom:16px">
-        <div>
-          <div class="foto-group-label">Vista plantare (da sotto)</div>
-          <div class="foto-slot" id="slot-podo-sotto" onclick="triggerInput('podo-sotto')"><div class="foto-label">Piede da sotto</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div></div>
-          <input type="file" id="input-podo-sotto" accept="image/*" style="display:none" onchange="handleFoto('podo-sotto',this)">
-          <div class="osservazione-group" style="margin-top:12px">
-            <div class="osservazione-label">Morfologia piede:</div>
-            <div class="osservazione-buttons">
-              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede normale',this)">Normale</button>
-              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede piatto',this)">Piatto</button>
-              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede cavo',this)">Cavo</button>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="foto-group-label">Vista posteriore (da dietro)</div>
-          <div class="foto-slot" id="slot-podo-dietro" onclick="triggerInput('podo-dietro')"><div class="foto-label">Piede da dietro</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div></div>
-          <input type="file" id="input-podo-dietro" accept="image/*" style="display:none" onchange="handleFoto('podo-dietro',this)">
-          <div class="osservazione-group" style="margin-top:12px">
-            <div class="osservazione-label">Asse calcaneare:</div>
-            <div class="osservazione-buttons">
-              <button class="obs-btn" onclick="selectObs('piede-asse','Calcagno normale',this)">Normale</button>
-              <button class="obs-btn" onclick="selectObs('piede-asse','Piede valgo',this)">Valgo</button>
-              <button class="obs-btn" onclick="selectObs('piede-asse','Piede varo',this)">Varo</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="osservazione-label">Note podoscopio:</div>
-        <textarea class="notes-textarea" id="note-podo" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
-      </div>
-      <div class="saving-indicator" id="saving-note">✓ Salvato</div>
-    </div>
-
-    <!-- CONFIGURAZIONE -->
-    <div class="section ds-card">
-      <div class="section-title-plain ds-section-title-line">Configurazione cuscini</div>
-      <div class="config-selector">
-        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc" data-cfg-desc="NPL">Nero Posteriore Laterale</div></div>
-        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc" data-cfg-desc="GPL">Giallo Posteriore Laterale</div></div>
-      </div>
-      <div class="saving-indicator" id="saving-config">✓ Salvato</div>
-    </div>
-
-    <!-- MONITORAGGIO -->
-    <div class="section ds-card" id="section-monitoraggio">
-      <div class="section-title-plain ds-section-title-line">Monitoraggio</div>
-      <p style="font-size:13px;color:#666;margin-bottom:16px">Visualizza l'andamento del paziente nel tempo: aderenza, dolore, energia e diario.</p>
-      <div class="actions-row">
-        <button class="btn-primary" onclick="window.location.href='monitoraggio.html?id=' + patientId">📊 Vedi monitoraggio</button>
-        <button class="btn-primary" onclick="window.location.href='diario.html?pid=' + patientId">📋 Diario Sedute</button>
-        <button class="btn-primary" onclick="apptOpen()">📅 Appuntamento</button>
-      </div>
-    </div>
-
-    <!-- PROTOCOLLO -->
-    <div class="section ds-card" id="sez-protocollo">
-      <div class="section-title-plain ds-section-title-line">Protocollo</div>
-      <div id="protocollo-info" style="margin-bottom:16px">
-        <p style="font-size:13px;color:#666">Caricamento protocollo...</p>
-      </div>
-      <!-- scheda-strada-v1 (18/10, decisione A di Giuliano): la scheda di allenamento è la strada normale;
-           il protocollo resta sotto come rete, si assegna ancora ma in secondo piano. -->
-      <div class="actions-row">
-        <button class="btn-primary" id="btn-scheda-allenamento" style="font-size:15px;padding:14px 24px" onclick="window.location.href='scheda-prova.html?id=' + patientId">📋 Scheda di allenamento</button><!-- scheda-editor-v1 · scheda-collega-v3 · scheda-strada-v1 -->
-        <button class="btn-secondary" id="btn-assegna-protocollo" style="font-size:12px;padding:10px 16px;color:#666" onclick="window.location.href='assegna-protocollo.html?id=' + patientId">+ Assegna protocollo (come prima)</button>
-      </div>
-      <div id="scheda-nuova-stato" style="margin-top:10px"></div><!-- scheda-collega-v3 · quale delle due vede il paziente -->
-    </div>
-
-    <!-- STORICO PROTOCOLLI -->
-    <div class="section ds-card">
-      <div class="section-header">
-        <div class="section-title ds-section-title-line">Storico protocolli</div>
-        <button class="btn-edit" onclick="toggleStorico()" id="btn-storico">▼ Mostra</button>
-      </div>
-      <div id="storico-container" style="display:none">
-        <div id="storico-lista"><p style="font-size:13px;color:#666">Caricamento...</p></div>
-      </div>
-    </div>
-
-
+    <!-- semplice-4 (19/10) · Cartella clinica e Timeline spostate qui, subito dopo Visite e valutazioni (prima erano quasi in fondo). Contenuto identico. -->
     <!-- CARTELLA CLINICA -->
     <div class="section ds-card" id="cartella-clinica">
       <div class="section-header">
@@ -1241,6 +1077,175 @@
         <div class="tl-list" id="tl-list"></div>
       </div>
     </div>
+
+    <!-- FOTO SAGITTALI -->
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Foto posturali — Piano sagittale</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta le foto prima e dopo la Tecnica dei 3 Respiri. Poi seleziona il piano scapolare.</p>
+      <div class="foto-group-label"><span class="step-label">PRIMA</span> Piano sagittale — prima dei 3R</div>
+      <div class="foto-grid-2">
+        <div class="foto-slot" id="slot-prima-sx" onclick="triggerInput('prima-sx')"><div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+        <div class="foto-slot" id="slot-prima-dx" onclick="triggerInput('prima-dx')"><div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+      </div>
+      <div class="piano-scapolare-box">
+        <div class="piano-scapolare-title">Piano scapolare — prima dei 3R</div>
+        <div class="osservazione-buttons">
+          <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare in asse (prima)',this)">In asse</button>
+          <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare anteriore (prima)',this)">Anteriore</button>
+          <button class="obs-btn" onclick="selectObs('scapolare-prima','Piano scapolare posteriore (prima)',this)">Posteriore</button>
+        </div>
+        <div id="ai-hint-prima" style="display:none;margin-top:10px;font-size:12px;color:#666;line-height:1.5"></div>
+      </div>
+      <hr class="confronto-divider">
+      <div class="foto-group-label"><span class="step-label">DOPO</span> Piano sagittale — dopo i 3R</div>
+      <div class="foto-grid-2">
+        <div class="foto-slot" id="slot-dopo-sx" onclick="triggerInput('dopo-sx')"><div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+        <div class="foto-slot" id="slot-dopo-dx" onclick="triggerInput('dopo-dx')"><div class="foto-label">Destro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+      </div>
+      <div class="piano-scapolare-box">
+        <div class="piano-scapolare-title">Piano scapolare — dopo i 3R</div>
+        <div class="osservazione-buttons">
+          <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare in asse (dopo)',this)">In asse</button>
+          <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare anteriore (dopo)',this)">Anteriore</button>
+          <button class="obs-btn" onclick="selectObs('scapolare-dopo','Piano scapolare posteriore (dopo)',this)">Posteriore</button>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="osservazione-label">Note piano sagittale:</div>
+        <textarea class="notes-textarea" id="note-sagittale" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
+      </div>
+      <input type="file" id="input-prima-sx" accept="image/*" style="display:none" onchange="handleFoto('prima-sx',this)">
+      <input type="file" id="input-prima-dx" accept="image/*" style="display:none" onchange="handleFoto('prima-dx',this)">
+      <input type="file" id="input-dopo-sx" accept="image/*" style="display:none" onchange="handleFoto('dopo-sx',this)">
+      <input type="file" id="input-dopo-dx" accept="image/*" style="display:none" onchange="handleFoto('dopo-dx',this)">
+      <div class="saving-indicator" id="saving-sagittale">✓ Salvato</div>
+    </div>
+
+    <!-- PIANO FRONTALE -->
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Piano frontale e posteriore <span class="section-optional">(facoltativo)</span></div>
+      <div class="foto-grid-2" style="margin-bottom:16px">
+        <div>
+          <div class="foto-group-label">Piano frontale</div>
+          <div class="foto-slot" id="slot-frontale" onclick="triggerInput('frontale')"><div class="foto-label">Vista frontale</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+          <input type="file" id="input-frontale" accept="image/*" style="display:none" onchange="handleFoto('frontale',this)">
+        </div>
+        <div>
+          <div class="foto-group-label">Piano posteriore</div>
+          <div class="foto-slot" id="slot-posteriore" onclick="triggerInput('posteriore')"><div class="foto-label">Vista posteriore</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
+          <input type="file" id="input-posteriore" accept="image/*" style="display:none" onchange="handleFoto('posteriore',this)">
+        </div>
+      </div>
+      <div class="osservazione-group">
+        <div class="osservazione-label">Rotazione superiore:</div>
+        <div class="osservazione-buttons">
+          <button class="obs-btn" onclick="selectObs('rotazione-sup','Rotazione superiore normale',this)">Normale</button>
+          <button class="obs-btn" onclick="selectObs('rotazione-sup','Rotazione superiore sinistra',this)">Sinistra</button>
+          <button class="obs-btn" onclick="selectObs('rotazione-sup','Rotazione superiore destra',this)">Destra</button>
+        </div>
+      </div>
+      <div class="osservazione-group">
+        <div class="osservazione-label">Inclinazione capo:</div>
+        <div class="osservazione-buttons">
+          <button class="obs-btn" onclick="selectObs('inclinazione-capo','Inclinazione capo normale',this)">Normale</button>
+          <button class="obs-btn" onclick="selectObs('inclinazione-capo','Inclinazione capo sinistra',this)">Sinistra</button>
+          <button class="obs-btn" onclick="selectObs('inclinazione-capo','Inclinazione capo destra',this)">Destra</button>
+        </div>
+      </div>
+      <div>
+        <div class="osservazione-label">Note piano frontale/posteriore:</div>
+        <textarea class="notes-textarea" id="note-frontale" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
+      </div>
+      <div class="saving-indicator" id="saving-frontale">✓ Salvato</div>
+    </div>
+
+    <!-- PODOSCOPIO -->
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Osservazione podoscopica</div>
+      <div class="foto-grid-2" style="margin-bottom:16px">
+        <div>
+          <div class="foto-group-label">Vista plantare (da sotto)</div>
+          <div class="foto-slot" id="slot-podo-sotto" onclick="triggerInput('podo-sotto')"><div class="foto-label">Piede da sotto</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div></div>
+          <input type="file" id="input-podo-sotto" accept="image/*" style="display:none" onchange="handleFoto('podo-sotto',this)">
+          <div class="osservazione-group" style="margin-top:12px">
+            <div class="osservazione-label">Morfologia piede:</div>
+            <div class="osservazione-buttons">
+              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede normale',this)">Normale</button>
+              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede piatto',this)">Piatto</button>
+              <button class="obs-btn" onclick="selectObs('piede-morfologia','Piede cavo',this)">Cavo</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="foto-group-label">Vista posteriore (da dietro)</div>
+          <div class="foto-slot" id="slot-podo-dietro" onclick="triggerInput('podo-dietro')"><div class="foto-label">Piede da dietro</div><div class="foto-icon">🦶</div><div class="foto-hint">Tocca per foto</div></div>
+          <input type="file" id="input-podo-dietro" accept="image/*" style="display:none" onchange="handleFoto('podo-dietro',this)">
+          <div class="osservazione-group" style="margin-top:12px">
+            <div class="osservazione-label">Asse calcaneare:</div>
+            <div class="osservazione-buttons">
+              <button class="obs-btn" onclick="selectObs('piede-asse','Calcagno normale',this)">Normale</button>
+              <button class="obs-btn" onclick="selectObs('piede-asse','Piede valgo',this)">Valgo</button>
+              <button class="obs-btn" onclick="selectObs('piede-asse','Piede varo',this)">Varo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="osservazione-label">Note podoscopio:</div>
+        <textarea class="notes-textarea" id="note-podo" placeholder="Osservazioni libere..." oninput="scheduleNoteSave()"></textarea>
+      </div>
+      <div class="saving-indicator" id="saving-note">✓ Salvato</div>
+    </div>
+
+    <!-- CONFIGURAZIONE -->
+    <div class="section ds-card">
+      <div class="section-title-plain ds-section-title-line">Configurazione cuscini</div>
+      <div class="config-selector">
+        <div class="config-option" id="opt-npl" onclick="selectConfig('NPL')"><div class="config-name">NPL</div><div class="config-desc" data-cfg-desc="NPL">Nero Posteriore Laterale</div></div>
+        <div class="config-option" id="opt-gpl" onclick="selectConfig('GPL')"><div class="config-name">GPL</div><div class="config-desc" data-cfg-desc="GPL">Giallo Posteriore Laterale</div></div>
+      </div>
+      <div class="saving-indicator" id="saving-config">✓ Salvato</div>
+    </div>
+
+    <!-- MONITORAGGIO -->
+    <div class="section ds-card" id="section-monitoraggio">
+      <div class="section-title-plain ds-section-title-line">Monitoraggio</div>
+      <p style="font-size:13px;color:#666;margin-bottom:12px">Andamento nel tempo: aderenza, dolore, energia e diario.</p>
+      <!-- semplice-4 (19/10) · stessi 3 pulsanti, stesse pagine, in una riga sola (come semplice-2).
+           «Diario Sedute» si chiama «Diario» come nell'icona in alto e nella barra: è la stessa pagina. -->
+      <div class="mon-riga">
+        <button class="btn-primary" onclick="window.location.href='monitoraggio.html?id=' + patientId">📊 Monitoraggio</button>
+        <button class="btn-primary" onclick="window.location.href='diario.html?pid=' + patientId">📋 Diario</button>
+        <button class="btn-primary" onclick="apptOpen()">📅 Appuntamento</button>
+      </div>
+    </div>
+
+    <!-- PROTOCOLLO -->
+    <div class="section ds-card" id="sez-protocollo">
+      <div class="section-title-plain ds-section-title-line">Protocollo</div>
+      <div id="protocollo-info" style="margin-bottom:16px">
+        <p style="font-size:13px;color:#666">Caricamento protocollo...</p>
+      </div>
+      <!-- scheda-strada-v1 (18/10, decisione A di Giuliano): la scheda di allenamento è la strada normale;
+           il protocollo resta sotto come rete, si assegna ancora ma in secondo piano. -->
+      <div class="actions-row">
+        <button class="btn-primary" id="btn-scheda-allenamento" style="font-size:15px;padding:14px 24px" onclick="window.location.href='scheda-prova.html?id=' + patientId">📋 Scheda di allenamento</button><!-- scheda-editor-v1 · scheda-collega-v3 · scheda-strada-v1 -->
+        <button class="btn-secondary" id="btn-assegna-protocollo" style="font-size:12px;padding:10px 16px;color:#666" onclick="window.location.href='assegna-protocollo.html?id=' + patientId">+ Assegna protocollo (come prima)</button>
+      </div>
+      <div id="scheda-nuova-stato" style="margin-top:10px"></div><!-- scheda-collega-v3 · quale delle due vede il paziente -->
+    </div>
+
+    <!-- STORICO PROTOCOLLI -->
+    <div class="section ds-card">
+      <div class="section-header">
+        <div class="section-title ds-section-title-line">Storico protocolli</div>
+        <button class="btn-edit" onclick="toggleStorico()" id="btn-storico">▼ Mostra</button>
+      </div>
+      <div id="storico-container" style="display:none">
+        <div id="storico-lista"><p style="font-size:13px;color:#666">Caricamento...</p></div>
+      </div>
+    </div>
+
 
     <!-- COMPARAZIONE -->
     <div class="section ds-card">
