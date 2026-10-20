@@ -97,7 +97,7 @@
       <span class="navbar-logo">POLICETTIVO®</span>
       <span class="navbar-title">🎥 Video Esercizio</span>
     </div>
-    <button class="btn-back" onclick="history.back()">← Torna</button>
+    <button class="btn-back" onclick="tornaIndietro()">← Torna</button>
   </nav>
 
   <div class="pm-overlay" id="premium-modal">
@@ -204,6 +204,15 @@
     const params     = new URLSearchParams(window.location.search)
     const patientId  = params.get('id')
     const protocolId = params.get('protocol') || null
+    // scheda-video-v1: aperta dalla scheda di allenamento → dopo il salvataggio si torna lì
+    const daScheda   = params.get('torna') === 'scheda'
+    function urlScheda(nuovoId) {
+      return 'scheda-prova.html?id=' + encodeURIComponent(patientId) + (nuovoId ? '&nuovo=' + encodeURIComponent(nuovoId) : '')
+    }
+    function tornaIndietro() {
+      if (daScheda && patientId) { location.href = urlScheda(null); return }
+      history.back()
+    }
 
     let mediaStream       = null
     let mediaRecorder     = null
@@ -418,14 +427,14 @@
       const { error: upErr } = await _supabase.storage.from('videos').upload(path, pendingFile, { contentType: pendingFile.type })
       if (upErr) { alert('Errore upload: ' + upErr.message); btn.disabled = false; btn.textContent = '💾 Salva'; return }
       const { data: { publicUrl } } = _supabase.storage.from('videos').getPublicUrl(path)
-      const { error: dbErr } = await _supabase.from('exercise_videos').insert({
+      const { data: nuovoVideo, error: dbErr } = await _supabase.from('exercise_videos').insert({
         patient_id:  patientId,
         protocol_id: protocolId,
         titolo:      document.getElementById('titolo-input').value.trim() || null,
         descrizione: document.getElementById('desc-input').value.trim()   || null,
         url:         publicUrl,
         tipo:        pendingType
-      })
+      }).select('id').maybeSingle()
       if (dbErr) { alert('Errore salvataggio: ' + dbErr.message); btn.disabled = false; btn.textContent = '💾 Salva'; return }
 
       const saveToLibrary = document.getElementById('salva-libreria').checked
@@ -452,6 +461,8 @@
           if (libErr) alert('Errore salvataggio in libreria studio: ' + libErr.message)
         }
       }
+
+      if (daScheda) { location.replace(urlScheda(nuovoVideo && nuovoVideo.id)); return }
 
       btn.disabled = false; btn.textContent = '💾 Salva'
       document.getElementById('titolo-input').value = ''

@@ -554,6 +554,7 @@
     await caricaProtocollo()
     await caricaModelli()
     disegnaTutto()
+    apriVideoNuovo()
   }
 
   // ── scheda-collega-v1 · visibile al paziente ──
@@ -955,7 +956,7 @@
         return '<button class="card-scelta c' + (i + 1) + '" data-card="' + c + '" onclick="vaiCard(\'' + c + '\')">' +
           '<span class="ico">' + CARD[c].ico + '</span><span><div class="tt">' + CARD[c].tt + '</div><div class="dd">' + CARD[c].dd + ' · ' + tot + '</div></span>' +
           (sel ? '<span class="cnt">' + sel + ' ✓</span>' : '') + '</button>'
-      }).join('') + '</div>' +
+      }).join('') + '</div>' + registraHtml() +
       '<div class="gruppo">Non è in nessuna card?</div>' + liberoHtml()
     } else {
       const q = $('cerca').value.trim().toLowerCase()
@@ -972,8 +973,9 @@
         '</div>' + gestioneHtml(x)
       }).join('')
       if (!lista.length) html = '<div class="vuoto">' + (q ? 'Nessun esercizio con questo nome.' : (cardAperta === 'tuoi'
-        ? 'Nessun esercizio registrato. Si registrano da «Assegna protocollo», come prima: poi compaiono qui.'
+        ? 'Nessun esercizio registrato per questo paziente: registralo col pulsante qui sopra.'
         : 'Nessun esercizio.')) + '</div>'
+      if (cardAperta === 'tuoi' && !q) html = registraHtml() + html
       if (cardAperta === 'tuoi') html += '<div class="gruppo">Scrivilo a mano</div>' + liberoHtml()
     }
     $('scelta').innerHTML = html
@@ -1046,6 +1048,26 @@
     }
     scelti = scelti.filter(function (k) { return k !== key })
     disegnaScelta(); disegnaRighe()
+  }
+  // ── scheda-video-v1: registrare il video personalizzato senza passare dal protocollo ──
+  // Si apre video-esercizio.html con torna=scheda: dopo il salvataggio torna qui con
+  // &nuovo=<id video> e il video compare già spuntato in «I tuoi esercizi».
+  function registraHtml() {
+    return '<button class="btn nero" id="btn-registra-video" style="width:100%;margin-top:12px" onclick="vaiARegistrare()">🎥 Registra un video per questo paziente</button>'
+  }
+  window.vaiARegistrare = function () {
+    if (sporco) { toast('Prima salva la scheda, poi registra il video'); return }
+    location.href = 'video-esercizio.html?id=' + encodeURIComponent(patientId) + '&torna=scheda'
+  }
+  function apriVideoNuovo() {
+    const nuovo = params.get('nuovo')
+    if (!nuovo) return
+    try { history.replaceState(null, '', 'scheda-prova.html?id=' + encodeURIComponent(patientId)) } catch (e) {}
+    if (!videoPaz.some(function (v) { return v.id === nuovo })) return
+    apriScelta()
+    scelti = ['v:' + nuovo]
+    vaiCard('tuoi')
+    toast('Video salvato: tocca «Aggiungi» per metterlo nella scheda', 'success')
   }
   function liberoHtml() {
     return '<div class="row"><input class="inp" id="nome-libero" placeholder="Es. Tre respiri profondi" style="flex:1;min-width:160px">' +
