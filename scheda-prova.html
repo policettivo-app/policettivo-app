@@ -28,6 +28,8 @@
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
+  <script src="utils-ai.js"></script>
+  <script src="js/ai-correggi.js?v=ai-correggi-v1"></script><!-- ai-correggi-v1 -->
   <script src="js/configurazioni.js"></script><!-- scheda-npl-v1 : NPL/GPL si scrivono in js/configurazioni.js -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -996,11 +998,13 @@
       (gestElimina === x.key ? (x.tipoGest === 'video' ? 'Tolgo dal paziente e dai protocolli: tocca ancora' : 'Tolgo dalla libreria: tocca ancora') : '🗑 ' + (x.tipoGest === 'video' ? 'Elimina' : 'Elimina dalla libreria')) + '</button>'
     if (gestAperta === x.key) {
       html += '<div class="gnota"><textarea class="inp" id="nota-' + k + '" placeholder="Es. piano, respira col naso; fermati se senti dolore">' + esc(x.nota) + '</textarea>' +
+        '<div><button type="button" class="ai-correggi" onclick="correggiNota(\'' + k + '\', this)" style="margin-top:8px;background:#111;border:1.5px solid #FFD008;color:#FFD008;padding:8px 12px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">✨ Correggi e sintetizza con AI <span style="font-size:10px;opacity:.8">PRO</span></button></div>' +
         '<div class="row" style="margin-top:6px"><button class="btn giallo" style="padding:10px 16px" onclick="salvaNota(\'' + k + '\')">Salva nota</button>' +
         '<button class="btn" style="padding:10px 16px" onclick="apriNota(null)">Annulla</button></div></div>'
     }
     return html + '</div>'
   }
+  window.correggiNota = function (key, btn) { if (window.polCorreggiTesto) polCorreggiTesto('nota-' + key, btn, sb) }  // ai-correggi-v1
   window.apriNota = function (key) { gestAperta = gestAperta === key ? null : key; gestElimina = null; disegnaScelta() }
   window.salvaNota = async function (key) {
     const x = catalogo().find(function (c) { return c.key === key }); if (!x || !x.video_id) return
