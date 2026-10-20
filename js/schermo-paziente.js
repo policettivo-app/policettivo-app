@@ -68,6 +68,17 @@
     // gradi-foto-v1 · i gradi sulle foto (3A 4A)
     gradi_bottone:      '° Gradi',
     rif_bottone:        '📐 Riferimento',
+    // criteri-v1 (20/10) · «Come si legge» sotto le foto quando è acceso il Riferimento.
+    // ⚠️ DA RILEGGERE DA GIULIANO. Fonte dei reperi: suo documento sulle Linee guida
+    // del Ministero della Salute sulla postura (2018); il PDF originale non è stato riletto qui.
+    rif_titolo:         'Come si legge',
+    rif_legenda_giallo: 'Come stai tu',
+    rif_legenda_verde:  'La linea di riferimento, costruita su di te',
+    rif_profilo:        'Di profilo il riferimento è il filo a piombo, una linea verticale che parte dalla caviglia: orecchio, spalla, anca e ginocchio vicini a questa linea. I cerchi verdi mostrano dove sarebbero i tuoi punti se fossero sulla linea.',
+    rif_fronte:         'Di fronte e di spalle il riferimento è la simmetria: le linee di spalle, bacino, ginocchia e caviglie vicine all’orizzontale, cioè alla stessa altezza dai due lati.',
+    rif_onesto:         'È un riferimento geometrico, non una regola: ognuno ha la sua forma. Una piccola differenza non vuol dire che ci sia un problema; il tuo fisioterapista la legge insieme al resto della visita.',
+    rif_fonte:          'Riferimento: Linee guida del Ministero della Salute sulla postura (2018).',
+    rif_attendi:        '⚡ Trovo i punti sulle due foto…',
     gradi_nota:         'Differenza da confermare: l’errore di questa misura non è ancora stato misurato. I gradi si leggono, non si giudicano.',
     /* editor-punti-v1 */ gradi_nota_misurata:'Conta solo una differenza oltre l’errore della misura, misurato ripetendo le foto: sotto, è «invariato».',
     sintesi_gradi:      'Le foto hanno {n} confronti in gradi: la differenza si legge, ma non si giudica finché non misuriamo l’errore della misura.',

@@ -14,12 +14,12 @@
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
   <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
   <script src="js/stepping.js?v=stepping-v1"></script><!-- stepping-v1 -->
-  <script src="js/schermo-paziente.js?v=foto-grandezza-v1"></script>
+  <script src="js/schermo-paziente.js?v=criteri-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
   <!-- gradi-foto-v1 · i gradi sulle foto: punti confermati, riferimento personale -->
-  <script src="js/misure-foto.js?v=foto-grandezza-v1"></script>
+  <script src="js/misure-foto.js?v=criteri-v1"></script>
   <!-- editor-punti-v1 · l'editor dei punti sta in un file solo (lo usa anche la Fase 0) -->
   <script src="js/editor-punti.js?v=gradi-auto-v1"></script>
   <!-- tv-facile-v1 (25 set: TV accesa da sola, «in onda», tutto il collegamento in tv-collega.html) · tv-multi-v1 (25 set: TV aperta da questo computer senza codice) · tv-codice-v1 (25 set: la TV si collega con un codice, senza account) · tv-v1 (24 set: TV col telecomando) · schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
@@ -254,6 +254,18 @@
     .riquadro svg.sovra { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
     .modo button.gr.on { background: var(--giallo); border-color: var(--giallo); color: #000; }
     .modo button.rf.on { background: var(--verde); border-color: var(--verde); color: #000; }
+    /* criteri-v1 · «Come si legge» sotto le foto, quando è acceso il Riferimento */
+    .rif-riga { display: flex; gap: 18px; align-items: center; background: #101a16; border: 1px solid #1d5c47; border-radius: 16px; padding: 14px 18px; margin-top: 10px; }
+    .rif-riga .schema { width: 140px; flex-shrink: 0; }
+    .rif-riga .schema svg { width: 100%; height: auto; display: block; }
+    .rif-riga .rt { font-size: 15px; font-weight: 900; color: var(--verde); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 6px; }
+    .rif-riga .rc { font-size: 17px; line-height: 1.45; color: #eee; }
+    .rif-riga .leg { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 8px; font-size: 14px; font-weight: 700; color: #ccc; }
+    .rif-riga .leg i { display: inline-block; width: 22px; height: 0; vertical-align: middle; margin-right: 6px; }
+    .rif-riga .leg .g i { border-top: 4px solid var(--giallo); }
+    .rif-riga .leg .v i { border-top: 3px dashed var(--verde); }
+    .rif-riga .ro { font-size: 13px; color: #9a9a9a; line-height: 1.45; margin-top: 8px; }
+    @media (max-width: 700px) { .rif-riga { flex-direction: column; align-items: flex-start; } .rif-riga .rc { font-size: 15px; } }
     .gradi-riga { display: flex; gap: 12px; justify-content: center; margin-top: 12px; flex-wrap: nowrap; }
     .gradi-voce { background: var(--carta); border: 1px solid var(--riga); border-radius: 14px; padding: 10px 16px; min-width: 0; flex: 1; max-width: 340px; }
     .gv-nome { font-size: 16px; color: var(--testo2); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -990,7 +1002,7 @@ function slideFoto(g, ps) {
       '<svg class="sovra" aria-hidden="true"></svg></div></div>'
     corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', dopoDi()) + '</div>' +
       (allinAuto ? '<div class="allin stessa" style="text-align:center;font-size:16px;color:#8a8a8a;font-weight:600;margin-top:6px">' + esc(T.foto_stessa_grandezza || '') + '</div>' : '') +
-      strisciaGradi(ps.plane, f)
+      strisciaGradi(ps.plane, f) + strisciaRif(ps.plane, f)
   }
   return '<div class="slide" data-s="foto">' +
     testa(T[ps.titolo], ps.sotto) + corpo +
@@ -1064,7 +1076,30 @@ async function toggleGradi(plane) {
   }
   vediGradi[plane] = !vediGradi[plane]; const c = corrente; costruisci(); vai(c, true)
 }
-function toggleRif(plane) { vediRif[plane] = !vediRif[plane]; const c = corrente; costruisci(); vai(c, true) }
+/* criteri-v1 · come «° Gradi»: se le foto non hanno ancora i punti, li trova il modello */
+async function toggleRif(plane) {
+  const g = giorni[sel], f = g && g.foto[plane]
+  if (!vediRif[plane] && f && !coppiaMisurata(plane, f) && misurabileAuto(plane, f)) {
+    avvisoGradi(T.rif_attendi || '')
+    const r = await misuraAuto(plane, g)
+    if (!r.ok) { avvisoGradi('Riferimento non disegnato: ' + r.errore + ' Puoi mettere i punti a mano da «Gradi sulle foto».', true); setTimeout(() => avvisoGradi(''), 6000); return }
+    avvisoGradi('')
+  }
+  vediRif[plane] = !vediRif[plane]; const c = corrente; costruisci(); vai(c, true)
+}
+/* criteri-v1 · «Come si legge»: sagoma schematica + criterio + legenda + nota onesta.
+   Le parole stanno in js/schermo-paziente.js (da rileggere da Giuliano). */
+function strisciaRif(plane, f) {
+  if (!vediRif[plane] || !PM || !PM.svgSchema || !coppiaMisurata(plane, f)) return ''
+  const vista = PM.vistaDi(plane)
+  if (!vista) return ''
+  return '<div class="rif-riga"><div class="schema">' + PM.svgSchema(vista) + '</div><div>' +
+    '<div class="rt">' + esc(T.rif_titolo) + '</div>' +
+    '<div class="rc">' + esc(vista === 'sagittale' ? T.rif_profilo : T.rif_fronte) + '</div>' +
+    '<div class="leg"><span class="g"><i></i>' + esc(T.rif_legenda_giallo) + '</span><span class="v"><i></i>' + esc(T.rif_legenda_verde) + '</span></div>' +
+    '<div class="ro">' + esc(T.rif_onesto) + ' ' + esc(T.rif_fonte) + '</div>' +
+    '</div></div>'
+}
 function strisciaGradi(plane, f) {
   if (!vediGradi[plane] || !coppiaMisurata(plane, f)) return ''
   const a = misuraDi(f.pre), b = misuraDi(f.post)

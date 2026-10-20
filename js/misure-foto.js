@@ -234,7 +234,8 @@
         linea: [norm({ x: C.x - assi.su.x * L * 0.1, y: C.y - assi.su.y * L * 0.1 }), norm({ x: C.x + assi.su.x * L, y: C.y + assi.su.y * L })] }
     }
     var righe = []
-    ;[['spalla_dx', 'spalla_sx'], ['anca_dx', 'anca_sx']].forEach(function (c) {
+    // criteri-v1 (20/10): anche ginocchia e caviglie (linea birotulea e bimalleolare)
+    ;[['spalla_dx', 'spalla_sx'], ['anca_dx', 'anca_sx'], ['ginocchio_dx', 'ginocchio_sx'], ['caviglia_dx', 'caviglia_sx']].forEach(function (c) {
       if (!punti[c[0]] || !punti[c[1]]) return
       var A = px(punti[c[0]], W, H), B = px(punti[c[1]], W, H), M = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 }
       var mezza = Math.hypot(B.x - A.x, B.y - A.y) * 0.75
@@ -270,11 +271,28 @@
         '<text x="' + n(x + w / 2) + '" y="' + n(A.y + 1.35 * u) + '" fill="#fff" font-size="' + n(3.9 * u) + '" font-weight="800" text-anchor="middle" font-family="Montserrat,Helvetica,Arial,sans-serif">' + escS(testo) + '</text></g>') }
     var med = function (a, b) { return (a && b) ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null }
     if (opz.rif) {
+      /* criteri-v1 (20/10) · i criteri di riferimento, costruiti sul paziente:
+         VERDE = il riferimento (filo a piombo / orizzontali) e la sagoma che
+         avrebbe se i suoi punti ci fossero sopra; GIALLO = come sta lui.
+         Il giallo si disegna solo senza «° Gradi», che ha già i suoi punti bianchi. */
+      var GIALLO = '#FFD008', VERDE = '#00C48C'
       var rf = riferimento(vista, pt, W, H)
       if (rf && rf.tipo === 'verticale') {
-        linea(rf.linea[0], rf.linea[1], '#00C48C', 0.45, [1.6, 1.1])
-        rf.fantasmi.forEach(function (fm) { linea(fm.reale, fm.ideale, 'rgba(0,196,140,.7)', 0.3, [0.6, 0.7]); punto(fm.ideale, '#00C48C', 1.25, true) })
-      } else if (rf) rf.righe.forEach(function (r) { linea(r.ideale[0], r.ideale[1], '#00C48C', 0.45, [1.6, 1.1]) })
+        linea(rf.linea[0], rf.linea[1], VERDE, 0.45, [1.6, 1.1])
+        var ordine = ['orecchio', 'spalla', 'anca', 'ginocchio'], id = {}
+        rf.fantasmi.forEach(function (fm) { id[fm.k] = fm.ideale })
+        var sagoma = ordine.filter(function (k) { return id[k] }).map(function (k) { return id[k] }).concat(pt.caviglia ? [pt.caviglia] : [])
+        for (var s1 = 0; s1 < sagoma.length - 1; s1++) linea(sagoma[s1], sagoma[s1 + 1], 'rgba(0,196,140,.55)', 0.55, [0.9, 0.7])
+        if (!opz.gradi) {
+          var vera = ordine.concat(['caviglia']).filter(function (k) { return pt[k] }).map(function (k) { return pt[k] })
+          for (var s2 = 0; s2 < vera.length - 1; s2++) linea(vera[s2], vera[s2 + 1], GIALLO, 0.55)
+          vera.forEach(function (q) { punto(q, GIALLO, 1.15) })
+        }
+        rf.fantasmi.forEach(function (fm) { linea(fm.reale, fm.ideale, 'rgba(0,196,140,.85)', 0.3, [0.6, 0.7]); punto(fm.ideale, VERDE, 1.25, true) })
+      } else if (rf) rf.righe.forEach(function (r) {
+        linea(r.ideale[0], r.ideale[1], VERDE, 0.45, [1.6, 1.1])
+        if (!opz.gradi) { linea(r.reale[0], r.reale[1], GIALLO, 0.5); punto(r.reale[0], GIALLO, 1); punto(r.reale[1], GIALLO, 1) }
+      })
     }
     if (opz.gradi) {
       linea(pt.filo_alto, pt.filo_basso, '#FFD008', 0.3, [1.4, 1.1])
@@ -368,7 +386,42 @@
     } catch (e) { return null }
   }
 
+  /* criteri-v1 (20/10) · IL DISEGNO «COME SI LEGGE»: una sagoma schematica,
+     disegnata qui (niente immagini di terzi), con il riferimento in verde.
+     vista: 'sagittale' | 'frontale' | 'posteriore'. Ritorna un <svg> completo. */
+  function svgSchema(vista) {
+    var V = '#00C48C', B = '#e8e8e8', T = '#9a9a9a'
+    var corpo = 'fill="none" stroke="' + B + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"'
+    var dot = function (x, y) { return '<circle cx="' + x + '" cy="' + y + '" r="3.2" fill="' + V + '" stroke="#0B0B0B" stroke-width="1"/>' }
+    var txt = function (x, y, t, anc) { return '<text x="' + x + '" y="' + y + '" fill="' + T + '" font-size="11" font-weight="700" font-family="Montserrat,Helvetica,Arial,sans-serif" text-anchor="' + (anc || 'start') + '">' + t + '</text>' }
+    if (vista === 'sagittale') {
+      // profilo rivolto a destra; il filo passa per orecchio, spalla, anca, davanti a ginocchio e malleolo
+      var X = 60
+      return '<svg viewBox="0 0 160 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sagoma di profilo con il filo a piombo">' +
+        '<line x1="' + X + '" y1="6" x2="' + X + '" y2="222" stroke="' + V + '" stroke-width="2" stroke-dasharray="5 4"/>' +
+        '<ellipse cx="64" cy="26" rx="15" ry="17" ' + corpo + '/>' +
+        '<path d="M57 42 L56 52 M69 42 L70 52" ' + corpo + '/>' +
+        '<path d="M50 54 Q60 50 74 56 Q80 80 76 104 Q74 116 70 122 L50 122 Q44 104 46 84 Q46 64 50 54 Z" ' + corpo + '/>' +
+        '<path d="M60 58 Q58 84 64 108" ' + corpo + '/>' +
+        '<path d="M52 122 Q50 160 56 176 Q56 196 54 214 L72 214 M66 122 Q66 160 64 176 Q62 196 62 212" ' + corpo + '/>' +
+        dot(X, 26) + dot(X, 58) + dot(X, 118) + dot(X, 170) + dot(X, 212) +
+        txt(84, 29, 'orecchio') + txt(84, 61, 'spalla') + txt(84, 121, 'anca') + txt(84, 173, 'ginocchio') + txt(84, 215, 'caviglia') +
+        '</svg>'
+    }
+    var righe = [[52, 'spalle'], [112, 'bacino'], [166, 'ginocchia'], [210, 'caviglie']]
+    return '<svg viewBox="0 0 160 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sagoma di fronte con le linee orizzontali">' +
+      righe.map(function (r) { return '<line x1="6" y1="' + r[0] + '" x2="102" y2="' + r[0] + '" stroke="' + V + '" stroke-width="2" stroke-dasharray="5 4"/>' + txt(105, r[0] + 4, r[1]) }).join('') +
+      '<ellipse cx="59" cy="24" rx="14" ry="17" ' + corpo + '/>' +
+      '<path d="M53 40 L53 48 M65 40 L65 48" ' + corpo + '/>' +
+      '<path d="M32 52 L86 52 L80 112 L38 112 Z" ' + corpo + '/>' +
+      '<path d="M32 52 L24 110 M86 52 L94 110" ' + corpo + '/>' +
+      '<path d="M44 112 L46 166 L47 210 M74 112 L72 166 L71 210" ' + corpo + '/>' +
+      dot(32, 52) + dot(86, 52) + dot(40, 112) + dot(78, 112) + dot(46, 166) + dot(72, 166) + dot(47, 210) + dot(71, 210) +
+      '</svg>'
+  }
+
   global.PolMisure = {
+    svgSchema: svgSchema,                       // criteri-v1
     allineamentoDaPunti: allineamentoDaPunti,   // foto-grandezza-v1
     ripetibilita: ripetibilita, erroreDi: erroreDi,
     svgMisura: svgMisura,
