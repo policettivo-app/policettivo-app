@@ -79,10 +79,19 @@
     rif_onesto:         'È un riferimento geometrico, non una regola: ognuno ha la sua forma. Una piccola differenza non vuol dire che ci sia un problema; il tuo fisioterapista la legge insieme al resto della visita.',
     rif_fonte:          'Riferimento: Linee guida del Ministero della Salute sulla postura (2018).',
     rif_attendi:        '⚡ Trovo i punti sulle due foto…',
-    // gradi-parole-v1 (21/10) · ⚠️ DA RILEGGERE DA GIULIANO
-    gradi_come:         '0° vuol dire «sulla linea di riferimento»: più il numero è piccolo, più quel tratto del corpo è vicino alla linea.',
-    gradi_vicino:       '{d}° più vicino alla linea',
-    gradi_lontano:      '{d}° più lontano dalla linea',
+    // gradi-neutri-v1 (21/10, decisione A) · cosa si è mosso, non «vicino/lontano dalla linea».
+    // ⚠️ DA RILEGGERE DA GIULIANO
+    gradi_come:         '0° vuol dire «sulla linea del filo a piombo», ma non è il valore ideale: le curve naturali della schiena portano testa e spalle un po’ fuori linea. Qui si guarda che cosa si è mosso tra prima e dopo; il significato lo spiega il tuo fisioterapista.',
+    gradi_chi_testa:    'La testa',
+    gradi_chi_tronco:   'Le spalle',
+    gradi_chi_gamba:    'Il bacino',
+    gradi_chi_globale:  'Tutto il corpo',
+    gradi_avanti:       '{chi}: {d}° più in avanti di prima',
+    gradi_indietro:     '{chi}: {d}° più indietro di prima',
+    gradi_alza_dx:      'Lato destro {d}° più alto di prima',
+    gradi_alza_sx:      'Lato sinistro {d}° più alto di prima',
+    gradi_interno:      '{d}° più verso l’interno di prima',
+    gradi_esterno:      '{d}° più verso l’esterno di prima',
     gradi_uguale:       'Uguale a prima',
     gradi_nota:         'Differenza da confermare: l’errore di questa misura non è ancora stato misurato. I gradi si leggono, non si giudicano.',
     /* editor-punti-v1 */ gradi_nota_misurata:'Conta solo una differenza oltre l’errore della misura, misurato ripetendo le foto: sotto, è «invariato».',

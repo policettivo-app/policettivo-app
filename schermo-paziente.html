@@ -14,7 +14,7 @@
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
   <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
   <script src="js/stepping.js?v=stepping-v1"></script><!-- stepping-v1 -->
-  <script src="js/schermo-paziente.js?v=gradi-parole-v1"></script>
+  <script src="js/schermo-paziente.js?v=gradi-neutri-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
@@ -281,7 +281,7 @@
     .zoom-fondo .riquadro { cursor: zoom-out; }
     .gradi-riga { display: flex; gap: 12px; justify-content: center; margin-top: 12px; flex-wrap: nowrap; }
     .gradi-voce { background: var(--carta); border: 1px solid var(--riga); border-radius: 14px; padding: 10px 16px; min-width: 0; flex: 1; max-width: 340px; }
-    .gv-dir { font-size: 15px; font-weight: 800; color: #e6e6e6; margin-top: 4px; }   /* gradi-parole-v1 */
+    .gv-dir { font-size: 15px; font-weight: 800; color: #e6e6e6; margin-top: 4px; }   /* gradi-parole-v1 · gradi-neutri-v1 */
     .gv-nome { font-size: 16px; color: var(--testo2); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .gv-val { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
     .gv-val .a { font-size: 24px; font-weight: 800; color: #bdbdbd; }
@@ -1140,13 +1140,28 @@ function apriZoom(box) {
   document.body.appendChild(z)
   requestAnimationFrame(() => stessaGrandezza(copia))
 }
-/* gradi-parole-v1 (21/10) · ogni card dice a parole se quel tratto si è avvicinato
-   o allontanato dal riferimento (0°). Non è un verdetto: il colore arriva solo
-   quando la Fase 0 avrà misurato l'errore. */
+/* gradi-neutri-v1 (21/10, decisione A) · ogni card dice COSA si è mosso e da che
+   parte, con il segno dei gradi. Non dice «più vicino alla linea»: 0° non è l'ideale,
+   le curve fisiologiche portano testa e spalle fuori dal filo. Nessun verdetto: quello
+   arriva solo oltre l'errore misurato dalla Fase 0, e lo interpreta il professionista. */
 function direzioneGradi(r) {
-  const d = Math.round((r.b.valore - r.a.valore) * 10) / 10
+  const ga = r.a && r.a.gradi, gb = r.b && r.b.gradi
+  if (ga == null || gb == null) return ''
+  const d = Math.round((gb - ga) * 10) / 10
   if (Math.abs(d) < 0.05) return T.gradi_uguale || ''
-  return (d < 0 ? (T.gradi_vicino || '') : (T.gradi_lontano || '')).replace('{d}', PM.numIt(Math.abs(d)))
+  const n = PM.numIt(Math.abs(d))
+  const chi = { testa: T.gradi_chi_testa, tronco: T.gradi_chi_tronco, gamba: T.gradi_chi_gamba, globale: T.gradi_chi_globale }[r.k]
+  let t = ''
+  if (chi) t = (d > 0 ? T.gradi_avanti : T.gradi_indietro || '').replace('{chi}', chi)
+  else if (r.k === 'spalle' || r.k === 'bacino') t = d > 0 ? T.gradi_alza_dx : T.gradi_alza_sx
+  else if (/^ginocchio/.test(r.k)) t = d > 0 ? T.gradi_interno : T.gradi_esterno
+  return String(t || '').replace('{d}', n)
+}
+// gradi-neutri-v1 · il numero a destra della card = di quanto si è mosso, col segno (+ avanti / destra più alta / verso l'interno)
+function segnoMosso(r) {
+  const ga = r.a && r.a.gradi, gb = r.b && r.b.gradi
+  const d = (ga == null || gb == null) ? r.delta : Math.round((gb - ga) * 10) / 10
+  return (d > 0 ? '+' : d < 0 ? '−' : '±') + PM.numIt(Math.abs(d))
 }
 function strisciaGradi(plane, f) {
   if (!vediGradi[plane] || !coppiaMisurata(plane, f)) return ''
@@ -1158,7 +1173,7 @@ function strisciaGradi(plane, f) {
   return '<div class="gradi-riga">' + righe.map(r =>
     '<div class="gradi-voce"><div class="gv-nome">' + esc(r.nome) + '</div>' +
     '<div class="gv-val"><span class="a">' + PM.numIt(r.a.valore) + '°</span><span class="fr">→</span><span class="b">' + PM.numIt(r.b.valore) + '°</span>' +
-    '<span class="d">' + (r.delta > 0 ? '+' : r.delta < 0 ? '−' : '±') + PM.numIt(Math.abs(r.delta)) + '°</span></div>' +
+    '<span class="d">' + segnoMosso(r) + '°</span></div>' +   // gradi-neutri-v1: stesso conto della frase
     '<div class="gv-parola">' + esc(r.a.parola) + ' → ' + esc(r.b.parola) + '</div>' +
     '<div class="gv-dir">' + esc(direzioneGradi(r)) + '</div>' +   // gradi-parole-v1
     (r.esito !== 'daconfermare' ? '<div style="margin-top:6px">' + badge(r.esito, parolaEsito(r.esito)) + '</div>' : '') + '</div>').join('') +
