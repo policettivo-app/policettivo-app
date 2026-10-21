@@ -18,6 +18,8 @@
      questo dispositivo restano solo punti e gradi (localStorage). -->
 <script src="js/misure-foto.js?v=verticale-gravita-v1"></script>
 <script src="js/editor-punti.js?v=verticale-gravita-v1"></script>
+<!-- fase0-camera-v1 (21/10) · la stessa fotocamera delle visite: livella e foto raddrizzata dalla gravità -->
+<script src="js/camera-pol.js?v=verticale-gravita-v1"></script>
 <style>
   *{box-sizing:border-box}
   body{margin:0;background:#fafafa;color:#111;font-family:Montserrat,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -176,7 +178,7 @@
       var chiave = sel.persona + '|' + V.id + '|' + i
       if (!f) return '<div class="slot"><b>Foto ' + (i + 1) + '</b><span class="attesa">' +
         (i ? 'Scendi dalla dima, rimetti i piedi, scatta.' : 'Prima foto.') + '</span>' +
-        '<button class="btn scuro" data-scatta="' + i + '">📷 Scatta o scegli</button></div>'
+        '<button class="btn scuro" data-scatta="' + i + '">📷 Scatta</button></div>'
       return '<div class="slot fatto"><b>Foto ' + (i + 1) + ' ✓</b><div class="g">' +
         (f.gradi || []).map(function(m){ return esc(m.nome) + ': <b>' + it(m.gradi) + '°</b>' }).join('<br>') + '</div>' +
         '<div class="riga" style="margin-top:4px">' +
@@ -192,13 +194,40 @@
   }
 
   var inAttesa = null
-  function scegli(i){ inAttesa = i; $('file').value = ''; $('file').click() }
+  var raddrizzate = {}   // fase0-camera-v1 · chiave → gradi di raddrizzamento allo scatto (null = dalla galleria)
+  function dallaGalleria(){ $('file').value = ''; $('file').click() }
+  /* fase0-camera-v1 · si scatta con la STESSA fotocamera delle visite (js/camera-pol.js):
+     livella e foto raddrizzata dalla gravità. Così la Fase 0 misura l'errore nelle stesse
+     condizioni dei pazienti. Senza fotocamera (computer, permesso negato) si sceglie un file. */
+  async function scegli(i){
+    inAttesa = i
+    if (!window.polCamera) { dallaGalleria(); return }
+    var V = VISTE[sel.vista]
+    var ok = false
+    try {
+      ok = await window.polCamera.open({
+        label: V.nome + ' · foto ' + (i + 1),
+        hint: i ? 'Scendi dalla dima, rimetti i piedi, scatta.' : 'Prima foto: piedi sulla dima.',
+        showCross: true, showTargets: true,
+        onShot: function(raw, meta){
+          var chiave = sel.persona + '|' + V.id + '|' + inAttesa
+          if (url[chiave] && /^blob:/.test(url[chiave])) try { URL.revokeObjectURL(url[chiave]) } catch(e){}
+          url[chiave] = raw
+          raddrizzate[chiave] = meta && meta.sensore ? meta.raddrizzata : null
+          misura(inAttesa, true)
+        },
+        onGallery: dallaGalleria
+      })
+    } catch(e){ ok = false }
+    if (!ok) dallaGalleria()
+  }
   $('file').addEventListener('change', function(){
     var f = this.files && this.files[0]
     if (!f || inAttesa == null) return
     var V = VISTE[sel.vista], chiave = sel.persona + '|' + V.id + '|' + inAttesa
-    if (url[chiave]) try { URL.revokeObjectURL(url[chiave]) } catch(e){}
+    if (url[chiave] && /^blob:/.test(url[chiave])) try { URL.revokeObjectURL(url[chiave]) } catch(e){}
     url[chiave] = URL.createObjectURL(f)
+    raddrizzate[chiave] = null
     misura(inAttesa, true)
   })
 
@@ -211,7 +240,8 @@
       gia: (!nuova && gia) ? { punti: gia.punti, verso: gia.verso, origine: gia.origine } : null,
       salva: async function(d){
         foto(p, V.id)[i] = { gradi: d.gradi, punti: d.punti, verso: d.verso, origine: d.origine,
-          larghezza: d.larghezza, altezza: d.altezza, quando: new Date().toISOString() }
+          larghezza: d.larghezza, altezza: d.altezza, quando: new Date().toISOString(),
+          raddrizzata: raddrizzate[chiave] == null ? null : raddrizzate[chiave] }   // fase0-camera-v1
         salvaMemoria()
         return { ok: true, dopo: tutto }
       }
