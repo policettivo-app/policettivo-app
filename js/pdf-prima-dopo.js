@@ -150,14 +150,16 @@
           return '<tr><td ' + td + '>' + esc(r.vista) + '</td><td ' + td + '>' + esc(r.c.nome) + '</td>' +
             '<td ' + td + '>' + num(r.c.a.valore) + '° <span style="color:#888">' + esc(r.c.a.parola) + '</span></td>' +
             '<td ' + td + '><b>' + num(r.c.b.valore) + '°</b> <span style="color:#888">' + esc(r.c.b.parola) + '</span></td>' +
-            '<td ' + td + '>' + (r.c.delta > 0 ? '+' : r.c.delta < 0 ? '−' : '±') + num(Math.abs(r.c.delta)) + '°</td>' +
+            '<td ' + td + '>' + ((r.c.mosso != null ? r.c.mosso : r.c.delta) > 0 ? '+' : (r.c.mosso != null ? r.c.mosso : r.c.delta) < 0 ? '−' : '±') + num(Math.abs(r.c.mosso != null ? r.c.mosso : r.c.delta)) + '°</td>' +   // fase0-soglie-v1: movimento col segno
             (giud ? '<td ' + td + '>' + (r.c.errore == null ? '<span style="color:#888">da confermare</span>'
-              : '<b>' + ({ meglio: 'Più vicino al riferimento', uguale: 'Invariato', lavoro: 'Più lontano dal riferimento' }[r.c.esito] || '') + '</b> <span style="color:#888">(±' + num(r.c.errore) + '°)</span>') + '</td>' : '') + '</tr>'
+              : '<b>' + ({ reale: 'Cambiamento reale', uguale: 'Dentro l’errore di misura' }[r.c.esito] || '') + '</b> <span style="color:#888">(soglia ' + num(r.c.errore) + '°)</span>') + '</td>' : '') + '</tr>'
         }).join('') + '</table>' +
         '<p style="margin:2px 0 6px;font-size:7.5px;color:#666;font-style:italic;line-height:1.5">' +
         (auto ? 'Punti trovati in automatico dal modello (riferimento: la verticale della foto), eventualmente corretti dal professionista. ' : 'Punti confermati dal professionista sulla foto. ') +
-        (giud ? 'Una differenza entro la soglia (errore della misura, ' +
-          'ricavato ripetendo le foto: 2,77 × deviazione standard entro il soggetto) è riportata come «invariato».'
+        (giud ? 'Differenza = movimento tra prima e dopo (+ in avanti / lato destro più alto / verso l’interno). ' +
+          '«Cambiamento reale» solo oltre la soglia (errore della misura ricavato ripetendo le foto su 5 persone: ' +
+          '2,77 × deviazione standard entro il soggetto); sotto, «dentro l’errore di misura». 0° non è un valore ideale: ' +
+          'l’interpretazione clinica è del professionista.'
         : 'L’errore di misura di questo metodo non è ancora stato ' +
           'misurato: le differenze si riportano, ma non vanno interpretate come miglioramento o peggioramento.') + '</p>'
     }

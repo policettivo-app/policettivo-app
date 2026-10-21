@@ -22,7 +22,19 @@
 
   // Fase 0 posturale: gradi entro cui una differenza è rumore di misura.
   // ⚠️ VUOTO FINCHÉ NON È MISURATO. Non si inventa.
-  var ERRORE = {}
+  /* fase0-soglie-v1 (21/10/2026) · Fase 0 di Giuliano: 5 persone × 3 foto per vista, scendendo e
+     risalendo dalla dima, fotocamera dell'app (foto raddrizzata dalla gravità), punti del modello
+     confermati. Soglia = 2,77 × Sw (Bland & Altman, BMJ 1996;313:744). Ricalcolate a parte dal CSV:
+     identiche. Il profilo unisce destro e sinistro (10 serie). Testa (orecchio-occhio) e linea degli
+     occhi hanno soglie alte: misure poco ripetibili, cambiano «davvero» solo per differenze grandi. */
+  var ERRORE = {
+    'sagittale:testa': 4.2, 'sagittale:tronco': 2.2, 'sagittale:gamba': 2.1, 'sagittale:globale': 1.5,
+    'sagittale:testa_incl': 7.7,
+    'frontale:occhi': 6.6, 'frontale:spalle': 1.2, 'frontale:bacino': 2.3,
+    'frontale:ginocchio_dx': 1.9, 'frontale:ginocchio_sx': 2.8,
+    'posteriore:spalle': 2.5, 'posteriore:bacino': 2.4,
+    'posteriore:ginocchio_dx': 4.6, 'posteriore:ginocchio_sx': 4.4
+  }
 
   // I punti di ogni vista, nell'ordine in cui l'editor li chiede.
   // x, y normalizzati 0-1 sull'immagine.
@@ -225,9 +237,13 @@
     ;(dopo || []).forEach(function (m) { perK[m.k] = m })
     return (prima || []).filter(function (m) { return perK[m.k] }).map(function (a) {
       var b = perK[a.k], delta = r1(b.valore - a.valore), err = erroreDi(vista, a.k)
+      /* fase0-soglie-v1 · verdetto NEUTRO: si confronta il movimento vero (gradi col segno) con
+         l'errore della misura. «reale» = oltre la soglia, «uguale» = dentro l'errore. Niente
+         meglio/peggio: 0° non è l'ideale (curve fisiologiche), il significato lo dà il professionista. */
+      var mosso = (a.gradi != null && b.gradi != null) ? r1(b.gradi - a.gradi) : delta
       var esito = 'daconfermare'
-      if (err != null) esito = Math.abs(delta) <= err ? 'uguale' : (delta < 0 ? 'meglio' : 'lavoro')
-      return { k: a.k, nome: a.nome, a: a, b: b, delta: delta, errore: err == null ? null : err, esito: esito }
+      if (err != null) esito = Math.abs(mosso) <= err ? 'uguale' : 'reale'
+      return { k: a.k, nome: a.nome, a: a, b: b, delta: delta, mosso: mosso, errore: err == null ? null : err, esito: esito }
     })
   }
 

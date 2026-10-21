@@ -97,7 +97,9 @@
     gradi_giu:          'La testa: {d}° più inclinata in giù di prima',
     gradi_uguale:       'Uguale a prima',
     gradi_nota:         'Differenza da confermare: l’errore di questa misura non è ancora stato misurato. I gradi si leggono, non si giudicano.',
-    /* editor-punti-v1 */ gradi_nota_misurata:'Conta solo una differenza oltre l’errore della misura, misurato ripetendo le foto: sotto, è «invariato».',
+    /* editor-punti-v1 · fase0-soglie-v1 */ gradi_nota_misurata:'Conta solo un cambiamento più grande dell’errore della misura, misurato ripetendo le foto su 5 persone: sotto, è «dentro l’errore di misura».',
+    gradi_reale:        'Cambiamento reale',             // fase0-soglie-v1 · ⚠️ da rileggere da Giuliano
+    gradi_dentro:       'Dentro l’errore di misura',
     sintesi_gradi:      'Le foto hanno {n} confronti in gradi: la differenza si legge, ma non si giudica finché non misuriamo l’errore della misura.',
     gradi_tempo_titolo: 'I gradi nel tempo',
     gradi_tempo_sotto:  'Prima → dopo, seduta per seduta. 0° è il riferimento.',
