@@ -79,6 +79,11 @@
     rif_onesto:         'È un riferimento geometrico, non una regola: ognuno ha la sua forma. Una piccola differenza non vuol dire che ci sia un problema; il tuo fisioterapista la legge insieme al resto della visita.',
     rif_fonte:          'Riferimento: Linee guida del Ministero della Salute sulla postura (2018).',
     rif_attendi:        '⚡ Trovo i punti sulle due foto…',
+    // gradi-parole-v1 (21/10) · ⚠️ DA RILEGGERE DA GIULIANO
+    gradi_come:         '0° vuol dire «sulla linea di riferimento»: più il numero è piccolo, più quel tratto del corpo è vicino alla linea.',
+    gradi_vicino:       '{d}° più vicino alla linea',
+    gradi_lontano:      '{d}° più lontano dalla linea',
+    gradi_uguale:       'Uguale a prima',
     gradi_nota:         'Differenza da confermare: l’errore di questa misura non è ancora stato misurato. I gradi si leggono, non si giudicano.',
     /* editor-punti-v1 */ gradi_nota_misurata:'Conta solo una differenza oltre l’errore della misura, misurato ripetendo le foto: sotto, è «invariato».',
     sintesi_gradi:      'Le foto hanno {n} confronti in gradi: la differenza si legge, ma non si giudica finché non misuriamo l’errore della misura.',

@@ -14,7 +14,7 @@
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
   <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
   <script src="js/stepping.js?v=stepping-v1"></script><!-- stepping-v1 -->
-  <script src="js/schermo-paziente.js?v=criteri-v1"></script>
+  <script src="js/schermo-paziente.js?v=gradi-parole-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
@@ -281,6 +281,7 @@
     .zoom-fondo .riquadro { cursor: zoom-out; }
     .gradi-riga { display: flex; gap: 12px; justify-content: center; margin-top: 12px; flex-wrap: nowrap; }
     .gradi-voce { background: var(--carta); border: 1px solid var(--riga); border-radius: 14px; padding: 10px 16px; min-width: 0; flex: 1; max-width: 340px; }
+    .gv-dir { font-size: 15px; font-weight: 800; color: #e6e6e6; margin-top: 4px; }   /* gradi-parole-v1 */
     .gv-nome { font-size: 16px; color: var(--testo2); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .gv-val { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
     .gv-val .a { font-size: 24px; font-weight: 800; color: #bdbdbd; }
@@ -1001,10 +1002,10 @@ function slideFoto(g, ps) {
     corpo = '<div class="foto-area"><div class="sovrapp">' +
       '<div class="riquadro dopo" data-allinea="' + ps.plane + '">' +
         '<img class="ia" src="' + esc(f.pre.url) + '" alt="Prima" onload="allineaTutto()">' +
-        '<img class="ib" src="' + esc(f.post.url) + '" alt="Dopo" onload="allineaTutto()" style="opacity:1">' +
+        '<img class="ib" src="' + esc(f.post.url) + '" alt="Dopo" onload="allineaTutto()" style="opacity:0">' +
       '</div>' +
       '<div class="cursore"><span class="eti prima">' + esc(T.prima) + '</span>' +
-        '<input type="range" min="0" max="100" value="100" aria-label="Da prima a dopo" oninput="mix(this,' + "'" + ps.plane + "'" + ')">' +
+        '<input type="range" min="0" max="100" value="0" aria-label="Da prima a dopo" oninput="mix(this,' + "'" + ps.plane + "'" + ')">' +
         '<span class="eti dopo">' + esc(dopoDi()) + '</span></div>' +
       '<div class="allin">' + (allin ? 'Foto allineate sui riferimenti dello studio' : (allinAuto ? esc(T.foto_stessa_grandezza || '') : 'Foto non allineate: si guardano, non si misurano')) + '</div>' +
       '</div></div>'
@@ -1139,6 +1140,14 @@ function apriZoom(box) {
   document.body.appendChild(z)
   requestAnimationFrame(() => stessaGrandezza(copia))
 }
+/* gradi-parole-v1 (21/10) · ogni card dice a parole se quel tratto si è avvicinato
+   o allontanato dal riferimento (0°). Non è un verdetto: il colore arriva solo
+   quando la Fase 0 avrà misurato l'errore. */
+function direzioneGradi(r) {
+  const d = Math.round((r.b.valore - r.a.valore) * 10) / 10
+  if (Math.abs(d) < 0.05) return T.gradi_uguale || ''
+  return (d < 0 ? (T.gradi_vicino || '') : (T.gradi_lontano || '')).replace('{d}', PM.numIt(Math.abs(d)))
+}
 function strisciaGradi(plane, f) {
   if (!vediGradi[plane] || !coppiaMisurata(plane, f)) return ''
   const a = misuraDi(f.pre), b = misuraDi(f.post)
@@ -1151,8 +1160,9 @@ function strisciaGradi(plane, f) {
     '<div class="gv-val"><span class="a">' + PM.numIt(r.a.valore) + '°</span><span class="fr">→</span><span class="b">' + PM.numIt(r.b.valore) + '°</span>' +
     '<span class="d">' + (r.delta > 0 ? '+' : r.delta < 0 ? '−' : '±') + PM.numIt(Math.abs(r.delta)) + '°</span></div>' +
     '<div class="gv-parola">' + esc(r.a.parola) + ' → ' + esc(r.b.parola) + '</div>' +
+    '<div class="gv-dir">' + esc(direzioneGradi(r)) + '</div>' +   // gradi-parole-v1
     (r.esito !== 'daconfermare' ? '<div style="margin-top:6px">' + badge(r.esito, parolaEsito(r.esito)) + '</div>' : '') + '</div>').join('') +
-    '</div><div class="gradi-nota">' + esc(giudicabili ? T.gradi_nota_misurata : T.gradi_nota) + '</div>'
+    '</div><div class="gradi-nota">' + esc(T.gradi_come || '') + ' ' + esc(giudicabili ? T.gradi_nota_misurata : T.gradi_nota) + '</div>'
 }
 /* Punti, linee e numeri sopra UNA foto: le coordinate salvate sono sull'immagine,
    qui si portano sul riquadro (object-fit: contain) */
