@@ -30,6 +30,7 @@
       { k: 'filo_alto',  nome: 'Filo a piombo, in alto' },
       { k: 'filo_basso', nome: 'Filo a piombo, in basso' },
       { k: 'orecchio',   nome: 'Orecchio (trago)' },
+      { k: 'occhio',     nome: 'Occhio (angolo esterno)' },   // linee-testa-v1
       { k: 'spalla',     nome: 'Spalla (acromion)' },
       { k: 'anca',       nome: 'Anca (grande trocantere)' },
       { k: 'ginocchio',  nome: 'Ginocchio' },
@@ -38,6 +39,8 @@
     frontale: [
       { k: 'filo_alto',    nome: 'Filo a piombo, in alto' },
       { k: 'filo_basso',   nome: 'Filo a piombo, in basso' },
+      { k: 'occhio_dx',    nome: 'Occhio destro (pupilla)' },    // linee-testa-v1
+      { k: 'occhio_sx',    nome: 'Occhio sinistro (pupilla)' },
       { k: 'spalla_dx',    nome: 'Spalla destra' },
       { k: 'spalla_sx',    nome: 'Spalla sinistra' },
       { k: 'anca_dx',      nome: 'Anca destra' },
@@ -48,7 +51,8 @@
       { k: 'caviglia_sx',  nome: 'Caviglia sinistra' }
     ]
   }
-  PUNTI.posteriore = PUNTI.frontale
+  // di spalle gli occhi non si vedono: la vista posteriore NON li chiede (linee-testa-v1)
+  PUNTI.posteriore = PUNTI.frontale.filter(function (d) { return !/^occhio/.test(d.k) })
 
   // Da piano della foto a vista
   function vistaDi(plane) {
@@ -65,7 +69,8 @@
 
   // Proposta dai punti di MediaPipe (indici del modello Pose, 33 punti).
   // MediaPipe dice destra/sinistra DEL PAZIENTE.
-  var MP = { orecchioSx: 7, orecchioDx: 8, spallaSx: 11, spallaDx: 12, ancaSx: 23, ancaDx: 24,
+  var MP = { occhioSx: 2, occhioDx: 5, occhioEstSx: 3, occhioEstDx: 6,   // linee-testa-v1
+             orecchioSx: 7, orecchioDx: 8, spallaSx: 11, spallaDx: 12, ancaSx: 23, ancaDx: 24,
              ginocchioSx: 25, ginocchioDx: 26, cavigliaSx: 27, cavigliaDx: 28 }
   function daMediaPipe(vista, lm, plane) {
     if (!lm || lm.length < 29) return null
@@ -76,11 +81,13 @@
       // il lato verso la fotocamera è quello più visibile
       var dx = vis(MP.spallaDx) + vis(MP.ancaDx) + vis(MP.ginocchioDx) >= vis(MP.spallaSx) + vis(MP.ancaSx) + vis(MP.ginocchioSx)
       out.orecchio  = p(dx ? MP.orecchioDx : MP.orecchioSx)
+      out.occhio    = p(dx ? MP.occhioEstDx : MP.occhioEstSx)   // linee-testa-v1
       out.spalla    = p(dx ? MP.spallaDx : MP.spallaSx)
       out.anca      = p(dx ? MP.ancaDx : MP.ancaSx)
       out.ginocchio = p(dx ? MP.ginocchioDx : MP.ginocchioSx)
       out.caviglia  = p(dx ? MP.cavigliaDx : MP.cavigliaSx)
     } else {
+      if (vista === 'frontale') { out.occhio_dx = p(MP.occhioDx); out.occhio_sx = p(MP.occhioSx) }   // linee-testa-v1
       out.spalla_dx = p(MP.spallaDx); out.spalla_sx = p(MP.spallaSx)
       out.anca_dx = p(MP.ancaDx); out.anca_sx = p(MP.ancaSx)
       out.ginocchio_dx = p(MP.ginocchioDx); out.ginocchio_sx = p(MP.ginocchioSx)
@@ -93,11 +100,13 @@
     var o = { filo_alto: { x: 0.5, y: 0.06 }, filo_basso: { x: 0.5, y: 0.94 } }
     if (vista === 'sagittale') {
       o.orecchio = { x: 0.5, y: 0.14 }; o.spalla = { x: 0.5, y: 0.25 }; o.anca = { x: 0.5, y: 0.5 }
+      o.occhio = { x: 0.5 + 0.04 * versoPredefinito(plane), y: 0.13 }   // linee-testa-v1
       o.ginocchio = { x: 0.5, y: 0.7 }; o.caviglia = { x: 0.5, y: 0.9 }
     } else {
       // di fronte la destra del paziente sta a SINISTRA dell'immagine; di spalle a destra
       var s = vista === 'frontale' ? -1 : 1
       var lato = function (d, y) { return { x: 0.5 + s * d, y: y } }
+      if (vista === 'frontale') { o.occhio_dx = lato(0.03, 0.12); o.occhio_sx = lato(-0.03, 0.12) }   // linee-testa-v1
       o.spalla_dx = lato(0.11, 0.25); o.spalla_sx = lato(-0.11, 0.25)
       o.anca_dx = lato(0.07, 0.5); o.anca_sx = lato(-0.07, 0.5)
       o.ginocchio_dx = lato(0.07, 0.7); o.ginocchio_sx = lato(-0.07, 0.7)
@@ -166,6 +175,15 @@
       seg('tronco',  'Spalla rispetto all’anca', 'anca', 'spalla')
       seg('gamba',   'Anca rispetto alla caviglia', 'caviglia', 'anca')
       seg('globale', 'Orecchio rispetto alla caviglia', 'caviglia', 'orecchio')
+      /* linee-testa-v1 (21/10) · la testa che si inclina in su o in giù: la linea orecchio→occhio
+         rispetto all'orizzontale del filo. NON è il piano di Francoforte (servirebbe il margine
+         inferiore dell'orbita): è la linea fra due punti che il modello trova. + = occhio più alto. */
+      if (ok('orecchio', 'occhio')) {
+        var dl = dislivello(punti.orecchio, punti.occhio, W, H, assi)   // piuAlto: 2 = occhio
+        var gt = dl.piuAlto === 2 ? dl.gradi : -dl.gradi
+        out.push({ k: 'testa_incl', nome: 'Linea orecchio-occhio', gradi: r1(gt), valore: r1(Math.abs(gt)),
+          parola: Math.abs(gt) < 0.05 ? 'in piano' : (gt > 0 ? 'testa in su' : 'testa in giù') })
+      }
       return out
     }
     if (vista === 'frontale' || vista === 'posteriore') {
@@ -176,6 +194,7 @@
         out.push({ k: k, nome: nome, gradi: r1(d.piuAlto === 1 ? d.gradi : -d.gradi), valore: r1(d.gradi),
           parola: d.gradi < 0.05 ? 'in piano' : (d.piuAlto === 1 ? 'più alta a destra' : 'più alta a sinistra') })
       }
+      coppia('occhi', 'Linea degli occhi', 'occhio_dx', 'occhio_sx')   // linee-testa-v1 (solo di fronte)
       coppia('spalle', 'Linea delle spalle', 'spalla_dx', 'spalla_sx')
       coppia('bacino', 'Linea del bacino', 'anca_dx', 'anca_sx')
       var gamba = function (k, nome, a, g, c, altraC) {
@@ -235,7 +254,7 @@
     }
     var righe = []
     // criteri-v1 (20/10): anche ginocchia e caviglie (linea birotulea e bimalleolare)
-    ;[['spalla_dx', 'spalla_sx'], ['anca_dx', 'anca_sx'], ['ginocchio_dx', 'ginocchio_sx'], ['caviglia_dx', 'caviglia_sx']].forEach(function (c) {
+    ;[['occhio_dx', 'occhio_sx'], ['spalla_dx', 'spalla_sx'], ['anca_dx', 'anca_sx'], ['ginocchio_dx', 'ginocchio_sx'], ['caviglia_dx', 'caviglia_sx']].forEach(function (c) {
       if (!punti[c[0]] || !punti[c[1]]) return
       var A = px(punti[c[0]], W, H), B = px(punti[c[1]], W, H), M = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 }
       var mezza = Math.hypot(B.x - A.x, B.y - A.y) * 0.75
@@ -307,11 +326,14 @@
         etichetta(med(pt.spalla, pt.orecchio), g1('testa'), dietro)
         etichetta(med(pt.anca, pt.spalla), g1('tronco'), dietro)
         etichetta(med(pt.caviglia, pt.anca), g1('gamba'), dietro)
+        if (pt.occhio && pt.orecchio) { linea(pt.orecchio, pt.occhio, '#FFFFFF', 0.5); punto(pt.occhio, '#FFFFFF', 1); etichetta(pt.occhio, g1('testa_incl'), -dietro) }   // linee-testa-v1
       } else {
         linea(pt.spalla_dx, pt.spalla_sx, '#FFFFFF', 0.55); linea(pt.anca_dx, pt.anca_sx, '#FFFFFF', 0.55)
+        linea(pt.occhio_dx, pt.occhio_sx, '#FFFFFF', 0.45)   // linee-testa-v1
         ;['dx', 'sx'].forEach(function (l) { linea(pt['anca_' + l], pt['ginocchio_' + l], '#FFFFFF', 0.4); linea(pt['ginocchio_' + l], pt['caviglia_' + l], '#FFFFFF', 0.4) })
         Object.keys(pt).filter(function (k) { return !/^filo/.test(k) }).forEach(function (k) { punto(pt[k], '#FFFFFF', 0.95) })
         var destraPiuADestra = pt.spalla_dx && pt.spalla_sx ? pt.spalla_dx.x > pt.spalla_sx.x : true
+        etichetta(pt.occhio_dx && pt.occhio_sx ? (destraPiuADestra ? pt.occhio_dx : pt.occhio_sx) : null, g1('occhi'), 1)   // linee-testa-v1
         etichetta(pt.spalla_dx && pt.spalla_sx ? (destraPiuADestra ? pt.spalla_dx : pt.spalla_sx) : null, g1('spalle'), 1)
         etichetta(pt.anca_dx && pt.anca_sx ? (destraPiuADestra ? pt.anca_dx : pt.anca_sx) : null, g1('bacino'), 1)
         var gdx = pt.ginocchio_dx, gsx = pt.ginocchio_sx

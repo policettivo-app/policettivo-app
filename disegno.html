@@ -122,6 +122,8 @@
   <div id="canvas-wrap">
     <img id="bg-img" alt="foto posturale">
     <canvas id="draw-canvas"></canvas>
+    <!-- disegno-unico-v1 · gradi e riferimento: lo STESSO disegno del Prima e dopo (js/misure-foto.js) -->
+    <svg id="mis-svg" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
     <div id="fp-dot"></div>
   </div>
 
@@ -146,6 +148,7 @@
       <button class="t-act t-act-save" onclick="salva()">💾 Salva</button>
       <button class="t-act" onclick="analizzaPostura()" title="Analisi posturale AI (PRO)">✨ Analizza postura</button>
       <button class="t-act" onclick="toggleCriteri()" title="Mostra/nascondi criteri di normalita">📐 Criteri</button>
+      <button class="t-act" onclick="correggiPunti()" title="Controlla e sposta i punti (gli stessi del Prima e dopo)">✏️ Punti</button>
       <button class="t-act" id="pol-obs-btn" onclick="polToggleObs()" title="Osservazioni e note">📝 Osserva</button>
       <button class="t-act t-act-export" onclick="esporta()">📤 Esporta</button>
     </div>
@@ -232,6 +235,10 @@
   <script src="utils-premium.js"></script>
   <script src="js/foto-resolver.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- disegno-unico-v1 (21/10) · lo stesso motore del Prima e dopo: stessi punti, stessi gradi, stesso riferimento -->
+  <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
+  <script src="js/misure-foto.js?v=linee-testa-v1"></script>
+  <script src="js/editor-punti.js?v=linee-testa-v1"></script>
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
@@ -277,11 +284,8 @@
     let color      = '#ffffff'
     let lines      = []
     let firstPoint = null
-    let idealLines = []      // criteri di normalita (overlay, NON salvati)
     let criteriOn  = false   // toggle criteri di normalita
-    let posturaLines = []    // overlay analisi postura (repere/etichette), NON salvato
     let posturaOn    = false // toggle analisi postura
-    let _posturaMsg  = ''    // testo stato dell'ultima analisi
     let userIsPremium = false
 
     // --- Coordinate normalization (0–1 range for device independence) ---
@@ -596,13 +600,7 @@
 
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-      if (criteriOn) {
-        idealLines.forEach(l => {
-          if (l.type === 'point') { ctx.beginPath(); ctx.fillStyle = l.color; ctx.arc(l.x, l.y, l.r, 0, Math.PI*2); ctx.fill() }
-          else { ctx.beginPath(); ctx.strokeStyle = l.color; ctx.lineWidth = l.lw; ctx.lineCap = 'round'; ctx.moveTo(l.x1,l.y1); ctx.lineTo(l.x2,l.y2); ctx.stroke() }
-        })
-      }
-      if (posturaOn) _drawList(posturaLines)   // overlay analisi (non salvato)
+      disegnaMisura()                           // disegno-unico-v1: gradi e criteri (svg sopra la foto)
       _drawList(lines)                          // disegno manuale (salvato)
     }
 
@@ -689,7 +687,7 @@
 
     async function cancellaRipristina() {
       lines = []
-      posturaLines = []; posturaOn = false; criteriOn = false; idealLines = []; _posturaMsg = ''
+      posturaOn = false; criteriOn = false; disegnaMisura()   // disegno-unico-v1: la misura salvata resta (è del Prima e dopo)
       document.getElementById('nav-status').textContent = ''
       resetFirst()
       redraw()
@@ -709,61 +707,109 @@
 
     // --- Export: download composite PNG without saving to DB ---
 
-    // --- Motore overlay condiviso: ritorna {lines, idealLines, angles, message} in coord. canvas, o null ---
-    async function _runOverlay() {
+    /* ═══ disegno-unico-v1 (21/10) · UN MOTORE SOLO ═══════════════════════════
+       Prima qui c'era un calcolo a parte (js/postural-overlay.js): la verticale era il
+       bordo della FOTO, non il filo a piombo, e il verde/rosso usciva da una soglia di
+       1,5° scelta a mano. La stessa foto dava numeri diversi dal «Prima e dopo».
+       Ora Disegno legge e salva la STESSA riga di foto_misure (per storage_path) e
+       disegna con PolMisure.svgMisura: stessi punti, stessi gradi, stesso riferimento.
+       Nessun verdetto a colori finché la Fase 0 non misura l'errore. */
+    const PM = window.PolMisure || null
+    const PV = window.PolValutazioni || null
+    let misura = null          // riga di foto_misure di questa foto
+    let _manca049 = false
+    function _pianoEPercorso() {
+      if (vpId && _vpRecord) return { plane: String(_vpRecord.tipo || '').replace(/_(pre|post)$/, ''), path: _vpRecord.storage_path || null }
+      const map = PV && PV.SLOT_SCHEDA ? PV.SLOT_SCHEDA[fotoSlot] : null
+      return { plane: map ? map.plane : null, path: PV ? PV.percorsoScheda(_urlsPaz[fotoSlot]) : null }
+    }
+    async function _leggiMisura(path) {
+      const { data, error } = await _supabase.from('foto_misure').select('*').eq('storage_path', path).maybeSingle()
+      if (error) { if (/foto_misure/.test(error.message || '') || error.code === '42P01' || error.code === 'PGRST205') _manca049 = true; return null }
+      return data || null
+    }
+    async function _salvaMisura(path, d) {
+      const riga = Object.assign({ patient_id: patientId, storage_path: path, aggiornato_il: new Date().toISOString() }, d)
+      const { error } = await _supabase.from('foto_misure').upsert(riga, { onConflict: 'storage_path' })
+      if (error) {
+        if (/foto_misure/.test(error.message || '') || error.code === '42P01' || error.code === 'PGRST205') { _manca049 = true; return { ok: false, errore: 'manca la migration 049_foto_misure.sql.' } }
+        return { ok: false, errore: error.message }
+      }
+      misura = riga
+      return { ok: true }
+    }
+    // la misura di questa foto: quella già salvata, oppure i punti trovati dal modello (e salvati)
+    async function _misura() {
+      if (misura) return misura
       if (!userIsPremium) { alert('Funzione PRO. Disponibile con il piano Premium.'); return null }
-      if (!bgImg.naturalWidth) { alert('Foto non pronta.'); return null }
+      if (!PM || !window.PolEditorPunti) { alert('Motore delle misure non caricato: ricarica la pagina.'); return null }
+      const pp = _pianoEPercorso()
+      if (!PM.vistaDi(pp.plane)) { alert('Su questa foto (piedi o vista non riconosciuta) i gradi non si misurano.'); return null }
+      if (!pp.path) { alert('Questa foto non ha un percorso nello Storage: non posso salvarne i punti.'); return null }
       const status = document.getElementById('nav-status')
-      status.textContent = 'Analizzo...'
-      let mod
-      try { mod = await import('./js/postural-overlay.js') }
-      catch(e) { status.textContent = ''; alert('Errore caricamento motore: ' + e.message); return null }
-      const viewKey = vpId && _vpRecord ? _vpRecord.tipo : fotoSlot
-      const res = await mod.generateOverlay(bgImg, viewKey)
-      if (!res.ok) { status.textContent = ''; alert(res.message); return null }
-      const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
-      const cw = canvas.width, ch = canvas.height
-      const imgA = nw / nh, wrapA = cw / ch
-      let drawW, drawH, ox, oy
-      if (imgA > wrapA) { drawW = cw; drawH = cw / imgA; oy = (ch - drawH) / 2; ox = 0 }
-      else { drawH = ch; drawW = ch * imgA; ox = (cw - drawW) / 2; oy = 0 }
-      const fx = drawW / nw, fy = drawH / nh
-      const conv = (l) => {
-        if (l.type === 'point') return { type:'point', x: ox + l.x*fx, y: oy + l.y*fy, color:l.color, r:l.r }
-        if (l.type === 'text')  return { type:'text', x: ox + l.x*fx, y: oy + l.y*fy, color:l.color, text:l.text, size:l.size, align:l.align }
-        return { type:'line', x1: ox + l.x1*fx, y1: oy + l.y1*fy, x2: ox + l.x2*fx, y2: oy + l.y2*fy, color:l.color, lw:l.lw }
+      status.textContent = 'Leggo i punti…'
+      misura = await _leggiMisura(pp.path)
+      if (!misura) {
+        if (_manca049) { status.textContent = ''; alert('Manca la migration 049_foto_misure.sql nel database.'); return null }
+        status.textContent = 'Trovo i punti sulla foto…'
+        const r = await PolEditorPunti.automatico({ url: bgImg.src, plane: pp.plane })
+        if (!r.ok) { status.textContent = ''; alert('Punti non trovati: ' + r.errore + ' Usa «✏️ Punti» per metterli a mano.'); return null }
+        const sv = await _salvaMisura(pp.path, r.dati)
+        if (!sv.ok) { status.textContent = ''; alert('Punti trovati ma non salvati: ' + sv.errore); misura = Object.assign({}, r.dati) }
       }
-      return { lines: res.lines.map(conv), idealLines: res.idealLines.map(conv), angles: res.angles, message: res.message }
+      status.textContent = ''
+      return misura
+    }
+    function disegnaMisura() {
+      const svg = document.getElementById('mis-svg')
+      if (!svg) return
+      svg.innerHTML = ''
+      if (!misura || !PM || (!posturaOn && !criteriOn)) return
+      const W = misura.larghezza || bgImg.naturalWidth, H = misura.altezza || bgImg.naturalHeight
+      if (!W || !H) return
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H)
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')   // = object-fit: contain della foto
+      svg.innerHTML = PM.svgMisura(misura, { gradi: posturaOn, rif: criteriOn, W: W, H: H })
+    }
+    function _statoGradi() {
+      const el = document.getElementById('nav-status')
+      if (!posturaOn || !misura || !misura.gradi || !misura.gradi.length) { el.textContent = ''; return }
+      el.textContent = misura.gradi.map(g => g.nome + ' ' + PM.numIt(g.valore) + '° ' + g.parola).join(' · ')
     }
 
-    // --- ANALIZZA POSTURA: layer separato a toggle (repere/etichette), MAI salvato ---
+    // --- ANALIZZA POSTURA = punti, linee e gradi (come «° Gradi» del Prima e dopo) ---
     async function analizzaPostura() {
-      if (posturaLines.length === 0) {
-        const r = await _runOverlay()
-        if (!r) return
-        posturaLines = r.lines
-        if (idealLines.length === 0) idealLines = r.idealLines   // cache per Criteri
-        _posturaMsg = 'Analisi: ' + r.message + ((r.angles && r.angles.spalle != null) ? ' (Spalle ' + r.angles.spalle + 'deg, Bacino ' + r.angles.bacino + 'deg)' : '')
-      }
+      if (!posturaOn && !(await _misura())) return
       posturaOn = !posturaOn
-      document.getElementById('nav-status').textContent = posturaOn ? _posturaMsg : ''
-      redraw()
+      _statoGradi(); redraw()
     }
 
-    // --- CRITERI: mostra SOLO la griglia/assi di normalita (toggle indipendente) ---
+    // --- CRITERI = filo a piombo e riferimento verde costruito sul paziente (come «📐 Riferimento») ---
     async function toggleCriteri() {
-      if (!criteriOn && idealLines.length === 0) {
-        const r = await _runOverlay()
-        if (!r) return
-        idealLines = r.idealLines
-        if (posturaLines.length === 0) posturaLines = r.lines   // cache per Analizza postura
-        document.getElementById('nav-status').textContent = ''
-      }
+      if (!criteriOn && !(await _misura())) return
       criteriOn = !criteriOn
       redraw()
     }
 
-    function esporta() {
+    // --- ✏️ PUNTI: lo stesso editor del Prima e dopo; la correzione vale anche lì ---
+    async function correggiPunti() {
+      if (!userIsPremium) { alert('Funzione PRO. Disponibile con il piano Premium.'); return }
+      const pp = _pianoEPercorso()
+      if (!PM || !PM.vistaDi(pp.plane)) { alert('Su questa foto i punti non si misurano.'); return }
+      if (!pp.path) { alert('Questa foto non ha un percorso nello Storage: non posso salvarne i punti.'); return }
+      if (!misura) misura = await _leggiMisura(pp.path)
+      PolEditorPunti.apri({
+        url: bgImg.src, plane: pp.plane, gia: misura, titolo: 'Punti della foto',
+        salva: async function (d) {
+          if (d.origine === 'automatico') d.origine = 'mediapipe'
+          const r = await _salvaMisura(pp.path, d)
+          if (r.ok) { if (!posturaOn && !criteriOn) posturaOn = true; _statoGradi(); redraw() }
+          return r
+        }
+      })
+    }
+
+    async function esporta() {
       if (!bgImg.naturalWidth) return
       const nw = bgImg.naturalWidth, nh = bgImg.naturalHeight
       const cw = canvas.width,       ch = canvas.height
@@ -782,16 +828,18 @@
       const octx = off.getContext('2d')
       octx.drawImage(bgImg, 0, 0, nw, nh)
 
-      if (criteriOn) {
-        idealLines.forEach(l => {
-          if (l.type === 'point') {
-            octx.beginPath(); octx.fillStyle = l.color
-            octx.arc((l.x - ox) * sx, (l.y - oy) * sy, Math.max(6, l.r * sx), 0, Math.PI * 2); octx.fill()
-          } else {
-            octx.beginPath(); octx.strokeStyle = l.color; octx.lineWidth = Math.max(2, l.lw * sx); octx.lineCap = 'round'
-            octx.moveTo((l.x1 - ox) * sx, (l.y1 - oy) * sy); octx.lineTo((l.x2 - ox) * sx, (l.y2 - oy) * sy); octx.stroke()
-          }
-        })
+      // disegno-unico-v1 · gradi e criteri: lo stesso svg dello schermo, alla risoluzione della foto
+      if (misura && PM && (posturaOn || criteriOn)) {
+        try {
+          const W = misura.larghezza || nw, H = misura.altezza || nh
+          const sv = '<svg xmlns="http://www.w3.org/2000/svg" width="' + nw + '" height="' + nh + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+            PM.svgMisura(misura, { gradi: posturaOn, rif: criteriOn, W: W, H: H }) + '</svg>'
+          const url = URL.createObjectURL(new Blob([sv], { type: 'image/svg+xml' }))
+          const im = new Image()
+          await new Promise((ok, ko) => { im.onload = ok; im.onerror = ko; im.src = url })
+          octx.drawImage(im, 0, 0, nw, nh)
+          URL.revokeObjectURL(url)
+        } catch (e) { console.warn('[disegno] gradi non esportati:', e) }
       }
 
       const _exp = (l) => {
@@ -829,7 +877,6 @@
           octx.stroke()
         }
       }
-      if (posturaOn) posturaLines.forEach(_exp)
       lines.forEach(_exp)
 
       const nomePaziente = patient ? (patient.nome + '-' + patient.cognome).replace(/\s+/g, '-') : 'paziente'

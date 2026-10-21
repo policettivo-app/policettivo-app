@@ -14,14 +14,14 @@
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
   <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
   <script src="js/stepping.js?v=stepping-v1"></script><!-- stepping-v1 -->
-  <script src="js/schermo-paziente.js?v=sovrapposte-linee-v1"></script>
+  <script src="js/schermo-paziente.js?v=linee-testa-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
   <!-- gradi-foto-v1 · i gradi sulle foto: punti confermati, riferimento personale -->
-  <script src="js/misure-foto.js?v=criteri-v1"></script>
+  <script src="js/misure-foto.js?v=linee-testa-v1"></script>
   <!-- editor-punti-v1 · l'editor dei punti sta in un file solo (lo usa anche la Fase 0) -->
-  <script src="js/editor-punti.js?v=gradi-auto-v1"></script>
+  <script src="js/editor-punti.js?v=linee-testa-v1"></script>
   <!-- tv-facile-v1 (25 set: TV accesa da sola, «in onda», tutto il collegamento in tv-collega.html) · tv-multi-v1 (25 set: TV aperta da questo computer senza codice) · tv-codice-v1 (25 set: la TV si collega con un codice, senza account) · tv-v1 (24 set: TV col telecomando) · schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
        LO SCHERMO DEL PAZIENTE: il prima e dopo dei 3 Respiri, fatto per essere
        guardato insieme, anche su una TV (duplicazione dello schermo, decisione 5A).
@@ -1162,7 +1162,8 @@ function direzioneGradi(r) {
   const chi = { testa: T.gradi_chi_testa, tronco: T.gradi_chi_tronco, gamba: T.gradi_chi_gamba, globale: T.gradi_chi_globale }[r.k]
   let t = ''
   if (chi) t = (d > 0 ? T.gradi_avanti : T.gradi_indietro || '').replace('{chi}', chi)
-  else if (r.k === 'spalle' || r.k === 'bacino') t = d > 0 ? T.gradi_alza_dx : T.gradi_alza_sx
+  else if (r.k === 'spalle' || r.k === 'bacino' || r.k === 'occhi') t = d > 0 ? T.gradi_alza_dx : T.gradi_alza_sx
+  else if (r.k === 'testa_incl') t = d > 0 ? T.gradi_su : T.gradi_giu   // linee-testa-v1
   else if (/^ginocchio/.test(r.k)) t = d > 0 ? T.gradi_interno : T.gradi_esterno
   return String(t || '').replace('{d}', n)
 }

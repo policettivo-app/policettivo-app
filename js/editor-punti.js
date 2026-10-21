@@ -120,7 +120,8 @@
     var vista = P.vistaDi(o.plane), gia = o.gia || null
     ed = { plane: o.plane, vista: vista, salvaFn: o.salva, url: o.url,
       verso: gia && gia.verso ? gia.verso : P.versoPredefinito(o.plane),
-      punti: gia ? JSON.parse(JSON.stringify(gia.punti)) : P.predefiniti(vista, o.plane),
+      // linee-testa-v1: una misura vecchia senza i punti nuovi (occhi) li riceve dalla sagoma standard
+      punti: Object.assign(P.predefiniti(vista, o.plane), gia ? JSON.parse(JSON.stringify(gia.punti)) : {}),
       origine: gia && gia.origine ? gia.origine : 'mano', W: 0, H: 0, attivo: null }
     $('ed-tit').textContent = o.titolo || 'Misura la foto'
     stato(gia ? 'Punti già confermati: puoi correggerli.' : 'Cerco i punti sulla foto…', '')
@@ -180,8 +181,9 @@
     var L = function (a, b, col, w, d) { if (!pt[a] || !pt[b]) return; var A = Q(pt[a]), B = Q(pt[b])
       h.push('<line x1="' + A.x + '" y1="' + A.y + '" x2="' + B.x + '" y2="' + B.y + '" stroke="' + col + '" stroke-width="' + w + '"' + (d ? ' stroke-dasharray="' + d + '"' : '') + '/>') }
     L('filo_alto', 'filo_basso', '#FFD008', 2, '8 6')
-    if (ed.vista === 'sagittale') ['orecchio', 'spalla', 'anca', 'ginocchio', 'caviglia'].reduce(function (a, b) { L(a, b, '#fff', 3); return b })
+    if (ed.vista === 'sagittale') { ['orecchio', 'spalla', 'anca', 'ginocchio', 'caviglia'].reduce(function (a, b) { L(a, b, '#fff', 3); return b }); L('orecchio', 'occhio', '#fff', 2) }
     else {
+      L('occhio_dx', 'occhio_sx', '#fff', 2)   // linee-testa-v1
       L('spalla_dx', 'spalla_sx', '#fff', 3); L('anca_dx', 'anca_sx', '#fff', 3)
       ;['dx', 'sx'].forEach(function (l) { L('anca_' + l, 'ginocchio_' + l, '#fff', 2); L('ginocchio_' + l, 'caviglia_' + l, '#fff', 2) })
     }

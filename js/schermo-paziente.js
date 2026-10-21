@@ -93,6 +93,8 @@
     gradi_alza_sx:      'Lato sinistro {d}° più alto di prima',
     gradi_interno:      '{d}° più verso l’interno di prima',
     gradi_esterno:      '{d}° più verso l’esterno di prima',
+    gradi_su:           'La testa: {d}° più inclinata in su di prima',   // linee-testa-v1
+    gradi_giu:          'La testa: {d}° più inclinata in giù di prima',
     gradi_uguale:       'Uguale a prima',
     gradi_nota:         'Differenza da confermare: l’errore di questa misura non è ancora stato misurato. I gradi si leggono, non si giudicano.',
     /* editor-punti-v1 */ gradi_nota_misurata:'Conta solo una differenza oltre l’errore della misura, misurato ripetendo le foto: sotto, è «invariato».',
