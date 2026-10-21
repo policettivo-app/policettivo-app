@@ -237,7 +237,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- disegno-unico-v1 (21/10) · lo stesso motore del Prima e dopo: stessi punti, stessi gradi, stesso riferimento -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
-  <script src="js/misure-foto.js?v=linee-testa-v1"></script>
+  <script src="js/misure-foto.js?v=filo-studio-v1"></script>
   <script src="js/editor-punti.js?v=linee-testa-v1"></script>
   <script>
     const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
@@ -789,6 +789,11 @@
       if (!criteriOn && !(await _misura())) return
       criteriOn = !criteriOn
       redraw()
+      // filo-studio-v1 · senza il filo dello studio segnato la linea verde parte dalla caviglia
+      const st = document.getElementById('nav-status')
+      if (criteriOn && misura && misura.vista === 'sagittale' && PM.filoVero && !PM.filoVero(misura))
+        st.textContent = 'Filo dello studio non segnato: la linea verde parte dalla caviglia. Mettilo con «✏️ Punti».'
+      else if (!posturaOn) st.textContent = ''
     }
 
     // --- ✏️ PUNTI: lo stesso editor del Prima e dopo; la correzione vale anche lì ---

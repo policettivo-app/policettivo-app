@@ -236,20 +236,38 @@
      linea, alla stessa altezza, dove starebbero i suoi punti se fossero allineati.
      Frontale/posteriore: le orizzontali del filo che passano per il centro di
      spalle e bacino. Restituisce coordinate normalizzate. */
-  function riferimento(vista, punti, W, H) {
+  /* filo-studio-v1 (21/10, decisione A) · il filo a piombo dello studio è «vero» solo se
+     qualcuno l'ha messo sulla linea della porta: non nelle misure automatiche (il modello
+     non lo trova) e non se i due punti sono ancora quelli della sagoma standard. */
+  function filoVero(m) {
+    var p = m && m.punti
+    if (!p || !p.filo_alto || !p.filo_basso) return false
+    if (m.origine === 'automatico') return false
+    var std = function (q, y) { return Math.abs(q.x - 0.5) < 1e-6 && Math.abs(q.y - y) < 1e-6 }
+    return !(std(p.filo_alto, 0.06) && std(p.filo_basso, 0.94))
+  }
+  function riferimento(vista, punti, W, H, sulFilo) {
     if (!punti || !W || !H) return null
     var assi = assiDaFilo(punti, W, H)
     var norm = function (p) { return { x: p.x / W, y: p.y / H } }
     if (vista === 'sagittale') {
       if (!punti.caviglia) return null
+      /* filo-studio-v1 · con il filo dello studio segnato, la linea verde È quel filo
+         (il modello del Ministero: davanti al malleolo e al ginocchio, per orecchio e spalla),
+         sull'altezza della caviglia; senza, come prima: la verticale dalla caviglia. */
       var C = px(punti.caviglia, W, H), fantasmi = []
+      if (sulFilo && punti.filo_basso) {
+        var Fb = px(punti.filo_basso, W, H)
+        var lat = componenti({ x: Fb.x - C.x, y: Fb.y - C.y }, assi).lato
+        C = { x: C.x + assi.destra.x * lat, y: C.y + assi.destra.y * lat }
+      }
       ;['orecchio', 'spalla', 'anca', 'ginocchio'].forEach(function (k) {
         if (!punti[k]) return
         var v = componenti({ x: px(punti[k], W, H).x - C.x, y: px(punti[k], W, H).y - C.y }, assi)
         fantasmi.push({ k: k, reale: punti[k], ideale: norm({ x: C.x + assi.su.x * v.alto, y: C.y + assi.su.y * v.alto }) })
       })
       var L = Math.max(W, H) * 1.5
-      return { tipo: 'verticale', fantasmi: fantasmi,
+      return { tipo: 'verticale', fantasmi: fantasmi, sulFilo: !!sulFilo, base: norm(C),
         linea: [norm({ x: C.x - assi.su.x * L * 0.1, y: C.y - assi.su.y * L * 0.1 }), norm({ x: C.x + assi.su.x * L, y: C.y + assi.su.y * L })] }
     }
     var righe = []
@@ -295,12 +313,12 @@
          avrebbe se i suoi punti ci fossero sopra; GIALLO = come sta lui.
          Il giallo si disegna solo senza «° Gradi», che ha già i suoi punti bianchi. */
       var GIALLO = '#FFD008', VERDE = '#00C48C'
-      var rf = riferimento(vista, pt, W, H)
+      var rf = riferimento(vista, pt, W, H, filoVero(m))
       if (rf && rf.tipo === 'verticale') {
         linea(rf.linea[0], rf.linea[1], VERDE, 0.45, [1.6, 1.1])
         var ordine = ['orecchio', 'spalla', 'anca', 'ginocchio'], id = {}
         rf.fantasmi.forEach(function (fm) { id[fm.k] = fm.ideale })
-        var sagoma = ordine.filter(function (k) { return id[k] }).map(function (k) { return id[k] }).concat(pt.caviglia ? [pt.caviglia] : [])
+        var sagoma = ordine.filter(function (k) { return id[k] }).map(function (k) { return id[k] }).concat(rf.base ? [rf.base] : (pt.caviglia ? [pt.caviglia] : []))
         for (var s1 = 0; s1 < sagoma.length - 1; s1++) linea(sagoma[s1], sagoma[s1 + 1], 'rgba(0,196,140,.55)', 0.55, [0.9, 0.7])
         if (!opz.gradi) {
           var vera = ordine.concat(['caviglia']).filter(function (k) { return pt[k] }).map(function (k) { return pt[k] })
@@ -426,7 +444,7 @@
         '<path d="M50 54 Q60 50 74 56 Q80 80 76 104 Q74 116 70 122 L50 122 Q44 104 46 84 Q46 64 50 54 Z" ' + corpo + '/>' +
         '<path d="M60 58 Q58 84 64 108" ' + corpo + '/>' +
         '<path d="M52 122 Q50 160 56 176 Q56 196 54 214 L72 214 M66 122 Q66 160 64 176 Q62 196 62 212" ' + corpo + '/>' +
-        dot(X, 26) + dot(X, 58) + dot(X, 118) + dot(X, 170) + dot(X, 212) +
+        dot(X, 26) + dot(X, 58) + dot(X + 4, 118) + dot(X - 3, 170) + dot(X - 5, 212) +   // filo-studio-v1: anca un po' davanti, ginocchio e malleolo un po' dietro il filo
         txt(84, 29, 'orecchio') + txt(84, 61, 'spalla') + txt(84, 121, 'anca') + txt(84, 173, 'ginocchio') + txt(84, 215, 'caviglia') +
         '</svg>'
     }
@@ -444,6 +462,7 @@
 
   global.PolMisure = {
     svgSchema: svgSchema,                       // criteri-v1
+    filoVero: filoVero,                         // filo-studio-v1
     allineamentoDaPunti: allineamentoDaPunti,   // foto-grandezza-v1
     ripetibilita: ripetibilita, erroreDi: erroreDi,
     svgMisura: svgMisura,

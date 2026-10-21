@@ -1255,7 +1255,7 @@
      File puri (niente rete) più il caricatore; se non arrivano, il PDF resta quello di prima. -->
 <script src="js/oscillazione.js?v=schermo-test-v1"></script>
 <script src="js/squat.js?v=schermo-test-v1"></script><script src="js/atr.js?v=atr-v1"></script><script src="js/stepping.js?v=stepping-v1"></script><script src="js/schermo-paziente.js?v=stepping-v1"></script>
-<script src="js/misure-foto.js?v=linee-testa-v1"></script>
+<script src="js/misure-foto.js?v=filo-studio-v1"></script>
 <script src="js/pdf-prima-dopo.js?v=stepping-v1"></script>
 <script src="js/sintesi-policettiva.js?v=sintesi-v1"></script><!-- sintesi-v1 · la Sintesi Policettiva -->
 <script>
@@ -1884,8 +1884,17 @@
       ;(function go(){
         var el = focus ? document.getElementById('slot-' + focus) : null
         if (el && el.offsetParent !== null) {
-          try { el.scrollIntoView({ block:'center', inline:'nearest' }) }
+          /* carosello-ritorno-v1 (21/10) · si scorre sul RIQUADRO, non sulla foto: la foto
+             «dopo» sta fuori dal riquadro (a destra) e scrollIntoView spostava il riquadro
+             dall'interno (scrollLeft) → frecce e pallini sparivano. Poi si mostra la pagina giusta. */
+          var box = (el.closest && el.closest('.photo-slot-paired')) || el
+          try { box.scrollIntoView({ block:'center', inline:'nearest' }) }
           catch(e){ window.scrollTo(0, yy) }
+          try {
+            document.querySelectorAll('.photo-slot-paired').forEach(function (c) { c.scrollLeft = 0 })
+            var m = /^(.*)_(pre|post)$/.exec(focus || '')
+            if (m && typeof setCarouselPage === 'function') setCarouselPage(m[1], m[2] === 'post' ? 1 : 0)
+          } catch(e){}
           sessionStorage.removeItem('vpScrollY')
           sessionStorage.removeItem('vpFocusSlot')
           return
