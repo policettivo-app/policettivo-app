@@ -25,6 +25,17 @@
   var stream = null, orientHandler = null, opts = null;
   var TOL = 5; // gradi di tolleranza per asse (morbida: deve essere raggiungibile a mano libera)
   var sRoll = 0, sPitch = 0; // valori smorzati (mirino lento e stabile)
+  /* verticale-gravita-v1 (21/10) · la rotazione VERA del telefono nel piano dello schermo.
+     Con il telefono in piedi «gamma» non la dice (blocco cardanico degli angoli di Eulero):
+     si ricava la gravità nel telefono dagli angoli W3C (Z-X'-Y'') e se ne prende l'angolo
+     nel piano dello schermo. Allo scatto la foto si raddrizza di questo angolo, così la
+     verticale della foto è quella della gravità, con o senza filo a piombo in studio. */
+  var sTheta = 0, nOrient = 0, MAX_RADDRIZZA = 10
+  function rotazioneSchermo(betaDeg, gammaDeg) {
+    var b = betaDeg * Math.PI / 180, g = gammaDeg * Math.PI / 180
+    // «su» della gravità nel sistema del telefono (x destra, y alto): (-cos b · sin g, sin b)
+    return Math.atan2(-Math.cos(b) * Math.sin(g), Math.sin(b)) * 180 / Math.PI
+  }
 
   function buildDom() {
     if (document.getElementById('pol-cam-modal')) return;
@@ -129,7 +140,7 @@
 
   function attachOrient() {
     if (orientHandler) return;
-    sRoll = 0; sPitch = 0;
+    sRoll = 0; sPitch = 0; sTheta = 0; nOrient = 0;
     orientHandler = function (e) {
       var roll = e.gamma != null ? e.gamma : 0;          // rotazione (portrait)
       var beta = e.beta != null ? e.beta : 90;
@@ -137,6 +148,11 @@
       // smorzamento forte: il mirino si muove piano, niente tremolii casuali
       sRoll += (roll - sRoll) * 0.12;
       sPitch += (pitch - sPitch) * 0.12;
+      if (e.beta != null && e.gamma != null) {   // verticale-gravita-v1
+        var th = rotazioneSchermo(e.beta, e.gamma)
+        sTheta = nOrient === 0 ? th : sTheta + (th - sTheta) * 0.2
+        nOrient++
+      }
       setLevelUI(Math.round(sRoll * 10) / 10, Math.round(sPitch * 10) / 10);
     };
     window.addEventListener('deviceorientation', orientHandler, true);
@@ -215,11 +231,24 @@
       if (!video || !video.videoWidth) return;
       var c = document.createElement('canvas');
       c.width = video.videoWidth; c.height = video.videoHeight;
-      c.getContext('2d').drawImage(video, 0, 0);
+      var cx = c.getContext('2d');
+      /* verticale-gravita-v1 · si raddrizza solo con il sensore attivo e una rotazione
+         plausibile (oltre 10° è più facile un dato sbagliato che un telefono così storto).
+         Gli angoli vuoti si riempiono di nero: niente ritaglio, i piedi restano in foto. */
+      var theta = (nOrient >= 5 && Math.abs(sTheta) >= 0.2 && Math.abs(sTheta) <= MAX_RADDRIZZA) ? sTheta : 0
+      if (theta) {
+        cx.fillStyle = '#000'; cx.fillRect(0, 0, c.width, c.height)
+        cx.translate(c.width / 2, c.height / 2)
+        cx.rotate(-theta * Math.PI / 180)
+        cx.drawImage(video, -c.width / 2, -c.height / 2)
+        cx.setTransform(1, 0, 0, 1, 0, 0)
+      } else {
+        cx.drawImage(video, 0, 0);
+      }
       var cb = opts && opts.onShot;
       var raw = c.toDataURL('image/jpeg', 0.95);
       this.close();
-      if (typeof cb === 'function') cb(raw);
+      if (typeof cb === 'function') cb(raw, { raddrizzata: Math.round(theta * 10) / 10, sensore: nOrient >= 5 });
     },
 
     _gallery: function () {

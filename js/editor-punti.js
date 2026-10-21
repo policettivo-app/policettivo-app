@@ -72,8 +72,8 @@
       '<div class="ed-foto" id="ed-foto"><img id="ed-img" alt=""><svg id="ed-svg"></svg></div>' +
       '<div class="ed-lato">' +
         '<div class="ed-tit" id="ed-tit">Misura la foto</div>' +
-        '<div class="ed-txt">Trascina i punti col dito. I due <b style="color:#FFD008">gialli</b> vanno <b>sul filo a piombo</b>: ' +
-          'sono il riferimento verticale, così un telefono un po’ storto non diventa postura.</div>' +
+        '<div class="ed-txt">Trascina i punti col dito sui reperi del paziente. La verticale è quella della foto, ' +
+          'raddrizzata allo scatto dal sensore del telefono: niente da segnare sulla porta.</div>' +
         '<div class="ed-stato" id="ed-stato"></div>' +
         '<div class="ed-riga" id="ed-verso-riga"></div>' +
         '<div class="ed-punti" id="ed-punti"></div>' +
@@ -180,7 +180,6 @@
     var pt = ed.punti, h = []
     var L = function (a, b, col, w, d) { if (!pt[a] || !pt[b]) return; var A = Q(pt[a]), B = Q(pt[b])
       h.push('<line x1="' + A.x + '" y1="' + A.y + '" x2="' + B.x + '" y2="' + B.y + '" stroke="' + col + '" stroke-width="' + w + '"' + (d ? ' stroke-dasharray="' + d + '"' : '') + '/>') }
-    L('filo_alto', 'filo_basso', '#FFD008', 2, '8 6')
     if (ed.vista === 'sagittale') { ['orecchio', 'spalla', 'anca', 'ginocchio', 'caviglia'].reduce(function (a, b) { L(a, b, '#fff', 3); return b }); L('orecchio', 'occhio', '#fff', 2) }
     else {
       L('occhio_dx', 'occhio_sx', '#fff', 2)   // linee-testa-v1

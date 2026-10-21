@@ -10,7 +10,8 @@
  *  - i nomi dicono cosa si misura DAVVERO sulla foto: «inclinazione orecchio-
  *    spalla», non «angolo cranio-vertebrale» (servirebbe C7, che MediaPipe non
  *    trova). L'anca è il centro dell'anca proposto: si può spostare su SIAS/SIPS;
- *  - il riferimento verticale è il FILO A PIOMBO della foto (due punti sul filo),
+ *  - (verticale-gravita-v1) la verticale è quella della foto, raddrizzata allo scatto dalla gravità;
+ *    prima era il filo a piombo della foto (due punti sul filo),
  *    non il bordo dell'immagine: un telefono storto non deve diventare postura;
  *  - finché l'errore di misura non è misurato (Fase 0: 5 persone × 3 foto), la
  *    differenza PRIMA/DOPO si mostra ma NON si giudica: esito «da confermare».
@@ -27,8 +28,6 @@
   // x, y normalizzati 0-1 sull'immagine.
   var PUNTI = {
     sagittale: [
-      { k: 'filo_alto',  nome: 'Filo a piombo, in alto' },
-      { k: 'filo_basso', nome: 'Filo a piombo, in basso' },
       { k: 'orecchio',   nome: 'Orecchio (trago)' },
       { k: 'occhio',     nome: 'Occhio (angolo esterno)' },   // linee-testa-v1
       { k: 'spalla',     nome: 'Spalla (acromion)' },
@@ -37,8 +36,6 @@
       { k: 'caviglia',   nome: 'Caviglia (malleolo)' }
     ],
     frontale: [
-      { k: 'filo_alto',    nome: 'Filo a piombo, in alto' },
-      { k: 'filo_basso',   nome: 'Filo a piombo, in basso' },
       { k: 'occhio_dx',    nome: 'Occhio destro (pupilla)' },    // linee-testa-v1
       { k: 'occhio_sx',    nome: 'Occhio sinistro (pupilla)' },
       { k: 'spalla_dx',    nome: 'Spalla destra' },
@@ -117,9 +114,12 @@
 
   // ── la geometria, in PIXEL (normalizzato × dimensioni: un'immagine non è quadrata)
   function px(p, W, H) { return { x: p.x * W, y: p.y * H } }
+  /* verticale-gravita-v1 (21/10, Giuliano: «la porta non deve centrare») · la verticale è SEMPRE
+     quella della foto, e la foto è già raddrizzata allo scatto dal sensore di gravità del telefono
+     (js/camera-pol.js). I punti «filo» messi a mano non entrano più nei calcoli: possono essere su
+     una porta storta o mancare. Il nome resta per non toccare chi lo chiama. */
   function assiDaFilo(punti, W, H) {
-    var a = punti.filo_alto && px(punti.filo_alto, W, H), b = punti.filo_basso && px(punti.filo_basso, W, H)
-    var up = (a && b) ? { x: a.x - b.x, y: a.y - b.y } : { x: 0, y: -1 }
+    var up = { x: 0, y: -1 }
     var l = Math.hypot(up.x, up.y)
     if (l < 1e-6) up = { x: 0, y: -1 }; else up = { x: up.x / l, y: up.y / l }
     // «destra dell'immagine» perpendicolare al filo
@@ -334,7 +334,9 @@
       })
     }
     if (opz.gradi) {
-      linea(pt.filo_alto, pt.filo_basso, '#FFD008', 0.3, [1.4, 1.1])
+      // verticale-gravita-v1 · la verticale vera (della foto) che passa per la base del corpo
+      var baseV = vista === 'sagittale' ? pt.caviglia : med(pt.caviglia_dx, pt.caviglia_sx)
+      if (baseV) linea({ x: baseV.x, y: 0.02 }, { x: baseV.x, y: 0.98 }, '#FFD008', 0.3, [1.4, 1.1])
       var gr = {}; (m.gradi || []).forEach(function (x) { gr[x.k] = x })
       var g1 = function (k) { return gr[k] ? numIt(gr[k].valore) + '°' : '' }
       if (vista === 'sagittale') {
@@ -418,8 +420,6 @@
       var ok = function (q) { return isFinite(q.x) && isFinite(q.y) }
       if (!ok(cima) || !ok(base)) return null
       var assi = assiDaFilo(p, W, H)
-      // un filo «a piombo» inclinato più di 20° non è un filo: vale il bordo della foto
-      if (Math.abs(gradi(Math.atan2(assi.su.x, -assi.su.y))) > 20) assi = assiDaFilo({}, W, H)
       var C = px(cima, W, H), B = px(base, W, H)
       var h = (C.x - B.x) * assi.su.x + (C.y - B.y) * assi.su.y     // quanto la cima sta SOPRA la base, lungo il filo
       if (!(h > 0.15 * H)) return null
