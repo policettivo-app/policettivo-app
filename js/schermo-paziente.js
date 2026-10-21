@@ -75,10 +75,8 @@
     rif_titolo:         'Come si legge',
     rif_legenda_giallo: 'Come stai tu',
     rif_legenda_verde:  'La linea di riferimento, costruita su di te',
-    // filo-studio-v1 (21/10) · il riferimento è il filo dello studio (Ministero: davanti a malleolo e ginocchio)
-    rif_profilo:        'Di profilo il riferimento è il filo a piombo: una linea verticale che passa poco davanti alla caviglia e al ginocchio, e vicino a spalla e orecchio. I cerchi verdi mostrano dove sarebbero i tuoi punti se fossero proprio sul filo.',
-    rif_senza_filo:     'Filo dello studio non segnato su una delle due foto: lì la linea verde parte dalla caviglia. Segnalo da «Gradi sulle foto» (i due punti gialli sulla linea della porta).',
-    rif_fronte:         'Di fronte e di spalle il riferimento è la simmetria: le linee di spalle, bacino, ginocchia e caviglie vicine all’orizzontale, cioè alla stessa altezza dai due lati.',
+    // filo-paziente-v1 (21/10) · la linea nasce dalla caviglia del paziente, non dalla porta
+    rif_profilo:        'Di profilo il riferimento è il filo a piombo: una linea verticale che parte dalla tua caviglia. Orecchio, spalla, anca e ginocchio si leggono rispetto a questa linea; i cerchi verdi mostrano dove sarebbero i tuoi punti se fossero proprio sulla linea.',
     rif_onesto:         'È un riferimento geometrico, non una regola: ognuno ha la sua forma. Una piccola differenza non vuol dire che ci sia un problema; il tuo fisioterapista la legge insieme al resto della visita.',
     rif_fonte:          'Riferimento: Linee guida del Ministero della Salute sulla postura (2018).',
     rif_attendi:        '⚡ Trovo i punti sulle due foto…',

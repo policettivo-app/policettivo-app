@@ -313,7 +313,9 @@
          avrebbe se i suoi punti ci fossero sopra; GIALLO = come sta lui.
          Il giallo si disegna solo senza «° Gradi», che ha già i suoi punti bianchi. */
       var GIALLO = '#FFD008', VERDE = '#00C48C'
-      var rf = riferimento(vista, pt, W, H, filoVero(m))
+      // filo-paziente-v1 (21/10, Giuliano): la linea verde nasce dal PAZIENTE (verticale dalla
+      // sua caviglia), mai dalla linea della porta, che è solo un aiuto visivo per chi scatta.
+      var rf = riferimento(vista, pt, W, H, false)
       if (rf && rf.tipo === 'verticale') {
         linea(rf.linea[0], rf.linea[1], VERDE, 0.45, [1.6, 1.1])
         var ordine = ['orecchio', 'spalla', 'anca', 'ginocchio'], id = {}
@@ -444,7 +446,7 @@
         '<path d="M50 54 Q60 50 74 56 Q80 80 76 104 Q74 116 70 122 L50 122 Q44 104 46 84 Q46 64 50 54 Z" ' + corpo + '/>' +
         '<path d="M60 58 Q58 84 64 108" ' + corpo + '/>' +
         '<path d="M52 122 Q50 160 56 176 Q56 196 54 214 L72 214 M66 122 Q66 160 64 176 Q62 196 62 212" ' + corpo + '/>' +
-        dot(X, 26) + dot(X, 58) + dot(X + 4, 118) + dot(X - 3, 170) + dot(X - 5, 212) +   // filo-studio-v1: anca un po' davanti, ginocchio e malleolo un po' dietro il filo
+        dot(X, 26) + dot(X, 58) + dot(X, 118) + dot(X, 170) + dot(X, 212) +   // filo-paziente-v1: come la linea disegnata, dalla caviglia
         txt(84, 29, 'orecchio') + txt(84, 61, 'spalla') + txt(84, 121, 'anca') + txt(84, 173, 'ginocchio') + txt(84, 215, 'caviglia') +
         '</svg>'
     }

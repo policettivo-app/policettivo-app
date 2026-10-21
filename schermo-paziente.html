@@ -14,12 +14,12 @@
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
   <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
   <script src="js/stepping.js?v=stepping-v1"></script><!-- stepping-v1 -->
-  <script src="js/schermo-paziente.js?v=filo-studio-v1"></script>
+  <script src="js/schermo-paziente.js?v=filo-paziente-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
   <!-- gradi-foto-v1 · i gradi sulle foto: punti confermati, riferimento personale -->
-  <script src="js/misure-foto.js?v=filo-studio-v1"></script>
+  <script src="js/misure-foto.js?v=filo-paziente-v1"></script>
   <!-- editor-punti-v1 · l'editor dei punti sta in un file solo (lo usa anche la Fase 0) -->
   <script src="js/editor-punti.js?v=linee-testa-v1"></script>
   <!-- tv-facile-v1 (25 set: TV accesa da sola, «in onda», tutto il collegamento in tv-collega.html) · tv-multi-v1 (25 set: TV aperta da questo computer senza codice) · tv-codice-v1 (25 set: la TV si collega con un codice, senza account) · tv-v1 (24 set: TV col telecomando) · schermo-paziente-v1 — 23 settembre 2026 · valutazioni-coerenti-v1 (T0 scheda, visite posturali e fisioterapiche, Premium)
@@ -1109,14 +1109,6 @@ async function toggleRif(plane) {
     avvisoGradi('')
   }
   vediRif[plane] = !vediRif[plane]; const c = corrente; costruisci(); vai(c, true)
-  // filo-studio-v1 · avviso al professionista (non entra nella slide né sulla TV)
-  try {
-    const ff = g && g.foto[plane]
-    if (vediRif[plane] && PM && PM.filoVero && PM.vistaDi(plane) === 'sagittale' && ff &&
-        [ff.pre, ff.post].some(o => o && o.path && misure[o.path] && !PM.filoVero(misure[o.path]))) {
-      avvisoGradi(T.rif_senza_filo || '', true); setTimeout(() => avvisoGradi(''), 7000)
-    }
-  } catch (e) {}
 }
 /* criteri-v1 · «Come si legge»: sagoma schematica + criterio + legenda + nota onesta.
    Le parole stanno in js/schermo-paziente.js (da rileggere da Giuliano). */
