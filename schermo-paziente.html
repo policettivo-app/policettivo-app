@@ -254,18 +254,31 @@
     .riquadro svg.sovra { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
     .modo button.gr.on { background: var(--giallo); border-color: var(--giallo); color: #000; }
     .modo button.rf.on { background: var(--verde); border-color: var(--verde); color: #000; }
-    /* criteri-v1 · «Come si legge» sotto le foto, quando è acceso il Riferimento */
-    .rif-riga { display: flex; gap: 18px; align-items: center; background: #101a16; border: 1px solid #1d5c47; border-radius: 16px; padding: 14px 18px; margin-top: 10px; }
-    .rif-riga .schema { width: 140px; flex-shrink: 0; }
-    .rif-riga .schema svg { width: 100%; height: auto; display: block; }
-    .rif-riga .rt { font-size: 15px; font-weight: 900; color: var(--verde); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 6px; }
-    .rif-riga .rc { font-size: 17px; line-height: 1.45; color: #eee; }
-    .rif-riga .leg { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 8px; font-size: 14px; font-weight: 700; color: #ccc; }
-    .rif-riga .leg i { display: inline-block; width: 22px; height: 0; vertical-align: middle; margin-right: 6px; }
-    .rif-riga .leg .g i { border-top: 4px solid var(--giallo); }
-    .rif-riga .leg .v i { border-top: 3px dashed var(--verde); }
-    .rif-riga .ro { font-size: 13px; color: #9a9a9a; line-height: 1.45; margin-top: 8px; }
-    @media (max-width: 700px) { .rif-riga { flex-direction: column; align-items: flex-start; } .rif-riga .rc { font-size: 15px; } }
+    /* criteri-v1 · Riferimento acceso: una riga sola sotto le foto (legenda + «Come si legge»),
+       la spiegazione completa si apre in un pannello. foto-zoom-v1 (21/10): prima il riquadro
+       grande rubava l'altezza alle foto. */
+    .rif-riga { display: flex; gap: 18px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 8px; font-size: 15px; font-weight: 700; color: #ccc; }
+    .rif-riga i, .rif-pan .leg i { display: inline-block; width: 22px; height: 0; vertical-align: middle; margin-right: 6px; }
+    .rif-riga .g i, .rif-pan .leg .g i { border-top: 4px solid var(--giallo); }
+    .rif-riga .v i, .rif-pan .leg .v i { border-top: 3px dashed var(--verde); }
+    .rif-riga button { background: #101a16; border: 1px solid #1d5c47; color: var(--verde); padding: 7px 14px; border-radius: 999px; font: inherit; font-weight: 800; cursor: pointer; }
+    .rif-pan-fondo { position: fixed; inset: 0; background: rgba(0,0,0,.82); z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .rif-pan { background: #101a16; border: 1px solid #1d5c47; border-radius: 20px; padding: 24px 28px; max-width: 860px; width: 100%; display: flex; gap: 24px; align-items: center; position: relative; }
+    .rif-pan .schema { width: 170px; flex-shrink: 0; }
+    .rif-pan .schema svg { width: 100%; height: auto; display: block; }
+    .rif-pan .rt { font-size: 16px; font-weight: 900; color: var(--verde); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 8px; }
+    .rif-pan .rc { font-size: 19px; line-height: 1.5; color: #eee; }
+    .rif-pan .leg { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 15px; font-weight: 700; color: #ccc; }
+    .rif-pan .ro { font-size: 14px; color: #9a9a9a; line-height: 1.5; margin-top: 10px; }
+    .rif-pan .chiudi { position: absolute; top: 10px; right: 12px; background: none; border: none; color: #aaa; font-size: 26px; cursor: pointer; }
+    @media (max-width: 700px) { .rif-pan { flex-direction: column; align-items: flex-start; } .rif-pan .rc { font-size: 16px; } }
+    /* foto-zoom-v1 · tocco sulla foto: le due foto a tutto schermo, con i disegni */
+    .riquadro.zoomabile { cursor: zoom-in; }
+    .zoom-fondo { position: fixed; inset: 0; background: #000; z-index: 9100; display: flex; flex-direction: column; padding: 16px 20px 20px; }
+    .zoom-testa { display: flex; justify-content: space-between; align-items: center; color: #fff; font-weight: 800; font-size: 18px; margin-bottom: 10px; }
+    .zoom-testa button { background: #1d1d1d; border: 1px solid #333; color: #fff; padding: 10px 18px; border-radius: 999px; font: inherit; font-weight: 800; cursor: pointer; }
+    .zoom-fondo .foto-area { flex: 1; min-height: 0; }
+    .zoom-fondo .riquadro { cursor: zoom-out; }
     .gradi-riga { display: flex; gap: 12px; justify-content: center; margin-top: 12px; flex-wrap: nowrap; }
     .gradi-voce { background: var(--carta); border: 1px solid var(--riga); border-radius: 14px; padding: 10px 16px; min-width: 0; flex: 1; max-width: 340px; }
     .gv-nome { font-size: 16px; color: var(--testo2); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -456,7 +469,7 @@ document.addEventListener('keydown', function (e) {
   if (e.target && /input|textarea/i.test(e.target.tagName) && e.target.type !== 'range') return
   if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); vai(corrente + 1) }
   else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); vai(corrente - 1) }
-  else if (e.key === 'Escape') esciGrande()
+  else if (e.key === 'Escape') { if (document.querySelector('.rif-pan-fondo,.zoom-fondo')) chiudiPannelli(); else esciGrande() }
   else if (e.key === 'f' || e.key === 'F') { document.body.classList.contains('grande') ? esciGrande() : entraGrande() }
 })
 // scorrere col dito
@@ -952,10 +965,10 @@ function allinCoppia(f, imgA, imgB) {
 }
 /* affiancate: le due foto stanno in due riquadri uguali. Con la coppia AUTOMATICA
    il «dopo» (foto e punti disegnati sopra) si porta alla grandezza del «prima». */
-function stessaGrandezza() {
+function stessaGrandezza(radice) {
   try {
     const g = giorni[sel]; if (!g) return
-    document.querySelectorAll('.slide.on .foto-area').forEach(area => {
+    ;(radice ? [radice] : document.querySelectorAll('.slide.on .foto-area')).forEach(area => {
       const boxA = area.querySelector('.riquadro.prima'), boxB = area.querySelector('.riquadro.dopo')
       if (!boxA || !boxB || boxB.hasAttribute('data-allinea')) return
       const ia = boxA.querySelector('img'), ib = boxB.querySelector('img'), sv = boxB.querySelector('svg.sovra')
@@ -997,7 +1010,7 @@ function slideFoto(g, ps) {
       '</div></div>'
   } else {
     const col = (o, cls, eti) => '<div class="foto-col"><span class="eti ' + cls + '">' + esc(eti) + '</span>' +
-      '<div class="riquadro ' + cls + '"' + (o.path ? ' data-misura="' + esc(o.path) + '" data-plane="' + ps.plane + '"' : '') + '>' +
+      '<div class="riquadro zoomabile ' + cls + '" onclick="apriZoom(this)"' + (o.path ? ' data-misura="' + esc(o.path) + '" data-plane="' + ps.plane + '"' : '') + '>' +
       '<img src="' + esc(o.url) + '" alt="' + esc(eti) + '" onload="disegnaSovra();stessaGrandezza()" onerror="this.parentNode.innerHTML=\'<div class=vuoto>Questa foto non si è aperta. Ricarica la pagina.</div>\'">' +
       '<svg class="sovra" aria-hidden="true"></svg></div></div>'
     corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', dopoDi()) + '</div>' +
@@ -1091,14 +1104,40 @@ async function toggleRif(plane) {
    Le parole stanno in js/schermo-paziente.js (da rileggere da Giuliano). */
 function strisciaRif(plane, f) {
   if (!vediRif[plane] || !PM || !PM.svgSchema || !coppiaMisurata(plane, f)) return ''
-  const vista = PM.vistaDi(plane)
-  if (!vista) return ''
-  return '<div class="rif-riga"><div class="schema">' + PM.svgSchema(vista) + '</div><div>' +
+  if (!PM.vistaDi(plane)) return ''
+  return '<div class="rif-riga"><span class="g"><i></i>' + esc(T.rif_legenda_giallo) + '</span><span class="v"><i></i>' + esc(T.rif_legenda_verde) + '</span>' +
+    '<button onclick="apriComeSiLegge(\'' + plane + '\')">ⓘ ' + esc(T.rif_titolo) + '</button></div>'
+}
+function chiudiPannelli() { document.querySelectorAll('.rif-pan-fondo,.zoom-fondo').forEach(x => x.remove()) }
+function apriComeSiLegge(plane) {
+  const vista = PM && PM.vistaDi(plane); if (!vista) return
+  chiudiPannelli()
+  const d = document.createElement('div')
+  d.className = 'rif-pan-fondo'
+  d.onclick = function (e) { if (e.target === d) d.remove() }
+  d.innerHTML = '<div class="rif-pan"><button class="chiudi" onclick="chiudiPannelli()" aria-label="Chiudi">×</button>' +
+    '<div class="schema">' + PM.svgSchema(vista) + '</div><div>' +
     '<div class="rt">' + esc(T.rif_titolo) + '</div>' +
     '<div class="rc">' + esc(vista === 'sagittale' ? T.rif_profilo : T.rif_fronte) + '</div>' +
     '<div class="leg"><span class="g"><i></i>' + esc(T.rif_legenda_giallo) + '</span><span class="v"><i></i>' + esc(T.rif_legenda_verde) + '</span></div>' +
-    '<div class="ro">' + esc(T.rif_onesto) + ' ' + esc(T.rif_fonte) + '</div>' +
-    '</div></div>'
+    '<div class="ro">' + esc(T.rif_onesto) + ' ' + esc(T.rif_fonte) + '</div></div></div>'
+  document.body.appendChild(d)
+}
+/* foto-zoom-v1 · tocco su una foto: prima e dopo a tutto schermo, con gli stessi
+   disegni (gradi / riferimento) e la stessa grandezza. Esc o tocco per chiudere. */
+function apriZoom(box) {
+  const area = box && box.closest('.foto-area'); if (!area) return
+  chiudiPannelli()
+  const z = document.createElement('div')
+  z.className = 'zoom-fondo'
+  const tit = (document.querySelector('.slide.on h1, .slide.on .titolo') || {}).textContent || ''
+  z.innerHTML = '<div class="zoom-testa"><span>' + esc(tit) + '</span><button onclick="chiudiPannelli()">✕ Chiudi</button></div>'
+  const copia = area.cloneNode(true)
+  copia.querySelectorAll('img,svg').forEach(x => { x.style.transform = '' })
+  copia.querySelectorAll('.riquadro').forEach(r => { r.removeAttribute('onclick'); r.onclick = chiudiPannelli })
+  z.appendChild(copia)
+  document.body.appendChild(z)
+  requestAnimationFrame(() => stessaGrandezza(copia))
 }
 function strisciaGradi(plane, f) {
   if (!vediGradi[plane] || !coppiaMisurata(plane, f)) return ''
