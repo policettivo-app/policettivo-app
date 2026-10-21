@@ -14,7 +14,7 @@
   <script src="js/squat.js?v=schermo-test-v1"></script><!-- schermo-test-v1 · lo squat nel prima e dopo -->
   <script src="js/atr.js?v=atr-v1"></script><!-- atr-v1 · la schiena in flessione -->
   <script src="js/stepping.js?v=stepping-v1"></script><!-- stepping-v1 -->
-  <script src="js/schermo-paziente.js?v=gradi-neutri-v1"></script>
+  <script src="js/schermo-paziente.js?v=sovrapposte-linee-v1"></script>
   <!-- valutazioni-coerenti-v1 · lo stesso elenco di valutazioni di «Confronto nel tempo», e il cancello Premium -->
   <script src="js/valutazioni.js?v=pdf-gradi-v1"></script>
   <script src="utils-premium.js"></script>
@@ -884,6 +884,8 @@ function costruisci() {
 /* valutazioni-coerenti-v1 — sulla valutazione iniziale il «dopo» è dopo i CUSCINI
    (slot «Dopo cuscini» della scheda), non dopo i 3 Respiri */
 function dopoDi() { const g = giorni[sel]; return g && g.scheda ? T.dopo_scheda : T.dopo }
+// foto-dopo-v1 (21/10) · sulle FOTO solo «Dopo»: il confronto può essere a distanza di mesi, non solo dopo i 3 Respiri
+function dopoFoto() { return T.dopo_foto || dopoDi() }
 /* momento-nota-v3 — il «dopo» dei TEST dice che cosa si è fatto, se il professionista
    l'ha scritto: «Dopo · schema 2». k = 'prove' | 'squat' | 'atr' | 'st'.
    Le foto restano «Dopo i 3 Respiri»: sono le caselle della visita. */
@@ -1002,11 +1004,13 @@ function slideFoto(g, ps) {
     corpo = '<div class="foto-area"><div class="sovrapp">' +
       '<div class="riquadro dopo" data-allinea="' + ps.plane + '">' +
         '<img class="ia" src="' + esc(f.pre.url) + '" alt="Prima" onload="allineaTutto()">' +
+        '<svg class="sovra sa" aria-hidden="true"' + (f.pre.path ? ' data-m="' + esc(f.pre.path) + '"' : '') + '></svg>' +
         '<img class="ib" src="' + esc(f.post.url) + '" alt="Dopo" onload="allineaTutto()" style="opacity:0">' +
+        '<svg class="sovra sb" aria-hidden="true" style="opacity:0"' + (f.post.path ? ' data-m="' + esc(f.post.path) + '"' : '') + '></svg>' +
       '</div>' +
       '<div class="cursore"><span class="eti prima">' + esc(T.prima) + '</span>' +
         '<input type="range" min="0" max="100" value="0" aria-label="Da prima a dopo" oninput="mix(this,' + "'" + ps.plane + "'" + ')">' +
-        '<span class="eti dopo">' + esc(dopoDi()) + '</span></div>' +
+        '<span class="eti dopo">' + esc(dopoFoto()) + '</span></div>' +
       '<div class="allin">' + (allin ? 'Foto allineate sui riferimenti dello studio' : (allinAuto ? esc(T.foto_stessa_grandezza || '') : 'Foto non allineate: si guardano, non si misurano')) + '</div>' +
       '</div></div>'
   } else {
@@ -1014,7 +1018,7 @@ function slideFoto(g, ps) {
       '<div class="riquadro zoomabile ' + cls + '" onclick="apriZoom(this)"' + (o.path ? ' data-misura="' + esc(o.path) + '" data-plane="' + ps.plane + '"' : '') + '>' +
       '<img src="' + esc(o.url) + '" alt="' + esc(eti) + '" onload="disegnaSovra();stessaGrandezza()" onerror="this.parentNode.innerHTML=\'<div class=vuoto>Questa foto non si è aperta. Ricarica la pagina.</div>\'">' +
       '<svg class="sovra" aria-hidden="true"></svg></div></div>'
-    corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', dopoDi()) + '</div>' +
+    corpo = '<div class="foto-area">' + col(f.pre, 'prima', T.prima) + col(f.post, 'dopo', dopoFoto()) + '</div>' +
       (allinAuto ? '<div class="allin stessa" style="text-align:center;font-size:16px;color:#8a8a8a;font-weight:600;margin-top:6px">' + esc(T.foto_stessa_grandezza || '') + '</div>' : '') +
       strisciaGradi(ps.plane, f) + strisciaRif(ps.plane, f)
   }
@@ -1023,7 +1027,7 @@ function slideFoto(g, ps) {
     '<div class="riga-basso"><div class="criterio"><span class="ico">⟂</span><span>' + esc(T[ps.criterio]) + '</span></div>' +
     '<div class="modo"><button class="' + (modo === 'affiancate' ? 'on' : '') + '" onclick="setModoFoto(\'' + ps.plane + '\',\'affiancate\')">' + esc(T.foto_affiancate) + '</button>' +
     '<button class="' + (modo === 'sovrapposte' ? 'on' : '') + '" onclick="setModoFoto(\'' + ps.plane + '\',\'sovrapposte\')">' + esc(T.foto_sovrapposte) + '</button>' +
-    (modo === 'affiancate' && (coppiaMisurata(ps.plane, f) || misurabileAuto(ps.plane, f))
+    ((modo === 'affiancate' || modo === 'sovrapposte') && (coppiaMisurata(ps.plane, f) || misurabileAuto(ps.plane, f))
       ? '<button class="gr' + (vediGradi[ps.plane] ? ' on' : '') + '" onclick="toggleGradi(\'' + ps.plane + '\')">' + esc(T.gradi_bottone) + '</button>' +
         '<button class="rf' + (vediRif[ps.plane] ? ' on' : '') + '" onclick="toggleRif(\'' + ps.plane + '\')">' + esc(T.rif_bottone) + '</button>'
       : '') + '</div></div>' +
@@ -1031,8 +1035,13 @@ function slideFoto(g, ps) {
 }
 function setModoFoto(plane, m) { modoFoto[plane] = m; const c = corrente; costruisci(); vai(c, true) }
 function mix(input, plane) {
-  const r = input.closest('.slide').querySelector('.riquadro .ib')
-  if (r) r.style.opacity = String(Number(input.value) / 100)
+  const box = input.closest('.slide').querySelector('[data-allinea]') || input.closest('.slide')
+  const v = Number(input.value) / 100
+  const r = box.querySelector('.riquadro .ib, .ib')
+  if (r) r.style.opacity = String(v)
+  const sa = box.querySelector('svg.sa'), sb = box.querySelector('svg.sb')   // sovrapposte-linee-v1
+  if (sa) sa.style.opacity = String(1 - v)
+  if (sb) sb.style.opacity = String(v)
 }
 /* ═══ gradi-foto-v1 · I GRADI SULLE FOTO ═════════════════════════════════
    I punti li conferma il professionista (editor qui sotto); i gradi escono da
@@ -1198,6 +1207,7 @@ function disegnaSovra() {
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
     svg.innerHTML = PM.svgMisura(m, { gradi: !!vediGradi[plane], rif: !!vediRif[plane], W: W, H: H })
   })
+  disegnaSovrapp()   // sovrapposte-linee-v1
 }
 window.addEventListener('resize', function () { setTimeout(function () { disegnaSovra(); stessaGrandezza() }, 60) })
 
@@ -1225,6 +1235,29 @@ function allineaTutto() {
     if (!m) return
     ib.style.transformOrigin = '0 0'
     ib.style.transform = 'matrix(' + m.join(',') + ')'
+  })
+  disegnaSovrapp()
+}
+/* sovrapposte-linee-v1 (21/10) · nelle Sovrapposte, con «° Gradi» o «📐 Riferimento»
+   accesi, ogni foto porta i SUOI disegni: quelli del prima sfumano e quelli del dopo
+   compaiono insieme alla foto mentre si trascina il cursore. Spenti: foto pulita. */
+function disegnaSovrapp() {
+  if (!PM) return
+  document.querySelectorAll('.slide.on [data-allinea]').forEach(box => {
+    const plane = box.getAttribute('data-allinea')
+    const ib = box.querySelector('.ib')
+    box.querySelectorAll('svg.sovra').forEach(svg => {
+      const m = misure[svg.getAttribute('data-m')]
+      const img = svg.classList.contains('sb') ? ib : box.querySelector('.ia')
+      svg.innerHTML = ''
+      if (!m || !img || (!vediGradi[plane] && !vediRif[plane])) return
+      const W = m.larghezza || img.naturalWidth, H = m.altezza || img.naturalHeight
+      if (!W || !H) return
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H)
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+      svg.innerHTML = PM.svgMisura(m, { gradi: !!vediGradi[plane], rif: !!vediRif[plane], W: W, H: H })
+      if (svg.classList.contains('sb')) { svg.style.transformOrigin = ib.style.transformOrigin || ''; svg.style.transform = ib.style.transform || '' }
+    })
   })
 }
 

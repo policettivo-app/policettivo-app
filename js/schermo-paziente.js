@@ -38,6 +38,7 @@
     // valutazioni-coerenti-v1 · la valutazione iniziale (scheda paziente)
     copertina_sotto_scheda: 'Valutazione iniziale · prima e dopo i cuscini',
     dopo_scheda:        'Dopo i cuscini',
+    dopo_foto:          'Dopo',   // foto-dopo-v1 (21/10): sulle foto solo «Dopo»
 
     foto_profilo:       'Come stai in piedi, di profilo',
     foto_fronte:        'Come stai in piedi, di fronte',
