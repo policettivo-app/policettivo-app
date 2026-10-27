@@ -153,7 +153,15 @@
         .eq('stato', 'attivo')
         .maybeSingle()
 
-      renderStats(entries || [], proto)
+      // scheda-ovunque-v1 · chi è passato alla scheda ha la serie di giorni come chi ha il protocollo
+      let scheda = null
+      try {
+        const rs = await _supabase.from('scheda_allenamento').select('id').eq('patient_id', patientId)
+          .eq('visibile_paziente', true).neq('stato', 'archiviata').limit(1)
+        if (!rs.error && rs.data && rs.data.length) scheda = rs.data[0]
+      } catch (e) { scheda = null }
+
+      renderStats(entries || [], proto || scheda)
       renderChart(entries || [])
       renderDiary(entries || [])
     }

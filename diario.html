@@ -256,6 +256,21 @@ var pid = new URLSearchParams(window.location.search).get('pid');
 var _from = new URLSearchParams(window.location.search).get('from');
 var patient = null;
 var protAtt = null;
+
+// scheda-ovunque-v1 · la scheda di allenamento che il paziente vede (la stessa di get_scheda_paziente):
+// visibile, non archiviata, la più recente. Qualunque errore = null, e si va col protocollo come prima.
+var schedaAtt = null;
+async function leggiSchedaAttiva(pid) {
+  try {
+    var s = await _sb.from('scheda_allenamento').select('id, nome').eq('patient_id', pid).eq('visibile_paziente', true)
+      .neq('stato', 'archiviata').order('aggiornato_il', { ascending: false }).limit(1);
+    if (s.error || !s.data || !s.data.length) return null;
+    var r = await _sb.from('scheda_allenamento_righe').select('nome, tipo, ordine').eq('scheda_id', s.data[0].id).order('ordine');
+    if (r.error) return null;
+    var nomi = (r.data || []).filter(function (x) { return x.tipo === 'esercizio' && x.nome; }).map(function (x) { return x.nome; });
+    return nomi.length ? { nome: s.data[0].nome, esercizi: nomi } : null;
+  } catch (e) { return null; }
+}
 var calON = false;
 var sedutaId = null;
 var detSeduta = null;
@@ -582,6 +597,8 @@ async function init() {
   } catch(e) { console.error('[diario] fetch professionals error:', e); }
   var pr = await _sb.from('patient_protocols').select('*, patient_protocol_exercises(*, exercises(nome))').eq('patient_id', pid).eq('stato', 'attivo').order('created_at', { ascending: false }).limit(1);
   if (pr.data && pr.data.length > 0) protAtt = pr.data[0];
+  // scheda-ovunque-v1 · se il paziente usa la scheda (visibile), gli esercizi si leggono da lì
+  schedaAtt = await leggiSchedaAttiva(pid);
   // Popola select template
   var sel = document.querySelector('.tpl-select');
   if (sel) DIARIO_TEMPLATES.forEach(function(t){ var o=document.createElement('option'); o.value=t.label; o.textContent=t.label; sel.appendChild(o); });
@@ -665,7 +682,11 @@ async function precompilaAI() {
   var problema = patient.problema_principale || 'non specificato';
   var esercizi = 'nessun protocollo';
   var nomeProt = '';
-  if (protAtt) {
+  if (schedaAtt) {
+    // scheda-ovunque-v1
+    nomeProt = 'Protocollo Esercizi';
+    esercizi = schedaAtt.esercizi.join(', ');
+  } else if (protAtt) {
     nomeProt = protAtt.nome_personalizzato || 'Protocollo attivo';
     var exList = protAtt.patient_protocol_exercises || [];
     var nomi = [];

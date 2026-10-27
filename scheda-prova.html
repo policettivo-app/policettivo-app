@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="policettivo-globals.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/elicoidali-exercises.js"></script>
+  <script src="js/scheda-pure.js?v=scheda-ovunque-v1"></script><!-- scheda-ovunque-v1 -->
   <script src="utils-ai.js"></script>
   <script src="js/ai-correggi.js?v=ai-correggi-v1"></script><!-- ai-correggi-v1 -->
   <script src="js/configurazioni.js"></script><!-- scheda-npl-v1 : NPL/GPL si scrivono in js/configurazioni.js -->
@@ -351,11 +352,8 @@
   let scelti = []                // chiavi delle voci spuntate, nell'ordine in cui si toccano
 
   // ── funzioni pure (provate dal test) ──
-  function clampInt(v, min, max) {
-    const n = Math.round(Number(v))
-    if (!Number.isFinite(n) || n < min || n > max) return null
-    return n
-  }
+  // scheda-ovunque-v1 · le pure stanno in js/scheda-pure.js (le usa anche passa-scheda.html)
+  const clampInt = window.SchedaPure.clampInt
   function notaVuota(r) { return r.tipo === 'nota' && !String(r.testo || '').trim() }
   function valida(r) {
     if (r.tipo === 'nota') return (String(r.testo || '').trim() ? null : 'Scrivi il testo della nota')
@@ -385,58 +383,20 @@
     const m = Math.floor(s / 60), r = s % 60
     return r ? m + ' min ' + r + ' s' : m + ' min'
   }
-  function versoDb(r, schedaId, i) {
-    const es = r.tipo === 'esercizio'
-    return {
-      scheda_id: schedaId, ordine: i + 1, tipo: r.tipo,
-      exercise_id: es ? (r.exercise_id || null) : null,
-      video_id: es ? (r.video_id || null) : null,
-      elicoidale_id: es ? (r.elicoidale_id || null) : null,
-      nome: es ? String(r.nome).trim() : null,
-      misura: es ? r.misura : null,
-      secondi: es && r.misura === 'tempo' ? clampInt(r.secondi, 1, 3600) : null,
-      ripetizioni: es && r.misura === 'ripetizioni' ? clampInt(r.ripetizioni, 1, 500) : null,
-      serie: clampInt(r.serie, 1, 20) || 1,
-      quando: r.quando || 'sempre',
-      ritmo_sec: null, recupero_sec: null,
-      guidato_sensore: false,
-      testo: String(r.testo || '').trim() || null,
-      configurazione: es ? cfgOk(r.configurazione) : null
-    }
-  }
+  const versoDb = window.SchedaPure.versoDb
   // scheda-npl-v1 · solo 'NPL' o 'GPL'; tutto il resto = vuoto (vale quella della scheda)
   // scheda-volte-v1 · 2 se la scheda dice «mattina e sera» OPPURE se una riga è solo mattina / solo sera
   // (le schede di prima della 062 avevano il momento solo sulle righe: il paziente le vedeva già divise)
   function volteDa(rr, volte) {
     return (Number(volte) === 2 || (rr || []).some(function (r) { return r.quando && r.quando !== 'sempre' })) ? 2 : 1
   }
-  function cfgOk(c) { const k = String(c || '').toUpperCase(); return (k === 'NPL' || k === 'GPL') ? k : null }
+  const cfgOk = window.SchedaPure.cfgOk
   function cfgDi(r, imp) { return r.tipo === 'esercizio' ? (cfgOk(r.configurazione) || cfgOk(imp && imp.configurazione)) : null }
   // Dal protocollo attivo alle righe della scheda: stesso ordine di esercizio.html
   // (esercizi della libreria per «ordine», poi i Cuscini Elicoidali, poi i video del paziente),
   // stesse durate di ripiego (durata → durata_default → 90 s; cuscini e video 60 s).
   // NPL/GPL: sulla riga solo se diversa da quella generale del protocollo, che va sulla scheda.
-  function daProtocollo(prot, ppe, exById, eli, vids, listaEli) {
-    const gen = cfgOk(prot && prot.configurazione_generale)
-    const sec = function (v, ripiego) { return clampInt(v, 1, 3600) || ripiego }
-    const es = (ppe || []).slice().sort(function (a, b) { return (a.ordine || 0) - (b.ordine || 0) }).map(function (e) {
-      const ex = exById[e.exercise_id] || null
-      const c = cfgOk(e.configurazione)
-      return { tipo: 'esercizio', nome: (ex && ex.nome) || 'Esercizio', exercise_id: e.exercise_id || null, video_id: null, elicoidale_id: null,
-               misura: 'tempo', secondi: sec(e.durata || (ex && ex.durata_default), 90), ripetizioni: null, serie: 1, quando: 'sempre', testo: '',
-               configurazione: c && c !== gen ? c : null }
-    })
-    const ce = (eli || []).slice().sort(function (a, b) { return (a.ordine || 0) - (b.ordine || 0) }).map(function (e) {
-      const def = (listaEli || []).find(function (x) { return x.id === e.elicoidale_id })
-      return { tipo: 'esercizio', nome: (def && def.title) || e.elicoidale_id, exercise_id: null, video_id: null, elicoidale_id: e.elicoidale_id,
-               misura: 'tempo', secondi: sec(e.durata, 60), ripetizioni: null, serie: 1, quando: 'sempre', testo: '', configurazione: null }
-    })
-    const cv = (vids || []).slice().sort(function (a, b) { return String(a.created_at || '') < String(b.created_at || '') ? -1 : 1 }).map(function (v) {
-      return { tipo: 'esercizio', nome: v.titolo || 'Contenuto personalizzato', exercise_id: null, video_id: v.id, elicoidale_id: null,
-               misura: 'tempo', secondi: sec(v.durata, 60), ripetizioni: null, serie: 1, quando: 'sempre', testo: v.descrizione || '', configurazione: null }
-    })
-    return { righe: [].concat(es, ce, cv), configurazione: gen }
-  }
+  const daProtocollo = window.SchedaPure.daProtocollo
   function daDb(x) {
     return {
       tipo: x.tipo, nome: x.nome || '', exercise_id: x.exercise_id, video_id: x.video_id, elicoidale_id: x.elicoidale_id,

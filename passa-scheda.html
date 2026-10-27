@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Passa alla scheda — Policettivo®</title>
+<!-- scheda-ovunque-v1 : passaggio in un colpo dal protocollo alla scheda di allenamento.
+     Per ogni paziente con un protocollo attivo e nessuna scheda crea una scheda VISIBILE
+     con gli stessi esercizi, durate, cuscini, video e NPL/GPL. Usa le stesse funzioni di
+     «Copia dal protocollo» (js/scheda-pure.js): il risultato è identico a quello a mano.
+     ⚠️ IL PROTOCOLLO NON SI TOCCA: resta attivo, sotto. Per tornare indietro basta spegnere
+     la scheda («Torna al protocollo» qui sotto, o «Il paziente la vede?» nell'editor):
+     il paziente rivede il suo protocollo di prima.
+     Le schede create qui hanno il nome che comincia con «Dal protocollo · »: è così che
+     «Torna al protocollo» le riconosce. Solo il ruolo master. RLS: vede solo i pazienti del suo studio. -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/elicoidali-exercises.js"></script>
+<script src="js/scheda-pure.js?v=scheda-ovunque-v1"></script>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Montserrat',sans-serif; background:#f5f5f7; color:#1a1a1a; }
+  .navbar { background:#000; padding:0 16px; height:60px; display:flex; align-items:center; justify-content:space-between; }
+  .navbar-logo { color:#FFD008; font-weight:800; letter-spacing:.5px; }
+  .nav-btn { background:transparent; border:1px solid #444; color:#fff; padding:6px 12px; border-radius:6px; font-family:inherit; font-size:12px; min-height:44px; cursor:pointer; }
+  .main { max-width:720px; margin:0 auto; padding:20px 16px 90px; }
+  h1 { font-size:22px; margin:4px 0 6px; }
+  .sub { color:#666; font-size:13px; margin:0 0 16px; line-height:1.5; }
+  .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .card-title { font-size:14px; font-weight:800; margin:0 0 6px; }
+  .num { font-size:34px; font-weight:800; letter-spacing:-1px; }
+  .btn { width:100%; border:none; border-radius:10px; padding:15px; font-family:inherit; font-size:15px; font-weight:800; cursor:pointer; min-height:48px; }
+  .btn.giallo { background:#FFD008; color:#000; }
+  .btn.grigio { background:#fff; color:#c62828; border:1.5px solid #f2c4c4; font-size:13px; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .infobox { background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:11px 13px; font-size:12.5px; line-height:1.55; margin-bottom:12px; }
+  .ok { background:#e8f5e9; border:1px solid #a5d6a7; }
+  .err { background:#ffebee; border:1px solid #ffcdd2; }
+  details { font-size:13px; margin-top:10px; }
+  details summary { cursor:pointer; font-weight:700; color:#555; }
+  .lista { max-height:320px; overflow:auto; margin-top:8px; }
+  .riga { padding:7px 0; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; gap:10px; }
+  .riga .m { color:#777; font-size:12px; text-align:right; }
+  .bar { height:10px; background:#eee; border-radius:6px; overflow:hidden; margin:10px 0 6px; }
+  .bar div { height:100%; width:0; background:#FFD008; transition:width .2s; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <span class="navbar-logo">POLICETTIVO®</span>
+  <button class="nav-btn" onclick="location.href='dashboard.html'">← Dashboard</button>
+</nav>
+<div class="main">
+  <h1>Passa alla scheda</h1>
+  <p class="sub">Ogni paziente con un protocollo attivo riceve una scheda di allenamento con gli stessi esercizi, già visibile nella sua app. Il protocollo resta salvato: si può tornare indietro in qualsiasi momento.</p>
+  <div id="box"><div class="card">Leggo i pazienti…</div></div>
+  <div id="box-indietro"></div>
+</div>
+
+<script>
+var SB_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE';
+var sb = window.supabase.createClient(SB_URL, SB_KEY);
+var PREFISSO = 'Dal protocollo · ';
+var P = window.SchedaPure;
+
+var daPassare = [];   // [{ prot, paz }]
+var inProva = [];     // pazienti con una scheda non visibile: non si toccano
+var passate = [];     // schede visibili create da questa pagina
+var lavorando = false, confermaIndietro = false;
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function $(id){ return document.getElementById(id); }
+function nome(p){ return p ? ((p.cognome||'') + ' ' + (p.nome||'')).trim() || 'Paziente' : 'Paziente'; }
+function pezzi(a, n){ var o=[]; for (var i=0;i<a.length;i+=n) o.push(a.slice(i,i+n)); return o; }
+
+// legge a blocchi di 100: una lista di 150 id dentro un URL è troppo lunga
+async function leggiIn(tabella, colonna, ids, sel){
+  var out = [];
+  for (var b of pezzi(ids, 100)) {
+    var r = await sb.from(tabella).select(sel || '*').in(colonna, b);
+    if (r.error) throw r.error;
+    out = out.concat(r.data || []);
+  }
+  return out;
+}
+
+async function avvio(){
+  var s = await sb.auth.getSession();
+  if (!s.data.session) { location.href = 'login.html'; return; }
+  var pr = await sb.from('professionals').select('id, ruolo').eq('user_id', s.data.session.user.id).maybeSingle();
+  if (!pr.data || pr.data.ruolo !== 'master') {
+    $('box').innerHTML = '<div class="card">Questa pagina è riservata al titolare dello studio.</div>'; return;
+  }
+  await leggi();
+}
+
+async function leggi(){
+  try {
+    var pp = await sb.from('patient_protocols').select('*').eq('stato','attivo').order('created_at', { ascending:false });
+    if (pp.error) throw pp.error;
+    var sc = await sb.from('scheda_allenamento').select('id, patient_id, nome, visibile_paziente, stato').neq('stato','archiviata');
+    if (sc.error) throw sc.error;
+    var conScheda = {}, prova = {};
+    passate = [];
+    (sc.data || []).forEach(function(x){
+      if (!x.patient_id) return;            // i modelli dello studio
+      conScheda[x.patient_id] = true;
+      if (!x.visibile_paziente) prova[x.patient_id] = true;
+      if (x.visibile_paziente && String(x.nome||'').indexOf(PREFISSO) === 0) passate.push(x);
+    });
+    // un protocollo per paziente: il più recente, lo stesso che l'editor chiama «attivo»
+    var visto = {}, prot = [];
+    (pp.data || []).forEach(function(p){ if (!visto[p.patient_id]) { visto[p.patient_id] = true; prot.push(p); } });
+    var ids = prot.map(function(p){ return p.patient_id; }).concat(Object.keys(prova));
+    var paz = {}; (await leggiIn('patients', 'id', Array.from(new Set(ids)), 'id, nome, cognome')).forEach(function(p){ paz[p.id] = p; });
+    daPassare = prot.filter(function(p){ return !conScheda[p.patient_id]; }).map(function(p){ return { prot:p, paz:paz[p.patient_id] }; })
+      .sort(function(a,b){ return nome(a.paz).localeCompare(nome(b.paz)); });
+    inProva = Object.keys(prova).filter(function(id){ return visto[id]; }).map(function(id){ return paz[id]; });
+    disegna();
+  } catch (e) {
+    $('box').innerHTML = '<div class="card infobox err">Non riesco a leggere i pazienti: ' + esc(e.message || e) + '. Non è cambiato niente.</div>';
+  }
+}
+
+function disegna(esito){
+  var h = '';
+  if (esito) h += esito;
+  if (daPassare.length) {
+    h += '<div class="card"><div class="card-title">Da passare alla scheda</div>' +
+      '<div class="num">' + daPassare.length + '</div><div class="sub" style="margin:0 0 12px">pazienti con un protocollo attivo e senza scheda</div>' +
+      '<button class="btn giallo" id="btn-passa" onclick="passaTutti()">▶ Passa tutti alla scheda</button>' +
+      '<div id="avanzamento"></div>' +
+      '<details><summary>Vedi i nomi</summary><div class="lista">' +
+      daPassare.map(function(x){ return '<div class="riga"><span>' + esc(nome(x.paz)) + '</span><span class="m">' + esc(x.prot.nome_personalizzato || 'Protocollo') + '</span></div>'; }).join('') +
+      '</div></details></div>';
+  } else if (!esito) {
+    h += '<div class="card infobox ok">✅ Nessun paziente da passare: tutti quelli con un protocollo attivo hanno già la scheda.</div>';
+  }
+  if (inProva.length) {
+    h += '<div class="card"><div class="card-title">Lasciati come sono (' + inProva.length + ')</div>' +
+      '<div class="sub" style="margin:0">Hanno già una scheda che il paziente non vede ancora: non la sovrascrivo. Aprila dalla scheda del paziente e accendi «Il paziente la vede?».</div>' +
+      '<div class="lista">' + inProva.map(function(p){ return '<div class="riga"><span>' + esc(nome(p)) + '</span></div>'; }).join('') + '</div></div>';
+  }
+  $('box').innerHTML = h;
+  disegnaIndietro();
+}
+
+function disegnaIndietro(){
+  if (!passate.length) { $('box-indietro').innerHTML = ''; return; }
+  $('box-indietro').innerHTML = '<div class="card"><div class="card-title">Tornare indietro</div>' +
+    '<div class="sub" style="margin:0 0 12px">' + passate.length + ' schede create da questa pagina sono visibili. Spegnendole, quei pazienti rivedono il loro protocollo di prima. Le schede restano salvate.</div>' +
+    '<button class="btn grigio" id="btn-indietro" onclick="tornaIndietro()">' +
+    (confermaIndietro ? 'Sicuro? Tocca ancora per rimettere il protocollo a ' + passate.length + ' pazienti' : '↩ Torna al protocollo per tutti') + '</button></div>';
+}
+
+// un paziente: legge il suo protocollo, costruisce le righe come «Copia dal protocollo», salva
+async function passaUno(x, libreria){
+  var pid = x.prot.id;
+  var r = await Promise.all([
+    sb.from('patient_protocol_exercises').select('*').eq('patient_protocol_id', pid).order('ordine'),
+    sb.from('patient_protocol_elicoidali').select('*').eq('patient_protocol_id', pid).order('ordine'),
+    sb.from('exercise_videos').select('*').eq('protocol_id', pid).order('created_at')
+  ]);
+  var e = r[0].error || r[1].error || r[2].error;
+  if (e) return { esito:'errore', motivo:'non riesco a leggere il protocollo (' + e.message + ')' };
+  var mancano = (r[0].data || []).map(function(z){ return z.exercise_id; }).filter(function(id){ return id && !libreria[id]; });
+  if (mancano.length) {
+    try { (await leggiIn('exercises', 'id', Array.from(new Set(mancano)))).forEach(function(z){ libreria[z.id] = z; }); }
+    catch (er) { return { esito:'errore', motivo:'non riesco a leggere gli esercizi (' + er.message + ')' }; }
+  }
+  var eli = (typeof EXERCISES_ELICOIDALI !== 'undefined' && Array.isArray(EXERCISES_ELICOIDALI)) ? EXERCISES_ELICOIDALI : [];
+  var d = P.daProtocollo(x.prot, r[0].data, libreria, r[1].data, r[2].data, eli);
+  if (!d.righe.length) return { esito:'saltato', motivo:'il protocollo non ha esercizi' };
+  // i video del protocollo senza paziente non arriverebbero nella scheda (get_scheda_paziente
+  // li cerca per paziente): si collegano a questo paziente, solo quelli vuoti
+  var senzaPaz = (r[2].data || []).filter(function(v){ return !v.patient_id; }).map(function(v){ return v.id; });
+  if (senzaPaz.length) await sb.from('exercise_videos').update({ patient_id: x.prot.patient_id }).in('id', senzaPaz).is('patient_id', null);
+  var ins = await sb.from('scheda_allenamento').insert({
+    patient_id: x.prot.patient_id, nome: PREFISSO + (x.prot.nome_personalizzato || 'Protocollo'),
+    stato: 'attiva', visibile_paziente: true, ripeti_volte: 1, configurazione: P.cfgOk(d.configurazione), volte_giorno: 1
+  }).select().single();
+  if (ins.error) return { esito:'errore', motivo:'scheda non creata (' + ins.error.message + ')' };
+  var ri = await sb.from('scheda_allenamento_righe').insert(d.righe.map(function(z, i){ return P.versoDb(z, ins.data.id, i); }));
+  if (ri.error) {
+    await sb.from('scheda_allenamento').delete().eq('id', ins.data.id);   // niente schede vuote a metà
+    return { esito:'errore', motivo:'esercizi non salvati (' + ri.error.message + ')' };
+  }
+  return { esito:'ok', righe: d.righe.length };
+}
+
+window.passaTutti = async function(){
+  if (lavorando || !daPassare.length) return;
+  lavorando = true;
+  $('btn-passa').disabled = true; $('btn-passa').textContent = 'Sto passando…';
+  var lista = daPassare.slice(), fatti = 0, ok = 0, saltati = [], errori = [], libreria = {};
+  $('avanzamento').innerHTML = '<div class="bar"><div id="bar"></div></div><div class="sub" id="conta" style="margin:0">0 di ' + lista.length + '</div>';
+  var coda = lista.slice();
+  async function lavoratore(){
+    while (coda.length) {
+      var x = coda.shift(), r;
+      try { r = await passaUno(x, libreria); } catch (e) { r = { esito:'errore', motivo: String(e && e.message || e) }; }
+      if (r.esito === 'ok') ok++; else if (r.esito === 'saltato') saltati.push(nome(x.paz) + ' — ' + r.motivo); else errori.push(nome(x.paz) + ' — ' + r.motivo);
+      fatti++;
+      $('bar').style.width = Math.round(fatti / lista.length * 100) + '%';
+      $('conta').textContent = fatti + ' di ' + lista.length;
+    }
+  }
+  await Promise.all([lavoratore(), lavoratore(), lavoratore(), lavoratore()]);
+  lavorando = false;
+  var esito = '<div class="card infobox ' + (errori.length ? 'err' : 'ok') + '"><b>' + (errori.length ? '⚠️' : '✅') + ' Passati alla scheda: ' + ok + '</b>' +
+    (saltati.length ? '<br>Saltati: ' + saltati.length : '') + (errori.length ? '<br>Non riusciti: ' + errori.length + ' (il loro protocollo è rimasto com\'era)' : '') +
+    ((saltati.length || errori.length) ? '<div class="lista">' + saltati.concat(errori).map(function(t){ return '<div class="riga"><span>' + esc(t) + '</span></div>'; }).join('') + '</div>' : '') +
+    '</div>';
+  await leggi();
+  disegna(esito);
+};
+
+window.tornaIndietro = async function(){
+  if (lavorando || !passate.length) return;
+  if (!confermaIndietro) { confermaIndietro = true; disegnaIndietro(); return; }
+  confermaIndietro = false; lavorando = true;
+  $('btn-indietro').disabled = true; $('btn-indietro').textContent = 'Rimetto il protocollo…';
+  var errore = null;
+  for (var b of pezzi(passate.map(function(x){ return x.id; }), 100)) {
+    var r = await sb.from('scheda_allenamento').update({ visibile_paziente:false, stato:'prova', aggiornato_il:new Date().toISOString() }).in('id', b);
+    if (r.error) { errore = r.error; break; }
+  }
+  lavorando = false;
+  await leggi();
+  disegna(errore ? '<div class="card infobox err">Non riuscito: ' + esc(errore.message) + '</div>'
+                 : '<div class="card infobox ok">↩ Fatto: quei pazienti rivedono il protocollo. Le schede restano salvate (non visibili).</div>');
+};
+
+avvio();
+</script>
+<script src="js/pol-nav.js?v=nav-v1" defer></script>
+</body>
+</html>
