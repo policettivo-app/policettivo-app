@@ -715,11 +715,24 @@
         const q = r.misura === 'tempo' ? (r.secondi >= 60 && r.secondi % 60 === 0 ? (r.secondi / 60) + ' min' : r.secondi + ' sec') : r.ripetizioni + ' ripetizioni'
         return '<div class="exercise-item"><div class="exercise-num">' + (i + 1) + '</div><div class="exercise-info"><div class="exercise-name">' + escSN(r.nome) + '</div><div class="exercise-meta">' + ((r.serie || 1) > 1 ? r.serie + ' × ' : '') + q + '</div></div></div>'
       }).join('')
-      return '<div class="protocol-card"><div class="protocol-name">Il tuo allenamento</div>' +
+      return avvisoAggPaz() + '<div class="protocol-card"><div class="protocol-name">Il tuo allenamento</div>' +
         '<div class="protocol-info"><div class="protocol-info-item">Esercizi <span>' + es.length + '</span></div>' + (giri > 1 ? '<div class="protocol-info-item">Giri <span>' + giri + '</span></div>' : '') + '</div>' +
         '<button class="btn-start" id="btn-scheda-nuova" onclick="location.href=\'' + url + '\'" style="line-height:1.3">&#9654; Inizia gli esercizi<br><span style="font-size:11px;font-weight:600;opacity:.7">con le immagini, il timer e la spiegazione a voce</span></button>' +
         '<button id="btn-scheda-fatto" onclick="location.href=\'' + url + '&fatto=1\'" style="width:100%;padding:14px;background:#00C48C;border:none;color:#000;border-radius:12px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px;line-height:1.3">&#9889; Ho gi&agrave; fatto gli esercizi<br><span style="font-size:11px;font-weight:600;opacity:.75">un tocco e li segno come eseguiti</span></button></div>' +
         '<div class="section-title">Il tuo programma</div><div class="exercise-list">' + lista + '</div>'
+    }
+    // scheda-ovunque-v2 · avviso «aggiornamento» per il paziente: fino al 31 ottobre 2026, o finché non tocca la ✕
+    function avvisoAggPaz() {
+      let chiuso = false
+      try { chiuso = localStorage.getItem('avviso-agg-paz') === '1' } catch (e) {}
+      if (chiuso || new Date() > new Date('2026-10-31T23:59:59+01:00')) return ''
+      return '<div id="avviso-agg-paz" style="position:relative;background:#1a1a1a;border:1.5px solid #FFD008;border-radius:12px;padding:14px 44px 14px 16px;margin:0 0 14px;font-size:14px;line-height:1.5;color:#fff">' +
+        '<b style="color:#FFD008">🔄 Abbiamo aggiornato l\'app</b><br>I tuoi esercizi sono gli stessi: ora li trovi qui sotto, con le immagini, il timer e la spiegazione a voce.' +
+        '<button onclick="chiudiAvvisoAggPaz()" aria-label="Chiudi" style="position:absolute;top:6px;right:6px;width:40px;height:40px;border:none;background:transparent;color:#aaa;font-size:18px;cursor:pointer">✕</button></div>'
+    }
+    window.chiudiAvvisoAggPaz = function () {
+      const el = document.getElementById('avviso-agg-paz'); if (el) el.remove()
+      try { localStorage.setItem('avviso-agg-paz', '1') } catch (e) {}
     }
     function escSN(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
 

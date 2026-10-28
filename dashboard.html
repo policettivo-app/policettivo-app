@@ -388,6 +388,26 @@
   <!-- ── Main ────────────────────────────────────────────── -->
   <main class="d-main ds-page">
 
+    <!-- scheda-ovunque-v2 · avviso «aggiornamento» per i professionisti: si nasconde da solo
+         dopo il 31 ottobre 2026 (3 giorni), o con la ✕ (ricordata solo su questo browser). -->
+    <div id="avviso-agg" style="display:none;background:#fff8e1;border:1.5px solid #FFD008;border-radius:12px;padding:14px 44px 14px 16px;margin:0 0 16px;position:relative;font-size:13.5px;line-height:1.55;color:#1a1a1a">
+      <b>🔄 Aggiornamento dell'app</b><br>
+      Gli esercizi che avevi assegnato con il protocollo ora sono nella <b>«📋 Scheda di allenamento»</b> di ogni paziente: stessi esercizi, stesse durate, stessi video. I pazienti li trovano già nella loro app, dal solito collegamento. Il protocollo resta salvato.
+      <button onclick="chiudiAvvisoAgg()" aria-label="Chiudi" style="position:absolute;top:6px;right:6px;width:36px;height:36px;border:none;background:transparent;font-size:18px;cursor:pointer;color:#666">✕</button>
+    </div>
+    <script>
+      (function () {
+        var SCADE = new Date('2026-10-31T23:59:59+01:00')
+        var chiuso = false
+        try { chiuso = localStorage.getItem('avviso-agg-scheda') === '1' } catch (e) {}
+        if (new Date() <= SCADE && !chiuso) document.getElementById('avviso-agg').style.display = 'block'
+      })()
+      function chiudiAvvisoAgg() {
+        document.getElementById('avviso-agg').style.display = 'none'
+        try { localStorage.setItem('avviso-agg-scheda', '1') } catch (e) {}
+      }
+    </script>
+
     <!-- Hero -->
     <div class="d-hero">
       <div class="d-hero-row">
