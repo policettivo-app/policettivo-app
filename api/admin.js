@@ -124,6 +124,9 @@ export default async function handler(req, res) {
     case 'professionalStats':  return handleProfessionalStats(svc, req, res)
     case 'panoramica':         return handlePanoramica(svc, req, res)        // admin-panoramica-v1
     case 'mfa-reset':          return handleMfaReset(svc, req, res)       // due-fattori-v1
+    case 'reset-password':     return handleResetPassword(svc, req, res)  // admin-reset-v1
+    case 'block-prof':         return handleBloccaProf(svc, req, res, true)   // admin-blocca-v1
+    case 'unblock-prof':       return handleBloccaProf(svc, req, res, false)  // admin-blocca-v1
     default:                   return res.status(400).json({ error: 'action sconosciuta: ' + action })
   }
 }
@@ -603,4 +606,42 @@ async function handlePanoramica(svc, req, res) {
     prof: per,
     avvisi
   })
+}
+
+// ── reset-password (admin-reset-v1) ──────────────────────────────────────────
+// Manda al professionista l'email per scegliersi una password nuova. L'amministratore
+// non vede e non sceglie mai la password altrui (come member-reset-password).
+async function handleResetPassword(svc, req, res) {
+  const { profId } = req.body || {}
+  if (!profId) return res.status(400).json({ error: 'profId obbligatorio' })
+  const { data: p, error: eP } = await svc.from('professionals').select('user_id').eq('id', profId).maybeSingle()
+  if (eP || !p || !p.user_id) return res.status(400).json({ error: 'Professionista senza account' })
+  const { data: u, error: eU } = await svc.auth.admin.getUserById(p.user_id)
+  const email = u && u.user ? u.user.email : null
+  if (eU || !email) return res.status(400).json({ error: 'Email non trovata' })
+  const { error } = await svc.auth.resetPasswordForEmail(email, { redirectTo: 'https://app.policettivo.it/reset-password.html' })
+  if (error) return res.status(500).json({ error: error.message })
+  return res.status(200).json({ ok: true, email })
+}
+
+// ── block-prof / unblock-prof (admin-blocca-v1) ──────────────────────────────
+// «Blocca» deve impedire DAVVERO l'accesso. Prima admin.html scriveva solo
+// professionals.attivo = false dal browser (con la RLS, e senza guardare l'errore)
+// e nessuna pagina lo controllava: il professionista «bloccato» entrava come prima.
+// Ora: blocco dell'account (come la sospensione dei membri) + attivo = false.
+// Il token gia' in mano scade da solo (al massimo circa un'ora): da li' non rientra.
+async function handleBloccaProf(svc, req, res, blocca) {
+  const { profId } = req.body || {}
+  if (!profId) return res.status(400).json({ error: 'profId obbligatorio' })
+  const { data: p, error: eP } = await svc.from('professionals').select('id, user_id').eq('id', profId).maybeSingle()
+  if (eP || !p) return res.status(404).json({ error: 'Professionista non trovato' })
+  if (p.user_id) {
+    const { data: u } = await svc.auth.admin.getUserById(p.user_id)
+    if (blocca && u && u.user && u.user.email === ADMIN_EMAIL) return res.status(400).json({ error: 'Non puoi bloccare l\'account amministratore' })
+    const { error: eBan } = await svc.auth.admin.updateUserById(p.user_id, { ban_duration: blocca ? BAN_LUNGO : 'none' })
+    if (eBan) return res.status(500).json({ error: 'Blocco accesso non riuscito: ' + eBan.message })
+  }
+  const { error } = await svc.from('professionals').update({ attivo: !blocca }).eq('id', profId)
+  if (error) return res.status(500).json({ error: error.message })
+  return res.status(200).json({ ok: true, attivo: !blocca })
 }

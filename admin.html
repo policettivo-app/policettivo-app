@@ -483,7 +483,7 @@
         inviti.map(inv => {
           const link = 'https://policettivo-app.vercel.app/registrazione.html?token=' + inv.token
           const data = new Date(inv.created_at).toLocaleDateString('it-IT')
-          return '<tr><td><strong>' + (inv.nome || '—') + '</strong></td><td>' + (inv.email || '—') + '</td><td>' + data + '</td><td><button class="copy-btn" onclick="navigator.clipboard.writeText(\'' + link + '\').then(()=>alert(\'Copiato!\'))">Copia link</button></td><td><button class="action-btn danger" onclick="eliminaInvito(\'' + inv.id + '\')">Elimina</button></td></tr>'
+          return '<tr><td><strong>' + escHtml(inv.nome || '—') + '</strong></td><td>' + escHtml(inv.email || '—') + '</td><td>' + data + '</td><td><button class="copy-btn" onclick="navigator.clipboard.writeText(\'' + link + '\').then(()=>alert(\'Copiato!\'))">Copia link</button></td><td><button class="action-btn danger" onclick="eliminaInvito(\'' + inv.id + '\')">Elimina</button></td></tr>'
         }).join('') +
         '</tbody></table>'
     }
@@ -534,7 +534,13 @@
 
     async function bloccaProfessionista(id) {
       if (!confirm('Bloccare questo professionista? Non potrà più accedere.')) return
-      await _supabase.from('professionals').update({ attivo: false }).eq('id', id)
+      // admin-blocca-v1 · dal server: blocca davvero l'accesso (prima era solo un'etichetta)
+      try {
+        const tok = await getAdminToken()
+        const r = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ action: 'block-prof', profId: id }) })
+        const j = await r.json().catch(() => ({}))
+        if (!r.ok) { alert('Non riuscito: ' + (j.error || r.status)); return }
+      } catch (e) { alert('Non riuscito: ' + (e.message || e)); return }
       const p = allProfessionisti.find(x => x.id === id)
       if (p) p.attivo = false
       const sc = _statsCache.find(s => s.prof.id === id)
@@ -543,7 +549,13 @@
     }
 
     async function sbloccaProfessionista(id) {
-      await _supabase.from('professionals').update({ attivo: true }).eq('id', id)
+      // admin-blocca-v1 · dal server: blocca davvero l'accesso (prima era solo un'etichetta)
+      try {
+        const tok = await getAdminToken()
+        const r = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ action: 'unblock-prof', profId: id }) })
+        const j = await r.json().catch(() => ({}))
+        if (!r.ok) { alert('Non riuscito: ' + (j.error || r.status)); return }
+      } catch (e) { alert('Non riuscito: ' + (e.message || e)); return }
       const p = allProfessionisti.find(x => x.id === id)
       if (p) p.attivo = true
       const sc = _statsCache.find(s => s.prof.id === id)
@@ -1229,6 +1241,19 @@
       alert('Nota salvata ✓')
     }
 
+    // admin-reset-v1 · l'email per scegliersi una password nuova (tu non la vedi mai)
+    async function mandaResetPassword() {
+      if (!currentProfId) return
+      if (!confirm('Mandare a questo professionista l\'email per impostare una password nuova?')) return
+      try {
+        const tok = await getAdminToken()
+        const r = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify({ action: 'reset-password', profId: currentProfId }) })
+        const j = await r.json().catch(() => ({}))
+        if (!r.ok) { alert('Non mandata: ' + (j.error || r.status)); return }
+        alert('Email mandata a ' + j.email + '. Il link vale per poco tempo: digli di aprirla subito.')
+      } catch (e) { alert('Non mandata: ' + (e.message || e)) }
+    }
+
     function visualizzaComeProfessionista() {
       if (!_panelProfData) return
       sessionStorage.setItem('admin_preview_user_id', _panelProfData.user_id)
@@ -1295,6 +1320,7 @@
         <input class="p-input" id="p-scadenza" type="date">
 
         <button class="btn-save" onclick="salvaProfessionista()">💾 Salva modifiche</button>
+        <button class="btn-view-as" onclick="mandaResetPassword()" style="background:#fff;color:#000;border:1.5px solid #ddd">🔑 Manda email per nuova password</button><!-- admin-reset-v1 -->
         <button class="btn-view-as" onclick="visualizzaComeProfessionista()">👁 Visualizza come questo professionista</button>
         <button id="btn-elimina-pannello" onclick="eliminaProfessionistaDalPannello()" style="width:100%;margin-top:8px;padding:12px;background:transparent;border:1.5px solid #ffcdd2;color:#c62828;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Elimina professionista</button>
       </div>
