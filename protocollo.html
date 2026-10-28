@@ -725,7 +725,7 @@
         const q = r.misura === 'tempo' ? (r.secondi >= 60 && r.secondi % 60 === 0 ? (r.secondi / 60) + ' min' : r.secondi + ' sec') : r.ripetizioni + ' ripetizioni'
         return '<div class="exercise-item"><div class="exercise-num">' + (i + 1) + '</div><div class="exercise-info"><div class="exercise-name">' + escSN(r.nome) + '</div><div class="exercise-meta">' + ((r.serie || 1) > 1 ? r.serie + ' × ' : '') + q + '</div></div></div>'
       }).join('')
-      return avvisoAggPaz() + '<div class="protocol-card"><div class="protocol-name">Il tuo allenamento</div>' +
+      return avvisoAggPaz() + '<div class="protocol-card"><div class="protocol-name">Il tuo Protocollo Esercizi</div>' +
         '<div class="protocol-info"><div class="protocol-info-item">Esercizi <span>' + es.length + '</span></div>' + (giri > 1 ? '<div class="protocol-info-item">Giri <span>' + giri + '</span></div>' : '') + '</div>' +
         '<button class="btn-start" id="btn-scheda-nuova" onclick="location.href=\'' + url + '\'" style="line-height:1.3">&#9654; Inizia gli esercizi<br><span style="font-size:11px;font-weight:600;opacity:.7">con le immagini, il timer e la spiegazione a voce</span></button>' +
         '<button id="btn-scheda-fatto" onclick="location.href=\'' + url + '&fatto=1\'" style="width:100%;padding:14px;background:#00C48C;border:none;color:#000;border-radius:12px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px;line-height:1.3">&#9889; Ho gi&agrave; fatto gli esercizi<br><span style="font-size:11px;font-weight:600;opacity:.75">un tocco e li segno come eseguiti</span></button></div>' +
