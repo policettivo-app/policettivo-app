@@ -122,6 +122,7 @@ export default async function handler(req, res) {
     case 'create-invite':      return handleCreateInvite(svc, req, res)
     case 'delete-invite':      return handleDeleteInvite(svc, req, res)
     case 'professionalStats':  return handleProfessionalStats(svc, req, res)
+    case 'panoramica':         return handlePanoramica(svc, req, res)        // admin-panoramica-v1
     case 'mfa-reset':          return handleMfaReset(svc, req, res)       // due-fattori-v1
     default:                   return res.status(400).json({ error: 'action sconosciuta: ' + action })
   }
@@ -470,5 +471,136 @@ async function handleProfessionalStats(svc, req, res) {
     ultimiPazienti,
     ultimeSedute,
     ultimeVisite
+  })
+}
+
+// ── panoramica (admin-panoramica-v1) ─────────────────────────────────────────
+// LE STATISTICHE DEI PROFESSIONISTI, CALCOLATE QUI E NON NEL BROWSER.
+// Prima admin.html le contava con la sessione dell'amministratore: le regole di
+// accesso (RLS) gli fanno vedere SOLO i pazienti del suo studio, quindi ogni altro
+// professionista risultava con 0 pazienti, 0 visite e «ultima attività» = data di
+// registrazione (pallino giallo anche se usava l'app ogni giorno). In piu' contava
+// le visite dalla tabella `visite`, che non esiste (quelle vere sono in `visits`),
+// e i totali in alto si fermavano a 1000 righe (il limite di una lettura).
+// Qui si legge con la chiave di servizio, a pagine da 1000, TUTTA la piattaforma.
+// Una tabella che non si riesce a leggere non blocca le altre: finisce in `avvisi`.
+async function tutteLeRighe(svc, tabella, colonne) {
+  const out = []
+  for (let da = 0; ; da += 1000) {
+    const { data, error } = await svc.from(tabella).select(colonne).range(da, da + 999)
+    if (error) throw new Error(tabella + ': ' + error.message)
+    out.push(...(data || []))
+    if (!data || data.length < 1000) break
+    if (da > 200000) break   // freno di sicurezza
+  }
+  return out
+}
+
+async function handlePanoramica(svc, req, res) {
+  const avvisi = []
+  const prova = async (tabella, colonne) => {
+    try { return await tutteLeRighe(svc, tabella, colonne) }
+    catch (e) { avvisi.push(String(e.message || e)); return null }
+  }
+  const [profs, pazienti, visite, sedute, diario, foto, schede, messaggi, inviti] = await Promise.all([
+    prova('professionals', 'id, user_id, ruolo, studio_id, created_at'),
+    prova('patients', 'id, professional_id, stato, created_at'),
+    prova('visits', 'id, patient_id, professional_id, tipo, data_visita, created_at'),
+    prova('therapy_sessions', 'id, patient_id, data_seduta'),
+    prova('diary_entries', 'id, patient_id, data, created_at'),
+    prova('foto_storico', 'id, patient_id, creato_il'),
+    prova('scheda_allenamento', 'id, patient_id, visibile_paziente, stato, aggiornato_il'),
+    prova('patient_messages', 'id, professional_id, creato_il'),
+    prova('invites', 'id, usato')
+  ])
+  const TEST = [
+    ['oscillazione', 'oscillazione_test', 'creato_il'],
+    ['test', 'test_sessioni', 'quando'],
+    ['squat', 'squat_test', 'quando'],
+    ['atr', 'atr_test', 'quando'],
+    ['stepping', 'stepping_test', 'quando']
+  ]
+  const test = await Promise.all(TEST.map(([, tab, quando]) => prova(tab, 'id, professional_id, patient_id, ' + quando)))
+
+  // accessi reali: auth.users (ultimo login, email confermata)
+  const utenti = {}
+  try {
+    for (let page = 1; page < 50; page++) {
+      const { data, error } = await svc.auth.admin.listUsers({ page, perPage: 1000 })
+      if (error) throw error
+      ;(data.users || []).forEach(u => { utenti[u.id] = u })
+      if (!data.users || data.users.length < 1000) break
+    }
+  } catch (e) { avvisi.push('utenti: ' + (e.message || e)) }
+
+  const OGGI = Date.now(), G30 = 30 * 864e5
+  const per = {}
+  ;(profs || []).forEach(p => {
+    const u = utenti[p.user_id] || {}
+    per[p.id] = {
+      email: u.email || '', ultimo_accesso: u.last_sign_in_at || null, email_confermata: !!u.email_confirmed_at,
+      pazienti: 0, pazienti_attivi: 0, ultimo_paziente: null,
+      visite: 0, visite_tipo: {}, ultima_visita: null,
+      sedute: 0, ultima_seduta: null,
+      test: 0, test_tipo: {}, ultimo_test: null,
+      foto: 0, ultima_foto: null,
+      schede_visibili: 0,
+      diario: 0, pazienti_app_30gg: 0, ultimo_uso_app: null,
+      messaggi: 0
+    }
+  })
+  const piu = (a, b) => (!a || (b && String(b) > String(a))) ? (b || a) : a
+  const profDiPaz = {}
+  ;(pazienti || []).forEach(p => {
+    profDiPaz[p.id] = p.professional_id
+    const s = per[p.professional_id]; if (!s) return
+    s.pazienti++
+    if (p.stato === 'attivo') s.pazienti_attivi++
+    s.ultimo_paziente = piu(s.ultimo_paziente, p.created_at)
+  })
+  const diChi = r => per[r.professional_id] || per[profDiPaz[r.patient_id]]
+  ;(visite || []).forEach(v => {
+    const s = diChi(v); if (!s) return
+    s.visite++; const k = v.tipo || 'altro'; s.visite_tipo[k] = (s.visite_tipo[k] || 0) + 1
+    s.ultima_visita = piu(s.ultima_visita, v.created_at || v.data_visita)
+  })
+  ;(sedute || []).forEach(x => { const s = per[profDiPaz[x.patient_id]]; if (!s) return; s.sedute++; s.ultima_seduta = piu(s.ultima_seduta, x.data_seduta) })
+  ;(foto || []).forEach(x => { const s = per[profDiPaz[x.patient_id]]; if (!s) return; s.foto++; s.ultima_foto = piu(s.ultima_foto, x.creato_il) })
+  ;(schede || []).forEach(x => { const s = per[profDiPaz[x.patient_id]]; if (s && x.visibile_paziente && x.stato !== 'archiviata') s.schede_visibili++ })
+  ;(messaggi || []).forEach(x => { const s = per[x.professional_id]; if (s) s.messaggi++ })
+  const appPaz = {}
+  ;(diario || []).forEach(x => {
+    const s = per[profDiPaz[x.patient_id]]; if (!s) return
+    s.diario++
+    const q = x.created_at || x.data
+    s.ultimo_uso_app = piu(s.ultimo_uso_app, q)
+    if (q && OGGI - new Date(q).getTime() <= G30) { (appPaz[profDiPaz[x.patient_id]] = appPaz[profDiPaz[x.patient_id]] || new Set()).add(x.patient_id) }
+  })
+  Object.keys(appPaz).forEach(id => { if (per[id]) per[id].pazienti_app_30gg = appPaz[id].size })
+  test.forEach((righe, i) => {
+    const [nome, , quando] = TEST[i]
+    ;(righe || []).forEach(x => {
+      const s = diChi(x); if (!s) return
+      s.test++; s.test_tipo[nome] = (s.test_tipo[nome] || 0) + 1
+      s.ultimo_test = piu(s.ultimo_test, x[quando])
+    })
+  })
+  // ultima attività DEL PROFESSIONISTA: login o qualcosa che ha fatto lui (l'uso dell'app dei pazienti è a parte)
+  Object.values(per).forEach(s => {
+    s.ultima_attivita = [s.ultimo_accesso, s.ultimo_paziente, s.ultima_visita, s.ultima_seduta, s.ultimo_test, s.ultima_foto].reduce(piu, null)
+  })
+  return res.status(200).json({
+    generato_il: new Date().toISOString(),
+    totali: {
+      professionisti: (profs || []).length,
+      pazienti: (pazienti || []).length,
+      visite: (visite || []).length,
+      sedute: (sedute || []).length,
+      diario: (diario || []).length,
+      test: test.reduce((a, r) => a + (r || []).length, 0),
+      inviti_pendenti: (inviti || []).filter(i => !i.usato).length
+    },
+    prof: per,
+    avvisi
   })
 }
