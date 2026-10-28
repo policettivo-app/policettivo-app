@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Policettivo® — Il tuo allenamento (anteprima)</title>
+  <!-- scheda-paziente-v1 · PASSO 3 del PIANO-scheda-allenamento: il foglio del PAZIENTE.
+       IN PROVA: lo apre SOLO il professionista dall'editor (protocollo-esercizi.html), per vedere
+       come lo vedrà il paziente. Legge le tabelle della 059 coi permessi del professionista;
+       nessuna RPC paziente, niente salvato nel diario. Modo principale «Inizia» SENZA audio.
+       scheda-paziente-v2 (Giuliano 16/10 18:43): niente riposo; prima di ogni esercizio 3 s di
+       «Adesso tocca a…» col nome grande; pulsante unico «Ho già fatto gli esercizi»; pagella e
+       diario come in protocollo.html (in anteprima non salvano).
+       scheda-paziente-v3 (18:46 «tenere quello che c'era prima»): musichetta finale con 🔊/🔇 (stesso file e
+       stessa scelta salvata di esercizio.html), «⚠ Ho dolore — interrompi», ← esercizio precedente, il
+       promemoria dei 3 Respiri, a fine seduta 🔥 giorni di fila + frase motivante + promemoria della sera.
+       scheda-paziente-v4 (18:52): immagine dell'esercizio (elenco in js/scheda-immagini.js) nella lista e in
+       «Adesso tocca a»; in cima la faccina dell'andamento come protocollo.html (loadSmile), dai dati veri.
+       scheda-paziente-v5 (19:21): mentre si fa l'esercizio si vede la sua INFOGRAFICA (tocca = ingrandisci),
+       il timer sta in un pannello sotto e NON parte da solo («▶ AVVIA»); in anteprima, finita la seduta,
+       la faccina mostra come cambierebbe (senza salvare).
+       scheda-paziente-v8 (17/10 14:11): in ogni esercizio «🔊 Spiegami l'esercizio a voce» (voce del telefono,
+       testi in js/scheda-immagini.js trascritti dalle infografiche); in alto a sinistra «🏠 Inizio».
+       scheda-collega-v1 (17/10): con ?token=… è la pagina del PAZIENTE VERO. Legge get_scheda_paziente
+       (migration 060: solo se il professionista l'ha resa visibile) e salva nel diario con le stesse
+       chiamate di esercizio.html / rapida.html (save_diary_entry + polSessione). Pagella e diario
+       restano quelli di protocollo.html. Con ?preview=1 non salva niente.
+       scheda-collega-v2 (17/10): «Come ti senti rispetto a prima?» con tre risposte (Peggio / Come prima /
+       Meglio) che col paziente vero si SALVANO sulla stessa riga della seduta (risposta_post, la colonna
+       del database fatta per questo) e nella nota, che il professionista legge in Monitoraggio.
+       scheda-npl-v1 (17/10): NPL / GPL (migration 061) come in protocollo.html ed esercizio.html: il badge
+       accanto a ogni esercizio, e per esteso in «Adesso tocca a…» e nella schermata dell'esercizio.
+       Vale quella della riga, altrimenti quella della scheda; se non c'è nessuna delle due, niente badge.
+       scheda-volte-v1 (17/10): con «Mattina e sera» sulla scheda (migration 062) il paziente vede sempre
+       il selettore Mattina / Sera e la riga che gli ricorda le due volte, anche se nessun esercizio è
+       «solo mattina» o «solo sera». -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/elicoidali-exercises.js"></script>
+  <script src="js/scheda-immagini.js"></script>
+  <script src="js/configurazioni.js"></script><!-- scheda-npl-v1 : NPL/GPL si scrivono in js/configurazioni.js -->
+  <script src="js/pol-sessione.js"></script><!-- scheda-collega-v1 : una seduta, una riga, come le altre pagine -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { background: #000; }
+    body { font-family: 'Montserrat', sans-serif; color: #fff; min-height: 100vh; }
+    button { font-family: inherit; }
+    .barra-prova { background: #FFD008; color: #000; font-size: 12px; font-weight: 700; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .barra-prova a { color: #000; font-weight: 800; white-space: nowrap; }
+    .main { max-width: 480px; margin: 0 auto; padding: 22px 18px 60px; }
+    .err { background: #2a0f0f; border: 1px solid #5a2a2a; color: #ff8a80; border-radius: 12px; padding: 14px; font-size: 13px; font-weight: 600; margin-bottom: 16px; display: none; }
+    .err.show { display: block; }
+
+    /* ── Casa ── */
+    .saluto { font-size: 14px; color: #999; margin-bottom: 4px; }
+    .titolo { font-size: 28px; font-weight: 900; line-height: 1.1; margin-bottom: 18px; }
+    .titolo span { color: #FFD008; }
+    .eroe { background: linear-gradient(160deg, #1c1c1c 0%, #0b0b0b 100%); border: 1px solid #2a2a2a; border-radius: 22px; padding: 20px; margin-bottom: 18px; position: relative; overflow: hidden; }
+    .eroe::after { content: ''; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(255,208,8,.25), rgba(255,208,8,0) 70%); }
+    .numeri { display: flex; gap: 10px; margin-bottom: 18px; position: relative; z-index: 1; }
+    .numero { flex: 1; background: #000; border: 1px solid #262626; border-radius: 14px; padding: 12px 8px; text-align: center; }
+    .numero b { display: block; font-size: 22px; font-weight: 900; color: #FFD008; }
+    .numero span { font-size: 11px; color: #999; font-weight: 600; }
+    .quando { display: flex; background: #000; border: 1px solid #333; border-radius: 12px; overflow: hidden; margin-bottom: 14px; position: relative; z-index: 1; }
+    .quando button { flex: 1; padding: 11px; border: none; background: transparent; color: #aaa; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .quando button.on { background: #FFD008; color: #000; }
+    .inizia { width: 100%; padding: 20px; border: none; border-radius: 16px; background: #FFD008; color: #000; font-size: 20px; font-weight: 900; letter-spacing: .5px; cursor: pointer; box-shadow: 0 8px 30px rgba(255,208,8,.25); position: relative; z-index: 1; }
+    .inizia:active { transform: scale(.98); }
+    .voce-btn { width: 100%; margin-top: 10px; padding: 14px; border-radius: 14px; border: 1px solid #333; background: transparent; color: #777; font-size: 14px; font-weight: 700; position: relative; z-index: 1; }
+    .sez { font-size: 12px; font-weight: 800; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin: 22px 0 12px; }
+    .giro { display: inline-flex; align-items: center; gap: 6px; background: #1a1a1a; border: 1px solid #333; color: #FFD008; border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 800; margin-bottom: 12px; }
+    .es { background: #111; border: 1px solid #222; border-radius: 16px; padding: 14px; margin-bottom: 10px; display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; color: #fff; cursor: pointer; }
+    .es:active { border-color: #FFD008; }
+    .es .n { width: 38px; height: 38px; border-radius: 50%; background: #FFD008; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .es .c { flex: 1; min-width: 0; }
+    .es .t { font-size: 15px; font-weight: 700; }
+    .es .q { font-size: 13px; color: #FFD008; font-weight: 700; margin-top: 3px; }
+    .es .f { font-size: 12px; color: #aaa; margin-top: 3px; }
+    .es .play { font-size: 12px; color: #000; background: #FFD008; border-radius: 20px; padding: 6px 10px; font-weight: 800; flex-shrink: 0; }
+    .nota { border: 1px dashed #444; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; color: #ddd; font-size: 14px; display: flex; gap: 10px; }
+    .pill { display: inline-block; font-size: 10px; font-weight: 800; background: #262626; color: #ddd; border-radius: 6px; padding: 2px 6px; margin-left: 6px; vertical-align: middle; }
+
+    /* ── Allenamento (schermo intero) ── */
+    .palco { position: fixed; inset: 0; background: #000; z-index: 100; display: none; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom)); }
+    .palco.show { display: flex; }
+    .palco-su { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .chiudi { background: #1a1a1a; border: 1px solid #333; color: #ccc; width: 44px; height: 44px; border-radius: 12px; font-size: 18px; cursor: pointer; }
+    .dove { font-size: 13px; font-weight: 700; color: #aaa; text-align: right; }
+    .dove b { color: #FFD008; }
+    .avanz { height: 6px; background: #1f1f1f; border-radius: 6px; margin: 12px 0 0; overflow: hidden; }
+    .avanz div { height: 100%; background: #FFD008; width: 0; transition: width .4s; }
+    .palco-centro { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: safe center; text-align: center; gap: 14px; min-height: 0; overflow-y: auto; padding: 10px 0; }
+    .etichetta { font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #FFD008; }
+    .etichetta.riposo { color: #7fd1ff; }
+    .nome-es { font-size: 26px; font-weight: 900; line-height: 1.15; max-width: 420px; }
+    .frase { font-size: 15px; color: #ccc; max-width: 380px; line-height: 1.4; }
+    .serie { font-size: 14px; font-weight: 700; color: #aaa; }
+    .anello { position: relative; width: min(64vw, 260px); aspect-ratio: 1; }
+    .anello svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .anello .fondo { stroke: #1f1f1f; }
+    .anello .arco { stroke: #FFD008; stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
+    .anello.riposo .arco { stroke: #7fd1ff; }
+    .anello .dentro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .anello .cifra { font-size: clamp(52px, 18vw, 76px); font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+    .anello .sotto { font-size: 13px; color: #999; font-weight: 700; margin-top: 6px; }
+    .rip-grandi { font-size: clamp(80px, 30vw, 120px); font-weight: 900; color: #FFD008; line-height: 1; }
+    .rip-sotto { font-size: 18px; font-weight: 800; margin-top: -6px; }
+    .guarda { background: transparent; border: 1px solid #FFD008; color: #FFD008; border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .prossimo { background: #111; border: 1px solid #222; border-radius: 14px; padding: 12px 14px; font-size: 13px; color: #aaa; max-width: 360px; width: 100%; }
+    .prossimo b { color: #fff; display: block; font-size: 15px; margin-top: 2px; }
+    .palco-giu { display: flex; gap: 10px; align-items: center; }
+    .tondo { width: 56px; height: 56px; border-radius: 50%; border: 1px solid #333; background: #1a1a1a; color: #fff; font-size: 20px; cursor: pointer; flex-shrink: 0; }
+    .grande { flex: 1; padding: 18px; border: none; border-radius: 16px; background: #FFD008; color: #000; font-size: 18px; font-weight: 900; cursor: pointer; }
+    .grande.scuro { background: #1a1a1a; color: #fff; border: 1px solid #333; }
+    .pronti { font-size: clamp(96px, 34vw, 150px); font-weight: 900; color: #FFD008; line-height: 1; }
+
+    .gia-fatto { width: 100%; margin-top: 10px; padding: 14px; border: none; border-radius: 16px; background: #00C48C; color: #000; font-size: 16px; font-weight: 800; cursor: pointer; position: relative; z-index: 1; line-height: 1.3; }
+    .gia-fatto span { display: block; font-size: 11px; font-weight: 600; opacity: .75; }
+    .smile { text-align: center; background: #111; border: 1px solid #222; border-radius: 20px; padding: 22px 18px; margin-bottom: 20px; }
+    .smile-big { font-size: 56px; margin-bottom: 6px; }
+    .smile-title { font-size: 18px; font-weight: 700; color: #FFD008; margin-bottom: 4px; }
+    .smile-sub { font-size: 13px; color: #888; margin-bottom: 14px; }
+    .btn-pagella { background: transparent; border: 1px solid #FFD008; color: #FFD008; padding: 8px 20px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .diario { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; margin-top: 22px; }
+    .diary-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .slider-group { margin-bottom: 16px; }
+    .slider-label { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .slider-name { font-size: 13px; color: #aaa; }
+    .slider-value { font-size: 16px; font-weight: 700; color: #FFD008; }
+    input[type=range] { width: 100%; accent-color: #FFD008; }
+    .diary-note { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-family: inherit; font-size: 13px; resize: none; outline: none; }
+    .btn-diary { width: 100%; padding: 14px; background: #1a1a1a; border: 1px solid #FFD008; color: #FFD008; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .thumb { width: 52px; height: 68px; object-fit: cover; border-radius: 10px; flex-shrink: 0; border: 1px solid #333; }
+    .foto-annuncio { height: min(30vh, 230px); width: auto; max-width: 80vw; object-fit: cover; border-radius: 16px; border: 2px solid #FFD008; }
+    .palco-centro.pieno { justify-content: flex-start; overflow: hidden; gap: 10px; }
+    .es-testa { flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+    .palco-centro.pieno .nome-es { font-size: 21px; }
+    .palco-centro.pieno .frase { font-size: 13px; }
+    .figura { flex: 1; min-height: 0; width: 100%; background: none; border: none; padding: 0; position: relative; cursor: zoom-in; display: flex; justify-content: center; }
+    .figura img { height: 100%; max-width: 100%; object-fit: contain; border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.6); }
+    .lente { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.75); color: #fff; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 20px; white-space: nowrap; }
+    .pillbtn.voce { display: block; width: 100%; max-width: 400px; margin: 0 auto; flex-shrink: 0; border-color: #FFD008; color: #000; background: #FFD008; padding: 11px 14px; font-size: 14px; }
+    .pillbtn.voce.on { background: #1a1a1a; color: #FFD008; }
+    .casa-btn { width: auto !important; padding: 0 12px; font-size: 15px !important; display: inline-flex; align-items: center; gap: 6px; }
+    .casa-btn span { font-size: 13px; font-weight: 700; }
+    .pill-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; flex-shrink: 0; }
+    .pillbtn { background: #1a1a1a; border: 1px solid #333; color: #ddd; border-radius: 20px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .pillbtn.giallo { border-color: #FFD008; color: #FFD008; }
+    .pillbtn.rosso { border-color: #c62828; color: #ef9a9a; }
+    .pillbtn.rosso.chiede { background: #3a0d0d; color: #fff; }
+    .pannello { display: flex; align-items: center; gap: 12px; width: 100%; background: #111; border: 1px solid #262626; border-radius: 20px; padding: 10px; }
+    .pannello .grande { padding: 16px 10px; }
+    .anello.mini { width: 92px; flex-shrink: 0; }
+    /* scheda-paziente-v9 · «avanti» ben visibile: bordo giallo, icona grande e la parola */
+    .avanti-btn { flex-shrink: 0; width: 86px; align-self: stretch; border-radius: 16px; border: 2px solid #FFD008; background: #1f1a00; color: #FFD008; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+    .avanti-btn b { font-size: 26px; line-height: 1; }
+    .avanti-btn span { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+    .avanti-btn:active { background: #FFD008; color: #000; }
+    .anello.mini .cifra { font-size: 30px; }
+    .anello.mini .sotto { font-size: 9px; margin-top: 2px; }
+    .rip-mini { text-align: center; min-width: 92px; }
+    .rip-mini b { display: block; font-size: 40px; font-weight: 900; color: #FFD008; line-height: 1; }
+    .rip-mini span { font-size: 11px; color: #aaa; font-weight: 700; }
+    .es .f3r { font-size: 11px; color: #FFD008; margin-top: 4px; line-height: 1.4; }
+    .modal .sch.alta { aspect-ratio: auto; max-height: 78vh; overflow-y: auto; background: #000; }
+    .modal .sch.alta img { height: auto; object-fit: initial; }
+    .barra-paz { padding: 10px 16px; }
+    .barra-paz a { color: #FFD008; font-weight: 700; font-size: 14px; text-decoration: none; }
+    .annuncio { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer; }
+    /* scheda-npl-v1 · NPL nero con scritta gialla, GPL il contrario (come in protocollo.html) */
+    .cfg-pill { display: inline-block; font-size: 10px; font-weight: 800; border-radius: 6px; padding: 2px 7px; margin-left: 6px; vertical-align: middle; letter-spacing: .5px; }
+    .cfg-pill.npl, .cfg-grande.npl { background: #000; color: #FFD008; border: 1.5px solid #FFD008; }
+    .cfg-pill.gpl, .cfg-grande.gpl { background: #FFD008; color: #000; border: 1.5px solid #000; }
+    .cfg-grande { display: inline-block; font-size: 14px; font-weight: 800; border-radius: 20px; padding: 6px 14px; }
+    .due-volte { position: relative; z-index: 1; font-size: 13px; font-weight: 700; color: #FFD008; margin-bottom: 8px; text-align: center; }
+    .nome-grande { font-size: clamp(32px, 10vw, 46px); font-weight: 900; line-height: 1.1; color: #fff; max-width: 440px; }
+    .q-grande { font-size: 22px; font-weight: 800; color: #FFD008; }
+    .pallini { display: flex; gap: 10px; margin-top: 8px; }
+    .pallini i { width: 14px; height: 14px; border-radius: 50%; background: #2a2a2a; transition: background .2s; }
+    .pallini i.on { background: #FFD008; }
+    .hint-3r { background: #1a1a00; border: 1px solid #FFD008; border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #FFD008; line-height: 1.5; max-width: 400px; }
+    .sotto-es { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; max-width: 400px; }
+    .btn-dolore { width: 100%; padding: 12px; background: transparent; border: 1px solid #c62828; color: #ef9a9a; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-dolore.chiede { background: #3a0d0d; color: #fff; font-size: 13px; }
+    .link { background: none; border: none; color: #888; font-size: 13px; font-weight: 600; cursor: pointer; padding: 4px; }
+    .streak { background: #111; border: 1px solid #FFD008; border-radius: 16px; padding: 14px; margin: 16px 0 12px; }
+    .streak-num { font-size: 34px; }
+    .streak-lab { font-size: 14px; font-weight: 700; color: #FFD008; }
+    .streak-ant { font-size: 11px; color: #777; margin-top: 4px; }
+    .motivante { background: #111; border-radius: 12px; padding: 14px 16px; font-size: 14px; color: #aaa; line-height: 1.6; font-style: italic; margin-bottom: 12px; }
+    .sera-hint { background: #0a1a0a; border: 1px solid #2e7d32; border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #81c784; line-height: 1.5; }
+    .suono { background: transparent; border: 1px solid #333; color: #ccc; padding: 6px 12px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+    /* ── Fine ── */
+    .festa { text-align: center; }
+    .festa .coppa { font-size: 84px; animation: salta 1s ease-in-out infinite alternate; }
+    @keyframes salta { from { transform: translateY(0) } to { transform: translateY(-12px) } }
+    .festa h2 { font-size: 30px; font-weight: 900; color: #FFD008; margin: 8px 0 6px; }
+    .festa p { color: #ccc; font-size: 15px; margin-bottom: 18px; }
+    .riep { display: flex; gap: 10px; margin-bottom: 22px; }
+    .riep div { flex: 1; background: #111; border: 1px solid #222; border-radius: 14px; padding: 12px 6px; }
+    .riep b { display: block; font-size: 22px; color: #FFD008; font-weight: 900; }
+    .riep span { font-size: 11px; color: #999; font-weight: 700; }
+    .facce { display: flex; justify-content: space-between; gap: 6px; margin: 10px 0 8px; }
+    .facce button { flex: 1; padding: 10px 0; background: #111; border: 2px solid #222; border-radius: 14px; cursor: pointer; color: #fff; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .facce .fe { font-size: 34px; line-height: 1; }
+    .facce .ft { font-size: 12px; font-weight: 700; color: #ccc; }
+    .facce button.on { border-color: #FFD008; background: #1f1a00; }
+    .avviso-prova { font-size: 12px; color: #888; margin-top: 8px; }
+    .coriandoli { position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden; }
+    .coriandoli i { position: absolute; top: -20px; width: 8px; height: 14px; border-radius: 2px; animation: cade linear forwards; }
+    @keyframes cade { to { transform: translateY(110vh) rotate(720deg); opacity: .9 } }
+
+    /* Video */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 300; align-items: center; justify-content: center; padding: 16px; }
+    .modal.show { display: flex; }
+    .modal .box { width: 100%; max-width: 640px; }
+    .modal .tt { color: #FFD008; font-weight: 800; margin-bottom: 10px; }
+    .modal .sch { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; }
+    .modal .sch iframe, .modal .sch video, .modal .sch img { width: 100%; height: 100%; border: 0; object-fit: contain; display: block; }
+    @media (prefers-reduced-motion: reduce) { .festa .coppa, .coriandoli i { animation: none } }
+  </style>
+</head>
+<body>
+  <div class="barra-paz" id="barra-paz" hidden><a id="home-paz" href="protocollo.html">← La tua home</a></div>
+  <div class="barra-prova" id="barra-prova">
+    <span>🧪 Anteprima: così la vedrà il paziente</span>
+    <a id="torna" href="#">← Torna a modificare</a>
+  </div>
+
+  <div class="main" id="casa">
+    <div class="err" id="err"></div>
+    <div class="saluto" id="saluto"></div>
+    <div class="titolo" id="titolo">Caricamento…</div>
+    <div id="contenuto"></div>
+  </div>
+
+  <div class="palco" id="palco">
+    <div>
+      <div class="palco-su">
+        <button class="chiudi casa-btn" onclick="esci()" aria-label="Torna all'inizio">🏠 <span>Inizio</span></button>
+        <div class="dove" id="dove"></div>
+      </div>
+      <div class="avanz"><div id="avanz"></div></div>
+    </div>
+    <div class="palco-centro" id="centro"></div>
+    <div class="palco-giu" id="giu"></div>
+  </div>
+
+  <div class="modal" id="modal" onclick="if(event.target===this)chiudiVideo()">
+    <div class="box">
+      <div class="tt" id="modal-tt"></div>
+      <div class="sch" id="modal-sch"></div>
+      <button class="grande" style="width:100%;margin-top:14px" onclick="chiudiVideo()">Chiudi</button>
+    </div>
+  </div>
+
+<script>
+/* scheda-paziente-v1 · v2 · v3 · v4 · v5 · scheda-paziente-v8 · scheda-collega-v1 · scheda-collega-v2 */
+(function () {
+  'use strict'
+
+  /* ⚖️ LE PAROLE CHE LEGGE IL PAZIENTE — tutte qui, da far rileggere a Giuliano. */
+  const T = {
+    saluto: function (nome) { return 'Ciao ' + nome + ' 👋' },
+    titolo: 'Il tuo <span>allenamento</span>',
+    esercizi: 'esercizi', durata: 'minuti circa', giri: 'giri',
+    adesso: 'Adesso è…', mattina: '☀️ Mattina', sera: '🌙 Sera',
+    dueVolte: '☀️🌙 Da fare due volte al giorno: la mattina e la sera',
+    inizia: '▶  INIZIA',
+    spiegami: '🔊 Spiegami l’esercizio a voce', fermaVoce: '⏹ Ferma la voce',
+    fisioDice: 'Il tuo fisioterapista ti dice: ',
+    sezione: 'Gli esercizi di oggi',
+    giroTutta: function (n) { return '🔁 Tutta la scheda ' + n + ' volte' },
+    tocca: 'Tocca un esercizio per fare solo quello',
+    vuota: 'Il tuo fisioterapista non ha ancora preparato la scheda.',
+    adessoTocca: 'Adesso tocca a', via: 'VIA!', prossimo: 'Avanti',
+    grazieVero: 'Grazie!', salvato: '✓ Seduta segnata nel tuo diario.', nonSalvato: '⚠️ Non sono riuscito a segnarla nel diario: controlla la connessione e riprova dalla home.',
+    doloreSalvato: 'Ti sei fermato per dolore: l’ho segnato nel tuo diario e il tuo fisioterapista lo vedrà. Se il dolore continua, contattalo.',
+    nessunaScheda: 'Il tuo fisioterapista non ha ancora preparato la scheda.',
+    avvia: '▶  AVVIA', riprendiBtn: '▶  RIPRENDI', pausaBtn: '⏸  PAUSA', ingrandisci: '🔍 Tocca per ingrandire',
+    video: '▶ Video', doloreCorto: '⚠ Ho dolore', prec: '← Prima',
+    smileAnteprima: '🧪 Anteprima: così cambierebbe la faccina. Col paziente vero si salva da sola.',
+    // ↓ testi presi così come sono da esercizio.html (l'app di oggi)
+    hint3r: '💛 La Tecnica dei 3 Respiri è il tuo rituale di igiene posturale quotidiana. Eseguila sempre, ogni giorno, anche nei giorni in cui salti gli altri esercizi.',
+    dolore1: '⚠ Ho dolore — interrompi',
+    dolore2: 'Vuoi interrompere per dolore? Verrà registrata una nota sul tuo diario. Tocca ancora per confermare.',
+    doloreAnteprima: '🧪 Anteprima: in prova la nota di dolore non si salva.',
+    precedente: '← Esercizio precedente',
+    streak: '🔥 giorni consecutivi',
+    streakAnteprima: '🧪 in anteprima: il numero vero arriva col collegamento',
+    seraHint: '🌙 Ricorda: puoi ripetere gli esercizi anche la sera per amplificare i benefici. Anche solo la Tecnica dei 3 Respiri va benissimo!',
+    frasi: [
+      '💪 Ogni giorno che ti alleni stai scrivendo una storia diversa per il tuo corpo.',
+      '🌟 La costanza non chiede la perfezione. Chiede solo che tu ci sia.',
+      '🧘 Il tuo sistema nervoso impara ogni volta. Anche oggi ha imparato qualcosa di nuovo.',
+      '⚡ La postura non e solo estetica. E il modo in cui il tuo corpo dialoga col mondo.',
+      '🌱 Hai dedicato tempo a te stesso oggi. Questo e un atto di rispetto verso chi sei.',
+      '🏆 Il movimento giusto e una medicina che non si compra. Tu la stai prendendo ogni giorno.',
+      '✨ Non serve fare tutto perfettamente. Serve farlo con intenzione. E tu lo stai facendo.',
+      '🔥 Il corpo che vuoi non e lontano. E esattamente quello che stai costruendo adesso.',
+      '🌊 Ogni sessione e un mattone. Non vedi ancora la casa, ma sta prendendo forma.',
+      '💛 Prendersi cura della postura e prendersi cura della propria energia vitale.',
+      '🎯 Hai scelto di muoverti quando avresti potuto fermarti. Questa e la differenza.',
+      '🌸 Il benessere non arriva tutto insieme. Arriva goccia a goccia, sessione dopo sessione.',
+      '🦋 Il tuo corpo ha una memoria straordinaria. Ogni esercizio lascia una traccia positiva.',
+      '☀️ Chi cura il proprio equilibrio posturale cura anche il proprio equilibrio interiore.',
+      '🎵 Il corpo in equilibrio si muove con meno sforzo e piu grazia. Lo sentirai sempre di piu.',
+      '🌿 Non stai solo migliorando la postura. Stai rieducando il modo in cui abiti te stesso.',
+      '💎 La disciplina e silenziosa. I risultati no. Continua cosi.',
+      '🚀 Il tuo cervello sta creando nuovi schemi motori. Ogni giorno il movimento diventa piu naturale.',
+      '🌙 Anche nei giorni in cui non senti progressi, il tuo corpo sta lavorando per te.',
+      '🤍 Fare esercizio non e punirsi. E amarsi in modo concreto.',
+      '⚖️ Equilibrio non significa immobilita. Significa sapere sempre dove sei e dove vuoi andare.',
+      '🌺 Ogni respiro consapevole che hai fatto oggi ha nutrito il tuo sistema nervoso.',
+      '🦅 La postura eretta non e rigidita. E radicamento. E la base da cui puoi spiccare il volo.',
+      '💡 La scienza lo conferma: il movimento migliora umore, sonno e vitalita. Tu lo stai vivendo.',
+      '🎖️ Non serve essere atleti per prendersi cura del proprio corpo. Serve solo essere presenti.',
+      '🌈 Ogni sessione completata e una promessa mantenuta a te stesso.',
+      '🧬 Il tuo corpo e stato progettato per muoversi. Quando lo fai, funziona meglio in tutto.',
+      '🪴 Come una pianta che cresce verso la luce, il tuo corpo cerca il suo equilibrio naturale.',
+      '🔮 Tra qualche settimana guarderai indietro e capirai quanto vale ogni singola sessione di oggi.',
+      '🏄 Non aspettare di sentirti pronto. Il movimento stesso ti prepara. Sei gia sulla strada giusta.'
+    ],
+    giaFatto: '⚡ Ho già fatto gli esercizi', giaFattoSub: 'un tocco e li segno come eseguiti',
+    pagellaTit: 'Il tuo andamento', pagellaSub: 'Qui vedi quanti giorni di fila ti alleni.', pagellaBtn: 'Vedi la mia pagella',
+    // ↓ faccina e frasi copiate da protocollo.html (loadSmile)
+    smileFrasi: {
+      top: ['Sei una leggenda della postura!', 'Inarrestabile! Il tuo corpo ti ringrazia.', 'Champion! Continua cosi.'],
+      great: ['Stai andando alla grande!', 'Costanza perfetta. Sei sulla strada giusta!'],
+      good: ['Ottimo lavoro oggi!', 'Ogni giorno conta. Stai costruendo qualcosa di grande.'],
+      neutral: ['Oggi puoi ricominciare!', 'Ieri hai saltato — oggi e la tua occasione.'],
+      bad: ['Il tuo corpo ti aspetta!', 'Anche solo i 3 Respiri fanno bene.'],
+      worst: ['Torna in pista!', 'Oggi puoi ricominciare, anche un solo esercizio.']
+    },
+    diarioTit: 'Come stai oggi?', diarioNote: 'Come ti senti? Note libere...', diarioBtn: 'Salva diario di oggi',
+    dolore: 'Dolore', rigidita: 'Rigidità', equilibrio: 'Equilibrio', energia: 'Energia',
+    soloAnteprima: '🧪 Anteprima: qui non si salva niente. Col paziente vero sono la pagella e il diario di oggi.',
+    secondi: 'secondi', ripetizioni: 'ripetizioni',
+    serie: function (a, b) { return 'Serie ' + a + ' di ' + b },
+    giro: function (a, b) { return 'Giro <b>' + a + '</b> di ' + b },
+    esercizio: function (a, b) { return 'Esercizio <b>' + a + '</b> di ' + b },
+    fatto: '✓  FATTO', pausa: '⏸', riprendi: '▶', salta: '⏭',
+    guarda: '▶ Guarda come si fa',
+    bravo: 'Bravo!', finito: 'Allenamento finito. Ottimo lavoro!',
+    fattiN: 'esercizi', tempoN: 'minuti', giriN: 'giri',
+    comeStai: 'Rispetto a prima di cominciare, come ti senti?',
+    risposte: [{ e: '🙁', k: 'worse', t: 'Peggio' }, { e: '😐', k: 'same', t: 'Come prima' }, { e: '🙂', k: 'better', t: 'Meglio' }],
+    notaRisposta: function (t) { return ' Dopo la seduta si sente: ' + t.toLowerCase() + '.' },
+    grazieSalvato: '✓ Grazie! L’ho segnato nel tuo diario: il tuo fisioterapista lo vedrà.',
+    grazie: 'Grazie! Il tuo fisioterapista lo vedrà.',
+    nonSalva: '🧪 Anteprima: in prova non si salva niente nel diario.',
+    torna: 'Torna alla scheda',
+    esciChiede: 'Vuoi tornare all’inizio? Tocca 🏠 ancora.'
+  }
+
+  const SUPABASE_URL = 'https://kazlnoikvwdqwvxtigej.supabase.co'
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthemxub2lrdndkcXd2eHRpZ2VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTM1MDEsImV4cCI6MjA5MzEyOTUwMX0.gCclWImW4SnIBcsNfFAW0KNtimEw6iiEiLnXbgC96mE'
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  const QS = new URLSearchParams(location.search)
+  const patientId = QS.get('id')
+  // scheda-collega-v1 · il paziente vero arriva col suo token (da protocollo.html)
+  const token = QS.get('token')
+  const MODO_PAZIENTE = !!token
+  const IN_PROVA = QS.get('preview') === '1'
+  const SALVA = MODO_PAZIENTE && !IN_PROVA
+  const protocolloId = QS.get('pp') || null
+  const ANNUNCIO_SEC = 3   // «Adesso tocca a…»: 3 secondi, poi parte da solo
+
+  let paziente = null, scheda = null, righe = [], media = {}
+  let momento = 'mattina'
+  let passi = [], iPasso = 0
+  let timer = null, scadenza = 0, restante = 0, inPausa = false, durataPasso = 0
+  let inizioSeduta = 0, wake = null, chiedeUscita = false, chiedeDolore = false
+  let immagini = {}, smile = null, diarioLetto = null, descrizioni = {}
+  let tre = {}   // righe che sono la Tecnica dei 3 Respiri (slug 0-3r come in esercizio.html, o il nome)
+  // 🔊 stessa scelta salvata di esercizio.html (chiave policettivo_sound)
+  let suono = true
+  try { suono = localStorage.getItem('policettivo_sound') !== 'off' } catch (e) {}
+
+  // ── funzioni pure (provate dal test) ──
+  function righeDelMomento(rr, m) {
+    return rr.filter(function (r) { return !m || r.quando === 'sempre' || r.quando === m })
+  }
+  // L'elenco dei passi della seduta: ogni serie di ogni esercizio, giro dopo giro.
+  // Niente riposi (scheda-paziente-v2: Giuliano «il riposo non serve»). Le note non sono passi.
+  function costruisciPassi(rr, sch, solo) {
+    const es = rr.filter(function (r) { return r.tipo === 'esercizio' })
+    const giri = solo != null ? 1 : (Number(sch.ripeti_volte) || 1)
+    const lista = solo != null ? [es[solo]] : es
+    const out = []
+    for (let g = 1; g <= giri; g++) {
+      lista.forEach(function (r) {
+        const tot = Number(r.serie) || 1
+        for (let s = 1; s <= tot; s++) {
+          out.push({ tipo: 'es', riga: r, serie: s, serieTot: tot, giro: g, giri: giri, nEs: es.indexOf(r) + 1, totEs: es.length })
+        }
+      })
+    }
+    return out
+  }
+  function stimaMinuti(rr, sch) {
+    const p = costruisciPassi(rr, sch)
+    const ritmo = Number(sch.ritmo_sec) || 3
+    const s = p.reduce(function (a, x) {
+      return a + (x.riga.misura === 'tempo' ? Number(x.riga.secondi) : Number(x.riga.ripetizioni) * ritmo)
+    }, 0) + Math.max(0, p.length - 1) * ANNUNCIO_SEC
+    return Math.max(1, Math.round(s / 60))
+  }
+  function ytId(url) {
+    if (!url) return null
+    const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/)
+    return m ? m[1] : null
+  }
+  // Stessa regola di loadSmile in protocollo.html: giorni di fila con «completato» e giorni dall'ultima volta.
+  function calcolaSmile(entries, oggiData) {
+    const completate = (entries || []).filter(function (e) { return e.completato })
+      .sort(function (a, b) { return a.data < b.data ? 1 : -1 })
+    const oggi = new Date(oggiData); oggi.setHours(0, 0, 0, 0)
+    const giorno = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+    let streak = 0
+    const dc = new Date(oggi)
+    for (let i = 0; i < 30; i++) {
+      const ds = giorno(dc)
+      if (completate.find(function (e) { return e.data === ds })) { streak++; dc.setDate(dc.getDate() - 1) } else break
+    }
+    const ultima = completate.length ? new Date(completate[0].data + 'T00:00:00') : null
+    const diff = ultima ? Math.max(0, Math.round((oggi - ultima) / 86400000)) : 999
+    let emoji, titolo, tipo
+    if (diff === 0 && streak >= 6) { emoji = '🤩'; titolo = streak + ' giorni di fila!'; tipo = 'top' }
+    else if (diff === 0 && streak >= 3) { emoji = '😄'; titolo = streak + ' giorni consecutivi!'; tipo = 'great' }
+    else if (diff === 0) { emoji = '😊'; titolo = 'Hai fatto gli esercizi oggi!'; tipo = 'good' }
+    else if (diff === 1) { emoji = '😐'; titolo = 'Ieri hai saltato'; tipo = 'neutral' }
+    else if (diff === 2) { emoji = '😔'; titolo = '2 giorni senza esercizi'; tipo = 'bad' }
+    else if (diff === 999) { emoji = '😢'; titolo = 'Nessun esercizio ancora'; tipo = 'worst' }
+    else { emoji = '😢'; titolo = diff + ' giorni senza esercizi'; tipo = 'worst' }
+    return { emoji: emoji, titolo: titolo, tipo: tipo, streak: streak }
+  }
+  function immagineDi(r, slug) {
+    const lista = window.SCHEDA_IMMAGINI || []
+    const nome = String(r.nome || '').toLowerCase()
+    const t = lista.find(function (x) {
+      if (x.slug && slug && x.slug === slug) return true
+      if (x.id && r.elicoidale_id && x.id === r.elicoidale_id) return true
+      if (!x.nome) return false
+      // «schema 1» trova «Schema 1» e «Schema 1 — …», ma non «Schema 10»
+      const k = nome.indexOf(String(x.nome).toLowerCase())
+      return k > -1 && !/\d/.test(nome.charAt(k + String(x.nome).length))
+    })
+    return t || null
+  }
+  // scheda-npl-v1 · quella della riga, altrimenti quella della scheda; solo 'NPL' o 'GPL'
+  function volteDa(rr, volte) {
+    return (Number(volte) === 2 || (rr || []).some(function (r) { return r.quando && r.quando !== 'sempre' })) ? 2 : 1
+  }
+  function cfgOk(c) { const k = String(c || '').toUpperCase(); return (k === 'NPL' || k === 'GPL') ? k : null }
+  function cfgRiga(r, sch) { return r && r.tipo === 'esercizio' ? (cfgOk(r.configurazione) || cfgOk(sch && sch.configurazione)) : null }
+  window.SchedaPaziente = { costruisciPassi: costruisciPassi, righeDelMomento: righeDelMomento, stimaMinuti: stimaMinuti, calcolaSmile: calcolaSmile, immagineDi: immagineDi, cfgRiga: cfgRiga, volteDa: volteDa }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
+  function $(id) { return document.getElementById(id) }
+  function errore(m) { const e = $('err'); e.textContent = m; e.classList.add('show') }
+  function pillCfg(r) { const c = cfgRiga(r, scheda); return c ? '<span class="cfg-pill ' + c.toLowerCase() + '">' + c + '</span>' : '' }
+  function cfgGrande(r) {
+    const c = cfgRiga(r, scheda); if (!c) return ''
+    const d = (window.polConfig && polConfig.desc) ? polConfig.desc(c) : (c === 'NPL' ? 'Nero Posteriore Laterale' : 'Giallo Posteriore Laterale')
+    return '<div class="cfg-grande ' + c.toLowerCase() + '">' + c + ' — ' + esc(d) + '</div>'
+  }
+  function quanto(r) {
+    const q = r.misura === 'tempo'
+      ? (r.secondi >= 60 && r.secondi % 60 === 0 ? (r.secondi / 60) + ' min' : r.secondi + ' s')
+      : r.ripetizioni + ' ' + T.ripetizioni
+    return (r.serie > 1 ? r.serie + ' × ' : '') + q
+  }
+
+  // ── caricamento (coi permessi del professionista: è un'anteprima) ──
+  // ── scheda-collega-v1 · il paziente vero: tutto dalla funzione del token, niente accesso al database ──
+  async function initPaziente() {
+    $('barra-prova').style.display = 'none'
+    $('barra-paz').hidden = false
+    $('home-paz').href = 'protocollo.html?token=' + encodeURIComponent(token) + (IN_PROVA ? '&preview=1' : '')
+    try { if (window.polSessione) polSessione.avvia() } catch (e) {}
+    try { const { data: pz } = await sb.rpc('get_patient_by_token', { p_token: token }); paziente = Array.isArray(pz) ? pz[0] : pz } catch (e) {}
+    const { data: d, error } = await sb.rpc('get_scheda_paziente', { p_token: token })
+    if (error || !d || !d.scheda) { $('titolo').innerHTML = T.titolo; $('contenuto').innerHTML = '<div class="nota">' + T.nessunaScheda + '</div>'; return }
+    scheda = d.scheda
+    const eli = (typeof EXERCISES_ELICOIDALI !== 'undefined' && Array.isArray(EXERCISES_ELICOIDALI)) ? EXERCISES_ELICOIDALI : []
+    righe = (d.righe || []).map(function (r) { return Object.assign({ quando: 'sempre', serie: 1 }, r) })
+    righe.forEach(function (r) {
+      let m = null
+      if (r.vid_url) m = { url: r.vid_url, foto: r.vid_tipo && r.vid_tipo !== 'video' }
+      if (!m && r.ex_video_url) m = ytId(r.ex_video_url) ? { yt: ytId(r.ex_video_url) } : { url: r.ex_video_url }
+      const eRiga = r.elicoidale_id ? eli.find(function (x) { return x.id === r.elicoidale_id }) : null
+      if (!m && eRiga && eRiga.video_url) m = { yt: ytId(eRiga.video_url) }
+      if (m) media[r.id] = m
+      if (r.ex_slug === '0-3r' || /3\s*respiri|tre\s+respiri/i.test(r.nome || '')) tre[r.id] = true
+      const im = immagineDi(r, r.ex_slug); if (im) immagini[r.id] = im
+      descrizioni[r.id] = r.vid_descrizione || r.ex_descrizione || (eRiga && eRiga.description) || ''
+    })
+    momento = new Date().getHours() < 14 ? 'mattina' : 'sera'
+    disegnaCasa()
+    if (QS.get('fatto') === '1') giaFatto()
+  }
+
+  // Il diario, con le stesse chiamate delle pagine di oggi. Non deve MAI rompere la seduta.
+  let ultimaSeduta = null, salvataggioFine = null
+  async function salvaNelDiario(campi, modalita, extra) {
+    if (!SALVA) return null
+    try {
+      const base = Object.assign({ patient_protocol_id: protocolloId, data: new Date().toISOString().split('T')[0], dolore: 0, rigidita: 0, equilibrio: 5, energia: 5, session_type: 'main' }, campi)
+      const pieno = (window.polSessione && polSessione.campi) ? Object.assign(base, polSessione.campi(modalita, extra || {})) : base
+      const { error } = await sb.rpc('save_diary_entry', { p_token: token, p_data: pieno })
+      if (error) return false
+      // la stessa seduta (stessa chiave client_session_id): un secondo salvataggio aggiorna QUESTA riga
+      ultimaSeduta = pieno
+      try { if (window.polSessione) polSessione.chiudi() } catch (e) {}
+      return true
+    } catch (e) { return false }
+  }
+
+  async function init() {
+    if (MODO_PAZIENTE) return initPaziente()
+    $('torna').href = 'protocollo-esercizi.html?id=' + encodeURIComponent(patientId || '')
+    if (!patientId) { errore('Manca il paziente.'); return }
+    const { data: au } = await sb.auth.getUser()
+    if (!au || !au.user) { location.href = 'login.html'; return }
+    const { data: pz } = await sb.from('patients').select('id, nome').eq('id', patientId).maybeSingle()
+    paziente = pz
+    const { data: sc, error } = await sb.from('scheda_allenamento').select('*').eq('patient_id', patientId).neq('stato', 'archiviata')
+      .order('aggiornato_il', { ascending: false }).limit(1)
+    if (error) { errore('Non riesco a leggere la scheda: ' + error.message); return }
+    scheda = sc && sc[0]
+    if (scheda) {
+      const { data: rr } = await sb.from('scheda_allenamento_righe').select('*').eq('scheda_id', scheda.id).order('ordine')
+      righe = rr || []
+      await caricaMedia()
+    }
+    // La faccina dell'andamento dai giorni veri del diario (il professionista li può leggere).
+    try {
+      const { data: dd, error: de } = await sb.from('diary_entries').select('data, completato').eq('patient_id', patientId).order('data', { ascending: false }).limit(30)
+      if (!de) { diarioLetto = dd || []; smile = calcolaSmile(diarioLetto, new Date()) }
+    } catch (e) {}
+    const h = new Date().getHours()
+    momento = h < 14 ? 'mattina' : 'sera'
+    disegnaCasa()
+  }
+
+  // Il video di ogni esercizio: video del paziente → libreria → cuscini → niente (si va col nome).
+  async function caricaMedia() {
+    const exIds = righe.map(function (r) { return r.exercise_id }).filter(Boolean)
+    const vIds = righe.map(function (r) { return r.video_id }).filter(Boolean)
+    const [ex, vv] = await Promise.all([
+      exIds.length ? sb.from('exercises').select('*').in('id', exIds) : Promise.resolve({ data: [] }),
+      vIds.length ? sb.from('exercise_videos').select('*').in('id', vIds) : Promise.resolve({ data: [] })
+    ])
+    const eli = (typeof EXERCISES_ELICOIDALI !== 'undefined' && Array.isArray(EXERCISES_ELICOIDALI)) ? EXERCISES_ELICOIDALI : []
+    righe.forEach(function (r) {
+      let m = null
+      const vRiga = r.video_id ? (vv.data || []).find(function (x) { return x.id === r.video_id }) : null
+      if (vRiga && vRiga.url) m = { url: vRiga.url, foto: vRiga.tipo !== 'video' }
+      const exRiga = r.exercise_id ? (ex.data || []).find(function (x) { return x.id === r.exercise_id }) : null
+      if (exRiga && exRiga.slug === '0-3r') tre[r.id] = true
+      if (/3\s*respiri|tre\s+respiri/i.test(r.nome || '')) tre[r.id] = true
+      const im = immagineDi(r, exRiga && exRiga.slug); if (im) immagini[r.id] = im
+      if (!m && exRiga && exRiga.video_url) m = ytId(exRiga.video_url) ? { yt: ytId(exRiga.video_url) } : { url: exRiga.video_url }
+      const eRiga = r.elicoidale_id ? eli.find(function (x) { return x.id === r.elicoidale_id }) : null
+      if (!m && eRiga && eRiga.video_url) m = { yt: ytId(eRiga.video_url) }
+      // per la voce, se l'esercizio non ha un testo suo in js/scheda-immagini.js
+      descrizioni[r.id] = (vRiga && vRiga.descrizione) || (exRiga && (exRiga.descrizione_paziente || exRiga.descrizione)) || (eRiga && eRiga.description) || ''
+      if (m) media[r.id] = m
+    })
+  }
+
+  // scheda-volte-v1 · due volte se lo dice la scheda, oppure (schede di prima) se una riga è solo mattina / solo sera
+  function haMomenti() { return volteDa(righe, scheda && scheda.volte_giorno) === 2 }
+  function righeOggi() { return haMomenti() ? righeDelMomento(righe, momento) : righe }
+
+  // ── Casa ──
+  function disegnaCasa() {
+    $('saluto').textContent = paziente ? T.saluto(paziente.nome) : ''
+    $('titolo').innerHTML = T.titolo
+    const box = $('contenuto')
+    const rr = righeOggi()
+    const es = rr.filter(function (r) { return r.tipo === 'esercizio' })
+    if (!scheda || !righe.length) { box.innerHTML = '<div class="nota">' + T.vuota + '</div>'; return }
+    const giri = Number(scheda.ripeti_volte) || 1
+    let html = '<div class="eroe">' +
+      '<div class="numeri">' +
+        '<div class="numero"><b>' + es.length + '</b><span>' + T.esercizi + '</span></div>' +
+        '<div class="numero"><b>' + (es.length ? stimaMinuti(rr, scheda) : 0) + '</b><span>' + T.durata + '</span></div>' +
+        (giri > 1 ? '<div class="numero"><b>' + giri + '</b><span>' + T.giri + '</span></div>' : '') +
+      '</div>' +
+      (haMomenti() ? '<div class="due-volte">' + T.dueVolte + '</div><div class="quando" aria-label="' + T.adesso + '">' +
+        '<button class="' + (momento === 'mattina' ? 'on' : '') + '" onclick="setMomento(\'mattina\')">' + T.mattina + '</button>' +
+        '<button class="' + (momento === 'sera' ? 'on' : '') + '" onclick="setMomento(\'sera\')">' + T.sera + '</button></div>' : '') +
+      '<button class="inizia" id="btn-inizia" onclick="inizia()"' + (es.length ? '' : ' disabled') + '>' + T.inizia + '</button>' +
+      '<button class="gia-fatto" id="btn-gia-fatto" onclick="giaFatto()"' + (es.length ? '' : ' disabled') + '>' + T.giaFatto + '<span>' + T.giaFattoSub + '</span></button>' +
+    '</div>'
+    const sm = smile
+    const frasiSm = sm ? T.smileFrasi[sm.tipo] : null
+    if (!MODO_PAZIENTE) html = '<div class="smile"><div class="smile-big" id="smile-emoji">' + (sm ? sm.emoji : '🙂') + '</div>' +
+      '<div class="smile-title">' + (sm ? sm.titolo : T.pagellaTit) + '</div>' +
+      '<div class="smile-sub">' + (sm ? frasiSm[Math.floor(Math.random() * frasiSm.length)] : T.pagellaSub) + '</div>' +
+      '<button class="btn-pagella" onclick="soloAnteprima(this)">' + T.pagellaBtn + '</button>' +
+      (sm && sm.anteprima ? '<div class="avviso-prova" style="margin-top:10px">' + T.smileAnteprima + '</div>' : '') + '</div>' + html
+    html += '<div class="sez">' + T.sezione + '</div>'
+    if (giri > 1) html += '<div class="giro">' + T.giroTutta(giri) + '</div>'
+    let n = 0
+    rr.forEach(function (r) {
+      const q = r.quando !== 'sempre' ? '<span class="pill">' + (r.quando === 'mattina' ? '☀️' : '🌙') + '</span>' : ''
+      if (r.tipo === 'nota') { html += '<div class="nota"><span>✎</span><span>' + esc(r.testo) + q + '</span></div>'; return }
+      const idx = es.indexOf(r)
+      n++
+      const im = immagini[r.id]
+      html += '<button class="es" onclick="inizia(' + idx + ')"><div class="n">' + n + '</div>' +
+        (im ? '<img class="thumb" src="' + esc(im.img) + '" alt="' + esc(im.alt || r.nome) + '" loading="lazy">' : '') + '<div class="c">' +
+        '<div class="t">' + esc(r.nome) + q + pillCfg(r) + '</div><div class="q">' + quanto(r) + '</div>' +
+        (r.testo ? '<div class="f">' + esc(r.testo) + '</div>' : '') +
+        (tre[r.id] ? '<div class="f3r">' + T.hint3r + '</div>' : '') +
+      '</div><span class="play">▶</span></button>'
+    })
+    html += '<div class="avviso-prova" style="text-align:center;margin-top:6px">' + T.tocca + '</div>'
+    if (!MODO_PAZIENTE) html += diarioHtml()
+    box.innerHTML = html
+  }
+  window.setMomento = function (m) { momento = m; disegnaCasa() }
+
+  // Il diario com'è oggi in protocollo.html (stesse 4 voci). In anteprima non salva.
+  function diarioHtml() {
+    const voce = function (id, nome, v) {
+      return '<div class="slider-group"><div class="slider-label"><span class="slider-name">' + nome + '</span><span class="slider-value" id="val-' + id + '">' + v + '</span></div>' +
+        '<input type="range" min="0" max="10" value="' + v + '" oninput="document.getElementById(\'val-' + id + '\').textContent=this.value"></div>'
+    }
+    return '<div class="diario"><div class="diary-title">' + T.diarioTit + '</div>' +
+      voce('dolore', T.dolore, 0) + voce('rigidita', T.rigidita, 0) + voce('equilibrio', T.equilibrio, 5) + voce('energia', T.energia, 5) +
+      '<textarea class="diary-note" rows="3" placeholder="' + T.diarioNote + '"></textarea>' +
+      '<button class="btn-diary" onclick="soloAnteprima(this)">' + T.diarioBtn + '</button></div>'
+  }
+  window.soloAnteprima = function (btn) {
+    let n = btn.nextElementSibling
+    if (!n || !n.classList.contains('avviso-prova')) { n = document.createElement('div'); n.className = 'avviso-prova'; n.style.marginTop = '8px'; btn.after(n) }
+    n.textContent = T.soloAnteprima
+  }
+  // ⚡ Un tocco solo: segna tutti gli esercizi di oggi come eseguiti e va alla fine (festa + come ti senti).
+  window.giaFatto = function () {
+    passi = costruisciPassi(righeOggi(), scheda)
+    if (!passi.length) return
+    iPasso = passi.length; inizioSeduta = Date.now(); chiedeUscita = false
+    $('palco').classList.add('show'); document.body.style.overflow = 'hidden'
+    fine(true)
+  }
+
+  // ── Allenamento ──
+  window.inizia = function (solo) {
+    passi = costruisciPassi(righeOggi(), scheda, solo)
+    if (!passi.length) return
+    iPasso = 0; inizioSeduta = Date.now(); chiedeUscita = false
+    $('palco').classList.add('show'); document.body.style.overflow = 'hidden'
+    // Lo schermo resta acceso dove il telefono lo permette; non si aspetta la risposta per partire.
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (w) { wake = w }).catch(function () {}) } catch (e) {}
+    annuncio()
+  }
+
+  function ferma() { if (timer) { clearInterval(timer); timer = null } }
+  // Conto alla rovescia che regge alle pause e al telefono lento: si guarda l'orologio, non si contano i tic.
+  function conta(secondi, ogniTic, allaFine) {
+    ferma(); inPausa = false; durataPasso = secondi; restante = secondi * 1000
+    scadenza = Date.now() + restante
+    const tic = function () {
+      if (inPausa) return
+      restante = Math.max(0, scadenza - Date.now())
+      ogniTic(Math.ceil(restante / 1000), restante / (secondi * 1000))
+      if (restante <= 0) { ferma(); allaFine() }
+    }
+    tic(); timer = setInterval(tic, 200)
+  }
+  window.pausa = function () {
+    if (!timer) return
+    if (!inPausa) { inPausa = true; restante = Math.max(0, scadenza - Date.now()) } else { inPausa = false; scadenza = Date.now() + restante }
+    const b = $('btn-pausa'); if (b) { b.textContent = inPausa ? T.riprendi : T.pausa; b.setAttribute('aria-label', inPausa ? 'Riprendi' : 'Pausa') }
+    aggiornaAvvia()
+  }
+
+  function intestazione(p) {
+    const es = p
+    $('dove').innerHTML = (es.giri > 1 ? T.giro(es.giro, es.giri) + ' · ' : '') + T.esercizio(es.nEs, es.totEs)
+    const fatti = passi.slice(0, iPasso).filter(function (x) { return x.tipo === 'es' }).length
+    const tot = passi.filter(function (x) { return x.tipo === 'es' }).length
+    $('avanz').style.width = Math.round(fatti / tot * 100) + '%'
+  }
+
+  function anello(classe, cifra, sotto) {
+    const C = 2 * Math.PI * 54
+    return '<div class="anello ' + classe + '"><svg viewBox="0 0 120 120"><circle class="fondo" cx="60" cy="60" r="54" fill="none" stroke-width="9"/>' +
+      '<circle class="arco" id="arco" cx="60" cy="60" r="54" fill="none" stroke-width="9" stroke-dasharray="' + C + '" stroke-dashoffset="0"/></svg>' +
+      '<div class="dentro"><div class="cifra" id="cifra">' + cifra + '</div><div class="sotto">' + sotto + '</div></div></div>'
+  }
+  function aggiornaAnello(sec, frazione) {
+    const C = 2 * Math.PI * 54
+    const c = $('cifra'); if (c) c.textContent = sec
+    const a = $('arco'); if (a) a.setAttribute('stroke-dashoffset', String(C * (1 - frazione)))
+  }
+
+  // «Adesso tocca a…»: 3 secondi col nome grande, poi l'esercizio parte da solo. Un tocco lo salta.
+  function annuncio() {
+    zitto()
+    const p = passi[iPasso]
+    intestazione(p)
+    const r = p.riga
+    const im = immagini[r.id]
+    $('centro').className = 'palco-centro'
+    $('centro').innerHTML = '<div class="annuncio" onclick="mostra()">' +
+      (im ? '<img class="foto-annuncio" src="' + esc(im.img) + '" alt="' + esc(im.alt || r.nome) + '">' : '') +
+      '<div class="etichetta">' + T.adessoTocca + '</div>' +
+      '<div class="nome-grande">' + esc(r.nome) + '</div>' +
+      (p.serieTot > 1 ? '<div class="serie">' + T.serie(p.serie, p.serieTot) + '</div>' : '') +
+      '<div class="q-grande">' + quanto(Object.assign({}, r, { serie: 1 })) + '</div>' + cfgGrande(r) +
+      '<div class="pallini" id="pallini">' + '<i></i>'.repeat(ANNUNCIO_SEC) + '</div></div>'
+    $('giu').innerHTML = '<button class="grande" id="btn-via" onclick="mostra()">' + T.via + '</button>'
+    conta(ANNUNCIO_SEC, function (sec) {
+      document.querySelectorAll('#pallini i').forEach(function (el, k) { el.classList.toggle('on', k < ANNUNCIO_SEC - sec + 1) })
+    }, mostra)
+  }
+
+  // ── 🔊 Spiegami l'esercizio a voce (scheda-paziente-v8): la voce del telefono, nessun costo, niente rete.
+  // Il testo: quello di js/scheda-immagini.js → la descrizione della libreria → nome e quanto dura.
+  // In coda la frase del fisioterapista. Il tempo NON si ferma: si può ascoltare facendo l'esercizio.
+  function testoVoce(r) {
+    const im = immagini[r.id]
+    let t = (im && im.voce) || (descrizioni[r.id] ? r.nome + '. ' + descrizioni[r.id] : '')
+    if (!t) t = r.nome + '. ' + quanto(r).replace('×', 'per') + '.'
+    if (r.testo) t += ' ' + T.fisioDice + r.testo
+    return t
+  }
+  // (niente «lookbehind» nelle espressioni: sugli iPhone meno recenti bloccherebbe tutta la pagina)
+  function frasiDa(t) { return (String(t).match(/[^.;:!?]+[.;:!?]*/g) || []).map(function (x) { return x.trim() }).filter(Boolean) }
+  let parlando = false
+  function vocePossibile() { return 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined' }
+  function zitto() {
+    parlando = false
+    try { if (vocePossibile()) speechSynthesis.cancel() } catch (e) {}
+    const b = $('btn-voce'); if (b) { b.textContent = T.spiegami; b.classList.remove('on') }
+  }
+  window.spiegami = function () {
+    if (parlando) { zitto(); return }
+    const p = passi[iPasso]; if (!p || !vocePossibile()) return
+    try { speechSynthesis.cancel() } catch (e) {}
+    const voci = speechSynthesis.getVoices ? speechSynthesis.getVoices() : []
+    const it = voci.find(function (v) { return /^it/i.test(v.lang) })
+    // Una frase alla volta: su alcuni telefoni un testo lungo si interrompe a metà.
+    const pezzi = frasiDa(testoVoce(p.riga))
+    parlando = true
+    const b = $('btn-voce'); if (b) { b.textContent = T.fermaVoce; b.classList.add('on') }
+    pezzi.forEach(function (f, k) {
+      const u = new SpeechSynthesisUtterance(f)
+      u.lang = 'it-IT'; if (it) u.voice = it; u.rate = 0.95
+      if (k === pezzi.length - 1) u.onend = function () { if (parlando) zitto() }
+      speechSynthesis.speak(u)
+    })
+  }
+  window.SchedaPaziente.testoVoce = testoVoce
+  window.SchedaPaziente.frasiDa = frasiDa
+
+  // La schermata dell'esercizio (scheda-paziente-v5): in alto il nome, in mezzo l'infografica che fa capire
+  // a colpo d'occhio cosa si fa, sotto il pannello del timer. Il tempo NON parte da solo: «▶ AVVIA».
+  let partito = false
+  window.mostra = function () {
+    ferma(); zitto(); partito = false; chiedeDolore = false
+    const p = passi[iPasso]
+    intestazione(p)
+    const r = p.riga
+    const m = media[r.id]
+    const im = immagini[r.id]
+    const figura = im && (im.scheda || im.img)
+    const testa = '<div class="es-testa">' +
+      (p.serieTot > 1 ? '<div class="etichetta">' + T.serie(p.serie, p.serieTot) + '</div>' : '') +
+      '<div class="nome-es">' + esc(r.nome) + '</div>' + cfgGrande(r) +
+      (r.testo ? '<div class="frase">' + esc(r.testo) + '</div>' : '') + '</div>'
+    const pill = (vocePossibile() ? '<button class="pillbtn voce" id="btn-voce" onclick="spiegami()">' + T.spiegami + '</button>' : '') +
+      '<div class="pill-row">' +
+      (iPasso > 0 ? '<button class="pillbtn" id="btn-prec" onclick="indietro()">' + T.prec + '</button>' : '') +
+      (m ? '<button class="pillbtn giallo guarda" onclick="guarda()">' + T.video + '</button>' : '') +
+      '<button class="pillbtn rosso" id="btn-dolore" onclick="dolore()">' + T.doloreCorto + '</button></div>'
+    const centro = $('centro')
+    if (figura) {
+      centro.className = 'palco-centro pieno'
+      centro.innerHTML = testa +
+        '<button class="figura" onclick="ingrandisci()" aria-label="' + esc(T.ingrandisci) + '">' +
+          '<img src="' + esc(figura) + '" alt="' + esc(im.alt || r.nome) + '"><span class="lente">' + T.ingrandisci + '</span></button>' +
+        pill + (tre[r.id] && !im.scheda ? '<div class="hint-3r">' + T.hint3r + '</div>' : '')
+    } else {
+      centro.className = 'palco-centro'
+      centro.innerHTML = testa + (tre[r.id] ? '<div class="hint-3r">' + T.hint3r + '</div>' : '') +
+        (r.misura === 'tempo' ? anello('', r.secondi, T.secondi)
+          : '<div><div class="rip-grandi">' + r.ripetizioni + '</div><div class="rip-sotto">' + T.ripetizioni + '</div></div>') + pill
+    }
+    if (r.misura === 'tempo') {
+      $('giu').innerHTML = '<div class="pannello">' + (figura ? anello('mini', r.secondi, T.secondi) : '') +
+        '<button class="grande" id="btn-avvia" onclick="avvia()">' + T.avvia + '</button>' +
+        '<button class="avanti-btn" id="btn-avanti" onclick="avanti()" aria-label="Esercizio successivo"><b>⏭</b><span>' + T.prossimo + '</span></button></div>'
+    } else {
+      $('giu').innerHTML = '<div class="pannello">' + (figura ? '<div class="rip-mini"><b>' + r.ripetizioni + '</b><span>' + T.ripetizioni + '</span></div>' : '') +
+        '<button class="grande" id="btn-fatto" onclick="avanti()">' + T.fatto + '</button></div>'
+    }
+  }
+  window.avvia = function () {
+    const p = passi[iPasso]; if (!p) return
+    if (!partito) { partito = true; conta(Number(p.riga.secondi), aggiornaAnello, avanti) }
+    else pausa()
+    aggiornaAvvia()
+  }
+  function aggiornaAvvia() {
+    const b = $('btn-avvia'); if (!b) return
+    b.textContent = !partito ? T.avvia : (inPausa ? T.riprendiBtn : T.pausaBtn)
+    b.classList.toggle('scuro', partito && !inPausa)
+  }
+  window.ingrandisci = function () {
+    const p = passi[iPasso]; if (!p) return
+    const im = immagini[p.riga.id]; if (!im) return
+    $('modal-tt').textContent = p.riga.nome
+    $('modal-sch').className = 'sch alta'
+    $('modal-sch').innerHTML = '<img src="' + esc(im.scheda || im.img) + '" alt="' + esc(im.alt || p.riga.nome) + '">'
+    $('modal').classList.add('show')
+  }
+
+  window.avanti = function () {
+    ferma(); zitto(); chiedeUscita = false
+    iPasso++
+    if (iPasso >= passi.length) return fine()
+    annuncio()
+  }
+
+  window.indietro = function () {
+    ferma(); zitto(); chiedeUscita = false
+    if (iPasso > 0) iPasso--
+    mostra()
+  }
+  // ⚠ Dolore: due tocchi (come la conferma di esercizio.html). Col paziente vero scriverà la nota nel diario
+  // come fa oggi (save_diary_entry, interrotto_per_dolore). In anteprima non salva e lo dice.
+  window.dolore = function () {
+    const b = $('btn-dolore'); if (!b) return
+    if (!chiedeDolore) { chiedeDolore = true; if (timer && !inPausa) pausa(); b.textContent = T.dolore2; b.classList.add('chiede'); return }
+    chiedeDolore = false
+    const p = passi[iPasso]
+    chiudiPalco()
+    const e = $('err')
+    if (SALVA) {
+      e.textContent = T.doloreSalvato
+      salvaNelDiario({ dolore: 7, completato: false, interrotto_per_dolore: true, note: 'Sessione interrotta per dolore durante ' + (p ? p.riga.nome : 'esercizio') }, 'guided')
+    } else e.textContent = T.doloreAnteprima
+    e.classList.add('show')
+    window.scrollTo(0, 0)
+  }
+  window.esci = function () {
+    if (!chiedeUscita) { chiedeUscita = true; const d = $('dove'); d.innerHTML = '<b>' + T.esciChiede + '</b>'; return }
+    chiudiPalco()
+  }
+  function chiudiPalco() {
+    ferma(); zitto(); if (audio) { try { audio.pause() } catch (e) {} audio = null } $('palco').classList.remove('show'); document.body.style.overflow = ''
+    try { if (wake) wake.release() } catch (e) {} wake = null
+  }
+
+  function fine(rapido) {
+    $('avanz').style.width = '100%'
+    const es = passi.filter(function (x) { return x.tipo === 'es' })
+    const nomi = new Set(es.map(function (x) { return x.riga.id }))
+    const minuti = rapido ? null : Math.max(1, Math.round((Date.now() - inizioSeduta) / 60000))
+    const giri = es.length ? es[0].giri : 1
+    $('dove').innerHTML = ''
+    $('centro').className = 'palco-centro'
+    $('centro').innerHTML = '<div class="festa"><div class="coppa">🏆</div><h2>' + T.bravo + '</h2><p>' + T.finito + '</p>' +
+      '<div class="riep"><div><b>' + nomi.size + '</b><span>' + T.fattiN + '</span></div>' + (minuti ? '<div><b>' + minuti + '</b><span>' + T.tempoN + '</span></div>' : '') +
+      (giri > 1 ? '<div><b>' + giri + '</b><span>' + T.giriN + '</span></div>' : '') + '</div>' +
+      '<div class="etichetta" style="color:#fff;letter-spacing:0;text-transform:none;font-size:16px">' + T.comeStai + '</div>' +
+      '<div class="facce" id="facce">' + T.risposte.map(function (r, i) {
+        return '<button onclick="faccia(' + (i + 1) + ')" aria-label="' + r.t + '"><span class="fe">' + r.e + '</span><span class="ft">' + r.t + '</span></button>' }).join('') + '</div>' +
+      '<div class="avviso-prova" id="dopo-faccia">' + (MODO_PAZIENTE ? '' : T.nonSalva) + '</div>' +
+      '<div class="streak"><div class="streak-num" id="streak-num">🔥</div><div class="streak-lab">' + T.streak + '</div><div class="streak-ant" id="streak-ant">' + (MODO_PAZIENTE ? '' : T.streakAnteprima) + '</div></div>' +
+      '<div class="motivante">' + T.frasi[Math.floor(Math.random() * T.frasi.length)] + '</div>' +
+      '<div class="sera-hint">' + T.seraHint + '</div></div>'
+    $('dove').innerHTML = '<button class="suono" id="btn-suono" onclick="cambiaSuono()" aria-label="Musica">' + (suono ? '🔊' : '🔇') + '</button>'
+    setTimeout(musica, 300)
+    if (MODO_PAZIENTE) { registraFine(rapido, es); $('giu').innerHTML = '<button class="grande" onclick="chiudiFine()">' + T.torna + '</button>'; coriandoli(); return }
+    // 🧪 In anteprima niente si salva: la faccina della casa si aggiorna solo sullo schermo, per far vedere come cambierebbe.
+    try {
+      const oggi = new Date(), g = oggi.getFullYear() + '-' + String(oggi.getMonth() + 1).padStart(2, '0') + '-' + String(oggi.getDate()).padStart(2, '0')
+      diarioLetto = (diarioLetto || []).filter(function (e) { return e.data !== g }).concat([{ data: g, completato: true }])
+      smile = calcolaSmile(diarioLetto, oggi); smile.anteprima = true
+      disegnaCasa()
+    } catch (e) {}
+    $('giu').innerHTML = '<button class="grande" onclick="chiudiFine()">' + T.torna + '</button>'
+    coriandoli()
+  }
+  // scheda-collega-v1 · fine seduta del paziente vero: una riga nel diario (come esercizio.html / rapida.html),
+  // poi i giorni di fila veri. Se non si salva, lo si dice: niente «fatto» finto.
+  async function registraFine(rapido, es) {
+    const nomi = Array.from(new Set(es.map(function (x) { return x.riga.nome })))
+    ultimaSeduta = null
+    salvataggioFine = salvaNelDiario({ completato: true, note: rapido ? 'Esercizi della scheda segnati come eseguiti.' : 'Scheda completata con la guida.' },
+      rapido ? 'manual' : 'guided', { esercizi_completati: nomi })
+    const ok = await salvataggioFine
+    const av = $('dopo-faccia')
+    if (ok === false && av) av.textContent = T.nonSalvato
+    else if (ok && av) av.textContent = T.salvato
+    if (!SALVA) return
+    try {
+      const { data: dd } = await sb.rpc('get_diary_entries', { p_token: token, p_limit: 30 })
+      const sm = calcolaSmile(dd || [], new Date())
+      const n = $('streak-num'); if (n && sm.streak > 0) n.textContent = sm.streak
+    } catch (e) {}
+  }
+
+  // La musichetta di fine seduta: lo stesso file di esercizio.html e rapida.html.
+  let audio = null
+  function musica() {
+    if (!suono) return
+    try { audio = new Audio('magnific_epic-victory.mp3'); audio.volume = 0.7; const pr = audio.play(); if (pr && pr.catch) pr.catch(function () {}) } catch (e) {}
+  }
+  window.cambiaSuono = function () {
+    suono = !suono
+    try { localStorage.setItem('policettivo_sound', suono ? 'on' : 'off') } catch (e) {}
+    $('btn-suono').textContent = suono ? '🔊' : '🔇'
+    if (!suono && audio) { try { audio.pause() } catch (e) {} }
+    else if (suono && (!audio || audio.paused)) musica()
+  }
+  window.faccia = function (v) {
+    document.querySelectorAll('#facce button').forEach(function (b, i) { b.classList.toggle('on', i === v - 1) })
+    if (MODO_PAZIENTE) { rispondi(v); return }
+    $('dopo-faccia').textContent = T.grazie + ' ' + T.nonSalva
+  }
+  // scheda-collega-v2 · la risposta va sulla STESSA riga della seduta appena salvata (upsert per client_session_id)
+  async function rispondi(v) {
+    const r = T.risposte[v - 1]; if (!r) return
+    const av = $('dopo-faccia')
+    if (!SALVA) { if (av) av.textContent = T.grazie + ' ' + T.nonSalva; return }
+    const ok = await salvataggioFine
+    if (!ok || !ultimaSeduta) { if (av) av.textContent = T.nonSalvato; return }
+    try {
+      const dati = Object.assign({}, ultimaSeduta, { risposta_post: r.k, note: String(ultimaSeduta.note || '') + T.notaRisposta(r.t) })
+      const { error } = await sb.rpc('save_diary_entry', { p_token: token, p_data: dati })
+      if (av) av.textContent = error ? T.nonSalvato : T.grazieSalvato
+    } catch (e) { if (av) av.textContent = T.nonSalvato }
+  }
+  window.chiudiFine = function () { chiudiPalco(); const c = document.querySelector('.coriandoli'); if (c) c.remove() }
+  function coriandoli() {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const box = document.createElement('div'); box.className = 'coriandoli'
+    const colori = ['#FFD008', '#ffffff', '#7fd1ff', '#ff8a80']
+    for (let i = 0; i < 60; i++) {
+      const c = document.createElement('i')
+      c.style.left = Math.random() * 100 + '%'
+      c.style.background = colori[i % colori.length]
+      c.style.animationDuration = (2 + Math.random() * 2) + 's'
+      c.style.animationDelay = (Math.random() * .8) + 's'
+      box.appendChild(c)
+    }
+    document.body.appendChild(box)
+    setTimeout(function () { box.remove() }, 5000)
+  }
+
+  // ── video ──
+  window.guarda = function () {
+    const p = passi[iPasso]; if (!p || p.tipo !== 'es') return
+    const m = media[p.riga.id]; if (!m) return
+    if (timer && !inPausa) pausa()          // guardando il video il tempo si ferma
+    $('modal-tt').textContent = p.riga.nome
+    $('modal-sch').className = 'sch'
+    $('modal-sch').innerHTML = m.yt
+      ? '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(m.yt) + '?rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>'
+      : (m.foto ? '<img src="' + esc(m.url) + '" alt="">' : '<video src="' + esc(m.url) + '" controls playsinline preload="metadata"></video>')
+    $('modal').classList.add('show')
+  }
+  window.chiudiVideo = function () { $('modal').classList.remove('show'); $('modal-sch').innerHTML = '' }
+
+  init().catch(function (e) { console.error('[scheda-paziente]', e); errore('Errore di caricamento: ' + (e && e.message || e)) })
+})()
+</script>
+</body>
+</html>

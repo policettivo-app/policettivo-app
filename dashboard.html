@@ -752,14 +752,14 @@
         <div style="background:#fffdf0;border:1.5px solid #FFD008;border-radius:10px;padding:12px 16px;font-size:12px;color:#555;margin-bottom:16px;line-height:1.7;">
           Nel protocollo puoi:<br>
           <strong>Scegliere esercizi</strong> dal catalogo<br>
-          <strong>Definire i tempi</strong> — 30s, 1m, 2m, 3m, 5m o 10m<br>
+          <strong>Definire tempi o ripetizioni</strong> per ogni esercizio<br>
           <strong>Aggiungere video personalizzati</strong> (solo Premium)
         </div>
         <div class="wizard-actions">
           <button class="btn-skip" onclick="skipWizard()">Salta per ora</button>
           <div style="display:flex;gap:10px;">
             <button class="btn-secondary" onclick="goWizardStep(2)">Indietro</button>
-            <button class="btn-copy" onclick="window.open('assegna-protocollo.html?id=' + wizardPatientId, '_blank')">Apri protocollo</button>
+            <button class="btn-copy" onclick="window.open('protocollo-esercizi.html?id=' + wizardPatientId, '_blank')">Apri Protocollo Esercizi</button><!-- scheda-ovunque-v4 -->
             <button class="btn-primary" onclick="goWizardStep(4)">Ho capito, continua</button>
           </div>
         </div>
@@ -1612,7 +1612,7 @@
         case 'visita-ft':   url = 'visita.html?pid=' + id; break
         case 'visita-pt':   url = 'valutazione-posturale.html?pid=' + id; break
         case 'seduta':      url = 'diario.html?pid=' + id + '&new=1'; break
-        case 'protocollo':  url = 'assegna-protocollo.html?id=' + id; break
+        case 'protocollo':  url = 'protocollo-esercizi.html?id=' + id; break   // scheda-ovunque-v4
         case 'pdf':         url = 'scheda-pdf.html?id=' + id; break
         case 'sintesi-ai':  url = 'paziente.html?id=' + id + '&action=sintesi-ai'; break
         default:            url = 'paziente.html?id=' + id
@@ -1729,7 +1729,7 @@
       <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;color:#aaa;line-height:1.7">
         <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">1. AGGIUNGERE UN PAZIENTE</div>Dalla Dashboard clicca <strong style="color:#fff">Nuovo paziente</strong> e inserisci nome, cognome, email e telefono. Clicca Salva.</div>
         <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">2. SCHEDA PAZIENTE</div>Clicca sul paziente per aprire la scheda. Puoi scattare foto posturali e scegliere la configurazione <strong style="color:#fff">NPL</strong> o <strong style="color:#fff">GPL</strong>.</div>
-        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">3. ASSEGNARE IL PROTOCOLLO</div>Dalla scheda paziente clicca <strong style="color:#fff">Assegna protocollo</strong>, scegli gli esercizi e salva.</div>
+        <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">3. ASSEGNARE GLI ESERCIZI</div>Dalla scheda paziente clicca <strong style="color:#fff">📋 Protocollo Esercizi</strong>, scegli gli esercizi (o un modello) e tocca <strong style="color:#fff">Salva e manda al paziente</strong>.</div>
         <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">4. LINK PAZIENTE</div>Clicca <strong style="color:#fff">Genera link</strong> poi <strong style="color:#fff">Invia via WhatsApp</strong>. Il paziente accede al protocollo dal suo smartphone.</div>
         <div><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">5. MONITORAGGIO</div>Dalla scheda paziente clicca <strong style="color:#fff">Vedi monitoraggio</strong> per grafici di aderenza e diario completo.</div>
         <div style="background:#1a1000;border:1px solid #FFD008;border-radius:8px;padding:12px 14px"><div style="color:#FFD008;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:4px">CONSIGLI PRATICI</div>Usa l app da smartphone durante la visita. Assegna sempre prima la Tecnica dei 3 Respiri. Controlla il monitoraggio prima di ogni visita.</div>

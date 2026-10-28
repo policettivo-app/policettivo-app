@@ -1,5 +1,5 @@
 /* scheda-ovunque-v1 — le funzioni pure della scheda di allenamento, in UN punto solo.
-   Le usano l'editor (scheda-prova.html) e il passaggio automatico (passa-scheda.html):
+   Le usano l'editor (protocollo-esercizi.html) e il passaggio automatico (passa-scheda.html):
    «Copia dal protocollo» e «Passa tutti» devono produrre ESATTAMENTE la stessa scheda.
    Niente database, niente pagina: solo dati dentro → dati fuori. */
 ;(function () {

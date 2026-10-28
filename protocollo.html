@@ -720,7 +720,7 @@
     function cardSchedaNuova() {
       const es = (schedaNuova.righe || []).filter(function (r) { return r.tipo === 'esercizio' })
       const giri = Number(schedaNuova.scheda.ripeti_volte) || 1
-      const url = 'scheda-paziente-prova.html?token=' + encodeURIComponent(token) + (protocol ? '&pp=' + protocol.id : '') + (isPreview ? '&preview=1' : '')
+      const url = 'esercizi-paziente.html?token=' + encodeURIComponent(token) + (protocol ? '&pp=' + protocol.id : '') + (isPreview ? '&preview=1' : '')
       const lista = es.map(function (r, i) {
         const q = r.misura === 'tempo' ? (r.secondi >= 60 && r.secondi % 60 === 0 ? (r.secondi / 60) + ' min' : r.secondi + ' sec') : r.ripetizioni + ' ripetizioni'
         return '<div class="exercise-item"><div class="exercise-num">' + (i + 1) + '</div><div class="exercise-info"><div class="exercise-name">' + escSN(r.nome) + '</div><div class="exercise-meta">' + ((r.serie || 1) > 1 ? r.serie + ' × ' : '') + q + '</div></div></div>'
