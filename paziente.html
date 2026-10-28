@@ -1082,6 +1082,8 @@
     <div class="section ds-card">
       <div class="section-title-plain ds-section-title-line">Foto posturali — Piano sagittale</div>
       <p style="font-size:13px;color:#666;margin-bottom:16px">Scatta le foto prima e dopo la Tecnica dei 3 Respiri. Poi seleziona il piano scapolare.</p>
+      <!-- foto-da-visita-v1 · le foto della visita posturale nelle caselle giuste, in un colpo -->
+      <button class="btn-secondary" id="btn-foto-da-visita" onclick="fotoDaVisitaApri()" style="width:100%;margin:0 0 16px;padding:12px 16px;font-size:14px;font-weight:700;border:1.5px solid #FFD008;background:#fffdf0;color:#000;border-radius:10px;cursor:pointer;min-height:44px">📥 Prendi le foto dalla visita posturale</button>
       <div class="foto-group-label"><span class="step-label">PRIMA</span> Piano sagittale — prima dei 3R</div>
       <div class="foto-grid-2">
         <div class="foto-slot" id="slot-prima-sx" onclick="triggerInput('prima-sx')"><div class="foto-label">Sinistro</div><div class="foto-icon">📷</div><div class="foto-hint">Tocca per foto</div></div>
@@ -5190,5 +5192,157 @@
 })()
 </script>
 <script src="js/pol-nav.js?v=nav-v1" defer></script><!-- nav-v1 · pulsante Indietro/Home -->
+
+<!-- foto-da-visita-v1 — LE FOTO DELLA VISITA POSTURALE NELLA SCHEDA PAZIENTE.
+     Se si fa prima la visita posturale completa, le sue foto (PRE e POST 3R, frontale, posteriore,
+     podoscopio) e il piano scapolare vanno nelle caselle della scheda senza ricaricarle a mano.
+     · La casella PUNTA allo stesso file della visita (nessuna copia): tiene la sua data. Il file non si
+       cancella dalla visita finché la scheda lo usa (PolFotoArchivio.fileInUso guarda patients.foto_url).
+     · Mai sopra una casella piena senza chiedere: spunta «sostituisci anche quelle già piene», spenta.
+       La foto che esce va nell'archivio come «sostituita», come quando si riscatta.
+     · Mai in automatico: si sceglie la visita, si legge cosa va dove, si conferma. -->
+<div id="fdv-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9990;align-items:flex-end;justify-content:center" onclick="if(event.target===this)fotoDaVisitaChiudi()">
+  <div style="background:#fff;width:100%;max-width:560px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:20px 18px 24px;box-sizing:border-box;font-family:Montserrat,sans-serif">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><b style="font-size:17px;flex:1">📥 Foto dalla visita posturale</b>
+      <button onclick="fotoDaVisitaChiudi()" aria-label="Chiudi" style="width:40px;height:40px;border:none;background:#f2f2f2;border-radius:8px;font-size:16px;cursor:pointer">✕</button></div>
+    <div id="fdv-corpo" style="font-size:13.5px;line-height:1.5;color:#333">Caricamento…</div>
+  </div>
+</div>
+<script>
+(function () {
+  // casella della scheda ← tipo della visita posturale (le stesse coppie di valutazione-posturale.html)
+  var MAPPA = [
+    { slot: 'prima-sx',    tipo: 'sagittale_sx_pre',      nome: 'Sagittale sinistro — PRIMA dei 3R' },
+    { slot: 'prima-dx',    tipo: 'sagittale_dx_pre',      nome: 'Sagittale destro — PRIMA dei 3R' },
+    { slot: 'dopo-sx',     tipo: 'sagittale_sx_post',     nome: 'Sagittale sinistro — DOPO i 3R' },
+    { slot: 'dopo-dx',     tipo: 'sagittale_dx_post',     nome: 'Sagittale destro — DOPO i 3R' },
+    { slot: 'frontale',    tipo: 'frontale_pre',          nome: 'Vista frontale' },
+    { slot: 'posteriore',  tipo: 'posteriore_pre',        nome: 'Vista posteriore' },
+    { slot: 'podo-sotto',  tipo: 'podoscopio_sotto_pre',  nome: 'Piede da sotto' },
+    { slot: 'podo-dietro', tipo: 'podoscopio_dietro_pre', nome: 'Piede da dietro' }
+  ]
+  var SCAP = [
+    { gruppo: 'scapolare-prima', campo: 'note_scapolare_pre',  dice: { in_asse: 'Piano scapolare in asse (prima)', anteriore: 'Piano scapolare anteriore (prima)', posteriore: 'Piano scapolare posteriore (prima)' }, nome: 'Piano scapolare — prima dei 3R' },
+    { gruppo: 'scapolare-dopo',  campo: 'note_scapolare_post', dice: { in_asse: 'Piano scapolare in asse (dopo)',  anteriore: 'Piano scapolare anteriore (dopo)',  posteriore: 'Piano scapolare posteriore (dopo)' },  nome: 'Piano scapolare — dopo i 3R' }
+  ]
+  var visite = [], scelta = null, foto = [], sostituisci = false, lavoro = false
+
+  function $(id) { return document.getElementById(id) }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
+  function dataIt(d) { try { return d ? new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'data non registrata' } catch (e) { return 'data non registrata' } }
+  function caselle() { try { return JSON.parse(patient.foto_url || '{}') || {} } catch (e) { return null } }
+  function piena(v) { return !!v && v !== '{}' }
+  function bottoneScap(s, val) {
+    var testo = s.dice[val]; if (!testo) return null
+    var b = null
+    document.querySelectorAll('.obs-btn').forEach(function (x) {
+      var m = (x.getAttribute('onclick') || '').match(/selectObs\('([^']+)','([^']+)'/)
+      if (m && m[1] === s.gruppo && m[2] === testo) b = x
+    })
+    return b
+  }
+
+  window.fotoDaVisitaChiudi = function () { if (!lavoro) $('fdv-overlay').style.display = 'none' }
+
+  window.fotoDaVisitaApri = async function () {
+    $('fdv-overlay').style.display = 'flex'
+    if (!window.PolFotoArchivio) { $('fdv-corpo').innerHTML = 'Non riesco a caricare l\'archivio delle foto: ricarica la pagina e riprova. Non ho cambiato niente.'; return }
+    $('fdv-corpo').innerHTML = 'Cerco le visite posturali…'
+    sostituisci = false
+    try {
+      var rv = await _supabase.from('visits').select('*').eq('patient_id', patientId).eq('tipo', 'posturale').order('data_visita', { ascending: false })
+      if (rv.error) throw rv.error
+      visite = rv.data || []
+      if (!visite.length) { $('fdv-corpo').innerHTML = 'Questo paziente non ha ancora una visita posturale. Le foto si scattano qui, nelle caselle, oppure prima nella visita posturale.'; return }
+      var ids = visite.map(function (v) { return v.id })
+      var rf = await _supabase.from('visit_photos').select('id, visit_id, tipo, storage_path').in('visit_id', ids)
+      if (rf.error) throw rf.error
+      foto = rf.data || []
+      // si parte dalla visita più recente che ha almeno una foto utile
+      scelta = (visite.find(function (v) { return conta(v.id) > 0 }) || visite[0]).id
+      disegna()
+    } catch (e) {
+      $('fdv-corpo').innerHTML = '<div style="color:#c62828;font-weight:600">Non riesco a leggere le visite: ' + esc(e.message || e) + '. Non ho cambiato niente.</div>'
+    }
+  }
+  function fotoDi(visitId, tipo) {
+    return foto.filter(function (f) { return f.visit_id === visitId && f.tipo === tipo && f.storage_path && f.storage_path.indexOf('data:') !== 0 && f.storage_path.indexOf('http') !== 0 })
+      .sort(function (a, b) { return String(b.storage_path) < String(a.storage_path) ? -1 : 1 })[0] || null
+  }
+  function conta(visitId) { return MAPPA.filter(function (m) { return fotoDi(visitId, m.tipo) }).length }
+
+  function piano() {
+    var c = caselle(), v = visite.find(function (x) { return x.id === scelta }) || {}
+    var righe = MAPPA.map(function (m) {
+      var f = fotoDi(scelta, m.tipo)
+      if (!f) return { m: m, stato: 'manca' }
+      if (c && piena(c[m.slot]) && PolFotoArchivio.percorsoDi(c[m.slot]) === f.storage_path) return { m: m, stato: 'gia' }
+      if (c && piena(c[m.slot]) && !sostituisci) return { m: m, stato: 'piena', f: f }
+      return { m: m, stato: 'va', f: f, sostituisce: !!(c && piena(c[m.slot])) }
+    })
+    var scap = SCAP.map(function (s) {
+      var val = v[s.campo]; if (!val) return { s: s, stato: 'manca' }
+      var b = bottoneScap(s, val); if (!b) return { s: s, stato: 'manca' }
+      if (b.classList.contains('selected')) return { s: s, stato: 'gia', b: b }
+      var altro = obsSelections && obsSelections[s.gruppo]
+      if (altro && !sostituisci) return { s: s, stato: 'piena', b: b }
+      return { s: s, stato: 'va', b: b, val: val }
+    })
+    return { righe: righe, scap: scap }
+  }
+
+  function disegna(esito) {
+    var p = piano()
+    var n = p.righe.filter(function (r) { return r.stato === 'va' }).length + p.scap.filter(function (r) { return r.stato === 'va' }).length
+    var piene = p.righe.some(function (r) { return r.stato === 'piena' || r.sostituisce }) || p.scap.some(function (r) { return r.stato === 'piena' })
+    var sel = '<label style="display:block;font-size:12px;font-weight:700;color:#666;margin:6px 0 4px">Visita posturale</label>' +
+      '<select id="fdv-visita" onchange="fotoDaVisitaScegli(this.value)" style="width:100%;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:12px">' +
+      visite.map(function (v) { return '<option value="' + esc(v.id) + '"' + (v.id === scelta ? ' selected' : '') + '>' + dataIt(v.data_visita) + ' — ' + conta(v.id) + ' foto</option>' }).join('') + '</select>'
+    var riga = function (nome, stato) {
+      var t = { va: ['#2e7d32', '✓ la porto nella casella'], gia: ['#777', '= c\'è già questa'], manca: ['#999', '— non c\'è nella visita'], piena: ['#8a6d00', 'casella già piena — non la tocco'] }[stato]
+      return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0f0"><span>' + esc(nome) + '</span><span style="color:' + t[0] + ';font-size:12.5px;font-weight:600;text-align:right">' + t[1] + '</span></div>'
+    }
+    $('fdv-corpo').innerHTML = (esito || '') + sel +
+      p.righe.map(function (r) { return riga(r.m.nome, r.stato === 'va' && r.sostituisce ? 'va' : r.stato) }).join('') +
+      p.scap.map(function (r) { return riga(r.s.nome, r.stato) }).join('') +
+      (piene ? '<label style="display:flex;gap:8px;align-items:center;margin:12px 0 0;font-size:13px"><input type="checkbox" id="fdv-sost" ' + (sostituisci ? 'checked' : '') + ' onchange="fotoDaVisitaSostituisci(this.checked)" style="width:20px;height:20px"> Sostituisci anche le caselle già piene (le foto di prima restano nell\'archivio)</label>' : '') +
+      '<button id="fdv-vai" onclick="fotoDaVisitaVai()" ' + (n ? '' : 'disabled') + ' style="width:100%;margin-top:14px;padding:14px;border:none;border-radius:10px;background:' + (n ? '#FFD008' : '#eee') + ';color:#000;font-family:inherit;font-size:15px;font-weight:800;min-height:48px;cursor:' + (n ? 'pointer' : 'default') + '">' +
+      (n ? 'Porta ' + n + (n === 1 ? ' elemento' : ' elementi') + ' nella scheda' : 'Niente da portare') + '</button>'
+  }
+  window.fotoDaVisitaScegli = function (id) { scelta = id; disegna() }
+  window.fotoDaVisitaSostituisci = function (on) { sostituisci = !!on; disegna() }
+
+  window.fotoDaVisitaVai = async function () {
+    if (lavoro) return
+    var p = piano(), daFare = p.righe.filter(function (r) { return r.stato === 'va' })
+    lavoro = true
+    var b = $('fdv-vai'); if (b) { b.disabled = true; b.textContent = 'Porto le foto…' }
+    var ok = 0, ko = []
+    for (var i = 0; i < daFare.length; i++) {
+      var r = daFare[i]
+      try {
+        var c = await PolFotoArchivio.impostaCasellaScheda(_supabase, patientId, r.m.slot, { storage_path: r.f.storage_path })
+        patient.foto_url = c.foto_url
+        var vecchio = PolFotoArchivio.percorsoDi(c.prima)
+        if (vecchio && vecchio !== r.f.storage_path) await PolFotoArchivio.segnaSostituita(_supabase, patientId, vecchio, 'scheda', r.m.slot)
+        var m = {}; m[r.m.slot] = r.f.storage_path
+        var res = await polResolveFotoMappa(m, _supabase)
+        if (res[r.m.slot]) showFotoPreview(r.m.slot, res[r.m.slot])
+        if (typeof _etichettaOraCasella === 'function') _etichettaOraCasella(r.m.slot)
+        ok++
+      } catch (e) { ko.push(r.m.nome + ' (' + (e && e.message || e) + ')') }
+    }
+    p.scap.filter(function (r) { return r.stato === 'va' }).forEach(function (r) {
+      try {
+        selectObs(r.s.gruppo, r.s.dice[r.val], r.b); ok++   // come un tocco sul pulsante: nota clinica compresa
+      } catch (e) { ko.push(r.s.nome) }
+    })
+    if (typeof _fotoLoaded !== 'undefined') { try { _fotoLoaded = false } catch (e) {} }
+    lavoro = false
+    disegna('<div style="background:' + (ko.length ? '#ffebee' : '#e8f5e9') + ';border-radius:10px;padding:10px 12px;margin-bottom:10px;font-weight:600">' +
+      (ko.length ? '⚠️ ' : '✅ ') + 'Portati nella scheda: ' + ok + (ko.length ? '<br>Non riusciti: ' + ko.map(esc).join(', ') : '') + '</div>')
+  }
+})()
+</script>
 </body>
 </html>
