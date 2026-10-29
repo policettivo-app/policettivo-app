@@ -1,0 +1,186 @@
+#!/bin/bash
+# ═══════════════════════════════════════════════════════════════════════
+#  BACKUP POLICETTIVO — doppio clic, una volta al mese.  (backup-v1)
+#
+#  Salva sul disco cifrato «Backup-Policettivo»:
+#    • il DATABASE completo (tabelle e dati dell'app: pazienti, visite,
+#      sedute, diario, fatture, consensi, account…) in un file .dump
+#      con la data: ogni mese un file nuovo, i vecchi restano;
+#    • tutti i FILE (foto, video, referti, PDF, loghi) nella cartella
+#      «file»: si scaricano solo quelli che mancano (i file dell'app non
+#      cambiano mai dopo il caricamento, prendono un nome nuovo).
+#
+#  Le chiavi NON stanno qui: stanno in ~/.policettivo-backup (solo tuo,
+#  permessi 600). Alla prima volta lo script te le chiede.
+#  Niente viene modificato su Supabase: lo script LEGGE soltanto.
+#
+#  Per riaprire un backup: vedi LEGGIMI.txt sul disco.
+# ═══════════════════════════════════════════════════════════════════════
+
+DISCO="${BACKUP_DISCO:-/Volumes/Backup-Policettivo}"
+CHIAVI="${BACKUP_CHIAVI:-$HOME/.policettivo-backup}"
+PGBIN="${BACKUP_PGBIN:-/Applications/Postgres.app/Contents/Versions/latest/bin}"
+
+rosso() { printf '\n\033[1;31m%s\033[0m\n' "$*"; }
+verde() { printf '\033[1;32m%s\033[0m\n' "$*"; }
+passo() { printf '\n\033[1m▶ %s\033[0m\n' "$*"; }
+fine()  { echo; read -r -p "Premi Invio per chiudere questa finestra." _; exit "${1:-0}"; }
+
+echo "═══════════════════════════════════════════"
+echo "   BACKUP POLICETTIVO — $(date '+%d/%m/%Y %H:%M')"
+echo "═══════════════════════════════════════════"
+
+# ── 1. controlli prima di cominciare ──────────────────────────────────
+if [ ! -d "$DISCO" ]; then
+  rosso "Il disco «Backup-Policettivo» non è collegato (o non è sbloccato)."
+  echo "Collegalo, inserisci la sua password e rilancia questo file."
+  fine 1
+fi
+if [ ! -x "$PGBIN/pg_dump" ]; then
+  rosso "Manca Postgres.app."
+  echo "Scaricalo da https://postgresapp.com, trascinalo in Applicazioni, aprilo una volta, poi rilancia."
+  fine 1
+fi
+VER=$("$PGBIN/pg_dump" --version | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+if [ "${VER:-0}" -lt 17 ]; then
+  rosso "Postgres.app è alla versione $VER: per il database di Policettivo serve la 17 o più nuova."
+  echo "Aggiorna Postgres.app (scaricalo di nuovo da postgresapp.com) e rilancia."
+  fine 1
+fi
+for p in curl; do command -v "$p" >/dev/null || { rosso "Manca il programma $p."; fine 1; }; done
+
+# ── 2. le chiavi (solo la prima volta) ────────────────────────────────
+if [ ! -f "$CHIAVI" ]; then
+  passo "Prima volta: servono due chiavi da Supabase (restano SOLO su questo Mac)."
+  echo
+  echo "1) Indirizzo del database — Supabase → pulsante «Connect» in alto → «Session pooler»."
+  echo "   Copia la riga che comincia con postgresql:// e metti la password del database"
+  echo "   al posto di [YOUR-PASSWORD]."
+  read -r -p "   Incollala qui e premi Invio: " URL_DB
+  echo
+  echo "2) Chiave di servizio — Supabase → Project Settings → API Keys → «secret» (o service_role)."
+  read -r -s -p "   Incollala qui (non si vede mentre scrivi) e premi Invio: " CHIAVE_SRV
+  echo
+  case "$URL_DB" in postgres://*|postgresql://*) ;; *) rosso "L'indirizzo deve cominciare con postgresql://"; fine 1;; esac
+  case "$URL_DB" in *YOUR-PASSWORD*) rosso "Hai lasciato [YOUR-PASSWORD]: mettici la password vera."; fine 1;; esac
+  [ -n "$CHIAVE_SRV" ] || { rosso "Chiave di servizio vuota."; fine 1; }
+  umask 077
+  {
+    printf 'URL_DB=%q\n' "$URL_DB"
+    printf 'CHIAVE_SRV=%q\n' "$CHIAVE_SRV"
+    printf 'URL_API=%q\n' "${BACKUP_URL_API:-https://kazlnoikvwdqwvxtigej.supabase.co}"
+  } > "$CHIAVI"
+  chmod 600 "$CHIAVI"
+  verde "Chiavi salvate in $CHIAVI (solo il tuo utente può leggerle)."
+fi
+# shellcheck disable=SC1090
+. "$CHIAVI"
+
+QUANDO=$(date '+%Y-%m-%d_%H%M')
+DEST="$DISCO/database"
+FILE_DIR="$DISCO/file"
+REG="$DISCO/registro-backup.txt"
+mkdir -p "$DEST" "$FILE_DIR" || { rosso "Non riesco a scrivere sul disco."; fine 1; }
+
+# ── 3. il database ────────────────────────────────────────────────────
+passo "1/3 · Copio il database…"
+DUMP="$DEST/policettivo_$QUANDO.dump"
+# public = i dati dell'app; auth = gli account (email, accessi); storage = l'elenco dei file
+SOLO_PUBLIC=""; DB_OK=1
+if ! "$PGBIN/pg_dump" "$URL_DB" --format=custom --no-owner --no-privileges \
+       --schema=public --schema=auth --schema=storage --file="$DUMP.parziale" 2> "$DEST/ultimo-errore.txt"; then
+  # se gli account o l'elenco file non si possono leggere, si salvano almeno TUTTI i dati dell'app
+  if grep -qi "permission denied" "$DEST/ultimo-errore.txt" && "$PGBIN/pg_dump" "$URL_DB" --format=custom --no-owner --no-privileges \
+       --schema=public --file="$DUMP.parziale" 2>> "$DEST/ultimo-errore.txt"; then
+    SOLO_PUBLIC=" (solo i dati dell'app: account ed elenco file non leggibili con questa chiave)"
+  else
+    DB_OK=0
+  fi
+fi
+if [ "$DB_OK" -ne 1 ] || [ ! -s "$DUMP.parziale" ]; then
+  rosso "Copia del database NON riuscita. Il motivo:"
+  tail -5 "$DEST/ultimo-errore.txt"
+  echo
+  echo "Se dice «password authentication failed»: la password nell'indirizzo è sbagliata."
+  echo "Cancella il file delle chiavi e rilancia:   rm ~/.policettivo-backup"
+  rm -f "$DUMP.parziale"
+  fine 1
+fi
+mv "$DUMP.parziale" "$DUMP"
+rm -f "$DEST/ultimo-errore.txt"
+TABELLE=$("$PGBIN/pg_restore" --list "$DUMP" | grep -c ' TABLE DATA ')
+verde "   Database salvato: $(du -h "$DUMP" | cut -f1 | tr -d ' ') · $TABELLE tabelle con dati$SOLO_PUBLIC"
+
+# ── 4. i file ─────────────────────────────────────────────────────────
+passo "2/3 · Leggo l'elenco dei file…"
+ELENCO="$DISCO/.elenco-file.tsv"
+if ! "$PGBIN/psql" "$URL_DB" -X -A -t -F $'\t' -c \
+     "select bucket_id, name, coalesce((metadata->>'size')::bigint, -1) from storage.objects where name is not null and name not like '%/.emptyFolderPlaceholder' order by bucket_id, name" \
+     > "$ELENCO" 2> "$DISCO/.errore-elenco.txt"; then
+  rosso "Non riesco a leggere l'elenco dei file:"; tail -3 "$DISCO/.errore-elenco.txt"; fine 1
+fi
+rm -f "$DISCO/.errore-elenco.txt"
+TOT=$(grep -c . "$ELENCO" || true)
+echo "   $TOT file in Supabase."
+
+codifica() {  # ogni pezzo del percorso, come lo vuole l'indirizzo web
+  local s="$1" out="" c i
+  LC_ALL=C
+  for (( i=0; i<${#s}; i++ )); do
+    c="${s:i:1}"
+    case "$c" in [a-zA-Z0-9.~_/-]) out="$out$c" ;; *) out="$out$(printf '%%%02X' "'$c")" ;; esac
+  done
+  printf '%s' "$out"
+}
+
+passo "3/3 · Scarico i file che mancano…"
+# le chiavi nuove (sb_secret_…) vanno solo in «apikey»; quelle vecchie (eyJ…) anche in Authorization
+AUT=(); case "$CHIAVE_SRV" in eyJ*) AUT=(-H "Authorization: Bearer $CHIAVE_SRV") ;; esac
+NUOVI=0; GIA=0; ERR=0; N=0
+: > "$DISCO/.file-non-scaricati.txt"
+while IFS=$'\t' read -r BUCKET NOME DIM; do
+  [ -n "$BUCKET" ] || continue
+  N=$((N+1))
+  F="$FILE_DIR/$BUCKET/$NOME"
+  if [ -f "$F" ] && { [ "$DIM" -lt 0 ] || [ "$(wc -c < "$F" | tr -d ' ')" = "$DIM" ]; }; then
+    GIA=$((GIA+1)); continue
+  fi
+  mkdir -p "$(dirname "$F")"
+  if curl -sS -f --retry 2 -o "$F.parziale" "${AUT[@]}" -H "apikey: $CHIAVE_SRV" \
+       "$URL_API/storage/v1/object/authenticated/$BUCKET/$(codifica "$NOME")" 2>>"$DISCO/.file-non-scaricati.txt"; then
+    mv "$F.parziale" "$F"; NUOVI=$((NUOVI+1))
+  else
+    rm -f "$F.parziale"; ERR=$((ERR+1)); echo "$BUCKET/$NOME" >> "$DISCO/.file-non-scaricati.txt"
+  fi
+  if [ $((N % 25)) -eq 0 ]; then printf '\r   %s di %s…' "$N" "$TOT"; fi
+done < "$ELENCO"
+printf '\r   %s di %s.        \n' "$N" "$TOT"
+verde "   Nuovi: $NUOVI · già presenti: $GIA"
+[ "$ERR" -gt 0 ] && rosso "   Non scaricati: $ERR (elenco in $DISCO/.file-non-scaricati.txt) — rilancia più tardi: riprova solo quelli."
+
+# ── 5. registro e LEGGIMI ─────────────────────────────────────────────
+echo "$(date '+%d/%m/%Y %H:%M') · database $(basename "$DUMP") ($TABELLE tabelle) · file: $TOT in Supabase, $NUOVI nuovi, $ERR non scaricati" >> "$REG"
+cat > "$DISCO/LEGGIMI.txt" <<'TXT'
+BACKUP POLICETTIVO — come è fatto e come si riapre
+==================================================
+database/policettivo_AAAA-MM-GG_HHMM.dump
+    Una copia completa del database per ogni backup (formato pg_dump «custom»).
+    Contiene i dati dell'app (schema public), gli account (auth) e l'elenco dei file (storage).
+file/<contenitore>/<percorso>
+    Tutti i file caricati nell'app (foto, video, referti, loghi), con lo stesso percorso che hanno su Supabase.
+registro-backup.txt
+    Una riga per ogni backup fatto.
+
+Per CONTROLLARE un backup (senza toccare niente online), con Postgres.app aperto:
+    /Applications/Postgres.app/Contents/Versions/latest/bin/pg_restore --list database/<file>.dump
+Per RIPRISTINARE in caso di disastro: non farlo da solo. Il ripristino va fatto su un progetto
+Supabase nuovo, poi si ricaricano i file della cartella «file» negli stessi contenitori.
+TXT
+
+echo
+echo "═══════════════════════════════════════════"
+if [ "$ERR" -eq 0 ]; then verde "   ✅ BACKUP COMPLETO"; else rosso "   ⚠️ BACKUP FATTO, MA $ERR FILE NON SCARICATI"; fi
+echo "   Disco libero: $(df -h "$DISCO" | awk 'NR==2{print $4}')"
+echo "═══════════════════════════════════════════"
+echo "Ora puoi espellere il disco (clic destro → Espelli) e metterlo al sicuro."
+fine 0
