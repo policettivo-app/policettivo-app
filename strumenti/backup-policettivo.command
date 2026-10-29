@@ -53,10 +53,17 @@ for p in curl; do command -v "$p" >/dev/null || { rosso "Manca il programma $p."
 if [ ! -f "$CHIAVI" ]; then
   passo "Prima volta: servono due chiavi da Supabase (restano SOLO su questo Mac)."
   echo
-  echo "1) Indirizzo del database — Supabase → pulsante «Connect» in alto → «Session pooler»."
-  echo "   Copia la riga che comincia con postgresql:// e metti la password del database"
-  echo "   al posto di [YOUR-PASSWORD]."
+  echo "1) Indirizzo del database — Supabase → pulsante «Connect» → «Direct» → «Session pooler»."
+  echo "   Copia la riga che comincia con postgresql:// (anche con [YOUR-PASSWORD] dentro)."
   read -r -p "   Incollala qui e premi Invio: " URL_DB
+  case "$URL_DB" in *YOUR-PASSWORD*)
+    read -r -s -p "   Ora la PASSWORD del database (non si vede mentre scrivi) e premi Invio: " PW_DB; echo
+    PW_COD=""; LC_ALL=C
+    for (( i=0; i<${#PW_DB}; i++ )); do c="${PW_DB:i:1}"
+      case "$c" in [a-zA-Z0-9._~-]) PW_COD="$PW_COD$c" ;; *) PW_COD="$PW_COD$(printf '%%%02X' "'$c")" ;; esac
+    done
+    URL_DB="${URL_DB/\[YOUR-PASSWORD\]/$PW_COD}"
+  ;; esac
   echo
   echo "2) Chiave di servizio — Supabase → Project Settings → API Keys → «secret» (o service_role)."
   read -r -s -p "   Incollala qui (non si vede mentre scrivi) e premi Invio: " CHIAVE_SRV
