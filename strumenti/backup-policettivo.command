@@ -56,8 +56,10 @@ if [ ! -f "$CHIAVI" ]; then
   echo "1) Indirizzo del database — Supabase → pulsante «Connect» → «Direct» → «Session pooler»."
   echo "   Copia la riga che comincia con postgresql:// (anche con [YOUR-PASSWORD] dentro)."
   read -r -p "   Incollala qui e premi Invio: " URL_DB
+  URL_DB="$(printf '%s' "$URL_DB" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
   case "$URL_DB" in *YOUR-PASSWORD*)
     read -r -s -p "   Ora la PASSWORD del database (non si vede mentre scrivi) e premi Invio: " PW_DB; echo
+    PW_DB="$(printf '%s' "$PW_DB" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"   # niente spazi incollati per sbaglio
     PW_COD=""; LC_ALL=C
     for (( i=0; i<${#PW_DB}; i++ )); do c="${PW_DB:i:1}"
       case "$c" in [a-zA-Z0-9._~-]) PW_COD="$PW_COD$c" ;; *) PW_COD="$PW_COD$(printf '%%%02X' "'$c")" ;; esac
@@ -108,8 +110,20 @@ if [ "$DB_OK" -ne 1 ] || [ ! -s "$DUMP.parziale" ]; then
   rosso "Copia del database NON riuscita. Il motivo:"
   tail -5 "$DEST/ultimo-errore.txt"
   echo
-  echo "Se dice «password authentication failed»: la password nell'indirizzo è sbagliata."
-  echo "Cancella il file delle chiavi e rilancia:   rm ~/.policettivo-backup"
+  CHI=$(printf '%s' "$URL_DB" | sed -E 's#^postgres(ql)?://([^:@/]+).*@([^:/?]+).*#utente \2 · server \3#')
+  echo "   (collegamento usato: $CHI)"
+  if grep -qi "password authentication failed" "$DEST/ultimo-errore.txt"; then
+    rm -f "$CHIAVI"
+    echo
+    echo "La PASSWORD del database non è stata accettata. Ho cancellato le chiavi salvate:"
+    echo "rilancia questo file e te le richiede. Controlla che:"
+    echo "  • l'utente sia postgres.kazlnoikvwdqwvxtigej (riga del «Session pooler»);"
+    echo "  • la password sia quella NUOVA (se l'hai appena cambiata, aspetta 2-3 minuti)."
+  elif grep -qi "Tenant or user not found" "$DEST/ultimo-errore.txt"; then
+    rm -f "$CHIAVI"
+    echo
+    echo "La riga non è quella del «Session pooler». Ho cancellato le chiavi salvate: rilancia e incolla quella giusta."
+  fi
   rm -f "$DUMP.parziale"
   fine 1
 fi
