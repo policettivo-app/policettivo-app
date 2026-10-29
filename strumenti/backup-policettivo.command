@@ -155,9 +155,10 @@ codifica() {  # ogni pezzo del percorso, come lo vuole l'indirizzo web
 }
 
 passo "3/3 · Scarico i file che mancano…"
-# le chiavi nuove (sb_secret_…) vanno solo in «apikey»; quelle vecchie (eyJ…) anche in Authorization
-AUT=(); case "$CHIAVE_SRV" in eyJ*) AUT=(-H "Authorization: Bearer $CHIAVE_SRV") ;; esac
-NUOVI=0; GIA=0; ERR=0; N=0
+# la chiave va in tutti e due i posti (come fa la libreria ufficiale): solo in «apikey» il server dei file rispondeva 400
+AUT=(-H "Authorization: Bearer $CHIAVE_SRV")
+PRIMO_ERRORE=""
+NUOVI=0; GIA=0; ERR=0; N=0; STOP=""
 : > "$DISCO/.file-non-scaricati.txt"
 while IFS=$'\t' read -r BUCKET NOME DIM; do
   [ -n "$BUCKET" ] || continue
@@ -167,16 +168,24 @@ while IFS=$'\t' read -r BUCKET NOME DIM; do
     GIA=$((GIA+1)); continue
   fi
   mkdir -p "$(dirname "$F")"
-  if curl -sS -f --retry 2 -o "$F.parziale" "${AUT[@]}" -H "apikey: $CHIAVE_SRV" \
-       "$URL_API/storage/v1/object/authenticated/$BUCKET/$(codifica "$NOME")" 2>>"$DISCO/.file-non-scaricati.txt"; then
+  CODICE=$(curl -sS --retry 2 -o "$F.parziale" -w '%{http_code}' "${AUT[@]}" -H "apikey: $CHIAVE_SRV" \
+       "$URL_API/storage/v1/object/authenticated/$BUCKET/$(codifica "$NOME")" 2>>"$DISCO/.file-non-scaricati.txt")
+  if [ "$CODICE" = "200" ]; then
     mv "$F.parziale" "$F"; NUOVI=$((NUOVI+1))
   else
-    rm -f "$F.parziale"; ERR=$((ERR+1)); echo "$BUCKET/$NOME" >> "$DISCO/.file-non-scaricati.txt"
+    if [ -z "$PRIMO_ERRORE" ]; then
+      PRIMO_ERRORE="risposta $CODICE: $(head -c 200 "$F.parziale" 2>/dev/null | tr -d '\n')"
+      rosso "   Il primo file non scaricato: $PRIMO_ERRORE"
+    fi
+    # se i primi 3 NON passano per un motivo di accesso, inutile provare gli altri 2000
+    case "$CODICE" in 400|401|403) if [ "$NUOVI" -eq 0 ] && [ "$ERR" -ge 2 ]; then rm -f "$F.parziale"; echo "$BUCKET/$NOME · risposta $CODICE" >> "$DISCO/.file-non-scaricati.txt"; ERR=$((ERR+1)); STOP=1; break; fi ;; esac
+    rm -f "$F.parziale"; ERR=$((ERR+1)); echo "$BUCKET/$NOME · risposta $CODICE" >> "$DISCO/.file-non-scaricati.txt"
   fi
   if [ $((N % 25)) -eq 0 ]; then printf '\r   %s di %s…' "$N" "$TOT"; fi
 done < "$ELENCO"
 printf '\r   %s di %s.        \n' "$N" "$TOT"
 verde "   Nuovi: $NUOVI · già presenti: $GIA"
+[ -n "$STOP" ] && rosso "   Mi sono fermato al primo file: la chiave non viene accettata dal server dei file. Rimandami la riga rossa qui sopra."
 [ "$ERR" -gt 0 ] && rosso "   Non scaricati: $ERR (elenco in $DISCO/.file-non-scaricati.txt) — rilancia più tardi: riprova solo quelli."
 
 # ── 5. registro e LEGGIMI ─────────────────────────────────────────────
