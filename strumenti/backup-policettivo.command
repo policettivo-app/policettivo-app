@@ -156,7 +156,26 @@ codifica() {  # ogni pezzo del percorso, come lo vuole l'indirizzo web
 
 passo "3/3 · Scarico i file che mancano…"
 # la chiave va in tutti e due i posti (come fa la libreria ufficiale): solo in «apikey» il server dei file rispondeva 400
-AUT=(-H "Authorization: Bearer $CHIAVE_SRV")
+# QUALE MODO ACCETTA IL SERVER DEI FILE: si prova sul primo file, nei due modi possibili.
+#  · solo «apikey»: è il modo delle chiavi nuove (sb_secret_…), il server la traduce da sé;
+#  · «apikey» + «Authorization»: il modo delle chiavi vecchie (eyJ…).
+# (con la chiave nuova anche in Authorization il server risponde «Invalid Compact JWS»)
+AUT=()
+IFS=$'\t' read -r B0 N0 _ < "$ELENCO"
+PROVA="$DISCO/.prova-file"
+C1=$(curl -sS -o "$PROVA" -w '%{http_code}' -H "apikey: $CHIAVE_SRV" "$URL_API/storage/v1/object/authenticated/$B0/$(codifica "$N0")" 2>/dev/null)
+R1=$(head -c 160 "$PROVA" 2>/dev/null | tr -d '\n')
+if [ "$C1" != "200" ]; then
+  C2=$(curl -sS -o "$PROVA" -w '%{http_code}' -H "apikey: $CHIAVE_SRV" -H "Authorization: Bearer $CHIAVE_SRV" "$URL_API/storage/v1/object/authenticated/$B0/$(codifica "$N0")" 2>/dev/null)
+  R2=$(head -c 160 "$PROVA" 2>/dev/null | tr -d '\n')
+  if [ "$C2" = "200" ]; then AUT=(-H "Authorization: Bearer $CHIAVE_SRV")
+  else
+    rosso "   Il server dei file non accetta la chiave in nessuno dei due modi:"
+    echo "   A) $C1 $R1"
+    echo "   B) $C2 $R2"
+  fi
+fi
+rm -f "$PROVA"
 PRIMO_ERRORE=""
 NUOVI=0; GIA=0; ERR=0; N=0; STOP=""
 : > "$DISCO/.file-non-scaricati.txt"
