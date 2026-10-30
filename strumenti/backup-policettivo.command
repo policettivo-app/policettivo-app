@@ -169,6 +169,23 @@ if [ "$C1" != "200" ]; then
   C2=$(curl -sS -o "$PROVA" -w '%{http_code}' -H "apikey: $CHIAVE_SRV" -H "Authorization: Bearer $CHIAVE_SRV" "$URL_API/storage/v1/object/authenticated/$B0/$(codifica "$N0")" 2>/dev/null)
   R2=$(head -c 160 "$PROVA" 2>/dev/null | tr -d '\n')
   if [ "$C2" = "200" ]; then AUT=(-H "Authorization: Bearer $CHIAVE_SRV")
+  elif case "$CHIAVE_SRV" in eyJ*) false;; *) true;; esac; then
+    # Il server dei file di questo progetto vuole una chiave in formato JWT (eyJ…): le chiavi
+    # nuove sb_secret_ non le accetta. Si chiede UNA volta la chiave «service_role» (legacy).
+    echo
+    echo "   Il server dei file vuole la chiave nel formato vecchio. Supabase → Project Settings → API Keys"
+    echo "   → scheda «Legacy API Keys» → «service_role» → Reveal → copia (comincia con eyJ)."
+    read -r -s -p "   Incollala qui (non si vede) e premi Invio: " CHIAVE_JWT; echo
+    CHIAVE_JWT="$(printf '%s' "$CHIAVE_JWT" | tr -d '\r[:space:]')"
+    C3=$(curl -sS -o "$PROVA" -w '%{http_code}' -H "apikey: $CHIAVE_JWT" -H "Authorization: Bearer $CHIAVE_JWT" "$URL_API/storage/v1/object/authenticated/$B0/$(codifica "$N0")" 2>/dev/null)
+    if [ "$C3" = "200" ]; then
+      CHIAVE_SRV="$CHIAVE_JWT"; AUT=(-H "Authorization: Bearer $CHIAVE_SRV")
+      sed -i '' -e '/^CHIAVE_SRV=/d' "$CHIAVI" 2>/dev/null || sed -i -e '/^CHIAVE_SRV=/d' "$CHIAVI"
+      printf 'CHIAVE_SRV=%q\n' "$CHIAVE_SRV" >> "$CHIAVI"; chmod 600 "$CHIAVI"
+      verde "   Chiave accettata e salvata: dalla prossima volta non te la chiedo più."
+    else
+      rosso "   Neanche questa è accettata: $C3 $(head -c 160 "$PROVA" 2>/dev/null | tr -d '\n')"
+    fi
   else
     rosso "   Il server dei file non accetta la chiave in nessuno dei due modi:"
     echo "   A) $C1 $R1"
