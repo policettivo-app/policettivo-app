@@ -28,6 +28,18 @@
  *   Le poche pagine che non includono nessuno dei tre hanno il tag a mano.
  *   Le pagine rivolte al PAZIENTE non devono mai caricarlo.
  */
+/* accetta-termini-v1 — pol-lock.js e' gia' su tutte le pagine del professionista:
+   da qui si carica anche la finestra di accettazione di Termini, DPA e Privacy
+   (js/pol-accordo.js). Senza login quel file non fa nulla. */
+(function () {
+  if (window.__polAccordoInject) return;
+  window.__polAccordoInject = true;
+  var s = document.createElement('script');
+  s.src = 'js/pol-accordo.js';
+  s.async = true;
+  (document.head || document.documentElement).appendChild(s);
+})();
+
 (function () {
   'use strict';
   if (window.__polLockAvviato) return;
